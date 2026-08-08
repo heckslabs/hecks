@@ -9,49 +9,65 @@
 #
 #   bin/project_rust <domain>
 #
-# THIRD SLICE. Built directly against docs/guides/writing-a-port.md (the
-# IR shape and the dispatch order), docs/guides/commands.md (the refusal
-# roster and creating-vs-acting), and docs/guides/aggregates-and-value-objects.md
-# (closed sets, nesting). Every design choice below is either cited
-# against one of those three, or explicitly flagged as NOT covered by a
-# guide.
+# FOURTH SLICE — an architecture change, not just more coverage. The
+# first three slices generated bespoke Rust CONTROL FLOW per command
+# SHAPE: one Ruby method for a plain creating command, a second for an
+# acting command with givens and an append mutation, and every new shape
+# (a lifecycle transition, an ensures, a set/increment mutation) would
+# have needed a THIRD, a FOURTH — unbounded, and the wrong shape on its
+# own terms, because Ruby's own `CommandInterpreter` isn't N methods
+# either. It's ONE method that walks `DISPATCH_ORDER` generically over
+# whatever IR a command carries.
 #
-# WHAT THIS GENERATES, beyond the first slice:
-#   - value-object INVARIANT checking, compiled from the SAME canonical
-#     expression text a real Ruby dispatch evaluates — ExpressionCompiler
-#     below walks the actual `Hecksagain::Bluebook::Expression::Evaluator`/
-#     `Resolver` AST (the real parser, not a reimplementation of it) and
-#     emits an equivalent Rust boolean expression. Wired in as
-#     `check_invariants()` on every generated value-object struct,
-#     called on every command attribute before identity is derived —
-#     the same placement docs/guides/writing-a-port.md's "Dispatch, in
-#     the order it actually runs" section cites `normalize_args` for.
+# This slice ports that idea, not just more of the old one:
+#   - `rust_runner/src/kernel/expr.rs` is a hand-written, GENERIC
+#     interpreter for the full expression grammar (Or/And/Not/Compare/
+#     Include, every Resolver leaf and operator) — a direct structural
+#     port of Evaluator#interpret/Resolver#interpret, not a
+#     reimplementation of parsing. This file no longer compiles each
+#     `given`/`ensures`/invariant to bespoke Rust boolean SOURCE; it
+#     parses the real canonical text with the REAL Ruby parser and emits
+#     `Expr` DATA literals for the kernel's `interpret()` to walk.
+#   - `rust_runner/src/kernel/dispatch.rs` is a hand-written, GENERIC
+#     `dispatch()` implementing the real DISPATCH_ORDER steps this slice
+#     covers (creates-vs-acts branch, identity/AlreadyExists/NotFound,
+#     given evaluation, mutation application, save, emit) — ONE function
+#     for every command shape, not one per shape.
+#   - This file's job shrinks to: emit typed structs/enums (genuinely
+#     domain-specific, still worth real Rust types), emit a `Fielded`
+#     impl per type (mechanical — one match arm per real attribute, the
+#     SAME shape for every type), and package each command's IR
+#     (givens as `Expr` data, an `append` mutation closure, identity) as
+#     data for `kernel::dispatch()` to run. `emit_create_command` and
+#     `emit_act_command` are gone; there is one `emit_command`.
+#
+# WHAT THIS GENERATES:
+#   - Types, closed-set enums, `Fielded` impls, value-object invariant
+#     checking (now via the generic interpreter, not compiled source —
+#     and because of that, EVERY expression the real grammar can produce
+#     is supported; the old ExpressionCompiler's `Unsupported` cases for
+#     `.include?`, dotted lookups, `nil` literals, and int/float literal
+#     unification are gone because a runtime interpreter needs none of
+#     that static machinery).
+#   - Creating AND acting commands, uniformly, as long as: they declare
+#     no `ensures` (needs the pre-mutation `old:` snapshot — not wired),
+#     name no lifecycle transition (`advance_lifecycle` — not wired),
+#     and every `then_set` is `append` with no literal value-object
+#     field (the other three ops, and a literal append field, still need
+#     generated write-glue this slice doesn't produce — seeAppend below).
+#     A command failing any of those is SKIPPED, loudly, by name and
+#     reason, rather than generated as code that would silently do less
+#     than it claims to.
 #
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
-#   - `given`/`ensures` evaluation (the SAME expression grammar
-#     ExpressionCompiler already walks for invariants — extending it to
-#     ARGUMENTS and INSTANCE FIELDS, not just a value object's own
-#     fields, is the natural next slice, not done here).
-#   - `then_set` mutations beyond a creating command's implicit,
-#     name-matched `assign_creation_attributes` (`to:`/`append:`/
-#     `increment:`/`decrement:` are real, documented, not generated).
-#   - ACTING commands (anything with `reference_to` its own aggregate —
-#     `references` non-nil in the IR), lifecycle transitions, entities,
-#     multiple emits, `admits:` cross-aggregate closed-set checks,
-#     `pattern:` checks, `default:` fallback for an omitted key.
-#   - Role checking (Unauthorized).
-#   - Any invariant this file's ExpressionCompiler cannot compile is
-#     named in a comment at its call site, not silently dropped — see
-#     `emit_check_invariants`.
+#   - `ensures`, lifecycle transitions, `set`/`increment`/`decrement`
+#     mutations, a literal value object inside an `append` — all named
+#     per-command by `command_skip_reason`, below.
+#   - Role checking (Unauthorized), reference-existence checking
+#     (resolve_references), entities.
 #   - `emit_record` does not resolve `Reference<X>` or entity-list
-#     attribute types to real Rust types. Found by running this tool
-#     against examples/banking as a stress test for ExpressionCompiler
-#     (which passed: every real invariant across both example domains
-#     compiles) — an aggregate carrying either shape is now skipped
-#     loudly, by name, with the offending type named, rather than
-#     emitted as Rust that fails to compile. Banking's own Customer
-#     aggregate has neither shape and generates cleanly; Account,
-#     SafeDepositBox, and the rest do not, today.
+#     attribute types to real Rust types — an aggregate carrying either
+#     shape is skipped loudly, by name, with the offending type named.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -71,126 +87,60 @@ end
 
 ir = Hecksagain::Projector::Exporter.call(registry).fetch(registry.bluebooks.keys.first)
 
-# ── EXPRESSION COMPILER — walks the REAL Evaluator/Resolver AST (the
-# same objects a live dispatch parses `given`/`ensures`/invariant text
-# into; see docs/guides/writing-a-port.md's "The expression grammar")
-# and emits an equivalent Rust boolean expression. Scoped to exactly
-# what a value-object invariant needs: bare (undotted) field lookups
-# against that value object's own attributes — a `given`/`ensures`
-# compiler would need to extend `types` to cover command arguments and
-# instance fields too, and add dotted-path lookups; not done here.
-module ExpressionCompiler
-  Unsupported = Class.new(StandardError)
-  Compiled = Struct.new(:expr, :type, :literal, keyword_init: true) # type: :int/:float/:string/:bool
-
+# ── EXPR EMITTER — walks the REAL Evaluator/Resolver AST (the same
+# objects a live dispatch parses `given`/`ensures`/invariant text into;
+# see docs/guides/writing-a-port.md's "The expression grammar") and
+# emits Rust `Expr` DATA LITERAL source — not a compiled boolean
+# expression. Every real node kind maps directly; there is no
+# `Unsupported` case, because a runtime interpreter (unlike a static
+# compiler) needs no int/float unification or fixed receiver — see
+# rust_runner/src/kernel/expr.rs's own header for why.
+module ExprEmitter
   module_function
 
-  def compile_predicate(canonical, field_types)
-    ast = Hecksagain::Bluebook::Expression::Evaluator.parse(canonical)
-    compile_bool(ast, field_types)
+  def emit_predicate(canonical)
+    emit_bool(Hecksagain::Bluebook::Expression::Evaluator.parse(canonical))
   end
 
-  # Extended compiler for `given` and `ensures` that can reference instance
-  # fields, command arguments, and lifecycle fields. Types map includes:
-  # - scalar types (:int, :float, :string, :bool) for fields
-  # - :array for list fields
-  def compile_given(canonical, instance_field_types, arg_types = {})
-    ast = Hecksagain::Bluebook::Expression::Evaluator.parse(canonical)
-    compile_bool(ast, instance_field_types.merge(arg_types))
-  end
-
-  def compile_bool(node, types)
+  def emit_bool(node)
     ev = Hecksagain::Bluebook::Expression::Evaluator
     case node
-    when ev::Or  then Compiled.new(expr: "(#{compile_bool(node.left, types).expr} || #{compile_bool(node.right, types).expr})", type: :bool)
-    when ev::And then Compiled.new(expr: "(#{compile_bool(node.left, types).expr} && #{compile_bool(node.right, types).expr})", type: :bool)
-    when ev::Not
-      Compiled.new(expr: "!(#{compile_bool(node.node, types).expr})", type: :bool)
+    when ev::Or  then "Expr::Or(Box::new(#{emit_bool(node.left)}), Box::new(#{emit_bool(node.right)}))"
+    when ev::And then "Expr::And(Box::new(#{emit_bool(node.left)}), Box::new(#{emit_bool(node.right)}))"
+    when ev::Not then "Expr::Not(Box::new(#{emit_bool(node.node)}))"
     when ev::Compare
-      left, right = unify_numeric(compile_resolver(node.left, types), compile_resolver(node.right, types))
-      Compiled.new(expr: "(#{left.expr} #{node.operator.symbol} #{right.expr})", type: :bool)
+      "Expr::Compare { op: #{emit_comparison(node.operator)}, left: Box::new(#{emit_resolver(node.left)}), right: Box::new(#{emit_resolver(node.right)}) }"
     when ev::Include
-      raise Unsupported, ".include? — no real-corpus invariant uses it, not generated"
+      "Expr::Include { haystack: Box::new(#{emit_resolver(node.haystack)}), needle: Box::new(#{emit_resolver(node.needle)}) }"
     when ev::Resolve
-      inner = compile_resolver(node.expr, types)
-      raise Unsupported, "bare resolve of a non-boolean value has no Rust truthiness equivalent" unless inner.type == :bool
-
-      inner
+      emit_resolver(node.expr)
     else
-      raise Unsupported, "evaluator node #{node.class}"
+      raise "unhandled evaluator node #{node.class} — the real grammar has no such node; this generator is stale"
     end
   end
 
-  # A real invariant only ever compares a field against a bare literal,
-  # never two differently-typed fields against each other — if int and
-  # float disagree, re-render the LITERAL side (the one carrying
-  # `.literal`) in the other side's type, matching how Ruby's own
-  # dynamic typing would have compared them, rather than reach for an
-  # `as` cast that could silently truncate.
-  def unify_numeric(a, b)
-    return [a, b] unless %i[int float].include?(a.type) && %i[int float].include?(b.type)
-    return [a, b] if a.type == b.type
-    return [Compiled.new(expr: "#{a.literal}.0", type: :float), b] if a.type == :int && a.literal
-    return [a, Compiled.new(expr: "#{b.literal}.0", type: :float)] if b.type == :int && b.literal
-
-    raise Unsupported, "int/float compared with neither side a literal"
+  def emit_comparison(op)
+    "Comparison { less_than: #{op.compares_less_than}, equal: #{op.compares_equal}, negated: #{op.negated} }"
   end
 
-  def compile_resolver(node, types)
+  def emit_resolver(node)
     r = Hecksagain::Bluebook::Expression::Resolver
     case node
-    when r::IntegerLiteral then Compiled.new(expr: node.value.to_s, type: :int, literal: node.value)
-    when r::FloatLiteral   then Compiled.new(expr: "#{node.value}f64", type: :float)
-    when r::StringLiteral  then Compiled.new(expr: "#{node.value.inspect}.to_string()", type: :string)
-    when r::BoolLiteral    then Compiled.new(expr: node.value.to_s, type: :bool)
-    when r::Lookup
-      raise Unsupported, "dotted lookup #{node.path.inspect} — invariants only reach their own fields" if node.path.include?(".")
-
-      field = node.path.to_sym
-      type = types[field] or raise Unsupported, "field #{field.inspect} is not a scalar attribute this compiler knows the type of"
-      # For given/ensures in acting commands, reference instance fields via record.field instead of self.field
-      reference = (types[:__instance_context__] == :record ? "record.#{field}" : "self.#{field}")
-      Compiled.new(expr: reference, type: type)
-    when r::Addition
-      left, right = unify_numeric(compile_resolver(node.left, types), compile_resolver(node.right, types))
-      Compiled.new(expr: "(#{left.expr} + #{right.expr})", type: left.type)
+    when r::IntegerLiteral then "Expr::Int(#{node.value})"
+    when r::FloatLiteral   then "Expr::Float(#{node.value}f64)"
+    when r::StringLiteral  then "Expr::Str(#{node.value.inspect}.to_string())"
+    when r::BoolLiteral    then "Expr::Bool(#{node.value})"
+    when r::NilLiteral     then "Expr::Nil"
+    when r::Lookup         then "Expr::Lookup(#{node.path.inspect})"
+    when r::Addition       then "Expr::Add(Box::new(#{emit_resolver(node.left)}), Box::new(#{emit_resolver(node.right)}))"
     when r::SignTest
-      receiver = compile_resolver(node.receiver, types)
-      raise Unsupported, "sign test on non-numeric #{receiver.type}" unless %i[int float].include?(receiver.type)
-
-      Compiled.new(expr: "(#{receiver.expr} #{node.operator.symbol} #{receiver.type == :float ? '0.0' : '0'})", type: :bool)
-    when r::Empty
-      receiver = compile_resolver(node.receiver, types)
-      raise Unsupported, ".empty? on non-string #{receiver.type} (Array/Hash not generated yet)" unless receiver.type == :string
-
-      Compiled.new(expr: "#{receiver.expr}.is_empty()", type: :bool)
-    when r::ToS
-      receiver = compile_resolver(node.receiver, types)
-      case receiver.type
-      when :string then receiver
-      when :int, :float, :bool then Compiled.new(expr: "#{receiver.expr}.to_string()", type: :string)
-      else raise Unsupported, ".to_s receiver type #{receiver.type}"
-      end
-    when r::Modulo
-      receiver = compile_resolver(node.receiver, types)
-      divisor  = compile_resolver(node.divisor, types)
-      raise Unsupported, "modulo on non-integer operand" unless receiver.type == :int && divisor.type == :int
-
-      Compiled.new(expr: "(#{receiver.expr} % #{divisor.expr})", type: :int)
-    when r::Size
-      receiver = compile_resolver(node.receiver, types)
-      case receiver.type
-      when :string
-        Compiled.new(expr: "(#{receiver.expr}.chars().count() as i64)", type: :int)
-      when :array
-        Compiled.new(expr: "(#{receiver.expr}.len() as i64)", type: :int)
-      else
-        raise Unsupported, ".size on non-string/non-array #{receiver.type}"
-      end
-    when r::NilLiteral
-      raise Unsupported, "nil literal has no generated Rust equivalent (no Option-typed fields yet)"
+      "Expr::SignTest { op: #{emit_comparison(node.operator)}, receiver: Box::new(#{emit_resolver(node.receiver)}) }"
+    when r::Empty  then "Expr::Empty(Box::new(#{emit_resolver(node.receiver)}))"
+    when r::ToS    then "Expr::ToS(Box::new(#{emit_resolver(node.receiver)}))"
+    when r::Modulo then "Expr::Modulo { receiver: Box::new(#{emit_resolver(node.receiver)}), divisor: Box::new(#{emit_resolver(node.divisor)}) }"
+    when r::Size   then "Expr::Size(Box::new(#{emit_resolver(node.receiver)}))"
     else
-      raise Unsupported, "resolver node #{node.class}"
+      raise "unhandled resolver node #{node.class} — the real grammar has no such node; this generator is stale"
     end
   end
 end
@@ -198,8 +148,6 @@ end
 module RustProjector
   module_function
 
-  # Canonical IR's scalar type names -> Rust's, and -> ExpressionCompiler's
-  # own type-kind symbols.
   SCALAR      = { "String" => "String", "Integer" => "i64", "Float" => "f64" }.freeze
   SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float }.freeze
 
@@ -210,59 +158,107 @@ module RustProjector
 
   def rust_ident(name) = name.to_s.gsub(/[^A-Za-z0-9]/, "")
   def rust_field(name) = name.to_s
+  def dispatch_fn_name(cmd) = cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase
 
-  # A closed set becomes a real Rust enum, not a string the caller could
-  # misspell — the invariant the language already enforces (one_of, per
-  # aggregates-and-value-objects.md's "Closed vocabularies" section) gets
-  # a compiler-checked equivalent instead of a runtime string compare, and
-  # needs no generated check_invariants — membership IS the check, and
-  # the enum's own exhaustiveness is what enforces it.
   def closed_set_variant(row)
     _, value = row.first
     value.to_s.split(/[_\s]/).map(&:capitalize).join
   end
 
-  # Bare-field types for ExpressionCompiler — only this value object's OWN
-  # scalar attributes; a field whose type is another value object or a
-  # Reference is absent from this map on purpose (see
-  # ExpressionCompiler::Lookup's own Unsupported for what that means).
-  def scalar_field_types(vo)
-    vo[:attributes].filter_map do |attr|
-      kind = SCALAR_KIND[attr[:type]]
-      [attr[:name].to_sym, kind] if kind
-    end.to_h
+  def scalar_to_value(type_name, rust_expr)
+    case type_name
+    when "String"  then "Value::Str(#{rust_expr}.clone())"
+    when "Integer" then "Value::Int(#{rust_expr})"
+    when "Float"   then "Value::Float(#{rust_expr})"
+    end
   end
 
-  # Instance field types for use in `given`/`ensures` evaluation — includes
-  # scalar attributes, list attributes (as :array), and lifecycle field (as :string).
-  def instance_field_types(aggregate)
-    types = {}
-    aggregate[:attributes].each do |attr|
+  # ── FIELDED — one match arm per real attribute, generated identically
+  # for value objects, command args structs, and (via emit_fielded_record,
+  # below) aggregate records. This is the mechanical glue Rust's lack of
+  # reflection still requires — READING a named field generically, unlike
+  # WRITING one, needs no per-command bespoke control flow, only this
+  # uniform per-type table.
+  def emit_fielded_flat(struct_name, attributes, value_objects_by_name)
+    arms = attributes.filter_map do |attr|
+      field = rust_field(attr[:name])
       if attr[:list]
-        types[attr[:name].to_sym] = :array
-      elsif SCALAR_KIND.key?(attr[:type])
-        types[attr[:name].to_sym] = SCALAR_KIND[attr[:type]]
+        %(            "#{field}" => Some(Field::Value(Value::List(self.#{field}.len()))),)
+      elsif SCALAR.key?(attr[:type])
+        %(            "#{field}" => Some(Field::Value(#{scalar_to_value(attr[:type], "self.#{field}")})),)
+      else
+        nested = value_objects_by_name[attr[:type]]
+        next nil unless nested && !nested[:closed_set]
+
+        %(            "#{field}" => Some(Field::Nested(&self.#{field})),)
+      end
+    end
+
+    <<~RUST
+      impl crate::kernel::Fielded for #{struct_name} {
+          fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+              use crate::kernel::Field;
+              #{"use crate::kernel::Value;" if arms.any? { |arm| arm.include?("Value") }}
+              match name {
+      #{arms.join("\n")}
+                  _ => None,
+              }
+          }
+      }
+    RUST
+  end
+
+  # Aggregate records differ from value objects/args structs in exactly
+  # one way: every non-list attribute is `Option`-wrapped (see
+  # emit_record's own comment for why), so a `None` field reads as
+  # `Value::Nil` rather than being absent from the match at all.
+  def emit_fielded_record(aggregate, value_objects_by_name)
+    name = rust_ident(aggregate[:name])
+    arms = aggregate[:attributes].filter_map do |attr|
+      field = rust_field(attr[:name])
+      if attr[:list]
+        %(            "#{field}" => Some(Field::Value(Value::List(self.#{field}.len()))),)
+      elsif SCALAR.key?(attr[:type])
+        value = scalar_to_value(attr[:type], "v")
+        %(            "#{field}" => self.#{field}.as_ref().map(|v| Field::Value(#{value})).or(Some(Field::Value(Value::Nil))),)
+      else
+        nested = value_objects_by_name[attr[:type]]
+        next nil unless nested && !nested[:closed_set]
+
+        %(            "#{field}" => self.#{field}.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),)
       end
     end
     if aggregate[:lifecycle]
-      types[aggregate[:lifecycle][:field].to_sym] = :string
+      field = rust_field(aggregate[:lifecycle][:field])
+      arms << %(            "#{field}" => Some(Field::Value(Value::Str(self.#{field}.clone()))),)
     end
-    types[:__instance_context__] = :record  # marker to use record.field instead of self.field
-    types
+
+    <<~RUST
+      impl crate::kernel::Fielded for #{name} {
+          fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+              use crate::kernel::{Field, Value};
+              match name {
+      #{arms.join("\n")}
+                  _ => None,
+              }
+          }
+      }
+    RUST
   end
 
   def emit_check_invariants(vo, value_objects_by_name)
-    name  = rust_ident(vo[:name])
-    types = scalar_field_types(vo)
-    body  = []
-
-    vo[:invariants].each do |inv|
-      compiled = ExpressionCompiler.compile_predicate(inv[:canonical], types)
-      body << "        if !(#{compiled.expr}) {"
-      body << "            return Err(crate::kernel::Refusal::InvariantViolation(#{"#{name} violates its invariant: #{inv[:description]}".inspect}.to_string()));"
-      body << "        }"
-    rescue ExpressionCompiler::Unsupported => e
-      body << "        // NOT GENERATED: #{inv[:canonical].inspect} (#{e.message}) — unchecked in Rust, Ruby still enforces it."
+    name = rust_ident(vo[:name])
+    body = vo[:invariants].map do |inv|
+      expr = ExprEmitter.emit_predicate(inv[:canonical])
+      message = "#{name} violates its invariant: #{inv[:description]}"
+      <<~RUST.rstrip
+                {
+                    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+                    if !crate::kernel::interpret(&#{expr}, &ctx)?.truthy() {
+                        return Err(crate::kernel::Refusal::InvariantViolation(#{message.inspect}.to_string()));
+                    }
+                }
+      RUST
     end
 
     vo[:attributes].each do |attr|
@@ -303,17 +299,12 @@ module RustProjector
     end
     lines << "}"
     lines << ""
+    lines << emit_fielded_flat(name, vo[:attributes], value_objects_by_name)
+    lines << ""
     lines << emit_check_invariants(vo, value_objects_by_name)
     lines.join("\n")
   end
 
-  # An aggregate this generator cannot fully type yet — a `Reference<X>`
-  # attribute (acting commands aren't generated, so nothing resolves that
-  # type) or an entity-typed list attribute (entities aren't generated
-  # either). Found by running this tool against examples/banking: emitting
-  # a record struct with a field of a type nothing defines produced Rust
-  # that failed to compile, silently, only at `cargo check` time. Checking
-  # here means the SKIP is loud and Ruby-side instead.
   def unsupported_attribute_types(aggregate, value_objects_by_name)
     aggregate[:attributes]
       .reject { |attr| SCALAR.key?(attr[:type]) || value_objects_by_name.key?(attr[:type]) }
@@ -321,7 +312,7 @@ module RustProjector
       .uniq
   end
 
-  def emit_record(aggregate)
+  def emit_record(aggregate, value_objects_by_name)
     name = rust_ident(aggregate[:name])
     lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
     aggregate[:attributes].each do |attr|
@@ -335,116 +326,65 @@ module RustProjector
       type = "Option<#{type}>" unless attr[:list]
       lines << "    pub #{rust_field(attr[:name])}: #{type},"
     end
-    # Add lifecycle field if present
-    if aggregate[:lifecycle]
-      lines << "    pub #{rust_field(aggregate[:lifecycle][:field])}: String,"
-    end
+    lines << "    pub #{rust_field(aggregate[:lifecycle][:field])}: String," if aggregate[:lifecycle]
     lines << "}"
+    lines << ""
+    lines << emit_fielded_record(aggregate, value_objects_by_name)
     lines.join("\n")
   end
 
-  # ── COMMAND DISPATCH — creating commands with no givens/mutations/
-  # references, i.e. exactly Order.CreatePizza in Pizzas today (see this
-  # file's header for the full inventory of what is and isn't generated).
-  # A CREATING command needs: invariant checks on every value-object
-  # attribute FIRST (docs/guides/writing-a-port.md's "Dispatch, in the
-  # order it actually runs" places this at `normalize_args`, before
-  # identity is even derived), identity derivation from `identified_by`,
-  # the AlreadyExists duplicate check, record construction — the same
-  # implicit name-matched `assign_creation_attributes` step that page
-  # names explicitly — save, emit with `payload: args`.
-  def emit_create_command(command, aggregate, domain_name, value_objects_by_name)
-    return unless command[:mutations].empty? && command[:givens].empty? && command[:references].nil?
-
-    record  = rust_ident(aggregate[:name])
-    cmd     = rust_ident(command[:name])
-    id_path = aggregate[:identified_by].first
-    id_arg, id_field = id_path.split(".")
-
-    args_struct = ["pub struct #{cmd}Args {"]
-    command[:attributes].each do |attr|
-      type = rust_type(attr[:type], list: attr[:list])
-      args_struct << "    pub #{rust_field(attr[:name])}: #{type},"
-    end
-    args_struct << "}"
-
-    invariant_checks = command[:attributes].filter_map do |attr|
-      next unless value_objects_by_name.key?(attr[:type])
-      next if value_objects_by_name[attr[:type]][:closed_set]
-
-      field = rust_field(attr[:name])
-      attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
+  # Why a command is skipped, or nil if it isn't. Named per-command, per-
+  # reason, so coverage is visible at generation time rather than only
+  # discoverable by noticing a dispatch function that should exist doesn't.
+  def command_skip_reason(command, aggregate)
+    unless command[:ensures].empty?
+      return "declares #{command[:ensures].size} ensures — not generated yet (needs the pre-mutation old: snapshot)"
     end
 
-    payload_lines = command[:attributes].map do |attr|
-      vo = value_objects_by_name[attr[:type]]
-      if vo && !attr[:list] && vo[:attributes].size == 1
-        inner = vo[:attributes].first[:name]
-        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]}.#{inner})); )
-      else
-        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]})); )
-      end
+    if aggregate[:lifecycle]&.dig(:transitions)&.any? { |t| t[:command] == command[:name] }
+      return "names a lifecycle transition — advance_lifecycle isn't wired into kernel::dispatch yet"
     end
 
-    record_fields = aggregate[:attributes].map do |attr|
-      matched = command[:attributes].find { |a| a[:name] == attr[:name] }
-      if matched
-        attr[:list] ? "        #{attr[:name]}: args.#{attr[:name]}.clone()," : "        #{attr[:name]}: Some(args.#{attr[:name]}.clone()),"
-      else
-        attr[:list] ? "        #{attr[:name]}: vec![]," : "        #{attr[:name]}: None,"
-      end
-    end
-    # Add lifecycle field initialization
-    if aggregate[:lifecycle]
-      record_fields << "        #{aggregate[:lifecycle][:field]}: #{aggregate[:lifecycle][:default].inspect}.to_string(),"
-    end
+    unsupported_ops = command[:mutations].reject { |m| m[:op] == :append }.map { |m| m[:op] }.uniq
+    return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append is)" if unsupported_ops.any?
 
-    <<~RUST
-      #[derive(Debug, Clone)]
-      #{args_struct.join("\n")}
+    literal_fields = command[:mutations].select { |m| m[:op] == :append }
+                                         .flat_map { |m| m[:fields].select { |_, v| v.start_with?("{") }.keys }
+    return "append carries a literal value object (#{literal_fields.join(', ')}) — not parsed back from its .inspect string yet" if literal_fields.any?
 
-      pub fn dispatch_#{cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase}(
-          repo: &mut impl crate::kernel::Repository<#{record}>,
-          args: #{cmd}Args,
-      ) -> crate::kernel::DispatchResult<#{record}> {
-      #{invariant_checks.join("\n")}
-
-          let id = args.#{id_arg}.#{id_field}.clone();
-
-          if repo.find(&id).is_some() {
-              return Err(crate::kernel::Refusal::AlreadyExists(format!(
-                  "#{cmd} creates a #{record} that already exists — #{id_path} {:?}", id
-              )));
-          }
-
-          let record = #{record} {
-      #{record_fields.join("\n")}
-          };
-
-          repo.save(&id, record.clone());
-
-          let mut payload = std::collections::BTreeMap::new();
-          #{payload_lines.join("\n        ")}
-
-          let events = vec![#{command[:emits].map { |e| %(crate::kernel::Event { name: "#{e}".to_string(), aggregate: "#{domain_name}::#{aggregate[:name]}".to_string(), id: id.clone(), payload: payload.clone() }) }.join(", ")}];
-
-          Ok((record, events))
-      }
-    RUST
+    nil
   end
 
-  # ── ACTING COMMAND DISPATCH — commands with `references` set to their
-  # own aggregate (references: "Order" for Order.AddTopping). An ACTING
-  # command needs: invariant checks on command attributes, lookup of the
-  # existing record by identity (refuse NotFound), evaluation of `given`
-  # conditions against the record's fields, application of `then_set`
-  # mutations (currently append only), save, emit.
-  def emit_act_command(command, aggregate, domain_name, value_objects_by_name)
-    return unless command[:references] == aggregate[:name]
-    return if command[:mutations].empty? && command[:givens].empty?
+  def emit_append_mutation(mutation, aggregate, command, value_objects_by_name)
+    target_field = rust_field(mutation[:target])
+    target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+    vo_type = rust_ident(target_attr[:type])
 
-    record  = rust_ident(aggregate[:name])
-    cmd     = rust_ident(command[:name])
+    fields_assignment = mutation[:fields].map do |field_name, arg_name|
+      arg_attr = command[:attributes].find { |a| a[:name].to_s == arg_name }
+      arg_vo = arg_attr && value_objects_by_name[arg_attr[:type]]
+      if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
+        inner = arg_vo[:attributes].first[:name]
+        "#{field_name}: args.#{arg_attr[:name]}.#{inner}.clone()"
+      else
+        "#{field_name}: args.#{arg_attr[:name]}.clone()"
+      end
+    end.join(", ")
+
+    "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
+  end
+
+  # ── ONE emitter for every command shape kernel::dispatch can run —
+  # creating or acting, with or without givens or an append mutation.
+  # What used to be emit_create_command's implicit, name-matched
+  # `assign_creation_attributes` step now lives inside the `Hydrate::Create`
+  # `build` closure; what used to be emit_act_command's given/mutation
+  # generation is now just data (`GivenSpec`s, a closure) handed to
+  # kernel::dispatch instead of hand-assembled control flow.
+  def emit_command(command, aggregate, domain_name, value_objects_by_name)
+    record = rust_ident(aggregate[:name])
+    cmd    = rust_ident(command[:name])
+    creates = command[:references].nil?
     id_path = aggregate[:identified_by].first
     id_arg, id_field = id_path.split(".")
 
@@ -463,59 +403,8 @@ module RustProjector
       attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
     end
 
-    # Build instance field types for given evaluation
-    inst_types = instance_field_types(aggregate)
-
-    # Compile given conditions
-    given_checks = command[:givens].flat_map do |given|
-      begin
-        compiled = ExpressionCompiler.compile_given(given[:canonical], inst_types)
-        [
-          "        if !(#{compiled.expr}) {",
-          "            return Err(crate::kernel::Refusal::GivenNotMet(#{given[:description].inspect}.to_string()));",
-          "        }"
-        ]
-      rescue ExpressionCompiler::Unsupported => e
-        ["        // NOT GENERATED: given #{given[:canonical].inspect} (#{e.message})"]
-      end
-    end
-
-    # Generate mutation application code
-    mutation_code = command[:mutations].map do |mutation|
-      case mutation[:op]
-      when :append
-        # mutation[:fields] has the structure: { field_name: source, ... }
-        # source is either a string (argument name or literal) or a parsed literal hash
-        target_field = rust_field(mutation[:target])
-
-        # Find the value object type for this list field
-        target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
-        vo_name = target_attr[:type] if target_attr
-        vo_type = rust_ident(vo_name) if vo_name
-
-        fields_assignment = mutation[:fields].map do |field_name, source|
-          if source.start_with?("{")
-            # It's a literal hash string, not currently handled
-            "// TODO: handle literal value object in append"
-          else
-            # It's an argument name
-            arg_name = source
-            arg_attr = command[:attributes].find { |a| a[:name].to_s == arg_name }
-            if arg_attr
-              arg_vo = value_objects_by_name[arg_attr[:type]]
-              if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
-                inner = arg_vo[:attributes].first[:name]
-                "#{field_name}: args.#{arg_name}.#{inner}.clone()"
-              else
-                "#{field_name}: args.#{arg_name}.clone()"
-              end
-            else
-              "#{field_name}: args.#{arg_name}.clone()"
-            end
-          end
-        end.join(", ")
-        "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
-      end
+    given_specs = command[:givens].map do |given|
+      "            crate::kernel::GivenSpec { description: #{given[:description].inspect}, expr: #{ExprEmitter.emit_predicate(given[:canonical])} },"
     end
 
     payload_lines = command[:attributes].map do |attr|
@@ -528,33 +417,64 @@ module RustProjector
       end
     end
 
+    mutation_lines = command[:mutations].map { |m| emit_append_mutation(m, aggregate, command, value_objects_by_name) }
+    mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
+
+    if creates
+      record_fields = aggregate[:attributes].map do |attr|
+        matched = command[:attributes].find { |a| a[:name] == attr[:name] }
+        if matched
+          attr[:list] ? "            #{attr[:name]}: args.#{attr[:name]}.clone()," : "            #{attr[:name]}: Some(args.#{attr[:name]}.clone()),"
+        else
+          attr[:list] ? "            #{attr[:name]}: vec![]," : "            #{attr[:name]}: None,"
+        end
+      end
+      record_fields << "            #{rust_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
+
+      hydrate = <<~RUST.rstrip
+        crate::kernel::Hydrate::Create {
+                id: args.#{id_arg}.#{id_field}.clone(),
+                build: Box::new(|| #{record} {
+        #{record_fields.join("\n")}
+                }),
+            }
+      RUST
+      fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, args: #{cmd}Args"
+    else
+      hydrate = %(crate::kernel::Hydrate::Act { id: id.to_string() })
+      fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, id: &str, args: #{cmd}Args"
+    end
+
     <<~RUST
+      #{emit_fielded_flat("#{cmd}Args", command[:attributes], value_objects_by_name)}
+
       #[derive(Debug, Clone)]
       #{args_struct.join("\n")}
 
-      pub fn dispatch_#{cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase}(
-          repo: &mut impl crate::kernel::Repository<#{record}>,
-          id: &str,
-          args: #{cmd}Args,
+      pub fn dispatch_#{dispatch_fn_name(cmd)}(
+          #{fn_signature},
       ) -> crate::kernel::DispatchResult<#{record}> {
       #{invariant_checks.join("\n")}
-
-          let mut record = repo.find(id).ok_or_else(|| crate::kernel::Refusal::NotFound(
-              format!("#{cmd} references a #{record} that was never created — {:?}", id)
-          ))?;
-
-      #{given_checks.join("\n")}
-
-      #{mutation_code.join("\n")}
-
-          repo.save(id, record.clone());
 
           let mut payload = std::collections::BTreeMap::new();
           #{payload_lines.join("\n        ")}
 
-          let events = vec![#{command[:emits].map { |e| %(crate::kernel::Event { name: "#{e}".to_string(), aggregate: "#{domain_name}::#{aggregate[:name]}".to_string(), id: id.to_string(), payload: payload.clone() }) }.join(", ")}];
-
-          Ok((record, events))
+          crate::kernel::dispatch(
+              repo,
+              #{hydrate},
+              #{cmd.inspect},
+              #{"#{domain_name}::#{aggregate[:name]}".inspect},
+              &args,
+              &[
+      #{given_specs.join("\n")}
+              ],
+              |record| {
+      #{mutation_lines.join("\n")}
+                  Ok(())
+              },
+              &[#{command[:emits].map(&:inspect).join(", ")}],
+              payload,
+          )
       }
     RUST
   end
@@ -564,9 +484,7 @@ domain_name = ir[:name]
 
 out_dir = File.expand_path("../rust_runner/src/generated", __dir__)
 # CLEARED, not just written into — a previous run against a DIFFERENT
-# domain leaves that domain's .rs files behind otherwise (mod.rs gets
-# rewritten to stop referencing them, but the files themselves stay on
-# disk, stale, until someone notices and deletes them by hand).
+# domain leaves that domain's .rs files behind otherwise.
 FileUtils.rm_rf(out_dir)
 FileUtils.mkdir_p(out_dir)
 
@@ -588,27 +506,25 @@ ir[:aggregates].each do |aggregate|
   File.open(path, "w") do |f|
     f.puts "// GENERATED by bin/project_rust from #{domain}'s canonical IR."
     f.puts "// Do not hand-edit — re-run bin/project_rust #{domain} instead."
-    f.puts "#![allow(dead_code)]"
+    f.puts "#![allow(dead_code, unused_variables)]"
+    f.puts 'use crate::kernel::{Comparison, Expr};'
     f.puts
     aggregate[:value_objects].each do |vo|
       f.puts RustProjector.emit_value_object(vo, value_objects_by_name)
       f.puts
     end
-    f.puts RustProjector.emit_record(aggregate)
+    f.puts RustProjector.emit_record(aggregate, value_objects_by_name)
     f.puts
 
     aggregate[:commands].each do |command|
-      generated = RustProjector.emit_create_command(command, aggregate, domain_name, value_objects_by_name)
-      if generated
-        f.puts generated
-        f.puts
+      reason = RustProjector.command_skip_reason(command, aggregate)
+      if reason
+        puts "skipping #{aggregate[:name]}.#{command[:name]}: #{reason}"
+        next
       end
 
-      generated = RustProjector.emit_act_command(command, aggregate, domain_name, value_objects_by_name)
-      if generated
-        f.puts generated
-        f.puts
-      end
+      f.puts RustProjector.emit_command(command, aggregate, domain_name, value_objects_by_name)
+      f.puts
     end
   end
   puts "wrote #{path}"

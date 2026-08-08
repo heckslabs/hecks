@@ -429,6 +429,83 @@ node = Hecksagain::Bluebook::Expression::Evaluator.parse("some_flag")
 node.class.name.split("::").last # => "Resolve"
 ```
 
+## Interpret data, don't compile source
+
+There are two ways to turn a `given`/`ensures`/invariant string into
+something your target language runs. **Compile it**: parse the real
+text once, walk the AST, and emit bespoke boolean SOURCE CODE in your
+target language for that one expression — a different function body
+for `"cents >= 0"` than for `"toppings.size < 10"`. **Interpret it**:
+parse the real text once, but instead of emitting source, emit the
+AST itself as DATA in your target language, and write ONE generic
+function — once, by hand — that walks any `Expr` tree this grammar can
+produce. The first approach is a natural place to start (it's what
+value-object invariant checking looks like before you need anything
+past a value object's own scalar fields), and it's also where the
+problems below actually show up — not as edge cases, but on the very
+first `given` a real command needs.
+
+**Compiling forces you to solve, statically, two problems the grammar
+itself never has.** First, a fixed type vocabulary: a `given` can read
+ANY of the aggregate's own attributes, not just scalar ones —
+`Order.AddTopping`'s own `"toppings.size < 10"` reads a LIST
+attribute, and `"status == \"open\""`-shaped text reads the lifecycle
+field, which is NOT one of the aggregate's own `attributes` in the
+exported IR at all (see "Lifecycles" above — it's its own top-level
+key):
+
+```ruby
+account[:attributes].map { |a| a[:name] }.include?(account[:lifecycle][:field].to_sym) # => false
+```
+
+A compiler emitting typed source has to know every one of these
+categories in advance and pick correctly-typed literals to match (is
+the `0` in `"cents >= 0"` an integer or a float literal in your target
+language? — it depends on `cents`'s own declared type, which the
+compiler has to look up before it can even emit the comparison).
+Second, a fixed receiver: a value-object invariant only ever reads
+that value object's own fields, so a compiler built for invariants can
+hard-code one receiver name. `given`/`ensures` run against a hydrated
+AGGREGATE instance instead, addressed by whatever local variable your
+generated dispatch function happens to call it — a choice YOUR codegen
+makes, not a fact the IR states.
+
+**An interpreter has neither problem, because both are really the same
+problem: baking a decision into generated SOURCE that a genuinely
+dynamic evaluation would rather make at the moment it's needed.** A
+runtime `interpret(expr, state)` keeps values dynamically typed until
+the instant two of them are actually compared — no advance type lookup
+for a numeric literal, because comparison coerces then, not at codegen
+time. And `state` is an ordinary function PARAMETER, not something
+baked into which name a piece of generated source happens to use — the
+same interpreter serves a value object checking itself and a command
+evaluating a `given` against a looked-up record, because both are just
+"whatever `state` was passed this call."
+
+**This generalizes past expressions, to dispatch itself.** A generator
+that emits one bespoke function per command SHAPE — one for a plain
+creating command, another for an acting command with a given and an
+append mutation, a third once a lifecycle transition shows up — never
+converges, because the real dispatch algorithm isn't shaped that way
+either: `CommandInterpreter#call` is ONE method walking
+`DISPATCH_ORDER` over whatever IR a command carries, not one method
+per command in the domain. A port's dispatcher should mirror that: one
+hand-written, generic function, driven by a small amount of per-command
+DATA (which givens, which mutations, whether it creates or acts) —
+not N generated functions each hardcoding one shape's control flow.
+
+**Name the one place this genuinely can't be pushed all the way down.**
+READING a named field generalizes cleanly — implement one small
+lookup/field-access interface per type, the identical shape for every
+type, and a generic interpreter can read anything through it. WRITING
+into a `then_set` target does not, in a statically-typed target
+language: appending a value object to a list means CONSTRUCTING one of
+a specific, differently-shaped type per aggregate, which has no
+generic equivalent without runtime reflection. That still needs a
+small amount of per-command generated glue — real, worth being honest
+about, and a much smaller boundary than "generate the whole dispatch
+function by hand" was.
+
 ## The persistence contract
 
 A port needs somewhere to put and find records, exactly the shape a
