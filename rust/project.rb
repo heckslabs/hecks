@@ -104,6 +104,11 @@
 # is 100% ambient thread-local state, never reachable through the
 # existing `spec/corpus/*.json` step format at all.
 #
+# TENTH SLICE (0020) — a list-typed record field is `Option`-wrapped when
+# a creating command's own `:set` mutation can leave it genuinely unset
+# (`CardPayment.tags`) — the last named corpus mismatch. Full corpus
+# parity reached: 35/35 matching instances.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.

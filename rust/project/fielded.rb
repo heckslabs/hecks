@@ -62,17 +62,21 @@ module RustProjection
       RUST
     end
 
-    # Aggregate records differ from value objects/args structs in exactly
-    # one way: every non-list attribute is `Option`-wrapped (see
-    # emit_record's own comment for why), so a `None` field reads as
-    # `Value::Nil` rather than being absent from the match at all.
+    # Aggregate records differ from value objects/args structs in one main
+    # way — every non-list attribute is `Option`-wrapped (see emit_record's
+    # own comment for why), so a `None` field reads as `Value::Nil` rather
+    # than being absent from the match at all — PLUS the one list-typed
+    # exception `emit_record` itself now makes (`list_attr_creation_
+    # optional?`, mutations.rb).
     def emit_fielded_record(aggregate, value_objects_by_name)
       name = rust_ident(aggregate[:name])
       arms = aggregate[:attributes].filter_map do |attr|
         key   = rust_field(attr[:name])
         ident = rust_ident_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
-        if attr[:list]
+        if attr[:list] && list_attr_creation_optional?(aggregate, attr[:name])
+          %(            "#{key}" => self.#{ident}.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),)
+        elsif attr[:list]
           %(            "#{key}" => Some(Field::Value(Value::List(self.#{ident}.len()))),)
         elsif scalar
           value = scalar_to_value(scalar, "v")

@@ -2,6 +2,35 @@ module RustProjection
   module Projector
     module_function
 
+    # A list-typed aggregate attribute reads `nil` in Ruby, not `[]`,
+    # under one precise condition (0019's/0014's own investigation, read
+    # directly against `mutation_applier.rb`/`value/coercion.rb`, not
+    # guessed): some CREATING command declares an explicit `:set`-op
+    # mutation (`then_set attr, to: source`) targeting it, sourced from a
+    # command argument the CALLER omitted. Every declared mutation runs
+    # UNCONDITIONALLY during `apply_mutations` — `resolve_source`/`Value.
+    # for_attribute` pass a missing argument through as a real `nil`,
+    # overwriting `Instance.defaults`' own `[]` baseline every list
+    # attribute otherwise starts with. `CardPayment.tags` (`then_set
+    # :tags, to: :tags`, sourced from its own `optional: true` argument)
+    # is the corpus's one live example; `Account.ledger` (touched only by
+    # `Credit`/`Debit`'s own `append`, never a creating command's `:set`)
+    # is the negative case that must stay `[]` — the exact regression the
+    # 0014 doc's own reverted empty-list-to-null heuristic caused by not
+    # distinguishing them.
+    def list_attr_creation_optional?(aggregate, attr_name)
+      aggregate[:commands].any? do |command|
+        next false unless command[:references].nil? # creating
+
+        command[:mutations].any? do |m|
+          next false unless m[:op] == :set && m[:target] == attr_name && m[:source][:kind] == "argument"
+
+          source_attr = command[:attributes].find { |a| a[:name].to_s == m[:source][:name].to_s }
+          source_attr && source_attr[:optional]
+        end
+      end
+    end
+
     # `append`'s TARGET, resolved to whichever real thing it is — a plain
     # value object (`Order.toppings`, a `Vec<Topping>`) or an ENTITY
     # (`Account.ledger`, a `Vec<LedgerEntry>`) — so field-type lookups can
@@ -226,14 +255,21 @@ module RustProjection
           rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
           source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
 
-          if target_attr[:list] && source_attr && source_attr[:optional]
-            # A record's own list field is ALWAYS plain `Vec<T>` (never
-            # `Option`, emit_record's own absolute rule) — an OPTIONAL
-            # source argument (`CardPayment.Authorize`'s own redundant
-            # `then_set :tags, to: :tags`, the same "re-set an already-
-            # implicit creation attribute" pattern `Purchase`'s own status
-            # set already is) unwraps with the identical `[]` fallback
-            # `record_fields`' own creation-time case already uses —
+          if target_attr[:list] && optional && list_attr_creation_optional?(aggregate, target_attr[:name])
+            # `CardPayment.Authorize`'s own redundant `then_set :tags, to:
+            # :tags` (the same "re-set an already-implicit creation
+            # attribute" pattern `Purchase`'s own status set already is) —
+            # `list_attr_creation_optional?` (this file's own header) is
+            # the SAME check `emit_record`/`record_fields` used to
+            # Option-wrap this record field in the first place, so the
+            # redundant re-set assigns the SAME `Option<Vec<T>>` shape
+            # straight across, no unwrapping.
+            "        record.#{target_field} = #{rhs};"
+          elsif target_attr[:list] && source_attr && source_attr[:optional]
+            # A record's own list field is plain `Vec<T>` by DEFAULT
+            # (`emit_record`'s rule, unless the branch above applies) — an
+            # OPTIONAL source argument unwraps with the identical `[]`
+            # fallback `record_fields`' own creation-time case uses —
             # cleanly resolvable, not the `optional_source_mismatches`
             # shape that has to be skipped.
             "        record.#{target_field} = #{rhs}.unwrap_or_default();"

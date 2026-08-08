@@ -166,7 +166,7 @@ module RustProjection
 
           f.puts Projector.emit_record(aggregate, value_objects_by_name)
           f.puts
-          f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate))
+          f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate)
           f.puts
           if can_route
             f.puts Projector.emit_extract_id(aggregate)

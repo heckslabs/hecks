@@ -178,7 +178,7 @@ module RustProjection
     # `optional: true` aggregate record, so it can't be folded into the
     # generic per-attribute loop above without special-casing every branch
     # in it for one field.
-    def emit_to_json_flat(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [])
+    def emit_to_json_flat(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [], aggregate: nil)
       field_exprs = attributes.map do |attr|
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
@@ -192,9 +192,18 @@ module RustProjection
         # fields Ruby itself treats as possibly-absent, leaving every
         # other field — including ones that happen to be empty right
         # now — exactly as it's always been.
+        #
+        # `aggregate` — passed only for a RECORD's own `to_json` (`attr`
+        # here is the AGGREGATE's own attribute, whose `optional:` flag is
+        # near-always `false` even when the command argument that feeds it
+        # is `optional: true` — `CardPayment.tags` is exactly this: the
+        # aggregate's own `tags` is `optional: false`, the command's own
+        # `tags:` argument is `optional: true`). `list_attr_creation_
+        # optional?` (mutations.rb) is the record-level equivalent check.
+        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name])
         field_optional = optional || attr[:optional]
         value_expr =
-          if attr[:list] && attr[:optional]
+          if attr[:list] && (attr[:optional] || record_optional_list)
             "self.#{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)"
           elsif attr[:list]
             "crate::kernel::Json::Array(self.#{ident}.iter().map(|x| x.to_json()).collect())"

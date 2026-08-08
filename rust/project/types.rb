@@ -204,8 +204,16 @@ module RustProjection
         # Rust has no notion of "field exists but is unset" the way a Ruby
         # Hash does. Non-optional-per-IR fields are asserted present at
         # generated-dispatch time instead, not encoded away here.
+        #
+        # A LIST field is the one exception to the blanket wrap — UNLESS
+        # `list_attr_creation_optional?` says otherwise (`CardPayment.
+        # tags`, mutations.rb's own header): most list attributes are
+        # populated only by `append` from non-creating commands and start
+        # at `Instance.defaults`' own `[]` baseline forever until
+        # something appends, which `Vec<T>` (never absent) already
+        # represents correctly.
         type = rust_type(attr[:type], list: attr[:list])
-        type = "Option<#{type}>" unless attr[:list]
+        type = "Option<#{type}>" if !attr[:list] || list_attr_creation_optional?(aggregate, attr[:name])
         lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
       end
       lines << "    pub #{rust_ident_field(aggregate[:lifecycle][:field])}: String," if aggregate[:lifecycle]

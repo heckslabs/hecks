@@ -127,11 +127,12 @@ module RustProjection
 
           target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
           # A LIST target is exempt — a record's own list field is
-          # ALWAYS plain `Vec<T>` (never `Option`, emit_record's own
-          # rule), so `emit_mutation_line`'s `:set` branch already
-          # resolves this cleanly with `.unwrap_or_default()` (the
-          # SAME fallback `record_fields`' own creation-time case
-          # uses) — not a real mismatch to skip over.
+          # EITHER plain `Vec<T>` (`emit_record`'s default rule, resolved
+          # cleanly via `.unwrap_or_default()`) OR `Option<Vec<T>>`
+          # (`list_attr_creation_optional?` — `CardPayment.tags`, resolved
+          # cleanly via a straight assignment) — `emit_mutation_line`'s
+          # `:set` branch already handles both. Not a real mismatch to
+          # skip over either way.
           next if target_attr && target_attr[:list]
 
           problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
@@ -268,16 +269,22 @@ module RustProjection
           matched = command[:attributes].find { |a| a[:name] == attr[:name] }
           field = rust_ident_field(attr[:name])
           if matched && matched[:optional]
-            # The COMMAND's own attribute is `Option<T>` now — a
-            # list-typed record field stays plain `Vec<T>` (emit_record's
-            # own rule: lists are never Option-wrapped), so
-            # `Option<Vec<T>>` needs unwrapping with the same `[]`
-            # fallback `default_for` already gives an UNMATCHED list
-            # attribute; a scalar/VO record field is ALREADY `Option<T>`
-            # unconditionally, so the optional arg's own `Option<T>`
-            # assigns straight across — wrapping it in another `Some(...)`
-            # would be `Option<Option<T>>`, not this record field's type.
-            attr[:list] ? "            #{field}: args.#{field}.clone().unwrap_or_default()," : "            #{field}: args.#{field}.clone(),"
+            # The COMMAND's own attribute is `Option<T>` now. A scalar/VO
+            # record field is ALREADY `Option<T>` unconditionally, so the
+            # optional arg's own `Option<T>` assigns straight across —
+            # wrapping it in another `Some(...)` would be
+            # `Option<Option<T>>`, not this record field's type. A
+            # list-typed record field is the SAME shape ONLY when
+            # `list_attr_creation_optional?` also Option-wrapped it
+            # (`CardPayment.tags`, types.rb's own matching check) —
+            # otherwise (emit_record's default rule: lists are never
+            # Option-wrapped) it needs unwrapping with the same `[]`
+            # fallback `default_for` gives an UNMATCHED list attribute.
+            if attr[:list] && !list_attr_creation_optional?(aggregate, attr[:name])
+              "            #{field}: args.#{field}.clone().unwrap_or_default(),"
+            else
+              "            #{field}: args.#{field}.clone(),"
+            end
           elsif matched
             attr[:list] ? "            #{field}: args.#{field}.clone()," : "            #{field}: Some(args.#{field}.clone()),"
           elsif attr[:list]

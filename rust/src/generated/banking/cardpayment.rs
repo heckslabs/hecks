@@ -185,7 +185,7 @@ pub struct CardPayment {
     pub authorisation: Option<AuthorisationCode>,
     pub amount: Option<PaymentAmount>,
     pub merchant: Option<MerchantName>,
-    pub tags: Vec<Tag>,
+    pub tags: Option<Vec<Tag>>,
     pub status: String,
 }
 
@@ -198,7 +198,7 @@ impl crate::kernel::Fielded for CardPayment {
             "authorisation" => self.authorisation.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "amount" => self.amount.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "merchant" => self.merchant.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "tags" => Some(Field::Value(Value::List(self.tags.len()))),
+            "tags" => self.tags.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -213,7 +213,7 @@ impl CardPayment {
         ("authorisation".to_string(), self.authorisation.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("amount".to_string(), self.amount.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("merchant".to_string(), self.merchant.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("tags".to_string(), crate::kernel::Json::Array(self.tags.iter().map(|x| x.to_json()).collect())),
+        ("tags".to_string(), self.tags.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -277,7 +277,7 @@ pub fn dispatch_authorize(
             authorisation: Some(args.authorisation.clone()),
             amount: Some(args.amount.clone()),
             merchant: Some(args.merchant.clone()),
-            tags: args.tags.clone().unwrap_or_default(),
+            tags: args.tags.clone(),
             status: "authorized".to_string(),
         }),
     },
@@ -291,7 +291,7 @@ pub fn dispatch_authorize(
         |record| {
         record.amount = Some(args.amount.clone());
         record.merchant = Some(args.merchant.clone());
-        record.tags = args.tags.clone().unwrap_or_default();
+        record.tags = args.tags.clone();
             Ok(())
         },
         &[
