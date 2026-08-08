@@ -2110,7 +2110,22 @@ Do not mechanically translate source code line-by-line.
 
 # 30. Projector architecture
 
-**Status:** Minimal `Projector::Exporter` exists  
+**Status:** Done (2026-08-08) — `Hecksagain::Projector.register(name, projector)` /
+`.call(name, bluebook:, options:)` now exist for real (`lib/hecksagain/projector.rb`),
+proven against a genuine registered target, `:ir`
+(`lib/hecksagain/projector/ir_projector.rb`), whose output matches
+`spec/golden/ir/Pizzas.json` byte-for-byte once sorted and carries
+`ir_version:` as target-version metadata for free (`§7`). `Exporter`
+itself is UNTOUCHED and still exactly what `bin/ir`, `bin/project_rust`,
+and `translation/audit`'s approval digest read — it operates on a whole
+registry (many bluebooks), a different unit than this framework's
+per-bluebook `call`, so it was deliberately not folded in rather than
+forced to fit. Retrofitting the real existing projectors — `:rust`
+(`bin/project_rust`/`rust/project.rb`, a whole separate toolchain under
+a confusingly-identical `RustProjection::Projector` name) and the
+not-yet-built `:ul`/`:openid` — is real, separate work this pass didn't
+attempt; `spec/projector_spec.rb` covers register/call/re-register/
+unknown-target/golden-determinism.  
 **Priority:** P0  
 **Complexity:** M
 
@@ -2399,6 +2414,8 @@ At the end of this phase, command-level authorization is organizational rather t
 `§30` Projector framework · `§15` UL Projection · `§16` UL adoption recipe · `§17` Onboarding Bluebook · `§18` role mapping review · `§19` existing-role discovery · `§21` semantic drift detection · `§22` canonical ontology upgrades · `§20` semantic mapping suggestions (AI, optional tail)
 
 Build `§30` first — it's the general registration framework, and `§15` is its first real target, so building the framework in a vacuum before this phase would be guessing at an interface. `§15` → `§16` → `§17` → `§18` → `§19` follow the natural onboarding flow (project a canonical Bluebook into org vocabulary → keep the recipe → give onboarding a home → let SMEs review the mapping → let them discover existing roles to map onto). `§21` (drift detection) should land before `§22` (ontology upgrades), since upgrades are explicitly a three-way merge built on top of drift detection. `§20` is genuinely optional and lowest-value here — AI-ranked suggestions only matter once there's a real mapping backlog to rank, so it can trail or slip to a later pass without blocking anything.
+
+**Status note (2026-08-08):** `§30` is done — see its own Status line. Nothing else in this phase has started; `§15` (UL Projection) is next, now that the framework it registers against is real.
 
 At the end of this phase, a canonical Bluebook can be shipped and a customer can adopt it into its own language. UL projection/onboarding should not be allowed to destabilize runtime IR any more than necessary: vocabulary and provenance changes should land as a clean, bounded addition to the IR contract, not as ongoing churn — Phase 2's Rust generator extends to cover whatever this phase adds, verified by its harness, rather than treating onboarding as something Rust needs to wait on or stay in lockstep with.
 
