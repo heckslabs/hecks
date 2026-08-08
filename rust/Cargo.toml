@@ -1,3 +1,18 @@
+# ONE FEATURE PER GENERATED DOMAIN — selects which domain's own
+# generated::<domain>::merged module `generated::active` re-exports
+# (rust/src/generated/mod.rs). Kept in sync by bin/project_rust: a
+# feature is added here whenever a new domain is generated, never
+# removed (the domain's own generated/<name>/ directory is the
+# source of truth for whether it still exists). `default` tracks
+# whichever domain was generated MOST RECENTLY, so a bare
+# `cargo build`/`cargo test` keeps behaving exactly as it always
+# has; any other still-generated domain stays reachable via
+# `--no-default-features --features <name>`.
+[features]
+default = ["embryonaut"]
+embryonaut = []
+banking = []
+
 [package]
 name = "rust"
 version = "0.1.0"

@@ -32,21 +32,39 @@ require "hecksagain/fuzzing"
 # same way any pinned fixture needs verifying before it's added.
 RSpec.describe "Rust conformance (native binary)" do
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
+  RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 
-  def native_rust_binary
-    %w[release debug]
-      .map { |profile| File.join(InMemoryDomain::ROOT, "rust/target/#{profile}/rust") }
-      .find { |path| File.executable?(path) }
+  # Built for THIS fixture's own domain, every time — never found by
+  # trusting whatever happens to already sit at
+  # rust/target/{release,debug}/rust. `generated::active`
+  # (rust/src/generated/mod.rs) is a Cargo-feature-selected re-export of
+  # one domain's own `generated::<domain>::merged` module, kept in sync
+  # by bin/project_rust (rust/Cargo.toml, one feature per domain
+  # generated) — an ambient binary reflects whichever domain someone
+  # (or some OTHER concurrent process) last built for, not necessarily
+  # this fixture's own. That's exactly the failure mode that broke these
+  # two fixtures once already: a different domain's regeneration left a
+  # binary that ran fine and answered `{}` for everything.
+  def build_rust_for(domain_feature)
+    cargo_toml = File.read(File.join(RUST_DIR, "Cargo.toml"))
+    return nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
+
+    built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
+                    chdir: RUST_DIR, out: File::NULL, err: File::NULL)
+    return nil unless built
+
+    binary = File.join(RUST_DIR, "target", "debug", "rust")
+    File.executable?(binary) ? binary : nil
   end
 
   RUST_CONFORMANCE_FIXTURES.each do |fixture_path|
     it "#{File.basename(fixture_path)}: instances, events, and refusals match Ruby exactly" do
-      binary = native_rust_binary
-      skip "no native rust binary built — run `cd rust && cargo build` first" unless binary
-
       fixture = JSON.parse(File.read(fixture_path))
       domain  = fixture.fetch("domain")
       steps   = fixture.fetch("steps")
+
+      binary = build_rust_for(File.basename(domain).downcase)
+      skip "rust/Cargo.toml has no #{File.basename(domain).downcase} feature — run bin/project_rust for it first" unless binary
 
       ruby_result = Hecksagain::Fuzzing::Replay.call(domain, steps)
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }

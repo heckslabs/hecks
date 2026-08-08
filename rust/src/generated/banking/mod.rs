@@ -11,3 +11,4 @@ pub mod scheduledpayment;
 pub mod safedepositbox;
 pub mod onboardingcase;
 pub mod statement;
+pub mod merged;
