@@ -1,7 +1,7 @@
 require_relative "runtime/registry"
 
 module Hecksagain
-  # THE REGISTRY OF FRAMEWORK BLUEBOOKS — Governance, Identities, and
+  # THE REGISTRY OF FRAMEWORK BLUEBOOKS — Governance, Identity, and
   # whatever lands beside them in `framework/bluebook/`: domain-agnostic
   # chapters no single example owns, shared by reference rather than
   # copied into every domain that wants one.

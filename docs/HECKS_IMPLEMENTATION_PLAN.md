@@ -629,17 +629,24 @@ end
 
 # 4. Identities Bluebook
 
-**Status:** Done (2026-08-07) — `framework/bluebook/identities.bluebook`
-(+ `.hecksagon`, Memory-persisted). `Identity` (identity_id minted via
-`§5`'s `Ports::IdentityGeneration.uuid` — no natural key exists for "a
-newly recognized identity," and this is the first real consumer of
-that port) and `ExternalIdentifier` (issuer/subject pair, natural key
+**Status:** Done (2026-08-07) — `framework/bluebook/identity.bluebook`
+(+ `.hecksagon`, Memory-persisted; chapter renamed from `Identities` to
+`Identity` on 2026-08-08, matching Governance's own singular naming —
+the aggregate inside is ALSO named `Identity`, so its FQN is the
+slightly repetitive but unambiguous `Identity::Identity`). Attached to
+Banking for real via `uses_framework "Identity"` in
+`examples/banking/bluebook/banking.hecksagon`, the same mechanism
+Governance uses — see `§31`'s own note on `Hecksagain::Framework`.
+`Identity` (identity_id minted via `§5`'s
+`Ports::IdentityGeneration.uuid` — no natural key exists for "a newly
+recognized identity," and this is the first real consumer of that
+port) and `ExternalIdentifier` (issuer/subject pair, natural key
 `key.value`). One correction to the sketch: `ExternalIdentifier` uses a
 real `reference_to Identity` rather than a bare owned value object —
 both aggregates share one bluebook (unlike Governance's `actor_id`,
 which deliberately avoided a cross-domain reference to this exact
 domain before it existed), so there's no reason to give up
-`resolve_references`'s real existence-checking; `spec/identities_spec.rb`
+`resolve_references`'s real existence-checking; `spec/identity_spec.rb`
 confirms `Link` refuses against a nonexistent identity, not just that
 it succeeds against a real one. `key`'s derivation (SHA256 of
 issuer+subject, or any other scheme) stays a caller-side concern, per

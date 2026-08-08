@@ -1,5 +1,6 @@
 Hecks.hecksagon "Banking" do
   uses_framework "Governance"
+  uses_framework "Identity"
 
   Banking::Customer.persisted_by("Heki")
   Banking::Customer.projected_by("SqliteProjection")

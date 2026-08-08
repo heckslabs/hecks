@@ -3,7 +3,7 @@ require "hecksagain"
 # A local boot, not `boot_in_memory` — Pizzas-specific by design. Same
 # shape spec/governance_spec.rb already uses, plus the identity_generation
 # port/adapter this domain's own Register command actually needs.
-RSpec.describe "Identities" do
+RSpec.describe "Identity" do
   def boot
     registry = Hecksagain::Runtime::Registry.new
 
@@ -14,10 +14,10 @@ RSpec.describe "Identities" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.expand_path("../lib/hecksagain/ports/identity_generation.port", __dir__))
       Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/sequential_identity.adapter", __dir__))
-      Kernel.load(File.join(InMemoryDomain::ROOT, "framework/bluebook/identities.bluebook"))
-      Hecks.hecksagon("Identities") do
-        ::Identities::Identity.persisted_by("Memory")
-        ::Identities::ExternalIdentifier.persisted_by("Memory")
+      Kernel.load(File.join(InMemoryDomain::ROOT, "framework/bluebook/identity.bluebook"))
+      Hecks.hecksagon("Identity") do
+        ::Identity::Identity.persisted_by("Memory")
+        ::Identity::ExternalIdentifier.persisted_by("Memory")
       end
     end
 
@@ -30,7 +30,7 @@ RSpec.describe "Identities" do
   def register
     Hecksagain::Adapters::SequentialIdentity.reset!
     minted = Hecksagain::Ports::IdentityGeneration.uuid(runtime.registry)
-    runtime.dispatch("Identities::Identity.Register", identity_id: { value: minted })
+    runtime.dispatch("Identity::Identity.Register", identity_id: { value: minted })
   end
 
   it "registers an identity minted through the identity-generation port, not a natural key" do
@@ -43,7 +43,7 @@ RSpec.describe "Identities" do
   it "links an external identifier to a real, previously-registered identity" do
     identity = register
     result = runtime.dispatch(
-      "Identities::ExternalIdentifier.Link",
+      "Identity::ExternalIdentifier.Link",
       identity_id: identity.instance.id,
       key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
     )
@@ -55,7 +55,7 @@ RSpec.describe "Identities" do
   it "refuses to link an identifier to an identity that doesn't exist" do
     expect do
       runtime.dispatch(
-        "Identities::ExternalIdentifier.Link",
+        "Identity::ExternalIdentifier.Link",
         identity_id: "no-such-identity",
         key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
       )
@@ -65,12 +65,12 @@ RSpec.describe "Identities" do
   it "lets more than one external identifier link to the same identity" do
     identity = register
     google = runtime.dispatch(
-      "Identities::ExternalIdentifier.Link",
+      "Identity::ExternalIdentifier.Link",
       identity_id: identity.instance.id,
       key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
     )
     microsoft = runtime.dispatch(
-      "Identities::ExternalIdentifier.Link",
+      "Identity::ExternalIdentifier.Link",
       identity_id: identity.instance.id,
       key: { value: "microsoft:sub-1" }, issuer: { value: "microsoft" }, subject: { value: "sub-1" }
     )

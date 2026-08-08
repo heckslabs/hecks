@@ -415,7 +415,7 @@ Hecks.bluebook "Bluebook" do
         member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
 
         # A `framework/bluebook/` MEMBER THIS DOMAIN ATTACHES — Governance,
-        # Identities, whatever else lands beside them. Same shape as
+        # Identity, whatever else lands beside them. Same shape as
         # `subscribe` beside it: a fact recorded onto THIS hecksagon's own
         # `framework_members`, AND a load — the same kind `Kernel.load`
         # itself is — that the record alone could not carry.

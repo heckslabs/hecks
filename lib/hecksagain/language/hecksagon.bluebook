@@ -22,7 +22,7 @@ Hecks.bluebook "Hecksagon" do
     end
 
     # A `framework/bluebook/` member this hecksagon attaches — Governance,
-    # Identities, whatever else lands beside them. Same shape as
+    # Identity, whatever else lands beside them. Same shape as
     # `Subscription` beside it, one word over.
     value_object "FrameworkMember" do
       attribute :value, String

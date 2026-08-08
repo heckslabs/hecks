@@ -1,12 +1,12 @@
 {
-  "name": "identities-parity",
+  "name": "identity-parity",
   "note": "Register two identities, link one external identifier to each — proves ExternalIdentifier's own natural key doesn't collide across different identities.",
   "expectations": {
     "events": 4
   },
   "steps": [
     {
-      "verb": "Identities::Identity.Register",
+      "verb": "Identity::Identity.Register",
       "args": {
         "identity_id": {
           "value": "id-1"
@@ -14,7 +14,7 @@
       }
     },
     {
-      "verb": "Identities::Identity.Register",
+      "verb": "Identity::Identity.Register",
       "args": {
         "identity_id": {
           "value": "id-2"
@@ -22,7 +22,7 @@
       }
     },
     {
-      "verb": "Identities::ExternalIdentifier.Link",
+      "verb": "Identity::ExternalIdentifier.Link",
       "args": {
         "identity_id": "id-1",
         "key": {
@@ -37,7 +37,7 @@
       }
     },
     {
-      "verb": "Identities::ExternalIdentifier.Link",
+      "verb": "Identity::ExternalIdentifier.Link",
       "args": {
         "identity_id": "id-2",
         "key": {

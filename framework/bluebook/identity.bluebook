@@ -1,4 +1,4 @@
-Hecks.bluebook "Identities" do
+Hecks.bluebook "Identity" do
   vision "Authentication proves an identifier; the organization decides what that identity means."
   supporting
 
