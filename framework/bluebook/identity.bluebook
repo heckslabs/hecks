@@ -65,5 +65,18 @@ Hecks.bluebook "Identity" do
 
       emits "ExternalIdentifierLinked"
     end
+
+    # THE OIDC-SHAPED LOOKUP — a token hands over `(issuer, subject)`,
+    # never the `key` this aggregate is actually identified by (`key`
+    # is a caller-side derivation, deliberately not reproduced here —
+    # see `Link`'s own comment). `identity_id` rides the row already,
+    # from `reference_to Identity` above, so a caller reads it straight
+    # off the match rather than needing a second query.
+    query "ResolvedBy" do
+      description "The external identifier linked to this exact (issuer, subject) pair, if any."
+      attribute :issuer,  Issuer
+      attribute :subject, Subject
+      where(issuer: :issuer, subject: :subject)
+    end
   end
 end

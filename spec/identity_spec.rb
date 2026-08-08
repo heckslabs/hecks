@@ -77,4 +77,31 @@ RSpec.describe "Identity" do
 
     expect([google.instance.id, microsoft.instance.id]).to eq(["google:sub-1", "microsoft:sub-1"])
   end
+
+  describe "ResolvedBy" do
+    it "finds the identity an authenticated (issuer, subject) pair resolves to" do
+      identity = register
+      runtime.dispatch(
+        "Identity::ExternalIdentifier.Link",
+        identity_id: identity.instance.id,
+        key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
+      )
+
+      rows = runtime.query(
+        "Identity::ExternalIdentifier.ResolvedBy",
+        issuer: { value: "google" }, subject: { value: "sub-1" }
+      )
+
+      expect(rows.map { |row| row[:identity_id] }).to eq([identity.instance.id])
+    end
+
+    it "answers empty for a pair nothing has linked" do
+      rows = runtime.query(
+        "Identity::ExternalIdentifier.ResolvedBy",
+        issuer: { value: "google" }, subject: { value: "nobody" }
+      )
+
+      expect(rows).to be_empty
+    end
+  end
 end
