@@ -32,6 +32,22 @@ impl QueryName {
     }
 }
 
+impl QueryName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl QueryName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "QueryName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryText {
     pub value: String,
@@ -53,6 +69,22 @@ impl QueryText {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl QueryText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl QueryText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "QueryText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryText.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -81,6 +113,26 @@ impl Filter {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Filter {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("field".to_string(), crate::kernel::Json::Str(self.field.clone())),
+        ("op".to_string(), crate::kernel::Json::Str(self.op.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Filter {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        field: v.require("field", "Filter")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.field: expected String".to_string()))?,
+        op: v.require("op", "Filter")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.op: expected String".to_string()))?,
+        value: v.require("value", "Filter")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -120,6 +172,34 @@ impl AskArgument {
     }
 }
 
+impl AskArgument {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ("type".to_string(), crate::kernel::Json::Str(self.r#type.clone())),
+        ("list".to_string(), crate::kernel::Json::Str(self.list.clone())),
+        ("optional".to_string(), crate::kernel::Json::Str(self.optional.clone())),
+        ("pattern".to_string(), crate::kernel::Json::Str(self.pattern.clone())),
+        ("default".to_string(), crate::kernel::Json::Str(self.default.clone())),
+        ("admits".to_string(), crate::kernel::Json::Str(self.admits.clone())),
+        ])
+    }
+}
+
+impl AskArgument {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: v.require("name", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()))?,
+        r#type: v.require("type", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()))?,
+        list: v.require("list", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.list: expected String".to_string()))?,
+        optional: v.require("optional", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.optional: expected String".to_string()))?,
+        pattern: v.require("pattern", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()))?,
+        default: v.require("default", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()))?,
+        admits: v.require("admits", "AskArgument")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct AskOption {
     pub option: String,
@@ -150,6 +230,28 @@ impl AskOption {
     }
 }
 
+impl AskOption {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("option".to_string(), crate::kernel::Json::Str(self.option.clone())),
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ("at".to_string(), crate::kernel::Json::Str(self.at.clone())),
+        ])
+    }
+}
+
+impl AskOption {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        option: v.require("option", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.option: expected String".to_string()))?,
+        key: v.require("key", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.key: expected String".to_string()))?,
+        value: v.require("value", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.value: expected String".to_string()))?,
+        at: v.require("at", "AskOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.at: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
@@ -171,6 +273,22 @@ impl Position {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
     }
 }
 
@@ -206,6 +324,30 @@ impl crate::kernel::Fielded for Query {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Query {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("aggregate_id".to_string(), self.aggregate_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("order_field".to_string(), self.order_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("order_way".to_string(), self.order_way.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("limit".to_string(), self.limit.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("wheres".to_string(), crate::kernel::Json::Array(self.wheres.iter().map(|x| x.to_json()).collect())),
+        ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
+        ("options".to_string(), crate::kernel::Json::Array(self.options.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Query {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("owner_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query: missing identity component owner_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -297,6 +439,21 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
+        entity_id: v.require("entity_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?,
+        name: QueryName::from_json(v.require("name", "DeclareArgs")?)?,
+        description: QueryText::from_json(v.require("description", "DeclareArgs")?)?,
+        order_field: QueryText::from_json(v.require("order_field", "DeclareArgs")?)?,
+        order_way: QueryText::from_json(v.require("order_way", "DeclareArgs")?)?,
+        limit: QueryText::from_json(v.require("limit", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for FilterArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -350,6 +507,16 @@ pub fn dispatch_filter(
         &["FilterAttached"],
         payload,
     )
+}
+
+impl FilterArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        field: QueryText::from_json(v.require("field", "FilterArgs")?)?,
+        op: QueryText::from_json(v.require("op", "FilterArgs")?)?,
+        value: QueryText::from_json(v.require("value", "FilterArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for OptionArgs {
@@ -409,6 +576,17 @@ pub fn dispatch_option(
         &["OptionAttached"],
         payload,
     )
+}
+
+impl OptionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        option: QueryText::from_json(v.require("option", "OptionArgs")?)?,
+        key: QueryText::from_json(v.require("key", "OptionArgs")?)?,
+        value: QueryText::from_json(v.require("value", "OptionArgs")?)?,
+        at: QueryText::from_json(v.require("at", "OptionArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for ArgumentArgs {
@@ -480,5 +658,19 @@ pub fn dispatch_argument(
         &["AskArgumentAttached"],
         payload,
     )
+}
+
+impl ArgumentArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: QueryText::from_json(v.require("name", "ArgumentArgs")?)?,
+        r#type: QueryText::from_json(v.require("type", "ArgumentArgs")?)?,
+        list: QueryText::from_json(v.require("list", "ArgumentArgs")?)?,
+        optional: QueryText::from_json(v.require("optional", "ArgumentArgs")?)?,
+        pattern: QueryText::from_json(v.require("pattern", "ArgumentArgs")?)?,
+        default: QueryText::from_json(v.require("default", "ArgumentArgs")?)?,
+        admits: QueryText::from_json(v.require("admits", "ArgumentArgs")?)?,
+        })
+    }
 }
 

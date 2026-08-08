@@ -32,6 +32,22 @@ impl PolicyName {
     }
 }
 
+impl PolicyName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl PolicyName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "PolicyName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PolicyText {
     pub value: String,
@@ -53,6 +69,22 @@ impl PolicyText {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl PolicyText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl PolicyText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "PolicyText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyText.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -80,6 +112,22 @@ impl Position {
     }
 }
 
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Policy {
     pub bluebook_id: Option<String>,
@@ -104,6 +152,26 @@ impl crate::kernel::Fielded for Policy {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Policy {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), self.bluebook_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("on_event".to_string(), self.on_event.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("trigger_command".to_string(), self.trigger_command.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Policy {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -186,5 +254,19 @@ pub fn dispatch_declare(
         &["ReactionDeclared"],
         payload,
     )
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        name: PolicyName::from_json(v.require("name", "DeclareArgs")?)?,
+        aggregate: PolicyText::from_json(v.require("aggregate", "DeclareArgs")?)?,
+        on_event: PolicyText::from_json(v.require("on_event", "DeclareArgs")?)?,
+        trigger_command: PolicyText::from_json(v.require("trigger_command", "DeclareArgs")?)?,
+        target_domain: PolicyText::from_json(v.require("target_domain", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
 }
 

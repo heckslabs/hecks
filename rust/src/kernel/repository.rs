@@ -27,6 +27,18 @@ impl<T: Clone> InMemoryRepository<T> {
     pub fn new() -> Self {
         Self { records: BTreeMap::new() }
     }
+
+    /// `(id, record)` pairs — `Repository::all` alone discards the id,
+    /// which the CLI's `instances` dump needs (Ruby's own oracle output
+    /// keys each instance `"Domain::Aggregate#id"`, per
+    /// `bin/rust_conformance`'s `comparable["instances"]`). Kept on the
+    /// concrete type rather than added to the `Repository` trait — nothing
+    /// generated dispatches through this method, only the hand-written CLI
+    /// does, and every `Store` (rust/project/json_codec.rb's
+    /// `emit_registry`) holds `InMemoryRepository` concretely already.
+    pub fn entries(&self) -> impl Iterator<Item = (&String, &T)> {
+        self.records.iter()
+    }
 }
 
 impl<T: Clone> Repository<T> for InMemoryRepository<T> {

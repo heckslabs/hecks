@@ -10,13 +10,29 @@ module RustProjection
   # back to Ruby. Nothing generated above reads `metadata.rs` — it exists
   # purely for introspection, the same way a doc comment does, just at
   # runtime instead of read-time.
+  #
+  # ALSO generates a `registry.rs` — the JSON command router
+  # `kernel::cli.rs`'s stdin/stdout CLI dispatches through (json_codec.rb's
+  # `to_json`/`from_json`/`extract_id`, registry.rb's `emit_registry`). This
+  # is what makes the SAME compiled artifact wasm32-wasip1-buildable: the
+  # only reason `rust/src/main.rs` used to be a hardcoded, domain-specific
+  # demo is that nothing generated a way to route an arbitrary named command
+  # against arbitrary JSON args; this closes that.
   module DomainGenerator
     module_function
+
+    def lifecycle_extra_field(node)
+      return [] unless node[:lifecycle]
+
+      field = Projector.rust_ident_field(node[:lifecycle][:field])
+      [[Projector.rust_field(node[:lifecycle][:field]), "crate::kernel::Json::Str(self.#{field}.clone())"]]
+    end
 
     def call(ir, source_label, mod_dir, mod_name)
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]
       generated_aggregates = []
+      registry_aggregates = []
 
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
@@ -29,6 +45,9 @@ module RustProjection
         end
 
         generated_aggregates << aggregate
+        can_route = Projector.extract_id_supported?(aggregate)
+        registry_commands = []
+        record_name = Projector.rust_ident(aggregate[:name])
 
         path = File.join(mod_dir, "#{aggregate[:name].downcase}.rs")
         File.open(path, "w") do |f|
@@ -37,16 +56,50 @@ module RustProjection
           f.puts "#![allow(dead_code, unused_variables)]"
           f.puts 'use crate::kernel::Expr;'
           f.puts
+
           aggregate[:value_objects].each do |vo|
             f.puts Projector.emit_value_object(vo, value_objects_by_name)
             f.puts
+            if vo[:closed_set] && vo[:attributes].size == 1
+              # A single-field closed set collapses to a Rust ENUM
+              # (emit_value_object's own branch) — needs the tag<->member
+              # codec.
+              f.puts Projector.emit_closed_set_codec(vo)
+            elsif vo[:closed_set]
+              # A multi-field closed set (`StatementFrequency`) is a DATA
+              # TABLE (emit_closed_set_table's branch) whose String fields
+              # are `&'static str`, not `String` — from_json can only
+              # SELECT one of the table's own fixed rows, not construct a
+              # fresh one (emit_closed_set_table_codec's own header).
+              f.puts Projector.emit_closed_set_table_codec(vo)
+            else
+              name = Projector.rust_ident(vo[:name])
+              f.puts Projector.emit_to_json_flat(name, vo[:attributes], value_objects_by_name)
+              f.puts
+              f.puts Projector.emit_from_json_flat(name, vo[:attributes], value_objects_by_name)
+            end
+            f.puts
           end
+
           aggregate[:entities].each do |entity|
             f.puts Projector.emit_entity(entity, value_objects_by_name)
             f.puts
+            name = Projector.rust_ident(entity[:name])
+            f.puts Projector.emit_to_json_flat(name, entity[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(entity))
+            f.puts
           end
+
           f.puts Projector.emit_record(aggregate, value_objects_by_name)
           f.puts
+          f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate))
+          f.puts
+          if can_route
+            f.puts Projector.emit_extract_id(aggregate)
+            f.puts
+          else
+            puts "skipping #{domain_name}::#{aggregate[:name]}'s JSON router acting-command entries: identity " \
+                 "#{aggregate[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)"
+          end
 
           aggregate[:commands].each do |command|
             reason = Projector.command_skip_reason(command, aggregate, value_objects_by_name)
@@ -57,9 +110,46 @@ module RustProjection
 
             f.puts Projector.emit_command(command, aggregate, domain_name, value_objects_by_name)
             f.puts
+            args_struct = "#{Projector.rust_ident(command[:name])}Args"
+            f.puts Projector.emit_from_json_flat(args_struct, command[:attributes], value_objects_by_name)
+            f.puts
+
+            # A CREATING command's identity comes from its own typed args
+            # (build_identity_expr, already inside emit_command's output) —
+            # routable regardless of extract_id, UNLESS that expression
+            # itself needs an EXTRA function parameter (identity_components'
+            # third shape — mutations.rb's own `owner_id` example: an
+            # addressing key that is neither a dotted path nor a declared
+            # command attribute). The generated `dispatch_*` signature then
+            # takes that as a bare `&str` no JSON step shape supplies, so
+            # the router can't call it either — skipped the same "loudly,
+            # by name and reason" way an ungenerable command already is.
+            # An ACTING command's `id` comes from extract_id instead, so
+            # it's routable only when THAT is (json_codec.rb's own gap).
+            creates = command[:references].nil?
+            if creates && Projector.identity_components(aggregate, command).any? { |c| c[:param] }
+              puts "skipping #{domain_name}::#{aggregate[:name]}.#{command[:name]}'s JSON router entry: " \
+                   "identity needs an extra caller-supplied parameter no JSON step shape carries"
+              next
+            end
+            next unless creates || can_route
+
+            registry_commands << {
+              verb: "#{domain_name}::#{aggregate[:name]}.#{command[:name]}",
+              fn: Projector.dispatch_fn_name(Projector.rust_ident(command[:name])),
+              args_struct: args_struct,
+              creates: creates,
+            }
           end
         end
         puts "wrote #{path}"
+
+        registry_aggregates << {
+          name: aggregate[:name],
+          mod: aggregate[:name].downcase,
+          record: record_name,
+          commands: registry_commands,
+        }
       end
 
       metadata_path = File.join(mod_dir, "metadata.rs")
@@ -71,10 +161,15 @@ module RustProjection
       end
       puts "wrote #{metadata_path}"
 
+      registry_path = File.join(mod_dir, "registry.rs")
+      File.open(registry_path, "w") { |f| f.puts Projector.emit_registry(domain_name, registry_aggregates) }
+      puts "wrote #{registry_path}"
+
       mod_path = File.join(mod_dir, "mod.rs")
       File.open(mod_path, "w") do |f|
         f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
         f.puts "pub mod metadata;"
+        f.puts "pub mod registry;"
         generated_aggregates.each { |a| f.puts "pub mod #{a[:name].downcase};" }
       end
       puts "wrote #{mod_path}"

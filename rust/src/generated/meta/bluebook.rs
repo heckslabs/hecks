@@ -27,6 +27,22 @@ impl RuleText {
     }
 }
 
+impl RuleText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl RuleText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "RuleText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RuleText.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NormalisationRule {
     pub strategy: String,
@@ -59,6 +75,30 @@ impl NormalisationRule {
     }
 }
 
+impl NormalisationRule {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("strategy".to_string(), crate::kernel::Json::Str(self.strategy.clone())),
+        ("source_token".to_string(), crate::kernel::Json::Str(self.source_token.clone())),
+        ("replacement".to_string(), crate::kernel::Json::Str(self.replacement.clone())),
+        ("boundary".to_string(), crate::kernel::Json::Str(self.boundary.clone())),
+        ("position".to_string(), crate::kernel::Json::Str(self.position.clone())),
+        ])
+    }
+}
+
+impl NormalisationRule {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        strategy: v.require("strategy", "NormalisationRule")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.strategy: expected String".to_string()))?,
+        source_token: v.require("source_token", "NormalisationRule")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.source_token: expected String".to_string()))?,
+        replacement: v.require("replacement", "NormalisationRule")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.replacement: expected String".to_string()))?,
+        boundary: v.require("boundary", "NormalisationRule")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.boundary: expected String".to_string()))?,
+        position: v.require("position", "NormalisationRule")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.position: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct BluebookName {
     pub value: String,
@@ -85,6 +125,22 @@ impl BluebookName {
     }
 }
         Ok(())
+    }
+}
+
+impl BluebookName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl BluebookName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "BluebookName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BluebookName.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -117,6 +173,22 @@ impl Vision {
     }
 }
 
+impl Vision {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Vision {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Vision")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Vision.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Classification {
     pub value: String,
@@ -143,6 +215,22 @@ impl Classification {
     }
 }
         Ok(())
+    }
+}
+
+impl Classification {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Classification {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Classification")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Classification.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -175,6 +263,22 @@ impl Version {
     }
 }
 
+impl Version {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Version {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Version")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Version.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Bluebook {
     pub name: Option<BluebookName>,
@@ -195,6 +299,24 @@ impl crate::kernel::Fielded for Bluebook {
             "normalisations" => Some(Field::Value(Value::List(self.normalisations.len()))),
             _ => None,
         }
+    }
+}
+
+impl Bluebook {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("normalisations".to_string(), crate::kernel::Json::Array(self.normalisations.iter().map(|x| x.to_json()).collect())),
+        ])
+    }
+}
+
+impl Bluebook {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok((v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Bluebook: missing identity component name.value".to_string()))?.to_id_component()?)
     }
 }
 
@@ -266,6 +388,17 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: BluebookName::from_json(v.require("name", "DeclareArgs")?)?,
+        vision: Vision::from_json(v.require("vision", "DeclareArgs")?)?,
+        classification: Classification::from_json(v.require("classification", "DeclareArgs")?)?,
+        version: Version::from_json(v.require("version", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for NormaliseArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -327,5 +460,17 @@ pub fn dispatch_normalise(
         &["NormalisationAttached"],
         payload,
     )
+}
+
+impl NormaliseArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        strategy: RuleText::from_json(v.require("strategy", "NormaliseArgs")?)?,
+        source_token: RuleText::from_json(v.require("source_token", "NormaliseArgs")?)?,
+        replacement: RuleText::from_json(v.require("replacement", "NormaliseArgs")?)?,
+        boundary: RuleText::from_json(v.require("boundary", "NormaliseArgs")?)?,
+        position: RuleText::from_json(v.require("position", "NormaliseArgs")?)?,
+        })
+    }
 }
 

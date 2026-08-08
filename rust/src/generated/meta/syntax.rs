@@ -32,6 +32,22 @@ impl SyntaxName {
     }
 }
 
+impl SyntaxName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl SyntaxName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "SyntaxName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SyntaxName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Context {
     File,
@@ -54,6 +70,58 @@ pub enum Context {
     Portoperation,
 }
 
+impl Context {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Context::File => "File",
+            Context::Bluebook => "Bluebook",
+            Context::Aggregate => "Aggregate",
+            Context::Entity => "Entity",
+            Context::Command => "Command",
+            Context::Query => "Query",
+            Context::Valueobject => "ValueObject",
+            Context::Oneof => "OneOf",
+            Context::Lifecycle => "Lifecycle",
+            Context::Policy => "Policy",
+            Context::Processmanager => "ProcessManager",
+            Context::Handler => "Handler",
+            Context::Readmodel => "ReadModel",
+            Context::Type => "Type",
+            Context::Hecksagon => "Hecksagon",
+            Context::World => "World",
+            Context::Domainport => "DomainPort",
+            Context::Portoperation => "PortOperation",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "Context")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Context.name: expected string".to_string()))?;
+        match raw {
+            "File" => Ok(Context::File),
+            "Bluebook" => Ok(Context::Bluebook),
+            "Aggregate" => Ok(Context::Aggregate),
+            "Entity" => Ok(Context::Entity),
+            "Command" => Ok(Context::Command),
+            "Query" => Ok(Context::Query),
+            "ValueObject" => Ok(Context::Valueobject),
+            "OneOf" => Ok(Context::Oneof),
+            "Lifecycle" => Ok(Context::Lifecycle),
+            "Policy" => Ok(Context::Policy),
+            "ProcessManager" => Ok(Context::Processmanager),
+            "Handler" => Ok(Context::Handler),
+            "ReadModel" => Ok(Context::Readmodel),
+            "Type" => Ok(Context::Type),
+            "Hecksagon" => Ok(Context::Hecksagon),
+            "World" => Ok(Context::World),
+            "DomainPort" => Ok(Context::Domainport),
+            "PortOperation" => Ok(Context::Portoperation),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Context: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Body {
     None,
@@ -62,12 +130,60 @@ pub enum Body {
     Rows,
 }
 
+impl Body {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Body::None => "none",
+            Body::Keywords => "keywords",
+            Body::Source => "source",
+            Body::Rows => "rows",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "Body")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Body.name: expected string".to_string()))?;
+        match raw {
+            "none" => Ok(Body::None),
+            "keywords" => Ok(Body::Keywords),
+            "source" => Ok(Body::Source),
+            "rows" => Ok(Body::Rows),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Body: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Status {
     Proposed,
     Admitted,
     Deprecated,
     Retired,
+}
+
+impl Status {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Status::Proposed => "proposed",
+            Status::Admitted => "admitted",
+            Status::Deprecated => "deprecated",
+            Status::Retired => "retired",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "Status")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Status.name: expected string".to_string()))?;
+        match raw {
+            "proposed" => Ok(Status::Proposed),
+            "admitted" => Ok(Status::Admitted),
+            "deprecated" => Ok(Status::Deprecated),
+            "retired" => Ok(Status::Retired),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Status: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,12 +198,68 @@ pub enum ArgumentKind {
     List,
 }
 
+impl ArgumentKind {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            ArgumentKind::Text => "text",
+            ArgumentKind::Symbol => "symbol",
+            ArgumentKind::Number => "number",
+            ArgumentKind::Flag => "flag",
+            ArgumentKind::Literal => "literal",
+            ArgumentKind::Constant => "constant",
+            ArgumentKind::Pairs => "pairs",
+            ArgumentKind::List => "list",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "ArgumentKind")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ArgumentKind.name: expected string".to_string()))?;
+        match raw {
+            "text" => Ok(ArgumentKind::Text),
+            "symbol" => Ok(ArgumentKind::Symbol),
+            "number" => Ok(ArgumentKind::Number),
+            "flag" => Ok(ArgumentKind::Flag),
+            "literal" => Ok(ArgumentKind::Literal),
+            "constant" => Ok(ArgumentKind::Constant),
+            "pairs" => Ok(ArgumentKind::Pairs),
+            "list" => Ok(ArgumentKind::List),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentKind: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PairsShape {
     Fields,
     Elements,
     Verbatim,
     Sibling,
+}
+
+impl PairsShape {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            PairsShape::Fields => "fields",
+            PairsShape::Elements => "elements",
+            PairsShape::Verbatim => "verbatim",
+            PairsShape::Sibling => "sibling",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "PairsShape")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PairsShape.name: expected string".to_string()))?;
+        match raw {
+            "fields" => Ok(PairsShape::Fields),
+            "elements" => Ok(PairsShape::Elements),
+            "verbatim" => Ok(PairsShape::Verbatim),
+            "sibling" => Ok(PairsShape::Sibling),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("PairsShape: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -115,6 +287,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "policy", context: "Bluebook", body: "keywords", inner: "Policy", opens: "Policy", fills: "", status: "admitted", was: "" },
     Keyword { word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: "", status: "admitted", was: "" },
     Keyword { word: "description", context: "Aggregate", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "" },
+    Keyword { word: "provenance", context: "Aggregate", body: "none", inner: "", opens: "", fills: "provenance", status: "admitted", was: "" },
     Keyword { word: "identified_by", context: "Aggregate", body: "source", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "" },
     Keyword { word: "reference_to", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "has_many", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
@@ -135,6 +308,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "attribute", context: "Entity", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "role", context: "Command", body: "none", inner: "", opens: "", fills: "role", status: "admitted", was: "" },
     Keyword { word: "goal", context: "Command", body: "none", inner: "", opens: "", fills: "goal", status: "admitted", was: "" },
+    Keyword { word: "provenance", context: "Command", body: "none", inner: "", opens: "", fills: "provenance", status: "admitted", was: "" },
     Keyword { word: "reference_to", context: "Command", body: "none", inner: "", opens: "", fills: "references", status: "admitted", was: "" },
     Keyword { word: "given", context: "Command", body: "source", inner: "", opens: "", fills: "givens", status: "admitted", was: "" },
     Keyword { word: "sets", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "then_set" },
@@ -185,6 +359,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "one_of", context: "Type", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "" },
     Keyword { word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures", status: "admitted", was: "" },
     Keyword { word: "subscribe", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions", status: "admitted", was: "" },
+    Keyword { word: "uses_framework", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members", status: "admitted", was: "" },
     Keyword { word: "port", context: "Hecksagon", body: "keywords", inner: "DomainPort", opens: "DomainPort", fills: "", status: "admitted", was: "" },
     Keyword { word: "operation", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "" },
     Keyword { word: "verb", context: "DomainPort", body: "none", inner: "", opens: "", fills: "verb", status: "admitted", was: "" },
@@ -194,6 +369,30 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "realm", context: "World", body: "none", inner: "", opens: "", fills: "realm", status: "admitted", was: "" },
     Keyword { word: "latest", context: "World", body: "none", inner: "", opens: "", fills: "latest", status: "admitted", was: "" },
 ];
+
+impl Keyword {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("word".to_string(), crate::kernel::Json::Str(self.word.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("body".to_string(), crate::kernel::Json::Str(self.body.to_string())),
+        ("inner".to_string(), crate::kernel::Json::Str(self.inner.to_string())),
+        ("opens".to_string(), crate::kernel::Json::Str(self.opens.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("was".to_string(), crate::kernel::Json::Str(self.was.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in KEYWORD {
+            if v.get("word").and_then(crate::kernel::Json::as_str) == Some(row.word) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("body").and_then(crate::kernel::Json::as_str) == Some(row.body) && v.get("inner").and_then(crate::kernel::Json::as_str) == Some(row.inner) && v.get("opens").and_then(crate::kernel::Json::as_str) == Some(row.opens) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("was").and_then(crate::kernel::Json::as_str) == Some(row.was) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("Keyword: no member matches {:?}", v)))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Argument {
@@ -220,6 +419,7 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "policy", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "process_manager", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "description", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "provenance", context: "Aggregate", at: "", named: "from", kind: "literal", required: "true", fills: "provenance", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "has_many", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
@@ -254,6 +454,7 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "attribute", context: "Entity", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "role", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "role", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "goal", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "goal", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "provenance", context: "Command", at: "", named: "from", kind: "literal", required: "true", fills: "provenance", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Command", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Command", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Command", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
@@ -340,6 +541,7 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "hecksagon", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "world", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "subscribe", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "uses_framework", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "port", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "operation", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "verb", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
@@ -356,6 +558,34 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "latest", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
 ];
 
+impl Argument {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("keyword".to_string(), crate::kernel::Json::Str(self.keyword.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("at".to_string(), crate::kernel::Json::Str(self.at.to_string())),
+        ("named".to_string(), crate::kernel::Json::Str(self.named.to_string())),
+        ("kind".to_string(), crate::kernel::Json::Str(self.kind.to_string())),
+        ("required".to_string(), crate::kernel::Json::Str(self.required.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("selects".to_string(), crate::kernel::Json::Str(self.selects.to_string())),
+        ("pair_key_fills".to_string(), crate::kernel::Json::Str(self.pair_key_fills.to_string())),
+        ("pair_value_fills".to_string(), crate::kernel::Json::Str(self.pair_value_fills.to_string())),
+        ("pairs_shape".to_string(), crate::kernel::Json::Str(self.pairs_shape.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in ARGUMENT {
+            if v.get("keyword").and_then(crate::kernel::Json::as_str) == Some(row.keyword) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("at").and_then(crate::kernel::Json::as_str) == Some(row.at) && v.get("named").and_then(crate::kernel::Json::as_str) == Some(row.named) && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind) && v.get("required").and_then(crate::kernel::Json::as_str) == Some(row.required) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("selects").and_then(crate::kernel::Json::as_str) == Some(row.selects) && v.get("pair_key_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_key_fills) && v.get("pair_value_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_value_fills) && v.get("pairs_shape").and_then(crate::kernel::Json::as_str) == Some(row.pairs_shape) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("Argument: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Syntax {
     pub name: Option<SyntaxName>,
@@ -368,6 +598,20 @@ impl crate::kernel::Fielded for Syntax {
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Syntax {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Syntax {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok((v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Syntax: missing identity component name.value".to_string()))?.to_id_component()?)
     }
 }
 

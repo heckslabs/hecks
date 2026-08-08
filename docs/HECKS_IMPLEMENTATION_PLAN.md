@@ -1089,15 +1089,21 @@ No Rust syntax appears in the Bluebook.
 
 ### If this is picked up again
 
-Real, scoped next increments, roughly in order of how self-contained each is: (1) wire `bin/rust_conformance` into an actual verification step for generator/kernel changes, replacing the ad hoc `cargo run` smoke-test approach used so far; (2) entity commands (`Amend`/`Reverse`-shaped — addressing one list element by its own identity); (3) role checking and reference-existence checking, both explicitly deferred throughout; (4) era support, which needs real design work first (the as-built generator has no concept of "which era" at all — this isn't a missing feature so much as an unaddressed dimension); (5) `§9` WASM, which should be scoped fresh against the as-built architecture rather than assumed to still fit the original per-era design.
+Real, scoped next increments, roughly in order of how self-contained each is: (1) `bin/rust_conformance` now has a `native`/`<path.wasm>` subprocess mode ([0012](decisions/0012-wasm-via-wasi-stdio.md)) that can run either compiled artifact directly — still not wired into CI or into the generator's own workflow as an automated per-change gate, which remains the real next step here; (2) entity commands (`Amend`/`Reverse`-shaped — addressing one list element by its own identity); (3) role checking and reference-existence checking, both explicitly deferred throughout; (4) era support, which needs real design work first (the as-built generator has no concept of "which era" at all — this isn't a missing feature so much as an unaddressed dimension); (5) `§9` WASM — a first, non-browser slice shipped ([0012](decisions/0012-wasm-via-wasi-stdio.md), stdin/stdout over WASI, not the JS API); the original browser-facing design in `§9` remains unscoped against the as-built (no-era) architecture.
 
 ---
 
 # 9. WASM embedded Bluebook
 
-**Status:** New; depends on Rust projection. `§8` is now substantially built, but on a different architecture than this section assumes (interpreted dispatch data over a hand-written generic kernel, no era concept at all — see `§8`'s "What actually got built"). Everything below is unstarted and was written against the ORIGINAL `§8` design; re-scope against the as-built one before starting, particularly the per-era claims in the acceptance criteria.  
+**Status:** A first WASM slice is built, on a DIFFERENT shape than this section originally specified — see [decision 0012](decisions/0012-wasm-via-wasi-stdio.md) and "What actually shipped" below. Everything else in this section (the browser JS API, per-era dispatch, the host-adapter import boundary) remains unstarted and was written against the ORIGINAL `§8` design; re-scope against the as-built architecture before picking it up, particularly the per-era claims in the acceptance criteria.  
 **Priority:** P1  
 **Complexity:** L
+
+### What actually shipped (WASI-stdio slice, 0012)
+
+Not the browser JS API below — a stdin/stdout JSON CLI contract (`{"steps": [...]}` in, `{"instances", "events", "refusals"}` out — `bin/rust_conformance`'s own pre-existing shape), compiled unchanged for both native (`aarch64-apple-darwin`) and `wasm32-wasip1` (WASI preview 1). `bin/project_wasm <domain>` regenerates and cross-compiles; `bin/rust_conformance <domain> <script.json> native|<path.wasm>` runs either artifact as a real subprocess and diffs it against the Ruby oracle, finally wiring the subprocess hook that tool's own header comment used to say didn't exist. Verified on Banking (10 aggregates, composite identities, closed-set data tables): `instances` matches byte-for-byte across Ruby, native Rust, and WASM-under-`wasmtime`. Two pre-existing, unrelated fidelity gaps surfaced by actually running the harness live rather than fixed by this slice — `events[].payload`'s debug-string-vs-structured-JSON shape, and a refusal-wording prefix Ruby adds and Rust doesn't — see 0012's own Consequences for both.
+
+No era selection (the generator still has no era concept — §8's own still-open gap, untouched here), no browser JS API, no host-adapter import boundary. The rest of this section — Target through Non-goals — is the ORIGINAL, still-unbuilt browser-facing design; 0012's "Rejected alternatives" explains why it wasn't what got built first, and that a browser layer remains a plausible follow-on built ON TOP of the WASI-stdio contract, not a replacement for it.
 
 ### Target
 

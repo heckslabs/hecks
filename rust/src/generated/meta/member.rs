@@ -27,6 +27,22 @@ impl MemberText {
     }
 }
 
+impl MemberText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl MemberText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "MemberText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberText.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Pair {
     pub key: String,
@@ -50,6 +66,24 @@ impl Pair {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Pair {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Pair {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        key: v.require("key", "Pair")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.key: expected String".to_string()))?,
+        value: v.require("value", "Pair")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -77,6 +111,22 @@ impl Position {
     }
 }
 
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Member {
     pub value_object_id: Option<String>,
@@ -95,6 +145,23 @@ impl crate::kernel::Fielded for Member {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Member {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value_object_id".to_string(), self.value_object_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("shape".to_string(), self.shape.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("pairs".to_string(), crate::kernel::Json::Array(self.pairs.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Member {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("value_object_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member: missing identity component value_object_id".to_string()))?.to_id_component()?, (v.get("position").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member: missing identity component position.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -160,6 +227,16 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value_object_id: v.require("value_object_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.value_object_id: expected String".to_string()))?,
+        shape: MemberText::from_json(v.require("shape", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for PairArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -209,5 +286,14 @@ pub fn dispatch_pair(
         &["PairBound"],
         payload,
     )
+}
+
+impl PairArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        key: MemberText::from_json(v.require("key", "PairArgs")?)?,
+        value: MemberText::from_json(v.require("value", "PairArgs")?)?,
+        })
+    }
 }
 

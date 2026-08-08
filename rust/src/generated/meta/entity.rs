@@ -32,6 +32,22 @@ impl EntityName {
     }
 }
 
+impl EntityName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl EntityName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "EntityName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct EntityText {
     pub value: String,
@@ -56,6 +72,22 @@ impl EntityText {
     }
 }
 
+impl EntityText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl EntityText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "EntityText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityText.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdentityPath {
     pub value: String,
@@ -77,6 +109,22 @@ impl IdentityPath {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl IdentityPath {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl IdentityPath {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "IdentityPath")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -116,6 +164,34 @@ impl PieceField {
     }
 }
 
+impl PieceField {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ("type".to_string(), crate::kernel::Json::Str(self.r#type.clone())),
+        ("list".to_string(), crate::kernel::Json::Str(self.list.clone())),
+        ("optional".to_string(), crate::kernel::Json::Str(self.optional.clone())),
+        ("pattern".to_string(), crate::kernel::Json::Str(self.pattern.clone())),
+        ("default".to_string(), crate::kernel::Json::Str(self.default.clone())),
+        ("admits".to_string(), crate::kernel::Json::Str(self.admits.clone())),
+        ])
+    }
+}
+
+impl PieceField {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: v.require("name", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.name: expected String".to_string()))?,
+        r#type: v.require("type", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.type: expected String".to_string()))?,
+        list: v.require("list", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.list: expected String".to_string()))?,
+        optional: v.require("optional", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.optional: expected String".to_string()))?,
+        pattern: v.require("pattern", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.pattern: expected String".to_string()))?,
+        default: v.require("default", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.default: expected String".to_string()))?,
+        admits: v.require("admits", "PieceField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.admits: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceTransition {
     pub command: String,
@@ -144,6 +220,26 @@ impl PieceTransition {
     }
 }
 
+impl PieceTransition {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("command".to_string(), crate::kernel::Json::Str(self.command.clone())),
+        ("from_state".to_string(), crate::kernel::Json::Str(self.from_state.clone())),
+        ("to_state".to_string(), crate::kernel::Json::Str(self.to_state.clone())),
+        ])
+    }
+}
+
+impl PieceTransition {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        command: v.require("command", "PieceTransition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.command: expected String".to_string()))?,
+        from_state: v.require("from_state", "PieceTransition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.from_state: expected String".to_string()))?,
+        to_state: v.require("to_state", "PieceTransition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.to_state: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
@@ -165,6 +261,22 @@ impl Position {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
     }
 }
 
@@ -198,6 +310,29 @@ impl crate::kernel::Fielded for Entity {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Entity {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("aggregate_id".to_string(), self.aggregate_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("owner".to_string(), self.owner.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("identified_by".to_string(), crate::kernel::Json::Array(self.identified_by.iter().map(|x| x.to_json()).collect())),
+        ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
+        ("state_field".to_string(), self.state_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("state_start".to_string(), self.state_start.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("transitions".to_string(), crate::kernel::Json::Array(self.transitions.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Entity {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("aggregate_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Entity: missing identity component aggregate_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Entity: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -277,6 +412,18 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate_id: v.require("aggregate_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))?,
+        owner: EntityText::from_json(v.require("owner", "DeclareArgs")?)?,
+        name: EntityName::from_json(v.require("name", "DeclareArgs")?)?,
+        description: EntityName::from_json(v.require("description", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for IdentifyArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -324,6 +471,14 @@ pub fn dispatch_identify(
     )
 }
 
+impl IdentifyArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        path: IdentityPath::from_json(v.require("path", "IdentifyArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for SealArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -368,6 +523,14 @@ pub fn dispatch_seal(
         &["PieceSealed"],
         payload,
     )
+}
+
+impl SealArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+
+        })
+    }
 }
 
 impl crate::kernel::Fielded for AttributeArgs {
@@ -441,6 +604,20 @@ pub fn dispatch_attribute(
     )
 }
 
+impl AttributeArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: EntityText::from_json(v.require("name", "AttributeArgs")?)?,
+        r#type: EntityText::from_json(v.require("type", "AttributeArgs")?)?,
+        list: EntityText::from_json(v.require("list", "AttributeArgs")?)?,
+        optional: EntityText::from_json(v.require("optional", "AttributeArgs")?)?,
+        pattern: EntityText::from_json(v.require("pattern", "AttributeArgs")?)?,
+        default: EntityText::from_json(v.require("default", "AttributeArgs")?)?,
+        admits: EntityText::from_json(v.require("admits", "AttributeArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for LifecycleArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -491,6 +668,15 @@ pub fn dispatch_lifecycle(
         &["PieceLifecycleNamed"],
         payload,
     )
+}
+
+impl LifecycleArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        state_field: EntityText::from_json(v.require("state_field", "LifecycleArgs")?)?,
+        state_start: EntityText::from_json(v.require("state_start", "LifecycleArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for TransitionArgs {
@@ -546,5 +732,15 @@ pub fn dispatch_transition(
         &["PieceTransitionAttached"],
         payload,
     )
+}
+
+impl TransitionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        command: EntityText::from_json(v.require("command", "TransitionArgs")?)?,
+        from_state: EntityText::from_json(v.require("from_state", "TransitionArgs")?)?,
+        to_state: EntityText::from_json(v.require("to_state", "TransitionArgs")?)?,
+        })
+    }
 }
 

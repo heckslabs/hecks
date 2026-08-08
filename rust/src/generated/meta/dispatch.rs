@@ -27,6 +27,22 @@ impl DispatchText {
     }
 }
 
+impl DispatchText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl DispatchText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "DispatchText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DispatchText.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Binding {
     pub key: String,
@@ -50,6 +66,24 @@ impl Binding {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Binding {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Binding {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        key: v.require("key", "Binding")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()))?,
+        value: v.require("value", "Binding")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -77,6 +111,22 @@ impl Position {
     }
 }
 
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Dispatch {
     pub handler_id: Option<String>,
@@ -97,6 +147,24 @@ impl crate::kernel::Fielded for Dispatch {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Dispatch {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("handler_id".to_string(), self.handler_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("handler".to_string(), self.handler.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("command_name".to_string(), self.command_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("with_spec".to_string(), crate::kernel::Json::Array(self.with_spec.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Dispatch {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("handler_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Dispatch: missing identity component handler_id".to_string()))?.to_id_component()?, (v.get("command_name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Dispatch: missing identity component command_name.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -167,6 +235,17 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        handler_id: v.require("handler_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.handler_id: expected String".to_string()))?,
+        handler: DispatchText::from_json(v.require("handler", "DeclareArgs")?)?,
+        command_name: DispatchText::from_json(v.require("command_name", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for BindArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -216,5 +295,14 @@ pub fn dispatch_bind(
         &["BindingAttached"],
         payload,
     )
+}
+
+impl BindArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        key: DispatchText::from_json(v.require("key", "BindArgs")?)?,
+        value: DispatchText::from_json(v.require("value", "BindArgs")?)?,
+        })
+    }
 }
 

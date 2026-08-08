@@ -27,6 +27,22 @@ impl HandlerText {
     }
 }
 
+impl HandlerText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl HandlerText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "HandlerText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HandlerText.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
@@ -51,6 +67,22 @@ impl Position {
     }
 }
 
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Handler {
     pub process_manager_id: Option<String>,
@@ -71,6 +103,24 @@ impl crate::kernel::Fielded for Handler {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Handler {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("process_manager_id".to_string(), self.process_manager_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("event_type".to_string(), self.event_type.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("from_state".to_string(), self.from_state.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("to_state".to_string(), self.to_state.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Handler {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("process_manager_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Handler: missing identity component process_manager_id".to_string()))?.to_id_component()?, (v.get("event_type").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Handler: missing identity component event_type.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -143,5 +193,17 @@ pub fn dispatch_declare(
         &["LegDeclared"],
         payload,
     )
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        process_manager_id: v.require("process_manager_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.process_manager_id: expected String".to_string()))?,
+        event_type: HandlerText::from_json(v.require("event_type", "DeclareArgs")?)?,
+        from_state: HandlerText::from_json(v.require("from_state", "DeclareArgs")?)?,
+        to_state: HandlerText::from_json(v.require("to_state", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
 }
 

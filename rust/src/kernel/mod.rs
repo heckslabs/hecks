@@ -6,12 +6,15 @@
 // docs/guides/commands.md, not guessed or half-remembered from a prior
 // read of the Ruby source.
 
+pub mod cli;
 pub mod dispatch;
 pub mod expr;
+pub mod json;
 pub mod repository;
 
 pub use dispatch::{dispatch, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
 pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
+pub use json::Json;
 pub use repository::{InMemoryRepository, Repository};
 
 #[derive(Debug, Clone)]

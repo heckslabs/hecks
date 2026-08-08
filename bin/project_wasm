@@ -1,0 +1,56 @@
+#!/usr/bin/env ruby
+
+# The WASM projector — wraps THE SAME Rust binary bin/project_rust already
+# generates, rather than a second, WASM-specific implementation (decision
+# docs/decisions/0012-wasm-via-wasi-stdio.md, echoing 0007's own "WASM is a
+# compile target of the same generated artifact, not a separate
+# implementation"). rust/src/main.rs's stdin/stdout JSON CLI contract
+# (kernel/cli.rs) uses nothing but std — no filesystem, no network, no OS
+# calls — so it compiles for wasm32-wasip1 completely unchanged; WASI
+# implements stdin/stdout the same way a native process does. This script
+# is the only thing that's new: regenerate, then cross-compile.
+#
+#   bin/project_wasm <domain>
+#
+# Produces rust/dist/<domain>.wasm — run it with `wasmtime run
+# rust/dist/<domain>.wasm < script.json` (or any other WASI-preview1 host).
+
+domain = ARGV.shift or abort "usage: bin/project_wasm <domain>"
+
+root = File.expand_path("..", __dir__)
+target_mod_name = File.basename(domain)
+
+unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-wasip1")
+  abort <<~MSG
+    wasm32-wasip1 isn't installed for this toolchain. Install it once with:
+
+        rustup target add wasm32-wasip1
+
+    then re-run bin/project_wasm.
+  MSG
+end
+
+puts "== regenerating rust/src/generated/ for #{domain} =="
+system(File.join(root, "bin", "project_rust"), domain, exception: true)
+
+puts "== cargo build --release --target wasm32-wasip1 =="
+Dir.chdir(File.join(root, "rust")) do
+  # `rustup run` rather than a bare `cargo` — a `cargo`/`rustc` earlier on
+  # PATH than rustup's own shims (Homebrew installs one; found live on this
+  # machine) is a DIFFERENT toolchain that never saw `rustup target add`,
+  # and fails with "can't find crate for `std`" despite the target check
+  # above passing (that check asks rustup, correctly; a bare `cargo build`
+  # doesn't necessarily run through rustup at all).
+  system("rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-wasip1", exception: true)
+end
+
+dist_dir = File.join(root, "rust", "dist")
+require "fileutils"
+FileUtils.mkdir_p(dist_dir)
+
+built = File.join(root, "rust", "target", "wasm32-wasip1", "release", "rust.wasm")
+out   = File.join(dist_dir, "#{target_mod_name}.wasm")
+FileUtils.cp(built, out)
+
+puts "wrote #{out}"
+puts %(run it: wasmtime run #{out} < script.json)

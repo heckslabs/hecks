@@ -32,6 +32,22 @@ impl AggregateName {
     }
 }
 
+impl AggregateName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl AggregateName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "AggregateName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AggregateName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Description {
     pub value: String,
@@ -61,6 +77,22 @@ impl Description {
     }
 }
 
+impl Description {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Description {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Description")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Description.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdentityField {
     pub value: String,
@@ -85,6 +117,22 @@ impl IdentityField {
     }
 }
 
+impl IdentityField {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl IdentityField {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "IdentityField")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityField.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdentityPath {
     pub value: String,
@@ -106,6 +154,22 @@ impl IdentityPath {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl IdentityPath {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl IdentityPath {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "IdentityPath")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -145,6 +209,34 @@ impl Field {
     }
 }
 
+impl Field {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ("type".to_string(), crate::kernel::Json::Str(self.r#type.clone())),
+        ("list".to_string(), crate::kernel::Json::Str(self.list.clone())),
+        ("optional".to_string(), crate::kernel::Json::Str(self.optional.clone())),
+        ("pattern".to_string(), crate::kernel::Json::Str(self.pattern.clone())),
+        ("default".to_string(), crate::kernel::Json::Str(self.default.clone())),
+        ("admits".to_string(), crate::kernel::Json::Str(self.admits.clone())),
+        ])
+    }
+}
+
+impl Field {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: v.require("name", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.name: expected String".to_string()))?,
+        r#type: v.require("type", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.type: expected String".to_string()))?,
+        list: v.require("list", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.list: expected String".to_string()))?,
+        optional: v.require("optional", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.optional: expected String".to_string()))?,
+        pattern: v.require("pattern", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.pattern: expected String".to_string()))?,
+        default: v.require("default", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.default: expected String".to_string()))?,
+        admits: v.require("admits", "Field")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.admits: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValueName {
     pub name: String,
@@ -166,6 +258,22 @@ impl ValueName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl ValueName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ])
+    }
+}
+
+impl ValueName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: v.require("name", "ValueName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueName.name: expected String".to_string()))?,
+        })
     }
 }
 
@@ -197,6 +305,26 @@ impl Transition {
     }
 }
 
+impl Transition {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("command".to_string(), crate::kernel::Json::Str(self.command.clone())),
+        ("from_state".to_string(), crate::kernel::Json::Str(self.from_state.clone())),
+        ("to_state".to_string(), crate::kernel::Json::Str(self.to_state.clone())),
+        ])
+    }
+}
+
+impl Transition {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        command: v.require("command", "Transition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.command: expected String".to_string()))?,
+        from_state: v.require("from_state", "Transition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.from_state: expected String".to_string()))?,
+        to_state: v.require("to_state", "Transition")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.to_state: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
@@ -218,6 +346,22 @@ impl Position {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
     }
 }
 
@@ -250,6 +394,22 @@ impl FieldName {
     }
 }
 
+impl FieldName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl FieldName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "FieldName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeName {
     pub value: String,
@@ -279,6 +439,22 @@ impl TypeName {
     }
 }
 
+impl TypeName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl TypeName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "TypeName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TypeName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LiteralText {
     pub value: String,
@@ -300,6 +476,22 @@ impl LiteralText {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl LiteralText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl LiteralText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "LiteralText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LiteralText.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -332,11 +524,28 @@ impl ListFlag {
     }
 }
 
+impl ListFlag {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ListFlag {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "ListFlag")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ListFlag.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Aggregate {
     pub bluebook_id: Option<String>,
     pub name: Option<AggregateName>,
     pub description: Option<Description>,
+    pub provenance: Option<LiteralText>,
     pub identified_by: Vec<IdentityPath>,
     pub attributes: Vec<Field>,
     pub value_objects: Vec<ValueName>,
@@ -353,6 +562,7 @@ impl crate::kernel::Fielded for Aggregate {
             "bluebook_id" => self.bluebook_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "provenance" => self.provenance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "identified_by" => Some(Field::Value(Value::List(self.identified_by.len()))),
             "attributes" => Some(Field::Value(Value::List(self.attributes.len()))),
             "value_objects" => Some(Field::Value(Value::List(self.value_objects.len()))),
@@ -365,6 +575,30 @@ impl crate::kernel::Fielded for Aggregate {
     }
 }
 
+impl Aggregate {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), self.bluebook_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("provenance".to_string(), self.provenance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("identified_by".to_string(), crate::kernel::Json::Array(self.identified_by.iter().map(|x| x.to_json()).collect())),
+        ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
+        ("value_objects".to_string(), crate::kernel::Json::Array(self.value_objects.iter().map(|x| x.to_json()).collect())),
+        ("state_field".to_string(), self.state_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("state_start".to_string(), self.state_start.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("transitions".to_string(), crate::kernel::Json::Array(self.transitions.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Aggregate {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Aggregate: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Aggregate: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
+    }
+}
+
 impl crate::kernel::Fielded for DeclareArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -373,6 +607,7 @@ impl crate::kernel::Fielded for DeclareArgs {
             "bluebook_id" => Some(Field::Value(Value::Str(self.bluebook_id.clone()))),
             "name" => Some(Field::Nested(&self.name)),
             "description" => Some(Field::Nested(&self.description)),
+            "provenance" => Some(Field::Nested(&self.provenance)),
             "position" => Some(Field::Nested(&self.position)),
             _ => None,
         }
@@ -385,6 +620,7 @@ pub struct DeclareArgs {
     pub bluebook_id: String,
     pub name: AggregateName,
     pub description: Description,
+    pub provenance: LiteralText,
     pub position: Position,
 }
 
@@ -393,12 +629,14 @@ pub fn dispatch_declare(
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
         args.description.check_invariants()?;
+        args.provenance.check_invariants()?;
         args.position.check_invariants()?;
 
     let mut payload = std::collections::BTreeMap::new();
     payload.insert("bluebook_id".to_string(), format!("{:?}", args.bluebook_id)); 
         payload.insert("name".to_string(), format!("{:?}", args.name.value)); 
         payload.insert("description".to_string(), format!("{:?}", args.description.value)); 
+        payload.insert("provenance".to_string(), format!("{:?}", args.provenance.value)); 
         payload.insert("position".to_string(), format!("{:?}", args.position.value)); 
 
     crate::kernel::dispatch(
@@ -409,6 +647,7 @@ pub fn dispatch_declare(
             bluebook_id: Some(args.bluebook_id.clone()),
             name: Some(args.name.clone()),
             description: Some(args.description.clone()),
+            provenance: Some(args.provenance.clone()),
             identified_by: vec![],
             attributes: vec![],
             value_objects: vec![],
@@ -435,6 +674,18 @@ pub fn dispatch_declare(
         &["RootDeclared"],
         payload,
     )
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        name: AggregateName::from_json(v.require("name", "DeclareArgs")?)?,
+        description: Description::from_json(v.require("description", "DeclareArgs")?)?,
+        provenance: LiteralText::from_json(v.require("provenance", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for IdentifyArgs {
@@ -482,6 +733,14 @@ pub fn dispatch_identify(
         &["RootIdentified"],
         payload,
     )
+}
+
+impl IdentifyArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        path: IdentityPath::from_json(v.require("path", "IdentifyArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for AttributeArgs {
@@ -554,6 +813,20 @@ pub fn dispatch_attribute(
     )
 }
 
+impl AttributeArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        r#type: v.require("type", "AttributeArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttributeArgs.type: expected String".to_string()))?,
+        name: FieldName::from_json(v.require("name", "AttributeArgs")?)?,
+        list: ListFlag::from_json(v.require("list", "AttributeArgs")?)?,
+        optional: ListFlag::from_json(v.require("optional", "AttributeArgs")?)?,
+        pattern: LiteralText::from_json(v.require("pattern", "AttributeArgs")?)?,
+        default: LiteralText::from_json(v.require("default", "AttributeArgs")?)?,
+        admits: LiteralText::from_json(v.require("admits", "AttributeArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for ReferenceArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -622,6 +895,20 @@ pub fn dispatch_reference(
         &["ReferenceAttached"],
         payload,
     )
+}
+
+impl ReferenceArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        points_at: v.require("points_at", "ReferenceArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()))?,
+        name: FieldName::from_json(v.require("name", "ReferenceArgs")?)?,
+        list: ListFlag::from_json(v.require("list", "ReferenceArgs")?)?,
+        optional: ListFlag::from_json(v.require("optional", "ReferenceArgs")?)?,
+        pattern: LiteralText::from_json(v.require("pattern", "ReferenceArgs")?)?,
+        default: LiteralText::from_json(v.require("default", "ReferenceArgs")?)?,
+        admits: LiteralText::from_json(v.require("admits", "ReferenceArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for HoldsArgs {
@@ -694,6 +981,20 @@ pub fn dispatch_holds(
     )
 }
 
+impl HoldsArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        holds: v.require("holds", "HoldsArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("HoldsArgs.holds: expected String".to_string()))?,
+        name: FieldName::from_json(v.require("name", "HoldsArgs")?)?,
+        list: ListFlag::from_json(v.require("list", "HoldsArgs")?)?,
+        optional: ListFlag::from_json(v.require("optional", "HoldsArgs")?)?,
+        pattern: LiteralText::from_json(v.require("pattern", "HoldsArgs")?)?,
+        default: LiteralText::from_json(v.require("default", "HoldsArgs")?)?,
+        admits: LiteralText::from_json(v.require("admits", "HoldsArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for LifecycleArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -744,6 +1045,15 @@ pub fn dispatch_lifecycle(
         &["LifecycleNamed"],
         payload,
     )
+}
+
+impl LifecycleArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        state_field: FieldName::from_json(v.require("state_field", "LifecycleArgs")?)?,
+        state_start: FieldName::from_json(v.require("state_start", "LifecycleArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for TransitionArgs {
@@ -801,6 +1111,16 @@ pub fn dispatch_transition(
     )
 }
 
+impl TransitionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        command: FieldName::from_json(v.require("command", "TransitionArgs")?)?,
+        from_state: FieldName::from_json(v.require("from_state", "TransitionArgs")?)?,
+        to_state: FieldName::from_json(v.require("to_state", "TransitionArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for SealArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -845,6 +1165,14 @@ pub fn dispatch_seal(
         &["RootSealed"],
         payload,
     )
+}
+
+impl SealArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+
+        })
+    }
 }
 
 impl crate::kernel::Fielded for ValueArgs {
@@ -892,5 +1220,13 @@ pub fn dispatch_value(
         &["ValueDeclared"],
         payload,
     )
+}
+
+impl ValueArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: FieldName::from_json(v.require("name", "ValueArgs")?)?,
+        })
+    }
 }
 

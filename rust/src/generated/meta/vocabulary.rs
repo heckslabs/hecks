@@ -32,6 +32,22 @@ impl VocabularyName {
     }
 }
 
+impl VocabularyName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl VocabularyName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "VocabularyName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VocabularyName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Comparison {
     pub symbol: &'static str,
@@ -49,6 +65,26 @@ pub const COMPARISON: &[Comparison] = &[
     Comparison { symbol: "!=", compares_less_than: "false", compares_equal: "true", negated: "true" },
 ];
 
+impl Comparison {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("symbol".to_string(), crate::kernel::Json::Str(self.symbol.to_string())),
+        ("compares_less_than".to_string(), crate::kernel::Json::Str(self.compares_less_than.to_string())),
+        ("compares_equal".to_string(), crate::kernel::Json::Str(self.compares_equal.to_string())),
+        ("negated".to_string(), crate::kernel::Json::Str(self.negated.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in COMPARISON {
+            if v.get("symbol").and_then(crate::kernel::Json::as_str) == Some(row.symbol) && v.get("compares_less_than").and_then(crate::kernel::Json::as_str) == Some(row.compares_less_than) && v.get("compares_equal").and_then(crate::kernel::Json::as_str) == Some(row.compares_equal) && v.get("negated").and_then(crate::kernel::Json::as_str) == Some(row.negated) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("Comparison: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SignTest {
     pub name: &'static str,
@@ -61,6 +97,24 @@ pub const SIGN_TEST: &[SignTest] = &[
     SignTest { name: "zero?", compares_via: "==" },
 ];
 
+impl SignTest {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.to_string())),
+        ("compares_via".to_string(), crate::kernel::Json::Str(self.compares_via.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in SIGN_TEST {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("compares_via").and_then(crate::kernel::Json::as_str) == Some(row.compares_via) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("SignTest: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct IncludeHaystack {
     pub r#type: &'static str,
@@ -72,6 +126,24 @@ pub const INCLUDE_HAYSTACK: &[IncludeHaystack] = &[
     IncludeHaystack { r#type: "String", strategy: "substring" },
 ];
 
+impl IncludeHaystack {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("type".to_string(), crate::kernel::Json::Str(self.r#type.to_string())),
+        ("strategy".to_string(), crate::kernel::Json::Str(self.strategy.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in INCLUDE_HAYSTACK {
+            if v.get("type").and_then(crate::kernel::Json::as_str) == Some(row.r#type) && v.get("strategy").and_then(crate::kernel::Json::as_str) == Some(row.strategy) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("IncludeHaystack: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToStringType {
     String,
@@ -82,11 +154,61 @@ pub enum ToStringType {
     Nilclass,
 }
 
+impl ToStringType {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            ToStringType::String => "String",
+            ToStringType::Integer => "Integer",
+            ToStringType::Float => "Float",
+            ToStringType::Trueclass => "TrueClass",
+            ToStringType::Falseclass => "FalseClass",
+            ToStringType::Nilclass => "NilClass",
+        };
+        crate::kernel::Json::obj(vec![("type", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("type", "ToStringType")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ToStringType.type: expected string".to_string()))?;
+        match raw {
+            "String" => Ok(ToStringType::String),
+            "Integer" => Ok(ToStringType::Integer),
+            "Float" => Ok(ToStringType::Float),
+            "TrueClass" => Ok(ToStringType::Trueclass),
+            "FalseClass" => Ok(ToStringType::Falseclass),
+            "NilClass" => Ok(ToStringType::Nilclass),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("ToStringType: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SizedType {
     Array,
     String,
     Hash,
+}
+
+impl SizedType {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            SizedType::Array => "Array",
+            SizedType::String => "String",
+            SizedType::Hash => "Hash",
+        };
+        crate::kernel::Json::obj(vec![("type", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("type", "SizedType")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SizedType.type: expected string".to_string()))?;
+        match raw {
+            "Array" => Ok(SizedType::Array),
+            "String" => Ok(SizedType::String),
+            "Hash" => Ok(SizedType::Hash),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("SizedType: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,10 +220,56 @@ pub enum Primitive {
     Falseclass,
 }
 
+impl Primitive {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Primitive::String => "String",
+            Primitive::Integer => "Integer",
+            Primitive::Float => "Float",
+            Primitive::Trueclass => "TrueClass",
+            Primitive::Falseclass => "FalseClass",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "Primitive")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Primitive.name: expected string".to_string()))?;
+        match raw {
+            "String" => Ok(Primitive::String),
+            "Integer" => Ok(Primitive::Integer),
+            "Float" => Ok(Primitive::Float),
+            "TrueClass" => Ok(Primitive::Trueclass),
+            "FalseClass" => Ok(Primitive::Falseclass),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Primitive: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NormalisationStrategy {
     CollapseWhitespace,
     Replace,
+}
+
+impl NormalisationStrategy {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            NormalisationStrategy::CollapseWhitespace => "collapse_whitespace",
+            NormalisationStrategy::Replace => "replace",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "NormalisationStrategy")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationStrategy.name: expected string".to_string()))?;
+        match raw {
+            "collapse_whitespace" => Ok(NormalisationStrategy::CollapseWhitespace),
+            "replace" => Ok(NormalisationStrategy::Replace),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("NormalisationStrategy: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,6 +285,24 @@ pub const MUTATION_OP: &[MutationOp] = &[
     MutationOp { name: "decrement", sign: "-1" },
 ];
 
+impl MutationOp {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.to_string())),
+        ("sign".to_string(), crate::kernel::Json::Str(self.sign.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in MUTATION_OP {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("sign").and_then(crate::kernel::Json::as_str) == Some(row.sign) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("MutationOp: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QueryComparator {
     Eq,
@@ -129,6 +315,38 @@ pub enum QueryComparator {
     Contains,
 }
 
+impl QueryComparator {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            QueryComparator::Eq => "eq",
+            QueryComparator::Ne => "ne",
+            QueryComparator::Gt => "gt",
+            QueryComparator::Gte => "gte",
+            QueryComparator::Lt => "lt",
+            QueryComparator::Lte => "lte",
+            QueryComparator::In => "in",
+            QueryComparator::Contains => "contains",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "QueryComparator")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryComparator.name: expected string".to_string()))?;
+        match raw {
+            "eq" => Ok(QueryComparator::Eq),
+            "ne" => Ok(QueryComparator::Ne),
+            "gt" => Ok(QueryComparator::Gt),
+            "gte" => Ok(QueryComparator::Gte),
+            "lt" => Ok(QueryComparator::Lt),
+            "lte" => Ok(QueryComparator::Lte),
+            "in" => Ok(QueryComparator::In),
+            "contains" => Ok(QueryComparator::Contains),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("QueryComparator: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadOrder {
     Port,
@@ -137,6 +355,34 @@ pub enum LoadOrder {
     TranslationsBluebook,
     Hecksagon,
     World,
+}
+
+impl LoadOrder {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            LoadOrder::Port => "*.port",
+            LoadOrder::Adapter => "*.adapter",
+            LoadOrder::Bluebook => "*.bluebook",
+            LoadOrder::TranslationsBluebook => "translations/*.bluebook",
+            LoadOrder::Hecksagon => "*.hecksagon",
+            LoadOrder::World => "*.world",
+        };
+        crate::kernel::Json::obj(vec![("glob", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("glob", "LoadOrder")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LoadOrder.glob: expected string".to_string()))?;
+        match raw {
+            "*.port" => Ok(LoadOrder::Port),
+            "*.adapter" => Ok(LoadOrder::Adapter),
+            "*.bluebook" => Ok(LoadOrder::Bluebook),
+            "translations/*.bluebook" => Ok(LoadOrder::TranslationsBluebook),
+            "*.hecksagon" => Ok(LoadOrder::Hecksagon),
+            "*.world" => Ok(LoadOrder::World),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("LoadOrder: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,6 +403,50 @@ pub enum AggregateDispatchOrder {
     Emit,
 }
 
+impl AggregateDispatchOrder {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            AggregateDispatchOrder::RefuseUnknownArguments => "refuse_unknown_arguments",
+            AggregateDispatchOrder::RefuseAbsentArguments => "refuse_absent_arguments",
+            AggregateDispatchOrder::NormalizeArgs => "normalize_args",
+            AggregateDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch",
+            AggregateDispatchOrder::ResolveReferences => "resolve_references",
+            AggregateDispatchOrder::Hydrate => "hydrate",
+            AggregateDispatchOrder::EnforceGivens => "enforce_givens",
+            AggregateDispatchOrder::AdmissibleTransition => "admissible_transition",
+            AggregateDispatchOrder::AssignCreationAttributes => "assign_creation_attributes",
+            AggregateDispatchOrder::ApplyMutations => "apply_mutations",
+            AggregateDispatchOrder::AdvanceLifecycle => "advance_lifecycle",
+            AggregateDispatchOrder::EnforceEnsures => "enforce_ensures",
+            AggregateDispatchOrder::Save => "save",
+            AggregateDispatchOrder::Emit => "emit",
+        };
+        crate::kernel::Json::obj(vec![("step", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("step", "AggregateDispatchOrder")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AggregateDispatchOrder.step: expected string".to_string()))?;
+        match raw {
+            "refuse_unknown_arguments" => Ok(AggregateDispatchOrder::RefuseUnknownArguments),
+            "refuse_absent_arguments" => Ok(AggregateDispatchOrder::RefuseAbsentArguments),
+            "normalize_args" => Ok(AggregateDispatchOrder::NormalizeArgs),
+            "refuse_role_mismatch" => Ok(AggregateDispatchOrder::RefuseRoleMismatch),
+            "resolve_references" => Ok(AggregateDispatchOrder::ResolveReferences),
+            "hydrate" => Ok(AggregateDispatchOrder::Hydrate),
+            "enforce_givens" => Ok(AggregateDispatchOrder::EnforceGivens),
+            "admissible_transition" => Ok(AggregateDispatchOrder::AdmissibleTransition),
+            "assign_creation_attributes" => Ok(AggregateDispatchOrder::AssignCreationAttributes),
+            "apply_mutations" => Ok(AggregateDispatchOrder::ApplyMutations),
+            "advance_lifecycle" => Ok(AggregateDispatchOrder::AdvanceLifecycle),
+            "enforce_ensures" => Ok(AggregateDispatchOrder::EnforceEnsures),
+            "save" => Ok(AggregateDispatchOrder::Save),
+            "emit" => Ok(AggregateDispatchOrder::Emit),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("AggregateDispatchOrder: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntityDispatchOrder {
     NormalizeArgs,
@@ -173,6 +463,46 @@ pub enum EntityDispatchOrder {
     Emit,
 }
 
+impl EntityDispatchOrder {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            EntityDispatchOrder::NormalizeArgs => "normalize_args",
+            EntityDispatchOrder::RefuseRoleMismatch => "refuse_role_mismatch",
+            EntityDispatchOrder::ResolveReferences => "resolve_references",
+            EntityDispatchOrder::HydrateParent => "hydrate_parent",
+            EntityDispatchOrder::LocateElement => "locate_element",
+            EntityDispatchOrder::EnforceGivens => "enforce_givens",
+            EntityDispatchOrder::AdmissibleTransition => "admissible_transition",
+            EntityDispatchOrder::ApplyMutations => "apply_mutations",
+            EntityDispatchOrder::AdvanceLifecycle => "advance_lifecycle",
+            EntityDispatchOrder::EnforceEnsures => "enforce_ensures",
+            EntityDispatchOrder::Save => "save",
+            EntityDispatchOrder::Emit => "emit",
+        };
+        crate::kernel::Json::obj(vec![("step", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("step", "EntityDispatchOrder")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EntityDispatchOrder.step: expected string".to_string()))?;
+        match raw {
+            "normalize_args" => Ok(EntityDispatchOrder::NormalizeArgs),
+            "refuse_role_mismatch" => Ok(EntityDispatchOrder::RefuseRoleMismatch),
+            "resolve_references" => Ok(EntityDispatchOrder::ResolveReferences),
+            "hydrate_parent" => Ok(EntityDispatchOrder::HydrateParent),
+            "locate_element" => Ok(EntityDispatchOrder::LocateElement),
+            "enforce_givens" => Ok(EntityDispatchOrder::EnforceGivens),
+            "admissible_transition" => Ok(EntityDispatchOrder::AdmissibleTransition),
+            "apply_mutations" => Ok(EntityDispatchOrder::ApplyMutations),
+            "advance_lifecycle" => Ok(EntityDispatchOrder::AdvanceLifecycle),
+            "enforce_ensures" => Ok(EntityDispatchOrder::EnforceEnsures),
+            "save" => Ok(EntityDispatchOrder::Save),
+            "emit" => Ok(EntityDispatchOrder::Emit),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("EntityDispatchOrder: unknown member {:?}", other))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DomainRefusal {
     Absentargument,
@@ -186,6 +516,44 @@ pub enum DomainRefusal {
     Unauthorized,
     Unknownargument,
     Unknownverb,
+}
+
+impl DomainRefusal {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            DomainRefusal::Absentargument => "AbsentArgument",
+            DomainRefusal::Alreadyexists => "AlreadyExists",
+            DomainRefusal::Ensuresnotmet => "EnsuresNotMet",
+            DomainRefusal::Givennotmet => "GivenNotMet",
+            DomainRefusal::Invariantviolation => "InvariantViolation",
+            DomainRefusal::Lifecyclerefused => "LifecycleRefused",
+            DomainRefusal::Notfound => "NotFound",
+            DomainRefusal::Typemismatch => "TypeMismatch",
+            DomainRefusal::Unauthorized => "Unauthorized",
+            DomainRefusal::Unknownargument => "UnknownArgument",
+            DomainRefusal::Unknownverb => "UnknownVerb",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "DomainRefusal")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DomainRefusal.name: expected string".to_string()))?;
+        match raw {
+            "AbsentArgument" => Ok(DomainRefusal::Absentargument),
+            "AlreadyExists" => Ok(DomainRefusal::Alreadyexists),
+            "EnsuresNotMet" => Ok(DomainRefusal::Ensuresnotmet),
+            "GivenNotMet" => Ok(DomainRefusal::Givennotmet),
+            "InvariantViolation" => Ok(DomainRefusal::Invariantviolation),
+            "LifecycleRefused" => Ok(DomainRefusal::Lifecyclerefused),
+            "NotFound" => Ok(DomainRefusal::Notfound),
+            "TypeMismatch" => Ok(DomainRefusal::Typemismatch),
+            "Unauthorized" => Ok(DomainRefusal::Unauthorized),
+            "UnknownArgument" => Ok(DomainRefusal::Unknownargument),
+            "UnknownVerb" => Ok(DomainRefusal::Unknownverb),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("DomainRefusal: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -235,9 +603,46 @@ pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "Unauthorized", site: "role_mismatch", template: "{command} refused — role: {role}, and the caller stated {caller_role}" },
 ];
 
+impl RefusalTemplate {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("refusal".to_string(), crate::kernel::Json::Str(self.refusal.to_string())),
+        ("site".to_string(), crate::kernel::Json::Str(self.site.to_string())),
+        ("template".to_string(), crate::kernel::Json::Str(self.template.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in REFUSAL_TEMPLATE {
+            if v.get("refusal").and_then(crate::kernel::Json::as_str) == Some(row.refusal) && v.get("site").and_then(crate::kernel::Json::as_str) == Some(row.site) && v.get("template").and_then(crate::kernel::Json::as_str) == Some(row.template) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("RefusalTemplate: no member matches {:?}", v)))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Trigger {
     Refused,
+}
+
+impl Trigger {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Trigger::Refused => "refused",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let raw = v.require("name", "Trigger")?.as_str()
+            .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Trigger.name: expected string".to_string()))?;
+        match raw {
+            "refused" => Ok(Trigger::Refused),
+            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Trigger: unknown member {:?}", other))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -252,6 +657,20 @@ impl crate::kernel::Fielded for Vocabulary {
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl Vocabulary {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl Vocabulary {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok((v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Vocabulary: missing identity component name.value".to_string()))?.to_id_component()?)
     }
 }
 

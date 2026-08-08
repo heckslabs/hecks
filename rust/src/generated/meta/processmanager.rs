@@ -32,6 +32,22 @@ impl ProcessManagerName {
     }
 }
 
+impl ProcessManagerName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ProcessManagerName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "ProcessManagerName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProcessManagerText {
     pub value: String,
@@ -53,6 +69,22 @@ impl ProcessManagerText {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl ProcessManagerText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ProcessManagerText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "ProcessManagerText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerText.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -80,6 +112,22 @@ impl SagaState {
     }
 }
 
+impl SagaState {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.clone())),
+        ])
+    }
+}
+
+impl SagaState {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: v.require("name", "SagaState")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SagaState.name: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
@@ -101,6 +149,22 @@ impl Position {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
     }
 }
 
@@ -128,6 +192,26 @@ impl crate::kernel::Fielded for ProcessManager {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl ProcessManager {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), self.bluebook_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("correlates_by".to_string(), self.correlates_by.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("starts_on".to_string(), self.starts_on.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("ends_on".to_string(), self.ends_on.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("states".to_string(), crate::kernel::Json::Array(self.states.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl ProcessManager {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -208,6 +292,19 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        name: ProcessManagerName::from_json(v.require("name", "DeclareArgs")?)?,
+        correlates_by: ProcessManagerText::from_json(v.require("correlates_by", "DeclareArgs")?)?,
+        starts_on: ProcessManagerText::from_json(v.require("starts_on", "DeclareArgs")?)?,
+        ends_on: ProcessManagerText::from_json(v.require("ends_on", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for StateArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -253,5 +350,13 @@ pub fn dispatch_state(
         &["SagaStateAttached"],
         payload,
     )
+}
+
+impl StateArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: ProcessManagerText::from_json(v.require("name", "StateArgs")?)?,
+        })
+    }
 }
 

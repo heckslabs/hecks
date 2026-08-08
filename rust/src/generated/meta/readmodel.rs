@@ -32,6 +32,22 @@ impl ReadModelName {
     }
 }
 
+impl ReadModelName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ReadModelName {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "ReadModelName")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelName.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReadModelText {
     pub value: String,
@@ -53,6 +69,22 @@ impl ReadModelText {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl ReadModelText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ReadModelText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "ReadModelText")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelText.value: expected String".to_string()))?,
+        })
     }
 }
 
@@ -85,6 +117,22 @@ impl ProjectionPurpose {
     }
 }
 
+impl ProjectionPurpose {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl ProjectionPurpose {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "ProjectionPurpose")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionPurpose.value: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Head {
     pub aggregate: String,
@@ -110,6 +158,26 @@ impl Head {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Head {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
+        ("as".to_string(), crate::kernel::Json::Str(self.r#as.clone())),
+        ("many".to_string(), crate::kernel::Json::Str(self.many.clone())),
+        ])
+    }
+}
+
+impl Head {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate: v.require("aggregate", "Head")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.aggregate: expected String".to_string()))?,
+        r#as: v.require("as", "Head")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.as: expected String".to_string()))?,
+        many: v.require("many", "Head")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.many: expected String".to_string()))?,
+        })
     }
 }
 
@@ -143,6 +211,28 @@ impl ProjectionOption {
     }
 }
 
+impl ProjectionOption {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("option".to_string(), crate::kernel::Json::Str(self.option.clone())),
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ("at".to_string(), crate::kernel::Json::Str(self.at.clone())),
+        ])
+    }
+}
+
+impl ProjectionOption {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        option: v.require("option", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()))?,
+        key: v.require("key", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()))?,
+        value: v.require("value", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()))?,
+        at: v.require("at", "ProjectionOption")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()))?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
@@ -164,6 +254,22 @@ impl Position {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
 
         Ok(())
+    }
+}
+
+impl Position {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl Position {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: v.require("value", "Position")?.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Position.value: expected Integer".to_string()))?,
+        })
     }
 }
 
@@ -195,6 +301,28 @@ impl crate::kernel::Fielded for ReadModel {
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
+    }
+}
+
+impl ReadModel {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("bluebook_id".to_string(), self.bluebook_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("query_name".to_string(), self.query_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("reference_name".to_string(), self.reference_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("reference_target".to_string(), self.reference_target.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("aggregate_heads".to_string(), crate::kernel::Json::Array(self.aggregate_heads.iter().map(|x| x.to_json()).collect())),
+        ("options".to_string(), crate::kernel::Json::Array(self.options.iter().map(|x| x.to_json()).collect())),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl ReadModel {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        Ok(vec![(v.get("bluebook_id")).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel: missing identity component bluebook_id".to_string()))?.to_id_component()?, (v.get("name").and_then(|x| x.get("value"))).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel: missing identity component name.value".to_string()))?.to_id_component()?].join(":"))
     }
 }
 
@@ -281,6 +409,20 @@ pub fn dispatch_declare(
     )
 }
 
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: v.require("bluebook_id", "DeclareArgs")?.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))?,
+        name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
+        description: ProjectionPurpose::from_json(v.require("description", "DeclareArgs")?)?,
+        query_name: ReadModelText::from_json(v.require("query_name", "DeclareArgs")?)?,
+        reference_name: ReadModelText::from_json(v.require("reference_name", "DeclareArgs")?)?,
+        reference_target: ReadModelText::from_json(v.require("reference_target", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for GatherArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -334,6 +476,16 @@ pub fn dispatch_gather(
         &["HeadGathered"],
         payload,
     )
+}
+
+impl GatherArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate: ReadModelText::from_json(v.require("aggregate", "GatherArgs")?)?,
+        r#as: ReadModelText::from_json(v.require("as", "GatherArgs")?)?,
+        many: ReadModelText::from_json(v.require("many", "GatherArgs")?)?,
+        })
+    }
 }
 
 impl crate::kernel::Fielded for OptionArgs {
@@ -393,5 +545,16 @@ pub fn dispatch_option(
         &["OptionAttached"],
         payload,
     )
+}
+
+impl OptionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        option: ReadModelText::from_json(v.require("option", "OptionArgs")?)?,
+        key: ReadModelText::from_json(v.require("key", "OptionArgs")?)?,
+        value: ReadModelText::from_json(v.require("value", "OptionArgs")?)?,
+        at: ReadModelText::from_json(v.require("at", "OptionArgs")?)?,
+        })
+    }
 }
 
