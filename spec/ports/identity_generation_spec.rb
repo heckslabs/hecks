@@ -1,4 +1,5 @@
 require "hecksagain"
+require_relative "../fixtures/sequential_identity"
 
 RSpec.describe Hecksagain::Ports::IdentityGeneration do
   def registry_with(*adapter_paths)
@@ -15,7 +16,7 @@ RSpec.describe Hecksagain::Ports::IdentityGeneration do
   end
 
   SECURE_RANDOM_ADAPTER = File.expand_path("../../lib/hecksagain/adapters/driven/secure_random_identity.adapter", __dir__)
-  SEQUENTIAL_ADAPTER    = File.expand_path("../../lib/hecksagain/adapters/driven/sequential_identity.adapter", __dir__)
+  SEQUENTIAL_ADAPTER    = File.expand_path("../fixtures/sequential_identity.adapter", __dir__)
 
   describe "resolution" do
     it "refuses when no adapter implements the port" do

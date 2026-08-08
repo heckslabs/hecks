@@ -1,4 +1,5 @@
 require "hecksagain"
+require_relative "../../fixtures/sequential_identity"
 
 RSpec.describe Hecksagain::Adapters::SequentialIdentity do
   before { described_class.reset! }

@@ -1,4 +1,5 @@
 require "hecksagain"
+require_relative "fixtures/sequential_identity"
 
 # A local boot, not `boot_in_memory` — Pizzas-specific by design. Same
 # shape spec/governance_spec.rb already uses, plus the identity_generation
@@ -13,7 +14,7 @@ RSpec.describe "Identity" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.expand_path("../lib/hecksagain/ports/identity_generation.port", __dir__))
-      Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/sequential_identity.adapter", __dir__))
+      Kernel.load(File.expand_path("fixtures/sequential_identity.adapter", __dir__))
       Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"))
       Hecks.hecksagon("Identity") do
         ::Identity::Identity.persisted_by("Memory")

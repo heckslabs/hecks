@@ -1,4 +1,5 @@
 require "hecksagain"
+require_relative "../fixtures/sequential_identity"
 
 RSpec.describe Hecksagain::Runtime::CapabilityGraph do
   def identity_generation_port
@@ -6,7 +7,7 @@ RSpec.describe Hecksagain::Runtime::CapabilityGraph do
   end
 
   def sequential_adapter
-    File.expand_path("../../lib/hecksagain/adapters/driven/sequential_identity.adapter", __dir__)
+    File.expand_path("../fixtures/sequential_identity.adapter", __dir__)
   end
 
   def secure_random_adapter
