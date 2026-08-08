@@ -78,6 +78,23 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
       Type: String
       NoEcho: true
       Description: postgres:// connection string rust/host's journal reads/writes.
+    # BOTH OPTIONAL, BOTH BLANK BY DEFAULT — a Lambda with no VPC config
+    # reaches the public internet fine; it can only reach a PRIVATE-VPC
+    # Postgres instance (a normal RDS setup) once these are supplied.
+    # Left blank, this template behaves exactly as it did before these
+    # existed — real values are a `sam deploy --guided` answer, not a
+    # generator change, once a VPC/RDS instance actually exists to point at.
+    VpcSubnetIds:
+      Type: CommaDelimitedList
+      Default: ""
+      Description: Optional — private subnet IDs for reaching a VPC-only Postgres instance.
+    VpcSecurityGroupIds:
+      Type: CommaDelimitedList
+      Default: ""
+      Description: Optional — security group IDs allowing this function to reach Postgres.
+
+  Conditions:
+    HasVpcConfig: !Not [!Equals [!Select [0, !Ref VpcSubnetIds], ""]]
 
   Resources:
     #{logical_id}:
@@ -95,6 +112,11 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
           Variables:
             DATABASE_URL: !Ref DatabaseUrl
             HECKS_WASM_PATH: !Sub "/var/task/#{domain_name}.wasm"
+        VpcConfig: !If
+          - HasVpcConfig
+          - SubnetIds: !Ref VpcSubnetIds
+            SecurityGroupIds: !Ref VpcSecurityGroupIds
+          - !Ref "AWS::NoValue"
         # AWS_IAM, not NONE — this dispatches real domain commands
         # (cap-table/governance-shaped data, for Embryonaut's own use);
         # an unauthenticated public URL is the wrong default for that,
