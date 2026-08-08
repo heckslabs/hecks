@@ -268,11 +268,11 @@ FileUtils.remove_entry(GRANGE_DIR)
 true   # => true
 ```
 
-## The other five rule kinds
+## The other six rule kinds
 
-The Grange edge above used two of the seven things a translation rule
+The Grange edge above used two of the eight things a translation rule
 can say: `was:` (an aggregate renamed) and `move` (a field crossed a
-value-object boundary). The other five matter just as much, and each
+value-object boundary). The other six matter just as much, and each
 one's effect on a stored record can be shown without a second Postgres
 round-trip — `Hecksagain::Ports::Persistence::Lineage` is the exact
 code every mint runs internally, and it answers directly:
@@ -347,6 +347,35 @@ human has to look at the before/after sample, because nothing else can
 verify it. If you reach for `compute`, budget the review — it is not
 optional, and the mint refuses without it.
 
+**`rekey`** is the aggregate's own identity changing what it's computed
+from — `identified_by { name.value }` becoming `identified_by { email.value }`,
+say. Ordinarily this refuses outright: stored ids were minted under the
+old key, and nothing in the other seven rule kinds says "these rows are
+the same entity under a new key." A `rekey` rule is exactly that
+declaration — SQL-only, like `compute`, with no in-process reference
+implementation (`Lineage#translate` never touches an entry's `id`,
+only its `state`) and the same `bin/translation_audit --approve`
+requirement before it can mint. Unlike every other rule here, it takes
+no `from:`/`to:` path — it isn't moving or consuming a `state` field,
+only recomputing what identifies the record:
+
+```ruby skip
+aggregate("Member") do
+  rekey sql: "CASE ((__s -> 'name') ->> 'value') WHEN 'Chris Young' THEN 'chris@example.com' END"
+end
+```
+
+The journal row itself never changes — `aggregate_id` stays whatever it
+was minted under, forever, the same immutability every other rule here
+already holds itself to. What changes is what the *next* era's
+compiled view resolves that row as, and what a fresh dispatch mints for
+a brand-new record going forward. One known gap: `bin/merge_tail`'s own
+conflict detection (`tail_merge.rb#conflict_ids`) does not yet
+recognize a pre-rekey and post-rekey row as the same entity — merging a
+domain whose history includes a rekey may leave both surviving as
+separate, undetected duplicate heads. Resolve manually if you hit this;
+teaching the merge about rekeys is real, separate work.
+
 `retired "OldAggregate"`, declared at the edge level rather than inside
 an `aggregate` block, says an aggregate is simply gone — the honest
 alternative to a `was:` claim pointing at something unrelated.
@@ -356,8 +385,8 @@ alternative to a `was:` claim pointing at something unrelated.
 Change the bluebook. Run `bin/scaffold_translation`. Resolve every
 `unresolved` line it leaves you — that is where the real decisions
 live, not busywork to get through. Run `bin/translation_audit` and
-read the sample; do not skim it. Then boot. If a `compute` rule is
-involved, run the audit with `--approve` first, and mean it.
+read the sample; do not skim it. Then boot. If a `compute` or `rekey`
+rule is involved, run the audit with `--approve` first, and mean it.
 
 The domain never learns any of this happened. The bluebook you write
 next describes the shape you have now, not the history that got you

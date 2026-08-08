@@ -172,6 +172,64 @@ RSpec.describe "the translation scaffold" do
     expect(kinds - %i[rename move retype unresolved]).to be_empty
   end
 
+  IDENTITY_HELD = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Roster" do
+      aggregate "Person" do
+        identified_by { name.value }
+        attribute :name,  PersonName
+        attribute :email, PersonEmail
+
+        value_object "PersonName" do
+          attribute :value, String
+        end
+
+        value_object "PersonEmail" do
+          attribute :value, String
+        end
+      end
+    end
+  BLUEBOOK
+
+  IDENTITY_CURRENT = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Roster" do
+      aggregate "Person" do
+        identified_by { email.value }
+        attribute :name,  PersonName
+        attribute :email, PersonEmail
+
+        value_object "PersonName" do
+          attribute :value, String
+        end
+
+        value_object "PersonEmail" do
+          attribute :value, String
+        end
+      end
+    end
+  BLUEBOOK
+
+  it "hints at a rekey rule when identified_by changed, even with every attribute otherwise unchanged" do
+    diffed = Hecksagain::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))
+    rules = diffed[:aggregates].find { |aggregate| aggregate.name == "Person" }.rules
+
+    expect(rules).to eq([{ kind: :unresolved, from: :identity, candidates: [] }])
+  end
+
+  it "renders the identity hint as an unresolved line that refuses toward rekey, not the generic message" do
+    edge = Hecksagain::Translation::Scaffold::Edge.new(
+      domain: "Roster", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",
+      aggregates: Hecksagain::Translation::Scaffold.diff(parse(IDENTITY_HELD), parse(IDENTITY_CURRENT))[:aggregates],
+      retired: []
+    )
+    rendered = Hecksagain::Translation::Scaffold.render(edge)
+    expect(rendered).to include("unresolved :identity, candidates: []")
+
+    registry = Hecksagain::Runtime::Registry.new
+    expect do
+      Hecksagain.with_registry(registry) { eval(rendered) }
+    end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /Declare a rekey rule/)
+  end
+
   it "renders a file that can only boot into a refusal while unresolved lines remain" do
     edge = Hecksagain::Translation::Scaffold::Edge.new(
       domain: "Orders", from: "a3f9c2", to: "b81d04", ordinal: 2, label: "b81d04",

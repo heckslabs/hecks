@@ -38,11 +38,11 @@ module Hecksagain
           ancestor_storage_name = renamed_aggregate ? Naming.snake(declared.was) : nil
 
           new(declared.renames, declared.moves, declared.converts, declared.drops,
-              retypes: declared.retypes, computes: declared.computes,
+              retypes: declared.retypes, computes: declared.computes, rekeys: declared.rekeys,
               ancestor_name: ancestor_name, ancestor_storage_name: ancestor_storage_name)
         end
 
-        def initialize(renames, moves = [], converts = [], drops = [], retypes: [], computes: [],
+        def initialize(renames, moves = [], converts = [], drops = [], retypes: [], computes: [], rekeys: [],
                        ancestor_name: nil, ancestor_storage_name: nil)
           @renames = renames
           @moves = moves
@@ -50,6 +50,7 @@ module Hecksagain
           @drops = drops
           @retypes = retypes
           @computes = computes
+          @rekeys = rekeys
           @ancestor_name = ancestor_name
           @ancestor_storage_name = ancestor_storage_name
         end
@@ -59,6 +60,20 @@ module Hecksagain
         # one refuses to boot anywhere but Postgres, per-rule and by name,
         # before the general drift machinery says anything vaguer.
         def computes? = !@computes.empty?
+
+        # THE SINGLE SOURCE OF TRUTH for "does this edge rekey this
+        # aggregate" — every consumer (coverage_check.rb's identity gate,
+        # minter.rb's approval gate, layer_two.rb's audit, head_compiler.rb's
+        # SQL compilation) asks THIS, never re-derives it from `declared`
+        # independently. One accessor to change if what a rekey rule means
+        # ever needs to change, not four call sites in four files.
+        def rekey? = !@rekeys.empty?
+
+        # The rekey's own SQL — first-and-only rule, same one-per-aggregate
+        # assumption `compute` makes about its own list where it matters
+        # (an edge with more than one is a DSL-level decision, not
+        # something this reader arbitrates).
+        def rekey_sql = @rekeys.first&.sql
 
         # The reference semantics for the five PORTABLE rule kinds —
         # rename, move, convert, drop, and the aggregate-level `was:`.

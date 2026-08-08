@@ -20,7 +20,7 @@ Hecks.bluebook "Translation" do
 
     # THE CLOSED SET OF RULE KINDS — declared as members, not a hand-rolled
     # OR-chain, so the set is data a conformance spec can hold the live
-    # builder to (spec/translation_vocabulary_conformance_spec.rb). Seven of
+    # builder to (spec/translation_vocabulary_conformance_spec.rb). Eight of
     # these are TranslationAggregateBuilder's own rule methods ; "retired" is
     # the edge-level declaration (TranslationBuilder#retired), in the set
     # because it is one admitted way a shape survives — by not surviving.
@@ -35,6 +35,7 @@ Hecks.bluebook "Translation" do
         member value: "retype"
         member value: "retired"
         member value: "compute"
+        member value: "rekey"
         member value: "unresolved"
       end
     end

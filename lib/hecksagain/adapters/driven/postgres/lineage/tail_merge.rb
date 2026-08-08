@@ -120,6 +120,18 @@ module Hecksagain
 
           # Ids touched by BOTH worlds since the cut — the old world's
           # post-cut tail INTERSECTed with the new world's own writes.
+          #
+          # KNOWN GAP, not silently risked: this compares raw
+          # `aggregate_id` values, with no notion of "these two different
+          # ids are the same entity, rekeyed." If a domain's history
+          # includes a rekey (see IR::TranslationRekey) and is LATER
+          # merged here, a record's pre-rekey and post-rekey rows will
+          # never intersect — they just silently survive as two separate,
+          # unrelated-looking heads (a duplicate, not corruption: nothing
+          # here deletes or clobbers either side). Resolve any such
+          # duplicate manually after a merge; teaching this INTERSECT
+          # about a rekey mapping is real, separate work, deliberately
+          # out of scope for rekey's first pass.
           def conflict_ids(aggregate, edges, era, cut)
             names = names_by_era(aggregate, edges)
             olds = (1...era).map { |ancestor| text_literal(names[:storage][ancestor - 1]) }.join(", ")

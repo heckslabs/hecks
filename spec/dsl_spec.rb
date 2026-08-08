@@ -160,6 +160,27 @@ RSpec.describe "the DSL surface" do
         .to eq(["price_cents", "price_dollars", "price_cents::numeric / 100"])
     end
 
+    it ".data_translation registers a rekey with its SQL expression" do
+      registry = in_registry do
+        Hecks.data_translation("Translated", from: "1", to: "2") do
+          aggregate("Thing") { rekey sql: "(__s ->> 'email')" }
+        end
+      end
+      rekeyed = registry.translations.first.for_aggregate("Thing").rekeys.first
+
+      expect(rekeyed.sql).to eq("(__s ->> 'email')")
+    end
+
+    it ".data_translation refuses a rekey with no sql:" do
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") do
+            aggregate("Thing") { rekey sql: "" }
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs its sql: expression/)
+    end
+
     it ".data_translation refuses an unresolved placeholder and an unknown rule" do
       expect do
         in_registry do

@@ -694,8 +694,9 @@ RSpec.describe "lineage in the Postgres adapter",
     expect { check!(rekeyed, translation_source: edge_source(from: from, to: to)) }.to raise_error(
       Hecksagain::Runtime::WiringError,
       "cannot mint an era for Ledger::Account: its identity path changed (kind.label → amount.cents), and that is " \
-      "a re-keying, not a translation — stored ids were minted under kind.label, and no rule can declare rows " \
-      "the same entity under a new key. Keep the identity path, or migrate the data explicitly"
+      "a re-keying, not a translation — stored ids were minted under kind.label, and no rule declares rows " \
+      "the same entity under a new key. Keep the identity path, declare a rekey rule, or migrate the " \
+      "data explicitly"
     )
   end
 
@@ -812,8 +813,8 @@ RSpec.describe "lineage in the Postgres adapter",
       )
     end.to raise_error(
       Hecksagain::Runtime::WiringError,
-      "cannot mint era 2 of Pricing: this edge carries a compute rule, and the audit's human-approved " \
-      "sample is a compute's only verification — run bin/translation_audit with --approve, then boot again"
+      "cannot mint era 2 of Pricing: this edge carries a compute or rekey rule, and the audit's " \
+      "human-approved sample is its only verification — run bin/translation_audit with --approve, then boot again"
     )
 
     # the approval binds to the edge's content AND the journal's
@@ -867,6 +868,117 @@ RSpec.describe "lineage in the Postgres adapter",
     v2_quote = drifted.bluebooks.values.first.aggregate("Quote")
     head = Hecksagain::Adapters::Postgres.new(aggregate: v2_quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
     expect(head.find("q1").price_dollars.to_h).to eq(value: 12.5)
+  end
+
+  ROSTER_V1 = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Roster" do
+      aggregate "Person" do
+        identified_by { name.value }
+
+        attribute :name,  PersonName
+        attribute :title, PersonTitle
+
+        value_object "PersonName" do
+          attribute :value, String
+        end
+
+        value_object "PersonTitle" do
+          attribute :value, String
+        end
+      end
+    end
+  BLUEBOOK
+
+  ROSTER_V2 = <<~BLUEBOOK.freeze
+    Hecks.bluebook "Roster" do
+      aggregate "Person" do
+        identified_by { email.value }
+
+        attribute :name,  PersonName
+        attribute :title, PersonTitle
+        attribute :email, PersonEmail, optional: true
+
+        value_object "PersonName" do
+          attribute :value, String
+        end
+
+        value_object "PersonTitle" do
+          attribute :value, String
+        end
+
+        value_object "PersonEmail" do
+          attribute :value, String
+        end
+      end
+    end
+  BLUEBOOK
+
+  it "mints an era that rekeys an aggregate's identity, with an approved rekey rule" do
+    registry = load_registry(ROSTER_V1)
+    Hecksagain::Adapters::Postgres::LineageManager.check!(
+      registry: registry, bluebook: registry.bluebooks.values.first,
+      current_text: ROSTER_V1, settings: { database: LINEAGE_DB }
+    )
+    person = registry.bluebooks.values.first.aggregate("Person")
+    adapter = Hecksagain::Adapters::Postgres.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
+    adapter.save(Hecksagain::Runtime::Instance.new(
+                   aggregate: person, id: "Chris Young", state: { name: { "value" => "Chris Young" }, title: { "value" => "CEO" } }
+                 ))
+
+    from = label_of(ROSTER_V1)
+    to = label_of(ROSTER_V2)
+    rekey_edge = <<~RUBY
+      Hecks.data_translation("Roster", from: #{from.inspect}, to: #{to.inspect}) do
+        aggregate("Person") do
+          rekey sql: "CASE ((__s -> 'name') ->> 'value') WHEN 'Chris Young' THEN 'chris@example.com' END"
+        end
+      end
+    RUBY
+
+    drifted = load_registry(ROSTER_V2, translation_source: rekey_edge)
+
+    # a rekey's only verification is the audit's human-approved sample,
+    # same as compute — the mint refuses non-interactively without it
+    expect do
+      Hecksagain::Adapters::Postgres::LineageManager.check!(
+        registry: drifted, bluebook: drifted.bluebooks.values.first,
+        current_text: ROSTER_V2, settings: { database: LINEAGE_DB }
+      )
+    end.to raise_error(Hecksagain::Runtime::WiringError, /this edge carries a compute or rekey rule/)
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    roster_lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Roster")
+    roster_lineage.record_approval!(
+      from: from, to: to,
+      edge_digest: Hecksagain::Translation::Audit.edge_digest(drifted.translations.first)
+    )
+    db.close
+
+    Hecksagain::Adapters::Postgres::LineageManager.check!(
+      registry: drifted, bluebook: drifted.bluebooks.values.first,
+      current_text: ROSTER_V2, settings: { database: LINEAGE_DB }
+    )
+
+    # the compiled matview resolves the record under its NEW id, and
+    # ONLY its new id — the raw journal row is untouched (still keyed
+    # "Chris Young"), but nothing reads it directly
+    db = PG.connect(dbname: LINEAGE_DB)
+    under_new_id = db.exec("SELECT state FROM person_lineage_2_#{to} WHERE aggregate_id = 'chris@example.com'")
+    under_old_id = db.exec("SELECT state FROM person_lineage_2_#{to} WHERE aggregate_id = 'Chris Young'")
+    raw_journal = db.exec("SELECT aggregate_id FROM hecks_journal_roster WHERE aggregate_id = 'Chris Young'")
+    db.close
+
+    expect(under_new_id.ntuples).to eq(1)
+    expect(under_old_id.ntuples).to eq(0)
+    expect(raw_journal.ntuples).to eq(1) # the immutable journal never rewrites
+
+    # the head serves the record under its new id, name/title untouched
+    v2_person = drifted.bluebooks.values.first.aggregate("Person")
+    head = Hecksagain::Adapters::Postgres.new(aggregate: v2_person, settings: { database: LINEAGE_DB, domain: "Roster" })
+    found = head.find("chris@example.com")
+    expect(found.name.to_h).to eq(value: "Chris Young")
+    expect(found.title.to_h).to eq(value: "CEO")
+    expect(head.find("Chris Young")).to be_nil
   end
 
   it "fences a deployment's app role at the era its checkout speaks — and the fence is written through, not read off the catalog" do

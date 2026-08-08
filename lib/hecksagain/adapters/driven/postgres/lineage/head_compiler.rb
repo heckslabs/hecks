@@ -98,6 +98,7 @@ module Hecksagain
             cut = held.find { |candidate| candidate[:ordinal] == era }&.dig(:watermark)
             declared = edges.last[:translation].for_aggregate(names[:current][edges.size])
             expression = declared ? compile_rules(declared) : "state"
+            id_column = rekeyed?(declared) ? id_case("operation = 'save'", declared) : "aggregate_id"
 
             <<~SQL
               WITH layered AS (
@@ -108,7 +109,7 @@ module Hecksagain
                   WHERE era = #{era - 1} AND aggregate = #{text_literal(names[:storage][era - 2])}#{cut ? " AND ordinal <= #{cut}" : ''}
                 ) layers ORDER BY aggregate_id, ordinal DESC
               )
-              SELECT ordinal, aggregate_id, operation,
+              SELECT ordinal, #{id_column}, operation,
                      CASE WHEN operation = 'save' THEN #{expression} ELSE state END AS state
               FROM layered
             SQL
@@ -120,8 +121,10 @@ module Hecksagain
             chain = edges.each_with_index.map do |edge, index|
               declared = edge[:translation].for_aggregate(names[:current][index + 1])
               expression = declared ? compile_rules(declared) : "state"
-              "edge_#{index + 1} AS (SELECT ordinal, era, aggregate_id, operation, " \
-                "CASE WHEN era <= #{index + 1} AND operation = 'save' THEN #{expression} ELSE state END AS state " \
+              guard = "era <= #{index + 1} AND operation = 'save'"
+              id_column = rekeyed?(declared) ? id_case(guard, declared) : "aggregate_id"
+              "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column}, operation, " \
+                "CASE WHEN #{guard} THEN #{expression} ELSE state END AS state " \
                 "FROM #{index.zero? ? 'tail' : "edge_#{index}"})"
             end
 
@@ -265,6 +268,42 @@ module Hecksagain
               expression = compile_compute(expression, compute)
             end
             expression
+          end
+
+          # Whether THIS edge's declared rules for this aggregate include a
+          # rekey — checked directly off the raw IR object, the same way
+          # every other rule kind is already read in `compile_rules`
+          # (`declared.computes`, `declared.moves`, ...), not through the
+          # `Ports::Persistence::Lineage` wrapper the app-level consumers
+          # (coverage_check.rb, minter.rb, layer_two.rb) go through — this
+          # file builds SQL straight off the IR either way.
+          def rekeyed?(declared) = declared && !declared.rekeys.empty?
+
+          # THE ONLY TWO PLACES `aggregate_id` NEEDS TO CHANGE — every
+          # other reduction/select in this file (`latest_per_id`,
+          # `ancestor_tail_sql`, `latest_of`, `compile_head!`'s own final
+          # view, `ensure_first_head!`) reads FROM a chain that, once these
+          # two produce the right column, is already correct — see this
+          # feature's own design notes for why. Guarded so the generated
+          # SQL for the overwhelming common case (no rekey declared, every
+          # existing domain today) stays the bare `aggregate_id` passthrough
+          # it always was — this CASE only appears in an edge that actually
+          # declares one.
+          def id_case(guard, declared)
+            "CASE WHEN #{guard} THEN #{compile_id_expression(declared)} ELSE aggregate_id END AS aggregate_id"
+          end
+
+          # THE REKEY'S OWN SQL — reading `state` directly, not the
+          # progressively-built `expression` chain `compile_compute` reads
+          # from. A rekey doesn't consume or move any field the way a move
+          # or compute does (see `IR::TranslationRekey`'s own comment), so
+          # there is no same-edge rename/move ordering it needs to see
+          # first — it reads the record's stored fields exactly as they
+          # already are, the same `__s` convention `compile_compute`
+          # exposes.
+          def compile_id_expression(declared)
+            rekey = declared.rekeys.first
+            "(SELECT (#{rekey.sql}) FROM (SELECT (state) AS __s) __outer)"
           end
 
           # A compute is the one rule whose SQL is its only implementation

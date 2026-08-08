@@ -37,20 +37,21 @@ module Hecksagain
                     "#{edge.to}, but the current shape is #{label} — the edge is stale; re-run bin/scaffold_translation"
             end
 
-            # A compute's only verification is the audit's human-approved
-            # sample — mint stays non-interactive by requiring the
-            # approval to already exist, recorded IN THIS DATABASE by
-            # `bin/translation_audit … --approve` and bound to what was
-            # actually reviewed: this edge's parsed content, and the
-            # journal as it stood when the samples were read. A journal
-            # that has advanced past the review invalidates it — the
-            # approved samples no longer cover the data.
-            if edge.aggregates.any? { |declared| !declared.computes.empty? }
+            # A compute's (and, the same way, a rekey's) only verification
+            # is the audit's human-approved sample — mint stays
+            # non-interactive by requiring the approval to already exist,
+            # recorded IN THIS DATABASE by `bin/translation_audit …
+            # --approve` and bound to what was actually reviewed: this
+            # edge's parsed content, and the journal as it stood when the
+            # samples were read. A journal that has advanced past the
+            # review invalidates it — the approved samples no longer cover
+            # the data.
+            if edge.aggregates.any? { |declared| !declared.computes.empty? || !declared.rekeys.empty? }
               approval = lineage.approval_for(from: edge.from, to: edge.to)
               unless approval && approval[:edge_digest] == Translation::Audit.edge_digest(edge)
                 raise Runtime::WiringError,
-                      "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute rule, and " \
-                      "the audit's human-approved sample is a compute's only verification — run " \
+                      "cannot mint era #{ordinal} of #{bluebook.name}: this edge carries a compute or rekey " \
+                      "rule, and the audit's human-approved sample is its only verification — run " \
                       "bin/translation_audit with --approve, then boot again"
               end
               tip = lineage.last_ordinal

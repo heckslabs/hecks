@@ -27,15 +27,27 @@ module Hecksagain
       # every other adapter.
       TranslationCompute = Struct.new(:from, :to, :sql)
 
+      # The aggregate's own IDENTITY changed what it's computed from — not
+      # a field crossing a boundary (that's `move`), a value objects's type
+      # name (`retype`), or a value transform (`compute`): the record's own
+      # key. No `from:`/`to:` path, unlike every other rule here, because
+      # nothing is being consumed from or moved into `state` — the state
+      # a record already holds is untouched; only what identifies it is
+      # recomputed. Same SQL-only, Postgres-only, no-in-process-reference
+      # shape `compute` already has, and for the same reason: there is
+      # nothing to check this against outside the compiled head.
+      TranslationRekey = Struct.new(:sql)
+
       # One aggregate's part of a translation: which attributes were
       # renamed, moved, converted, or deliberately dropped on the way from
       # the old era to the new one. `drops` exists so data loss is a
       # declared decision, not a field that quietly stopped being
       # explained.
       class TranslationAggregate
-        attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes
+        attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys
 
-        def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [], computes: [])
+        def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
+                        computes: [], rekeys: [])
           @name     = name.to_s
           @was      = was&.to_s
           @renames  = renames
@@ -44,6 +56,7 @@ module Hecksagain
           @drops    = drops
           @retypes  = retypes
           @computes = computes
+          @rekeys   = rekeys
         end
       end
 

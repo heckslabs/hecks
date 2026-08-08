@@ -22,34 +22,35 @@ module Hecksagain
               held_aggregate = held_bluebook.aggregate(rules&.ancestor_name || aggregate.name)
               next unless held_aggregate
 
-              check_identity_unchanged!(bluebook, aggregate, held_aggregate)
+              check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
               uncovered = Runtime::EraGuard.uncovered_attributes(aggregate, held_aggregate, rules)
               Runtime::EraGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
             end
             Runtime::EraGuard.check_vanished_aggregates!(registry, bluebook, held_bluebook)
           end
 
-          # An identity-path change is a RE-KEYING, not a translation:
-          # stored ids were fixed at write time under the old key, the
-          # audit's id-set conservation and the merge's conflict INTERSECT
-          # both assume ids are stable, and no rule in the edge language
-          # says "these rows are the same entity under a new key." Until a
-          # real re-keying story exists, this refuses in its own words
-          # rather than minting a technically-valid era whose conflict
-          # detection is meaningless.
-          def check_identity_unchanged!(bluebook, aggregate, held_aggregate)
+          # An identity-path change is a RE-KEYING, not an ordinary
+          # translation — stored ids were fixed at write time under the old
+          # key, so this refuses UNLESS the edge declares a `rekey` for
+          # this aggregate covering exactly that. `rules.rekey?` (see
+          # `Ports::Persistence::Lineage`'s own comment) is the single
+          # source of truth every consumer of this fact asks — this is not
+          # a second, independent check of `declared.rekeys`.
+          def check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
             # The FULL declared path lists, in declaration order — never the
             # single-head shortcut, which is nil for every composite identity
             # and so would let two different composites compare as unchanged.
             return if held_aggregate.identity_paths == aggregate.identity_paths
+            return if rules&.rekey?
 
             held_identity = Runtime::Identity.reading(held_aggregate)
             current_identity = Runtime::Identity.reading(aggregate)
             raise Runtime::WiringError,
                   "cannot mint an era for #{bluebook.name}::#{aggregate.name}: its identity path changed " \
                   "(#{held_identity} → #{current_identity}), and that is a re-keying, not a translation — " \
-                  "stored ids were minted under #{held_identity}, and no rule can declare rows the same " \
-                  "entity under a new key. Keep the identity path, or migrate the data explicitly"
+                  "stored ids were minted under #{held_identity}, and no rule declares rows the same " \
+                  "entity under a new key. Keep the identity path, declare a rekey rule, or migrate the " \
+                  "data explicitly"
           end
 
           # Layers 1 and 2 of the audit, over the LIVE compiled chain —
