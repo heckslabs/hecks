@@ -83,3 +83,16 @@ mint-era:
 	aws cloudformation delete-stack --stack-name $(BASTION_STACK)
 	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK)
 	@echo "$(BASTION_STACK) deleted. Era 1 should now be held — verify with bin/console or a Postgres query against hecks_eras."
+
+# `make deploy` — THE one command. Chains `sam build`, `sam deploy`
+# (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe
+# to run every time — a second boot against an already-held era 1
+# is a no-op, era_resolver.rb's own quiet-reboot branch) so a fresh
+# database always ends this command with era 1 actually held, not a
+# separate step someone has to remember. No hand-run AWS CLI
+# sequence anywhere in this path.
+.PHONY: deploy mint-era
+deploy:
+	sam build
+	sam deploy
+	$(MAKE) mint-era

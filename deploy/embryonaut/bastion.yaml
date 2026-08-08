@@ -67,7 +67,11 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref VpcId
-      GroupDescription: TEMPORARY era-minting bastion — SSM only, no inbound rules
+      # A plain hyphen, not an em-dash - EC2's GroupDescription field
+      # rejects any non-ASCII character outright (the same class of
+      # bug already caught once this session on RDS's own
+      # DBSubnetGroupDescription - see template.yaml's git history).
+      GroupDescription: "TEMPORARY era-minting bastion - SSM only, no inbound rules"
 
   BastionToRds:
     Type: AWS::EC2::SecurityGroupIngress

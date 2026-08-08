@@ -338,7 +338,11 @@ File.write(File.join(out_dir, "bastion.yaml"), <<~YAML)
       Type: AWS::EC2::SecurityGroup
       Properties:
         VpcId: !Ref VpcId
-        GroupDescription: TEMPORARY era-minting bastion — SSM only, no inbound rules
+        # A plain hyphen, not an em-dash - EC2's GroupDescription field
+        # rejects any non-ASCII character outright (the same class of
+        # bug already caught once this session on RDS's own
+        # DBSubnetGroupDescription - see template.yaml's git history).
+        GroupDescription: "TEMPORARY era-minting bastion - SSM only, no inbound rules"
 
     BastionToRds:
       Type: AWS::EC2::SecurityGroupIngress
@@ -472,6 +476,19 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \taws cloudformation delete-stack --stack-name $(BASTION_STACK)
   \taws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK)
   \t@echo "$(BASTION_STACK) deleted. Era 1 should now be held — verify with bin/console or a Postgres query against hecks_eras."
+
+  # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
+  # (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe
+  # to run every time — a second boot against an already-held era 1
+  # is a no-op, era_resolver.rb's own quiet-reboot branch) so a fresh
+  # database always ends this command with era 1 actually held, not a
+  # separate step someone has to remember. No hand-run AWS CLI
+  # sequence anywhere in this path.
+  .PHONY: deploy mint-era
+  deploy:
+  \tsam build
+  \tsam deploy
+  \t$(MAKE) mint-era
 MAKE
 
 # EVERYTHING `sam deploy --guided` asks interactively — stack name,
@@ -497,8 +514,9 @@ File.write(File.join(out_dir, "samconfig.toml"), <<~TOML)
 TOML
 
 puts "wrote #{out_dir}/template.yaml"
+puts "wrote #{out_dir}/bastion.yaml"
 puts "wrote #{out_dir}/Makefile"
 puts "wrote #{out_dir}/samconfig.toml"
 puts
-puts "deploy from #{out_dir} — no --guided, no secret to supply:"
-puts "    sam build && sam deploy"
+puts "deploy from #{out_dir} — one command, nothing to type, nothing to remember:"
+puts "    make deploy"
