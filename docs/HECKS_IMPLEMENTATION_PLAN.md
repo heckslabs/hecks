@@ -345,7 +345,28 @@ Do **not** change it to an array.
 
 # 2. `act_as` authority transition
 
-**Status:** New semantic feature; existing `Runtime::Caller.as(role:)` is a strong precursor  
+**Status:** Done (2026-08-07) — on a smaller shape than this section
+originally sketched, and deliberately so. Re-reading the "Runtime execution"
+sketch below closely showed `Governance.authorize_transition!` called by
+APPLICATION code, before `Runtime::Caller.as(role:)` wraps a nested
+dispatch — not woven into `CommandInterpreter`/`Dispatcher`/
+`CommandRules::Authorization` at all. So none of those three changed.
+`framework/bluebook/governance.bluebook` gained a second aggregate,
+`RoleTransition` (`from_role`/`to_role`, `Grant`/`Revoke`, an `Allowed`
+query) — the fact "role X may act as role Y" that `RoleAssignment` alone
+could not answer. `spec/act_as_spec.rb` demonstrates the full pattern
+against two separate registries (Governance's own, and a real Pizzas
+boot): an application checks `Allowed`, then wraps the downstream dispatch
+in `Hecksagain.as_caller(role: ...)` ; the unauthorized-refusal path (no
+`Allowed` row → the app-level check itself refuses, before any dispatch)
+and the role-restoration proof (a THIRD dispatch, right after the nested
+one, still authorized under the ORIGINAL role) are both covered. Also
+confirmed and left alone on purpose: "replay does not invoke live
+Governance decisions" was already true before this section existed —
+`Fuzzing::Replay` never binds a `Caller`, and `refuse_role_mismatch`'s
+first line is `return unless caller`. A facade-level `calls "...", as:
+"..."` sugar (this section's own DSL sketch below) is real, later work —
+see "Non-goals".  
 **Priority:** P0  
 **Complexity:** M
 
@@ -608,7 +629,26 @@ end
 
 # 4. Identities Bluebook
 
-**Status:** New canonical supporting Bluebook  
+**Status:** Done (2026-08-07) — `framework/bluebook/identities.bluebook`
+(+ `.hecksagon`, Memory-persisted). `Identity` (identity_id minted via
+`§5`'s `Ports::IdentityGeneration.uuid` — no natural key exists for "a
+newly recognized identity," and this is the first real consumer of
+that port) and `ExternalIdentifier` (issuer/subject pair, natural key
+`key.value`). One correction to the sketch: `ExternalIdentifier` uses a
+real `reference_to Identity` rather than a bare owned value object —
+both aggregates share one bluebook (unlike Governance's `actor_id`,
+which deliberately avoided a cross-domain reference to this exact
+domain before it existed), so there's no reason to give up
+`resolve_references`'s real existence-checking; `spec/identities_spec.rb`
+confirms `Link` refuses against a nonexistent identity, not just that
+it succeeds against a real one. `key`'s derivation (SHA256 of
+issuer+subject, or any other scheme) stays a caller-side concern, per
+the original sketch's own framing — no new port for it.
+`spec/corpus_spec.rb`/`spec/model_check_spec.rb` needed no changes —
+`§3`'s `FRAMEWORK_MEMBERS` glob picked this domain up automatically.
+Full suite green (1019 examples). Explicitly not done: any OIDC
+verification (`§11`); Governance's `actor_id` was not retrofitted to
+reference this domain.  
 **Priority:** P0  
 **Complexity:** M
 
@@ -697,7 +737,38 @@ The Bluebook need not know how it is derived if the adapter supplies it.
 
 # 5. UUID adapter and imperative enrichment
 
-**Status:** New adapter pattern, existing adapter architecture supports it  
+**Status:** Done (2026-08-07) — `lib/hecksagain/ports/identity_generation.{port,rb}`,
+modeled on `Ports::Extraction` (one adapter registry-wide implements the
+port; zero/many both refuse), not on Persistence's heavier per-aggregate
+binding — different aggregates have no real reason to want different
+id-generation strategies. Two adapters: `SecureRandomIdentity` (real)
+and `SequentialIdentity` (deterministic, for specs — satisfies the
+"replaceable by deterministic test adapter" criterion directly). The
+sketch's `operation "UUID" do returns String end` doesn't match the
+real port DSL (no `returns` anywhere — same correction `§3` already
+needed for its own port sketch); the real precedent for "call something
+and get a plain value back" is `extraction.port`'s shape, not
+`DomainPort`/`PortOperation`'s. **The "replay never invokes it" half
+needed no new mechanism at all** — confirmed by reading the real replay
+path (`Fuzzing::Replay` re-dispatches recorded `args` through the
+identical `CommandInterpreter` pipeline; nothing ever adds a key to
+`args` between a caller and `hydrate`), so a UUID minted for a creating
+command's identity is just an ordinary string baked into that step's
+own recorded `args` from the moment it's generated — replaying those
+args never touches the adapter again, for the same reason
+`Event#occurred_at`'s own `Time.now` call (the one existing
+"environmental fact" precedent) needs no suppression either. Verified
+directly, not just architecturally: `spec/ports/identity_generation_spec.rb`
+mints an id, dispatches a real `Pizzas::Order.CreatePizza` with it,
+then replays the same recorded args through a fresh boot and confirms
+both the identical id and that `SequentialIdentity`'s own counter did
+not advance a second time. No `CommandInterpreter`/`Dispatcher`
+changes, no new `.hecksagon` binding syntax. Not done: facade-level
+automatic enrichment (omitting an identity argument and having a
+generated command method fill it in) — demonstrated as an explicit
+caller-side call, deliberately not built as new `AggregateDoor` codegen;
+nothing in the existing corpus was retrofitted to use this (natural
+keys remain preferred wherever one exists).  
 **Priority:** P0  
 **Complexity:** S–M
 
@@ -2048,7 +2119,22 @@ This prevents target formatting logic from polluting canonical semantics.
 
 # 31. Port fulfillment graph
 
-**Status:** Existing ports/wiring; new introspection product  
+**Status:** Done (2026-08-07) — `lib/hecksagain/runtime/capability_graph.rb`,
+`Hecksagain::Runtime::CapabilityGraph`, exposing exactly the sketched
+`registry.capability_graph.{fulfillments,unfulfilled,cycles}`. Built off
+what the registry already holds: `registry.ports`/`registry.adapters`, and
+the same `adapter.port == port.name` match `Ports::Extraction` and
+`Ports::IdentityGeneration` already make for themselves, one port at a
+time — this asks it once, for every port at once. `cycles` answers `[]`
+always, and honestly: nothing in this port model lets one port depend on
+another, so there is no edge for a cycle to be made of. `Registry
+#capability_graph` is a memoized wrapper, matching `#repository`'s own
+pattern one line above it. `spec/runtime/capability_graph_spec.rb` proves
+fulfilled/unfulfilled/multi-adapter cases against a real registry (Memory
+on persistence, Prism on extraction, identity_generation declared and
+left unbound on purpose, to exercise the gap). The onboarding-UI framing
+above ("Found: ✓ Acme Governance ○ ...") is not built — this section only
+covers the data the UI would read.  
 **Priority:** P1  
 **Complexity:** M
 
@@ -2126,7 +2212,32 @@ Do not rename merely for novelty.
 
 # 33. Semantic identity / provenance
 
-**Status:** Existing Hecks identity is often `(kind, FQN)`; UL adoption introduces a new need  
+**Status:** Done (2026-08-07), through the full self-hosted grammar — not
+skipped the way `§7`'s `ir_version` was (that one is a computed constant;
+`provenance` is author-facing DSL, so it belongs in the load-bearing
+language description). `provenance from: { source:, source_id:,
+source_version: }` on both `aggregate` and `command`, captured as a raw
+Hash untouched — the exact shape sketched below, one level up from
+`attribute ..., default: { ... }`'s own literal-Hash precedent, which it
+reuses end to end: `AggregateBuilder#provenance`/`CommandBuilder
+#provenance`, `IR::Aggregate#provenance`/`IR::Command#provenance` (in
+`to_h`), new rows in `syntax.bluebook`, and — the part that makes it real
+rather than decorative — `aggregate.bluebook`/`behavior.bluebook` (the
+language's OWN grammar) gained a matching `attribute :provenance,
+LiteralText`/`CommandText` on both the root record and the `Declare`
+command, `Assembly::CONTRACTS`/`Shapes#provenance`/`Reconstruction#
+aggregate` round-trip it, and all 9 golden IR fixtures were regenerated.
+One real usage: Banking's `Account` aggregate now carries `provenance
+from: { source: "HecksCanonical", source_id: "aggregate:account",
+source_version: "1.0" }`, proving the path against the real corpus, not
+just a synthetic fixture — `spec/round_trip_spec.rb` catches any future
+drift here directly. Confirmed and left alone on purpose:
+`readings.rb` needed no change (the judge's generic `field_value`
+fallback already offers any field with no shape-differing exception);
+`description` was confirmed NOT a usable precedent for Command
+specifically (`CommandBuilder` has no `description` at all — the
+asymmetry is real). Provenance never touches dispatch or identity, exactly
+as the acceptance criteria below require.  
 **Priority:** P1  
 **Complexity:** M
 
@@ -2240,7 +2351,7 @@ Starts right after core hardening, not after authority/ontology/canonical-domain
 
 `§3` Governance Bluebook · `§4` Identities Bluebook · `§5` UUID adapter · `§2` `act_as` (wired to real `Governance.authorize_transition!`) · `§31` port fulfillment graph · `§33` semantic identity/provenance
 
-**Status note (2026-08-07):** `§3` is done — see its own Status line. `§4`/`§5`/`§2`/`§31`/`§33` are not started.
+**Status note (2026-08-07):** Every task in this phase is done — `§3`, `§5`, `§4`, `§2`, `§31`, and `§33` — see their own Status lines. `§2` landed with no dispatch-pipeline change at all (`CommandInterpreter`/`Dispatcher`/`CommandRules::Authorization` untouched) — the "Runtime execution" sketch below turned out to describe an application-level pattern composing `Governance.RoleTransition` + `Runtime::Caller.as`, not new pipeline plumbing, so the "first workload for Phase 2's chase-Ruby obligation" framing two paragraphs down did not end up applying to `§2` — nothing here changed Rust-relevant dispatch behavior.
 
 This is the load-bearing phase for the authority/ontology arc: almost everything in Phase 4/5 assumes Governance and Identities exist. It's also the first real workload for Phase 2's "chase Ruby" obligation — `act_as` in particular adds dispatch-pipeline behavior, not just IR shape, so it's the first place the Rust kernel (not just the generator) needs a follow-up change. Order within the phase matters — `§5` (UUID adapter) should land before or alongside `§4`, since `Identity.Register` needs a UUID source for identity IDs with no natural key; `§2` can only be fully accepted (not just stubbed) once `§3` exists to make the authorization decision. `§31` and `§33` are cheap additions best made here, while the object model is still small: `§31` becomes meaningful the moment Governance/Identities exist as real fulfillments to graph, and `§33` (provenance on IR nodes) is far cheaper to add now than to retrofit once Onboarding (`§17`) and ontology upgrades (`§22`) depend on it.
 

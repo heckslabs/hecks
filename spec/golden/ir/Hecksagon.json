@@ -48,6 +48,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Deployment"
         },
@@ -83,6 +84,7 @@
             }
           ],
           "name": "Subscribe",
+          "provenance": null,
           "references": "Hecksagon",
           "role": "Deployment"
         }
@@ -96,6 +98,7 @@
       ],
       "lifecycle": null,
       "name": "Hecksagon",
+      "provenance": null,
       "queries": [
 
       ],
@@ -273,6 +276,7 @@
 
           ],
           "name": "Bind",
+          "provenance": null,
           "references": null,
           "role": "Deployment"
         }
@@ -288,6 +292,7 @@
       ],
       "lifecycle": null,
       "name": "AdapterBinding",
+      "provenance": null,
       "queries": [
 
       ],
@@ -348,6 +353,7 @@
       ],
       "lifecycle": null,
       "name": "DomainPort",
+      "provenance": null,
       "queries": [
 
       ],
@@ -444,6 +450,7 @@
       ],
       "lifecycle": null,
       "name": "PortOperation",
+      "provenance": null,
       "queries": [
 
       ],

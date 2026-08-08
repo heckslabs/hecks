@@ -98,7 +98,7 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
     it "lists them without the parent link" do
       # `position` is carried like any other declared field, and spent on ordering
       # rather than on building — see Judge#declare and each DeclaredIn's order_by.
-      expect(plan.category("Command").fields).to eq(%w[name role goal position])
+      expect(plan.category("Command").fields).to eq(%w[name role goal provenance position])
       expect(plan.category("Command").parent_key).to eq("aggregate_id")
     end
   end

@@ -282,6 +282,7 @@ Hecks.bluebook "Bluebook" do
         member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
 
         member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
+        member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance"
         member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
         member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
@@ -318,6 +319,7 @@ Hecks.bluebook "Bluebook" do
 
         member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
         member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
+        member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
         member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
         member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens"
         # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
@@ -511,6 +513,11 @@ Hecks.bluebook "Bluebook" do
         member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
         member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+        # ORIGIN, not identity — captured raw, the exact same shape
+        # `attribute ..., default:` already uses for a literal Hash
+        # (`kind: "literal"`, see that row below): no structure imposed
+        # beyond "whatever the author wrote."
+        member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
         # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
         # Customer` attaches an attribute spelled `customer_id` — the language
         # mints the `_id` ending itself, which is why Identify's rule can read it
@@ -559,6 +566,8 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
         member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal"
+        # See Aggregate's own `provenance` row — identical shape, one level down.
+        member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
         # A COMMAND'S REFERENCE MAY BE OPTIONAL AND AN AGGREGATE'S MAY NOT — a
         # head either points at another head or does not, while an argument
         # carrying an id can legitimately be omitted at dispatch.

@@ -72,4 +72,66 @@ Hecks.bluebook "Governance" do
       where(actor_id: :actor_id)
     end
   end
+
+  # WHO HOLDS A ROLE is `RoleAssignment`'s question. This is a different one:
+  # may role X ACT AS role Y — the fact `act_as` (the plan's §2) needs before
+  # a caller is allowed to dispatch under a role it does not itself hold.
+  # Same event-log shape as RoleAssignment : a natural key, `ends_at` for
+  # revocation, no delete.
+  aggregate "RoleTransition" do
+    description "Role X is authorized to act as role Y — until revoked."
+
+    identified_by do
+      from_role.value
+      to_role.value
+    end
+
+    attribute :from_role, RoleName
+    attribute :to_role,   RoleName
+    attribute :ends_at,   Timestamp, optional: true
+
+    value_object "RoleName" do
+      attribute :value, String
+      invariant("a role is named") { !value.to_s.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+      invariant("a timestamp is present") { !value.to_s.empty? }
+    end
+
+    command "Grant" do
+      role "Governance administrator"
+      goal "Authorize one role to act as another"
+
+      attribute :from_role, RoleName
+      attribute :to_role,   RoleName
+
+      emits "RoleTransitionGranted"
+    end
+
+    command "Revoke" do
+      role "Governance administrator"
+      goal "Remove an authorized role transition"
+
+      reference_to RoleTransition
+      attribute :ends_at, Timestamp
+
+      then_set :ends_at, to: :ends_at
+      emits "RoleTransitionRevoked"
+    end
+
+    # THE RECORD FOR THIS PAIR, granted or revoked — same deferral
+    # `AssignmentsForActor` already makes for RoleAssignment: the where
+    # clause has no way to ask "and ends_at is absent", so the query
+    # answers with the row and the CALLER reads `ends_at` to tell a
+    # live grant from a revoked one, exactly as it already must for
+    # every assignment.
+    query "Allowed" do
+      description "The role transition granted for this exact pair, if any — revoked or not."
+      attribute :from_role, RoleName
+      attribute :to_role,   RoleName
+      where(from_role: :from_role, to_role: :to_role)
+    end
+  end
 end

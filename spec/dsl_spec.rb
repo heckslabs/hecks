@@ -916,6 +916,13 @@ RSpec.describe "the DSL surface" do
       expect(build_aggregate("Described") { description "a thing" }.description).to eq("a thing")
     end
 
+    it "provenance records where a concept came from, as a literal Hash" do
+      origin = { source: "HecksCanonical", source_id: "aggregate:thing", source_version: "1.0" }
+      provenanced = build_aggregate("Provenanced") { provenance from: origin }
+
+      expect(provenanced.provenance).to eq(origin)
+    end
+
     it "identified_by names a field, and the HEAD is what readers look up" do
       identified = build_aggregate("Identified") do
         identified_by { name.value }
@@ -1613,6 +1620,13 @@ RSpec.describe "the DSL surface" do
 
     it "goal records why" do
       expect(build_command("CmdGoal") { goal "feed people" }.goal).to eq("feed people")
+    end
+
+    it "provenance records where a concept came from, as a literal Hash" do
+      origin = { source: "HecksCanonical", source_id: "command:thing.do", source_version: "1.0" }
+      command = build_command("CmdProvenance") { provenance from: origin }
+
+      expect(command.provenance).to eq(origin)
     end
 
     it "attribute adds a payload field" do

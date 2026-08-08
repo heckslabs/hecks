@@ -14,7 +14,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AggregateBuilder" => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
-      %i[description identified_by reference_to has_many has_one belongs_to value_object command lifecycle
+      %i[description provenance identified_by reference_to has_many has_one belongs_to value_object command lifecycle
          entity query policy attribute list_of attributes]
     ],
     "ValueObjectBuilder" => [
@@ -23,7 +23,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "CommandBuilder" => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      %i[role goal reference_to given ensures then_set sets emits attribute list_of attributes]
+      %i[role goal provenance reference_to given ensures then_set sets emits attribute list_of attributes]
     ],
     "PortBuilder" => [
       Hecksagain::Bluebook::DSL::PortBuilder,

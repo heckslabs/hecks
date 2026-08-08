@@ -53,7 +53,8 @@ module Hecksagain
             name:          [:name,          :plain],
             description:   [:description,   :plain],
             identified_by: [:identified_by, :plain],
-            attributes:    [:attributes,    [:each, :attribute]]
+            attributes:    [:attributes,    [:each, :attribute]],
+            provenance:    [:provenance,    :plain]
           },
           rows: { transitions: :transition_rows, value_objects: :value_object_names, identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute] },
@@ -77,10 +78,12 @@ module Hecksagain
             givens:     [:givens,     [:each, :given]],
             ensures:    [:ensures,    [:each, :given]],
             mutations:  [:mutations,  [:each, :mutation]],
-            emits:      [:emits,      :plain]
+            emits:      [:emits,      :plain],
+            provenance: [:provenance, :plain]
           },
           rows: { mutations: :mutation_rows },
-          reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule], mutations: [:call, :mutations], emits: :names },
+          reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
+                  mutations: [:call, :mutations], emits: :names, provenance: :provenance },
           derived: { position: :walk }
         ),
 

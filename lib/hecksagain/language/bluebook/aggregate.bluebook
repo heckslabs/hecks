@@ -17,6 +17,7 @@ Hecks.bluebook "Bluebook" do
     # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
     attribute :name,          AggregateName
     attribute :description,   Description
+    attribute :provenance,    LiteralText
     # SEVERAL PATHS, because the identity is their JOIN. One is the ordinary case ;
     # more than one is what anything named BENEATH another thing needs, and the
     # language's own chapters are all of that kind — a command is not named by
@@ -93,6 +94,11 @@ Hecks.bluebook "Bluebook" do
       reference_to Bluebook
       attribute :name,          AggregateName
       attribute :description,   Description, optional: true
+      # See Command.Declare's own `provenance` — identical shape, one
+      # level up. LiteralText, not a dedicated value object: the field
+      # rides the same self-describing `inspect` encoding `default:`
+      # already uses, so it needs no invariant of its own.
+      attribute :provenance,    LiteralText, optional: true
 
       attribute :position, Position, optional: true
       emits "RootDeclared"

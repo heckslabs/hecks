@@ -75,6 +75,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Deployment"
         }
@@ -88,6 +89,7 @@
       ],
       "lifecycle": null,
       "name": "World",
+      "provenance": null,
       "queries": [
 
       ],
@@ -271,6 +273,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Deployment"
         },
@@ -319,6 +322,7 @@
             }
           ],
           "name": "Set",
+          "provenance": null,
           "references": "Wiring",
           "role": "Deployment"
         }
@@ -333,6 +337,7 @@
       ],
       "lifecycle": null,
       "name": "Wiring",
+      "provenance": null,
       "queries": [
 
       ],

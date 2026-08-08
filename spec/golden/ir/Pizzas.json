@@ -75,6 +75,7 @@
 
           ],
           "name": "CreatePizza",
+          "provenance": null,
           "references": null,
           "role": "Chef"
         },
@@ -127,6 +128,7 @@
             }
           ],
           "name": "AddTopping",
+          "provenance": null,
           "references": "Order",
           "role": "Chef"
         },
@@ -191,6 +193,7 @@
             }
           ],
           "name": "Purchase",
+          "provenance": null,
           "references": "Order",
           "role": "Customer"
         }
@@ -214,6 +217,7 @@
         ]
       },
       "name": "Order",
+      "provenance": null,
       "queries": [
         {
           "attributes": [

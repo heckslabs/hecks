@@ -14,7 +14,10 @@ RSpec.describe "Governance" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "framework/bluebook/governance.bluebook"))
-      Hecks.hecksagon("Governance") { ::Governance::RoleAssignment.persisted_by("Memory") }
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
+      end
     end
 
     registry.verify!
@@ -62,5 +65,57 @@ RSpec.describe "Governance" do
 
     rows = runtime.query("Governance::RoleAssignment.AssignmentsForActor", actor_id: { value: "u-1" })
     expect(rows.map { |row| row[:id] }).to eq(["u-1:Teller:2026-01-01"])
+  end
+
+  def grant(from: "Customer administrator", to: "Customer registrar")
+    runtime.dispatch(
+      "Governance::RoleTransition.Grant",
+      from_role: { value: from }, to_role: { value: to }
+    )
+  end
+
+  it "grants a role transition, identified by the (from, to) pair" do
+    result = grant
+
+    expect(result.events.map(&:name)).to eq(["RoleTransitionGranted"])
+    expect(result.instance.id).to eq("Customer administrator:Customer registrar")
+    expect(result.instance.state[:ends_at]).to be_nil
+  end
+
+  it "revokes a role transition by setting ends_at, without deleting the record" do
+    created = grant
+    result  = runtime.dispatch("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
+
+    expect(result.events.map(&:name)).to eq(["RoleTransitionRevoked"])
+    expect(result.instance.state[:ends_at][:value]).to eq("2026-05-31")
+  end
+
+  it "Allowed finds the exact pair, and only that pair" do
+    grant
+
+    matching = runtime.query(
+      "Governance::RoleTransition.Allowed",
+      from_role: { value: "Customer administrator" }, to_role: { value: "Customer registrar" }
+    )
+    reversed = runtime.query(
+      "Governance::RoleTransition.Allowed",
+      from_role: { value: "Customer registrar" }, to_role: { value: "Customer administrator" }
+    )
+
+    expect(matching.map { |row| row[:id] }).to eq(["Customer administrator:Customer registrar"])
+    expect(reversed).to be_empty
+  end
+
+  it "Allowed still returns a revoked transition — the caller reads ends_at, same as RoleAssignment" do
+    created = grant
+    runtime.dispatch("Governance::RoleTransition.Revoke", id: created.instance.id, ends_at: { value: "2026-05-31" })
+
+    rows = runtime.query(
+      "Governance::RoleTransition.Allowed",
+      from_role: { value: "Customer administrator" }, to_role: { value: "Customer registrar" }
+    )
+
+    expect(rows.size).to eq(1)
+    expect(rows.first[:ends_at][:value]).to eq("2026-05-31")
   end
 end

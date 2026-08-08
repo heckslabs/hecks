@@ -155,6 +155,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
   aggregate "Account" do
     description "A balance belonging to one customer, and the ledger that explains how it got there."
+    provenance from: { source: "HecksCanonical", source_id: "aggregate:account", source_version: "1.0" }
 
     identified_by { number.value }
 

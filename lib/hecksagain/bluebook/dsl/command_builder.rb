@@ -29,6 +29,10 @@ module Hecksagain
 
         def goal(value) = @goal = value
 
+        # See AggregateBuilder#provenance's own comment — identical shape,
+        # one level down.
+        def provenance(from:) = @provenance = from
+
         # `optional:` rides here as well as on a plain attribute : `as:` makes a
         # reference into a NAMED ARGUMENT, and a named argument is exactly the kind
         # of fact that may or may not be given. The meta-domain's Verb.Declare
@@ -153,7 +157,8 @@ module Hecksagain
             ensures:    @ensures,
             mutations:  @mutations,
             emits:      @emits,
-            references: @references
+            references: @references,
+            provenance: @provenance
           )
         end
 

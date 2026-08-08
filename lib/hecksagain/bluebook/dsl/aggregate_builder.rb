@@ -21,6 +21,16 @@ module Hecksagain
           @description = value
         end
 
+        # ORIGIN, not runtime identity — a concept adopted from a canonical
+        # source (§28) names where it came from without that fact ever
+        # touching `hecks_fqn`/dispatch. Captured raw, the same way
+        # `attribute ..., default: { value: "small" }` captures a literal
+        # Hash untouched — no re-parsing, no structure imposed beyond
+        # "whatever the author wrote."
+        def provenance(from:)
+          @provenance = from
+        end
+
         # WHICH UNCHANGING FACTS SAY WHICH ONE THIS IS — FIELDS, not whole value
         # objects. `identified_by { number.value }` names the scalar inside
         # AccountNumber ; an identity is a value, and serialising a value object
@@ -136,7 +146,8 @@ module Hecksagain
             entities:      @entities,
             queries:       @queries,
             policies:      @policies,
-            reference_targets: @reference_targets
+            reference_targets: @reference_targets,
+            provenance:    @provenance
           )
 
           # After the IR exists, on purpose : a reference is declared IN the
