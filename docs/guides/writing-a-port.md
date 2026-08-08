@@ -246,9 +246,64 @@ instead of the exported field, or teach your codegen to recognize a
 came from. This is a real shape a real bluebook writes (`Credit` and
 `Debit` both do it, for `direction`), not an edge case you can defer.
 
+**A `set`/`increment`/`decrement` mutation's own literal `source` gets
+none of that treatment.** `Mutation#classified_source` wraps any
+non-`Symbol` source as `{ kind: "literal", value: source }` — the
+ORIGINAL Ruby object, untouched, not a second call to `.inspect`. A
+literal value object there arrives as a real, structured `Hash` your
+port can build from directly:
+
+```ruby
+customer = ir.fetch(:aggregates).find { |a| a[:name] == "Customer" }
+customer[:commands].find { |c| c[:name] == "Reinstate" }[:mutations]
+# => [{ target: :standing, op: :set, source: { kind: "literal", value: { value: "good" } } }]
+```
+
+Keep the two straight, because they look identical at a glance and
+resolve oppositely: `append`'s literal `fields` are text to re-parse;
+`set`/`increment`/`decrement`'s literal `source` is already the
+structured value, keyed by the SAME field names the target value
+object declares — build the target type straight from the `Hash`'s own
+keys, no string handling involved.
+
 `emits` is the plain array of event name strings a successful dispatch
 raises, in the order they were declared — one for almost every command
 in this corpus, but the shape does not assume exactly one.
+
+## Arithmetic mutations: what `increment`/`decrement` actually change
+
+`increment`/`decrement`'s own `source` follows the identical tagged
+union `set` does (`argument` or `literal`), but applying one is not
+"add source to target." `CommandRules::Arithmetic#arithmetic`/
+`#arithmetic_value_object`, read directly, coerce the source into the
+TARGET ATTRIBUTE's OWN type FIRST (`Value.for_attribute(aggregate,
+attribute, amount)`), then find the ONE field that's `Integer` in BOTH
+the target's current value and the now-coerced amount, and change ONLY
+that field — every other field the target value object carries passes
+through the mutation untouched:
+
+```ruby
+scheduled_payment = ir.fetch(:aggregates).find { |a| a[:name] == "ScheduledPayment" }
+scheduled_payment[:commands].find { |c| c[:name] == "Retry" }[:mutations]
+# => [{ target: :attempts, op: :increment, source: { kind: "literal", value: { value: 1 } } }]
+```
+
+`Retry`'s own amount is the raw literal `Hash` `{ value: 1 }` —
+`RetryCount`'s one field, matched by name, not a bare integer your
+port has to guess a shape for. `Account.Debit`'s own `decrement` on
+`balance` is the other real shape:
+
+```ruby
+debit[:mutations].find { |m| m[:target] == :balance }
+# => { target: :balance, op: :decrement, source: { kind: "argument", name: "amount" } }
+```
+
+The source there is an argument declared `PositiveMoney`, decrementing
+a target declared plain `Money` — different value-object TYPES,
+bridged only by both sharing one `Integer`-typed field, `cents`.
+`Money`'s OTHER field, `currency`, is untouched by the mutation —
+`balance.currency` staying `"USD"` after a debit is not an accident
+your port has to special-case, it's this rule.
 
 ## Lifecycles
 
@@ -274,13 +329,38 @@ section) simply finds nothing to check and moves on.
 
 `entities` is an array of the same aggregate shape, one level down —
 `name`, `description`, `identified_by`, `attributes`, plus its own
-`lifecycle` when it declares one. An entity never gets a `commands`
-key of its own; it's addressed only through `then_set append:` on the
-aggregate that holds it, which is why the mutation's `fields` shape
-above is the part of this export an entity-bearing aggregate actually
-needs a port to read correctly. Full identity-minting and nesting
-rules for entities are [entities.md](entities.md)'s subject, not
-repeated here.
+`lifecycle` when it declares one. [entities.md](entities.md) is where
+an entity's OWN commands and their caller-supplied identity live — a
+port generating THOSE (an entity's own `Amend`/`Reverse`-shaped
+dispatch, addressing one element of a list by an identity a CALLER
+supplies) is a separate, larger feature this page does not walk.
+
+What this page's own build order needs is narrower: an `append` onto
+an entity list, the one thing every entity-bearing aggregate's OWN
+creating/acting commands actually do (`Account.Credit`/`Debit` append
+a `LedgerEntry`; neither ever supplies its identity or its lifecycle
+field). Two fields on the element `MutationApplier#entity_element`
+fills in that a `then_set append:` binding never names, because Ruby
+never asks the caller to:
+
+```ruby
+account[:entities].find { |e| e[:name] == "LedgerEntry" }[:identified_by]
+# => ["sequence.value"]
+
+credit[:mutations].find { |m| m[:target] == :ledger }[:fields].keys
+# => [:amount, :narrative, :direction]
+```
+
+`sequence` is nowhere in that field list. It's minted from the list's
+own CURRENT LENGTH, one-indexed (`Array(current).size + 1`), wrapped
+into whichever single-field value object its own dotted path names —
+the exact same "bare-declared, single-field-VO" shape a composite
+AGGREGATE identity's own components resolve through, one level down.
+`LedgerEntry`'s own `lifecycle` (`state`, default `"posted"`) fills the
+same way, from its own declared `default:`, when the fields don't name
+it either. Both are genuinely absent from what the command declares —
+not a gap in what got exported, an intentional case a port's `append`
+codegen has to fill in on its own, the same place Ruby fills it.
 
 ## Dispatch, in the order it actually runs
 

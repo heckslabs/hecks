@@ -62,18 +62,19 @@
 #     that would silently do less than it claims to.
 #
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
-#   - A literal value object inside an `append` field (still `.inspect`'d
-#     text, not a raw Hash the way `:set`/`:increment`/`:decrement`'s
-#     literals are) — named per-command by `command_skip_reason`, below.
-#     `ensures`, and `increment`/`decrement` mutations, ARE generated now.
+#   - An entity's OWN commands (`LedgerEntry.Amend`/`.Reverse`) — those
+#     address ONE element of a list by its own identity, not the whole
+#     aggregate, and nothing here generates that addressing. An entity
+#     IS now resolved to a Rust type and usable as an `append` TARGET
+#     (`Account.ledger`, a `Vec<LedgerEntry>`, with its identity and
+#     lifecycle field auto-minted the way `entity_element` mints them) —
+#     that's the whole of what "generated" means for one here.
+#   - A BARE (non-`list_of`), non-entity-list attribute whose type names
+#     an entity — not a real shape any aggregate in this corpus declares.
 #   - Role checking (Unauthorized), reference-existence checking
 #     (resolve_references — a `Reference<X>` attribute is represented
 #     as a bare `String` id, per aggregates-and-value-objects.md; NOTHING
-#     checks that id actually names a real record), entities.
-#   - `emit_record` does not resolve entity-list attribute types to real
-#     Rust types (`Reference<X>` IS resolved, as of this slice) — an
-#     aggregate carrying one is skipped loudly, by name, with the
-#     offending type named.
+#     checks that id actually names a real record).
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -450,10 +451,38 @@ module RustProjector
   end
 
   def unsupported_attribute_types(aggregate, value_objects_by_name)
+    entity_names = aggregate[:entities].map { |e| e[:name] }
     aggregate[:attributes]
-      .reject { |attr| effective_scalar_type(attr[:type]) || value_objects_by_name.key?(attr[:type]) }
+      .reject do |attr|
+        effective_scalar_type(attr[:type]) || value_objects_by_name.key?(attr[:type]) ||
+          (attr[:list] && entity_names.include?(attr[:type]))
+      end
       .map { |attr| attr[:type] }
       .uniq
+  end
+
+  # An entity, resolved to a Rust type the SAME mechanical way a value
+  # object is — same six-key `attributes` shape, same `Fielded` impl. No
+  # `check_invariants` (entities declare no `invariants` of their own —
+  # every field's OWN value object already checked itself, either at the
+  # command argument boundary or via `literal_hash_rhs`/`value_rhs`
+  # below) and no dispatch functions for the entity's OWN commands
+  # (`Amend`/`Reverse` — a real, separate, still-unbuilt feature: an
+  # entity's commands address ONE element of the list by its own
+  # identity, not the whole aggregate, and nothing here generates that
+  # addressing). This only makes an entity usable as an `append` TARGET.
+  def emit_entity(entity, value_objects_by_name)
+    name = rust_ident(entity[:name])
+    lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
+    entity[:attributes].each do |attr|
+      type = rust_type(attr[:type], list: attr[:list])
+      lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+    end
+    lines << "    pub #{rust_ident_field(entity[:lifecycle][:field])}: String," if entity[:lifecycle]
+    lines << "}"
+    lines << ""
+    lines << emit_fielded_flat(name, entity[:attributes], value_objects_by_name)
+    lines.join("\n")
   end
 
   def emit_record(aggregate, value_objects_by_name)
@@ -477,29 +506,84 @@ module RustProjector
     lines.join("\n")
   end
 
+  # Ruby's real cross-type coercion — `Value::Coercion#fields_for`, read
+  # directly: a value object rebuilds into ANY differently-named target
+  # value object that shares its field NAMES, matched by name, not
+  # position, with the target's own `default:` filling anything the
+  # source doesn't carry (`Value.build`'s own fallback). `PositiveMoney`
+  # into a `Money` slot — `Credit`'s own `amount`, appended onto a
+  # `LedgerEntry` — is the real, live example this corpus carries, not
+  # a hypothetical: both declare `cents`/`currency`, so every target
+  # field is answered by name.
+  def vo_field_bridgeable?(source_vo, target_vo)
+    return false unless source_vo && target_vo && !source_vo[:closed_set] && !target_vo[:closed_set]
+
+    target_vo[:attributes].all? do |t_attr|
+      source_vo[:attributes].any? { |s_attr| s_attr[:name] == t_attr[:name] } || !t_attr[:default].nil?
+    end
+  end
+
+  def vo_field_rhs(source_expr, source_vo, target_type, value_objects_by_name)
+    target_vo = value_objects_by_name[target_type]
+    fields = target_vo[:attributes].map do |t_attr|
+      field = rust_ident_field(t_attr[:name])
+      if source_vo[:attributes].any? { |s_attr| s_attr[:name] == t_attr[:name] }
+        "#{field}: #{source_expr}.#{field}.clone()"
+      else
+        "#{field}: #{literal_rhs(t_attr[:default])}"
+      end
+    end
+    "#{rust_ident(target_type)} { #{fields.join(', ')} }"
+  end
+
   # Why a command is skipped, or nil if it isn't. Named per-command, per-
   # reason, so coverage is visible at generation time rather than only
   # discoverable by noticing a dispatch function that should exist doesn't.
-  # Shared with `mutation_set_rhs`, which actually performs whichever
-  # bridge this says is possible — kept as one function so the "can we
-  # generate this" check and the "here's how" generator can never
-  # silently disagree about what counts as bridgeable.
-  def bridgeable_set_types?(source_type, target_type, value_objects_by_name)
+  # Shared with `value_rhs`, which actually performs whichever bridge
+  # this says is possible — kept as one function so the "can we generate
+  # this" check and the "here's how" generator can never silently
+  # disagree about what counts as bridgeable. Used by BOTH `:set`'s own
+  # RHS and `:append`'s per-field RHS — the two real places a command
+  # copies one already-typed thing into a differently-typed slot.
+  def bridgeable_value_types?(source_type, target_type, value_objects_by_name)
     return true if source_type == target_type
+    # Both sides are represented by the identical Rust scalar even
+    # though their DECLARED type names differ — `Reference<ValueObject>`
+    # into a plain `String` field (the self-hosted grammar's own
+    # `Aggregate.Attribute` append, `type:`) is the real, live case:
+    # `effective_scalar_type` already maps a Reference to `"String"`,
+    # the same representation a bare `String` attribute gets.
+    return true if effective_scalar_type(source_type) && effective_scalar_type(source_type) == effective_scalar_type(target_type)
 
-    single_field = ->(vo) { vo && !vo[:closed_set] && vo[:attributes]&.size == 1 }
     source_vo = value_objects_by_name[source_type]
     target_vo = value_objects_by_name[target_type]
-    single_field.call(source_vo) && (SCALAR.key?(target_type) || single_field.call(target_vo))
+    return vo_field_bridgeable?(source_vo, target_vo) if target_vo
+
+    # A bare scalar target (the lifecycle field, "String") — only a
+    # single-field source VO whose one field's own type already IS the
+    # target scalar unwraps cleanly into one.
+    source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1 && source_vo[:attributes].first[:type] == target_type
+  end
+
+  def value_rhs(source_expr, source_type, target_type, value_objects_by_name)
+    return "#{source_expr}.clone()" if source_type == target_type
+    return "#{source_expr}.clone()" if effective_scalar_type(source_type) && effective_scalar_type(source_type) == effective_scalar_type(target_type)
+
+    source_vo = value_objects_by_name[source_type]
+    target_vo = value_objects_by_name[target_type]
+    return vo_field_rhs(source_expr, source_vo, target_type, value_objects_by_name) if target_vo
+
+    raise "unsupported coercion #{source_type} -> #{target_type} — bridgeable_value_types? should have caught this" unless source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1
+
+    "#{source_expr}.#{rust_ident_field(source_vo[:attributes].first[:name])}.clone()"
   end
 
   def command_skip_reason(command, aggregate, value_objects_by_name)
     unsupported_ops = command[:mutations].reject { |m| %i[append set increment decrement].include?(m[:op]) }.map { |m| m[:op] }.uniq
     return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
 
-    literal_fields = command[:mutations].select { |m| m[:op] == :append }
-                                         .flat_map { |m| m[:fields].select { |_, v| v.start_with?("{") }.keys }
-    return "append carries a literal value object (#{literal_fields.join(', ')}) — not parsed back from its .inspect string yet" if literal_fields.any?
+    append_problems = append_field_problems(command, aggregate, value_objects_by_name)
+    return "then_set append field(s): #{append_problems.join('; ')}" if append_problems.any?
 
     lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
     target_type_for = ->(target) { target == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name] == target }&.dig(:type) }
@@ -535,7 +619,7 @@ module RustProjector
 
       target_type = target_type_for.call(m[:target])
       source_type = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }&.dig(:type)
-      target_type && source_type && !bridgeable_set_types?(source_type, target_type, value_objects_by_name)
+      target_type && source_type && !bridgeable_value_types?(source_type, target_type, value_objects_by_name)
     end.map { |m| m[:target] }
     return "then_set :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
 
@@ -561,8 +645,127 @@ module RustProjector
     return true if value.is_a?(String) || value.is_a?(Numeric) || value == true || value == false
     return false unless value.is_a?(Hash) && target_type
 
+    literal_hash_bridgeable?(value, target_type, value_objects_by_name)
+  end
+
+  # A literal Hash's own bridgeability into a target type — either an
+  # ordinary VO (every declared field present, by Symbol or String key)
+  # or a CLOSED SET (the Hash matches one member row's own fields
+  # exactly, the same match `admit_member` performs at runtime — an
+  # append's literal `direction: { value: "debit" }` targets exactly
+  # this shape, `LedgerDirection`). Shared by `:set`'s literal source and
+  # `:append`'s literal fields — the same Hash-shaped literal, unmarked
+  # from either `classified_source`'s raw value or `Marks.unmark` of an
+  # `appended_fields` string, bridges the identical way once it's a Hash.
+  def literal_hash_bridgeable?(hash, target_type, value_objects_by_name)
     vo = value_objects_by_name[target_type]
-    vo && !vo[:closed_set] && vo[:attributes].all? { |attr| value.key?(attr[:name]) || value.key?(attr[:name].to_s) }
+    return false unless vo
+
+    if vo[:closed_set]
+      vo[:members].any? { |member| member.all? { |field, value| [hash[field.to_sym], hash[field.to_s]].include?(value) } }
+    else
+      vo[:attributes].all? { |attr| hash.key?(attr[:name]) || hash.key?(attr[:name].to_s) }
+    end
+  end
+
+  def literal_hash_rhs(hash, target_type, value_objects_by_name)
+    vo = value_objects_by_name[target_type]
+    raise "unsupported literal hash source #{hash.inspect} -> #{target_type} — literal_hash_bridgeable? should have caught this" unless vo
+
+    if vo[:closed_set]
+      row = vo[:members].find { |member| member.all? { |field, value| [hash[field.to_sym], hash[field.to_s]].include?(value) } }
+      raise "literal #{hash.inspect} matches no member of #{target_type} — literal_hash_bridgeable? should have caught this" unless row
+
+      "#{rust_ident(target_type)}::#{closed_set_variant(row)}"
+    else
+      fields = vo[:attributes].map do |attr|
+        key = [attr[:name], attr[:name].to_s].find { |k| hash.key?(k) }
+        raise "literal #{hash.inspect} missing field #{attr[:name]} for #{target_type} — literal_hash_bridgeable? should have caught this" unless key
+
+        "#{rust_ident_field(attr[:name])}: #{literal_rhs(hash[key])}"
+      end
+      "#{rust_ident(target_type)} { #{fields.join(', ')} }"
+    end
+  end
+
+  # `append`'s TARGET, resolved to whichever real thing it is — a plain
+  # value object (`Order.toppings`, a `Vec<Topping>`) or an ENTITY
+  # (`Account.ledger`, a `Vec<LedgerEntry>`) — so field-type lookups can
+  # read `[:attributes]` the same way regardless of which. `nil` when
+  # the attribute names neither (a codegen bug if reached; every real
+  # append target already passed `unsupported_attribute_types` above).
+  def append_element(aggregate, target_type, value_objects_by_name)
+    return value_objects_by_name[target_type] if value_objects_by_name.key?(target_type)
+
+    aggregate[:entities].find { |e| e[:name] == target_type }
+  end
+
+  # An entity element's identity, auto-minted at append time exactly the
+  # way `MutationApplier#entity_element` does it: sequential position
+  # (`Array(current).size + 1`) wrapped into whichever single-field
+  # value object the identity's own dotted path names —
+  # `LedgerEntry.identified_by { sequence.value }`, the one real shape
+  # this corpus needs. Returns `[attribute, its_value_object]`, or `nil`
+  # when the shape doesn't match (a composite entity identity, or one
+  # that isn't a bare-declared attribute) — command_skip_reason's half
+  # of this pairing, same as every other bridgeable?/rhs pair here.
+  def entity_identity_mint(entity, value_objects_by_name)
+    id_path = entity[:identified_by]&.first
+    return nil unless id_path
+
+    head, *rest = id_path.split(".")
+    return nil unless rest.size == 1
+
+    attr = entity[:attributes].find { |a| a[:name].to_s == head }
+    return nil unless attr
+
+    vo = value_objects_by_name[attr[:type]]
+    return nil unless vo && !vo[:closed_set] && vo[:attributes].size == 1 && vo[:attributes].first[:name].to_s == rest.first
+
+    [attr, vo]
+  end
+
+  # Every `append` mutation's own field(s), checked against the element
+  # they're building — the same "can we generate this" role
+  # bridgeable_value_types?/literal_hash_bridgeable? already play for
+  # `:set`, applied per-field instead of once. Two real problems this
+  # catches that a blanket `.inspect`-string skip used to hide: a field
+  # sourced from an argument whose type doesn't bridge to the field's
+  # own declared type (`Credit`'s `PositiveMoney` `amount` into
+  # `LedgerEntry`'s `Money` `amount` — DOES bridge, by field name; a
+  # genuine mismatch would not), and — for an ENTITY target only — an
+  # identity that can't be auto-minted and isn't supplied explicitly.
+  def append_field_problems(command, aggregate, value_objects_by_name)
+    command[:mutations].select { |m| m[:op] == :append }.flat_map do |m|
+      target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
+      element = target_attr && append_element(aggregate, target_attr[:type], value_objects_by_name)
+      next ["#{m[:target]}: element type #{target_attr&.dig(:type).inspect} not resolvable"] unless element
+
+      problems = m[:fields].filter_map do |field_name, source|
+        field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
+        next "#{m[:target]}.#{field_name}: not a declared field" unless field_attr
+
+        if source.start_with?("{")
+          literal = Hecksagain::Bluebook::Assembly::Marks.unmark(source)
+          "#{m[:target]}.#{field_name}: literal doesn't bridge to #{field_attr[:type]}" unless literal.is_a?(Hash) && literal_hash_bridgeable?(literal, field_attr[:type], value_objects_by_name)
+        else
+          arg_attr = command[:attributes].find { |a| a[:name].to_s == source }
+          if arg_attr.nil?
+            "#{m[:target]}.#{field_name}: sources undeclared argument #{source}"
+          elsif !bridgeable_value_types?(arg_attr[:type], field_attr[:type], value_objects_by_name)
+            "#{m[:target]}.#{field_name}: #{arg_attr[:type]} doesn't bridge to #{field_attr[:type]}"
+          end
+        end
+      end
+
+      entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
+      next problems unless entity
+
+      present = m[:fields].keys.map(&:to_s)
+      id_head = entity[:identified_by]&.first.to_s.split(".").first
+      problems << "#{m[:target]}: #{entity[:name]}'s identity doesn't auto-mint" if !present.include?(id_head) && !entity_identity_mint(entity, value_objects_by_name)
+      problems
+    end
   end
 
   def integer_field_of(vo)
@@ -632,36 +835,20 @@ module RustProjector
   # mutation.target, value)` — it coerces whatever arrived into the
   # TARGET attribute's OWN declared type, not the source argument's.
   # `target_type` is that target type ("String" for the lifecycle field,
-  # which is never VO-wrapped). Three real shapes, found live against
-  # the self-hosted grammar's own `Aggregate.Lifecycle` (FieldName ->
-  # IdentityField, both single-field VOs wrapping `value: String`):
-  # same type (plain clone), different single-field VOs (rewrap the
-  # source's own inner scalar into the target's), or a scalar target
-  # fed a single-field VO argument (unwrap it). Anything else is a
-  # `command_skip_reason` bug — this should never be reached for a
-  # command that wasn't already skipped.
+  # which is never VO-wrapped). The literal half is its own shape
+  # (`literal_hash_rhs`, straight from the raw Hash — never `.inspect`'d,
+  # see literal_set_bridgeable? above); the argument half is
+  # `bridgeable_value_types?`/`value_rhs`'s shared job.
   def mutation_set_rhs(source, target_type, command, value_objects_by_name)
     if source[:kind] == "literal"
       value = source[:value]
-      return literal_struct_rhs(value, target_type, value_objects_by_name) if value.is_a?(Hash)
+      return literal_hash_rhs(value, target_type, value_objects_by_name) if value.is_a?(Hash)
 
       return literal_rhs(value)
     end
 
     source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
-    source_arg  = "args.#{rust_ident_field(source[:name])}"
-    return "#{source_arg}.clone()" if source_attr[:type] == target_type
-
-    target_vo = value_objects_by_name[target_type]
-    source_vo = value_objects_by_name[source_attr[:type]]
-    source_field = source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1 && rust_ident_field(source_vo[:attributes].first[:name])
-    raise "unsupported :set coercion #{source_attr[:type]} -> #{target_type} — command_skip_reason should have caught this" unless source_field
-
-    if target_vo && !target_vo[:closed_set] && target_vo[:attributes].size == 1
-      "#{rust_ident(target_type)} { #{rust_ident_field(target_vo[:attributes].first[:name])}: #{source_arg}.#{source_field}.clone() }"
-    else
-      "#{source_arg}.#{source_field}.clone()"
-    end
+    value_rhs("args.#{rust_ident_field(source[:name])}", source_attr[:type], target_type, value_objects_by_name)
   end
 
   # An aggregate attribute a CREATING command's own arguments never
@@ -679,7 +866,7 @@ module RustProjector
   # gap this generator failed to bridge.
   def creation_default_rhs(attr, value_objects_by_name)
     default = attr[:default]
-    return default.is_a?(Hash) ? literal_struct_rhs(default, attr[:type], value_objects_by_name) : literal_rhs(default) unless default.nil?
+    return default.is_a?(Hash) ? literal_hash_rhs(default, attr[:type], value_objects_by_name) : literal_rhs(default) unless default.nil?
 
     vo = value_objects_by_name[attr[:type]]
     return nil unless vo && !vo[:closed_set] && vo[:attributes].all? { |f| !f[:default].nil? }
@@ -695,26 +882,6 @@ module RustProjector
     when true, false     then literal.to_s
     else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
     end
-  end
-
-  # A literal `:set` source that's a raw Ruby Hash, not a scalar
-  # (`Customer.Reinstate`'s `to: { value: "good" }`) — built straight from
-  # the Hash's own values, no string round-trip, since `:set`'s literal
-  # source is never `.inspect`'d (unlike `:append`'s fields; see
-  # literal_set_bridgeable? above for why). Every field the target VO
-  # declares must be present — `command_skip_reason` already checked this
-  # exact condition, so reaching a missing field here is a generator bug.
-  def literal_struct_rhs(hash, target_type, value_objects_by_name)
-    vo = value_objects_by_name[target_type]
-    raise "unsupported literal struct source #{hash.inspect} -> #{target_type} — command_skip_reason should have caught this" unless vo && !vo[:closed_set]
-
-    fields = vo[:attributes].map do |attr|
-      key = [attr[:name], attr[:name].to_s].find { |k| hash.key?(k) }
-      raise "literal #{hash.inspect} missing field #{attr[:name]} for #{target_type} — command_skip_reason should have caught this" unless key
-
-      "#{rust_ident_field(attr[:name])}: #{literal_rhs(hash[key])}"
-    end
-    "#{rust_ident(target_type)} { #{fields.join(', ')} }"
   end
 
   # `:append` and `:set` — the two `then_set` ops this slice generates.
@@ -758,6 +925,22 @@ module RustProjector
     "format!(#{placeholders.inspect}, #{components.map { |c| c[:expr] }.join(', ')})"
   end
 
+  # One `append` field's value — `Marks.unmark` undoes exactly the
+  # `.inspect` `appended_fields` applied to a literal (the OPPOSITE
+  # direction of the same round-trip the self-hosted grammar's own
+  # bootstrap already uses this method for, see marks.rb's own header);
+  # an argument-sourced field runs through the same `value_rhs` bridge
+  # `:set` does. `append_field_problems` already confirmed either
+  # direction bridges before this could be reached.
+  def append_field_rhs(source, field_attr, command, value_objects_by_name)
+    if source.start_with?("{")
+      literal_hash_rhs(Hecksagain::Bluebook::Assembly::Marks.unmark(source), field_attr[:type], value_objects_by_name)
+    else
+      arg_attr = command[:attributes].find { |a| a[:name].to_s == source }
+      value_rhs("args.#{rust_ident_field(arg_attr[:name])}", arg_attr[:type], field_attr[:type], value_objects_by_name)
+    end
+  end
+
   def emit_mutation_line(mutation, aggregate, command, value_objects_by_name)
     target_field   = rust_ident_field(mutation[:target])
     lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
@@ -766,17 +949,35 @@ module RustProjector
     when :append
       target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
       vo_type = rust_ident(target_attr[:type])
-      fields_assignment = mutation[:fields].map do |field_name, arg_name|
-        arg_attr = command[:attributes].find { |a| a[:name].to_s == arg_name }
-        arg_vo = arg_attr && value_objects_by_name[arg_attr[:type]]
-        if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
-          inner = arg_vo[:attributes].first[:name]
-          "#{rust_ident_field(field_name)}: args.#{rust_ident_field(arg_attr[:name])}.#{rust_ident_field(inner)}.clone()"
-        else
-          "#{rust_ident_field(field_name)}: args.#{rust_ident_field(arg_attr[:name])}.clone()"
+      entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
+      element = entity || value_objects_by_name[target_attr[:type]]
+
+      fields_assignment = mutation[:fields].map do |field_name, source|
+        field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
+        "#{rust_ident_field(field_name)}: #{append_field_rhs(source, field_attr, command, value_objects_by_name)}"
+      end
+
+      # An ENTITY element carries two fields no `append: { ... }` binding
+      # ever names, because Ruby never asks the caller to: its own
+      # identity (auto-minted — entity_identity_mint, above, the same
+      # `Array(current).size + 1` rule `entity_element` runs) and its own
+      # lifecycle field (its declared `default:`, the same
+      # `fields[entity.lifecycle.field] ||= entity.lifecycle.default`
+      # entity_element runs). command_skip_reason already confirmed both
+      # are mintable before this line could be reached.
+      if entity
+        present = mutation[:fields].keys.map(&:to_s)
+        id_attr, id_vo = entity_identity_mint(entity, value_objects_by_name)
+        if id_attr && !present.include?(id_attr[:name].to_s)
+          mint = "#{rust_ident(id_attr[:type])} { #{rust_ident_field(id_vo[:attributes].first[:name])}: (record.#{target_field}.len() as i64) + 1 }"
+          fields_assignment << "#{rust_ident_field(id_attr[:name])}: #{mint}"
         end
-      end.join(", ")
-      "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
+        if entity[:lifecycle] && !present.include?(entity[:lifecycle][:field].to_s)
+          fields_assignment << "#{rust_ident_field(entity[:lifecycle][:field])}: #{entity[:lifecycle][:default].inspect}.to_string()"
+        end
+      end
+
+      "        record.#{target_field}.push(#{vo_type} { #{fields_assignment.join(', ')} });"
     when :set
       if mutation[:target] == lifecycle_field
         rhs = mutation_set_rhs(mutation[:source], "String", command, value_objects_by_name)
@@ -837,7 +1038,12 @@ module RustProjector
     payload_lines = command[:attributes].map do |attr|
       vo = value_objects_by_name[attr[:type]]
       field = rust_ident_field(attr[:name])
-      if vo && !attr[:list] && vo[:attributes].size == 1
+      # A single-field CLOSED SET (`AccountKind`, `Size`) is a Rust ENUM,
+      # not a struct — `emit_value_object`'s own branch on `closed_set`
+      # — so it carries no named field to read here the way an ordinary
+      # single-field VO does. `{:?}` on the enum value itself already
+      # renders something readable.
+      if vo && !vo[:closed_set] && !attr[:list] && vo[:attributes].size == 1
         inner = rust_ident_field(vo[:attributes].first[:name])
         %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{field}.#{inner})); )
       else
@@ -950,7 +1156,7 @@ def generate_domain(ir, source_label, mod_dir, mod_name)
     unsupported = RustProjector.unsupported_attribute_types(aggregate, value_objects_by_name)
     if unsupported.any?
       puts "skipping #{domain_name}::#{aggregate[:name]}: attribute type(s) #{unsupported.join(', ')} not generated yet " \
-           "(entity-typed attributes aren't resolved to Rust types)"
+           "(a bare, non-list entity-typed attribute isn't resolved to a Rust type)"
       next
     end
 
@@ -965,6 +1171,10 @@ def generate_domain(ir, source_label, mod_dir, mod_name)
       f.puts
       aggregate[:value_objects].each do |vo|
         f.puts RustProjector.emit_value_object(vo, value_objects_by_name)
+        f.puts
+      end
+      aggregate[:entities].each do |entity|
+        f.puts RustProjector.emit_entity(entity, value_objects_by_name)
         f.puts
       end
       f.puts RustProjector.emit_record(aggregate, value_objects_by_name)
