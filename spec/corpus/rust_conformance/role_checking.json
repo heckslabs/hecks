@@ -1,0 +1,10 @@
+{
+  "domain": "examples/banking",
+  "note": "spec/rust_conformance_spec.rb's own fixture — decision 0019's own addition: a step's optional role: key, wrapping that ONE dispatch in Hecksagain.as_caller(role:) on the Ruby side (Fuzzing::Replay.call) and threading caller_role through kernel::orchestrate's OUTERMOST dispatch only on the Rust side (kernel::cli.rs), never into a policy/process-manager reaction's own re-entry (Dispatcher#reenter's own Caller.without, matched by orchestrate.rs passing None at every recursive call site). Exercises: a role-mismatched creating command refused before it's ever created (Account.Open declares role \"Branch clerk\"), the SAME command succeeding once the caller's stated role matches, and a command with NO declared role (Account.Credit) dispatched with no role: key at all, unchecked either way -- the doubly-opt-in shape refuse_role_mismatch itself is (no caller bound, or no role declared, both skip the check).",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "role": "Branch clerk", "args": {"reference": {"value": "CUST-0001"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "role": "Wrong Role", "args": {"number": {"value": "acct-role-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 1000}, "customer_id": "CUST-0001"}},
+    {"verb": "Banking::Account.Open", "role": "Branch clerk", "args": {"number": {"value": "acct-role-2"}, "kind": {"name": "current"}, "daily_limit": {"cents": 1000}, "customer_id": "CUST-0001"}},
+    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-role-2"}, "amount": {"cents": 500, "currency": "USD"}, "narrative": {"text": "no role declared, no role: key either -- unchecked"}}}
+  ]
+}

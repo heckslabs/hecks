@@ -60,13 +60,23 @@ pub fn run(input: &str) -> String {
         let empty_args = Json::Object(vec![]);
         let args = step.get("args").unwrap_or(&empty_args);
 
+        // `role:` — the SAME optional per-step key `Fuzzing::Replay.call`
+        // reads (`lib/hecksagain/fuzzing/replay.rb`), now on this side of
+        // the wire too: Ruby's caller is thread-local ambient state
+        // (`Hecksagain.as_caller`) this kernel has no analogue for, so a
+        // step's own `role:` plays that part instead — passed ONLY into
+        // THIS top-level `orchestrate` call, never into a reaction's own
+        // re-entry (`orchestrate.rs`'s own `None` at every recursive call
+        // site mirrors `Dispatcher#reenter`'s `Caller.without`).
+        let caller_role = step.get("role").and_then(Json::as_str);
+
         // `orchestrate` appends every event — this step's own AND every
         // policy reaction it triggers — into `events` itself; only the
         // TOP-level verb's own refusal is recorded per step, matching
         // `Fuzzing::Replay.call`'s own `rescue *Runtime::DOMAIN_REFUSALS`
         // scope (a reaction's downstream refusal is swallowed inside
         // `orchestrate`, never surfaced to this loop at all).
-        if let Err(refusal) = orchestrate(&mut store, dispatch_by_name, POLICIES, PROCESS_MANAGERS, reference_key_for_aggregate, &mut sagas, verb, args, 0, &mut events) {
+        if let Err(refusal) = orchestrate(&mut store, dispatch_by_name, POLICIES, PROCESS_MANAGERS, reference_key_for_aggregate, &mut sagas, verb, args, caller_role, 0, &mut events) {
             refusals.push((verb.to_string(), refusal));
         }
     }

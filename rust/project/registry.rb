@@ -13,26 +13,45 @@ module RustProjection
     # and JSON, nothing domain-specific: this table is the whole bridge.
     #
     # `aggregates` is `[{name:, mod:, record:, commands: [{verb:, fn:,
-    # args_struct:, creates:, reference_checks:}], entity_commands: [{verb:,
-    # entity_record:, fn:, args_struct:, reference_checks:}]}]` —
-    # accumulated by domain_generator.rb while it walks the real IR, not
-    # re-derived here. `reference_checks` is `[{field:, optional:,
-    # target_mod:, target_name:, heads:}]` (`domain_generator.rb`'s own
-    # `reference_checks` helper) — `CommandRules::References
+    # args_struct:, creates:, reference_checks:, role:}], entity_commands:
+    # [{verb:, entity_record:, fn:, args_struct:, reference_checks:,
+    # role:}]}]` — accumulated by domain_generator.rb while it walks the
+    # real IR, not re-derived here. `reference_checks` is `[{field:,
+    # optional:, target_mod:, target_name:, heads:}]` (`domain_generator.
+    # rb`'s own `reference_checks` helper) — `CommandRules::References
     # #resolve_references`'s per-attribute walk, done at codegen time
-    # instead of dispatch time.
+    # instead of dispatch time. `role:` is the command's own declared
+    # role string, or `nil` (most commands declare none) — `IR::Command
+    # #role`, exported verbatim.
     #
-    # Emitted HERE, in the router, rather than inside each command's own
-    # `dispatch_*` function (commands.rb): `store` — every OTHER aggregate's
-    # repo, not just this command's own — only exists at this level, the
-    # same way Ruby's own version reaches through `@registry.repository
-    # (domain, target)` rather than anything local to one command. Emitted
-    # right after `from_json` succeeds and before the real dispatch call,
-    # matching Ruby's own `DISPATCH_ORDER`: `resolve_references` runs after
-    # argument normalization/coercion, strictly before `hydrate`/
-    # `enforce_givens` — verified live (0016's own investigation): a
-    # dangling reference is refused before the command's OWN `given`s are
-    # even consulted.
+    # Both emitted HERE, in the router, rather than inside each command's
+    # own `dispatch_*` function (commands.rb):
+    #   - `resolve_references` needs `store` — every OTHER aggregate's
+    #     repo, not just this command's own — which only exists at this
+    #     level, the same way Ruby's own version reaches through
+    #     `@registry.repository(domain, target)` rather than anything
+    #     local to one command.
+    #   - `refuse_role_mismatch` needs the CALLER's role, which arrives
+    #     as this router's own `caller_role` parameter (`cli.rs`'s own
+    #     per-step `role:` key) — commands.rb's generated functions have
+    #     no equivalent parameter and shouldn't grow one just for this.
+    # Emitted right after `from_json` succeeds and before the real
+    # dispatch call, matching Ruby's own `DISPATCH_ORDER`: `refuse_role_
+    # mismatch` then `resolve_references` run in that order, both after
+    # argument normalization/coercion and strictly before `hydrate`/
+    # `enforce_givens` — verified live: a dangling reference (0016's own
+    # investigation) or a role mismatch is refused before the command's
+    # OWN `given`s are even consulted.
+    # `command_name` is the SHORT name (`command.hecks_name` — "Open",
+    # not the qualified verb "Banking::Account.Open") — confirmed against
+    # Ruby's own live wording: `"Open refused — role: Branch clerk, and
+    # the caller stated Wrong Role"`.
+    def emit_role_check(role, command_name)
+      return nil unless role
+
+      "crate::kernel::check_role(Some(#{role.inspect}), #{command_name.to_s.inspect}, caller_role)?;"
+    end
+
     def emit_reference_check(check)
       ident = rust_ident_field(check[:field])
       call = "crate::kernel::check_reference(&store.#{check[:target_mod]}, #{check[:optional] ? 'v' : "&args.#{ident}"}, #{check[:target_name].inspect}, #{check[:heads].inspect})?;"
@@ -56,10 +75,11 @@ module RustProjection
         a[:commands].map do |c|
           dispatch_call = "super::#{a[:mod]}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? '' : '&id, '}args)"
           id_line = c[:creates] ? "" : "let id = super::#{a[:mod]}::#{a[:record]}::extract_id(args_json)?;"
+          role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
-          body = [id_line, "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;", *reference_lines,
-                  "#{dispatch_call}.map(|(_, events)| stamp_payload(events, args_json))"].reject(&:empty?)
+          body = [id_line, "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
+                  "#{dispatch_call}.map(|(_, events)| stamp_payload(events, args_json))"].compact.reject(&:empty?)
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end
@@ -74,13 +94,14 @@ module RustProjection
       # `"entity_" + fn` this file's own `fn:` entries already carry.
       entity_arms = aggregates.flat_map do |a|
         a[:entity_commands].map do |c|
+          role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
           dispatch_call = "super::#{a[:mod]}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, args_json))"
 
           body = ["let parent_id = super::#{a[:mod]}::#{a[:record]}::extract_id(args_json)?;",
                   "let element_id = super::#{a[:mod]}::#{c[:entity_record]}::extract_id(args_json)?;",
                   "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;",
-                  *reference_lines, dispatch_call]
+                  role_line, *reference_lines, dispatch_call].compact
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end
@@ -121,6 +142,7 @@ module RustProjection
             store: &mut Store,
             verb: &str,
             args_json: &crate::kernel::Json,
+            caller_role: Option<&str>,
         ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
             match verb {
         #{dispatch_arms.join("\n")}

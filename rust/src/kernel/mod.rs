@@ -20,7 +20,7 @@ pub use json::Json;
 pub use orchestrate::{
     orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
-pub use repository::{check_reference, InMemoryRepository, Repository};
+pub use repository::{check_reference, check_role, InMemoryRepository, Repository};
 
 #[derive(Debug, Clone)]
 pub struct Event {
@@ -43,11 +43,12 @@ pub struct Event {
 
 /// The complete refusal roster for a command dispatch, per
 /// docs/guides/commands.md's own table (quoted there as "the complete
-/// roster" — not a subset picked for this slice). Two Ruby DOMAIN_REFUSALS
-/// classes are deliberately NOT here: `Unauthorized` (role-mismatch — no
-/// role-checking is generated yet) and `UnknownVerb` (dispatching a
-/// command name that doesn't exist at all is a router-level concern, not
+/// roster" — not a subset picked for this slice). One Ruby DOMAIN_REFUSALS
+/// class is deliberately NOT here: `UnknownVerb` (dispatching a command
+/// name that doesn't exist at all is a router-level concern, not
 /// something one generated dispatch function raises about itself).
+/// `Unauthorized` (role-mismatch) WAS in that deliberately-absent list —
+/// see `check_role` (repository.rs) and 0019 for how it's generated now.
 ///
 /// `AbsentArgument`/`UnknownArgument` ARE variants here, but only ever
 /// raised at the JSON boundary (`from_json`, `rust/project/json_codec.rb`'s
@@ -73,6 +74,7 @@ pub enum Refusal {
     TypeMismatch(String),
     AbsentArgument(String),
     UnknownArgument(String),
+    Unauthorized(String),
 }
 
 impl std::fmt::Display for Refusal {
@@ -86,7 +88,8 @@ impl std::fmt::Display for Refusal {
             | Refusal::NotFound(msg)
             | Refusal::TypeMismatch(msg)
             | Refusal::AbsentArgument(msg)
-            | Refusal::UnknownArgument(msg) => write!(f, "{msg}"),
+            | Refusal::UnknownArgument(msg)
+            | Refusal::Unauthorized(msg) => write!(f, "{msg}"),
         }
     }
 }

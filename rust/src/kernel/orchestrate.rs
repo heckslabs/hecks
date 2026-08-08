@@ -153,17 +153,18 @@ fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Even
 #[allow(clippy::too_many_arguments)]
 pub fn orchestrate<S>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     verb: &str,
     args: &Json,
+    caller_role: Option<&str>,
     depth: usize,
     all_events: &mut Vec<Event>,
 ) -> Result<(), Refusal> {
-    let events = dispatch_fn(store, verb, args)?;
+    let events = dispatch_fn(store, verb, args, caller_role)?;
 
     for event in events {
         // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — before any reaction
@@ -187,7 +188,7 @@ pub fn orchestrate<S>(
 #[allow(clippy::too_many_arguments)]
 fn react_policies<S>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
@@ -212,7 +213,10 @@ fn react_policies<S>(
         // Forward the event's WHOLE payload verbatim as the trigger's own
         // args — docs/guides/policies-and-process-managers.md: "not
         // reshaped, not filtered." A refusal here is swallowed.
-        let _ = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, policy.target_verb, &event.payload, depth + 1, all_events);
+        // `caller_role: None` — `Dispatcher#reenter`'s own `Caller.
+        // without`: a policy reaction is system-triggered, never carries
+        // whatever caller the ORIGINAL step bound.
+        let _ = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, policy.target_verb, &event.payload, None, depth + 1, all_events);
     }
 }
 
@@ -222,7 +226,7 @@ fn react_policies<S>(
 #[allow(clippy::too_many_arguments)]
 fn advance_process_managers<S>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
@@ -259,7 +263,9 @@ fn advance_process_managers<S>(
 
         for spec in handler.dispatches {
             let args = build_dispatch_args(pm, spec, event, &correlation, &memory);
-            let outcome = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, depth + 1, all_events);
+            // `caller_role: None` — same `Caller.without` reasoning as
+            // `react_policies`: a saga leg is system-triggered.
+            let outcome = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events);
 
             if outcome.is_err() {
                 compensate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, pm, &key, event, &correlation, &memory, depth, all_events);
@@ -283,7 +289,7 @@ fn advance_process_managers<S>(
 #[allow(clippy::too_many_arguments)]
 fn compensate<S>(
     store: &mut S,
-    dispatch_fn: fn(&mut S, &str, &Json) -> Result<Vec<Event>, Refusal>,
+    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
@@ -309,6 +315,6 @@ fn compensate<S>(
 
     for spec in compensation.dispatches {
         let args = build_dispatch_args(pm, spec, event, correlation, memory);
-        let _ = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, depth + 1, all_events);
+        let _ = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events);
     }
 }

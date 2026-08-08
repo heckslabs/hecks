@@ -84,3 +84,35 @@ pub fn check_reference<T: Clone>(
     }
     Err(super::Refusal::NotFound(format!("no {target} with {heads} {value:?}")))
 }
+
+/// `refuse_role_mismatch` — `CommandRules::Authorization`
+/// (`lib/hecksagain/runtime/command_rules/authorization.rb`), read
+/// directly:
+/// ```ruby
+/// def refuse_role_mismatch(command)
+///   caller = Caller.current
+///   return unless caller
+///   return if command.role.to_s.empty?
+///   return if caller.role == command.role
+///   raise Unauthorized, ...
+/// end
+/// ```
+/// Doubly opt-in, matched exactly: no bound caller (`caller_role: None` —
+/// no `role:` on this step at all, the ordinary case for all but a
+/// deliberately role-checking corpus fixture) → unchecked; no role the
+/// command itself declared (`command_role: None`) → unchecked. Ruby's
+/// caller comes from thread-local ambient state (`Caller.current`,
+/// `Hecksagain.as_caller`) that this kernel has no analogue for — a
+/// step's own `role:` key plays that part instead, read once at the CLI
+/// boundary (`cli.rs`) and threaded through `orchestrate`'s OUTERMOST
+/// dispatch only, exactly mirroring `Dispatcher#reenter`'s own
+/// `Caller.without`: a policy/process-manager REACTION never carries a
+/// caller in Ruby either, so a reaction's own re-entry into `orchestrate`
+/// always passes `None` here, never the triggering step's role.
+pub fn check_role(command_role: Option<&str>, command_name: &str, caller_role: Option<&str>) -> Result<(), super::Refusal> {
+    let (Some(caller), Some(role)) = (caller_role, command_role) else { return Ok(()) };
+    if caller == role {
+        return Ok(());
+    }
+    Err(super::Refusal::Unauthorized(format!("{command_name} refused — role: {role}, and the caller stated {caller}")))
+}

@@ -97,11 +97,16 @@
 # exactly the dialect `PatternSubset` admits into a bluebook in the first
 # place (no backreferences/lookaround/POSIX classes ever reach it).
 #
+# NINTH SLICE (0019) — role checking (`refuse_role_mismatch`), the last
+# item from 0014's original two-item list. Needed a wire-contract
+# extension FIRST (a step's optional `role:` key, `Fuzzing::Replay`'s own
+# `Hecksagain.as_caller` wrap) to even be verifiable — Ruby's own caller
+# is 100% ambient thread-local state, never reachable through the
+# existing `spec/corpus/*.json` step format at all.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
-#   - Role checking (Unauthorized) — the one item left from 0014's
-#     original two-item list (0017 closed reference-existence checking).
 #   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
 #     produces the right SIDE EFFECTS without also reproducing the log
 #     `bin/rust_conformance`'s own comparable surface never reads.

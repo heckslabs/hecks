@@ -152,12 +152,14 @@ module RustProjection
 
               entity_commands << {
                 verb: "#{domain_name}::#{aggregate[:name]}.#{entity[:name]}.#{command[:name]}",
+                name: command[:name],
                 entity_record: entity_name,
                 # Matches commands.rb's `emit_entity_command` naming exactly:
                 # `dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}`.
                 fn: "#{entity[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(command[:name]))}",
                 args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}Args",
                 reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
+                role: command[:role],
               }
             end
           end
@@ -217,10 +219,12 @@ module RustProjection
 
             registry_commands << {
               verb: "#{domain_name}::#{aggregate[:name]}.#{command[:name]}",
+              name: command[:name],
               fn: Projector.dispatch_fn_name(Projector.rust_ident(command[:name])),
               args_struct: args_struct,
               creates: creates,
               reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
+              role: command[:role],
             }
           end
         end
