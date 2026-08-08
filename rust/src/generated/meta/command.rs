@@ -716,6 +716,12 @@ impl Command {
     }
 }
 
+impl crate::kernel::ToJson for Command {
+    fn to_json(&self) -> crate::kernel::Json {
+        Command::to_json(self)
+    }
+}
+
 impl Command {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -762,7 +768,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Command>, owner_id: &str, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Command>, owner_id: &str, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Command> {
         args.name.check_invariants()?;
         if let Some(v) = &args.role { v.check_invariants()?; }
@@ -806,6 +812,7 @@ pub fn dispatch_declare(
         ],
         &["VerbDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -870,7 +877,7 @@ pub struct ChangeArgs {
 }
 
 pub fn dispatch_change(
-    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: ChangeArgs,
+    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: ChangeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Command> {
         args.target.check_invariants()?;
         if !["set", "append", "increment", "decrement"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::MutationOp — \"set\", \"append\", \"increment\", \"decrement\" — got ", args.op.value))); }
@@ -899,6 +906,7 @@ pub fn dispatch_change(
         ],
         &["ChangeAttached"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -951,7 +959,7 @@ pub struct ActsOnArgs {
 }
 
 pub fn dispatch_acts_on(
-    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: ActsOnArgs,
+    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: ActsOnArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Command> {
         args.root.check_invariants()?;
 
@@ -975,6 +983,7 @@ pub fn dispatch_acts_on(
         ],
         &["ReferenceNamed"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -1019,7 +1028,7 @@ pub struct AnnounceArgs {
 }
 
 pub fn dispatch_announce(
-    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: AnnounceArgs,
+    repo: &mut impl crate::kernel::Repository<Command>, id: &str, args: AnnounceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Command> {
         args.announces.check_invariants()?;
 
@@ -1042,6 +1051,7 @@ pub fn dispatch_announce(
         ],
         &["AnnouncementNamed"],
         args.to_json(),
+        mutations,
     )
 }
 

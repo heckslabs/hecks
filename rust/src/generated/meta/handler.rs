@@ -118,6 +118,12 @@ impl Handler {
     }
 }
 
+impl crate::kernel::ToJson for Handler {
+    fn to_json(&self) -> crate::kernel::Json {
+        Handler::to_json(self)
+    }
+}
+
 impl Handler {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -160,7 +166,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Handler>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Handler>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Handler> {
         args.event_type.check_invariants()?;
         args.from_state.check_invariants()?;
@@ -195,6 +201,7 @@ pub fn dispatch_declare(
         ],
         &["LegDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 

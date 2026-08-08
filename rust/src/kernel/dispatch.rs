@@ -18,7 +18,7 @@
 // with access to every OTHER aggregate's repo, not just this command's own.
 
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld};
-use super::{Event, Json, Refusal, Repository};
+use super::{Event, Json, MutationRecord, Refusal, Repository, ToJson};
 
 pub struct GivenSpec {
     pub description: &'static str,
@@ -100,9 +100,10 @@ pub fn dispatch<'a, T, R>(
     ensures: &[EnsuresSpec],
     emits: &[&'static str],
     payload: Json,
+    mutations: &mut Vec<MutationRecord>,
 ) -> Result<(T, Vec<Event>), Refusal>
 where
-    T: Fielded + Clone,
+    T: Fielded + Clone + ToJson,
     R: Repository<T>,
 {
     let (id, mut record) = match hydrate {
@@ -181,6 +182,12 @@ where
     }
 
     repo.save(&id, record.clone());
+    mutations.push(MutationRecord {
+        aggregate: aggregate_qualified_name.to_string(),
+        id: id.clone(),
+        operation: "save",
+        state: record.to_json(),
+    });
 
     let events = emits
         .iter()
@@ -230,9 +237,10 @@ pub fn dispatch_entity<'a, T, E, R>(
     ensures: &[EnsuresSpec],
     emits: &[&'static str],
     payload: Json,
+    mutations: &mut Vec<MutationRecord>,
 ) -> Result<(T, Vec<Event>), Refusal>
 where
-    T: Fielded + Clone,
+    T: Fielded + Clone + ToJson,
     E: Fielded + Clone,
     R: Repository<T>,
 {
@@ -301,6 +309,12 @@ where
 
     get_list_mut(&mut record)[position] = element;
     repo.save(parent_id, record.clone());
+    mutations.push(MutationRecord {
+        aggregate: aggregate_qualified_name.to_string(),
+        id: parent_id.to_string(),
+        operation: "save",
+        state: record.to_json(),
+    });
 
     // SAVE AND EMIT BOTH OPERATE ON THE PARENT — docs/guides/entities.md:
     // "announces onto the SAME event log the parent's own commands write

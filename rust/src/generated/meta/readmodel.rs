@@ -320,6 +320,12 @@ impl ReadModel {
     }
 }
 
+impl crate::kernel::ToJson for ReadModel {
+    fn to_json(&self) -> crate::kernel::Json {
+        ReadModel::to_json(self)
+    }
+}
+
 impl ReadModel {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -366,7 +372,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
@@ -407,6 +413,7 @@ pub fn dispatch_declare(
         ],
         &["ProjectionDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -467,7 +474,7 @@ pub struct GatherArgs {
 }
 
 pub fn dispatch_gather(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GatherArgs,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GatherArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.aggregate.check_invariants()?;
         args.r#as.check_invariants()?;
@@ -492,6 +499,7 @@ pub fn dispatch_gather(
         ],
         &["HeadGathered"],
         args.to_json(),
+        mutations,
     )
 }
 

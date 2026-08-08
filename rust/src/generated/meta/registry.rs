@@ -98,181 +98,182 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Bluebook::Bluebook.Declare" => {
               let args = crate::generated::meta::bluebook::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::bluebook::dispatch_declare(&mut store.bluebook, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::bluebook::dispatch_declare(&mut store.bluebook, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Aggregate.Declare" => {
               let args = crate::generated::meta::aggregate::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook_id, "Bluebook", "name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::aggregate::dispatch_declare(&mut store.aggregate, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::aggregate::dispatch_declare(&mut store.aggregate, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Aggregate.Identify" => {
               let id = crate::generated::meta::aggregate::Aggregate::extract_id(args_json)?;
               let args = crate::generated::meta::aggregate::IdentifyArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Identify", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::aggregate::dispatch_identify(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::aggregate::dispatch_identify(&mut store.aggregate, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Aggregate.Lifecycle" => {
               let id = crate::generated::meta::aggregate::Aggregate::extract_id(args_json)?;
               let args = crate::generated::meta::aggregate::LifecycleArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Lifecycle", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::aggregate::dispatch_lifecycle(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::aggregate::dispatch_lifecycle(&mut store.aggregate, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Aggregate.Seal" => {
               let id = crate::generated::meta::aggregate::Aggregate::extract_id(args_json)?;
               let args = crate::generated::meta::aggregate::SealArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Seal", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::aggregate::dispatch_seal(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::aggregate::dispatch_seal(&mut store.aggregate, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Aggregate.Value" => {
               let id = crate::generated::meta::aggregate::Aggregate::extract_id(args_json)?;
               let args = crate::generated::meta::aggregate::ValueArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Value", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::aggregate::dispatch_value(&mut store.aggregate, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::aggregate::dispatch_value(&mut store.aggregate, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Command.Change" => {
               let id = crate::generated::meta::command::Command::extract_id(args_json)?;
               let args = crate::generated::meta::command::ChangeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Change", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::command::dispatch_change(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::command::dispatch_change(&mut store.command, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Command.ActsOn" => {
               let id = crate::generated::meta::command::Command::extract_id(args_json)?;
               let args = crate::generated::meta::command::ActsOnArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "ActsOn", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::command::dispatch_acts_on(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::command::dispatch_acts_on(&mut store.command, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Command.Announce" => {
               let id = crate::generated::meta::command::Command::extract_id(args_json)?;
               let args = crate::generated::meta::command::AnnounceArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Announce", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::command::dispatch_announce(&mut store.command, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::command::dispatch_announce(&mut store.command, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Query.Filter" => {
               let id = crate::generated::meta::query::Query::extract_id(args_json)?;
               let args = crate::generated::meta::query::FilterArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Filter", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::query::dispatch_filter(&mut store.query, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::query::dispatch_filter(&mut store.query, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::ValueObject.Declare" => {
               let args = crate::generated::meta::valueobject::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.aggregate, &args.aggregate_id, "Aggregate", "bluebook_id, name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::valueobject::dispatch_declare(&mut store.valueobject, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::valueobject::dispatch_declare(&mut store.valueobject, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::ValueObject.Close" => {
               let id = crate::generated::meta::valueobject::ValueObject::extract_id(args_json)?;
               let args = crate::generated::meta::valueobject::CloseArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Close", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::valueobject::dispatch_close(&mut store.valueobject, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::valueobject::dispatch_close(&mut store.valueobject, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Member.Pair" => {
               let id = crate::generated::meta::member::Member::extract_id(args_json)?;
               let args = crate::generated::meta::member::PairArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Pair", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::member::dispatch_pair(&mut store.member, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::member::dispatch_pair(&mut store.member, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Entity.Declare" => {
               let args = crate::generated::meta::entity::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.aggregate, &args.aggregate_id, "Aggregate", "bluebook_id, name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::entity::dispatch_declare(&mut store.entity, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::entity::dispatch_declare(&mut store.entity, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Entity.Identify" => {
               let id = crate::generated::meta::entity::Entity::extract_id(args_json)?;
               let args = crate::generated::meta::entity::IdentifyArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Identify", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::entity::dispatch_identify(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::entity::dispatch_identify(&mut store.entity, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Entity.Seal" => {
               let id = crate::generated::meta::entity::Entity::extract_id(args_json)?;
               let args = crate::generated::meta::entity::SealArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Seal", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::entity::dispatch_seal(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::entity::dispatch_seal(&mut store.entity, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Entity.Lifecycle" => {
               let id = crate::generated::meta::entity::Entity::extract_id(args_json)?;
               let args = crate::generated::meta::entity::LifecycleArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Lifecycle", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::entity::dispatch_lifecycle(&mut store.entity, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::entity::dispatch_lifecycle(&mut store.entity, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Policy.Declare" => {
               let args = crate::generated::meta::policy::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook_id, "Bluebook", "name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::policy::dispatch_declare(&mut store.policy, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::policy::dispatch_declare(&mut store.policy, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::ProcessManager.Declare" => {
               let args = crate::generated::meta::processmanager::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook_id, "Bluebook", "name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::processmanager::dispatch_declare(&mut store.processmanager, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::processmanager::dispatch_declare(&mut store.processmanager, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::ProcessManager.State" => {
               let id = crate::generated::meta::processmanager::ProcessManager::extract_id(args_json)?;
               let args = crate::generated::meta::processmanager::StateArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "State", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::processmanager::dispatch_state(&mut store.processmanager, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::processmanager::dispatch_state(&mut store.processmanager, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Handler.Declare" => {
               let args = crate::generated::meta::handler::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.processmanager, &args.process_manager_id, "ProcessManager", "bluebook_id, name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::handler::dispatch_declare(&mut store.handler, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::handler::dispatch_declare(&mut store.handler, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Dispatch.Declare" => {
               let args = crate::generated::meta::dispatch::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.handler, &args.handler_id, "Handler", "process_manager_id, event_type")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::dispatch::dispatch_declare(&mut store.dispatch, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::dispatch::dispatch_declare(&mut store.dispatch, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::Dispatch.Bind" => {
               let id = crate::generated::meta::dispatch::Dispatch::extract_id(args_json)?;
               let args = crate::generated::meta::dispatch::BindArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Bind", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::dispatch::dispatch_bind(&mut store.dispatch, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::dispatch::dispatch_bind(&mut store.dispatch, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::ReadModel.Declare" => {
               let args = crate::generated::meta::readmodel::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;
               crate::kernel::check_reference(&store.bluebook, &args.bluebook_id, "Bluebook", "name")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::readmodel::dispatch_declare(&mut store.readmodel, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::readmodel::dispatch_declare(&mut store.readmodel, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Bluebook::ReadModel.Gather" => {
               let id = crate::generated::meta::readmodel::ReadModel::extract_id(args_json)?;
               let args = crate::generated::meta::readmodel::GatherArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Gather", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::meta::readmodel::dispatch_gather(&mut store.readmodel, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::meta::readmodel::dispatch_gather(&mut store.readmodel, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

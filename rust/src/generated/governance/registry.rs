@@ -38,33 +38,34 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Governance::RoleAssignment.Assign" => {
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
               let id = crate::generated::governance::roleassignment::RoleAssignment::extract_id(args_json)?;
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Grant" => {
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
               let id = crate::generated::governance::roletransition::RoleTransition::extract_id(args_json)?;
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

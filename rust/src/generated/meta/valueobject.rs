@@ -314,6 +314,12 @@ impl ValueObject {
     }
 }
 
+impl crate::kernel::ToJson for ValueObject {
+    fn to_json(&self) -> crate::kernel::Json {
+        ValueObject::to_json(self)
+    }
+}
+
 impl ValueObject {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -352,7 +358,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.name.check_invariants()?;
         if let Some(v) = &args.position { v.check_invariants()?; }
@@ -386,6 +392,7 @@ pub fn dispatch_declare(
         ],
         &["ShapeDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -434,7 +441,7 @@ pub struct CloseArgs {
 }
 
 pub fn dispatch_close(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: CloseArgs,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.rows.check_invariants()?;
 
@@ -457,6 +464,7 @@ pub fn dispatch_close(
         ],
         &["ShapeClosed"],
         args.to_json(),
+        mutations,
     )
 }
 

@@ -162,6 +162,12 @@ impl Dispatch {
     }
 }
 
+impl crate::kernel::ToJson for Dispatch {
+    fn to_json(&self) -> crate::kernel::Json {
+        Dispatch::to_json(self)
+    }
+}
+
 impl Dispatch {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -202,7 +208,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Dispatch>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Dispatch>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Dispatch> {
         args.handler.check_invariants()?;
         args.command_name.check_invariants()?;
@@ -236,6 +242,7 @@ pub fn dispatch_declare(
         ],
         &["SendDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -288,7 +295,7 @@ pub struct BindArgs {
 }
 
 pub fn dispatch_bind(
-    repo: &mut impl crate::kernel::Repository<Dispatch>, id: &str, args: BindArgs,
+    repo: &mut impl crate::kernel::Repository<Dispatch>, id: &str, args: BindArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Dispatch> {
         args.key.check_invariants()?;
         args.value.check_invariants()?;
@@ -312,6 +319,7 @@ pub fn dispatch_bind(
         ],
         &["BindingAttached"],
         args.to_json(),
+        mutations,
     )
 }
 

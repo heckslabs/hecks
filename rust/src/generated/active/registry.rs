@@ -4,16 +4,16 @@
 #![allow(dead_code, unused_variables)]
 
 pub struct Store {
-    pub member: crate::kernel::InMemoryRepository<crate::generated::embryonaut::member::Member>,
-    pub foundingagreement: crate::kernel::InMemoryRepository<crate::generated::embryonaut::foundingagreement::FoundingAgreement>,
-    pub client: crate::kernel::InMemoryRepository<crate::generated::embryonaut::client::Client>,
-    pub engagement: crate::kernel::InMemoryRepository<crate::generated::embryonaut::engagement::Engagement>,
-    pub proposal: crate::kernel::InMemoryRepository<crate::generated::embryonaut::proposal::Proposal>,
-    pub contract: crate::kernel::InMemoryRepository<crate::generated::embryonaut::contract::Contract>,
-    pub product: crate::kernel::InMemoryRepository<crate::generated::embryonaut::product::Product>,
-    pub invoice: crate::kernel::InMemoryRepository<crate::generated::embryonaut::invoice::Invoice>,
-    pub payment: crate::kernel::InMemoryRepository<crate::generated::embryonaut::payment::Payment>,
-    pub recurringpayment: crate::kernel::InMemoryRepository<crate::generated::embryonaut::recurringpayment::RecurringPayment>,
+    pub customer: crate::kernel::InMemoryRepository<crate::generated::banking::customer::Customer>,
+    pub account: crate::kernel::InMemoryRepository<crate::generated::banking::account::Account>,
+    pub atmcard: crate::kernel::InMemoryRepository<crate::generated::banking::atmcard::ATMCard>,
+    pub transfer: crate::kernel::InMemoryRepository<crate::generated::banking::transfer::Transfer>,
+    pub cardpayment: crate::kernel::InMemoryRepository<crate::generated::banking::cardpayment::CardPayment>,
+    pub externaltransfer: crate::kernel::InMemoryRepository<crate::generated::banking::externaltransfer::ExternalTransfer>,
+    pub scheduledpayment: crate::kernel::InMemoryRepository<crate::generated::banking::scheduledpayment::ScheduledPayment>,
+    pub safedepositbox: crate::kernel::InMemoryRepository<crate::generated::banking::safedepositbox::SafeDepositBox>,
+    pub onboardingcase: crate::kernel::InMemoryRepository<crate::generated::banking::onboardingcase::OnboardingCase>,
+    pub statement: crate::kernel::InMemoryRepository<crate::generated::banking::statement::Statement>,
     pub roleassignment: crate::kernel::InMemoryRepository<crate::generated::governance::roleassignment::RoleAssignment>,
     pub roletransition: crate::kernel::InMemoryRepository<crate::generated::governance::roletransition::RoleTransition>,
     pub identity: crate::kernel::InMemoryRepository<crate::generated::identity::identity::Identity>,
@@ -23,16 +23,16 @@ pub struct Store {
 impl Store {
     pub fn new() -> Self {
         Self {
-            member: crate::kernel::InMemoryRepository::new(),
-            foundingagreement: crate::kernel::InMemoryRepository::new(),
-            client: crate::kernel::InMemoryRepository::new(),
-            engagement: crate::kernel::InMemoryRepository::new(),
-            proposal: crate::kernel::InMemoryRepository::new(),
-            contract: crate::kernel::InMemoryRepository::new(),
-            product: crate::kernel::InMemoryRepository::new(),
-            invoice: crate::kernel::InMemoryRepository::new(),
-            payment: crate::kernel::InMemoryRepository::new(),
-            recurringpayment: crate::kernel::InMemoryRepository::new(),
+            customer: crate::kernel::InMemoryRepository::new(),
+            account: crate::kernel::InMemoryRepository::new(),
+            atmcard: crate::kernel::InMemoryRepository::new(),
+            transfer: crate::kernel::InMemoryRepository::new(),
+            cardpayment: crate::kernel::InMemoryRepository::new(),
+            externaltransfer: crate::kernel::InMemoryRepository::new(),
+            scheduledpayment: crate::kernel::InMemoryRepository::new(),
+            safedepositbox: crate::kernel::InMemoryRepository::new(),
+            onboardingcase: crate::kernel::InMemoryRepository::new(),
+            statement: crate::kernel::InMemoryRepository::new(),
             roleassignment: crate::kernel::InMemoryRepository::new(),
             roletransition: crate::kernel::InMemoryRepository::new(),
             identity: crate::kernel::InMemoryRepository::new(),
@@ -47,35 +47,35 @@ impl Store {
     /// format, read directly).
     pub fn instances(&self) -> Vec<(String, crate::kernel::Json)> {
         let mut instances = Vec::new();
-for (id, record) in self.member.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Member#", id), record.to_json()));
+for (id, record) in self.customer.entries() {
+    instances.push((format!("{}{}", "Banking::Customer#", id), record.to_json()));
 }
-for (id, record) in self.foundingagreement.entries() {
-    instances.push((format!("{}{}", "Embryonaut::FoundingAgreement#", id), record.to_json()));
+for (id, record) in self.account.entries() {
+    instances.push((format!("{}{}", "Banking::Account#", id), record.to_json()));
 }
-for (id, record) in self.client.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Client#", id), record.to_json()));
+for (id, record) in self.atmcard.entries() {
+    instances.push((format!("{}{}", "Banking::ATMCard#", id), record.to_json()));
 }
-for (id, record) in self.engagement.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Engagement#", id), record.to_json()));
+for (id, record) in self.transfer.entries() {
+    instances.push((format!("{}{}", "Banking::Transfer#", id), record.to_json()));
 }
-for (id, record) in self.proposal.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Proposal#", id), record.to_json()));
+for (id, record) in self.cardpayment.entries() {
+    instances.push((format!("{}{}", "Banking::CardPayment#", id), record.to_json()));
 }
-for (id, record) in self.contract.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Contract#", id), record.to_json()));
+for (id, record) in self.externaltransfer.entries() {
+    instances.push((format!("{}{}", "Banking::ExternalTransfer#", id), record.to_json()));
 }
-for (id, record) in self.product.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Product#", id), record.to_json()));
+for (id, record) in self.scheduledpayment.entries() {
+    instances.push((format!("{}{}", "Banking::ScheduledPayment#", id), record.to_json()));
 }
-for (id, record) in self.invoice.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Invoice#", id), record.to_json()));
+for (id, record) in self.safedepositbox.entries() {
+    instances.push((format!("{}{}", "Banking::SafeDepositBox#", id), record.to_json()));
 }
-for (id, record) in self.payment.entries() {
-    instances.push((format!("{}{}", "Embryonaut::Payment#", id), record.to_json()));
+for (id, record) in self.onboardingcase.entries() {
+    instances.push((format!("{}{}", "Banking::OnboardingCase#", id), record.to_json()));
 }
-for (id, record) in self.recurringpayment.entries() {
-    instances.push((format!("{}{}", "Embryonaut::RecurringPayment#", id), record.to_json()));
+for (id, record) in self.statement.entries() {
+    instances.push((format!("{}{}", "Banking::Statement#", id), record.to_json()));
 }
 for (id, record) in self.roleassignment.entries() {
     instances.push((format!("{}{}", "Governance::RoleAssignment#", id), record.to_json()));
@@ -98,361 +98,427 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
-          "Embryonaut::Member.Admit" => {
-              let args = crate::generated::embryonaut::member::AdmitArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Admit", caller_role)?;
+          "Banking::Customer.Register" => {
+              let args = crate::generated::banking::customer::RegisterArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "Register", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::member::dispatch_admit(&mut store.member, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::customer::dispatch_register(&mut store.customer, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Member.Depart" => {
-              let id = crate::generated::embryonaut::member::Member::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::member::DepartArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Depart", caller_role)?;
+          "Banking::Customer.Suspend" => {
+              let id = crate::generated::banking::customer::Customer::extract_id(args_json)?;
+              let args = crate::generated::banking::customer::SuspendArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Suspend", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::member::dispatch_depart(&mut store.member, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::customer::dispatch_suspend(&mut store.customer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Member.GrantAccess" => {
-              let id = crate::generated::embryonaut::member::Member::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::member::GrantAccessArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Admin"), "GrantAccess", caller_role)?;
+          "Banking::Customer.Reinstate" => {
+              let id = crate::generated::banking::customer::Customer::extract_id(args_json)?;
+              let args = crate::generated::banking::customer::ReinstateArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Reinstate", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::member::dispatch_grant_access(&mut store.member, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::customer::dispatch_reinstate(&mut store.customer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Member.LinkIdentity" => {
-              let id = crate::generated::embryonaut::member::Member::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::member::LinkIdentityArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("System"), "LinkIdentity", caller_role)?;
+          "Banking::Customer.Close" => {
+              let id = crate::generated::banking::customer::Customer::extract_id(args_json)?;
+              let args = crate::generated::banking::customer::CloseArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "Close", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::member::dispatch_link_identity(&mut store.member, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::customer::dispatch_close(&mut store.customer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::FoundingAgreement.Draft" => {
-              let args = crate::generated::embryonaut::foundingagreement::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Draft", caller_role)?;
+          "Banking::Account.Open" => {
+              let args = crate::generated::banking::account::OpenArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "Open", caller_role)?;
+              crate::kernel::check_reference(&store.customer, &args.customer_id, "Customer", "reference")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::foundingagreement::dispatch_draft(&mut store.foundingagreement, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_open(&mut store.account, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::FoundingAgreement.Circulate" => {
-              let id = crate::generated::embryonaut::foundingagreement::FoundingAgreement::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::foundingagreement::CirculateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Circulate", caller_role)?;
+          "Banking::Account.Credit" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::CreditArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Teller"), "Credit", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::foundingagreement::dispatch_circulate(&mut store.foundingagreement, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_credit(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::FoundingAgreement.Execute" => {
-              let id = crate::generated::embryonaut::foundingagreement::FoundingAgreement::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::foundingagreement::ExecuteArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Managing Member"), "Execute", caller_role)?;
+          "Banking::Account.Debit" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::DebitArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Teller"), "Debit", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::foundingagreement::dispatch_execute(&mut store.foundingagreement, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_debit(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Client.AddProspect" => {
-              let args = crate::generated::embryonaut::client::AddProspectArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "AddProspect", caller_role)?;
+          "Banking::Account.Freeze" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::FreezeArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Freeze", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::client::dispatch_add_prospect(&mut store.client, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_freeze(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Client.Engage" => {
-              let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::client::EngageArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Engage", caller_role)?;
+          "Banking::Account.Unfreeze" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::UnfreezeArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Unfreeze", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::client::dispatch_engage(&mut store.client, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_unfreeze(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Client.Pause" => {
-              let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::client::PauseArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Pause", caller_role)?;
+          "Banking::Account.CloseAccount" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::CloseAccountArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "CloseAccount", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::client::dispatch_pause(&mut store.client, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_close_account(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Client.Reactivate" => {
-              let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::client::ReactivateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Reactivate", caller_role)?;
+          "Banking::Account.ApplyFee" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::ApplyFeeArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::client::dispatch_reactivate(&mut store.client, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_apply_fee(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Client.Churn" => {
-              let id = crate::generated::embryonaut::client::Client::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::client::ChurnArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Churn", caller_role)?;
+          "Banking::Account.CorrectFee" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::CorrectFeeArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::client::dispatch_churn(&mut store.client, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_correct_fee(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Engagement.Schedule" => {
-              let args = crate::generated::embryonaut::engagement::ScheduleArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Schedule", caller_role)?;
-              crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
+          "Banking::Account.AccrueInterest" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::AccrueInterestArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::engagement::dispatch_schedule(&mut store.engagement, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_accrue_interest(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Engagement.CompleteWorkshop" => {
-              let id = crate::generated::embryonaut::engagement::Engagement::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::engagement::CompleteWorkshopArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "CompleteWorkshop", caller_role)?;
+          "Banking::Account.CorrectInterest" => {
+              let id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let args = crate::generated::banking::account::CorrectInterestArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::engagement::dispatch_complete_workshop(&mut store.engagement, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_correct_interest(&mut store.account, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Engagement.DraftDomain" => {
-              let id = crate::generated::embryonaut::engagement::Engagement::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::engagement::DraftDomainArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "DraftDomain", caller_role)?;
+          "Banking::ATMCard.Issue" => {
+              let args = crate::generated::banking::atmcard::IssueArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "Issue", caller_role)?;
+              crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::engagement::dispatch_draft_domain(&mut store.engagement, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_issue(&mut store.atmcard, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Engagement.ShowDemo" => {
-              let id = crate::generated::embryonaut::engagement::Engagement::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::engagement::ShowDemoArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "ShowDemo", caller_role)?;
+          "Banking::ATMCard.Rename" => {
+              let id = crate::generated::banking::atmcard::ATMCard::extract_id(args_json)?;
+              let args = crate::generated::banking::atmcard::RenameArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Rename", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::engagement::dispatch_show_demo(&mut store.engagement, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_rename(&mut store.atmcard, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Proposal.Draft" => {
-              let args = crate::generated::embryonaut::proposal::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Draft", caller_role)?;
-              crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
-              crate::kernel::check_reference(&store.engagement, &args.engagement_id, "Engagement", "reference")?;
+          "Banking::ATMCard.Withdraw" => {
+              let id = crate::generated::banking::atmcard::ATMCard::extract_id(args_json)?;
+              let args = crate::generated::banking::atmcard::WithdrawArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Withdraw", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::proposal::dispatch_draft(&mut store.proposal, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_withdraw(&mut store.atmcard, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Proposal.Send" => {
-              let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::proposal::SendArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Send", caller_role)?;
+          "Banking::ATMCard.Activate" => {
+              let id = crate::generated::banking::atmcard::ATMCard::extract_id(args_json)?;
+              let args = crate::generated::banking::atmcard::ActivateArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Activate", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::proposal::dispatch_send(&mut store.proposal, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_activate(&mut store.atmcard, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Proposal.Accept" => {
-              let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::proposal::AcceptArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Accept", caller_role)?;
+          "Banking::ATMCard.Retire" => {
+              let id = crate::generated::banking::atmcard::ATMCard::extract_id(args_json)?;
+              let args = crate::generated::banking::atmcard::RetireArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Back office"), "Retire", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::proposal::dispatch_accept(&mut store.proposal, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_retire(&mut store.atmcard, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Proposal.Decline" => {
-              let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::proposal::DeclineArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Decline", caller_role)?;
+          "Banking::Transfer.Request" => {
+              let args = crate::generated::banking::transfer::RequestArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Request", caller_role)?;
+              crate::kernel::check_reference(&store.account, &args.source, "Account", "number")?;
+              crate::kernel::check_reference(&store.account, &args.destination, "Account", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::proposal::dispatch_decline(&mut store.proposal, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_request(&mut store.transfer, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Proposal.Expire" => {
-              let id = crate::generated::embryonaut::proposal::Proposal::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::proposal::ExpireArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Expire", caller_role)?;
+          "Banking::Transfer.Debited" => {
+              let id = crate::generated::banking::transfer::Transfer::extract_id(args_json)?;
+              let args = crate::generated::banking::transfer::DebitedArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Debited", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::proposal::dispatch_expire(&mut store.proposal, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_debited(&mut store.transfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Draft" => {
-              let args = crate::generated::embryonaut::contract::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Draft", caller_role)?;
-              crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
-              crate::kernel::check_reference(&store.proposal, &args.proposal_id, "Proposal", "number")?;
+          "Banking::Transfer.Settle" => {
+              let id = crate::generated::banking::transfer::Transfer::extract_id(args_json)?;
+              let args = crate::generated::banking::transfer::SettleArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Settle", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_draft(&mut store.contract, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_settle(&mut store.transfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Send" => {
-              let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::contract::SendArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Send", caller_role)?;
+          "Banking::Transfer.Credited" => {
+              let id = crate::generated::banking::transfer::Transfer::extract_id(args_json)?;
+              let args = crate::generated::banking::transfer::CreditedArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Credited", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_send(&mut store.contract, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_credited(&mut store.transfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Sign" => {
-              let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::contract::SignArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Sign", caller_role)?;
+          "Banking::Transfer.Reverse" => {
+              let id = crate::generated::banking::transfer::Transfer::extract_id(args_json)?;
+              let args = crate::generated::banking::transfer::ReverseArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Reverse", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_sign(&mut store.contract, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_reverse(&mut store.transfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Activate" => {
-              let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::contract::ActivateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Activate", caller_role)?;
+          "Banking::Transfer.Reject" => {
+              let id = crate::generated::banking::transfer::Transfer::extract_id(args_json)?;
+              let args = crate::generated::banking::transfer::RejectArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Reject", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_activate(&mut store.contract, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::transfer::dispatch_reject(&mut store.transfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Complete" => {
-              let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::contract::CompleteArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Complete", caller_role)?;
+          "Banking::CardPayment.Authorize" => {
+              let args = crate::generated::banking::cardpayment::AuthorizeArgs::from_json(args_json)?;
+              crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_complete(&mut store.contract, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_authorize(&mut store.cardpayment, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Terminate" => {
-              let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::contract::TerminateArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Terminate", caller_role)?;
+          "Banking::CardPayment.Capture" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::CaptureArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_terminate(&mut store.contract, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_capture(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Contract.Revise" => {
-              let id = crate::generated::embryonaut::contract::Contract::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::contract::ReviseArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("COO"), "Revise", caller_role)?;
+          "Banking::CardPayment.Void" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::VoidArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::contract::dispatch_revise(&mut store.contract, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_void(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Product.Conceive" => {
-              let args = crate::generated::embryonaut::product::ConceiveArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "Conceive", caller_role)?;
+          "Banking::CardPayment.Refund" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::RefundArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::product::dispatch_conceive(&mut store.product, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_refund(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Product.SetVision" => {
-              let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::product::SetVisionArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "SetVision", caller_role)?;
+          "Banking::CardPayment.Reverse" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::ReverseArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::product::dispatch_set_vision(&mut store.product, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_reverse(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Product.BeginDevelopment" => {
-              let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::product::BeginDevelopmentArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "BeginDevelopment", caller_role)?;
+          "Banking::CardPayment.Dispute" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::DisputeArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
+              crate::kernel::check_reference(&store.customer, &args.disputed_by, "Customer", "reference")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::product::dispatch_begin_development(&mut store.product, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_dispute(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Product.Launch" => {
-              let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::product::LaunchArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "Launch", caller_role)?;
+          "Banking::CardPayment.Chargeback" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::ChargebackArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::product::dispatch_launch(&mut store.product, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_chargeback(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Product.Sunset" => {
-              let id = crate::generated::embryonaut::product::Product::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::product::SunsetArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CEO"), "Sunset", caller_role)?;
+          "Banking::CardPayment.RejectDispute" => {
+              let id = crate::generated::banking::cardpayment::CardPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::cardpayment::RejectDisputeArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::product::dispatch_sunset(&mut store.product, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::cardpayment::dispatch_reject_dispute(&mut store.cardpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Invoice.Draft" => {
-              let args = crate::generated::embryonaut::invoice::DraftArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Draft", caller_role)?;
-              crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
-              crate::kernel::check_reference(&store.contract, &args.contract_id, "Contract", "number")?;
+          "Banking::ExternalTransfer.Request" => {
+              let args = crate::generated::banking::externaltransfer::RequestArgs::from_json(args_json)?;
+              crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::invoice::dispatch_draft(&mut store.invoice, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::externaltransfer::dispatch_request(&mut store.externaltransfer, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Invoice.Send" => {
-              let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::invoice::SendArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Send", caller_role)?;
+          "Banking::ExternalTransfer.Send" => {
+              let id = crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(args_json)?;
+              let args = crate::generated::banking::externaltransfer::SendArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::invoice::dispatch_send(&mut store.invoice, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::externaltransfer::dispatch_send(&mut store.externaltransfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Invoice.MarkPaid" => {
-              let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::invoice::MarkPaidArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "MarkPaid", caller_role)?;
+          "Banking::ExternalTransfer.Recall" => {
+              let id = crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(args_json)?;
+              let args = crate::generated::banking::externaltransfer::RecallArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::invoice::dispatch_mark_paid(&mut store.invoice, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::externaltransfer::dispatch_recall(&mut store.externaltransfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Invoice.MarkOverdue" => {
-              let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::invoice::MarkOverdueArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "MarkOverdue", caller_role)?;
+          "Banking::ExternalTransfer.Return" => {
+              let id = crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(args_json)?;
+              let args = crate::generated::banking::externaltransfer::ReturnArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::invoice::dispatch_mark_overdue(&mut store.invoice, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::externaltransfer::dispatch_return(&mut store.externaltransfer, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Invoice.Void" => {
-              let id = crate::generated::embryonaut::invoice::Invoice::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::invoice::VoidArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Void", caller_role)?;
+          "Banking::ScheduledPayment.Schedule" => {
+              let args = crate::generated::banking::scheduledpayment::ScheduleArgs::from_json(args_json)?;
+              crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::invoice::dispatch_void(&mut store.invoice, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_schedule(&mut store.scheduledpayment, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Payment.Record" => {
-              let args = crate::generated::embryonaut::payment::RecordArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Record", caller_role)?;
-              crate::kernel::check_reference(&store.invoice, &args.invoice_id, "Invoice", "number")?;
+          "Banking::ScheduledPayment.Execute" => {
+              let id = crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::scheduledpayment::ExecuteArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::payment::dispatch_record(&mut store.payment, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_execute(&mut store.scheduledpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::Payment.Refund" => {
-              let id = crate::generated::embryonaut::payment::Payment::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::payment::RefundArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Refund", caller_role)?;
+          "Banking::ScheduledPayment.Cancel" => {
+              let id = crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::scheduledpayment::CancelArgs::from_json(args_json)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::payment::dispatch_refund(&mut store.payment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_cancel(&mut store.scheduledpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::RecurringPayment.Start" => {
-              let args = crate::generated::embryonaut::recurringpayment::StartArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Start", caller_role)?;
-              crate::kernel::check_reference(&store.client, &args.client_id, "Client", "reference")?;
-              crate::kernel::check_reference(&store.contract, &args.contract_id, "Contract", "number")?;
+          "Banking::ScheduledPayment.Fail" => {
+              let id = crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::scheduledpayment::FailArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Fail", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::recurringpayment::dispatch_start(&mut store.recurringpayment, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_fail(&mut store.scheduledpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::RecurringPayment.AdvanceCycle" => {
-              let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::recurringpayment::AdvanceCycleArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "AdvanceCycle", caller_role)?;
+          "Banking::ScheduledPayment.Retry" => {
+              let id = crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::scheduledpayment::RetryArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Retry", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::recurringpayment::dispatch_advance_cycle(&mut store.recurringpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_retry(&mut store.scheduledpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::RecurringPayment.Pause" => {
-              let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::recurringpayment::PauseArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Pause", caller_role)?;
+          "Banking::ScheduledPayment.Abandon" => {
+              let id = crate::generated::banking::scheduledpayment::ScheduledPayment::extract_id(args_json)?;
+              let args = crate::generated::banking::scheduledpayment::AbandonArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Back office"), "Abandon", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::recurringpayment::dispatch_pause(&mut store.recurringpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::scheduledpayment::dispatch_abandon(&mut store.scheduledpayment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::RecurringPayment.Resume" => {
-              let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::recurringpayment::ResumeArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Resume", caller_role)?;
+          "Banking::SafeDepositBox.Rent" => {
+              let args = crate::generated::banking::safedepositbox::RentArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "Rent", caller_role)?;
+              crate::kernel::check_reference(&store.customer, &args.customer_id, "Customer", "reference")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::recurringpayment::dispatch_resume(&mut store.recurringpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::safedepositbox::dispatch_rent(&mut store.safedepositbox, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Embryonaut::RecurringPayment.Cancel" => {
-              let id = crate::generated::embryonaut::recurringpayment::RecurringPayment::extract_id(args_json)?;
-              let args = crate::generated::embryonaut::recurringpayment::CancelArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("CFO"), "Cancel", caller_role)?;
+          "Banking::SafeDepositBox.Surrender" => {
+              let id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
+              let args = crate::generated::banking::safedepositbox::SurrenderArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Surrender", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::embryonaut::recurringpayment::dispatch_cancel(&mut store.recurringpayment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::safedepositbox::dispatch_surrender(&mut store.safedepositbox, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::SafeDepositBox.LogVisit" => {
+              let id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
+              let args = crate::generated::banking::safedepositbox::LogVisitArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Vault officer"), "LogVisit", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::safedepositbox::dispatch_log_visit(&mut store.safedepositbox, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::SafeDepositBox.IssueKey" => {
+              let id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
+              let args = crate::generated::banking::safedepositbox::IssueKeyArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Vault officer"), "IssueKey", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::safedepositbox::dispatch_issue_key(&mut store.safedepositbox, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::OnboardingCase.Open" => {
+              let args = crate::generated::banking::onboardingcase::OpenArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Branch clerk"), "Open", caller_role)?;
+              crate::kernel::check_reference(&store.customer, &args.customer, "Customer", "reference")?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::onboardingcase::dispatch_open(&mut store.onboardingcase, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::OnboardingCase.Clear" => {
+              let id = crate::generated::banking::onboardingcase::OnboardingCase::extract_id(args_json)?;
+              let args = crate::generated::banking::onboardingcase::ClearArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::onboardingcase::dispatch_clear(&mut store.onboardingcase, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::OnboardingCase.Decline" => {
+              let id = crate::generated::banking::onboardingcase::OnboardingCase::extract_id(args_json)?;
+              let args = crate::generated::banking::onboardingcase::DeclineArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "Decline", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::onboardingcase::dispatch_decline(&mut store.onboardingcase, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::Statement.Generate" => {
+              let args = crate::generated::banking::statement::GenerateArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("System"), "Generate", caller_role)?;
+              crate::kernel::check_reference(&store.account, &args.account_id, "Account", "number")?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::statement::dispatch_generate(&mut store.statement, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Assign" => {
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
               let id = crate::generated::governance::roleassignment::RoleAssignment::extract_id(args_json)?;
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Grant" => {
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
               let id = crate::generated::governance::roletransition::RoleTransition::extract_id(args_json)?;
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::Identity.Register" => {
               let args = crate::generated::identity::identity::RegisterArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::identity::identity::dispatch_register(&mut store.identity, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
               crate::kernel::check_reference(&store.identity, &args.identity_id, "Identity", "identity_id")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::Account.LedgerEntry.Amend" => {
+              let parent_id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let element_id = crate::generated::banking::account::LedgerEntry::extract_id(args_json)?;
+              let args = crate::generated::banking::account::LedgerEntryAmendArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Back office"), "Amend", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::account::dispatch_entity_ledgerentry_amend(&mut store.account, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::Account.LedgerEntry.Reverse" => {
+              let parent_id = crate::generated::banking::account::Account::extract_id(args_json)?;
+              let element_id = crate::generated::banking::account::LedgerEntry::extract_id(args_json)?;
+              let args = crate::generated::banking::account::LedgerEntryReverseArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Back office"), "Reverse", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::account::dispatch_entity_ledgerentry_reverse(&mut store.account, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::ATMCard.Withdrawal.Dispute" => {
+              let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(args_json)?;
+              let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(args_json)?;
+              let args = crate::generated::banking::atmcard::WithdrawalDisputeArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::atmcard::dispatch_entity_withdrawal_dispute(&mut store.atmcard, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::SafeDepositBox.Visit.Annotate" => {
+              let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
+              let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(args_json)?;
+              let args = crate::generated::banking::safedepositbox::VisitAnnotateArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::safedepositbox::dispatch_entity_visit_annotate(&mut store.safedepositbox, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Banking::SafeDepositBox.KeyIssuance.Return" => {
+              let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
+              let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(args_json)?;
+              let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Vault officer"), "Return", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::banking::safedepositbox::dispatch_entity_keyissuance_return(&mut store.safedepositbox, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
@@ -478,27 +544,34 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-
+    crate::kernel::PolicyRule { event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry" },
+    crate::kernel::PolicyRule { event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.Freeze" },
 ];
 
-
+fn pm_literal_0() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer out".to_string()))]) }
+fn pm_literal_1() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer in".to_string()))]) }
+fn pm_literal_2() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer reversed".to_string()))]) }
+fn pm_literal_3() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("name".to_string(), crate::kernel::Json::Str("current".to_string()))]) }
+fn pm_literal_4() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("cents".to_string(), crate::kernel::Json::int(0))]) }
 
 pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
-
+    crate::kernel::ProcessManagerDef { name: "Settlement", correlates_by: "reference.value", starts_on: "TransferRequested", ends_on: "TransferSettled", initial_state: "requested", handlers: &[crate::kernel::Handler { event_type: "TransferRequested", from_state: "requested", to_state: "requested", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Account.Debit", with: &[("number", crate::kernel::WithValue::Ref("source")), ("amount", crate::kernel::WithValue::Ref("amount")), ("narrative", crate::kernel::WithValue::Literal(pm_literal_0)), ("reference", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "AccountDebited", from_state: "requested", to_state: "awaiting_credit", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Debited", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }, crate::kernel::DispatchSpec { command_name: "Banking::Account.Credit", with: &[("number", crate::kernel::WithValue::Ref("destination")), ("amount", crate::kernel::WithValue::Ref("amount")), ("narrative", crate::kernel::WithValue::Literal(pm_literal_1)), ("reference", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "AccountCredited", from_state: "awaiting_credit", to_state: "awaiting_credit", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Credited", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "TransferCredited", from_state: "awaiting_credit", to_state: "settled", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Settle", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "refused", from_state: "awaiting_credit", to_state: "reversed", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Account.Credit", with: &[("number", crate::kernel::WithValue::Ref("source")), ("amount", crate::kernel::WithValue::Ref("amount")), ("narrative", crate::kernel::WithValue::Literal(pm_literal_2))] }, crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Reverse", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }] }] },
+    crate::kernel::ProcessManagerDef { name: "ExternalSettlement", correlates_by: "end_to_end.value", starts_on: "ExternalTransferRequested", ends_on: "ExternalTransferSent", initial_state: "requested", handlers: &[crate::kernel::Handler { event_type: "ExternalTransferRequested", from_state: "requested", to_state: "requested", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::ExternalTransfer.Send", with: &[("end_to_end", crate::kernel::WithValue::Ref("end_to_end"))] }] }, crate::kernel::Handler { event_type: "refused", from_state: "requested", to_state: "returned", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::ExternalTransfer.Return", with: &[("end_to_end", crate::kernel::WithValue::Ref("end_to_end"))] }] }] },
+    crate::kernel::ProcessManagerDef { name: "Onboarding", correlates_by: "reference.value", starts_on: "OnboardingOpened", ends_on: "AccountOpened", initial_state: "screening", handlers: &[crate::kernel::Handler { event_type: "OnboardingCleared", from_state: "screening", to_state: "cleared", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Account.Open", with: &[("customer_id", crate::kernel::WithValue::Ref("customer")), ("number", crate::kernel::WithValue::Ref("account_number")), ("kind", crate::kernel::WithValue::Literal(pm_literal_3)), ("daily_limit", crate::kernel::WithValue::Literal(pm_literal_4))] }] }, crate::kernel::Handler { event_type: "OnboardingDeclined", from_state: "screening", to_state: "declined", dispatches: &[] }] },
 ];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
-        "Embryonaut::Member" => Some("member"),
-        "Embryonaut::FoundingAgreement" => Some("founding_agreement"),
-        "Embryonaut::Client" => Some("client"),
-        "Embryonaut::Engagement" => Some("engagement"),
-        "Embryonaut::Proposal" => Some("proposal"),
-        "Embryonaut::Contract" => Some("contract"),
-        "Embryonaut::Product" => Some("product"),
-        "Embryonaut::Invoice" => Some("invoice"),
-        "Embryonaut::Payment" => Some("payment"),
-        "Embryonaut::RecurringPayment" => Some("recurring_payment"),
+        "Banking::Customer" => Some("customer"),
+        "Banking::Account" => Some("account"),
+        "Banking::ATMCard" => Some("atm_card"),
+        "Banking::Transfer" => Some("transfer"),
+        "Banking::CardPayment" => Some("card_payment"),
+        "Banking::ExternalTransfer" => Some("external_transfer"),
+        "Banking::ScheduledPayment" => Some("scheduled_payment"),
+        "Banking::SafeDepositBox" => Some("safe_deposit_box"),
+        "Banking::OnboardingCase" => Some("onboarding_case"),
+        "Banking::Statement" => Some("statement"),
         "Governance::RoleAssignment" => Some("role_assignment"),
         "Governance::RoleTransition" => Some("role_transition"),
         "Identity::Identity" => Some("identity"),

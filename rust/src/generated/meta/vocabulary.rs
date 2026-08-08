@@ -668,6 +668,12 @@ impl Vocabulary {
     }
 }
 
+impl crate::kernel::ToJson for Vocabulary {
+    fn to_json(&self) -> crate::kernel::Json {
+        Vocabulary::to_json(self)
+    }
+}
+
 impl Vocabulary {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {

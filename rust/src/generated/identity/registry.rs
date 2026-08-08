@@ -38,20 +38,21 @@ pub fn dispatch_by_name(
     verb: &str,
     args_json: &crate::kernel::Json,
     caller_role: Option<&str>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Identity::Identity.Register" => {
               let args = crate::generated::identity::identity::RegisterArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::identity::identity::dispatch_register(&mut store.identity, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
               crate::kernel::check_reference(&store.identity, &args.identity_id, "Identity", "identity_id")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

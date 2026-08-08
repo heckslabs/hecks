@@ -304,10 +304,10 @@ module RustProjection
                   }),
               }
         RUST
-        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params + ["args: #{cmd}Args"]).join(", ")
+        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params + ["args: #{cmd}Args", "mutations: &mut Vec<crate::kernel::MutationRecord>"]).join(", ")
       else
         hydrate = %(crate::kernel::Hydrate::Act { id: id.to_string() })
-        fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, id: &str, args: #{cmd}Args"
+        fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, id: &str, args: #{cmd}Args, mutations: &mut Vec<crate::kernel::MutationRecord>"
       end
 
       <<~RUST
@@ -340,6 +340,7 @@ module RustProjection
                 ],
                 &[#{command[:emits].map(&:inspect).join(", ")}],
                 args.to_json(),
+                mutations,
             )
         }
       RUST
@@ -440,6 +441,7 @@ module RustProjection
 
         pub fn dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}(
             repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, element_id: &str, args: #{args_struct_name},
+            mutations: &mut Vec<crate::kernel::MutationRecord>,
         ) -> crate::kernel::DispatchResult<#{parent_record}> {
         #{invariant_checks.join("\n")}
 
@@ -465,6 +467,7 @@ module RustProjection
                 ],
                 &[#{command[:emits].map(&:inspect).join(", ")}],
                 args.to_json(),
+                mutations,
             )
         }
       RUST

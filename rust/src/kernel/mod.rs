@@ -100,3 +100,40 @@ impl std::fmt::Display for Refusal {
 /// events at all ("Refusals leave state untouched", commands.md's own
 /// closing section).
 pub type DispatchResult<T> = Result<(T, Vec<Event>), Refusal>;
+
+/// One aggregate record just saved by a command's own dispatch (top-level
+/// or a cascaded policy/saga-leg re-entry) — pushed at the exact same call
+/// site `repo.save` runs, in `dispatch`/`dispatch_entity` (dispatch.rs).
+/// Exists so a HOST (rust/host, which only ever sees this kernel as an
+/// opaque stdin/stdout process — docs/decisions/0012) can build a
+/// per-aggregate journal matching postgres.rb's own shape (`era, aggregate,
+/// aggregate_id, operation, state`) without needing per-command insight
+/// into the domain itself — `cli.rs` reports one `Vec<MutationRecord>` per
+/// step, parallel to `"steps"`, in its `"mutations"` output field.
+///
+/// `operation` is always `"save"` today — no generated dispatch path ever
+/// calls `Repository::delete` (that method doesn't even exist on the trait
+/// — see repository.rs). Add a `"delete"` variant here if that ever
+/// changes; not built now because nothing exercises it.
+#[derive(Debug, Clone)]
+pub struct MutationRecord {
+    pub aggregate: String,
+    pub id: String,
+    pub operation: &'static str,
+    pub state: Json,
+}
+
+/// Generic access to a generated struct's own `to_json()` — every
+/// generated record already has this as an INHERENT method
+/// (`rust/project/json_codec.rb`'s `emit_to_json_flat`); this trait exists
+/// only so `dispatch`/`dispatch_entity` (dispatch.rs), generic over the
+/// record type `T`, can call it without knowing the concrete type. Ruby's
+/// `record.to_json()`-in-a-loop equivalent, made possible in Rust only
+/// through a trait bound. Implemented per aggregate record struct by
+/// `domain_generator.rb`, delegating straight to the inherent method — see
+/// its own comment on why only aggregate records (never value objects,
+/// entities, or Args structs) need it: `dispatch`/`dispatch_entity`'s
+/// generic `T` is always the aggregate record type.
+pub trait ToJson {
+    fn to_json(&self) -> Json;
+}

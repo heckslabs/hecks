@@ -330,6 +330,12 @@ impl Entity {
     }
 }
 
+impl crate::kernel::ToJson for Entity {
+    fn to_json(&self) -> crate::kernel::Json {
+        Entity::to_json(self)
+    }
+}
+
 impl Entity {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -372,7 +378,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Entity>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Entity>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Entity> {
         args.owner.check_invariants()?;
         args.name.check_invariants()?;
@@ -412,6 +418,7 @@ pub fn dispatch_declare(
         ],
         &["PieceDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -464,7 +471,7 @@ pub struct IdentifyArgs {
 }
 
 pub fn dispatch_identify(
-    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: IdentifyArgs,
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: IdentifyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Entity> {
         args.path.check_invariants()?;
 
@@ -487,6 +494,7 @@ pub fn dispatch_identify(
         ],
         &["PieceIdentified"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -530,7 +538,7 @@ pub struct SealArgs {
 }
 
 pub fn dispatch_seal(
-    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: SealArgs,
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: SealArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Entity> {
 
 
@@ -553,6 +561,7 @@ pub fn dispatch_seal(
         ],
         &["PieceSealed"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -599,7 +608,7 @@ pub struct LifecycleArgs {
 }
 
 pub fn dispatch_lifecycle(
-    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: LifecycleArgs,
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: LifecycleArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Entity> {
         args.state_field.check_invariants()?;
         args.state_start.check_invariants()?;
@@ -624,6 +633,7 @@ pub fn dispatch_lifecycle(
         ],
         &["PieceLifecycleNamed"],
         args.to_json(),
+        mutations,
     )
 }
 

@@ -168,6 +168,23 @@ module RustProjection
           f.puts
           f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate)
           f.puts
+          # `dispatch`/`dispatch_entity` (kernel/dispatch.rs) are generic
+          # over the record type and need `record.to_json()` to build a
+          # `MutationRecord` — only possible through a trait bound, since
+          # the inherent `to_json` just emitted above can't be called on a
+          # bare generic `T`. Delegates straight to that inherent method
+          # (Rust resolves the unqualified call inside this impl to the
+          # inherent one, not back to itself — no recursion). Emitted only
+          # for aggregate records, never value objects/entities/Args
+          # structs: those are never the generic `T` in dispatch.rs.
+          f.puts <<~RUST
+            impl crate::kernel::ToJson for #{record_name} {
+                fn to_json(&self) -> crate::kernel::Json {
+                    #{record_name}::to_json(self)
+                }
+            }
+          RUST
+          f.puts
           if can_route
             f.puts Projector.emit_extract_id(aggregate)
             f.puts

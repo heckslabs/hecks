@@ -91,7 +91,7 @@ module RustProjection
       aggregate_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         a[:commands].map do |c|
-          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? '' : '&id, '}args)"
+          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? '' : '&id, '}args, mutations)"
           id_line = c[:creates] ? "" : "let id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
@@ -116,7 +116,7 @@ module RustProjection
         a[:entity_commands].map do |c|
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
-          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))"
+          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))"
 
           body = ["let parent_id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;",
                   "let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(args_json)?;",
@@ -165,6 +165,7 @@ module RustProjection
             verb: &str,
             args_json: &crate::kernel::Json,
             caller_role: Option<&str>,
+            mutations: &mut Vec<crate::kernel::MutationRecord>,
         ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
             match verb {
         #{dispatch_arms.join("\n")}

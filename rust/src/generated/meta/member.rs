@@ -159,6 +159,12 @@ impl Member {
     }
 }
 
+impl crate::kernel::ToJson for Member {
+    fn to_json(&self) -> crate::kernel::Json {
+        Member::to_json(self)
+    }
+}
+
 impl Member {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -195,7 +201,7 @@ pub struct PairArgs {
 }
 
 pub fn dispatch_pair(
-    repo: &mut impl crate::kernel::Repository<Member>, id: &str, args: PairArgs,
+    repo: &mut impl crate::kernel::Repository<Member>, id: &str, args: PairArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Member> {
         args.key.check_invariants()?;
         args.value.check_invariants()?;
@@ -219,6 +225,7 @@ pub fn dispatch_pair(
         ],
         &["PairBound"],
         args.to_json(),
+        mutations,
     )
 }
 

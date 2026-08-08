@@ -345,6 +345,12 @@ impl Query {
     }
 }
 
+impl crate::kernel::ToJson for Query {
+    fn to_json(&self) -> crate::kernel::Json {
+        Query::to_json(self)
+    }
+}
+
 impl Query {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -393,7 +399,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Query>, owner_id: &str, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Query>, owner_id: &str, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
@@ -436,6 +442,7 @@ pub fn dispatch_declare(
         ],
         &["AskDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -498,7 +505,7 @@ pub struct FilterArgs {
 }
 
 pub fn dispatch_filter(
-    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: FilterArgs,
+    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: FilterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.field.check_invariants()?;
         if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\" — got ", args.op.value))); }
@@ -524,6 +531,7 @@ pub fn dispatch_filter(
         ],
         &["FilterAttached"],
         args.to_json(),
+        mutations,
     )
 }
 

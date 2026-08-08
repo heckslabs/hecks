@@ -593,6 +593,12 @@ impl Aggregate {
     }
 }
 
+impl crate::kernel::ToJson for Aggregate {
+    fn to_json(&self) -> crate::kernel::Json {
+        Aggregate::to_json(self)
+    }
+}
+
 impl Aggregate {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -635,7 +641,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
@@ -676,6 +682,7 @@ pub fn dispatch_declare(
         ],
         &["RootDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -728,7 +735,7 @@ pub struct IdentifyArgs {
 }
 
 pub fn dispatch_identify(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: IdentifyArgs,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: IdentifyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.path.check_invariants()?;
 
@@ -751,6 +758,7 @@ pub fn dispatch_identify(
         ],
         &["RootIdentified"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -797,7 +805,7 @@ pub struct LifecycleArgs {
 }
 
 pub fn dispatch_lifecycle(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: LifecycleArgs,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: LifecycleArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.state_field.check_invariants()?;
         args.state_start.check_invariants()?;
@@ -822,6 +830,7 @@ pub fn dispatch_lifecycle(
         ],
         &["LifecycleNamed"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -867,7 +876,7 @@ pub struct SealArgs {
 }
 
 pub fn dispatch_seal(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: SealArgs,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: SealArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
 
 
@@ -890,6 +899,7 @@ pub fn dispatch_seal(
         ],
         &["RootSealed"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -934,7 +944,7 @@ pub struct ValueArgs {
 }
 
 pub fn dispatch_value(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: ValueArgs,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: ValueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
 
@@ -957,6 +967,7 @@ pub fn dispatch_value(
         ],
         &["ValueDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 

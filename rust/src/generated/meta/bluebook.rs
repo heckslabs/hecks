@@ -314,6 +314,12 @@ impl Bluebook {
     }
 }
 
+impl crate::kernel::ToJson for Bluebook {
+    fn to_json(&self) -> crate::kernel::Json {
+        Bluebook::to_json(self)
+    }
+}
+
 impl Bluebook {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -353,7 +359,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<Bluebook>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Bluebook> {
         args.name.check_invariants()?;
         if let Some(v) = &args.vision { v.check_invariants()?; }
@@ -388,6 +394,7 @@ pub fn dispatch_declare(
         ],
         &["ChapterDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 

@@ -209,6 +209,12 @@ impl ProcessManager {
     }
 }
 
+impl crate::kernel::ToJson for ProcessManager {
+    fn to_json(&self) -> crate::kernel::Json {
+        ProcessManager::to_json(self)
+    }
+}
+
 impl ProcessManager {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
@@ -253,7 +259,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, args: DeclareArgs,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
         args.correlates_by.check_invariants()?;
@@ -291,6 +297,7 @@ pub fn dispatch_declare(
         ],
         &["SagaDeclared"],
         args.to_json(),
+        mutations,
     )
 }
 
@@ -345,7 +352,7 @@ pub struct StateArgs {
 }
 
 pub fn dispatch_state(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: StateArgs,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: StateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
 
@@ -368,6 +375,7 @@ pub fn dispatch_state(
         ],
         &["SagaStateAttached"],
         args.to_json(),
+        mutations,
     )
 }
 

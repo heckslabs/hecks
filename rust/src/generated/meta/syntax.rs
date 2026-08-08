@@ -609,6 +609,12 @@ impl Syntax {
     }
 }
 
+impl crate::kernel::ToJson for Syntax {
+    fn to_json(&self) -> crate::kernel::Json {
+        Syntax::to_json(self)
+    }
+}
+
 impl Syntax {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {

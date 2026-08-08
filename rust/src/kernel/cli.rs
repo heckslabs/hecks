@@ -17,7 +17,7 @@
 // alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{orchestrate, Event, Json, Refusal, SagaInstance};
+use super::{orchestrate, Event, Json, MutationRecord, Refusal, SagaInstance};
 use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, POLICIES, PROCESS_MANAGERS};
 use std::collections::HashMap;
 
@@ -38,6 +38,14 @@ pub fn run(input: &str) -> String {
     // Process-manager instances — domain-level, not per-aggregate, so
     // deliberately not a `Store` field (orchestrate.rs's own header).
     let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+    // One entry per step, in step order — a HOST driving this kernel
+    // (rust/host, docs/decisions/0012) needs to know which records THIS
+    // step's own dispatch (including everything it cascaded through
+    // policies/sagas) actually saved, not just the whole-store snapshot
+    // `instances` already reports. Kept parallel to `steps`, not flattened,
+    // so a caller replaying prior history plus exactly one new step can
+    // read `mutations.last()` for just the new step's own effect.
+    let mut mutations_per_step: Vec<Vec<MutationRecord>> = Vec::new();
 
     for step in steps {
         // A `"query"` step (Fuzzing::Replay's other real shape,
@@ -49,6 +57,7 @@ pub fn run(input: &str) -> String {
         // since a query step legitimately has none.
         if let Some(question) = step.get("query").and_then(Json::as_str) {
             refusals.push((question.to_string(), Refusal::TypeMismatch("query steps are not generated yet".to_string())));
+            mutations_per_step.push(Vec::new());
             continue;
         }
 
@@ -75,10 +84,18 @@ pub fn run(input: &str) -> String {
         // TOP-level verb's own refusal is recorded per step, matching
         // `Fuzzing::Replay.call`'s own `rescue *Runtime::DOMAIN_REFUSALS`
         // scope (a reaction's downstream refusal is swallowed inside
-        // `orchestrate`, never surfaced to this loop at all).
-        if let Err(refusal) = orchestrate(&mut store, dispatch_by_name, POLICIES, PROCESS_MANAGERS, reference_key_for_aggregate, &mut sagas, verb, args, caller_role, 0, &mut events) {
+        // `orchestrate`, never surfaced to this loop at all). A fresh
+        // `Vec` per step, same reasoning as `all_events` being shared
+        // across the WHOLE call but this one being per-step: mutations
+        // triggered by a refused top-level command are real (a saga leg
+        // that dispatched successfully before its sibling refused still
+        // saved something) and stay recorded even though the step itself
+        // is refused — matching `events`' own behavior one line above.
+        let mut step_mutations: Vec<MutationRecord> = Vec::new();
+        if let Err(refusal) = orchestrate(&mut store, dispatch_by_name, POLICIES, PROCESS_MANAGERS, reference_key_for_aggregate, &mut sagas, verb, args, caller_role, 0, &mut events, &mut step_mutations) {
             refusals.push((verb.to_string(), refusal));
         }
+        mutations_per_step.push(step_mutations);
     }
 
     let events_json = Json::Array(events.iter().map(event_to_json).collect());
@@ -88,13 +105,29 @@ pub fn run(input: &str) -> String {
             .map(|(verb, r)| Json::obj(vec![("verb", Json::str(verb.clone())), ("error", Json::str(r.to_string()))]))
             .collect(),
     );
+    let mutations_json = Json::Array(
+        mutations_per_step
+            .iter()
+            .map(|step_mutations| Json::Array(step_mutations.iter().map(mutation_to_json).collect()))
+            .collect(),
+    );
 
     Json::Object(vec![
         ("instances".to_string(), Json::Object(store.instances())),
         ("events".to_string(), events_json),
         ("refusals".to_string(), refusals_json),
+        ("mutations".to_string(), mutations_json),
     ])
     .to_json_string()
+}
+
+fn mutation_to_json(mutation: &MutationRecord) -> Json {
+    Json::obj(vec![
+        ("aggregate", Json::str(mutation.aggregate.clone())),
+        ("id", Json::str(mutation.id.clone())),
+        ("operation", Json::str(mutation.operation.to_string())),
+        ("state", mutation.state.clone()),
+    ])
 }
 
 fn event_to_json(event: &Event) -> Json {
