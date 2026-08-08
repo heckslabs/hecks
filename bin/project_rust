@@ -76,12 +76,14 @@
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
+require "hecksagain/bluebook/meta_validator"
 require "fileutils"
+require "json"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
-registry = Hecksagain::Runtime::Registry.new
-Hecksagain.with_registry(registry) do
+target_registry = Hecksagain::Runtime::Registry.new
+Hecksagain.with_registry(target_registry) do
   Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
   Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
   Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
@@ -89,7 +91,19 @@ Hecksagain.with_registry(registry) do
   Kernel.load(File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
 end
 
-ir = Hecksagain::Projector::Exporter.call(registry).fetch(registry.bluebooks.keys.first)
+target_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(target_registry.bluebooks.keys.first)
+
+# THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecksagain/language/bluebook/`
+# declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,
+# Query, Entity, Member, Policy, ProcessManager, Handler, Dispatch,
+# Vocabulary, Syntax, ReadModel — in the SAME DSL any business domain uses,
+# so it goes through the identical codegen pipeline as `target_ir` below,
+# not a special case. `MetaValidator.grammar_registry` is the real boot
+# sequence (nine files, in the declared order, merged into one chapter,
+# then judged through its own fixpoint) — reused here rather than
+# re-derived, so this can never silently drift from what MetaValidator
+# itself actually loads.
+meta_ir = Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
 
 # ── EXPR EMITTER — walks the REAL Evaluator/Resolver AST (the same
 # objects a live dispatch parses `given`/`ensures`/invariant text into;
@@ -123,8 +137,16 @@ module ExprEmitter
     end
   end
 
+  # Fully qualified, not `use`d bare — the self-hosted grammar's own
+  # Vocabulary chapter declares ITS OWN "Comparison" (a multi-field closed
+  # set describing the six real operators, emitted as a struct + static
+  # array — see emit_closed_set_table), a completely different Rust type
+  # that happens to share this hand-written kernel struct's name. Bare
+  # `Comparison { .. }` would collide the moment a generated file needs
+  # both; qualifying here means it never can, regardless of what any
+  # target domain happens to call things.
   def emit_comparison(op)
-    "Comparison { less_than: #{op.compares_less_than}, equal: #{op.compares_equal}, negated: #{op.negated} }"
+    "crate::kernel::Comparison { less_than: #{op.compares_less_than}, equal: #{op.compares_equal}, negated: #{op.negated} }"
   end
 
   def emit_resolver(node)
@@ -177,12 +199,95 @@ module RustProjector
   end
 
   def rust_ident(name) = name.to_s.gsub(/[^A-Za-z0-9]/, "")
-  def rust_field(name) = name.to_s
   def dispatch_fn_name(cmd) = cmd.gsub(/(?<=.)([A-Z])/, '_\1').downcase
 
+  # Two different jobs a field name does in generated code, and they must
+  # NOT share one function: as a STRING LITERAL (a `Fielded::field` match
+  # arm's key, a payload map key) the plain name is correct Rust — `"type"`
+  # IS the string a caller passes to look a field up by name. As an
+  # IDENTIFIER (a struct field, `self.X`/`args.X`/`record.X`) a name that
+  # collides with a Rust keyword is a syntax error unless raw-escaped —
+  # found live: the self-hosted grammar's own `Attribute`/`Argument`
+  # aggregates declare a field literally named `type`, because that is
+  # what it is.
+  RUST_KEYWORDS = %w[
+    as break const continue crate dyn else enum extern false fn for if impl
+    in let loop match mod move mut pub ref return self Self static struct
+    super trait true type unsafe use where while abstract become box do
+    final macro override priv typeof unsized virtual yield try
+  ].freeze
+
+  def rust_field(name) = name.to_s
+  def rust_ident_field(name)
+    field = rust_field(name)
+    RUST_KEYWORDS.include?(field) ? "r##{field}" : field
+  end
+
+  # A closed-set member's value is business text, not a pre-sanitized Rust
+  # identifier — splitting on `_`/whitespace alone was enough for every
+  # value pizzas/banking ever declared ("small", "large", "open"...), but
+  # the self-hosted grammar's own Vocabulary chapter has closed sets whose
+  # members are glob patterns ("*.port", "Translations/*.bluebook") —
+  # `.capitalize` leaves `*`/`.`/`/` untouched, so the OLD version emitted
+  # `Translations/*.bluebook` as a literal enum variant line, and Rust's
+  # lexer read the embedded `/*` as an unterminated block comment. Split on
+  # ANY run of non-alphanumeric characters instead, so every character that
+  # isn't a valid identifier constituent is a word boundary, not preserved
+  # text.
   def closed_set_variant(row)
     _, value = row.first
-    value.to_s.split(/[_\s]/).map(&:capitalize).join
+    value.to_s.split(/[^A-Za-z0-9]+/).reject(&:empty?).map(&:capitalize).join
+  end
+
+  def screaming_snake(name)
+    name.to_s.gsub(/([a-z0-9])([A-Z])/, '\1_\2').upcase
+  end
+
+  # A multi-field closed set — not a choice among tags, a fixed DATA
+  # TABLE. Emitted as a plain struct (the same shape a non-closed-set
+  # value object gets) plus every member as one entry in a `pub const`
+  # array of struct literals. No `Fielded`/`check_invariants` generated —
+  # nothing in this corpus looks one of these up generically by field
+  # name or checks an invariant on it; a real future need should extend
+  # this, not be worked around by skipping the gap silently.
+  def emit_closed_set_table(vo)
+    name = rust_ident(vo[:name])
+
+    lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
+    vo[:attributes].each do |attr|
+      type = rust_type(attr[:type], list: attr[:list])
+      type = "&'static str" if type == "String" # static data — a borrowed literal, not an owned String
+      lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+    end
+    lines << "}"
+    lines << ""
+
+    # A member's row only carries the fields its declaration actually SET —
+    # `Keyword`'s own `status` (declares `default: "admitted"`) and `was`
+    # (no default at all) are both missing from most rows, found live as a
+    # missing-struct-field compile error. Iterate every DECLARED attribute,
+    # not just what a given row happens to carry, falling back to the
+    # attribute's own `default:` (or "" absent one) exactly the way a real
+    # member's own construction would.
+    member_literals = vo[:members].map do |row|
+      present = row.to_h { |field_name, value| [field_name.to_s, value] }
+      fields = vo[:attributes].map do |attr|
+        field_name = attr[:name].to_s
+        raw = present.key?(field_name) ? present[field_name] : (attr[:default] || "")
+        literal = case attr[:type]
+                  when "Integer" then raw.to_i.to_s
+                  when "Float"   then "#{raw.to_f}f64"
+                  else raw.to_s.inspect # String, or an unrecognized type — treated as text, not silently dropped
+                  end
+        "#{rust_ident_field(attr[:name])}: #{literal}"
+      end.join(", ")
+      "    #{name} { #{fields} },"
+    end
+
+    lines << "pub const #{screaming_snake(vo[:name])}: &[#{name}] = &["
+    lines.concat(member_literals)
+    lines << "];"
+    lines.join("\n")
   end
 
   def scalar_to_value(type_name, rust_expr)
@@ -201,17 +306,18 @@ module RustProjector
   # uniform per-type table.
   def emit_fielded_flat(struct_name, attributes, value_objects_by_name)
     arms = attributes.filter_map do |attr|
-      field = rust_field(attr[:name])
+      key   = rust_field(attr[:name])
+      ident = rust_ident_field(attr[:name])
       scalar = effective_scalar_type(attr[:type])
       if attr[:list]
-        %(            "#{field}" => Some(Field::Value(Value::List(self.#{field}.len()))),)
+        %(            "#{key}" => Some(Field::Value(Value::List(self.#{ident}.len()))),)
       elsif scalar
-        %(            "#{field}" => Some(Field::Value(#{scalar_to_value(scalar, "self.#{field}")})),)
+        %(            "#{key}" => Some(Field::Value(#{scalar_to_value(scalar, "self.#{ident}")})),)
       else
         nested = value_objects_by_name[attr[:type]]
         next nil unless nested && !nested[:closed_set]
 
-        %(            "#{field}" => Some(Field::Nested(&self.#{field})),)
+        %(            "#{key}" => Some(Field::Nested(&self.#{ident})),)
       end
     end
 
@@ -236,23 +342,25 @@ module RustProjector
   def emit_fielded_record(aggregate, value_objects_by_name)
     name = rust_ident(aggregate[:name])
     arms = aggregate[:attributes].filter_map do |attr|
-      field = rust_field(attr[:name])
+      key   = rust_field(attr[:name])
+      ident = rust_ident_field(attr[:name])
       scalar = effective_scalar_type(attr[:type])
       if attr[:list]
-        %(            "#{field}" => Some(Field::Value(Value::List(self.#{field}.len()))),)
+        %(            "#{key}" => Some(Field::Value(Value::List(self.#{ident}.len()))),)
       elsif scalar
         value = scalar_to_value(scalar, "v")
-        %(            "#{field}" => self.#{field}.as_ref().map(|v| Field::Value(#{value})).or(Some(Field::Value(Value::Nil))),)
+        %(            "#{key}" => self.#{ident}.as_ref().map(|v| Field::Value(#{value})).or(Some(Field::Value(Value::Nil))),)
       else
         nested = value_objects_by_name[attr[:type]]
         next nil unless nested && !nested[:closed_set]
 
-        %(            "#{field}" => self.#{field}.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),)
+        %(            "#{key}" => self.#{ident}.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),)
       end
     end
     if aggregate[:lifecycle]
-      field = rust_field(aggregate[:lifecycle][:field])
-      arms << %(            "#{field}" => Some(Field::Value(Value::Str(self.#{field}.clone()))),)
+      key   = rust_field(aggregate[:lifecycle][:field])
+      ident = rust_ident_field(aggregate[:lifecycle][:field])
+      arms << %(            "#{key}" => Some(Field::Value(Value::Str(self.#{ident}.clone()))),)
     end
 
     <<~RUST
@@ -289,7 +397,7 @@ module RustProjector
       nested = value_objects_by_name[attr[:type]]
       next unless nested && !nested[:closed_set]
 
-      field = rust_field(attr[:name])
+      field = rust_ident_field(attr[:name])
       body << (attr[:list] ? "        for item in &self.#{field} { item.check_invariants()?; }" : "        self.#{field}.check_invariants()?;")
     end
 
@@ -307,6 +415,18 @@ module RustProjector
     name = rust_ident(vo[:name])
 
     if vo[:closed_set]
+      # One field per member (Size: small/large) is a real ENUM CHOICE —
+      # the member IS the whole fact, so a tag is the honest Rust shape.
+      # More than one field (Vocabulary::Comparison: symbol PLUS three
+      # algebra flags; Syntax::Keyword: eight fields, several members
+      # sharing the same `word` across different `context`s) is not a
+      # choice among interchangeable tags at all — it's a small, fixed
+      # DATA TABLE, and forcing it into an enum either loses the other
+      # fields or collides different members that happen to share
+      # whichever one field got picked as the tag (found live: several
+      # Keyword rows share a `word`, differing only in `context`).
+      return emit_closed_set_table(vo) if vo[:attributes].size > 1
+
       variants = vo[:members].map { |row| closed_set_variant(row) }
       lines = ["#[derive(Debug, Clone, PartialEq, Eq)]", "pub enum #{name} {"]
       variants.each { |v| lines << "    #{v}," }
@@ -317,7 +437,7 @@ module RustProjector
     lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
     vo[:attributes].each do |attr|
       type = rust_type(attr[:type], list: attr[:list])
-      lines << "    pub #{rust_field(attr[:name])}: #{type},"
+      lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
     end
     lines << "}"
     lines << ""
@@ -346,9 +466,9 @@ module RustProjector
       # generated-dispatch time instead, not encoded away here.
       type = rust_type(attr[:type], list: attr[:list])
       type = "Option<#{type}>" unless attr[:list]
-      lines << "    pub #{rust_field(attr[:name])}: #{type},"
+      lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
     end
-    lines << "    pub #{rust_field(aggregate[:lifecycle][:field])}: String," if aggregate[:lifecycle]
+    lines << "    pub #{rust_ident_field(aggregate[:lifecycle][:field])}: String," if aggregate[:lifecycle]
     lines << "}"
     lines << ""
     lines << emit_fielded_record(aggregate, value_objects_by_name)
@@ -358,7 +478,20 @@ module RustProjector
   # Why a command is skipped, or nil if it isn't. Named per-command, per-
   # reason, so coverage is visible at generation time rather than only
   # discoverable by noticing a dispatch function that should exist doesn't.
-  def command_skip_reason(command, aggregate)
+  # Shared with `mutation_set_rhs`, which actually performs whichever
+  # bridge this says is possible — kept as one function so the "can we
+  # generate this" check and the "here's how" generator can never
+  # silently disagree about what counts as bridgeable.
+  def bridgeable_set_types?(source_type, target_type, value_objects_by_name)
+    return true if source_type == target_type
+
+    single_field = ->(vo) { vo && !vo[:closed_set] && vo[:attributes]&.size == 1 }
+    source_vo = value_objects_by_name[source_type]
+    target_vo = value_objects_by_name[target_type]
+    single_field.call(source_vo) && (SCALAR.key?(target_type) || single_field.call(target_vo))
+  end
+
+  def command_skip_reason(command, aggregate, value_objects_by_name)
     unless command[:ensures].empty?
       return "declares #{command[:ensures].size} ensures — not generated yet (needs the pre-mutation old: snapshot)"
     end
@@ -382,6 +515,25 @@ module RustProjector
                                               .map { |m| m[:target] }
     return "then_set to: a non-scalar literal (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
 
+    # Ruby's real `apply`, for `:set`, does `Value.for(aggregate, mutation.target,
+    # value)` — it coerces whatever arrived into the TARGET attribute's OWN
+    # declared type, regardless of what type the SOURCE argument was declared
+    # as (found live: the self-hosted grammar sets an `IdentityField`-typed
+    # attribute from a `FieldName`-typed argument — different value objects,
+    # same one-`value`-field shape). This generator's `:set` just clones the
+    # argument's own type straight across, which only compiles when source
+    # and target genuinely agree — checked here so a real mismatch is a named
+    # skip, not a `cargo build` error with no Ruby-side explanation.
+    lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
+    mismatched_sets = command[:mutations].select do |m|
+      next false unless m[:op] == :set && m[:source][:kind] == "argument"
+
+      target_type = m[:target] == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name] == m[:target] }&.dig(:type)
+      source_type = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }&.dig(:type)
+      target_type && source_type && !bridgeable_set_types?(source_type, target_type, value_objects_by_name)
+    end.map { |m| m[:target] }
+    return "then_set :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
+
     nil
   end
 
@@ -399,17 +551,43 @@ module RustProjector
     { field: aggregate[:lifecycle][:field], to_state: rows.first[:to_state], from_states: rows.map { |r| r[:from_state] }.uniq }
   end
 
-  def mutation_set_rhs(source)
-    if source[:kind] == "argument"
-      "args.#{source[:name]}.clone()"
+  # Ruby's real `apply`, for `:set`, does `Value.for(aggregate,
+  # mutation.target, value)` — it coerces whatever arrived into the
+  # TARGET attribute's OWN declared type, not the source argument's.
+  # `target_type` is that target type ("String" for the lifecycle field,
+  # which is never VO-wrapped). Three real shapes, found live against
+  # the self-hosted grammar's own `Aggregate.Lifecycle` (FieldName ->
+  # IdentityField, both single-field VOs wrapping `value: String`):
+  # same type (plain clone), different single-field VOs (rewrap the
+  # source's own inner scalar into the target's), or a scalar target
+  # fed a single-field VO argument (unwrap it). Anything else is a
+  # `command_skip_reason` bug — this should never be reached for a
+  # command that wasn't already skipped.
+  def mutation_set_rhs(source, target_type, command, value_objects_by_name)
+    return literal_rhs(source[:value]) if source[:kind] == "literal"
+
+    source_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
+    source_arg  = "args.#{rust_ident_field(source[:name])}"
+    return "#{source_arg}.clone()" if source_attr[:type] == target_type
+
+    target_vo = value_objects_by_name[target_type]
+    source_vo = value_objects_by_name[source_attr[:type]]
+    source_field = source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1 && rust_ident_field(source_vo[:attributes].first[:name])
+    raise "unsupported :set coercion #{source_attr[:type]} -> #{target_type} — command_skip_reason should have caught this" unless source_field
+
+    if target_vo && !target_vo[:closed_set] && target_vo[:attributes].size == 1
+      "#{rust_ident(target_type)} { #{rust_ident_field(target_vo[:attributes].first[:name])}: #{source_arg}.#{source_field}.clone() }"
     else
-      literal = source[:value]
-      case literal
-      when String        then "#{literal.inspect}.to_string()"
-      when Integer, Float then literal.to_s
-      when true, false     then literal.to_s
-      else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
-      end
+      "#{source_arg}.#{source_field}.clone()"
+    end
+  end
+
+  def literal_rhs(literal)
+    case literal
+    when String        then "#{literal.inspect}.to_string()"
+    when Integer, Float then literal.to_s
+    when true, false     then literal.to_s
+    else raise "unsupported literal mutation source #{literal.inspect} — not one of String/Integer/Float/Boolean"
     end
   end
 
@@ -421,8 +599,41 @@ module RustProjector
   # "sold"` is a real, redundant instance of this (redundant with the
   # transition's own advance, harmless, same pattern as `Account.Open`'s
   # redundant `then_set` on an already-implicit creation attribute).
+  # THE IDENTITY IS THE JOIN OF ITS PARTS (Naming::IDENTITY_JOIN is ":",
+  # read directly) — one component per `identified_by` entry, each
+  # resolved the same way `Runtime::Identity.from` resolves it: a dotted
+  # path walks into the named argument's own field; a BARE component that
+  # IS a declared command attribute reads that argument directly, no
+  # walk; a bare component that is NOT a declared attribute (`owner_id` —
+  # "never a declared attribute," per `language/bluebook/behavior.bluebook`'s
+  # own comment) isn't in `args` at all — it's an addressing key allowed
+  # through `refuse_unknown_arguments`'s allowlist the same way `id:`
+  # already is, so the generated dispatch function takes it as its own
+  # extra parameter, the same shape an acting command's caller-supplied
+  # `id: &str` already has.
+  def identity_components(aggregate, command)
+    aggregate[:identified_by].map do |path|
+      head, *rest = path.split(".")
+      if rest.any?
+        { expr: "args.#{rust_ident_field(head)}.#{rest.map { |seg| rust_ident_field(seg) }.join('.')}.to_string()", param: nil }
+      elsif command[:attributes].any? { |a| a[:name].to_s == head }
+        { expr: "args.#{rust_ident_field(head)}.to_string()", param: nil }
+      else
+        param = rust_ident_field(head)
+        { expr: param, param: "#{param}: &str" }
+      end
+    end
+  end
+
+  def build_identity_expr(components)
+    return components.first[:expr] if components.size == 1
+
+    placeholders = components.map { "{}" }.join(":")
+    "format!(#{placeholders.inspect}, #{components.map { |c| c[:expr] }.join(', ')})"
+  end
+
   def emit_mutation_line(mutation, aggregate, command, value_objects_by_name)
-    target_field   = rust_field(mutation[:target])
+    target_field   = rust_ident_field(mutation[:target])
     lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
 
     case mutation[:op]
@@ -434,18 +645,19 @@ module RustProjector
         arg_vo = arg_attr && value_objects_by_name[arg_attr[:type]]
         if arg_vo && !arg_attr[:list] && arg_vo[:attributes].size == 1
           inner = arg_vo[:attributes].first[:name]
-          "#{field_name}: args.#{arg_attr[:name]}.#{inner}.clone()"
+          "#{rust_ident_field(field_name)}: args.#{rust_ident_field(arg_attr[:name])}.#{rust_ident_field(inner)}.clone()"
         else
-          "#{field_name}: args.#{arg_attr[:name]}.clone()"
+          "#{rust_ident_field(field_name)}: args.#{rust_ident_field(arg_attr[:name])}.clone()"
         end
       end.join(", ")
       "        record.#{target_field}.push(#{vo_type} { #{fields_assignment} });"
     when :set
-      rhs = mutation_set_rhs(mutation[:source])
       if mutation[:target] == lifecycle_field
+        rhs = mutation_set_rhs(mutation[:source], "String", command, value_objects_by_name)
         "        record.#{target_field} = #{rhs};"
       else
         target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+        rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
         target_attr[:list] ? "        record.#{target_field} = #{rhs};" : "        record.#{target_field} = Some(#{rhs});"
       end
     end
@@ -462,13 +674,13 @@ module RustProjector
     record = rust_ident(aggregate[:name])
     cmd    = rust_ident(command[:name])
     creates = command[:references].nil?
-    id_path = aggregate[:identified_by].first
-    id_arg, id_field = id_path.split(".")
+    identity = identity_components(aggregate, command)
+    identity_extra_params = identity.filter_map { |c| c[:param] }
 
     args_struct = ["pub struct #{cmd}Args {"]
     command[:attributes].each do |attr|
       type = rust_type(attr[:type], list: attr[:list])
-      args_struct << "    pub #{rust_field(attr[:name])}: #{type},"
+      args_struct << "    pub #{rust_ident_field(attr[:name])}: #{type},"
     end
     args_struct << "}"
 
@@ -476,7 +688,7 @@ module RustProjector
       next unless value_objects_by_name.key?(attr[:type])
       next if value_objects_by_name[attr[:type]][:closed_set]
 
-      field = rust_field(attr[:name])
+      field = rust_ident_field(attr[:name])
       attr[:list] ? "        for item in &args.#{field} { item.check_invariants()?; }" : "        args.#{field}.check_invariants()?;"
     end
 
@@ -486,11 +698,12 @@ module RustProjector
 
     payload_lines = command[:attributes].map do |attr|
       vo = value_objects_by_name[attr[:type]]
+      field = rust_ident_field(attr[:name])
       if vo && !attr[:list] && vo[:attributes].size == 1
-        inner = vo[:attributes].first[:name]
-        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]}.#{inner})); )
+        inner = rust_ident_field(vo[:attributes].first[:name])
+        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{field}.#{inner})); )
       else
-        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{attr[:name]})); )
+        %(payload.insert("#{attr[:name]}".to_string(), format!("{:?}", args.#{field})); )
       end
     end
 
@@ -509,29 +722,30 @@ module RustProjector
     # dispatch() step. Covers commands with no explicit then_set on the
     # lifecycle field (Banking's Freeze/Unfreeze have none) — Purchase's
     # own explicit then_set above already covers itself, redundantly.
-    mutation_lines << "        record.#{rust_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
+    mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
     mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
 
     if creates
       record_fields = aggregate[:attributes].map do |attr|
         matched = command[:attributes].find { |a| a[:name] == attr[:name] }
+        field = rust_ident_field(attr[:name])
         if matched
-          attr[:list] ? "            #{attr[:name]}: args.#{attr[:name]}.clone()," : "            #{attr[:name]}: Some(args.#{attr[:name]}.clone()),"
+          attr[:list] ? "            #{field}: args.#{field}.clone()," : "            #{field}: Some(args.#{field}.clone()),"
         else
-          attr[:list] ? "            #{attr[:name]}: vec![]," : "            #{attr[:name]}: None,"
+          attr[:list] ? "            #{field}: vec![]," : "            #{field}: None,"
         end
       end
-      record_fields << "            #{rust_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
+      record_fields << "            #{rust_ident_field(aggregate[:lifecycle][:field])}: #{aggregate[:lifecycle][:default].inspect}.to_string()," if aggregate[:lifecycle]
 
       hydrate = <<~RUST.rstrip
         crate::kernel::Hydrate::Create {
-                id: args.#{id_arg}.#{id_field}.clone(),
+                id: #{build_identity_expr(identity)},
                 build: Box::new(|| #{record} {
         #{record_fields.join("\n")}
                 }),
             }
       RUST
-      fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, args: #{cmd}Args"
+      fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params + ["args: #{cmd}Args"]).join(", ")
     else
       hydrate = %(crate::kernel::Hydrate::Act { id: id.to_string() })
       fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, id: &str, args: #{cmd}Args"
@@ -573,59 +787,91 @@ module RustProjector
   end
 end
 
-domain_name = ir[:name]
+# Generates one domain's worth of types/Fielded impls/commands into
+# `mod_dir`, plus a `metadata.rs` carrying that domain's own canonical IR
+# as an embedded JSON constant — SELF-DESCRIPTION: an app holding the
+# compiled binary can list its own commands, read `given` text, etc. at
+# runtime without a second, hand-maintained description and without going
+# back to Ruby. Nothing generated above reads `metadata.rs` — it exists
+# purely for introspection, the same way a doc comment does, just at
+# runtime instead of read-time.
+def generate_domain(ir, source_label, mod_dir, mod_name)
+  FileUtils.mkdir_p(mod_dir)
+  domain_name = ir[:name]
+  generated_aggregates = []
 
-out_dir = File.expand_path("../rust_runner/src/generated", __dir__)
-# CLEARED, not just written into — a previous run against a DIFFERENT
-# domain leaves that domain's .rs files behind otherwise.
-FileUtils.rm_rf(out_dir)
-FileUtils.mkdir_p(out_dir)
+  ir[:aggregates].each do |aggregate|
+    value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
-generated_aggregates = []
-
-ir[:aggregates].each do |aggregate|
-  value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
-
-  unsupported = RustProjector.unsupported_attribute_types(aggregate, value_objects_by_name)
-  if unsupported.any?
-    puts "skipping #{aggregate[:name]}: attribute type(s) #{unsupported.join(', ')} not generated yet " \
-         "(Reference<> and entity-typed attributes aren't resolved to Rust types)"
-    next
-  end
-
-  generated_aggregates << aggregate
-
-  path = File.join(out_dir, "#{aggregate[:name].downcase}.rs")
-  File.open(path, "w") do |f|
-    f.puts "// GENERATED by bin/project_rust from #{domain}'s canonical IR."
-    f.puts "// Do not hand-edit — re-run bin/project_rust #{domain} instead."
-    f.puts "#![allow(dead_code, unused_variables)]"
-    f.puts 'use crate::kernel::{Comparison, Expr};'
-    f.puts
-    aggregate[:value_objects].each do |vo|
-      f.puts RustProjector.emit_value_object(vo, value_objects_by_name)
-      f.puts
+    unsupported = RustProjector.unsupported_attribute_types(aggregate, value_objects_by_name)
+    if unsupported.any?
+      puts "skipping #{domain_name}::#{aggregate[:name]}: attribute type(s) #{unsupported.join(', ')} not generated yet " \
+           "(entity-typed attributes aren't resolved to Rust types)"
+      next
     end
-    f.puts RustProjector.emit_record(aggregate, value_objects_by_name)
-    f.puts
 
-    aggregate[:commands].each do |command|
-      reason = RustProjector.command_skip_reason(command, aggregate)
-      if reason
-        puts "skipping #{aggregate[:name]}.#{command[:name]}: #{reason}"
-        next
+    generated_aggregates << aggregate
+
+    path = File.join(mod_dir, "#{aggregate[:name].downcase}.rs")
+    File.open(path, "w") do |f|
+      f.puts "// GENERATED by bin/project_rust from #{source_label}'s canonical IR."
+      f.puts "// Do not hand-edit — re-run bin/project_rust instead."
+      f.puts "#![allow(dead_code, unused_variables)]"
+      f.puts 'use crate::kernel::Expr;'
+      f.puts
+      aggregate[:value_objects].each do |vo|
+        f.puts RustProjector.emit_value_object(vo, value_objects_by_name)
+        f.puts
       end
-
-      f.puts RustProjector.emit_command(command, aggregate, domain_name, value_objects_by_name)
+      f.puts RustProjector.emit_record(aggregate, value_objects_by_name)
       f.puts
+
+      aggregate[:commands].each do |command|
+        reason = RustProjector.command_skip_reason(command, aggregate, value_objects_by_name)
+        if reason
+          puts "skipping #{domain_name}::#{aggregate[:name]}.#{command[:name]}: #{reason}"
+          next
+        end
+
+        f.puts RustProjector.emit_command(command, aggregate, domain_name, value_objects_by_name)
+        f.puts
+      end
     end
+    puts "wrote #{path}"
   end
-  puts "wrote #{path}"
+
+  metadata_path = File.join(mod_dir, "metadata.rs")
+  File.open(metadata_path, "w") do |f|
+    f.puts "// GENERATED by bin/project_rust — #{source_label}'s own canonical IR,"
+    f.puts "// embedded for runtime self-description. Not read by any dispatch"
+    f.puts "// function in this module — introspection only."
+    f.puts "pub const IR_JSON: &str = #{JSON.pretty_generate(ir).inspect};"
+  end
+  puts "wrote #{metadata_path}"
+
+  mod_path = File.join(mod_dir, "mod.rs")
+  File.open(mod_path, "w") do |f|
+    f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
+    f.puts "pub mod metadata;"
+    generated_aggregates.each { |a| f.puts "pub mod #{a[:name].downcase};" }
+  end
+  puts "wrote #{mod_path}"
 end
 
-mod_path = File.join(out_dir, "mod.rs")
-File.open(mod_path, "w") do |f|
+out_root = File.expand_path("../rust_runner/src/generated", __dir__)
+# CLEARED, not just written into — a previous run leaves stale .rs files
+# behind otherwise (a different target domain's, or none at all yet).
+FileUtils.rm_rf(out_root)
+FileUtils.mkdir_p(out_root)
+
+target_mod_name = File.basename(domain)
+generate_domain(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
+generate_domain(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
+
+root_mod_path = File.join(out_root, "mod.rs")
+File.open(root_mod_path, "w") do |f|
   f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
-  generated_aggregates.each { |a| f.puts "pub mod #{a[:name].downcase};" }
+  f.puts "pub mod meta;"
+  f.puts "pub mod #{target_mod_name};"
 end
-puts "wrote #{mod_path}"
+puts "wrote #{root_mod_path}"

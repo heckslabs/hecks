@@ -1,7 +1,7 @@
 mod generated;
 mod kernel;
 
-use generated::order::{
+use generated::pizzas::order::{
     dispatch_add_topping, dispatch_create_pizza, dispatch_purchase, AddToppingArgs, CreatePizzaArgs,
     CustomerName, Order, Pizza, PizzaName, Price, PurchaseArgs, Size, ToppingAmount, ToppingName,
 };
