@@ -28,3 +28,58 @@ build-EmbryonautFunction:
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
 	cp $(WASM) $(ARTIFACTS_DIR)/embryonaut.wasm
+
+# `make mint-era` — takes hecksagain-embryonaut's RDS instance from freshly
+# created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
+# resolve" (template.yaml's own env vars already assume era 1 —
+# this is what makes that true). Run ONCE per fresh database, before
+# the first real `sam deploy` of the Lambda itself; safe to re-run
+# (a second boot against an already-held era 1 is a no-op — see
+# era_resolver.rb's own quiet-reboot branch). Stands up bastion.yaml
+# as its own sibling stack, uses it for one Ruby boot over an SSM
+# tunnel, then deletes it — nothing from this target is left running
+# afterward.
+ROOT      := /Users/christopheryoung/Projects/hecksagain
+DOMAIN    := /Users/christopheryoung/Projects/embryonaut
+STACK     := hecksagain-embryonaut
+BASTION_STACK := hecksagain-embryonaut-bastion
+
+mint-era:
+	@echo "Looking up $(STACK)'s VPC/security group..."
+	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
+	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
+	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
+	$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) \
+		--capabilities CAPABILITY_IAM
+# ONE continuous shell invocation from here on (every line ends in
+# \, joining it to the next) — INSTANCE_ID is a SHELL variable, not
+# a Make one: a Make-level $$(eval $$(shell ...)) expands at parse
+# time, BEFORE the `aws cloudformation deploy` line above ever runs,
+# which would make INSTANCE_ID permanently empty. It can only be
+# computed here, after the bastion stack genuinely exists.
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+	for i in $$(seq 1 30); do \
+		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+		if [ "$$STATUS" = "Online" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	echo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1..."; \
+	aws ssm start-session --target $$INSTANCE_ID \
+		--document-name AWS-StartPortForwardingSessionToRemoteHost \
+		--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+		>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \
+	TUNNEL_PID=$$!; \
+	sleep 8; \
+	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; Hecks.boot(ARGV[0]); puts "booted OK — era resolution ran"' $(DOMAIN); \
+	BOOT_STATUS=$$?; \
+	kill $$TUNNEL_PID 2>/dev/null; \
+	exit $$BOOT_STATUS
+	@echo "Tearing down the temporary bastion stack..."
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK)
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK)
+	@echo "$(BASTION_STACK) deleted. Era 1 should now be held — verify with bin/console or a Postgres query against hecks_eras."

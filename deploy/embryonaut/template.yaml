@@ -114,6 +114,14 @@ Resources:
     Metadata:
       BuildMethod: makefile
     Properties:
+      # PINNED, not SAM's own auto-suffixed default — a Ruby-side
+      # LambdaClient needs to know this function's name AHEAD OF a
+      # first deploy (there's no chicken-egg lookup step), the same
+      # "configured for me, in the projection" standard every other
+      # piece of generated deploy config already holds to. Matches
+      # `stack_name` above exactly — one name, two places it's read
+      # from, never out of sync since both derive from `domain_name`.
+      FunctionName: hecksagain-embryonaut
       PackageType: Zip
       Runtime: provided.al2023
       Architectures: [arm64]
@@ -132,6 +140,19 @@ Resources:
             - DbPass: !Sub "{{resolve:secretsmanager:${EmbryonautDb.MasterUserSecret.SecretArn}:SecretString:password}}"
               DbHost: !GetAtt EmbryonautDb.Endpoint.Address
           HECKS_WASM_PATH: !Sub "/var/task/embryonaut.wasm"
+          # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
+          # domain's own declared name, known at generation time the
+          # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
+          # "1" because that's what a FRESH database always gets:
+          # Postgres::LineageManager::EraResolver#check! mints era 1
+          # unconditionally the first time any Ruby process boots
+          # against an empty `hecks_eras` (era_resolver.rb's own
+          # `held.empty?` branch) — deterministic, not guessed. `make
+          # mint-era` (this directory's own Makefile) is what actually
+          # triggers that first boot; a LATER real schema evolution
+          # (era 2+) is a separate, later re-generation, not this one.
+          HECKS_DOMAIN: embryonaut
+          HECKS_ERA: "1"
       VpcConfig:
         SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
         SecurityGroupIds: [!Ref EmbryonautFunctionSecurityGroup]
@@ -149,3 +170,16 @@ Outputs:
     Value: !GetAtt EmbryonautDb.Endpoint.Address
   DatabaseSecretArn:
     Value: !GetAtt EmbryonautDb.MasterUserSecret.SecretArn
+  # THE 3 FACTS `make mint-era` NEEDS — this stack's own VPC and RDS
+  # security group, so bastion.yaml (a separate, sibling stack,
+  # created only for the few minutes a mint takes and destroyed
+  # right after) can attach into the SAME private network without
+  # this main template ever knowing a bastion exists. SubnetB, not
+  # SubnetA — arbitrary but fixed, so every domain's bastion lands
+  # in a single, predictable AZ.
+  VpcId:
+    Value: !Ref EmbryonautDbVpc
+  PrivateSubnetId:
+    Value: !Ref EmbryonautDbSubnetB
+  DbSecurityGroupId:
+    Value: !Ref EmbryonautDbSecurityGroup
