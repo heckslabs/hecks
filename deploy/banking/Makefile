@@ -17,6 +17,14 @@ build-BankingFunction:
 		exit 1; \
 	}
 	test -f $(WASM) || (cd /Users/christopheryoung/Projects/hecksagain && bin/project_wasm examples/banking)
-	cd $(HOST_DIR) && cargo lambda build --release --arm64
+	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
+# `rustup run stable`, not a bare `cargo lambda` — same reasoning
+# bin/project_wasm's own Makefile-equivalent line holds itself to: a
+# `cargo`/`rustc` earlier on PATH than rustup's own shims (Homebrew
+# installs one; common on this kind of machine) is a DIFFERENT
+# toolchain that never saw `rustup target add`, and fails with
+# "can't find crate for `core`" for the cross target even though
+# `rustup target list --installed` reports it present.
+	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
 	cp $(WASM) $(ARTIFACTS_DIR)/banking.wasm

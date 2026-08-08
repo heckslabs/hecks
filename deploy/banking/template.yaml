@@ -52,7 +52,7 @@ Resources:
   BankingDbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: !Sub "${AWS::StackName} — private subnets for banking's own RDS instance"
+      DBSubnetGroupDescription: !Sub "${AWS::StackName} - private subnets for banking's own RDS instance"
       SubnetIds: [!Ref BankingDbSubnetA, !Ref BankingDbSubnetB]
 
   # NO INLINE SecurityGroupEgress/Ingress ON EITHER GROUP — each would
