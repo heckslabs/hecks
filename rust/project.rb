@@ -139,6 +139,26 @@
 #     never generated) — omitted from the generated table entirely, a
 #     real match for Ruby's own behavior when that domain isn't loaded
 #     either, not a narrowing (0013's own Consequences).
+#   - Era/lineage support — investigated (0021's own follow-up), and
+#     confirmed to be a DIFFERENT KIND of gap than everything else on
+#     this list: not a parity bug in what THIS generator's current,
+#     single-era output produces (every item above is exactly that), but
+#     an entire missing SUBSYSTEM. Ruby's own era support (`runtime/
+#     era_check.rb`, `era_guard.rb`, `era_tamper.rb`, `ports/persistence/
+#     lineage.rb`, the Postgres adapter's own `lineage_manager/`) is a
+#     boot-time, ADAPTER-CAPABILITY-gated mechanism — "an era is a fact
+#     about STORED DATA some adapter can carry across a shape change,"
+#     co-located with that adapter's own rows, never hashed or checked
+#     for an adapter that can't translate at all. This kernel has exactly
+#     one adapter, `InMemoryRepository` — no Postgres binding, no
+#     lineage/shape-diff/tamper-detection concept, nothing "lineage_
+#     capable?" could ever answer true for. Porting era support here
+#     would mean building a Rust Postgres adapter FIRST, then the whole
+#     lineage/shape-diff system on top of it — a materially different,
+#     larger project than anything this generator does today, not a
+#     command/attribute-shaped gap to close. Query/read-model generation
+#     (never attempted at all, §8's own original scope) is the same kind
+#     of thing: a missing subsystem, not a parity gap.
 #
 # ONE CONCERN PER FILE, all reopening the SAME two module_function
 # modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
