@@ -19,7 +19,7 @@ pub use json::Json;
 pub use orchestrate::{
     orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
-pub use repository::{InMemoryRepository, Repository};
+pub use repository::{check_reference, InMemoryRepository, Repository};
 
 #[derive(Debug, Clone)]
 pub struct Event {

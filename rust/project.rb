@@ -73,16 +73,34 @@
 # what running the full Banking corpus through this actually found (three
 # real bugs, two still-open pre-existing gaps).
 #
+# SIXTH SLICE (0016) — `optional: true` attributes as `Option<T>`
+# everywhere their own declared type appears (args structs, entity fields,
+# value-object fields), the gap 0014 found and deliberately deferred; loudly
+# skips (`optional_source_mismatches`) the one shape it can't honestly
+# represent — an optional argument feeding a non-optional VO/entity field.
+#
+# SEVENTH SLICE (0017) — reference-existence checking
+# (`resolve_references` — `CommandRules::References`, read directly): a
+# `Reference<X>` attribute is still represented as a bare `String` id at
+# the struct-field level (aggregates-and-value-objects.md's own framing
+# hasn't changed), but the EXISTENCE check itself is generated now, at the
+# registry level (`reactions.rb`'s `emit_reference_check`, `repository.rs`'s
+# `check_reference`) — the one place with access to every OTHER
+# aggregate's repo, not just the dispatching command's own.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
-#   - Role checking (Unauthorized), reference-existence checking
-#     (resolve_references — a `Reference<X>` attribute is represented
-#     as a bare `String` id, per aggregates-and-value-objects.md; NOTHING
-#     checks that id actually names a real record). 0013 traced a real
-#     corpus mismatch to this specifically: an unknown argument a saga
-#     forwards is silently accepted by JSON `from_json` where Ruby's
-#     `refuse_unknown_arguments` would refuse the whole command.
+#   - Role checking (Unauthorized).
+#   - Scalar-attribute `pattern:` regex checks (`EmailAddress.address,
+#     pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'` — not generated/checked at all),
+#     a closed-set attribute declared `admits: "Other::ClosedSet"`
+#     accepting a member outside that admitted subset, and an
+#     `Integer`-typed JSON value arriving as a non-numeric string not
+#     being refused. Three DISTINCT gaps 0017's own investigation found
+#     once reference-existence checking stopped masking them behind
+#     bigger corpus mismatches — none of them reference-existence
+#     checking itself.
 #   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
 #     produces the right SIDE EFFECTS without also reproducing the log
 #     `bin/rust_conformance`'s own comparable surface never reads.

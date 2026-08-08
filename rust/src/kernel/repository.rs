@@ -58,3 +58,29 @@ impl<T: Clone> Repository<T> for InMemoryRepository<T> {
         self.records.len()
     }
 }
+
+/// `resolve_references` — `CommandRules::References#resolve_references`
+/// (`lib/hecksagain/runtime/command_rules/references.rb`), read directly.
+/// Hand-written and generic, unlike almost every other per-command check,
+/// because its one caller is `registry.rs`'s generated `dispatch_by_name`
+/// (`rust/project/reactions.rb`'s `emit_reference_check`) — the same place
+/// Ruby's own version reaches through `@registry.repository(domain,
+/// target)`, i.e. a repository OTHER than the dispatching command's own.
+/// Nothing about the check itself is domain-specific; only WHICH repo and
+/// WHICH command attribute to check is (generated, per command).
+///
+/// `value` empty is treated as "no check", mirroring Ruby's own
+/// `next if key.to_s.empty?` (documented there as effectively unreachable
+/// in practice — a non-string reference value is already refused earlier,
+/// at the payload gate).
+pub fn check_reference<T: Clone>(
+    repo: &impl Repository<T>,
+    value: &str,
+    target: &'static str,
+    heads: &'static str,
+) -> Result<(), super::Refusal> {
+    if value.is_empty() || repo.find(value).is_some() {
+        return Ok(());
+    }
+    Err(super::Refusal::NotFound(format!("no {target} with {heads} {value:?}")))
+}

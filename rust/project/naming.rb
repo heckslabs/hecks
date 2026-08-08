@@ -8,11 +8,24 @@ module RustProjection
     # `Reference<X>` is not a scalar per the IR's own vocabulary, but it
     # behaves like one for codegen purposes: aggregates-and-value-objects.md's
     # "Pointing at another aggregate" section is explicit that a reference
-    # "is a bare id — a String — not a nested object." No `resolve_references`
-    # existence check is generated yet (a real, separate gap — see this
-    # file's header), so a reference is
-    # represented as a plain `String`, the same as any other id.
+    # "is a bare id — a String — not a nested object." So a reference is
+    # represented as a plain `String`, the same as any other id, at the
+    # STRUCT-FIELD level. `resolve_references` (Ruby's own existence check —
+    # `command_rules/references.rb`, read directly) is now generated too,
+    # but at the registry level (`reactions.rb`'s `reference_check`,
+    # `registry.rb`'s own emit), which is where Ruby's own version reaches
+    # through `@registry.repository(domain, target)` — not here, and not by
+    # changing this field's Rust type.
     def reference_type?(type_name) = type_name.to_s.start_with?("Reference<")
+
+    # `X` out of `Reference<X>` — the target aggregate's own bare name, the
+    # same string `command_rules/references.rb#referenced_aggregate` reaches
+    # via `attribute.type.resolve.name`. `nil` for anything that isn't a
+    # reference type at all, same shape as `reference_type?`.
+    def reference_target(type_name)
+      match = type_name.to_s.match(/\AReference<(.+)>\z/)
+      match && match[1]
+    end
 
     def effective_scalar_type(type_name)
       return "String" if reference_type?(type_name)

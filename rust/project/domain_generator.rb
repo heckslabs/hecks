@@ -28,11 +28,49 @@ module RustProjection
       [[Projector.rust_field(node[:lifecycle][:field]), "crate::kernel::Json::Str(self.#{field}.clone())"]]
     end
 
+    # `reference_checks(command, aggregates_by_name, unsupported_names)` —
+    # `CommandRules::References#resolve_references`'s own per-attribute walk
+    # (`command.attributes.select(&:reference?)`), read at codegen time
+    # instead of dispatch time: for each `Reference<X>` command attribute,
+    # resolve `X` against every aggregate THIS domain declares (Ruby's own
+    # `attribute.type.resolve` is lazy through the same chapter, so forward
+    # references across aggregates in one file already work there — matched
+    # here by resolving against the FULL `ir[:aggregates]` list, not just
+    # the ones already written when this command's file is reached).
+    # `next unless target` (Ruby) — a target this domain never declares (a
+    # genuine cross-domain reference) — is `target.nil?` below; a target
+    # this domain declares but couldn't itself generate (`unsupported_names`
+    # — no Rust module would exist to check against) gets the same
+    # treatment, though nothing in the real corpus hits that case today.
+    def reference_checks(command, aggregates_by_name, unsupported_names)
+      command[:attributes].filter_map do |attr|
+        target_name = Projector.reference_target(attr[:type])
+        next unless target_name
+
+        target = aggregates_by_name[target_name]
+        next unless target
+        next if unsupported_names.include?(target_name)
+
+        {
+          field: attr[:name],
+          optional: attr[:optional],
+          target_mod: target[:name].downcase,
+          target_name: target[:name],
+          heads: target[:identified_by].map { |path| path.split(".").first }.join(", "),
+        }
+      end
+    end
+
     def call(ir, source_label, mod_dir, mod_name)
       FileUtils.mkdir_p(mod_dir)
       domain_name = ir[:name]
       generated_aggregates = []
       registry_aggregates = []
+      aggregates_by_name = ir[:aggregates].to_h { |a| [a[:name], a] }
+      unsupported_names = ir[:aggregates].select do |a|
+        vo_by_name = a[:value_objects].to_h { |vo| [vo[:name], vo] }
+        Projector.unsupported_attribute_types(a, vo_by_name).any?
+      end.map { |a| a[:name] }
 
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
@@ -119,6 +157,7 @@ module RustProjection
                 # `dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}`.
                 fn: "#{entity[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(command[:name]))}",
                 args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}Args",
+                reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
               }
             end
           end
@@ -181,6 +220,7 @@ module RustProjection
               fn: Projector.dispatch_fn_name(Projector.rust_ident(command[:name])),
               args_struct: args_struct,
               creates: creates,
+              reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
             }
           end
         end

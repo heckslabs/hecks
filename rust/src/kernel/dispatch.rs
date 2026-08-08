@@ -11,8 +11,11 @@
 // mirroring `normalize_args` running before `hydrate`).
 //
 // NOT YET GENERIC HERE, flagged rather than silently assumed away:
-// `enforce_role_mismatch`/`resolve_references` (no role checking or
-// reference-existence checking generated yet).
+// `enforce_role_mismatch` (no role checking generated yet).
+// `resolve_references` IS generated now, but not in THIS function — see
+// `check_reference` (repository.rs) and its call sites in the generated
+// `registry.rs` (`reactions.rb`'s `emit_reference_check`), the one place
+// with access to every OTHER aggregate's repo, not just this command's own.
 
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld};
 use super::{Event, Json, Refusal, Repository};
