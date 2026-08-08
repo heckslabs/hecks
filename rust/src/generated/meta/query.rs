@@ -345,6 +345,24 @@ impl Query {
     }
 }
 
+impl Query {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.aggregate_id: expected String".to_string()))?), },
+        entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.entity_id: expected String".to_string()))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryName::from_json(x)?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
+        order_field: match v.get("order_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
+        order_way: match v.get("order_way") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
+        limit: match v.get("limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
+        wheres: match v.get("wheres").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Filter::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AskArgument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AskOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Query {
     fn to_json(&self) -> crate::kernel::Json {
         Query::to_json(self)

@@ -162,6 +162,18 @@ impl Dispatch {
     }
 }
 
+impl Dispatch {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        handler_id: match v.get("handler_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Dispatch.handler_id: expected String".to_string()))?), },
+        handler: match v.get("handler") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DispatchText::from_json(x)?), },
+        command_name: match v.get("command_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DispatchText::from_json(x)?), },
+        with_spec: match v.get("with_spec").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Binding::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Dispatch {
     fn to_json(&self) -> crate::kernel::Json {
         Dispatch::to_json(self)

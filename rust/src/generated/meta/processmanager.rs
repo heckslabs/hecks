@@ -209,6 +209,20 @@ impl ProcessManager {
     }
 }
 
+impl ProcessManager {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: match v.get("bluebook_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager.bluebook_id: expected String".to_string()))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerName::from_json(x)?), },
+        correlates_by: match v.get("correlates_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(x)?), },
+        starts_on: match v.get("starts_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(x)?), },
+        ends_on: match v.get("ends_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(x)?), },
+        states: match v.get("states").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(SagaState::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for ProcessManager {
     fn to_json(&self) -> crate::kernel::Json {
         ProcessManager::to_json(self)

@@ -3,6 +3,11 @@
 // re-run bin/project_rust instead.
 #![allow(dead_code, unused_variables)]
 
+// `Repository::save` (from_seed, below) is a TRAIT method —
+// `InMemoryRepository`'s own inherent methods (entries(), used
+// by instances()) need no import, but save() does.
+use crate::kernel::Repository;
+
 pub struct Store {
     pub bluebook: crate::kernel::InMemoryRepository<crate::generated::meta::bluebook::Bluebook>,
     pub aggregate: crate::kernel::InMemoryRepository<crate::generated::meta::aggregate::Aggregate>,
@@ -90,6 +95,77 @@ for (id, record) in self.readmodel.entries() {
     instances.push((format!("{}{}", "Bluebook::ReadModel#", id), record.to_json()));
 }
         instances
+    }
+
+    /// Seeds a fresh `Store` from a prior `instances()` dump —
+    /// the exact "Domain::Aggregate#id" -> state shape, read
+    /// back instead of written. Not `Result`-returning on a
+    /// non-Object `seed`: an absent/malformed seed just yields
+    /// an empty Store, the same starting point `Store::new()`
+    /// already gives a caller with no prior state to seed from.
+    pub fn from_seed(seed: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let mut store = Self::new();
+        if let crate::kernel::Json::Object(fields) = seed {
+            for (key, value) in fields {
+if let Some(id) = key.strip_prefix("Bluebook::Bluebook#") {
+    store.bluebook.save(id, crate::generated::meta::bluebook::Bluebook::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Aggregate#") {
+    store.aggregate.save(id, crate::generated::meta::aggregate::Aggregate::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Command#") {
+    store.command.save(id, crate::generated::meta::command::Command::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Query#") {
+    store.query.save(id, crate::generated::meta::query::Query::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::ValueObject#") {
+    store.valueobject.save(id, crate::generated::meta::valueobject::ValueObject::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Member#") {
+    store.member.save(id, crate::generated::meta::member::Member::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Entity#") {
+    store.entity.save(id, crate::generated::meta::entity::Entity::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Policy#") {
+    store.policy.save(id, crate::generated::meta::policy::Policy::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::ProcessManager#") {
+    store.processmanager.save(id, crate::generated::meta::processmanager::ProcessManager::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Handler#") {
+    store.handler.save(id, crate::generated::meta::handler::Handler::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Dispatch#") {
+    store.dispatch.save(id, crate::generated::meta::dispatch::Dispatch::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Vocabulary#") {
+    store.vocabulary.save(id, crate::generated::meta::vocabulary::Vocabulary::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::Syntax#") {
+    store.syntax.save(id, crate::generated::meta::syntax::Syntax::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Bluebook::ReadModel#") {
+    store.readmodel.save(id, crate::generated::meta::readmodel::ReadModel::from_json(value)?);
+    continue;
+}
+            }
+        }
+        Ok(store)
     }
 }
 

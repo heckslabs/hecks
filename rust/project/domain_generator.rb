@@ -126,6 +126,8 @@ module RustProjection
             entity_name = Projector.rust_ident(entity[:name])
             f.puts Projector.emit_to_json_flat(entity_name, entity[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(entity))
             f.puts
+            f.puts Projector.emit_from_json_state(entity_name, entity[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(entity))
+            f.puts
 
             entity_can_route = Projector.extract_id_supported?(entity)
             if entity_can_route
@@ -167,6 +169,8 @@ module RustProjection
           f.puts Projector.emit_record(aggregate, value_objects_by_name)
           f.puts
           f.puts Projector.emit_to_json_flat(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate)
+          f.puts
+          f.puts Projector.emit_from_json_state(record_name, aggregate[:attributes], value_objects_by_name, optional: true, extra_fields: lifecycle_extra_field(aggregate), aggregate: aggregate)
           f.puts
           # `dispatch`/`dispatch_entity` (kernel/dispatch.rs) are generic
           # over the record type and need `record.to_json()` to build a

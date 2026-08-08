@@ -32,6 +32,20 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
+    // A SINGLE-ROW cache of the kernel's own last "instances" output —
+    // `boolean PRIMARY KEY DEFAULT true CHECK (id)` is the standard
+    // Postgres one-row-table trick (only `true` can ever satisfy both
+    // the PK and the CHECK, so a second row is structurally impossible).
+    // See `load_snapshot`/`save_snapshot` below for what this is for.
+    client
+        .batch_execute(
+            "CREATE TABLE IF NOT EXISTS hecks_lambda_snapshot (
+                id      boolean PRIMARY KEY DEFAULT true CHECK (id),
+                ordinal bigint  NOT NULL,
+                seed    jsonb   NOT NULL
+            )",
+        )
+        .await?;
     Ok(())
 }
 
@@ -61,15 +75,75 @@ pub async fn load_steps<C: GenericClient>(client: &C) -> anyhow::Result<Vec<serd
         .collect())
 }
 
+/// Only the steps AFTER `ordinal` — what still needs replaying on top
+/// of a snapshot that was taken as of that ordinal. Normally empty:
+/// `save_snapshot` runs in the SAME transaction as `append`, so the
+/// snapshot is current after every single successful command. Non-empty
+/// only if a snapshot write was ever skipped (there's no code path that
+/// does today) — "replay the tail since the last known-good seed" is
+/// the correct, self-healing fallback either way, not an error.
+pub async fn load_steps_after<C: GenericClient>(client: &C, ordinal: i64) -> anyhow::Result<Vec<serde_json::Value>> {
+    let rows = client
+        .query(
+            "SELECT verb, args FROM hecks_lambda_journal WHERE ordinal > $1 ORDER BY ordinal",
+            &[&ordinal],
+        )
+        .await?;
+
+    Ok(rows
+        .iter()
+        .map(|row| {
+            let verb: String = row.get(0);
+            let args: serde_json::Value = row.get(1);
+            serde_json::json!({ "verb": verb, "args": args })
+        })
+        .collect())
+}
+
+pub struct Snapshot {
+    pub ordinal: i64,
+    pub seed: serde_json::Value,
+}
+
+/// The kernel's own "instances" output as of `ordinal` — what a fresh
+/// `Store::from_seed` (rust/src/kernel, adf38fd's follow-up) needs to
+/// stand in for a full replay. `None` before the first command this
+/// journal has ever accepted (nothing to seed from yet — `dispatch::
+/// handle` falls back to `Store::new()`/an empty seed, exactly today's
+/// behavior for a brand-new domain).
+pub async fn load_snapshot<C: GenericClient>(client: &C) -> anyhow::Result<Option<Snapshot>> {
+    let rows = client.query("SELECT ordinal, seed FROM hecks_lambda_snapshot", &[]).await?;
+    Ok(rows.first().map(|row| Snapshot { ordinal: row.get(0), seed: row.get(1) }))
+}
+
+/// Returns the new row's own ordinal — `save_snapshot` needs it to
+/// record exactly which command the snapshot it's about to write
+/// reflects.
 pub async fn append<C: GenericClient>(
     client: &C,
     verb: &str,
     args: &serde_json::Value,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<i64> {
+    let row = client
+        .query_one(
+            "INSERT INTO hecks_lambda_journal (verb, args) VALUES ($1, $2) RETURNING ordinal",
+            &[&verb, &args],
+        )
+        .await?;
+    Ok(row.get(0))
+}
+
+/// Upserts the one-row cache — `ordinal` is the journal row this
+/// `seed` already reflects (i.e. replaying nothing after it, against
+/// this seed, reproduces the current world). Called in the SAME
+/// transaction as the `append` whose ordinal it's given, right after a
+/// command is accepted — see dispatch.rs.
+pub async fn save_snapshot<C: GenericClient>(client: &C, ordinal: i64, seed: &serde_json::Value) -> anyhow::Result<()> {
     client
         .execute(
-            "INSERT INTO hecks_lambda_journal (verb, args) VALUES ($1, $2)",
-            &[&verb, &args],
+            "INSERT INTO hecks_lambda_snapshot (id, ordinal, seed) VALUES (true, $1, $2) \
+             ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, seed = EXCLUDED.seed",
+            &[&ordinal, seed],
         )
         .await?;
     Ok(())

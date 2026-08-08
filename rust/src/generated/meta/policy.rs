@@ -169,6 +169,20 @@ impl Policy {
     }
 }
 
+impl Policy {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: match v.get("bluebook_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy.bluebook_id: expected String".to_string()))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyName::from_json(x)?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        trigger_command: match v.get("trigger_command") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        target_domain: match v.get("target_domain") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Policy {
     fn to_json(&self) -> crate::kernel::Json {
         Policy::to_json(self)

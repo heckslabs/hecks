@@ -3,6 +3,11 @@
 // re-run bin/project_rust instead.
 #![allow(dead_code, unused_variables)]
 
+// `Repository::save` (from_seed, below) is a TRAIT method —
+// `InMemoryRepository`'s own inherent methods (entries(), used
+// by instances()) need no import, but save() does.
+use crate::kernel::Repository;
+
 pub struct Store {
     pub customer: crate::kernel::InMemoryRepository<crate::generated::banking::customer::Customer>,
     pub account: crate::kernel::InMemoryRepository<crate::generated::banking::account::Account>,
@@ -70,6 +75,61 @@ for (id, record) in self.statement.entries() {
     instances.push((format!("{}{}", "Banking::Statement#", id), record.to_json()));
 }
         instances
+    }
+
+    /// Seeds a fresh `Store` from a prior `instances()` dump —
+    /// the exact "Domain::Aggregate#id" -> state shape, read
+    /// back instead of written. Not `Result`-returning on a
+    /// non-Object `seed`: an absent/malformed seed just yields
+    /// an empty Store, the same starting point `Store::new()`
+    /// already gives a caller with no prior state to seed from.
+    pub fn from_seed(seed: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let mut store = Self::new();
+        if let crate::kernel::Json::Object(fields) = seed {
+            for (key, value) in fields {
+if let Some(id) = key.strip_prefix("Banking::Customer#") {
+    store.customer.save(id, crate::generated::banking::customer::Customer::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::Account#") {
+    store.account.save(id, crate::generated::banking::account::Account::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::ATMCard#") {
+    store.atmcard.save(id, crate::generated::banking::atmcard::ATMCard::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::Transfer#") {
+    store.transfer.save(id, crate::generated::banking::transfer::Transfer::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::CardPayment#") {
+    store.cardpayment.save(id, crate::generated::banking::cardpayment::CardPayment::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::ExternalTransfer#") {
+    store.externaltransfer.save(id, crate::generated::banking::externaltransfer::ExternalTransfer::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::ScheduledPayment#") {
+    store.scheduledpayment.save(id, crate::generated::banking::scheduledpayment::ScheduledPayment::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::SafeDepositBox#") {
+    store.safedepositbox.save(id, crate::generated::banking::safedepositbox::SafeDepositBox::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::OnboardingCase#") {
+    store.onboardingcase.save(id, crate::generated::banking::onboardingcase::OnboardingCase::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Banking::Statement#") {
+    store.statement.save(id, crate::generated::banking::statement::Statement::from_json(value)?);
+    continue;
+}
+            }
+        }
+        Ok(store)
     }
 }
 

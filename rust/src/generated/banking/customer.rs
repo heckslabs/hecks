@@ -223,6 +223,18 @@ impl Customer {
     }
 }
 
+impl Customer {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerNumber::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PersonName::from_json(x)?), },
+        email: match v.get("email") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EmailAddress::from_json(x)?), },
+        standing: match v.get("standing") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerStanding::from_json(x)?), },
+        status: v.require("status", "Customer")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Customer.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Customer {
     fn to_json(&self) -> crate::kernel::Json {
         Customer::to_json(self)

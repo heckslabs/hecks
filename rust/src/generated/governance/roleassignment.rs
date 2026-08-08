@@ -218,6 +218,18 @@ impl RoleAssignment {
     }
 }
 
+impl RoleAssignment {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        actor_id: match v.get("actor_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(x)?), },
+        role_name: match v.get("role_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(x)?), },
+        scope: match v.get("scope") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Scope::from_json(x)?), },
+        starts_at: match v.get("starts_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(x)?), },
+        ends_at: match v.get("ends_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for RoleAssignment {
     fn to_json(&self) -> crate::kernel::Json {
         RoleAssignment::to_json(self)

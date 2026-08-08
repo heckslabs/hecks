@@ -3,6 +3,11 @@
 // re-run bin/project_rust instead.
 #![allow(dead_code, unused_variables)]
 
+// `Repository::save` (from_seed, below) is a TRAIT method —
+// `InMemoryRepository`'s own inherent methods (entries(), used
+// by instances()) need no import, but save() does.
+use crate::kernel::Repository;
+
 pub struct Store {
     pub roleassignment: crate::kernel::InMemoryRepository<crate::generated::governance::roleassignment::RoleAssignment>,
     pub roletransition: crate::kernel::InMemoryRepository<crate::generated::governance::roletransition::RoleTransition>,
@@ -30,6 +35,29 @@ for (id, record) in self.roletransition.entries() {
     instances.push((format!("{}{}", "Governance::RoleTransition#", id), record.to_json()));
 }
         instances
+    }
+
+    /// Seeds a fresh `Store` from a prior `instances()` dump —
+    /// the exact "Domain::Aggregate#id" -> state shape, read
+    /// back instead of written. Not `Result`-returning on a
+    /// non-Object `seed`: an absent/malformed seed just yields
+    /// an empty Store, the same starting point `Store::new()`
+    /// already gives a caller with no prior state to seed from.
+    pub fn from_seed(seed: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        let mut store = Self::new();
+        if let crate::kernel::Json::Object(fields) = seed {
+            for (key, value) in fields {
+if let Some(id) = key.strip_prefix("Governance::RoleAssignment#") {
+    store.roleassignment.save(id, crate::generated::governance::roleassignment::RoleAssignment::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Governance::RoleTransition#") {
+    store.roletransition.save(id, crate::generated::governance::roletransition::RoleTransition::from_json(value)?);
+    continue;
+}
+            }
+        }
+        Ok(store)
     }
 }
 

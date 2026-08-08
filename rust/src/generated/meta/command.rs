@@ -716,6 +716,26 @@ impl Command {
     }
 }
 
+impl Command {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.aggregate_id: expected String".to_string()))?), },
+        entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.entity_id: expected String".to_string()))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandName::from_json(x)?), },
+        role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Actor::from_json(x)?), },
+        goal: match v.get("goal") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Goal::from_json(x)?), },
+        emits: match v.get("emits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Announcement::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        references: match v.get("references") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EventName::from_json(x)?), },
+        attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        givens: match v.get("givens").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        ensures: match v.get("ensures").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        mutations: match v.get("mutations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Change::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        provenance: match v.get("provenance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Command {
     fn to_json(&self) -> crate::kernel::Json {
         Command::to_json(self)

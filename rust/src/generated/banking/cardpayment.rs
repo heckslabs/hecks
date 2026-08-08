@@ -219,6 +219,20 @@ impl CardPayment {
     }
 }
 
+impl CardPayment {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.account_id: expected String".to_string()))?), },
+        disputed_by: match v.get("disputed_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.disputed_by: expected String".to_string()))?), },
+        authorisation: match v.get("authorisation") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AuthorisationCode::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentAmount::from_json(x)?), },
+        merchant: match v.get("merchant") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MerchantName::from_json(x)?), },
+        tags: match v.get("tags") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), },
+        status: v.require("status", "CardPayment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for CardPayment {
     fn to_json(&self) -> crate::kernel::Json {
         CardPayment::to_json(self)

@@ -331,6 +331,17 @@ impl Visit {
 }
 
 impl Visit {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        date: VisitDate::from_json(v.require("date", "Visit")?)?,
+        sequence: VisitSequence::from_json(v.require("sequence", "Visit")?)?,
+        note: match v.get("note") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VisitNote::from_json(x)?), },
+        state: v.require("state", "Visit")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Visit.state: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
+impl Visit {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
             let c0 = v.dig("date.value")?.to_id_component().ok()?;
@@ -454,6 +465,15 @@ impl KeyIssuance {
         ("serial".to_string(), self.serial.to_json()),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
+    }
+}
+
+impl KeyIssuance {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        serial: KeySerial::from_json(v.require("serial", "KeyIssuance")?)?,
+        status: v.require("status", "KeyIssuance")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeyIssuance.status: expected a string".to_string()))?.to_string(),
+        })
     }
 }
 
@@ -582,6 +602,20 @@ impl SafeDepositBox {
         ("keys".to_string(), crate::kernel::Json::Array(self.keys.iter().map(|x| x.to_json()).collect())),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
+    }
+}
+
+impl SafeDepositBox {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        customer_id: match v.get("customer_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer_id: expected String".to_string()))?), },
+        branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(x)?), },
+        box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(x)?), },
+        size: match v.get("size") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Size::from_json(x)?), },
+        visits: match v.get("visits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Visit::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        keys: match v.get("keys").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(KeyIssuance::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        status: v.require("status", "SafeDepositBox")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.status: expected a string".to_string()))?.to_string(),
+        })
     }
 }
 

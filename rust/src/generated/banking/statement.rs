@@ -202,6 +202,19 @@ impl Statement {
     }
 }
 
+impl Statement {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement.account_id: expected String".to_string()))?), },
+        period: match v.get("period") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementPeriod::from_json(x)?), },
+        opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(x)?), },
+        closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(x)?), },
+        generated_on: match v.get("generated_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementDate::from_json(x)?), },
+        frequency: match v.get("frequency") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementFrequency::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Statement {
     fn to_json(&self) -> crate::kernel::Json {
         Statement::to_json(self)

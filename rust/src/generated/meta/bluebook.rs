@@ -314,6 +314,18 @@ impl Bluebook {
     }
 }
 
+impl Bluebook {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BluebookName::from_json(x)?), },
+        vision: match v.get("vision") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(x)?), },
+        classification: match v.get("classification") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Classification::from_json(x)?), },
+        version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(x)?), },
+        normalisations: match v.get("normalisations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(NormalisationRule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Bluebook {
     fn to_json(&self) -> crate::kernel::Json {
         Bluebook::to_json(self)

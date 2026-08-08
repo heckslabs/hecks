@@ -118,6 +118,18 @@ impl Handler {
     }
 }
 
+impl Handler {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        process_manager_id: match v.get("process_manager_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Handler.process_manager_id: expected String".to_string()))?), },
+        event_type: match v.get("event_type") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(HandlerText::from_json(x)?), },
+        from_state: match v.get("from_state") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(HandlerText::from_json(x)?), },
+        to_state: match v.get("to_state") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(HandlerText::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Handler {
     fn to_json(&self) -> crate::kernel::Json {
         Handler::to_json(self)

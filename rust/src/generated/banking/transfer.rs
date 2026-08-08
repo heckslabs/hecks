@@ -176,6 +176,19 @@ impl Transfer {
     }
 }
 
+impl Transfer {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        source: match v.get("source") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transfer.source: expected String".to_string()))?), },
+        destination: match v.get("destination") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transfer.destination: expected String".to_string()))?), },
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(TransferReference::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(TransferMoney::from_json(x)?), },
+        narrative: match v.get("narrative") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Narrative::from_json(x)?), },
+        status: v.require("status", "Transfer")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transfer.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Transfer {
     fn to_json(&self) -> crate::kernel::Json {
         Transfer::to_json(self)

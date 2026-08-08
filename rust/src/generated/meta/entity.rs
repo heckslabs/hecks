@@ -330,6 +330,23 @@ impl Entity {
     }
 }
 
+impl Entity {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Entity.aggregate_id: expected String".to_string()))?), },
+        owner: match v.get("owner") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(x)?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(x)?), },
+        identified_by: match v.get("identified_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(IdentityPath::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
+        state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
+        transitions: match v.get("transitions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceTransition::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Entity {
     fn to_json(&self) -> crate::kernel::Json {
         Entity::to_json(self)

@@ -272,6 +272,94 @@ module RustProjection
       RUST
     end
 
+    # THE INVERSE OF `emit_to_json_flat`, for the SAME two struct kinds
+    # that method serves when called with `aggregate:`/no `aggregate:` —
+    # aggregate records and entities — NOT a third case of
+    # `emit_from_json_flat` above. That method is command-args-shaped: a
+    # caller either supplies a key or doesn't, and an ABSENT optional key
+    # means "unset." Record/entity `to_json` (this same file, just
+    # above) is different — an unset Option field's key is always
+    # PRESENT, with value `Json::Null` (`.unwrap_or(crate::kernel::
+    # Json::Null)`), because Ruby's own JSON.generate(state) round-trip
+    # this mirrors does the same. So this reads `Some(&Json::Null)` the
+    # same as `None` everywhere `emit_from_json_flat` only ever checked
+    # for absence — the one real structural difference between "parse
+    # caller-supplied args" and "parse this type's own to_json output
+    # back."
+    #
+    # Takes the EXACT SAME parameters as `emit_to_json_flat`
+    # (`optional:`, `aggregate:`) so both directions make the identical
+    # per-field optionality decision — called with `optional: true,
+    # aggregate: aggregate` for a record (domain_generator.rb, matching
+    # `emit_record`'s "every field is Option<T>" struct rule) and with
+    # the defaults for an entity (matching `emit_entity`'s own
+    # `Option<T>` only when `attr[:optional]` rule).
+    #
+    # Exists for `Store::from_seed` (registry.rb) — a host driving this
+    # kernel (rust/host, docs/decisions/0012) seeding prior state back
+    # in instead of replaying full command history, the mechanical
+    # inverse of `Store::instances()`'s own to_json dump.
+    def emit_from_json_state(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [], aggregate: nil)
+      field_exprs = attributes.map do |attr|
+        ident = rust_ident_field(attr[:name])
+        key = rust_field(attr[:name])
+        scalar = effective_scalar_type(attr[:type])
+        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name])
+        list_is_optional = aggregate ? record_optional_list : attr[:optional]
+        field_optional = optional || attr[:optional]
+
+        rhs =
+          if attr[:list] && list_is_optional
+            elem_type = rust_ident(attr[:type])
+            array_error = json_type_error(struct_name, key, "an array")
+            "match v.get(#{key.inspect}) { " \
+              "Some(&crate::kernel::Json::Null) | None => None, " \
+              "Some(x) => Some(x.as_array().ok_or_else(|| #{array_error})?.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), }"
+          elsif attr[:list]
+            elem_type = rust_ident(attr[:type])
+            "match v.get(#{key.inspect}).and_then(crate::kernel::Json::as_array) { " \
+              "Some(items) => items.iter().map(#{elem_type}::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, " \
+              "None => Vec::new(), }"
+          elsif field_optional && scalar
+            "match v.get(#{key.inspect}) { " \
+              "Some(&crate::kernel::Json::Null) | None => None, " \
+              "Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}), }"
+          elsif field_optional
+            nested_type = rust_ident(attr[:type])
+            "match v.get(#{key.inspect}) { " \
+              "Some(&crate::kernel::Json::Null) | None => None, " \
+              "Some(x) => Some(#{nested_type}::from_json(x)?), }"
+          elsif scalar
+            scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
+          else
+            nested_type = rust_ident(attr[:type])
+            "#{nested_type}::from_json(v.require(#{key.inspect}, #{struct_name.inspect})?)?"
+          end
+        "        #{ident}: #{rhs},"
+      end
+
+      # `extra_fields` carries `(key, to_json-serialize-expr)` pairs
+      # (`lifecycle_extra_field`'s own shape) — from_json only needs the
+      # KEY back; the lifecycle field is always a plain, required
+      # String, matching `emit_record`/`emit_entity`'s own never-
+      # Option-wrapped struct field for it.
+      extra_field_exprs = extra_fields.map do |key, _serialize_expr|
+        ident = rust_ident_field(key)
+        "        #{ident}: v.require(#{key.inspect}, #{struct_name.inspect})?.as_str()" \
+          ".ok_or_else(|| #{json_type_error(struct_name, key, 'a string')})?.to_string(),"
+      end
+
+      <<~RUST
+        impl #{struct_name} {
+            pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+                Ok(Self {
+        #{(field_exprs + extra_field_exprs).join("\n")}
+                })
+            }
+        }
+      RUST
+    end
+
     # A single-field CLOSED SET only — `emit_value_object`'s own branch on
     # `vo[:attributes].size > 1` (a data table, not a tag) generates neither
     # `Fielded` nor invariant checking today, and doesn't get a JSON codec

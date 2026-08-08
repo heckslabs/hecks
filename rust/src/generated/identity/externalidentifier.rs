@@ -170,6 +170,17 @@ impl ExternalIdentifier {
     }
 }
 
+impl ExternalIdentifier {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        identity_id: match v.get("identity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalIdentifier.identity_id: expected String".to_string()))?), },
+        key: match v.get("key") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalIdentifierKey::from_json(x)?), },
+        issuer: match v.get("issuer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Issuer::from_json(x)?), },
+        subject: match v.get("subject") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Subject::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for ExternalIdentifier {
     fn to_json(&self) -> crate::kernel::Json {
         ExternalIdentifier::to_json(self)

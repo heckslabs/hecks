@@ -159,6 +159,17 @@ impl Member {
     }
 }
 
+impl Member {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value_object_id: match v.get("value_object_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Member.value_object_id: expected String".to_string()))?), },
+        shape: match v.get("shape") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MemberText::from_json(x)?), },
+        pairs: match v.get("pairs").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Pair::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Member {
     fn to_json(&self) -> crate::kernel::Json {
         Member::to_json(self)

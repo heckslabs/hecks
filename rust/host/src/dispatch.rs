@@ -56,10 +56,25 @@ pub async fn handle(
     )
     .await?;
 
-    let mut steps = journal::load_steps(&txn).await?;
+    // SEED, NOT FULL REPLAY — read the last known-good snapshot (the
+    // kernel's own prior "instances" output) and only the journal rows
+    // AFTER it, instead of the whole command history every single time.
+    // `None` covers two real cases identically: a brand-new domain (no
+    // snapshot, no history — Store::new()/empty seed, exactly today's
+    // behavior) and a domain with journal history from BEFORE this
+    // snapshot cache existed (no snapshot row yet, but real prior
+    // steps) — that one self-heals by falling back to a full replay
+    // ONCE, same as always, which then leaves behind a snapshot for
+    // every invocation after it. See journal.rs's own header.
+    let snapshot = journal::load_snapshot(&txn).await?;
+    let mut steps = match &snapshot {
+        Some(s) => journal::load_steps_after(&txn, s.ordinal).await?,
+        None => journal::load_steps(&txn).await?,
+    };
     steps.push(serde_json::json!({ "verb": verb, "args": args.clone() }));
+    let seed = snapshot.as_ref().map(|s| s.seed.clone()).unwrap_or_else(|| serde_json::json!({}));
 
-    let input = serde_json::json!({ "steps": steps }).to_string();
+    let input = serde_json::json!({ "seed": seed, "steps": steps }).to_string();
     // wasm_runner::run is sync and, internally, wasmtime-wasi's p1 sync
     // bridge tries to spin up its own tokio runtime to drive the async
     // memory pipes — fatal if called directly from a thread already
@@ -83,7 +98,17 @@ pub async fn handle(
     let accepted = refusals.is_empty();
 
     if accepted {
-        journal::append(&txn, verb, &args).await?;
+        let ordinal = journal::append(&txn, verb, &args).await?;
+
+        // Refreshes the snapshot to the NEW world this command just
+        // produced — the kernel's own "instances" output already IS
+        // the exact seed shape (Store::instances/Store::from_seed are
+        // mechanical inverses), so nothing here re-derives or filters
+        // it. Every accepted command leaves the snapshot current, which
+        // is what makes `load_steps_after` above normally find nothing
+        // to replay at all.
+        let new_seed = result.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
+        journal::save_snapshot(&txn, ordinal, &new_seed).await?;
 
         // The kernel's new per-step "mutations" field (adf38fd) — one
         // entry per step in `steps` above, so the LAST entry is exactly
@@ -135,21 +160,54 @@ pub async fn handle(
     Ok(Outcome { result, accepted })
 }
 
-// READ-ONLY: the exact same rehydration `handle` already does before
-// ever touching the new step, minus the new step and minus the
-// append. No advisory lock needed — nothing here writes, so a plain
-// snapshot read is enough (Postgres's own read-committed guarantee is
-// already stronger than anything a lock would add for a read). Every
-// step replayed here already succeeded once (journal.rs's own
-// determinism argument), so `refusals` in the returned JSON should
-// always come back empty — this returns the whole result verbatim
-// rather than unwrapping just `instances`, so a caller can tell the
-// two apart instead of that being silently assumed.
+// READ-ONLY: the SAME seed-not-replay path `handle` uses (journal.rs's
+// own header), minus the new step and minus any write. No advisory
+// lock needed — nothing here writes, so a plain snapshot read is
+// enough (Postgres's own read-committed guarantee is already stronger
+// than anything a lock would add for a read). Every step replayed here
+// already succeeded once (journal.rs's own determinism argument), so
+// `refusals` in the returned JSON should always come back empty — this
+// returns the whole result verbatim rather than unwrapping just
+// `instances`, so a caller can tell the two apart instead of that
+// being silently assumed.
 pub async fn read(client: &Mutex<Client>, wasm_path: &Path) -> anyhow::Result<serde_json::Value> {
     let guard = client.lock().await;
+    let snapshot = journal::load_snapshot(&*guard).await?;
+
+    if let Some(s) = &snapshot {
+        let steps_since = journal::load_steps_after(&*guard, s.ordinal).await?;
+        drop(guard);
+
+        if steps_since.is_empty() {
+            // THE FAST PATH — no wasm invocation at all. The snapshot's
+            // own `seed` IS this domain's current "instances" output
+            // already (`save_snapshot` writes it verbatim from a real
+            // dispatch's own result), so there's nothing left to
+            // compute. Empty events/refusals is correct here too — a
+            // read reports CURRENT STATE, never an event/refusal
+            // history (this function's own pre-existing contract).
+            return Ok(serde_json::json!({ "instances": s.seed, "events": [], "refusals": [] }));
+        }
+
+        // Self-healing tail replay — nothing in this crate today
+        // leaves steps unaccounted for after the last snapshot, but if
+        // it ever did, seeding from the snapshot and replaying just the
+        // gap is still correct and still cheap, same reasoning as
+        // `handle`'s own fallback.
+        let input = serde_json::json!({ "seed": &s.seed, "steps": steps_since }).to_string();
+        let owned_wasm_path = wasm_path.to_path_buf();
+        let output =
+            tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
+        return Ok(serde_json::from_str(&output)?);
+    }
+
+    // No snapshot at all — a brand-new domain (empty history, correctly
+    // reports nothing) or one with journal history from BEFORE this
+    // snapshot cache existed (a real, one-time full replay to catch up
+    // — see journal.rs's own header on why this is self-healing, not
+    // an error case).
     let steps = journal::load_steps(&*guard).await?;
     drop(guard);
-
     let input = serde_json::json!({ "steps": steps }).to_string();
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
@@ -359,6 +417,47 @@ mod tests {
             1,
             "the refused duplicate must not be persisted"
         );
+    }
+
+    #[tokio::test]
+    async fn the_snapshot_stays_current_so_nothing_replays_full_history() {
+        // THE DIRECT PROOF of what `rehydrates_prior_history...` above
+        // only proves indirectly (via the duplicate-refusal side
+        // effect): after every accepted command, `load_steps_after` the
+        // snapshot's own ordinal should find NOTHING — the snapshot
+        // genuinely stays current, so `handle` never needs a full
+        // replay after the very first command ever accepted.
+        let client = scratch_db("rust_host_dispatch_test_5").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+
+        for reference in ["CUST-0004", "CUST-0005", "CUST-0006"] {
+            let outcome = handle(&client, &wasm_path(), "Banking::Customer.Register", register(reference), &config)
+                .await
+                .unwrap();
+            assert!(outcome.accepted, "registering {reference} should succeed: {:?}", outcome.result);
+
+            let guard = client.lock().await;
+            let snapshot = journal::load_snapshot(&*guard)
+                .await
+                .unwrap()
+                .expect("a snapshot should exist after the first accepted command");
+            let tail = journal::load_steps_after(&*guard, snapshot.ordinal).await.unwrap();
+            assert!(tail.is_empty(), "the snapshot should already reflect every accepted command, leaving nothing to replay");
+
+            // AND THE SEED ITSELF IS RIGHT, not just empty-by-coincidence
+            // — it should carry every customer registered so far, not
+            // just the one just dispatched.
+            let seeded = snapshot.seed.as_object().unwrap();
+            assert!(
+                seeded.keys().any(|k| k.contains(reference)),
+                "the snapshot should carry the record just dispatched: {seeded:?}"
+            );
+        }
+
+        let final_snapshot = journal::load_snapshot(&*client.lock().await).await.unwrap().unwrap();
+        let final_seed = final_snapshot.seed.as_object().unwrap();
+        assert_eq!(final_seed.len(), 3, "the snapshot should accumulate all three registrations, not just the latest: {final_seed:?}");
     }
 
     #[tokio::test]

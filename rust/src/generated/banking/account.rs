@@ -378,6 +378,18 @@ impl LedgerEntry {
 }
 
 impl LedgerEntry {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        sequence: LedgerSequence::from_json(v.require("sequence", "LedgerEntry")?)?,
+        amount: Money::from_json(v.require("amount", "LedgerEntry")?)?,
+        narrative: Narrative::from_json(v.require("narrative", "LedgerEntry")?)?,
+        direction: LedgerDirection::from_json(v.require("direction", "LedgerEntry")?)?,
+        state: v.require("state", "LedgerEntry")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntry.state: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
+impl LedgerEntry {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
             let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
@@ -583,6 +595,22 @@ impl Account {
         ("interest_cents".to_string(), self.interest_cents.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
+    }
+}
+
+impl Account {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        customer_id: match v.get("customer_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Account.customer_id: expected String".to_string()))?), },
+        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(x)?), },
+        balance: match v.get("balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
+        kind: match v.get("kind") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountKind::from_json(x)?), },
+        daily_limit: match v.get("daily_limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyLimit::from_json(x)?), },
+        ledger: match v.get("ledger").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(LedgerEntry::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        fees_cents: match v.get("fees_cents") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
+        interest_cents: match v.get("interest_cents") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
+        status: v.require("status", "Account")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Account.status: expected a string".to_string()))?.to_string(),
+        })
     }
 }
 

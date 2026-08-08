@@ -593,6 +593,24 @@ impl Aggregate {
     }
 }
 
+impl Aggregate {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: match v.get("bluebook_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Aggregate.bluebook_id: expected String".to_string()))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AggregateName::from_json(x)?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Description::from_json(x)?), },
+        provenance: match v.get("provenance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(LiteralText::from_json(x)?), },
+        identified_by: match v.get("identified_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(IdentityPath::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Field::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        value_objects: match v.get("value_objects").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ValueName::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityField::from_json(x)?), },
+        state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityField::from_json(x)?), },
+        transitions: match v.get("transitions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Transition::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Aggregate {
     fn to_json(&self) -> crate::kernel::Json {
         Aggregate::to_json(self)

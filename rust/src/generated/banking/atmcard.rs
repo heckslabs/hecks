@@ -302,6 +302,17 @@ impl Withdrawal {
 }
 
 impl Withdrawal {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        sequence: WithdrawalSequence::from_json(v.require("sequence", "Withdrawal")?)?,
+        cents: WithdrawalAmount::from_json(v.require("cents", "Withdrawal")?)?,
+        narrative: Narrative::from_json(v.require("narrative", "Withdrawal")?)?,
+        state: v.require("state", "Withdrawal")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Withdrawal.state: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
+impl Withdrawal {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
             let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
@@ -425,6 +436,19 @@ impl ATMCard {
         ("withdrawals".to_string(), crate::kernel::Json::Array(self.withdrawals.iter().map(|x| x.to_json()).collect())),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
+    }
+}
+
+impl ATMCard {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.account_id: expected String".to_string()))?), },
+        serial: match v.get("serial") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardSerial::from_json(x)?), },
+        nickname: match v.get("nickname") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardNickname::from_json(x)?), },
+        daily_fee: match v.get("daily_fee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyFee::from_json(x)?), },
+        withdrawals: match v.get("withdrawals").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Withdrawal::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        status: v.require("status", "ATMCard")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.status: expected a string".to_string()))?.to_string(),
+        })
     }
 }
 

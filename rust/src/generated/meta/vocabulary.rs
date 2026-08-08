@@ -668,6 +668,14 @@ impl Vocabulary {
     }
 }
 
+impl Vocabulary {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VocabularyName::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Vocabulary {
     fn to_json(&self) -> crate::kernel::Json {
         Vocabulary::to_json(self)

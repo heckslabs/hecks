@@ -88,6 +88,26 @@ module RustProjection
         RUST
       end
 
+      # The mechanical inverse of `instances()` above, one `if let` per
+      # aggregate trying its own "Domain::Aggregate#" prefix against
+      # each seed key in turn — a key nothing here recognizes is
+      # skipped, not refused (a seed built for a merged multi-chapter
+      # Store, or reused loosely across a boundary this generator
+      # doesn't fully control, shouldn't have to be exact). Exists for
+      # `cli.rs`'s own new `"seed"` input field — a HOST (rust/host,
+      # docs/decisions/0012) seeding prior state back in instead of
+      # replaying full command history from scratch every invocation.
+      seed_arms = aggregates.map do |a|
+        mod_path = chapter_path.call(a)
+        prefix = "#{a[:domain_name]}::#{a[:name]}#"
+        <<~RUST.rstrip
+                  if let Some(id) = key.strip_prefix(#{prefix.inspect}) {
+                      store.#{a[:mod]}.save(id, #{mod_path}::#{a[:record]}::from_json(value)?);
+                      continue;
+                  }
+        RUST
+      end
+
       aggregate_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         a[:commands].map do |c|
@@ -137,6 +157,11 @@ module RustProjection
         // re-run bin/project_rust instead.
         #![allow(dead_code, unused_variables)]
 
+        // `Repository::save` (from_seed, below) is a TRAIT method —
+        // `InMemoryRepository`'s own inherent methods (entries(), used
+        // by instances()) need no import, but save() does.
+        use crate::kernel::Repository;
+
         pub struct Store {
         #{store_fields.join("\n")}
         }
@@ -157,6 +182,22 @@ module RustProjection
                 let mut instances = Vec::new();
         #{dump_arms.join("\n")}
                 instances
+            }
+
+            /// Seeds a fresh `Store` from a prior `instances()` dump —
+            /// the exact "Domain::Aggregate#id" -> state shape, read
+            /// back instead of written. Not `Result`-returning on a
+            /// non-Object `seed`: an absent/malformed seed just yields
+            /// an empty Store, the same starting point `Store::new()`
+            /// already gives a caller with no prior state to seed from.
+            pub fn from_seed(seed: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+                let mut store = Self::new();
+                if let crate::kernel::Json::Object(fields) = seed {
+                    for (key, value) in fields {
+        #{seed_arms.join("\n")}
+                    }
+                }
+                Ok(store)
             }
         }
 

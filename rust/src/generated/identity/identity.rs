@@ -71,6 +71,14 @@ impl Identity {
     }
 }
 
+impl Identity {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        identity_id: match v.get("identity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for Identity {
     fn to_json(&self) -> crate::kernel::Json {
         Identity::to_json(self)

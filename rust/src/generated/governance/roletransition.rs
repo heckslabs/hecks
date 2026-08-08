@@ -122,6 +122,16 @@ impl RoleTransition {
     }
 }
 
+impl RoleTransition {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        from_role: match v.get("from_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(x)?), },
+        to_role: match v.get("to_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(x)?), },
+        ends_at: match v.get("ends_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for RoleTransition {
     fn to_json(&self) -> crate::kernel::Json {
         RoleTransition::to_json(self)

@@ -32,7 +32,22 @@ pub fn run(input: &str) -> String {
         None => return error_output("expected a top-level {\"steps\": [...]} object"),
     };
 
-    let mut store = Store::new();
+    // `"seed"` — the exact "Domain::Aggregate#id" -> state shape THIS
+    // run's own "instances" output already produces (`Store::instances`/
+    // `Store::from_seed`, mechanical inverses, `rust/project/registry.rb`'s
+    // `emit_registry`). Optional and additive: an input with no `"seed"`
+    // key behaves exactly as before (`Store::new()`, empty). Lets a HOST
+    // (rust/host, docs/decisions/0012) seed prior state back in instead
+    // of replaying `steps` from scratch every invocation — `steps` then
+    // needs to carry only the genuinely new command(s), not the whole
+    // history.
+    let mut store = match parsed.get("seed") {
+        Some(seed) => match Store::from_seed(seed) {
+            Ok(s) => s,
+            Err(refusal) => return error_output(&format!("invalid seed: {refusal}")),
+        },
+        None => Store::new(),
+    };
     let mut events: Vec<Event> = Vec::new();
     let mut refusals: Vec<(String, Refusal)> = Vec::new();
     // Process-manager instances — domain-level, not per-aggregate, so

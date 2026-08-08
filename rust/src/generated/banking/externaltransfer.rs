@@ -211,6 +211,19 @@ impl ExternalTransfer {
     }
 }
 
+impl ExternalTransfer {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalTransfer.account_id: expected String".to_string()))?), },
+        end_to_end: match v.get("end_to_end") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EndToEndReference::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalAmount::from_json(x)?), },
+        beneficiary: match v.get("beneficiary") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BeneficiaryName::from_json(x)?), },
+        direction: match v.get("direction") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MovementDirection::from_json(x)?), },
+        status: v.require("status", "ExternalTransfer")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalTransfer.status: expected a string".to_string()))?.to_string(),
+        })
+    }
+}
+
 impl crate::kernel::ToJson for ExternalTransfer {
     fn to_json(&self) -> crate::kernel::Json {
         ExternalTransfer::to_json(self)

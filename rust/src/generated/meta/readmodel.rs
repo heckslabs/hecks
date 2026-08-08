@@ -320,6 +320,22 @@ impl ReadModel {
     }
 }
 
+impl ReadModel {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        bluebook_id: match v.get("bluebook_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel.bluebook_id: expected String".to_string()))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelName::from_json(x)?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProjectionPurpose::from_json(x)?), },
+        query_name: match v.get("query_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
+        reference_name: match v.get("reference_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
+        reference_target: match v.get("reference_target") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
+        aggregate_heads: match v.get("aggregate_heads").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Head::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ProjectionOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        })
+    }
+}
+
 impl crate::kernel::ToJson for ReadModel {
     fn to_json(&self) -> crate::kernel::Json {
         ReadModel::to_json(self)
