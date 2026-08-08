@@ -236,6 +236,26 @@ module RustProjection
           record: record_name,
           commands: registry_commands,
           entity_commands: entity_commands,
+          # WHICH TOP-LEVEL GENERATED MODULE this aggregate's own .rs file
+          # lives under (`meta`, `embryonaut`, `governance`, ...) — a
+          # standalone per-chapter registry.rs (this file, below) uses it
+          # to qualify every cross-file path as `crate::generated::
+          # #{chapter_mod}::...` instead of the old bare `super::...`
+          # (only valid within THIS module's own directory); bin/project_
+          # rust's separate MERGED registry (spanning every chapter a
+          # domain attaches) relies on the SAME field to tell aggregates
+          # from different chapters apart once they're combined into one
+          # list.
+          chapter_mod: mod_name,
+          # The bluebook's own DECLARED name ("Governance", not the
+          # lowercase module "governance") — `emit_registry`'s own
+          # `Store#instances()` dump uses this PER-aggregate, not a
+          # single shared name, precisely so a merged multi-chapter
+          # registry labels each record "Governance::RoleAssignment#..."
+          # /"Embryonaut::Member#..." correctly rather than mislabeling
+          # every aggregate with whichever chapter happened to be passed
+          # in as this call's own top-level domain_name.
+          domain_name: domain_name,
         }
       end
 
@@ -250,13 +270,13 @@ module RustProjection
 
       registry_path = File.join(mod_dir, "registry.rs")
       File.open(registry_path, "w") do |f|
-        f.puts Projector.emit_registry(domain_name, registry_aggregates)
+        f.puts Projector.emit_registry(registry_aggregates)
         f.puts
         f.puts Projector.emit_policy_table(domain_name, ir[:policies])
         f.puts
         f.puts Projector.emit_process_manager_table(ir[:process_managers])
         f.puts
-        f.puts Projector.emit_reference_key_table(domain_name, generated_aggregates.map { |a| a[:name] })
+        f.puts Projector.emit_reference_key_table([[domain_name, generated_aggregates.map { |a| a[:name] }]])
       end
       puts "wrote #{registry_path}"
 
@@ -268,6 +288,15 @@ module RustProjection
         generated_aggregates.each { |a| f.puts "pub mod #{a[:name].downcase};" }
       end
       puts "wrote #{mod_path}"
+
+      # RETURNED, not just written — bin/project_rust concatenates this
+      # across every chapter a domain attaches (`uses_framework`) to emit
+      # ONE merged Store/dispatch_by_name spanning all of them (a real,
+      # separate step; see bin/project_rust's own comment). Each entry
+      # already carries its own `chapter_mod:` (set above), so the merged
+      # emitter can qualify cross-chapter paths correctly with no further
+      # tagging needed here.
+      registry_aggregates
     end
   end
 end

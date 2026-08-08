@@ -58,12 +58,29 @@ module RustProjection
       check[:optional] ? "if let Some(v) = &args.#{ident} { #{call} }" : call
     end
 
-    def emit_registry(domain_name, aggregates)
-      store_fields = aggregates.map { |a| "    pub #{a[:mod]}: crate::kernel::InMemoryRepository<super::#{a[:mod]}::#{a[:record]}>," }
+    # `a[:chapter_mod]` — which top-level generated module (`meta`,
+    # `embryonaut`, `governance`, ...) this aggregate's own .rs file
+    # lives under (`domain_generator.rb`'s own header on why: `super::`
+    # only resolves within the SAME directory, which stops being true
+    # the moment aggregates from more than one chapter feed one merged
+    # registry). `crate::generated::#{chapter_mod}::` is valid from
+    # every caller of `emit_registry` — a single-chapter call (today's
+    # per-domain `registry.rs`) and the merged multi-chapter one
+    # (bin/project_rust's own new step) both resolve identically,
+    # because a module can always name itself by its own absolute path.
+    # `domain_name` is no longer a single shared param — `dump_arms`
+    # reads `a[:domain_name]` PER aggregate instead (`domain_generator.
+    # rb`'s own header on why: a merged multi-chapter registry would
+    # otherwise mislabel every aggregate's own instance dump with
+    # whichever ONE chapter name got passed in, e.g. every Governance/
+    # Identity record showing up as "Embryonaut::whatever#id").
+    def emit_registry(aggregates)
+      chapter_path = ->(a) { "crate::generated::#{a[:chapter_mod]}::#{a[:mod]}" }
+      store_fields = aggregates.map { |a| "    pub #{a[:mod]}: crate::kernel::InMemoryRepository<#{chapter_path.call(a)}::#{a[:record]}>," }
       store_inits  = aggregates.map { |a| "            #{a[:mod]}: crate::kernel::InMemoryRepository::new()," }
 
       dump_arms = aggregates.map do |a|
-        prefix = "#{domain_name}::#{a[:name]}#"
+        prefix = "#{a[:domain_name]}::#{a[:name]}#"
         <<~RUST.rstrip
                   for (id, record) in self.#{a[:mod]}.entries() {
                       instances.push((format!("{}{}", #{prefix.inspect}, id), record.to_json()));
@@ -72,13 +89,14 @@ module RustProjection
       end
 
       aggregate_arms = aggregates.flat_map do |a|
+        mod_path = chapter_path.call(a)
         a[:commands].map do |c|
-          dispatch_call = "super::#{a[:mod]}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? '' : '&id, '}args)"
-          id_line = c[:creates] ? "" : "let id = super::#{a[:mod]}::#{a[:record]}::extract_id(args_json)?;"
+          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? '' : '&id, '}args)"
+          id_line = c[:creates] ? "" : "let id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
-          body = [id_line, "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
+          body = [id_line, "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
                   "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
 
@@ -94,14 +112,15 @@ module RustProjection
       # names the generated function `dispatch_entity_<fn>` — the
       # `"entity_" + fn` this file's own `fn:` entries already carry.
       entity_arms = aggregates.flat_map do |a|
+        mod_path = chapter_path.call(a)
         a[:entity_commands].map do |c|
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
-          dispatch_call = "super::#{a[:mod]}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))"
+          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args).map(|(_, events)| stamp_payload(events, &payload))"
 
-          body = ["let parent_id = super::#{a[:mod]}::#{a[:record]}::extract_id(args_json)?;",
-                  "let element_id = super::#{a[:mod]}::#{c[:entity_record]}::extract_id(args_json)?;",
-                  "let args = super::#{a[:mod]}::#{c[:args_struct]}::from_json(args_json)?;",
+          body = ["let parent_id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;",
+                  "let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(args_json)?;",
+                  "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;",
                   role_line, *reference_lines,
                   "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
                   dispatch_call].compact

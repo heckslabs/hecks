@@ -169,11 +169,20 @@ module RustProjection
     # keyed by the emitting event's OWN qualified aggregate name, exactly
     # the same per-event (not per-process-manager) rule Ruby's own
     # `Naming.reference_key(event.aggregate)` applies.
-    def emit_reference_key_table(domain_name, aggregate_names)
-      arms = aggregate_names.map do |name|
-        qualified = "#{domain_name}::#{name}"
-        key = Hecksagain::Naming.snake(name)
-        "        #{qualified.inspect} => Some(#{key.inspect}),"
+    # `chapters` — `[[domain_name, aggregate_names], ...]`, one pair per
+    # chapter (bin/project_rust's own per-domain call for a single-
+    # chapter registry.rs passes exactly one pair; the merged registry
+    # spanning every chapter a domain attaches passes one pair per
+    # chapter) — this table is domain-qualified-name -> key regardless
+    # of how many chapters fed it, so merging is just "more pairs in
+    # the same flat list," no other change needed.
+    def emit_reference_key_table(chapters)
+      arms = chapters.flat_map do |domain_name, aggregate_names|
+        aggregate_names.map do |name|
+          qualified = "#{domain_name}::#{name}"
+          key = Hecksagain::Naming.snake(name)
+          "        #{qualified.inspect} => Some(#{key.inspect}),"
+        end
       end
 
       <<~RUST
