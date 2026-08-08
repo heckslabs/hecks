@@ -60,14 +60,18 @@
 #     than it claims to.
 #
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
-#   - `ensures`, lifecycle transitions, `set`/`increment`/`decrement`
-#     mutations, a literal value object inside an `append` — all named
-#     per-command by `command_skip_reason`, below.
+#   - `ensures`, `increment`/`decrement` mutations, a literal value
+#     object inside an `append` — all named per-command by
+#     `command_skip_reason`, below. `set`/`append` mutations and
+#     lifecycle transitions ARE generated.
 #   - Role checking (Unauthorized), reference-existence checking
-#     (resolve_references), entities.
-#   - `emit_record` does not resolve `Reference<X>` or entity-list
-#     attribute types to real Rust types — an aggregate carrying either
-#     shape is skipped loudly, by name, with the offending type named.
+#     (resolve_references — a `Reference<X>` attribute is represented
+#     as a bare `String` id, per aggregates-and-value-objects.md; NOTHING
+#     checks that id actually names a real record), entities.
+#   - `emit_record` does not resolve entity-list attribute types to real
+#     Rust types (`Reference<X>` IS resolved, as of this slice) — an
+#     aggregate carrying one is skipped loudly, by name, with the
+#     offending type named.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -151,8 +155,24 @@ module RustProjector
   SCALAR      = { "String" => "String", "Integer" => "i64", "Float" => "f64" }.freeze
   SCALAR_KIND = { "String" => :string, "Integer" => :int, "Float" => :float }.freeze
 
+  # `Reference<X>` is not a scalar per the IR's own vocabulary, but it
+  # behaves like one for codegen purposes: aggregates-and-value-objects.md's
+  # "Pointing at another aggregate" section is explicit that a reference
+  # "is a bare id — a String — not a nested object." No `resolve_references`
+  # existence check is generated yet (a real, separate gap — see this
+  # file's header), so a reference is
+  # represented as a plain `String`, the same as any other id.
+  def reference_type?(type_name) = type_name.to_s.start_with?("Reference<")
+
+  def effective_scalar_type(type_name)
+    return "String" if reference_type?(type_name)
+
+    type_name if SCALAR.key?(type_name)
+  end
+
   def rust_type(type_name, list:)
-    inner = SCALAR.key?(type_name) ? SCALAR.fetch(type_name) : rust_ident(type_name)
+    scalar = effective_scalar_type(type_name)
+    inner = scalar ? SCALAR.fetch(scalar) : rust_ident(type_name)
     list ? "Vec<#{inner}>" : inner
   end
 
@@ -182,10 +202,11 @@ module RustProjector
   def emit_fielded_flat(struct_name, attributes, value_objects_by_name)
     arms = attributes.filter_map do |attr|
       field = rust_field(attr[:name])
+      scalar = effective_scalar_type(attr[:type])
       if attr[:list]
         %(            "#{field}" => Some(Field::Value(Value::List(self.#{field}.len()))),)
-      elsif SCALAR.key?(attr[:type])
-        %(            "#{field}" => Some(Field::Value(#{scalar_to_value(attr[:type], "self.#{field}")})),)
+      elsif scalar
+        %(            "#{field}" => Some(Field::Value(#{scalar_to_value(scalar, "self.#{field}")})),)
       else
         nested = value_objects_by_name[attr[:type]]
         next nil unless nested && !nested[:closed_set]
@@ -216,10 +237,11 @@ module RustProjector
     name = rust_ident(aggregate[:name])
     arms = aggregate[:attributes].filter_map do |attr|
       field = rust_field(attr[:name])
+      scalar = effective_scalar_type(attr[:type])
       if attr[:list]
         %(            "#{field}" => Some(Field::Value(Value::List(self.#{field}.len()))),)
-      elsif SCALAR.key?(attr[:type])
-        value = scalar_to_value(attr[:type], "v")
+      elsif scalar
+        value = scalar_to_value(scalar, "v")
         %(            "#{field}" => self.#{field}.as_ref().map(|v| Field::Value(#{value})).or(Some(Field::Value(Value::Nil))),)
       else
         nested = value_objects_by_name[attr[:type]]
@@ -307,7 +329,7 @@ module RustProjector
 
   def unsupported_attribute_types(aggregate, value_objects_by_name)
     aggregate[:attributes]
-      .reject { |attr| SCALAR.key?(attr[:type]) || value_objects_by_name.key?(attr[:type]) }
+      .reject { |attr| effective_scalar_type(attr[:type]) || value_objects_by_name.key?(attr[:type]) }
       .map { |attr| attr[:type] }
       .uniq
   end
@@ -347,6 +369,18 @@ module RustProjector
     literal_fields = command[:mutations].select { |m| m[:op] == :append }
                                          .flat_map { |m| m[:fields].select { |_, v| v.start_with?("{") }.keys }
     return "append carries a literal value object (#{literal_fields.join(', ')}) — not parsed back from its .inspect string yet" if literal_fields.any?
+
+    # A `:set` mutation's literal source is a bare scalar (`to: "sold"`) in
+    # every case this generator handles — Command::Mutation#classified_source
+    # wraps ANY non-Symbol source as `{kind: "literal", value: source}`
+    # untouched, so a literal VALUE OBJECT (`to: { value: "good" }`) arrives
+    # here as a real Ruby Hash, not a re-parseable string the way a literal
+    # `append` field is. Checked generically (not just "is it a Hash") so
+    # nothing NEW and unexpected can crash the run instead of being skipped.
+    scalar_literal = ->(v) { v.is_a?(String) || v.is_a?(Numeric) || v == true || v == false }
+    literal_set_targets = command[:mutations].select { |m| m[:op] == :set && m[:source][:kind] == "literal" && !scalar_literal.call(m[:source][:value]) }
+                                              .map { |m| m[:target] }
+    return "then_set to: a non-scalar literal (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
 
     nil
   end
