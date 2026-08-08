@@ -280,7 +280,18 @@ module RustProjection
             # (0014/0015's struct-field change: `SafeDepositBox::Visit.note`,
             # written by `Visit.Annotate`'s `then_set :note, to: :note`) —
             # not just `optional:`'s own whole-RECORD blanket wrap.
-            wrap = (optional || target_attr[:optional])
+            #
+            # `source_attr && source_attr[:optional]` — the SAME check
+            # commands.rb's own record-creation path already makes
+            # (see its "the optional arg's own Option<T> assigns
+            # straight across" comment) and the sibling list-mutation
+            # branch just above makes too: when the COMMAND's own
+            # argument is already `Option<T>`, `rhs` already IS that
+            # `Option<T>` — wrapping it again would be
+            # `Option<Option<T>>`, not this field's real type,
+            # regardless of whether `wrap` would otherwise be true for
+            # blanket-record or per-field reasons.
+            wrap = (optional || target_attr[:optional]) && !(source_attr && source_attr[:optional])
             "        record.#{target_field} = #{wrap ? "Some(#{rhs})" : rhs};"
           end
         end

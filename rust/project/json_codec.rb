@@ -228,8 +228,23 @@ module RustProjection
         # optional?` (mutations.rb) is the record-level equivalent check.
         record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name])
         field_optional = optional || attr[:optional]
+        # A RECORD's own list field (`aggregate` present) is Option-
+        # wrapped ONLY per `list_attr_creation_optional?` — the exact
+        # rule `emit_record` (types.rb) itself uses to decide the
+        # struct field's real type; the aggregate's own `attr[:optional]`
+        # is near-always true for an optional list attribute (Engagement
+        # .use_cases, declared `optional: true`) whether or not any
+        # creating command's `then_set` actually threads a nullable
+        # argument to it, so checking it here too would call `.as_ref()`
+        # on a plain `Vec<T>` field that was never Option-wrapped in the
+        # first place (a real bug, caught live: E0282 "type annotations
+        # needed" on Engagement.use_cases). A non-record struct (Args,
+        # `aggregate: nil`) has no such record-level rule to defer to —
+        # `attr[:optional]` there matches `emit_fielded_flat`'s own list
+        # field type directly, unchanged.
+        list_is_optional = aggregate ? record_optional_list : attr[:optional]
         value_expr =
-          if attr[:list] && (attr[:optional] || record_optional_list)
+          if attr[:list] && list_is_optional
             "self.#{ident}.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)"
           elsif attr[:list]
             "crate::kernel::Json::Array(self.#{ident}.iter().map(|x| x.to_json()).collect())"
