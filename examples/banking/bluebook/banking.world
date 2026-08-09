@@ -15,5 +15,12 @@ Hecks.world "Banking" do
     region "us-east-1"
     memory 512
     timeout 10
+    # THE STOREHOUSE — no RDS/VPC of Banking's own anymore. Borrows
+    # Embryonaut's already-live instance instead, isolated by its own
+    # native Postgres schema (banking.*, created directly by this
+    # domain's own provisioning on next deploy — Banking isn't
+    # production, so there's no existing data to migrate).
+    database "Shared"
+    owner "Embryonaut"
   end
 end

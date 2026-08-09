@@ -11,14 +11,14 @@
 # CloudFormation dynamic reference — resolved at deploy time, never
 # visible in this template, a parameter, or any tool's output.
 #
-# NO NAT GATEWAY — deliberately. These subnets have no route to the
-# internet at all, only to the RDS instance inside the same VPC. That's
-# the whole job today (dispatch a command, read/write the journal);
+# NO NAT GATEWAY for BankingFunction — deliberately. Its own subnets
+# have no route to the internet at all, only to the RDS instance
+# inside the same VPC: dispatch a command, read/write the journal.
 # CloudWatch Logs delivery doesn't go through the function's own VPC
-# networking, so it needs no route either. Real outbound internet
-# access from here (a future external API call, say) would need a NAT
-# Gateway added — a real, ongoing cost this template doesn't take on
-# until something actually needs it.
+# networking, so it needs no route either.
+  # Real outbound internet access from here (a future external API
+  # call, say) would need a NAT Gateway added -- a real, ongoing cost
+  # this template doesn't take on until something actually needs it.
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
@@ -26,89 +26,45 @@ Description: >
   wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
   journal (docs/decisions/0018), backed by its own private RDS
   Postgres instance. PackageType Zip, no container.
+Parameters:
+  # THE STOREHOUSE — Embryonaut's own live stack Outputs,
+  # looked up at deploy time (Makefile's own `deploy:`/`mint-era`
+  # targets, below) via the SAME `aws cloudformation describe-stacks`
+  # pattern `mint-era` already used for a bastion, one stack over
+  # instead of one sibling stack over. Never a CloudFormation
+  # Export/ImportValue -- this codebase uses none anywhere (bin/
+  # project_deploy's own header on why: a live shell lookup keeps
+  # this stack independently deployable/deletable, never coupled to
+  # Embryonaut's own stack through CloudFormation itself).
+  OwningVpcId:
+    Type: AWS::EC2::VPC::Id
+  OwningSubnetAId:
+    Type: AWS::EC2::Subnet::Id
+  OwningSubnetBId:
+    Type: AWS::EC2::Subnet::Id
+  # Embryonaut's own Lambda security group, NOT its
+  # DB-facing one -- reused whole, not copied, the same shape
+  # this codebase already trusts elsewhere (a WebFunction sharing
+  # its own dispatch Lambda's security group rather than minting
+  # a second one), one stack over instead of one resource over.
+  # Embryonaut's own DB security group already permits
+  # ingress FROM this group (every member of it, regardless of
+  # which stack minted the member -- security group references
+  # match on GROUP MEMBERSHIP, not resource identity), so joining
+  # it is what actually grants this Lambda access, not a new
+  # ingress rule Embryonaut's own stack would otherwise
+  # need to add.
+  OwningSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  OwningDatabaseEndpoint:
+    Type: String
+  OwningDatabaseSecretArn:
+    Type: String
 
 Resources:
-  BankingDbVpc:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
+  
 
-  BankingDbSubnetA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref BankingDbVpc
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
-
-  BankingDbSubnetB:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref BankingDbVpc
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
-
-  BankingDbSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: !Sub "${AWS::StackName} - private subnets for banking's own RDS instance"
-      SubnetIds: [!Ref BankingDbSubnetA, !Ref BankingDbSubnetB]
-
-  # NO INLINE SecurityGroupEgress/Ingress ON EITHER GROUP — each would
-  # need to reference the other's id from inside its own Properties,
-  # a genuine circular create-order dependency CloudFormation refuses
-  # outright (cfn-lint E3004). Standard fix: create both groups
-  # empty, then wire the cross-reference through two standalone rule
-  # resources below, each of which can legitimately depend on both
-  # groups already existing.
-  BankingFunctionSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref BankingDbVpc
-      GroupDescription: BankingFunction - no inbound (Lambda receives no traffic via its VPC ENI), egress rule attached separately below
-
-  BankingDbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref BankingDbVpc
-      GroupDescription: BankingDb - ingress rule attached separately below, from BankingFunction only
-
-  BankingFunctionEgressToDb:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      GroupId: !Ref BankingFunctionSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      DestinationSecurityGroupId: !Ref BankingDbSecurityGroup
-
-  BankingDbIngressFromFunction:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref BankingDbSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !Ref BankingFunctionSecurityGroup
-
-  BankingDb:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
-    Properties:
-      Engine: postgres
-      EngineVersion: "16.14"
-      DBInstanceClass: db.t4g.micro
-      AllocatedStorage: "20"
-      StorageEncrypted: true
-      DBName: banking
-      MasterUsername: postgres
-      ManageMasterUserPassword: true
-      PubliclyAccessible: false
-      DBSubnetGroupName: !Ref BankingDbSubnetGroup
-      VPCSecurityGroups: [!Ref BankingDbSecurityGroup]
-
+  
   BankingFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -122,6 +78,35 @@ Resources:
       # `stack_name` above exactly — one name, two places it's read
       # from, never out of sync since both derive from `domain_name`.
       FunctionName: hecksagain-banking
+      # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
+      # `sam build --use-container WebFunction` run as TWO SEPARATE
+      # single-resource invocations (deploy:'s own comment on why:
+      # cargo-lambda cross-compiles on this host directly, pg's
+      # native extension needs the container -- `--use-container` is
+      # a global sam build flag, can't be scoped per-resource). Each
+      # invocation regenerates .aws-sam/build/template.yaml from
+      # THIS source template for every resource, not just the one it
+      # builds -- a resource with no CodeUri here reverts to
+      # CodeUri-less after the SECOND invocation, and `sam deploy`
+      # then defaults a missing CodeUri to the template's own
+      # containing directory (deploy/banking/ itself),
+      # zipping the whole project tree -- including WebFunction's
+      # own source -- as this function's code. A real, live deploy
+      # shipped exactly that broken artifact (confirmed via
+      # `aws lambda get-function` + downloading the actual deployed
+      # zip). Pinning CodeUri here survives that regeneration: it
+      # still resolves to `.aws-sam/build/BankingFunction/`, where
+      # build-BankingFunction's own `cp ... $(ARTIFACTS_DIR)` already
+      # placed the real bootstrap+wasm, regardless of which of the
+      # two sam build calls ran most recently.
+      # "." NOT "BankingFunction" -- SAM's Makefile build workflow
+      # requires the Makefile to live INSIDE CodeUri itself
+      # (confirmed live: "Makefile not found at
+      # .../EmbryonautFunction/Makefile" when CodeUri named a
+      # directory of its own). This project's one Makefile lives at
+      # the deploy directory's own root, alongside this template --
+      # "." is where it actually is.
+      CodeUri: .
       PackageType: Zip
       Runtime: provided.al2023
       Architectures: [arm64]
@@ -136,9 +121,9 @@ Resources:
           # CloudTrail/console view of the function's own config as
           # plaintext outside AWS's own encrypted handling.
           DATABASE_URL: !Sub
-            - "postgres://postgres:${DbPass}@${DbHost}:5432/banking"
-            - DbPass: !Sub "{{resolve:secretsmanager:${BankingDb.MasterUserSecret.SecretArn}:SecretString:password}}"
-              DbHost: !GetAtt BankingDb.Endpoint.Address
+            - "postgres://postgres:${DbPass}@${DbHost}:5432/embryonaut"
+            - DbPass: !Sub "{{resolve:secretsmanager:${OwningDatabaseSecretArn}:SecretString:password}}"
+              DbHost: !Ref OwningDatabaseEndpoint
           HECKS_WASM_PATH: !Sub "/var/task/banking.wasm"
           # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
           # domain's own declared name, known at generation time the
@@ -153,15 +138,26 @@ Resources:
           # (era 2+) is a separate, later re-generation, not this one.
           HECKS_DOMAIN: Banking
           HECKS_ERA: "1"
+          HECKS_SCHEMA: banking
       VpcConfig:
-        SubnetIds: [!Ref BankingDbSubnetA, !Ref BankingDbSubnetB]
-        SecurityGroupIds: [!Ref BankingFunctionSecurityGroup]
-      # AWS_IAM, not NONE — this dispatches real domain commands
+        SubnetIds: [!Ref OwningSubnetAId, !Ref OwningSubnetBId]
+        SecurityGroupIds: [!Ref OwningSecurityGroupId]
+      # AWS_IAM by default — this dispatches real domain commands
       # (cap-table/governance-shaped data, for Embryonaut's own use);
       # an unauthenticated public URL is the wrong default for that,
-      # even though it's the simpler one to demo with.
+      # even though it's the simpler one to demo with. NONE only when
+      # `web "Rust"` (rust/host/src/web.rs) makes this the public web
+      # UI itself — safe even though the SAME Function URL also
+      # carries the internal {"verb"}/{"read"} dispatch shapes,
+      # because a Function-URL HTTP event can never be crafted into
+      # that raw top-level shape (Function URLs always wrap the real
+      # HTTP body inside requestContext.http/rawPath/event.body,
+      # unconditionally); that raw shape is reachable only through
+      # the AWS SDK's own IAM-authenticated Invoke API, which never
+      # goes through a Function URL at all.
       FunctionUrlConfig:
         AuthType: AWS_IAM
+
 
 Outputs:
   FunctionUrl:
@@ -180,11 +176,4 @@ Outputs:
   # nothing could ever fill. (`PrivateSubnetId` used to sit here too
   # — dropped, nothing ever consumed it; bastion.yaml mints its own
   # subnet instead.)
-  VpcId:
-    Value: !Ref BankingDbVpc
-  DbSecurityGroupId:
-    Value: !Ref BankingDbSecurityGroup
-  DatabaseEndpoint:
-    Value: !GetAtt BankingDb.Endpoint.Address
-  DatabaseSecretArn:
-    Value: !GetAtt BankingDb.MasterUserSecret.SecretArn
+  
