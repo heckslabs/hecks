@@ -20,10 +20,16 @@ RSpec.describe "the self-hosted Deploy bluebook" do
 
   def declare(overrides = {})
     args = {
-      domain:  { value: "Banking" },
-      region:  { value: "us-east-1" },
-      memory:  { value: 512 },
-      timeout: { value: 10 }
+      domain:   { value: "Banking" },
+      region:   { value: "us-east-1" },
+      memory:   { value: 512 },
+      timeout:  { value: 10 },
+      # "Postgres"/"None" — bin/project_deploy's own Ruby-side
+      # defaults (deploy_settings.fetch(:database, "Postgres") /
+      # .fetch(:web, "None")) when a domain's own deployed_to("AwsLambda")
+      # names neither — Embryonaut's own live choice either way.
+      database: { value: "Postgres" },
+      web:      { value: "None" }
     }.merge(overrides)
     dispatcher.dispatch("Deploy::LambdaTarget.Declare", **args)
   end
@@ -60,6 +66,26 @@ RSpec.describe "the self-hosted Deploy bluebook" do
   it "refuses a timeout above Lambda's own 900s ceiling" do
     expect { declare(timeout: { value: 1000 }) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /fits Lambda's own 900s ceiling/)
+  end
+
+  it "accepts \"Aurora\" for database" do
+    result = declare(database: { value: "Aurora" })
+    expect(result.instance.state[:database].value).to eq("Aurora")
+  end
+
+  it "refuses a database outside {Postgres, Aurora}" do
+    expect { declare(database: { value: "MySQL" }) }
+      .to raise_error(Hecksagain::Runtime::InvariantViolation)
+  end
+
+  it "accepts \"Rust\" for web" do
+    result = declare(web: { value: "Rust" })
+    expect(result.instance.state[:web].value).to eq("Rust")
+  end
+
+  it "refuses a web value outside {None, Rust}" do
+    expect { declare(web: { value: "Ruby" }) }
+      .to raise_error(Hecksagain::Runtime::InvariantViolation)
   end
 
   # THE END-TO-END PROOF — bin/project_deploy itself dispatches into
