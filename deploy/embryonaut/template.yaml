@@ -151,7 +151,7 @@ Resources:
           # mint-era` (this directory's own Makefile) is what actually
           # triggers that first boot; a LATER real schema evolution
           # (era 2+) is a separate, later re-generation, not this one.
-          HECKS_DOMAIN: embryonaut
+          HECKS_DOMAIN: Embryonaut
           HECKS_ERA: "1"
       VpcConfig:
         SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]

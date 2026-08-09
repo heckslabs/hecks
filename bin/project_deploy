@@ -44,6 +44,16 @@ Hecksagain.with_registry(registry) { Kernel.load(world_file) }
 world = registry.worlds.values.first or
   abort "#{world_file} declares no Hecks.world block at all"
 
+# `world.domain` — "Embryonaut", not the directory's lowercase
+# "embryonaut" — is what Ruby's own LineageManager actually writes
+# into `hecks_eras.domain` (Lineage.new(db, bluebook.name), read
+# directly). HECKS_DOMAIN has to match that string exactly, or
+# rust/host's own boot-time `era_exists` check refuses forever no
+# matter how many times `make mint-era` runs — caught live the first
+# time this generator shipped it as `domain_name` (the directory
+# basename) instead.
+declared_domain_name = world.domain
+
 deploy_settings = world.for_verb("deployed_to")
 deploy_settings[:adapter] == "AwsLambda" or
   abort <<~MSG
@@ -224,7 +234,7 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
             # mint-era` (this directory's own Makefile) is what actually
             # triggers that first boot; a LATER real schema evolution
             # (era 2+) is a separate, later re-generation, not this one.
-            HECKS_DOMAIN: #{domain_name}
+            HECKS_DOMAIN: #{declared_domain_name}
             HECKS_ERA: "1"
         VpcConfig:
           SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]
