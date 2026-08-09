@@ -924,7 +924,7 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
           DOMAIN_ROOT: /var/task
           DOMAIN_NAME: #{declared_domain_name}
           HECKS_LAMBDA_ROUTING: "true"
-          HECKS_LAMBDA_REGION: #{region}
+          HECKS_LAMBDA_REGION: #{region}#{hecks_schema ? %(\n        HECKS_SCHEMA: #{hecks_schema}) : ""}
           # SAME setting #{domain}'s own fly.toml/Dockerfile already
           # sets for the Fly deployment this one replaces — Sinatra's
           # own `host_authorization` default is only PERMISSIVE in
@@ -1303,7 +1303,7 @@ mint_era_recipe =
     \t\tsleep 1; \\
     \tdone; \\
     \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
-    \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{domain_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \\
+    \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{domain_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); puts "booted OK — era resolution ran"' $(DOMAIN); \\
     \tBOOT_STATUS=$$?; \\
     \tkill $$TUNNEL_PID 2>/dev/null; \\
     \techo "Tearing down the temporary bastion stack..."; \\
