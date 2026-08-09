@@ -26,6 +26,7 @@
 // maturity level rust/host's own per-domain codegen already has.
 
 use crate::dispatch;
+use crate::journal;
 use crate::journal::LineageConfig;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -227,6 +228,57 @@ async fn member_rows(client: &Mutex<Client>) -> anyhow::Result<Vec<(String, Valu
     Ok(rows.into_iter().map(|r| (r.get(0), r.get(1))).collect())
 }
 
+// `Adapters::Postgres#append`, ported verbatim (postgres.rb:141-166) --
+// confirmed against the real deployed schema, not just source reading.
+// The SAME transactional, ordinal-tracked write EVERY OTHER field-set
+// on member_head already goes through (`Member.Admit`,
+// `Member.GrantAccess` when dispatched by Ruby -- see
+// bin/grant_first_admin) -- not a raw `UPDATE member_head` bypass. One
+// real difference from Ruby's own `Entry`/`save?` machinery: this
+// function is the WHOLE state-with-one-field-changed, computed by its
+// two callers below, not a generic append-any-entry path -- there's
+// only ever "save" (never "delete") for Member here, so `entry.
+// operation`/`entry.mirrors`'s own branches (always "save"/always nil,
+// confirmed by tracing CommandInterpreter -> Postgres#save) collapse
+// to literals rather than being reintroduced as unused generality.
+async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, id: &str, state: &Value) -> anyhow::Result<()> {
+    let mut guard = client.lock().await;
+    let txn = guard.transaction().await?;
+
+    txn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+        &[&config.domain],
+    )
+    .await?;
+
+    let journal_table = format!("hecks_journal_{}", journal::snake(&config.domain));
+    let snapshot_table = format!("member_head_snapshot_{}", config.era);
+
+    let row = txn
+        .query_one(
+            &format!(
+                "INSERT INTO \"{journal_table}\" (era, aggregate, aggregate_id, operation, state, mirrors) \
+                 VALUES ($1, 'member', $2, 'save', $3, NULL) RETURNING ordinal"
+            ),
+            &[&config.era, &id, state],
+        )
+        .await?;
+    let ordinal: i64 = row.get(0);
+
+    txn.execute(
+        &format!(
+            "INSERT INTO \"{snapshot_table}\" (id, ordinal, state) VALUES ($1, $2, $3) \
+             ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state \
+             WHERE \"{snapshot_table}\".ordinal < EXCLUDED.ordinal"
+        ),
+        &[&id, &ordinal, state],
+    )
+    .await?;
+
+    txn.commit().await?;
+    Ok(())
+}
+
 pub async fn session_for_member_by_identity(client: &Mutex<Client>, identity_id: &str) -> anyhow::Result<Option<Session>> {
     let guard = client.lock().await;
     let row = guard
@@ -304,19 +356,20 @@ pub async fn provision(
     // flat journal at all (member_row_by_email's own comment on why),
     // so a WASM-replay dispatch here would rehydrate zero prior Member
     // steps and refuse with a confusing "no such record" instead of
-    // the real story. Writing this field directly against member_head
-    // would work mechanically but skips the SAME transactional,
-    // ordinal-tracked journal INSERT `Adapters::Postgres#append`
-    // performs for every OTHER write to this table (postgres.rb:141) --
-    // a real audit-trail gap for governance/cap-table-adjacent data,
-    // not just a style question. Left as a clean, honest failure
-    // (Identity/Governance ARE minted above -- only this LAST field
-    // write is blocked) until that's deliberately decided, not
-    // silently worked around.
-    anyhow::bail!(
-        "identity {identity_id} minted for {email}, but Embryonaut::Member.LinkIdentity can't run: \
-         Member is Postgres-lineage-bound, not reachable through rust/host's flat-journal dispatch"
-    );
+    // the real story. `append_member_state` is `Adapters::Postgres
+    // #append`'s own transactional, ordinal-tracked protocol instead --
+    // the same journal INSERT + head_snapshot upsert every OTHER write
+    // to this table already goes through, not a raw UPDATE bypassing
+    // it. LinkIdentity's own bluebook command is a single `then_set
+    // :identity_id, to: :identity_id` with no other invariant beyond
+    // "not already linked" -- already checked above -- so the new
+    // state is just the current row with that one field replaced.
+    let mut new_state = member.clone();
+    new_state["identity_id"] = json!({"value": identity_id});
+    append_member_state(client, config, email, &new_state).await?;
+
+    let name = member.get("name").and_then(|v| v.get("value")).and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    Ok(Some(Session { identity_id, email: email.to_string(), name, role: Some(role.to_string()) }))
 }
 
 pub async fn grant_access(
@@ -326,19 +379,18 @@ pub async fn grant_access(
     email: &str,
     role: &str,
 ) -> anyhow::Result<bool> {
-    if member_row_by_email(client, email).await?.is_none() {
+    let _ = wasm_path;
+    let Some(member) = member_row_by_email(client, email).await? else {
         return Ok(false);
-    }
+    };
 
-    // Same gap provision()'s own tail hits -- see that comment. Member
-    // is confirmed to exist (the check above), but GrantAccess can't
-    // actually write role to Postgres-lineage-bound member_head
-    // through rust/host's flat-journal dispatch.
-    let _ = (wasm_path, config, role);
-    anyhow::bail!(
-        "found {email} but Embryonaut::Member.GrantAccess can't run: \
-         Member is Postgres-lineage-bound, not reachable through rust/host's flat-journal dispatch"
-    );
+    // Same real append protocol provision() uses -- see its own
+    // comment. GrantAccess's own bluebook command is a single
+    // `then_set :role, to: :role`, no other invariant.
+    let mut new_state = member;
+    new_state["role"] = json!({"value": role});
+    append_member_state(client, config, email, &new_state).await?;
+    Ok(true)
 }
 
 pub async fn all_people(client: &Mutex<Client>) -> anyhow::Result<Vec<Value>> {
@@ -582,8 +634,24 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
+        // The REAL shape, confirmed live against the deployed database
+        // (`\dt` + `SELECT id, state FROM member_head` via a bastion
+        // tunnel): `member_head` is a VIEW over the era-1 snapshot
+        // table (postgres/lineage/head_compiler.rb's `ensure_first_head!`,
+        // `CREATE OR REPLACE VIEW "member_head" AS SELECT id, state FROM
+        // "member_head_snapshot_1"`), and every write goes through the
+        // domain's own era-partitioned journal table first
+        // (`hecks_journal_embryonaut`) -- `append_member_state`'s own
+        // target, exercised by the test below.
         client
-            .batch_execute("CREATE TABLE member_head (id text PRIMARY KEY, state jsonb NOT NULL)")
+            .batch_execute(
+                "CREATE TABLE member_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL);
+                 CREATE VIEW member_head AS SELECT id, state FROM member_head_snapshot_1;
+                 CREATE TABLE hecks_journal_embryonaut (
+                     ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL,
+                     aggregate_id text NOT NULL, operation text NOT NULL, state jsonb, mirrors jsonb
+                 );",
+            )
             .await
             .unwrap();
         Mutex::new(client)
@@ -595,7 +663,7 @@ mod tests {
         {
             let guard = db.lock().await;
             guard.execute(
-                "INSERT INTO member_head (id, state) VALUES ($1, $2::jsonb), ($3, $4::jsonb)",
+                "INSERT INTO member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb), ($3, 1, $4::jsonb)",
                 &[
                     &"chris@embryonaut.ai",
                     &json!({"name": {"value": "Chris Young"}, "email": {"value": "chris@embryonaut.ai"},
@@ -626,4 +694,85 @@ mod tests {
         assert_eq!(angie["granted"], false);
     }
 
+    #[tokio::test]
+    async fn append_member_state_writes_the_journal_and_advances_the_head_snapshot() {
+        let db = scratch_member_db("hecks_host_auth_test_append_member").await;
+        let config = LineageConfig { domain: "Embryonaut".to_string(), era: 1 };
+        {
+            let guard = db.lock().await;
+            // ordinal 0 -- BELOW anything the fresh journal's own
+            // bigserial sequence will ever produce (starts at 1), the
+            // same way a REAL seed row's ordinal is always lower than
+            // any later real write's. Seeding this at 1 created a
+            // genuine collision with the journal's first real insert
+            // (also ordinal 1) and made the guard correctly refuse to
+            // advance -- caught live by this very test, not a
+            // hypothetical.
+            guard.execute(
+                "INSERT INTO member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 0, $2::jsonb)",
+                &[
+                    &"angie@embryonaut.ai",
+                    &json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
+                            "role": null, "identity_id": null}),
+                ],
+            ).await.unwrap();
+        }
+
+        let granted = json!({"name": {"value": "Angie Chen"}, "email": {"value": "angie@embryonaut.ai"},
+                              "role": {"value": "Admin"}, "identity_id": null});
+        append_member_state(&db, &config, "angie@embryonaut.ai", &granted).await.unwrap();
+
+        // The head view reflects the new state immediately.
+        let after = member_row_by_email(&db, "angie@embryonaut.ai").await.unwrap().expect("still there");
+        assert_eq!(after["role"]["value"], "Admin");
+
+        // A real journal row was appended -- not a raw UPDATE bypassing it.
+        let guard = db.lock().await;
+        let journal_rows = guard
+            .query("SELECT era, aggregate, aggregate_id, operation, state FROM hecks_journal_embryonaut", &[])
+            .await
+            .unwrap();
+        assert_eq!(journal_rows.len(), 1);
+        let row = &journal_rows[0];
+        let era: i32 = row.get(0);
+        let aggregate: String = row.get(1);
+        let aggregate_id: String = row.get(2);
+        let operation: String = row.get(3);
+        let state: Value = row.get(4);
+        assert_eq!(era, 1);
+        assert_eq!(aggregate, "member");
+        assert_eq!(aggregate_id, "angie@embryonaut.ai");
+        assert_eq!(operation, "save");
+        assert_eq!(state["role"]["value"], "Admin");
+
+        // The snapshot's own ordinal advanced past the seed row's.
+        let ordinal: i64 = guard
+            .query_one("SELECT ordinal FROM member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
+            .await
+            .unwrap()
+            .get(0);
+        assert!(ordinal > 0, "should have advanced past the seed row's ordinal 0");
+        drop(guard);
+
+        // The SAME ordinal-guarded upsert Ruby's own append() uses
+        // (`WHERE ordinal < EXCLUDED.ordinal`) refuses to move the
+        // snapshot backward -- append a second, EARLIER-looking write
+        // isn't possible through this function (ordinal always comes
+        // from the SAME sequence the journal INSERT just used), but
+        // the guard itself is directly testable: a manual attempt to
+        // downgrade the snapshot with a smaller ordinal is a no-op.
+        let guard = db.lock().await;
+        guard.execute(
+            "INSERT INTO member_head_snapshot_1 (id, ordinal, state) VALUES ($1, 1, $2::jsonb) \
+             ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state \
+             WHERE member_head_snapshot_1.ordinal < EXCLUDED.ordinal",
+            &[&"angie@embryonaut.ai", &json!({"role": {"value": "SHOULD_NOT_APPLY"}})],
+        ).await.unwrap();
+        let state: Value = guard
+            .query_one("SELECT state FROM member_head_snapshot_1 WHERE id = $1", &[&"angie@embryonaut.ai"])
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(state["role"]["value"], "Admin", "a lower ordinal must never move the snapshot backward");
+    }
 }
