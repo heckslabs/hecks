@@ -166,6 +166,7 @@
 module RustProjection
 end
 
+require_relative "project/exemplar"
 require_relative "project/expr_emitter"
 require_relative "project/naming"
 require_relative "project/constraints"

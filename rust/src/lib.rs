@@ -11,3 +11,9 @@
 // this crate.
 pub mod generated;
 pub mod kernel;
+
+// Real, `cargo test`-checked Rust that rust/project/exemplar.rb slices
+// shapes out of — see rust/src/exemplar/mod.rs's own header. Test-only:
+// never part of a release/Lambda/WASM build.
+#[cfg(test)]
+pub mod exemplar;

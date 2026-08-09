@@ -69,7 +69,12 @@ module RustProjection
 
       members_array = "[#{members.map(&:inspect).join(', ')}]"
       prefix = "#{attr[:name]} admits #{attr[:admits]} — #{members.map(&:inspect).join(', ')} — got "
-      "if !#{members_array}.contains(&#{scalar}.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!(\"{}{:?}\", #{prefix.inspect}, #{scalar}))); }"
+      Exemplar.render(
+        "admits_check",
+        '["tmpl_member_a", "tmpl_member_b"]' => members_array,
+        "tmpl_scalar" => scalar,
+        '"tmpl_prefix_text"' => prefix.inspect
+      )
     end
 
     # `TypeMismatch`/`pattern_mismatch` — `refusal_wording.rb`:
@@ -84,7 +89,12 @@ module RustProjection
       return nil unless scalar
 
       prefix = "#{owner_type_name}.#{attr[:name]} must match #{attr[:pattern]}, got "
-      "if !crate::kernel::pattern::matches(#{attr[:pattern].inspect}, &#{scalar}) { return Err(crate::kernel::Refusal::TypeMismatch(format!(\"{}{:?}\", #{prefix.inspect}, #{scalar}))); }"
+      Exemplar.render(
+        "pattern_check",
+        '"tmpl_pattern_text"' => attr[:pattern].inspect,
+        "tmpl_scalar" => scalar,
+        '"tmpl_prefix_text"' => prefix.inspect
+      )
     end
   end
 end

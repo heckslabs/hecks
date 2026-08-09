@@ -63,14 +63,12 @@ module RustProjection
     def emit_closed_set_table(vo)
       name = rust_ident(vo[:name])
 
-      lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
-      vo[:attributes].each do |attr|
+      field_subs_list = vo[:attributes].map do |attr|
         type = rust_type(attr[:type], list: attr[:list])
         type = "&'static str" if type == "String" # static data — a borrowed literal, not an owned String
-        lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+        { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
-      lines << "}"
-      lines << ""
+      struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
 
       # A member's row only carries the fields its declaration actually SET —
       # `Keyword`'s own `status` (declares `default: "admitted"`) and `was`
@@ -89,15 +87,12 @@ module RustProjection
                     when "Float"   then "#{raw.to_f}f64"
                     else raw.to_s.inspect # String, or an unrecognized type — treated as text, not silently dropped
                     end
-          "#{rust_ident_field(attr[:name])}: #{literal}"
+          Exemplar.render("closed_set_table_row_field", "tmpl_field" => rust_ident_field(attr[:name]), "tmpl_value_placeholder()" => literal)
         end.join(", ")
         "    #{name} { #{fields} },"
       end
 
-      lines << "pub const #{screaming_snake(vo[:name])}: &[#{name}] = &["
-      lines.concat(member_literals)
-      lines << "];"
-      lines.join("\n")
+      "#{struct_part}\n\npub const #{screaming_snake(vo[:name])}: &[#{name}] = &[\n#{member_literals.join("\n")}\n];"
     end
 
     def emit_value_object(vo, value_objects_by_name, aggregates_by_name)
@@ -117,24 +112,26 @@ module RustProjection
         return emit_closed_set_table(vo) if vo[:attributes].size > 1
 
         variants = vo[:members].map { |row| closed_set_variant(row) }
-        lines = ["#[derive(Debug, Clone, PartialEq, Eq)]", "pub enum #{name} {"]
-        variants.each { |v| lines << "    #{v}," }
-        lines << "}"
-        return lines.join("\n")
+        return Exemplar.compose(
+          "closed_set_enum",
+          { "TmplKind" => name },
+          field_id: "closed_set_enum:VARIANT",
+          field_subs_list: variants.map { |v| { "TmplMemberA" => v } }
+        )
       end
 
-      lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
-      vo[:attributes].each do |attr|
+      field_subs_list = vo[:attributes].map do |attr|
         type = rust_type(attr[:type], list: attr[:list])
         type = "Option<#{type}>" if attr[:optional]
-        lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+        { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
-      lines << "}"
-      lines << ""
-      lines << emit_fielded_flat(name, vo[:attributes], value_objects_by_name)
-      lines << ""
-      lines << emit_check_invariants(vo, value_objects_by_name, aggregates_by_name)
-      lines.join("\n")
+      struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
+
+      [
+        struct_part,
+        emit_fielded_flat(name, vo[:attributes], value_objects_by_name),
+        emit_check_invariants(vo, value_objects_by_name, aggregates_by_name),
+      ].join("\n\n")
     end
 
     def unsupported_attribute_types(aggregate, value_objects_by_name)
@@ -160,8 +157,7 @@ module RustProjection
     # addressing). This only makes an entity usable as an `append` TARGET.
     def emit_entity(entity, value_objects_by_name)
       name = rust_ident(entity[:name])
-      lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
-      entity[:attributes].each do |attr|
+      field_subs_list = entity[:attributes].map do |attr|
         type = rust_type(attr[:type], list: attr[:list])
         # `optional: true` — a caller-omittable field (0014/0015's own
         # gap: `SafeDepositBox::Visit.note`, populated by `LogVisit`'s
@@ -172,11 +168,11 @@ module RustProjection
         # optional here — the mismatched case (an optional source into a
         # non-optional VO field) is skipped, loudly, before generation.
         type = "Option<#{type}>" if attr[:optional]
-        lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+        { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
-      lines << "    pub #{rust_ident_field(entity[:lifecycle][:field])}: String," if entity[:lifecycle]
-      lines << "}"
-      lines << ""
+      field_subs_list << { "TmplFieldType" => "String", "tmpl_field" => rust_ident_field(entity[:lifecycle][:field]) } if entity[:lifecycle]
+      struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
+
       # An entity command's own TransitionCheck reads this field generically
       # (kernel::dispatch_entity, the same way an aggregate command's does
       # off emit_fielded_record's own lifecycle arm) — entity_lifecycle_arm
@@ -190,14 +186,12 @@ module RustProjection
         else
           []
         end
-      lines << emit_fielded_flat(name, entity[:attributes], value_objects_by_name, extra_arms: lifecycle_arm)
-      lines.join("\n")
+      "#{struct_part}\n\n#{emit_fielded_flat(name, entity[:attributes], value_objects_by_name, extra_arms: lifecycle_arm)}"
     end
 
     def emit_record(aggregate, value_objects_by_name)
       name = rust_ident(aggregate[:name])
-      lines = ["#[derive(Debug, Clone, PartialEq)]", "pub struct #{name} {"]
-      aggregate[:attributes].each do |attr|
+      field_subs_list = aggregate[:attributes].map do |attr|
         # Every field starts optional at the Rust-struct level regardless of
         # the IR's own optional: flag — a creating command may not set every
         # field on step one (Order.CreatePizza never sets customer_name), and
@@ -214,13 +208,12 @@ module RustProjection
         # represents correctly.
         type = rust_type(attr[:type], list: attr[:list])
         type = "Option<#{type}>" if !attr[:list] || list_attr_creation_optional?(aggregate, attr[:name])
-        lines << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+        { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
-      lines << "    pub #{rust_ident_field(aggregate[:lifecycle][:field])}: String," if aggregate[:lifecycle]
-      lines << "}"
-      lines << ""
-      lines << emit_fielded_record(aggregate, value_objects_by_name)
-      lines.join("\n")
+      field_subs_list << { "TmplFieldType" => "String", "tmpl_field" => rust_ident_field(aggregate[:lifecycle][:field]) } if aggregate[:lifecycle]
+      struct_part = Exemplar.compose("plain_struct", { "TmplType" => name }, field_id: "struct_field", field_subs_list: field_subs_list)
+
+      "#{struct_part}\n\n#{emit_fielded_record(aggregate, value_objects_by_name)}"
     end
   end
 end

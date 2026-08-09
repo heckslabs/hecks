@@ -59,11 +59,10 @@ module RustProjection
       skipped = policies.size - rows.size
       puts "policy table: #{rows.size} routable, #{skipped} cross-domain (skipped — see reactions.rb's own header)" if skipped.positive?
 
-      <<~RUST
-        pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-        #{rows.join("\n")}
-        ];
-      RUST
+      Exemplar.render(
+        "policy_table",
+        'crate::kernel::PolicyRule { event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },' => rows.join("\n")
+      )
     end
 
     # A `with:` binding's raw wire spelling — `IR.render_value`'s own two
@@ -115,7 +114,11 @@ module RustProjection
       return "crate::kernel::WithValue::Ref(#{parsed.to_s.inspect})" if parsed.is_a?(Symbol)
 
       fn_name = "pm_literal_#{literal_fns.size}"
-      literal_fns << "fn #{fn_name}() -> crate::kernel::Json { #{json_literal_expr(parsed)} }"
+      literal_fns << Exemplar.render(
+        "with_value_literal_fn",
+        "tmpl_literal_fn" => fn_name,
+        "tmpl_body_placeholder()" => json_literal_expr(parsed)
+      )
       "crate::kernel::WithValue::Literal(#{fn_name})"
     end
 
@@ -148,13 +151,12 @@ module RustProjection
           "handlers: &[#{handlers.join(', ')}] }"
       end
 
-      <<~RUST
-        #{literal_fns.join("\n")}
-
-        pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
-        #{pm_exprs.map { |e| "    #{e}," }.join("\n")}
-        ];
-      RUST
+      Exemplar.render(
+        "process_manager_table",
+        "fn tmpl_literal_fns_placeholder() {}" => literal_fns.join("\n"),
+        '    crate::kernel::ProcessManagerDef { name: "tmpl_pm_name", correlates_by: "tmpl_correlates_by", starts_on: "tmpl_starts_on", ends_on: "tmpl_ends_on", initial_state: "tmpl_initial_state", handlers: &[] },' =>
+          pm_exprs.map { |e| "    #{e}," }.join("\n")
+      )
     end
 
     # `Naming.reference_key(event.aggregate)`, precomputed per aggregate
@@ -185,14 +187,7 @@ module RustProjection
         end
       end
 
-      <<~RUST
-        pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
-            match qualified_name {
-        #{arms.join("\n")}
-                _ => None,
-            }
-        }
-      RUST
+      Exemplar.render("reference_key_table", '"tmpl_qualified" => Some("tmpl_key"),' => arms.join("\n"))
     end
   end
 end

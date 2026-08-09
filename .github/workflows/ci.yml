@@ -74,6 +74,14 @@ jobs:
           bin/project_rust examples/banking
           cd rust && cargo build --release
 
+      # rust/src/exemplar/** — real Rust the codegen in rust/project/*.rb
+      # slices shapes out of, proven valid/idiomatic here BEFORE any Ruby
+      # runs. `#[cfg(test)] pub mod exemplar;` (rust/src/lib.rs) means
+      # plain `mod` inclusion under `cargo test` type-checks the whole
+      # tree; no #[test] fn is required for that to catch a broken shape.
+      - name: Build the exemplar module
+        run: cd rust && cargo test --lib
+
       # The whole suite — corpus, adapters (Postgres and SQLite both
       # reachable here, so neither skips itself), the guides' own doctests,
       # the reference golden, the Rust conformance check above (also

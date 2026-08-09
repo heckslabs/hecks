@@ -217,6 +217,12 @@ module RustProjection
       identity = identity_components(aggregate, command)
       identity_extra_params = identity.filter_map { |c| c[:param] }
 
+      # `struct_field` reused directly (not the whole `plain_struct`
+      # wrapper, types.rb) — an Args struct's own surrounding derive is
+      # `#[derive(Debug, Clone)]`, no `PartialEq` (never compared),
+      # different from `plain_struct`'s baked-in one, so only the ONE
+      # already-proven-valid piece that's actually identical (a single
+      # field declaration line) is worth sharing here.
       args_struct = ["pub struct #{cmd}Args {"]
       command[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
@@ -232,7 +238,7 @@ module RustProjection
         # NON-optional VO/entity field) before generation ever reaches
         # here.
         type = "Option<#{type}>" if attr[:optional]
-        args_struct << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+        args_struct << "    #{Exemplar.render('struct_field', 'TmplFieldType' => type, 'tmpl_field' => rust_ident_field(attr[:name]))}"
       end
       args_struct << "}"
 
@@ -310,40 +316,23 @@ module RustProjection
         fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, id: &str, args: #{cmd}Args, mutations: &mut Vec<crate::kernel::MutationRecord>"
       end
 
-      <<~RUST
-        #{emit_fielded_flat("#{cmd}Args", command[:attributes], value_objects_by_name)}
+      dispatch_fn = Exemplar.render(
+        "dispatch_fn",
+        "repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>" => fn_signature,
+        "dispatch_tmpl" => "dispatch_#{dispatch_fn_name(cmd)}",
+        "TmplRecord" => record,
+        "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),
+        "tmpl_hydrate_placeholder()" => hydrate,
+        '"TmplCmdName"' => cmd.inspect,
+        '"TmplQualifiedName"' => "#{domain_name}::#{aggregate[:name]}".inspect,
+        "tmpl_given_spec_placeholder()," => given_specs.join("\n"),
+        "tmpl_transition_placeholder()" => transition_arg,
+        "tmpl_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
+        "tmpl_ensures_spec_placeholder()," => ensures_specs.join("\n"),
+        "tmpl_emit_placeholder()" => command[:emits].map(&:inspect).join(", ")
+      )
 
-        #[derive(Debug, Clone)]
-        #{args_struct.join("\n")}
-
-        pub fn dispatch_#{dispatch_fn_name(cmd)}(
-            #{fn_signature},
-        ) -> crate::kernel::DispatchResult<#{record}> {
-        #{invariant_checks.join("\n")}
-
-            crate::kernel::dispatch(
-                repo,
-                #{hydrate},
-                #{cmd.inspect},
-                #{"#{domain_name}::#{aggregate[:name]}".inspect},
-                &args,
-                &[
-        #{given_specs.join("\n")}
-                ],
-                #{transition_arg},
-                |record| {
-        #{mutation_lines.join("\n")}
-                    Ok(())
-                },
-                &[
-        #{ensures_specs.join("\n")}
-                ],
-                &[#{command[:emits].map(&:inspect).join(", ")}],
-                args.to_json(),
-                mutations,
-            )
-        }
-      RUST
+      "#{emit_fielded_flat("#{cmd}Args", command[:attributes], value_objects_by_name)}\n\n#[derive(Debug, Clone)]\n#{args_struct.join("\n")}\n\n#{dispatch_fn}"
     end
 
     # `entity_command_skip_reason` — deliberately just `command_skip_reason`
@@ -396,7 +385,7 @@ module RustProjection
       command[:attributes].each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
         type = "Option<#{type}>" if attr[:optional]
-        args_struct << "    pub #{rust_ident_field(attr[:name])}: #{type},"
+        args_struct << "    #{Exemplar.render('struct_field', 'TmplFieldType' => type, 'tmpl_field' => rust_ident_field(attr[:name]))}"
       end
       args_struct << "}"
 
@@ -429,48 +418,30 @@ module RustProjection
 
       qualified_command_name = "#{entity[:name]}.#{command[:name]}"
 
-      <<~RUST
-        #{emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name)}
+      entity_dispatch_fn = Exemplar.render(
+        "entity_dispatch_fn",
+        "dispatch_entity_tmpl" => "dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}",
+        "TmplRecord" => parent_record,
+        "TmplArgs" => args_struct_name,
+        "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),
+        "tmpl_list_field" => list_field,
+        "TmplElement" => element_record,
+        '"TmplQualifiedCommandName"' => qualified_command_name.inspect,
+        '"TmplQualifiedName"' => "#{domain_name}::#{parent_aggregate[:name]}".inspect,
+        "tmpl_given_spec_placeholder()," => given_specs.join("\n"),
+        "tmpl_transition_placeholder()" => transition_arg,
+        "tmpl_entity_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
+        "tmpl_ensures_spec_placeholder()," => ensures_specs.join("\n"),
+        "tmpl_emit_placeholder()" => command[:emits].map(&:inspect).join(", ")
+      )
 
-        #[derive(Debug, Clone)]
-        #{args_struct.join("\n")}
-
-        #{emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name)}
-
-        #{emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name)}
-
-        pub fn dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}(
-            repo: &mut impl crate::kernel::Repository<#{parent_record}>, parent_id: &str, element_id: &str, args: #{args_struct_name},
-            mutations: &mut Vec<crate::kernel::MutationRecord>,
-        ) -> crate::kernel::DispatchResult<#{parent_record}> {
-        #{invariant_checks.join("\n")}
-
-            crate::kernel::dispatch_entity(
-                repo,
-                parent_id,
-                |r: &#{parent_record}| &r.#{list_field},
-                |r: &mut #{parent_record}| &mut r.#{list_field},
-                |el: &#{element_record}| el.identity() == element_id,
-                #{qualified_command_name.inspect},
-                #{"#{domain_name}::#{parent_aggregate[:name]}".inspect},
-                &args,
-                &[
-        #{given_specs.join("\n")}
-                ],
-                #{transition_arg},
-                |record| {
-        #{mutation_lines.join("\n")}
-                    Ok(())
-                },
-                &[
-        #{ensures_specs.join("\n")}
-                ],
-                &[#{command[:emits].map(&:inspect).join(", ")}],
-                args.to_json(),
-                mutations,
-            )
-        }
-      RUST
+      [
+        emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name),
+        "#[derive(Debug, Clone)]\n#{args_struct.join("\n")}",
+        emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
+        emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
+        entity_dispatch_fn,
+      ].join("\n\n")
     end
   end
 end

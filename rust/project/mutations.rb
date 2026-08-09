@@ -213,6 +213,17 @@ module RustProjection
       target_field   = rust_ident_field(mutation[:target])
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
 
+      # The leading "        " restores the OLD code's own hardcoded
+      # 8-space prefix — each `Exemplar.render` call below returns
+      # flush-left text (a single-line shape's own dedent margin is
+      # always its full indent, stripped to zero), and the CALLER
+      # (commands.rb) joins these lines with "\n" expecting each one to
+      # already carry its own indentation, the same as every other
+      # single-line leaf in this generator.
+      "        #{emit_mutation_line_body(mutation, aggregate, command, value_objects_by_name, target_field, lifecycle_field, optional)}"
+    end
+
+    def emit_mutation_line_body(mutation, aggregate, command, value_objects_by_name, target_field, lifecycle_field, optional)
       case mutation[:op]
       when :append
         target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
@@ -245,11 +256,15 @@ module RustProjection
           end
         end
 
-        "        record.#{target_field}.push(#{vo_type} { #{fields_assignment.join(', ')} });"
+        Exemplar.render(
+          "mutation_append",
+          "tmpl_field" => target_field,
+          "tmpl_fields_placeholder()" => "#{vo_type} { #{fields_assignment.join(', ')} }"
+        )
       when :set
         if mutation[:target] == lifecycle_field
           rhs = mutation_set_rhs(mutation[:source], "String", command, value_objects_by_name)
-          "        record.#{target_field} = #{rhs};"
+          Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
         else
           target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
           rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
@@ -264,7 +279,7 @@ module RustProjection
             # Option-wrap this record field in the first place, so the
             # redundant re-set assigns the SAME `Option<Vec<T>>` shape
             # straight across, no unwrapping.
-            "        record.#{target_field} = #{rhs};"
+            Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
           elsif target_attr[:list] && source_attr && source_attr[:optional]
             # A record's own list field is plain `Vec<T>` by DEFAULT
             # (`emit_record`'s rule, unless the branch above applies) — an
@@ -272,9 +287,9 @@ module RustProjection
             # fallback `record_fields`' own creation-time case uses —
             # cleanly resolvable, not the `optional_source_mismatches`
             # shape that has to be skipped.
-            "        record.#{target_field} = #{rhs}.unwrap_or_default();"
+            Exemplar.render("mutation_set_unwrap_or_default", "tmpl_field" => target_field, "tmpl_optional_rhs_placeholder()" => rhs)
           elsif target_attr[:list]
-            "        record.#{target_field} = #{rhs};"
+            Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
           else
             # `target_attr[:optional]` — a PER-FIELD `Option<T>` target
             # (0014/0015's struct-field change: `SafeDepositBox::Visit.note`,
@@ -292,7 +307,11 @@ module RustProjection
             # regardless of whether `wrap` would otherwise be true for
             # blanket-record or per-field reasons.
             wrap = (optional || target_attr[:optional]) && !(source_attr && source_attr[:optional])
-            "        record.#{target_field} = #{wrap ? "Some(#{rhs})" : rhs};"
+            if wrap
+              Exemplar.render("mutation_set_wrapped", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
+            else
+              Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
+            end
           end
         end
       when :increment, :decrement
@@ -303,7 +322,12 @@ module RustProjection
         sign = mutation[:op] == :increment ? "+" : "-"
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
         updated = "#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }"
-        "        { let current = #{current}; record.#{target_field} = #{optional ? "Some(#{updated})" : updated}; }"
+        Exemplar.render(
+          "mutation_arithmetic",
+          "tmpl_field" => target_field,
+          "tmpl_current_placeholder()" => current,
+          "tmpl_updated_placeholder()" => (optional ? "Some(#{updated})" : updated)
+        )
       end
     end
   end

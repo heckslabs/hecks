@@ -169,7 +169,7 @@ module RustProjection
             nested_type = rust_ident(attr[:type])
             "#{nested_type}::from_json(v.require(#{key.inspect}, #{struct_name.inspect})?)?"
           end
-        "        #{ident}: #{rhs},"
+        Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end
 
       unknown_check =
@@ -180,15 +180,37 @@ module RustProjection
           ""
         end
 
-      <<~RUST
-        impl #{struct_name} {
-            pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        #{unknown_check}        Ok(Self {
-        #{field_exprs.join("\n")}
-                })
-            }
-        }
-      RUST
+      emit_from_json_skeleton(struct_name, field_exprs, unknown_check)
+    end
+
+    # Shared by `emit_from_json_flat` and `emit_from_json_state` — the
+    # SAME outer skeleton (`from_json_flat`, rust/src/exemplar/json.rs)
+    # backs both; only the preamble (unknown-argument check, only ever
+    # non-empty for an aggregate command's own top-level args) and each
+    # field's RHS differ, both already-built plain strings by the time
+    # they reach here.
+    #
+    # The preamble marker spans BOTH its own line and the following
+    # `Ok(Self {` line as ONE substitution, not two independent ones —
+    # deliberately, not a shortcut: a blank preamble must leave NO blank
+    # line at all (`render` only replaces a marker's TEXT, never deletes
+    # its own line, so a naive empty-string substitution would strand
+    # one), while a real command with NO fields at all legitimately DOES
+    # render `Ok(Self {\n\n        })` (an empty `field_exprs` block) —
+    # a blank-line STRIP tried first here, and wrongly ate that second,
+    # real case along with the first. Reconstructing the exact two-line
+    # span in Ruby (unknown_check already ends in its own "\n" when
+    # present, matching the ORIGINAL's own string concatenation) fixes
+    # the one case this needs fixed without touching the other.
+    def emit_from_json_skeleton(struct_name, field_exprs, unknown_check)
+      field_block = field_exprs.map { |f| "        #{f}" }.join("\n")
+      # Trailing "\n" — see `emit_to_json_flat`'s own comment on why.
+      "#{Exemplar.render(
+        'from_json_flat',
+        'TmplFlatType2' => struct_name,
+        "let _tmpl_unknown_check_placeholder = ();\n        Ok(Self {" => "#{unknown_check}        Ok(Self {",
+        'tmpl_ident: tmpl_rhs_placeholder(),' => field_block
+      )}\n"
     end
 
     # `optional:` mirrors `emit_fielded_record`'s own Option-wrap: every
@@ -257,19 +279,17 @@ module RustProjection
           else
             "self.#{ident}.to_json()"
           end
-        "        (#{key.inspect}.to_string(), #{value_expr}),"
+        Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => value_expr)
       end
-      field_exprs += extra_fields.map { |key, expr| "        (#{key.inspect}.to_string(), #{expr})," }
+      field_exprs += extra_fields.map { |key, expr| Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => expr) }
+      field_block = field_exprs.map { |f| "        #{f}" }.join("\n")
 
-      <<~RUST
-        impl #{struct_name} {
-            pub fn to_json(&self) -> crate::kernel::Json {
-                crate::kernel::Json::Object(vec![
-        #{field_exprs.join("\n")}
-                ])
-            }
-        }
-      RUST
+      # Trailing "\n" — restores the OLD heredoc's own implicit one
+      # (see `emit_fielded_flat`'s own comment, fielded.rb); needed here
+      # because `commands.rb`'s entity-command heredoc interpolates this
+      # return value directly, not through `f.puts` (which wouldn't care
+      # either way).
+      "#{Exemplar.render('to_json_flat', 'TmplFlatType2' => struct_name, 'tmpl_to_json_field_block()' => field_block)}\n"
     end
 
     # THE INVERSE OF `emit_to_json_flat`, for the SAME two struct kinds
@@ -335,7 +355,7 @@ module RustProjection
             nested_type = rust_ident(attr[:type])
             "#{nested_type}::from_json(v.require(#{key.inspect}, #{struct_name.inspect})?)?"
           end
-        "        #{ident}: #{rhs},"
+        Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end
 
       # `extra_fields` carries `(key, to_json-serialize-expr)` pairs
@@ -345,19 +365,12 @@ module RustProjection
       # Option-wrapped struct field for it.
       extra_field_exprs = extra_fields.map do |key, _serialize_expr|
         ident = rust_ident_field(key)
-        "        #{ident}: v.require(#{key.inspect}, #{struct_name.inspect})?.as_str()" \
-          ".ok_or_else(|| #{json_type_error(struct_name, key, 'a string')})?.to_string(),"
+        rhs = "v.require(#{key.inspect}, #{struct_name.inspect})?.as_str()" \
+          ".ok_or_else(|| #{json_type_error(struct_name, key, 'a string')})?.to_string()"
+        Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end
 
-      <<~RUST
-        impl #{struct_name} {
-            pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-                Ok(Self {
-        #{(field_exprs + extra_field_exprs).join("\n")}
-                })
-            }
-        }
-      RUST
+      emit_from_json_skeleton(struct_name, field_exprs + extra_field_exprs, "")
     end
 
     # A single-field CLOSED SET only — `emit_value_object`'s own branch on
@@ -370,28 +383,18 @@ module RustProjection
       field_name = rust_field(vo[:attributes].first[:name])
       rows = vo[:members].map { |row| [closed_set_variant(row), row.first.last.to_s] }
 
-      to_json_arms = rows.map { |variant, raw| "            #{name}::#{variant} => #{raw.inspect}," }
-      from_json_arms = rows.map { |variant, raw| "            #{raw.inspect} => Ok(#{name}::#{variant})," }
+      # Both arm shapes need `TmplMemberA`/`tmpl_member_a` per row, so one
+      # subs hash serves both `render_each` calls below.
+      row_subs = rows.map { |variant, raw| { "TmplKind" => name, "TmplMemberA" => variant, '"tmpl_member_a"' => raw.inspect } }
 
-      <<~RUST
-        impl #{name} {
-            pub fn to_json(&self) -> crate::kernel::Json {
-                let member = match self {
-        #{to_json_arms.join("\n")}
-                };
-                crate::kernel::Json::obj(vec![(#{field_name.inspect}, crate::kernel::Json::str(member))])
-            }
-
-            pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-                let raw = v.require(#{field_name.inspect}, #{name.inspect})?.as_str()
-                    .ok_or_else(|| #{json_type_error(name, field_name, 'string')})?;
-                match raw {
-        #{from_json_arms.join("\n")}
-                    other => Err(crate::kernel::Refusal::TypeMismatch(format!("#{name}: unknown member {:?}", other))),
-                }
-            }
+      Exemplar.assemble(
+        "closed_set_codec",
+        { "TmplKind" => name, '"tmpl_field_name"' => field_name.inspect, "tmpl_field_name" => field_name },
+        slots: {
+          "closed_set_codec:TO_JSON_ARM"   => Exemplar.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
+          "closed_set_codec:FROM_JSON_ARM" => Exemplar.render_each("closed_set_codec:FROM_JSON_ARM", row_subs),
         }
-      RUST
+      )
     end
 
     # A multi-field closed set — a DATA TABLE (`emit_closed_set_table`'s
@@ -419,34 +422,29 @@ module RustProjection
           when "Integer" then "crate::kernel::Json::int(self.#{ident})"
           when "Float"   then "crate::kernel::Json::Num(self.#{ident})"
           end
-        "        (#{key.inspect}.to_string(), #{value_expr}),"
+        Exemplar.render("to_json_field", '"tmpl_field_name"' => key.inspect, "tmpl_json_value_placeholder()" => value_expr)
       end
+      to_json_fields_block = to_json_fields.map { |f| "        #{f}" }.join("\n")
 
       match_conditions = vo[:attributes].map do |attr|
         key = rust_field(attr[:name])
         ident = rust_ident_field(attr[:name])
         accessor = SCALAR_JSON_ACCESSOR.fetch(effective_scalar_type(attr[:type]))
-        "v.get(#{key.inspect}).and_then(crate::kernel::Json::#{accessor}) == Some(row.#{ident})"
+        Exemplar.render(
+          "closed_set_table_from_json_condition",
+          '"tmpl_field_name"' => key.inspect,
+          "tmpl_accessor_fn" => "crate::kernel::Json::#{accessor}",
+          "tmpl_field" => ident
+        )
       end
 
-      <<~RUST
-        impl #{name} {
-            pub fn to_json(&self) -> crate::kernel::Json {
-                crate::kernel::Json::Object(vec![
-        #{to_json_fields.join("\n")}
-                ])
-            }
-
-            pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-                for row in #{const_name} {
-                    if #{match_conditions.join(" && ")} {
-                        return Ok(row.clone());
-                    }
-                }
-                Err(crate::kernel::Refusal::TypeMismatch(format!("#{name}: no member matches {:?}", v)))
-            }
-        }
-      RUST
+      Exemplar.render(
+        "closed_set_table_codec",
+        "TmplTableRow" => name,
+        "tmpl_to_json_fields_block()" => to_json_fields_block,
+        "TMPL_TABLE" => const_name,
+        "tmpl_from_json_conditions()" => match_conditions.join(" && ")
+      )
     end
 
     # An aggregate's identity, read straight off the incoming JSON step
@@ -500,9 +498,7 @@ module RustProjection
       name = rust_ident(aggregate[:name])
       reference_key = Hecksagain::Naming.snake(aggregate[:name])
 
-      tier1_lines = aggregate[:identified_by].each_with_index.map do |path, i|
-        "            let c#{i} = v.dig(#{path.inspect})?.to_id_component().ok()?;"
-      end
+      tier1_subs = aggregate[:identified_by].each_with_index.map { |path, i| { '"tmpl_path"' => path.inspect, "c0" => "c#{i}" } }
       tier1_join =
         if aggregate[:identified_by].size == 1
           "c0"
@@ -512,22 +508,17 @@ module RustProjection
 
       tried = (aggregate[:identified_by] + ["id", reference_key]).join(", ")
 
-      <<~RUST
-        impl #{name} {
-            pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-                let by_identity = (|| -> Option<String> {
-        #{tier1_lines.join("\n")}
-                    Some(#{tier1_join})
-                })();
-                let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
-                let by_reference_key = v.get(#{reference_key.inspect}).and_then(|j| j.to_id_component().ok());
-
-                by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-                    crate::kernel::Refusal::TypeMismatch(#{"#{name}: no identity found (tried #{tried})".inspect}.to_string())
-                })
-            }
-        }
-      RUST
+      Exemplar.compose(
+        "extract_id",
+        {
+          "TmplExtractIdType" => name,
+          '"tmpl_reference_key"' => reference_key.inspect,
+          "tmpl_tier1_join_placeholder()" => tier1_join,
+          '"tmpl_error_text"' => "#{name}: no identity found (tried #{tried})".inspect,
+        },
+        field_id: "extract_id:TIER1_LINE",
+        field_subs_list: tier1_subs
+      )
     end
 
     # An entity ELEMENT's own identity, read off an ALREADY-CONSTRUCTED
@@ -548,13 +539,7 @@ module RustProjection
       end
       body = components.size == 1 ? components.first : "vec![#{components.join(', ')}].join(\":\")"
 
-      <<~RUST
-        impl #{name} {
-            pub fn identity(&self) -> String {
-                #{body}
-            }
-        }
-      RUST
+      Exemplar.render("self_identity", "TmplSelfIdentityType" => name, "tmpl_identity_body_placeholder()" => body)
     end
   end
 end
