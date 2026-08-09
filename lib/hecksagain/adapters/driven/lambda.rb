@@ -98,15 +98,23 @@ module Hecksagain
 
       private
 
-      # CACHED FOR THIS ADAPTER'S LIFETIME, not re-fetched per call —
-      # `.all`, `.find`, `.count`, `.query` inside one request/boot
-      # share ONE Lambda invoke, matching how Postgres shares one open
-      # connection rather than reconnecting per method. Keyed by bare
-      # id (the part after "Domain::Aggregate#"), not the full
-      # "Domain::Aggregate#id" string — callers already know which
+      # RE-FETCHED EVERY CALL, deliberately NOT memoized across them —
+      # this adapter itself is long-lived (one instance per aggregate,
+      # held by the registry `RUNTIME = Hecks.boot(...)` builds ONCE
+      # per Lambda web process — WebFunction's own top-level constant,
+      # reused warm across every HTTP request that process serves, not
+      # rebuilt per request the way a memoize-for-one-request comment
+      # here used to assume). A real, live bug caught this: a mutation
+      # dispatched fine (RemoteDispatcher always calls the dispatch
+      # Lambda fresh) and the very next `.all` on the SAME warm
+      # container kept returning the state from BEFORE that mutation,
+      # forever, until the container cold-started — memoizing here
+      # made every write invisible to every read on a warm container.
+      # Keyed by bare id (the part after "Domain::Aggregate#"), not the
+      # full "Domain::Aggregate#id" string — callers already know which
       # aggregate they're asking this instance about.
       def instances
-        @instances ||= @client.read.fetch("instances", {}).filter_map { |key, state|
+        @client.read.fetch("instances", {}).filter_map { |key, state|
           next unless key.start_with?(@prefix)
 
           [key.delete_prefix(@prefix), build_instance(key.delete_prefix(@prefix), state)]

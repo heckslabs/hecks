@@ -29,9 +29,11 @@ module Hecksagain
 
         # THE WHOLE DOMAIN, EVERY TIME — matches dispatch::read's own
         # rehydrate-the-full-journal design (Phase 1, rust/host). No
-        # caching here; callers that want to avoid repeat invokes
-        # within one request cache the result themselves (Lambda#all's
-        # own `@instances ||=`).
+        # caching here, deliberately not even per-request: Lambda#all
+        # used to memoize this across calls, which silently served
+        # stale reads for a warm web process's whole lifetime once a
+        # write happened elsewhere — see Lambda#instances's own comment
+        # on the real, live bug that caught it.
         def read
           invoke({ "read" => true })
         end
