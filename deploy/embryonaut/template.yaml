@@ -162,10 +162,105 @@ Resources:
       # even though it's the simpler one to demo with.
       FunctionUrlConfig:
         AuthType: AWS_IAM
+  # THE WEB APP'S OWN LAMBDA — opt-in, see `web_handler_present` above.
+  # VPC-attached for the SAME reason EmbryonautFunction is (Member's own
+  # persistence needs the private RDS instance directly, permanently —
+  # embryonaut.hecksagon's own comment on why), sharing
+  # EmbryonautFunctionSecurityGroup rather than minting a second one, since
+  # both need the identical egress-to-DB rule. That VPC attachment
+  # ALSO cuts off the public internet by default (this stack's own "NO
+  # NAT GATEWAY" design) — but this function has to reach
+  # EmbryonautFunction itself via `lambda:InvokeFunction`, a public AWS API
+  # call. WebFunctionLambdaEndpoint below is the targeted fix: a
+  # VPC Interface Endpoint for the Lambda service ONLY (not a NAT
+  # Gateway) — a few dollars a month, not a general internet route.
+  EmbryonautDbLambdaEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref EmbryonautDbVpc
+      GroupDescription: EmbryonautDbLambdaEndpoint - HTTPS from this stack's own Lambdas only
+  
+  EmbryonautDbLambdaEndpointIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref EmbryonautDbLambdaEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref EmbryonautFunctionSecurityGroup
+  
+  EmbryonautDbLambdaEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref EmbryonautDbVpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.lambda"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
+      SecurityGroupIds: [!Ref EmbryonautDbLambdaEndpointSecurityGroup]
+  
+  # Auto-generated, never typed or seen — the SAME
+  # ManageMasterUserPassword pattern EmbryonautDb already uses for its own
+  # password, applied to Sinatra's own session-signing secret instead.
+  WebFunctionSessionSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: session_secret
+        PasswordLength: 64
+        ExcludePunctuation: true
+  
+  WebFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: bundler
+    Properties:
+      FunctionName: hecksagain-embryonaut-web
+      Runtime: ruby3.2
+      Architectures: [arm64]
+      Handler: lambda_handler.lambda_handler
+      CodeUri: /Users/christopheryoung/Projects/embryonaut
+      MemorySize: 512
+      Timeout: 15
+      Environment:
+        Variables:
+          DOMAIN_ROOT: /var/task
+          DOMAIN_NAME: Embryonaut
+          HECKS_LAMBDA_ROUTING: "true"
+          HECKS_LAMBDA_REGION: us-east-1
+          # Member's own permanent Postgres connection — the SAME RDS
+          # instance EmbryonautFunction itself writes rust/host's flat
+          # journal into, different database engine role (Ruby's own
+          # era/lineage schema, not rust/host's), never the real
+          # Fly-hosted Postgres this whole effort is retiring away from.
+          DATABASE_URL: !Sub
+            - "postgres://postgres:${DbPass}@${DbHost}:5432/embryonaut"
+            - DbPass: !Sub "{{resolve:secretsmanager:${EmbryonautDb.MasterUserSecret.SecretArn}:SecretString:password}}"
+              DbHost: !GetAtt EmbryonautDb.Endpoint.Address
+          SESSION_SECRET: !Sub "{{resolve:secretsmanager:${WebFunctionSessionSecret}:SecretString:session_secret}}"
+          # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI
+          # deliberately NOT set here — the real Fly deployment this
+          # replaces never had them configured either (fly secrets
+          # list -a embryonaut-founder-app: only DATABASE_URL and
+          # SESSION_SECRET), matching production's own current reality
+          # that nobody has signed in via Google yet. Add them as real
+          # values once real OAuth credentials exist to configure.
+      VpcConfig:
+        SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
+        SecurityGroupIds: [!Ref EmbryonautFunctionSecurityGroup]
+      # NONE, not AWS_IAM — real users need to reach sign-in over
+      # plain HTTPS, unlike EmbryonautFunction's own AWS_IAM-protected URL
+      # (this function is the ONLY thing meant to call that one).
+      FunctionUrlConfig:
+        AuthType: NONE
+
 
 Outputs:
   FunctionUrl:
     Value: !GetAtt EmbryonautFunctionUrl.FunctionUrl
+    WebFunctionUrl:
+      Value: !GetAtt WebFunctionUrl.FunctionUrl
   DatabaseEndpoint:
     Value: !GetAtt EmbryonautDb.Endpoint.Address
   DatabaseSecretArn:

@@ -68,6 +68,36 @@ mint-era:
 # time, BEFORE the `aws cloudformation deploy` line above ever runs,
 # which would make INSTANCE_ID permanently empty. It can only be
 # computed here, after the bastion stack genuinely exists.
+#
+# A COMMENT LINE MUST NEVER SIT BETWEEN TWO \-CONTINUED RECIPE
+# LINES — confirmed live, the hard way: a `#`-prefixed line inserted
+# between `DB_PASS=...; \` and the line that used it silently
+# corrupted Make's own assembly of this whole block into one shell
+# script, and `DB_PASS` came out empty on the far side despite
+# printing correctly one line earlier. Every explanatory comment for
+# this whole chain belongs HERE, before it starts, same as this one —
+# never spliced into the middle of it.
+#
+# `LineageManager.check!` directly below, NOT `Hecks.boot` — also
+# confirmed live (the very first real invoke: "relation
+# \"hecks_eras\" does not exist", despite this step itself
+# reporting success): `Hecks.boot` always dispatches persistence
+# through whatever the domain's OWN .world file declares
+# (`persisted_by("Heki")` for a domain that hasn't opted into
+# Postgres for local dev), by EXPLICIT design — loader.rb's own
+# comment: "persisted_by(\"Postgres\") is never inferred from
+# anything else." `EraCheck.check!` (what `Hecks.boot` runs) is
+# itself adapter-capability-gated on that same declaration and simply
+# no-ops for a non-lineage-capable adapter — it never touches
+# hecks_eras at all. The fix reuses the SAME loading pipeline
+# `Loader.boot` itself does (`Ports::Loading.bootstrap`/
+# `load_library`/`load_project`/`load_domain`) to build a real,
+# fully-loaded registry (bluebook + any uses_framework attachments),
+# then calls straight into Postgres's own `LineageManager.check!`
+# with THIS deploy's actual `DATABASE_URL` — bypassing the world
+# file's own adapter choice entirely, the same targeted pattern
+# spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
+# already uses.
 	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
 	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
 	for i in $$(seq 1 30); do \
@@ -83,7 +113,7 @@ mint-era:
 	TUNNEL_PID=$$!; \
 	sleep 8; \
 	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
-	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; Hecks.boot(ARGV[0]); puts "booted OK — era resolution ran"' $(DOMAIN); \
+	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
 	BOOT_STATUS=$$?; \
 	kill $$TUNNEL_PID 2>/dev/null; \
 	exit $$BOOT_STATUS
@@ -101,6 +131,7 @@ mint-era:
 # sequence anywhere in this path.
 .PHONY: deploy mint-era
 deploy:
-	sam build
+	# --use-container -- WebFunction's own bundler buildmethod cross-compiles native gem extensions (pg) for Amazon Linux; this machine's own compiled pg.so is the wrong platform.
+  	sam build --use-container
 	sam deploy
 	$(MAKE) mint-era
