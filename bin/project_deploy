@@ -105,6 +105,36 @@ stack_name = "hecksagain-#{domain_name}"
 
 db_id = "#{logical_id.sub(/Function\z/, '')}Db"
 
+# THE STACK↔BASTION CONTRACT — ONE shared table each of template.yaml's
+# Outputs, bastion.yaml's Parameters, and the Makefile's own eval/
+# --parameter-overrides lines reads from below, instead of three to
+# four independent string literals per fact with nothing checking they
+# agree. `var` is the Make variable each output becomes.
+STACK_OUTPUTS = [
+  { key: "VpcId",             var: "VPC_ID",        ref: "!Ref #{db_id}Vpc" },
+  { key: "DbSecurityGroupId", var: "DB_SG_ID",       ref: "!Ref #{db_id}SecurityGroup" },
+  { key: "DatabaseEndpoint",  var: "DB_HOST",       ref: "!GetAtt #{db_id}.Endpoint.Address" },
+  { key: "DatabaseSecretArn", var: "DB_SECRET_ARN", ref: "!GetAtt #{db_id}.MasterUserSecret.SecretArn" },
+].freeze
+
+# bastion.yaml's own Parameters — deliberately allowed to rename
+# (RdsSecurityGroupId reads better inside bastion.yaml than the stack
+# output's own DbSecurityGroupId), which is exactly the kind of rename
+# that used to be able to silently drift between the two files.
+BASTION_PARAMETERS = [
+  { name: "VpcId",              from_output: "VpcId",             type: "AWS::EC2::VPC::Id" },
+  { name: "RdsSecurityGroupId", from_output: "DbSecurityGroupId", type: "AWS::EC2::SecurityGroup::Id" },
+].freeze
+
+# THE CHECK — a generation-time assertion, not a bluebook refusal:
+# this is the generator catching its OWN bug immediately, before
+# writing a single file, instead of producing a bastion.yaml whose
+# Parameter nothing could ever fill.
+BASTION_PARAMETERS.each do |param|
+  STACK_OUTPUTS.any? { |o| o[:key] == param[:from_output] } or
+    raise "bin/project_deploy: bastion parameter #{param[:name]} references undeclared stack output #{param[:from_output]}"
+end
+
 # OPT-IN, BY FILE PRESENCE — a domain that wants its own web app on
 # Lambda too (not every domain has one; Banking doesn't) drops a
 # `lambda_handler.rb` at its own root, the Rack-to-Function-URL-event
@@ -385,23 +415,21 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
   Outputs:
     FunctionUrl:
       Value: !GetAtt #{logical_id}Url.FunctionUrl#{web_handler_present ? "\n  WebFunctionUrl:\n    Value: !GetAtt #{web_logical_id}Url.FunctionUrl" : ""}
-    DatabaseEndpoint:
-      Value: !GetAtt #{db_id}.Endpoint.Address
-    DatabaseSecretArn:
-      Value: !GetAtt #{db_id}.MasterUserSecret.SecretArn
-    # THE 3 FACTS `make mint-era` NEEDS — this stack's own VPC and RDS
-    # security group, so bastion.yaml (a separate, sibling stack,
-    # created only for the few minutes a mint takes and destroyed
-    # right after) can attach into the SAME private network without
-    # this main template ever knowing a bastion exists. SubnetB, not
-    # SubnetA — arbitrary but fixed, so every domain's bastion lands
-    # in a single, predictable AZ.
-    VpcId:
-      Value: !Ref #{db_id}Vpc
-    PrivateSubnetId:
-      Value: !Ref #{db_id}SubnetB
-    DbSecurityGroupId:
-      Value: !Ref #{db_id}SecurityGroup
+    # STACK_OUTPUTS (bin/project_deploy, above the heredocs) is the ONE
+    # place these four names live — DatabaseEndpoint/DatabaseSecretArn
+    # feed `make mint-era`'s own boot step directly; VpcId/
+    # DbSecurityGroupId ALSO feed bastion.yaml's own Parameters (a
+    # separate, sibling stack, created only for the few minutes a mint
+    # takes and destroyed right after, attaching into the SAME private
+    # network without this main template ever knowing a bastion
+    # exists) and the Makefile's own --parameter-overrides. Rename a
+    # key in that table and every consumer follows; reference one that
+    # doesn't exist there and bin/project_deploy refuses before
+    # writing a single file, instead of a bastion.yaml whose Parameter
+    # nothing could ever fill. (`PrivateSubnetId` used to sit here too
+    # — dropped, nothing ever consumed it; bastion.yaml mints its own
+    # subnet instead.)
+    #{STACK_OUTPUTS.map { |o| "#{o[:key]}:\n    Value: #{o[:ref]}" }.join("\n  ")}
 YAML
 
 # THE EPHEMERAL ERA-MINTING BASTION — a SEPARATE, sibling stack
@@ -427,11 +455,12 @@ File.write(File.join(out_dir, "bastion.yaml"), <<~YAML)
     TEMPORARY — #{domain_name}'s era-minting bastion. Deployed and torn
     down by `make mint-era`; not meant to run continuously.
 
+  # BASTION_PARAMETERS (bin/project_deploy) — the OTHER end of the
+  # contract template.yaml's own Outputs comment describes; the
+  # Makefile's --parameter-overrides line (below, mint-era target)
+  # fills these from the same table.
   Parameters:
-    VpcId:
-      Type: AWS::EC2::VPC::Id
-    RdsSecurityGroupId:
-      Type: AWS::EC2::SecurityGroup::Id
+    #{BASTION_PARAMETERS.map { |p| "#{p[:name]}:\n    Type: #{p[:type]}" }.join("\n  ")}
 
   Resources:
     # A NEW public subnet, not the RDS's own private ones — those have
@@ -593,13 +622,15 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
 
   mint-era:
   \t@echo "Looking up $(STACK)'s VPC/security group..."
-  \t$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
-  \t$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
-  \t$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
-  \t$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
+  # STACK_OUTPUTS/BASTION_PARAMETERS (bin/project_deploy) are the ONE
+  # place these OutputKey strings and parameter names live — this eval
+  # chain and the --parameter-overrides line just below are both
+  # generated from the SAME table template.yaml's Outputs and
+  # bastion.yaml's Parameters already read from.
+  \t#{STACK_OUTPUTS.map { |o| %($(eval #{o[:var]} := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='#{o[:key]}'].OutputValue" --output text))) }.join("\n\t")}
   \t@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
   \taws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \\
-  \t\t--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) \\
+  \t\t--parameter-overrides #{BASTION_PARAMETERS.map { |p| "#{p[:name]}=$(#{STACK_OUTPUTS.find { |o| o[:key] == p[:from_output] }[:var]})" }.join(" ")} \\
   \t\t--capabilities CAPABILITY_IAM
   # ONE continuous shell invocation from here on (every line ends in
   # \\, joining it to the next) — INSTANCE_ID is a SHELL variable, not
@@ -616,6 +647,17 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # printing correctly one line earlier. Every explanatory comment for
   # this whole chain belongs HERE, before it starts, same as this one —
   # never spliced into the middle of it.
+  #
+  # BASTION TEARDOWN IS PART OF THIS SAME CHAIN, ALL THE WAY THROUGH —
+  # a prior version of this recipe ended at `exit $$BOOT_STATUS` with
+  # no trailing `\\`, which made Make treat the delete-stack lines
+  # after it as a SEPARATE recipe line, reached only on a zero exit.
+  # A failed boot (bad tunnel, bad `ruby -e` invocation, anything) left
+  # the bastion stack standing forever — including a live 5432 ingress
+  # rule punched into the PRODUCTION RDS security group. Teardown now
+  # runs unconditionally, with BOOT_STATUS captured up front and
+  # returned last, so `make mint-era`'s own exit code still reflects
+  # whether era 1 actually got minted.
   #
   # `LineageManager.check!` directly below, NOT `Hecks.boot` — also
   # confirmed live (the very first real invoke: "relation
@@ -655,11 +697,11 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{domain_name}" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \\
   \tBOOT_STATUS=$$?; \\
   \tkill $$TUNNEL_PID 2>/dev/null; \\
+  \techo "Tearing down the temporary bastion stack..."; \\
+  \taws cloudformation delete-stack --stack-name $(BASTION_STACK); \\
+  \taws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \\
+  \techo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \\
   \texit $$BOOT_STATUS
-  \t@echo "Tearing down the temporary bastion stack..."
-  \taws cloudformation delete-stack --stack-name $(BASTION_STACK)
-  \taws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK)
-  \t@echo "$(BASTION_STACK) deleted. Era 1 should now be held — verify with bin/console or a Postgres query against hecks_eras."
 
   # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
   # (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe

@@ -1,0 +1,102 @@
+require "tmpdir"
+require "fileutils"
+require "open3"
+
+# bin/project_deploy's own STACK_OUTPUTS/BASTION_PARAMETERS tables (its
+# header explains why they're plain Ruby data, not a bluebook aggregate:
+# this is the generator's own internal consistency, never touched by a
+# human's input, checked once at generation time — not the kind of
+# externally-supplied fact given/invariant exists for). This spec
+# doesn't test those tables directly — bin/project_deploy is a script,
+# not a library, and there's nothing to require — it tests the thing
+# that actually matters: that the THREE GENERATED FILES still agree
+# with each other, parsed back out of real output, not re-derived from
+# the same table that could just as easily be wrong in the same way in
+# all three places at once.
+RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output" do
+  CONTRACT_FIXTURE_BASENAME = "project_deploy_contract_spec_fixture"
+
+  # Mirrors spec/deploy_bluebook_spec.rb's own fixture helper —
+  # bin/project_deploy always writes to <repo_root>/deploy/<basename>
+  # regardless of where the source domain lives, so the basename here
+  # is deliberately unique and the generated directory is removed
+  # after every run.
+  def generated_files
+    root = File.expand_path("..", __dir__)
+    generated_dir = File.join(root, "deploy", CONTRACT_FIXTURE_BASENAME)
+
+    Dir.mktmpdir do |dir|
+      domain_dir = File.join(dir, CONTRACT_FIXTURE_BASENAME)
+      bluebook_dir = File.join(domain_dir, "bluebook")
+      FileUtils.mkdir_p(bluebook_dir)
+
+      File.write(File.join(bluebook_dir, "#{CONTRACT_FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
+        Hecks.bluebook "Scratch" do
+          aggregate "Thing" do
+            identified_by { name.value }
+            attribute :name, ThingName
+            value_object "ThingName" do
+              attribute :value, String
+              invariant("named") { !value.to_s.empty? }
+            end
+            command "Create" do
+              attribute :name, ThingName
+              then_set :name, to: :name
+              emits "ThingCreated"
+            end
+          end
+        end
+      BLUEBOOK
+
+      File.write(File.join(bluebook_dir, "#{CONTRACT_FIXTURE_BASENAME}.world"), <<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsLambda") do
+            region "us-east-1"
+          end
+        end
+      WORLD
+
+      _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
+      status.success? or raise "bin/project_deploy failed: #{stderr}"
+
+      yield(
+        template: File.read(File.join(generated_dir, "template.yaml")),
+        bastion:  File.read(File.join(generated_dir, "bastion.yaml")),
+        makefile: File.read(File.join(generated_dir, "Makefile"))
+      )
+    end
+  ensure
+    FileUtils.rm_rf(generated_dir)
+  end
+
+  it "gives every Makefile OutputKey lookup against the main stack a real template.yaml Output" do
+    generated_files do |files|
+      declared = files[:template][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
+      queried = files[:makefile].scan(/--stack-name \$\(STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
+
+      expect(queried).not_to be_empty
+      expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(STACK), but template.yaml's Outputs only declares #{declared}"
+    end
+  end
+
+  it "gives every Makefile OutputKey lookup against the bastion stack a real bastion.yaml Output" do
+    generated_files do |files|
+      declared = files[:bastion][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
+      queried = files[:makefile].scan(/--stack-name \$\(BASTION_STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
+
+      expect(queried).not_to be_empty
+      expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(BASTION_STACK), but bastion.yaml's Outputs only declares #{declared}"
+    end
+  end
+
+  it "fills every bastion.yaml Parameter from the Makefile's --parameter-overrides, and no others" do
+    generated_files do |files|
+      declared = files[:bastion][/^Parameters:\n(.*?)^Resources:/m, 1].to_s.scan(/^  (\w+):$/).flatten
+      overrides_line = files[:makefile][/--parameter-overrides (.*?) \\/, 1].to_s
+      filled = overrides_line.scan(/(\w+)=/).flatten
+
+      expect(declared).not_to be_empty
+      expect(filled.sort).to eq(declared.sort), "bastion.yaml declares Parameters #{declared}, but --parameter-overrides fills #{filled}"
+    end
+  end
+end

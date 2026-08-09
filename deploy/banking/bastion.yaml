@@ -10,6 +10,10 @@ Description: >
   TEMPORARY — banking's era-minting bastion. Deployed and torn
   down by `make mint-era`; not meant to run continuously.
 
+# BASTION_PARAMETERS (bin/project_deploy) — the OTHER end of the
+# contract template.yaml's own Outputs comment describes; the
+# Makefile's --parameter-overrides line (below, mint-era target)
+# fills these from the same table.
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id

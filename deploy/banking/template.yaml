@@ -166,20 +166,25 @@ Resources:
 Outputs:
   FunctionUrl:
     Value: !GetAtt BankingFunctionUrl.FunctionUrl
+  # STACK_OUTPUTS (bin/project_deploy, above the heredocs) is the ONE
+  # place these four names live — DatabaseEndpoint/DatabaseSecretArn
+  # feed `make mint-era`'s own boot step directly; VpcId/
+  # DbSecurityGroupId ALSO feed bastion.yaml's own Parameters (a
+  # separate, sibling stack, created only for the few minutes a mint
+  # takes and destroyed right after, attaching into the SAME private
+  # network without this main template ever knowing a bastion
+  # exists) and the Makefile's own --parameter-overrides. Rename a
+  # key in that table and every consumer follows; reference one that
+  # doesn't exist there and bin/project_deploy refuses before
+  # writing a single file, instead of a bastion.yaml whose Parameter
+  # nothing could ever fill. (`PrivateSubnetId` used to sit here too
+  # — dropped, nothing ever consumed it; bastion.yaml mints its own
+  # subnet instead.)
+  VpcId:
+    Value: !Ref BankingDbVpc
+  DbSecurityGroupId:
+    Value: !Ref BankingDbSecurityGroup
   DatabaseEndpoint:
     Value: !GetAtt BankingDb.Endpoint.Address
   DatabaseSecretArn:
     Value: !GetAtt BankingDb.MasterUserSecret.SecretArn
-  # THE 3 FACTS `make mint-era` NEEDS — this stack's own VPC and RDS
-  # security group, so bastion.yaml (a separate, sibling stack,
-  # created only for the few minutes a mint takes and destroyed
-  # right after) can attach into the SAME private network without
-  # this main template ever knowing a bastion exists. SubnetB, not
-  # SubnetA — arbitrary but fixed, so every domain's bastion lands
-  # in a single, predictable AZ.
-  VpcId:
-    Value: !Ref BankingDbVpc
-  PrivateSubnetId:
-    Value: !Ref BankingDbSubnetB
-  DbSecurityGroupId:
-    Value: !Ref BankingDbSecurityGroup

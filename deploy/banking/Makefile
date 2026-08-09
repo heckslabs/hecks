@@ -54,6 +54,11 @@ BASTION_STACK := hecksagain-banking-bastion
 
 mint-era:
 	@echo "Looking up $(STACK)'s VPC/security group..."
+# STACK_OUTPUTS/BASTION_PARAMETERS (bin/project_deploy) are the ONE
+# place these OutputKey strings and parameter names live — this eval
+# chain and the --parameter-overrides line just below are both
+# generated from the SAME table template.yaml's Outputs and
+# bastion.yaml's Parameters already read from.
 	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
 	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
 	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
@@ -77,6 +82,17 @@ mint-era:
 # printing correctly one line earlier. Every explanatory comment for
 # this whole chain belongs HERE, before it starts, same as this one —
 # never spliced into the middle of it.
+#
+# BASTION TEARDOWN IS PART OF THIS SAME CHAIN, ALL THE WAY THROUGH —
+# a prior version of this recipe ended at `exit $$BOOT_STATUS` with
+# no trailing `\`, which made Make treat the delete-stack lines
+# after it as a SEPARATE recipe line, reached only on a zero exit.
+# A failed boot (bad tunnel, bad `ruby -e` invocation, anything) left
+# the bastion stack standing forever — including a live 5432 ingress
+# rule punched into the PRODUCTION RDS security group. Teardown now
+# runs unconditionally, with BOOT_STATUS captured up front and
+# returned last, so `make mint-era`'s own exit code still reflects
+# whether era 1 actually got minted.
 #
 # `LineageManager.check!` directly below, NOT `Hecks.boot` — also
 # confirmed live (the very first real invoke: "relation
@@ -116,11 +132,11 @@ mint-era:
 	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/banking" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
 	BOOT_STATUS=$$?; \
 	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \
 	exit $$BOOT_STATUS
-	@echo "Tearing down the temporary bastion stack..."
-	aws cloudformation delete-stack --stack-name $(BASTION_STACK)
-	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK)
-	@echo "$(BASTION_STACK) deleted. Era 1 should now be held — verify with bin/console or a Postgres query against hecks_eras."
 
 # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
 # (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe
