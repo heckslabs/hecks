@@ -131,7 +131,16 @@ mint-era:
 # sequence anywhere in this path.
 .PHONY: deploy mint-era
 deploy:
-	# --use-container -- WebFunction's own bundler buildmethod cross-compiles native gem extensions (pg) for Amazon Linux; this machine's own compiled pg.so is the wrong platform.
-  	sam build --use-container
+	# TWO SEPARATE builds, not one `--use-container` run -- that flag is
+	# global to `sam build`, but EmbryonautFunction deliberately builds on
+	# THIS machine's own toolchain (cargo-lambda already cross-compiles
+	# to arm64 without a container -- build-EmbryonautFunction's own comment
+	# on why), which a generic provided.al2023 container doesn't have
+	# at all (a real, live "Make Failed" caught this). Only WebFunction
+	# needs the container, to cross-compile pg's native extension for
+	# Amazon Linux -- `sam build <resource>` targets just one function
+	# without clearing the other's prior artifacts.
+	sam build EmbryonautFunction
+	sam build --use-container WebFunction
 	sam deploy
 	$(MAKE) mint-era

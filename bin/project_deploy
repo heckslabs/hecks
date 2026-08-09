@@ -331,8 +331,13 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
 
   #{web_logical_id}:
     Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: bundler
+    # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
+    # real, live UnsupportedBuilderException caught this); `Runtime:
+    # ruby3.2` alone is enough for SAM to select its own built-in Ruby
+    # bundler workflow automatically. #{logical_id}'s own `BuildMethod:
+    # makefile` above is different: rust/host isn't a runtime SAM
+    # knows how to build at all, so it needs an explicit custom
+    # workflow — this function doesn't.
     Properties:
       FunctionName: #{stack_name}-web
       Runtime: ruby3.2
@@ -662,7 +667,7 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # sequence anywhere in this path.
   .PHONY: deploy mint-era
   deploy:
-  #{web_handler_present ? "\t# --use-container -- WebFunction's own bundler buildmethod cross-compiles native gem extensions (pg) for Amazon Linux; this machine's own compiled pg.so is the wrong platform.\n  \tsam build --use-container" : "\tsam build"}
+  #{web_handler_present ? "\t# TWO SEPARATE builds, not one `--use-container` run -- that flag is\n\t# global to `sam build`, but #{logical_id} deliberately builds on\n\t# THIS machine's own toolchain (cargo-lambda already cross-compiles\n\t# to arm64 without a container -- build-#{logical_id}'s own comment\n\t# on why), which a generic provided.al2023 container doesn't have\n\t# at all (a real, live \"Make Failed\" caught this). Only #{web_logical_id}\n\t# needs the container, to cross-compile pg's native extension for\n\t# Amazon Linux -- `sam build <resource>` targets just one function\n\t# without clearing the other's prior artifacts.\n\tsam build #{logical_id}\n\tsam build --use-container #{web_logical_id}" : "\tsam build"}
   \tsam deploy
   \t$(MAKE) mint-era
 MAKE

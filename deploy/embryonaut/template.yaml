@@ -213,8 +213,13 @@ Resources:
   
   WebFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: bundler
+    # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
+    # real, live UnsupportedBuilderException caught this); `Runtime:
+    # ruby3.2` alone is enough for SAM to select its own built-in Ruby
+    # bundler workflow automatically. EmbryonautFunction's own `BuildMethod:
+    # makefile` above is different: rust/host isn't a runtime SAM
+    # knows how to build at all, so it needs an explicit custom
+    # workflow — this function doesn't.
     Properties:
       FunctionName: hecksagain-embryonaut-web
       Runtime: ruby3.2
