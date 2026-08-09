@@ -264,8 +264,8 @@ Resources:
 Outputs:
   FunctionUrl:
     Value: !GetAtt EmbryonautFunctionUrl.FunctionUrl
-    WebFunctionUrl:
-      Value: !GetAtt WebFunctionUrl.FunctionUrl
+  WebFunctionUrl:
+    Value: !GetAtt WebFunctionUrl.FunctionUrl
   DatabaseEndpoint:
     Value: !GetAtt EmbryonautDb.Endpoint.Address
   DatabaseSecretArn:

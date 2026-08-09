@@ -381,7 +381,7 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
 
   Outputs:
     FunctionUrl:
-      Value: !GetAtt #{logical_id}Url.FunctionUrl#{web_handler_present ? "\n    WebFunctionUrl:\n      Value: !GetAtt #{web_logical_id}Url.FunctionUrl" : ""}
+      Value: !GetAtt #{logical_id}Url.FunctionUrl#{web_handler_present ? "\n  WebFunctionUrl:\n    Value: !GetAtt #{web_logical_id}Url.FunctionUrl" : ""}
     DatabaseEndpoint:
       Value: !GetAtt #{db_id}.Endpoint.Address
     DatabaseSecretArn:
