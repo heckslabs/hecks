@@ -24,10 +24,11 @@ Hecks.bluebook "Deploy" do
 
     identified_by { domain.value }
 
-    attribute :domain,  DomainName
-    attribute :region,  Region
-    attribute :memory,  Memory
-    attribute :timeout, Timeout
+    attribute :domain,   DomainName
+    attribute :region,   Region
+    attribute :memory,   Memory
+    attribute :timeout,  Timeout
+    attribute :database, Database
 
     value_object "DomainName" do
       attribute :value, String
@@ -37,6 +38,23 @@ Hecks.bluebook "Deploy" do
     value_object "Region" do
       attribute :value, String
       invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # "Postgres" (a plain AWS::RDS::DBInstance, Embryonaut's own live
+    # choice — bin/project_deploy's Ruby-side default when a domain's
+    # own deployed_to("AwsLambda") names none, so every domain
+    # declared before this attribute existed keeps generating the
+    # identical template it always has) or "Aurora" (Aurora Serverless
+    # v2, Postgres-compatible — the SAME `Adapters::Postgres`/
+    # `tokio_postgres` code on both the Ruby and rust/host sides
+    # either way; this only changes which CloudFormation resource
+    # bin/project_deploy emits, never a runtime adapter).
+    value_object "Database" do
+      attribute :value, String
+      one_of do
+        member value: "Postgres"
+        member value: "Aurora"
+      end
     end
 
     # 128-10240 MB — AWS Lambda's own real ceiling and floor, not a
@@ -71,15 +89,17 @@ Hecks.bluebook "Deploy" do
     command "Declare" do
       goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
 
-      attribute :domain,  DomainName
-      attribute :region,  Region
-      attribute :memory,  Memory
-      attribute :timeout, Timeout
+      attribute :domain,   DomainName
+      attribute :region,   Region
+      attribute :memory,   Memory
+      attribute :timeout,  Timeout
+      attribute :database, Database
 
-      then_set :domain,  to: :domain
-      then_set :region,  to: :region
-      then_set :memory,  to: :memory
-      then_set :timeout, to: :timeout
+      then_set :domain,   to: :domain
+      then_set :region,   to: :region
+      then_set :memory,   to: :memory
+      then_set :timeout,  to: :timeout
+      then_set :database, to: :database
 
       emits "LambdaTargetDeclared"
     end

@@ -10,6 +10,7 @@
 # `--no-default-features --features <name>`.
 [features]
 default = ["embryonaut"]
+pizzas = []
 embryonaut = []
 banking = []
 
