@@ -106,11 +106,13 @@ module Hecksagain
             lifecycle:     @lifecycle&.to_h,
             entities:      @entities.map(&:to_h),
             queries:       @queries.map(&:to_h),
+            # ADDITIVE — every domain that declares no port emits `ports: []`,
+            # the same "regenerate deliberately" wire-format change
+            # ir_golden_spec.rb's own header describes; no existing key
+            # moves. See docs/decisions (rust/project/ports.rb) for the
+            # first reader of this.
+            ports:         @ports.map(&:to_h),
             provenance:    @provenance
-            # `ports` deliberately absent — Bluebook#to_h is the byte-for-byte
-            # golden-fixture contract (see ir_golden_spec.rb), and the wire
-            # format does not know about ports yet. Held out of the export until
-            # the wire format and the self-hosted grammar both learn this construct.
           }
         end
       end

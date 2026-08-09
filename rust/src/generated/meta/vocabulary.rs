@@ -583,6 +583,7 @@ pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "UnknownVerb", site: "entity_holds_no_list", template: "{aggregate} holds no list of {entity}" },
     RefusalTemplate { refusal: "UnknownVerb", site: "entity_no_command", template: "{entity} has no command {command}" },
     RefusalTemplate { refusal: "UnknownVerb", site: "aggregate_no_command", template: "{aggregate} has no command {command}" },
+    RefusalTemplate { refusal: "UnknownVerb", site: "port_no_operation", template: "{port} has no operation {operation}" },
     RefusalTemplate { refusal: "UnknownVerb", site: "no_domain", template: "no domain {domain} loaded (verb {verb})" },
     RefusalTemplate { refusal: "UnknownVerb", site: "no_read_model", template: "{domain} has no read model {query}" },
     RefusalTemplate { refusal: "UnknownVerb", site: "not_fully_qualified", template: "{verb} is not a fully-qualified verb (Domain::Aggregate.Command)" },

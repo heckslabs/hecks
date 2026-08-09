@@ -467,6 +467,48 @@
           "limit": null
         }
       ],
+      "ports": [
+        {
+          "name": "PaymentGateway",
+          "operations": [
+            {
+              "name": "Receive",
+              "attributes": [
+                {
+                  "name": "name",
+                  "type": "Reference<Order>",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                },
+                {
+                  "name": "customer_name",
+                  "type": "CustomerName",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                },
+                {
+                  "name": "amount",
+                  "type": "Price",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                }
+              ],
+              "emits": [
+                "PizzaPaymentReceived"
+              ]
+            }
+          ]
+        }
+      ],
       "provenance": null
     }
   ],

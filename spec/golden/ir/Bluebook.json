@@ -192,6 +192,9 @@
       ],
       "lifecycle": null,
       "name": "Bluebook",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -1074,6 +1077,9 @@
       ],
       "lifecycle": null,
       "name": "Aggregate",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -2126,6 +2132,9 @@
       ],
       "lifecycle": null,
       "name": "Command",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3007,6 +3016,9 @@
       ],
       "lifecycle": null,
       "name": "Query",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3574,6 +3586,9 @@
       ],
       "lifecycle": null,
       "name": "ValueObject",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3947,6 +3962,9 @@
       ],
       "lifecycle": null,
       "name": "Member",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -4493,6 +4511,9 @@
       ],
       "lifecycle": null,
       "name": "Entity",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -4889,6 +4910,9 @@
       ],
       "lifecycle": null,
       "name": "Policy",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5177,6 +5201,9 @@
       ],
       "lifecycle": null,
       "name": "ProcessManager",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5423,6 +5450,9 @@
       ],
       "lifecycle": null,
       "name": "Handler",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5661,6 +5691,9 @@
       ],
       "lifecycle": null,
       "name": "Dispatch",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5790,6 +5823,9 @@
       ],
       "lifecycle": null,
       "name": "Vocabulary",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -7005,6 +7041,20 @@
               ],
               [
                 "site",
+                "port_no_operation"
+              ],
+              [
+                "template",
+                "{port} has no operation {operation}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
                 "no_domain"
               ],
               [
@@ -7347,6 +7397,9 @@
       ],
       "lifecycle": null,
       "name": "Syntax",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -15052,6 +15105,9 @@
       ],
       "lifecycle": null,
       "name": "ReadModel",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {

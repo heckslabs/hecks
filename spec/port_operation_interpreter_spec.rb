@@ -153,4 +153,50 @@ RSpec.describe "a port operation, dispatched" do
       dispatcher.dispatch_port("Payments", "Payment", "Nonsense", "Receive", payment_id: "P1")
     }.to raise_error(Hecksagain::Runtime::UnknownVerb)
   end
+
+  # THE SAME OPERATION, BY VERB — the wire spelling `Dispatcher#dispatch`
+  # itself now resolves ("Domain::Aggregate.Port.Operation", the same
+  # shape an entity command already uses, ports checked first). Not a
+  # second implementation: `dispatch` delegates to the identical
+  # `@port_ops` primitive `dispatch_port` calls, so everything above
+  # already proves the behavior — this proves the DOOR, the one a
+  # differential-parity script (`spec/corpus/*.json`'s flat `{"verb",
+  # "args"}` steps, `bin/rust_conformance`'s own oracle) can actually
+  # reach, since neither carries a domain/aggregate/port/operation
+  # 4-tuple, only ever a verb string.
+  describe "reached through Dispatcher#dispatch, by verb, rather than #dispatch_port" do
+    it "emits the operation's event and triggers the policy exactly as dispatch_port does" do
+      dispatcher, registry = boot
+      open_payment(dispatcher)
+
+      result = dispatcher.dispatch("Payments::Payment.PaymentGateway.Receive",
+                                    payment_id: "P1", amount: { cents: 4200 })
+
+      expect(result.instance).to be_nil
+      expect(result.id).to be_nil
+      expect(result.events.map(&:name)).to eq(["PaymentReceived"])
+
+      payment = registry.repository("Payments", registry.bluebook("Payments").aggregate("Payment")).find("P1")
+      expect(payment[:status]).to eq("received")
+      expect(registry.reaction_log.last[:delivered]).to be(true)
+    end
+
+    it "raises UnknownVerb naming the operation for one the port does not declare" do
+      dispatcher, = boot
+      open_payment(dispatcher)
+
+      expect {
+        dispatcher.dispatch("Payments::Payment.PaymentGateway.Nonsense", payment_id: "P1")
+      }.to raise_error(Hecksagain::Runtime::UnknownVerb, /PaymentGateway has no operation "Nonsense"/)
+    end
+
+    it "falls through to entity-command handling for a dotted verb naming no port" do
+      dispatcher, = boot
+      open_payment(dispatcher)
+
+      expect {
+        dispatcher.dispatch("Payments::Payment.NoSuchThing.Whatever", payment_id: "P1")
+      }.to raise_error(Hecksagain::Runtime::UnknownVerb, /Payment has no entity "NoSuchThing"/)
+    end
+  end
 end

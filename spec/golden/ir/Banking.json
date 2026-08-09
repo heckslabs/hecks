@@ -236,6 +236,9 @@
         ]
       },
       "name": "Customer",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -1179,6 +1182,9 @@
         ]
       },
       "name": "Account",
+      "ports": [
+
+      ],
       "provenance": {
         "source": "HecksCanonical",
         "source_id": "aggregate:account",
@@ -1980,6 +1986,9 @@
         ]
       },
       "name": "ATMCard",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -2474,6 +2483,9 @@
         ]
       },
       "name": "Transfer",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -2942,6 +2954,9 @@
         ]
       },
       "name": "CardPayment",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3323,6 +3338,9 @@
         ]
       },
       "name": "ExternalTransfer",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3759,6 +3777,9 @@
         ]
       },
       "name": "ScheduledPayment",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -4387,6 +4408,9 @@
         ]
       },
       "name": "SafeDepositBox",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -4762,6 +4786,9 @@
         ]
       },
       "name": "OnboardingCase",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -4979,6 +5006,9 @@
       ],
       "lifecycle": null,
       "name": "Statement",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 

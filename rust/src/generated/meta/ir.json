@@ -371,6 +371,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -1343,6 +1344,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -2394,6 +2396,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -3043,6 +3046,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -3536,6 +3540,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -3767,6 +3772,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -4392,6 +4398,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -4635,6 +4642,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -4918,6 +4926,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -5103,6 +5112,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -5347,6 +5357,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -6548,6 +6559,20 @@
               ],
               [
                 "site",
+                "port_no_operation"
+              ],
+              [
+                "template",
+                "{port} has no operation {operation}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
                 "no_domain"
               ],
               [
@@ -6866,6 +6891,7 @@
       "lifecycle": null,
       "entities": [],
       "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -14265,6 +14291,7 @@
       "lifecycle": null,
       "entities": [],
       "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -14751,6 +14778,7 @@
           "limit": null
         }
       ],
+      "ports": [],
       "provenance": null
     }
   ],

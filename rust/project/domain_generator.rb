@@ -86,6 +86,7 @@ module RustProjection
         can_route = Projector.extract_id_supported?(aggregate)
         registry_commands = []
         entity_commands = []
+        port_operations = []
         record_name = Projector.rust_ident(aggregate[:name])
 
         path = File.join(mod_dir, "#{aggregate[:name].downcase}.rs")
@@ -248,6 +249,35 @@ module RustProjection
               role: command[:role],
             }
           end
+
+          # PORT OPERATIONS — the primary/driving half (rust/project/ports.rb's
+          # own header): no Hydrate, no repo, so `can_route` never gates
+          # these the way it gates an ACTING command's registry entry
+          # above (there is no `extract_id`-derived `id` here at all — the
+          # operation's own reference attribute already names the record,
+          # exactly the same "resolved at the router level" reason a
+          # command's own reference checks live in registry.rb and not here).
+          aggregate[:ports].each do |port|
+            port[:operations].each do |operation|
+              reason = Projector.port_operation_skip_reason(operation, aggregate[:name], value_objects_by_name)
+              if reason
+                puts "skipping #{domain_name}::#{aggregate[:name]}.#{port[:name]}.#{operation[:name]}: #{reason}"
+                next
+              end
+
+              f.puts Projector.emit_port_operation(operation, port[:name], aggregate[:name], domain_name, value_objects_by_name, aggregates_by_name)
+              f.puts
+
+              operation_args_struct = "#{Projector.rust_ident(port[:name])}#{Projector.rust_ident(operation[:name])}Args"
+              port_operations << {
+                verb: "#{domain_name}::#{aggregate[:name]}.#{port[:name]}.#{operation[:name]}",
+                name: operation[:name],
+                fn: "#{port[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(operation[:name]))}",
+                args_struct: operation_args_struct,
+                reference_checks: reference_checks(operation, aggregates_by_name, unsupported_names),
+              }
+            end
+          end
         end
         puts "wrote #{path}"
 
@@ -257,6 +287,7 @@ module RustProjection
           record: record_name,
           commands: registry_commands,
           entity_commands: entity_commands,
+          ports: port_operations,
           # WHICH TOP-LEVEL GENERATED MODULE this aggregate's own .rs file
           # lives under (`meta`, `embryonaut`, `governance`, ...) — a
           # standalone per-chapter registry.rs (this file, below) uses it

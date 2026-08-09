@@ -310,6 +310,8 @@ Hecks.bluebook "Bluebook" do
                template: "{entity} has no command {command}"
         member refusal: "UnknownVerb", site: "aggregate_no_command",
                template: "{aggregate} has no command {command}"
+        member refusal: "UnknownVerb", site: "port_no_operation",
+               template: "{port} has no operation {operation}"
         member refusal: "UnknownVerb", site: "no_domain",
                template: "no domain {domain} loaded (verb {verb})"
         member refusal: "UnknownVerb", site: "no_read_model",

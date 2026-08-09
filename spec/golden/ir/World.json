@@ -89,6 +89,9 @@
       ],
       "lifecycle": null,
       "name": "World",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -337,6 +340,9 @@
       ],
       "lifecycle": null,
       "name": "Wiring",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 

@@ -102,7 +102,7 @@ aggregate declares none; `entities`, `queries`, `commands`,
 ```ruby
 account = ir.fetch(:aggregates).find { |a| a[:name] == "Account" }
 
-account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :lifecycle, :entities, :queries, :provenance]
+account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :lifecycle, :entities, :queries, :ports, :provenance]
 ```
 
 `identified_by` is always an array of dotted paths, even for a single

@@ -16,8 +16,16 @@ module Hecksagain
       MAX_REACTION_DEPTH = 5
 
       Result = Struct.new(:verb, :instance, :events, keyword_init: true) do
-        def id    = instance.id
-        def state = instance.to_h
+        # `instance` is nil for a port operation dispatched by verb (below)
+        # — nothing was hydrated or saved, the same reason
+        # `PortOperationInterpreter#emit`'s own comment gives for sourcing
+        # `id:` off the operation's reference attribute instead. `&.`, not
+        # a raised error: a caller that dispatches a port verb and then
+        # asks this Result for `.id`/`.state` made a category error the
+        # domain itself already told it about (there is no record here),
+        # not a crash-worthy one.
+        def id    = instance&.id
+        def state = instance&.to_h
 
         def to_s
           announced = events.empty? ? "no events" : events.map(&:name).join(", ")
@@ -54,7 +62,27 @@ module Hecksagain
 
         instance, announced =
           if command_name.include?(".")
-            @entities.call(domain, aggregate, command_name, args)
+            head, sub = command_name.split(".", 2)
+            port = aggregate.port(head)
+            # A PORT OPERATION, reached by the SAME verb shape an entity
+            # command already uses ("Domain::Aggregate.Head.Rest") — ports
+            # are checked first, so an aggregate that ever declared both a
+            # port and an entity of the same name would resolve to the
+            # port; no domain in this corpus does, and `dispatch_port`'s
+            # own header already named this as an open wire-spelling
+            # question this resolves, not silently avoids. No `instance`
+            # comes back — nothing is hydrated or saved by a port
+            # operation (`PortOperationInterpreter`'s own header) — so
+            # `Result#id`/`#state` are nil-safe (above) for exactly this
+            # path.
+            if port
+              operation = port.operation(sub) ||
+                          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "port_no_operation",
+                                                                    port: head, operation: sub.inspect))
+              [nil, @port_ops.call(domain, aggregate, operation, args)]
+            else
+              @entities.call(domain, aggregate, command_name, args)
+            end
           else
             command = aggregate.command(command_name) ||
                       raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",

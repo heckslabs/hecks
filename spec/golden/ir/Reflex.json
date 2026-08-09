@@ -102,6 +102,9 @@
       ],
       "lifecycle": null,
       "name": "Light",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -284,6 +287,9 @@
       ],
       "lifecycle": null,
       "name": "Echo",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -378,6 +384,9 @@
       ],
       "lifecycle": null,
       "name": "Beacon",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 

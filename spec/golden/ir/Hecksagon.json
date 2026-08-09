@@ -143,6 +143,9 @@
       ],
       "lifecycle": null,
       "name": "Hecksagon",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -361,6 +364,9 @@
       ],
       "lifecycle": null,
       "name": "AdapterBinding",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -422,6 +428,9 @@
       ],
       "lifecycle": null,
       "name": "DomainPort",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -519,6 +528,9 @@
       ],
       "lifecycle": null,
       "name": "PortOperation",
+      "ports": [
+
+      ],
       "provenance": null,
       "queries": [
 
