@@ -59,7 +59,7 @@ module Hecksagain
 
       def count = instances.size
 
-      def query(specification, args = {})
+      def query(specification, args = {}, context: {})
         Ports::Query::InMemory.execute(instances.values, specification, args)
       end
 
