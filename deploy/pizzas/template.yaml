@@ -26,172 +26,47 @@ Description: >
   wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
   journal (docs/decisions/0018), backed by its own private RDS
   Postgres instance. PackageType Zip, no container.
+Parameters:
+  # THE STOREHOUSE — Embryonaut's own live stack Outputs,
+  # looked up at deploy time (Makefile's own `deploy:`/`mint-era`
+  # targets, below) via the SAME `aws cloudformation describe-stacks`
+  # pattern `mint-era` already used for a bastion, one stack over
+  # instead of one sibling stack over. Never a CloudFormation
+  # Export/ImportValue -- this codebase uses none anywhere (bin/
+  # project_deploy's own header on why: a live shell lookup keeps
+  # this stack independently deployable/deletable, never coupled to
+  # Embryonaut's own stack through CloudFormation itself).
+  OwningVpcId:
+    Type: AWS::EC2::VPC::Id
+  OwningSubnetAId:
+    Type: AWS::EC2::Subnet::Id
+  OwningSubnetBId:
+    Type: AWS::EC2::Subnet::Id
+  # Embryonaut's own Lambda security group, NOT its
+  # DB-facing one -- reused whole, not copied, the same shape
+  # this codebase already trusts elsewhere (a WebFunction sharing
+  # its own dispatch Lambda's security group rather than minting
+  # a second one), one stack over instead of one resource over.
+  # Embryonaut's own DB security group already permits
+  # ingress FROM this group (every member of it, regardless of
+  # which stack minted the member -- security group references
+  # match on GROUP MEMBERSHIP, not resource identity), so joining
+  # it is what actually grants this Lambda access, not a new
+  # ingress rule Embryonaut's own stack would otherwise
+  # need to add.
+  OwningSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+  OwningDatabaseEndpoint:
+    Type: String
+  OwningDatabaseSecretArn:
+    Type: String
 
 Resources:
-  PizzasDbVpc:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-
-  PizzasDbSubnetA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref PizzasDbVpc
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
-
-  PizzasDbSubnetB:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref PizzasDbVpc
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
+  
 
   
-  PizzasDbSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: !Sub "${AWS::StackName} - private subnets for pizzas's own RDS instance"
-      SubnetIds: [!Ref PizzasDbSubnetA, !Ref PizzasDbSubnetB]
-
-  # NO INLINE SecurityGroupEgress/Ingress ON EITHER GROUP — each would
-  # need to reference the other's id from inside its own Properties,
-  # a genuine circular create-order dependency CloudFormation refuses
-  # outright (cfn-lint E3004). Standard fix: create both groups
-  # empty, then wire the cross-reference through two standalone rule
-  # resources below, each of which can legitimately depend on both
-  # groups already existing.
-  PizzasFunctionSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref PizzasDbVpc
-      GroupDescription: PizzasFunction - no inbound (Lambda receives no traffic via its VPC ENI), egress rule attached separately below
-
-  PizzasDbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref PizzasDbVpc
-      GroupDescription: PizzasDb - ingress rule attached separately below, from PizzasFunction only
-
-  PizzasFunctionEgressToDb:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      GroupId: !Ref PizzasFunctionSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      DestinationSecurityGroupId: !Ref PizzasDbSecurityGroup
-
-  
-  PizzasDbIngressFromFunction:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref PizzasDbSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !Ref PizzasFunctionSecurityGroup
-
-  # Aurora Serverless v2, Postgres-compatible -- the split shape
-  # Aurora needs (a DBCluster carrying the managed password/
-  # endpoint/subnet-group/security-group, plus at least one
-  # DBInstance inside it) is the ONLY thing different from the
-  # plain-RDS path below; Adapters::Postgres/tokio_postgres speak
-  # the identical wire protocol against either endpoint.
-  # SELF-MANAGED, not ManageMasterUserPassword: true -- confirmed
-  # live that the plain-RDS path's own approach (below) has a real
-  # staleness bug for a Lambda's own Environment: CloudFormation's
-  # `{{resolve:secretsmanager:...}}` only resolves an AUTO-ROTATING
-  # managed secret fresh at the Function resource's OWN creation;
-  # RDS's managed-password feature rotates the password itself
-  # shortly after standing up the cluster (confirmed: the FIRST
-  # resolved password stopped authenticating within minutes), and
-  # neither a Code-only update NOR a later `sam deploy` re-resolved
-  # it -- every subsequent invocation kept authenticating with the
-  # now-stale original value, a real "password authentication
-  # failed" caught live. A self-managed secret (generated once,
-  # here, never auto-rotated) has nothing to go stale: the same
-  # resolved value stays correct for as long as this stack exists.
-  # Scoped to the Aurora path alone -- the plain-RDS path below is
-  # Embryonaut's own already-live, proven arrangement, untouched.
-  PizzasDbSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      GenerateSecretString:
-        SecretStringTemplate: '{"username":"postgres"}'
-        GenerateStringKey: password
-        PasswordLength: 32
-        # Nothing here NEEDS excluding purely for correctness
-        # anymore (rust/host's own parse_database_url never
-        # URI-parses the password segment), but keeping the
-        # generated password free of quote/at-sign/slash is
-        # still the more legible default for anyone pasting
-        # DATABASE_URL by hand while debugging. Deliberately NOT
-        # excluding backslash/apostrophe too, to sidestep YAML's
-        # own nested-quote escaping inside this string entirely
-        # (real, live "found character '@' that cannot start any
-        # token" caught the FIRST attempt at that).
-        ExcludeCharacters: '"@/'
-  
-  PizzasDbCluster:
-    Type: AWS::RDS::DBCluster
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
-    # Explicit, not left implicit -- MasterUserPassword's own
-    # dynamic reference below doesn't create one on its own (see
-    # PizzasFunction's own comment on this same fact).
-    DependsOn: PizzasDbSecret
-    Properties:
-      Engine: aurora-postgresql
-      # Matches the plain-RDS path's own EngineVersion exactly
-      # (below) — confirmed real and Serverless-v2-capable via
-      # `aws rds describe-db-engine-versions --engine
-      # aurora-postgresql --engine-version 16.14`
-      # (ServerlessV2FeaturesSupport: 0.0-256.0), unlike the
-      # first guess here ("16.6" -- a real, live "Cannot find
-      # version 16.6 for aurora-postgresql" caught this).
-      EngineVersion: "16.14"
-      DatabaseName: pizzas
-      MasterUsername: postgres
-      MasterUserPassword: !Sub "{{resolve:secretsmanager:${PizzasDbSecret}:SecretString:password}}"
-      StorageEncrypted: true
-      DBSubnetGroupName: !Ref PizzasDbSubnetGroup
-      VpcSecurityGroupIds: [!Ref PizzasDbSecurityGroup]
-      ServerlessV2ScalingConfiguration:
-        MinCapacity: 0.5
-        MaxCapacity: 1
-  
-  PizzasDbInstance:
-    Type: AWS::RDS::DBInstance
-    DeletionPolicy: Snapshot
-    UpdateReplacePolicy: Snapshot
-    Properties:
-      Engine: aurora-postgresql
-      DBInstanceClass: db.serverless
-      DBClusterIdentifier: !Ref PizzasDbCluster
-      PubliclyAccessible: false
-
   PizzasFunction:
     Type: AWS::Serverless::Function
-    # `{{resolve:secretsmanager:...}}` dynamic references do NOT
-    # create an implicit CloudFormation dependency on the referenced
-    # resource (documented AWS behavior) -- PizzasFunction's own
-    # Environment resolves one against PizzasDbSecret below. A plain
-    # `DependsOn: PizzasDbSecret` alone (CREATE_COMPLETE before this
-    # resource's own update starts) still hit a real, live, repeatable
-    # "Secrets Manager can't find the specified secret
-    # (ResourceNotFoundException)" -- CREATE_COMPLETE from
-    # CloudFormation's own perspective doesn't guarantee the secret is
-    # yet READABLE via a dynamic reference from a DIFFERENT resource's
-    # own concurrent update (AWS-side eventual consistency, not a
-    # CloudFormation ordering bug `DependsOn` alone can close).
-    # Chaining through PizzasDbCluster too -- which ALSO reads this
-    # secret, and whose own RDS-side update takes real, substantial
-    # wall-clock time to apply -- gives that propagation window time
-    # to close before PizzasFunction's own resolution is attempted.
-    DependsOn: [PizzasDbSecret, PizzasDbCluster]
     Metadata:
       BuildMethod: makefile
     Properties:
@@ -246,9 +121,9 @@ Resources:
           # CloudTrail/console view of the function's own config as
           # plaintext outside AWS's own encrypted handling.
           DATABASE_URL: !Sub
-            - "postgres://postgres:${DbPass}@${DbHost}:5432/pizzas"
-            - DbPass: !Sub "{{resolve:secretsmanager:${PizzasDbSecret}:SecretString:password}}"
-              DbHost: !GetAtt PizzasDbCluster.Endpoint.Address
+            - "postgres://postgres:${DbPass}@${DbHost}:5432/embryonaut"
+            - DbPass: !Sub "{{resolve:secretsmanager:${OwningDatabaseSecretArn}:SecretString:password}}"
+              DbHost: !Ref OwningDatabaseEndpoint
           HECKS_WASM_PATH: !Sub "/var/task/pizzas.wasm"
           # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
           # domain's own declared name, known at generation time the
@@ -263,10 +138,11 @@ Resources:
           # (era 2+) is a separate, later re-generation, not this one.
           HECKS_DOMAIN: Pizzas
           HECKS_ERA: "1"
+          HECKS_SCHEMA: pizzas
           HECKS_IR_PATH: !Sub "/var/task/pizzas.ir.json"
       VpcConfig:
-        SubnetIds: [!Ref PizzasDbSubnetA, !Ref PizzasDbSubnetB]
-        SecurityGroupIds: [!Ref PizzasFunctionSecurityGroup]
+        SubnetIds: [!Ref OwningSubnetAId, !Ref OwningSubnetBId]
+        SecurityGroupIds: [!Ref OwningSecurityGroupId]
       # AWS_IAM by default — this dispatches real domain commands
       # (cap-table/governance-shaped data, for Embryonaut's own use);
       # an unauthenticated public URL is the wrong default for that,
@@ -301,11 +177,4 @@ Outputs:
   # nothing could ever fill. (`PrivateSubnetId` used to sit here too
   # — dropped, nothing ever consumed it; bastion.yaml mints its own
   # subnet instead.)
-  VpcId:
-    Value: !Ref PizzasDbVpc
-  DbSecurityGroupId:
-    Value: !Ref PizzasDbSecurityGroup
-  DatabaseEndpoint:
-    Value: !GetAtt PizzasDbCluster.Endpoint.Address
-  DatabaseSecretArn:
-    Value: !Ref PizzasDbSecret
+  

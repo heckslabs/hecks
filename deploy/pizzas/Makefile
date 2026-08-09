@@ -80,93 +80,21 @@ STACK     := hecksagain-pizzas
 BASTION_STACK := hecksagain-pizzas-bastion
 
 mint-era:
-	@echo "Looking up $(STACK)'s VPC/security group..."
-# STACK_OUTPUTS/BASTION_PARAMETERS (bin/project_deploy) are the ONE
-# place these OutputKey strings and parameter names live — this eval
-# chain and the --parameter-overrides line just below are both
-# generated from the SAME table template.yaml's Outputs and
-# bastion.yaml's Parameters already read from.
-	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
-	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
-	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
-	$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
-	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
-	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
-		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) \
-		--capabilities CAPABILITY_IAM
-# ONE continuous shell invocation from here on (every line ends in
-# \, joining it to the next) — INSTANCE_ID is a SHELL variable, not
-# a Make one: a Make-level $$(eval $$(shell ...)) expands at parse
-# time, BEFORE the `aws cloudformation deploy` line above ever runs,
-# which would make INSTANCE_ID permanently empty. It can only be
-# computed here, after the bastion stack genuinely exists.
-#
-# A COMMENT LINE MUST NEVER SIT BETWEEN TWO \-CONTINUED RECIPE
-# LINES — confirmed live, the hard way: a `#`-prefixed line inserted
-# between `DB_PASS=...; \` and the line that used it silently
-# corrupted Make's own assembly of this whole block into one shell
-# script, and `DB_PASS` came out empty on the far side despite
-# printing correctly one line earlier. Every explanatory comment for
-# this whole chain belongs HERE, before it starts, same as this one —
-# never spliced into the middle of it.
-#
-# BASTION TEARDOWN IS PART OF THIS SAME CHAIN, ALL THE WAY THROUGH —
-# a prior version of this recipe ended at `exit $$BOOT_STATUS` with
-# no trailing `\`, which made Make treat the delete-stack lines
-# after it as a SEPARATE recipe line, reached only on a zero exit.
-# A failed boot (bad tunnel, bad `ruby -e` invocation, anything) left
-# the bastion stack standing forever — including a live 5432 ingress
-# rule punched into the PRODUCTION RDS security group. Teardown now
-# runs unconditionally, with BOOT_STATUS captured up front and
-# returned last, so `make mint-era`'s own exit code still reflects
-# whether era 1 actually got minted.
-#
-# `LineageManager.check!` directly below, NOT `Hecks.boot` — also
-# confirmed live (the very first real invoke: "relation
-# \"hecks_eras\" does not exist", despite this step itself
-# reporting success): `Hecks.boot` always dispatches persistence
-# through whatever the domain's OWN .world file declares
-# (`persisted_by("Heki")` for a domain that hasn't opted into
-# Postgres for local dev), by EXPLICIT design — loader.rb's own
-# comment: "persisted_by(\"Postgres\") is never inferred from
-# anything else." `EraCheck.check!` (what `Hecks.boot` runs) is
-# itself adapter-capability-gated on that same declaration and simply
-# no-ops for a non-lineage-capable adapter — it never touches
-# hecks_eras at all. The fix reuses the SAME loading pipeline
-# `Loader.boot` itself does (`Ports::Loading.bootstrap`/
-# `load_library`/`load_project`/`load_domain`) to build a real,
-# fully-loaded registry (bluebook + any uses_framework attachments),
-# then calls straight into Postgres's own `LineageManager.check!`
-# with THIS deploy's actual `DATABASE_URL` — bypassing the world
-# file's own adapter choice entirely, the same targeted pattern
-# spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
-# already uses.
-	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
-	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
-	for i in $$(seq 1 30); do \
-		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
-		if [ "$$STATUS" = "Online" ]; then break; fi; \
-		sleep 5; \
-	done; \
-	echo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1..."; \
-	aws ssm start-session --target $$INSTANCE_ID \
-		--document-name AWS-StartPortForwardingSessionToRemoteHost \
-		--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
-		>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \
-	TUNNEL_PID=$$!; \
-	for i in $$(seq 1 30); do \
-		nc -z localhost 15432 2>/dev/null && break; \
-		sleep 1; \
-	done; \
-	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
-	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/pizzas" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
-	BOOT_STATUS=$$?; \
-	kill $$TUNNEL_PID 2>/dev/null; \
-	echo "Tearing down the temporary bastion stack..."; \
-	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
-	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
-	echo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \
-	exit $$BOOT_STATUS
+# NOT AUTOMATED YET for a Shared-mode domain — it has no RDS/VPC
+# of its own to stand a temporary bastion next to (bastion.yaml
+# itself isn't even generated here — bin/project_deploy's own
+# comment on why). Minting era 1 for pizzas's own schema
+# needs a tunnel to Embryonaut's ALREADY-EXISTING RDS
+# instance instead -- reuse Embryonaut's own deploy
+# directory's `make mint-era` machinery (or an already-open
+# tunnel to it) to run this domain's own boot against
+# `postgres://...@<tunnel-host>:<port>/embryonaut` with
+# `schema: "pizzas"` in LineageManager.check!'s own
+# settings -- the exact same call this target runs automatically
+# for a domain with its own dedicated instance.
+	@echo "mint-era isn't automated yet for a Shared-mode domain (database \"Shared\") -- see this target's own comment in the generated Makefile for the manual path through Embryonaut's own tunnel."; \
+	exit 1
+
 
 
 # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
@@ -177,8 +105,21 @@ mint-era:
 # separate step someone has to remember. No hand-run AWS CLI
 # sequence anywhere in this path.
 
+# deploy's own last step below looks up Embryonaut's live
+# stack Outputs (never tracked anywhere generated -- same reasoning
+# as WebRedirectBaseUrl's own live lookup above, and the SAME
+# `aws cloudformation describe-stacks` pattern mint-era's own eval
+# chain, below, already proves works against a sibling stack) and
+# passes them as this template's own Owning* Parameters.
+
 .PHONY: deploy mint-era
 deploy:
 	sam build
-	sam deploy
+	@OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \
+	OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \
+	OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \
+	OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \
+	OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \
+	OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name hecksagain-embryonaut --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \
+	sam deploy --parameter-overrides OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN
 	$(MAKE) mint-era
