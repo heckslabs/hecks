@@ -486,7 +486,26 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \tTUNNEL_PID=$$!; \\
   \tsleep 8; \\
   \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
-  \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{domain_name}" ruby -Ilib -e 'require "hecksagain"; Hecks.boot(ARGV[0]); puts "booted OK — era resolution ran"' $(DOMAIN); \\
+  # `LineageManager.check!` directly, NOT `Hecks.boot` -- confirmed
+  # live (the very first real invoke: "relation \"hecks_eras\" does not
+  # exist", despite this step reporting success) that `Hecks.boot`
+  # always dispatches through whatever the domain's OWN .world file
+  # declares (`persisted_by("Heki")` for a domain that hasn't opted
+  # into Postgres for local dev), by EXPLICIT design -- loader.rb's own
+  # comment: "persisted_by(\"Postgres\") is never inferred from
+  # anything else." `EraCheck.check!` (what `Hecks.boot` runs) is
+  # itself adapter-capability-gated on that same declaration and simply
+  # no-ops for a non-lineage-capable adapter -- it never touches
+  # hecks_eras at all. Reuses the SAME loading pipeline `Loader.boot`
+  # itself does (`Ports::Loading.bootstrap`/`load_library`/
+  # `load_project`/`load_domain`) to build a real, fully-loaded
+  # registry (bluebook + any uses_framework attachments), then calls
+  # straight into Postgres's own `LineageManager.check!` with THIS
+  # deploy's actual `DATABASE_URL` -- bypassing the world file's own
+  # adapter choice entirely, the same targeted pattern
+  # spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
+  # already uses.
+  \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{domain_name}" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \\
   \tBOOT_STATUS=$$?; \\
   \tkill $$TUNNEL_PID 2>/dev/null; \\
   \texit $$BOOT_STATUS
