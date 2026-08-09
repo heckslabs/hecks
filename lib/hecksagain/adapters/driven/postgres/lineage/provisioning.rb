@@ -114,8 +114,15 @@ module Hecksagain
             # concurrent writer, on any era, for as long as that ALTER
             # TABLE has to wait its turn. Read the current state first;
             # touch the catalog only on the boot that actually needs to.
+            # pg_table_is_visible, NOT a bare relname match — a shared
+            # instance (storehouse) can hold a same-named journal table
+            # per schema; catalog lookups here must resolve the SAME way
+            # search_path resolves an unqualified SQL reference, or a
+            # sibling domain's table satisfies a query meant for this
+            # domain's own.
             current = @db.exec_params(
-              "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = $1", [journal]
+              "SELECT relrowsecurity, relforcerowsecurity FROM pg_class " \
+              "WHERE relname = $1 AND pg_table_is_visible(oid)", [journal]
             )[0]
             @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY") unless current["relrowsecurity"] == "t"
             @db.exec("ALTER TABLE #{quoted_journal} FORCE ROW LEVEL SECURITY") unless current["relforcerowsecurity"] == "t"
@@ -127,7 +134,8 @@ module Hecksagain
           # role, and the owner has already done this work.
           def provisioner?
             rows = @db.exec_params(
-              "SELECT pg_get_userbyid(relowner) = current_user AS owned FROM pg_class WHERE relname = $1",
+              "SELECT pg_get_userbyid(relowner) = current_user AS owned FROM pg_class " \
+              "WHERE relname = $1 AND pg_table_is_visible(oid)",
               [journal]
             )
             rows.ntuples.zero? || rows[0]["owned"] == "t"
@@ -174,7 +182,8 @@ module Hecksagain
               "SELECT 1 FROM pg_inherits i " \
               "JOIN pg_class child ON child.oid = i.inhrelid " \
               "JOIN pg_class parent ON parent.oid = i.inhparent " \
-              "WHERE child.relname = $1 AND parent.relname = $2",
+              "WHERE child.relname = $1 AND parent.relname = $2 " \
+              "AND pg_table_is_visible(child.oid) AND pg_table_is_visible(parent.oid)",
               [partition(era), journal]
             ).ntuples.positive?
           end

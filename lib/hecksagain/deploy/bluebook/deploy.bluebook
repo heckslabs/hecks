@@ -50,11 +50,23 @@ Hecks.bluebook "Deploy" do
     # `tokio_postgres` code on both the Ruby and rust/host sides
     # either way; this only changes which CloudFormation resource
     # bin/project_deploy emits, never a runtime adapter).
+    # "Shared" — no RDS/VPC of this domain's own at all; it borrows
+    # another already-deployed domain's instance instead (the
+    # storehouse), isolated from that domain's own data by a native
+    # Postgres SCHEMA (this domain's own lowercase name), not a
+    # separate database. Requires a sibling `owner "OtherDomain"`
+    # setting inside the SAME deployed_to("AwsLambda") block, naming
+    # which already-deployed domain owns the shared instance —
+    # bin/project_deploy checks for that setting itself (Ruby-level,
+    # the same as `pg_version`/`google_oauth_present` below it), not
+    # here: which domain owns the instance is a deploy-time fact, not
+    # a business invariant this validated aggregate's job to hold.
     value_object "Database" do
       attribute :value, String
       one_of do
         member value: "Postgres"
         member value: "Aurora"
+        member value: "Shared"
       end
     end
 

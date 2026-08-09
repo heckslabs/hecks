@@ -73,7 +73,12 @@ RSpec.describe "the self-hosted Deploy bluebook" do
     expect(result.instance.state[:database].value).to eq("Aurora")
   end
 
-  it "refuses a database outside {Postgres, Aurora}" do
+  it "accepts \"Shared\" for database" do
+    result = declare(database: { value: "Shared" })
+    expect(result.instance.state[:database].value).to eq("Shared")
+  end
+
+  it "refuses a database outside {Postgres, Aurora, Shared}" do
     expect { declare(database: { value: "MySQL" }) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation)
   end
@@ -161,6 +166,49 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       expect(status).not_to be_success
       expect(stderr).to include("is invalid:")
       expect(stderr).to include("memory is at least 128 MB")
+    end
+
+    it 'generates cleanly for database "Shared" with an owner declared' do
+      _stdout, stderr, status = run_project_deploy(<<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsLambda") do
+            region "us-east-1"
+            database "Shared"
+            owner "Embryonaut"
+          end
+        end
+      WORLD
+
+      expect(status).to be_success, stderr
+    end
+
+    it 'refuses database "Shared" with no owner declared' do
+      _stdout, stderr, status = run_project_deploy(<<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsLambda") do
+            region "us-east-1"
+            database "Shared"
+          end
+        end
+      WORLD
+
+      expect(status).not_to be_success
+      expect(stderr).to include("declares database \"Shared\" but no owner")
+    end
+
+    it 'never claims to have written bastion.yaml for a Shared-mode domain' do
+      stdout, stderr, status = run_project_deploy(<<~WORLD)
+        Hecks.world "Scratch" do
+          deployed_to("AwsLambda") do
+            region "us-east-1"
+            database "Shared"
+            owner "Embryonaut"
+          end
+        end
+      WORLD
+
+      expect(status).to be_success, stderr
+      expect(stdout).not_to include("bastion.yaml")
     end
   end
 end

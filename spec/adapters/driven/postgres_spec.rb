@@ -128,6 +128,51 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     expect(reopened.find("p1").status).to eq("sold")
   end
 
+  describe "the `schema` setting — shared-instance isolation" do
+    before do
+      admin = PG.connect(dbname: SPEC_DB)
+      admin.exec("DROP SCHEMA IF EXISTS storehouse_a CASCADE")
+      admin.exec("DROP SCHEMA IF EXISTS storehouse_b CASCADE")
+      admin.exec("CREATE SCHEMA storehouse_a")
+      admin.exec("CREATE SCHEMA storehouse_b")
+      admin.close
+    end
+
+    let(:adapter_a) do
+      described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, schema: "storehouse_a" })
+    end
+
+    let(:adapter_b) do
+      described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, schema: "storehouse_b" })
+    end
+
+    it "creates its tables inside the declared schema, not public" do
+      adapter_a.save(instance("p1", name: { value: "Margherita" }))
+
+      probe = PG.connect(dbname: SPEC_DB)
+      in_schema = probe.exec_params(
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = $1", ["storehouse_a"]
+      ).getvalue(0, 0).to_i
+      in_public = probe.exec_params(
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'"
+      ).getvalue(0, 0).to_i
+      probe.close
+
+      expect(in_schema).to be > 0
+      expect(in_public).to eq(0)
+    end
+
+    it "keeps two schemas on the same instance from seeing each other's rows" do
+      adapter_a.save(instance("p1", name: { value: "Margherita" }))
+      adapter_b.save(instance("p1", name: { value: "Diavola" }))
+
+      expect(adapter_a.find("p1").name.to_h).to eq(value: "Margherita")
+      expect(adapter_b.find("p1").name.to_h).to eq(value: "Diavola")
+      expect(adapter_a.count).to eq(1)
+      expect(adapter_b.count).to eq(1)
+    end
+  end
+
   describe "query pushdown — compile fully into SQL, or refuse" do
     before do
       adapter.save(instance("p1", name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 } }, status: "available"))

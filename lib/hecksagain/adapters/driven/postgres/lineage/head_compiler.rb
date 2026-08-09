@@ -396,9 +396,15 @@ module Hecksagain
           end
 
           def view_exists?(name)
+            # pg_class + pg_table_is_visible, not information_schema/
+            # pg_matviews by bare name — same shared-instance reasoning
+            # as provisioning.rb's own catalog lookups: this must resolve
+            # the name the same way search_path would, or a sibling
+            # domain's same-named view satisfies a check meant for this
+            # domain's own.
             @db.exec_params(
-              "SELECT 1 FROM information_schema.views WHERE table_name = $1 " \
-              "UNION SELECT 1 FROM pg_matviews WHERE matviewname = $1",
+              "SELECT 1 FROM pg_class WHERE relname = $1 AND relkind IN ('v', 'm') " \
+              "AND pg_table_is_visible(oid)",
               [name]
             ).ntuples.positive?
           end

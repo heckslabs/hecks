@@ -47,12 +47,20 @@ pub async fn handle(
     // are for) could both rehydrate against the same prior steps, both
     // pass a uniqueness check the domain thinks it's enforcing, and
     // both append: the replay-determinism argument in journal.rs's own
-    // header only holds if invocations serialize. One fixed key is
-    // correct here (unlike postgres.rb's per-domain key) because this
-    // journal is already flat and domain-agnostic — see journal.rs.
+    // header only holds if invocations serialize.
+    //
+    // DOMAIN-SCOPED KEY, same as postgres.rb's own `hecks_ordinal:` —
+    // this was a single fixed key until the storehouse (multiple
+    // domains sharing one Postgres instance, isolated by schema): a
+    // fixed key would incorrectly serialize every domain's invocations
+    // against every OTHER domain's, not just against itself. Each
+    // domain's own `search_path` already keeps `hecks_lambda_journal`
+    // itself schema-isolated (main.rs sets it at boot); this makes the
+    // LOCK isolated the same way, so domains sharing the instance don't
+    // queue behind each other.
     txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal'))",
-        &[],
+        "SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))",
+        &[&config.domain],
     )
     .await?;
 

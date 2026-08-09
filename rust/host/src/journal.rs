@@ -253,7 +253,7 @@ fn storage_name(qualified_aggregate: &str) -> String {
 /// builds from a domain/aggregate NAME (never from caller-controlled
 /// data) goes through this before reaching a `CREATE`/table-name
 /// position — table names can't be bound as query parameters.
-fn quote_ident(name: &str) -> String {
+pub(crate) fn quote_ident(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
 

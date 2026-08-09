@@ -33,6 +33,18 @@ async fn main() -> Result<(), Error> {
         std::env::var("HECKS_WASM_PATH").unwrap_or_else(|_| "banking.wasm".to_string()),
     );
 
+    // Read BEFORE the Postgres connection opens — `SET search_path`
+    // below has to run before `journal::ensure_schema`/anything else
+    // touches the connection, or those calls resolve unqualified names
+    // against Postgres's own default search_path instead of this
+    // domain's. `HECKS_SCHEMA` is OPTIONAL, same as Ruby's own
+    // `settings[:schema]` (postgres.rb) — a domain with its own
+    // dedicated instance (today's default, not the storehouse) sets
+    // nothing here and keeps Postgres's ordinary default search_path,
+    // exactly today's behavior, unchanged.
+    let domain = std::env::var("HECKS_DOMAIN").map_err(|_| "HECKS_DOMAIN is required")?;
+    let schema = std::env::var("HECKS_SCHEMA").ok().filter(|s| !s.is_empty());
+
     // RDS Postgres refuses a plain NoTls connection by default (real,
     // live error: "no pg_hba.conf entry ... no encryption") -- and
     // needs AWS's own RDS CA specifically, not a generic public bundle
@@ -94,17 +106,26 @@ async fn main() -> Result<(), Error> {
             eprintln!("postgres connection error: {e:#}");
         }
     });
+
+    // SHARED-INSTANCE ISOLATION — same reasoning as postgres.rb's own
+    // `SET search_path` (postgres.rb's `connect_for`): every unqualified
+    // table/view reference this binary ever issues (hecks_lambda_journal,
+    // hecks_lambda_snapshot, hecks_eras, the era-partitioned lineage
+    // tables in journal.rs) resolves through search_path, so this one
+    // SET is what makes a shared instance's per-domain schemas
+    // transparent to the rest of this binary — no other call site needs
+    // to change.
+    if let Some(schema) = &schema {
+        client
+            .batch_execute(&format!("SET search_path TO {}", journal::quote_ident(schema)))
+            .await
+            .map_err(|e| format!("setting search_path to {schema:?}: {e:#}"))?;
+    }
+
     journal::ensure_schema(&client)
         .await
         .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
 
-    // Which Ruby-shaped lineage journal/era this deployed binary writes
-    // as -- operational facts, like Ruby's own settings[:domain]/
-    // settings[:era] (journal.rs's own header on why neither is
-    // computed here). No default for either: a binary silently writing
-    // under the wrong domain or era is exactly the failure mode this
-    // whole design exists to prevent.
-    let domain = std::env::var("HECKS_DOMAIN").map_err(|_| "HECKS_DOMAIN is required")?;
     // i32, matching Postgres `int` -- hecks_eras.ordinal and every
     // journal's own `era` column are `int` (int4) in Ruby's real DDL
     // (era_store.rb/provisioning.rb), not bigint; tokio_postgres

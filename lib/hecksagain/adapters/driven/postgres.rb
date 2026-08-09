@@ -67,6 +67,17 @@ module Hecksagain
             PG.connect(dbname: declared)
           end
 
+        # SHARED-INSTANCE ISOLATION. A domain that declares `schema` is
+        # sharing its Postgres instance with other domains (the
+        # storehouse) — every unqualified table/view/function reference
+        # this adapter and its lineage classes ever construct resolves
+        # through search_path, so this one SET is what makes ALTER
+        # TABLE ... SET SCHEMA migrations transparent to the rest of the
+        # adapter. A domain with no `schema` setting keeps Postgres's
+        # own default search_path (public), same as before this existed.
+        schema = settings[:schema] || settings["schema"]
+        connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
+
         # QUIET ON PURPOSE. Provisioning re-runs its own idempotent
         # `CREATE ... IF NOT EXISTS` checks on every boot — a schema that
         # already exists is the ORDINARY case, not news, and Postgres
