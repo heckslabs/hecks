@@ -296,7 +296,10 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref #{db_id}Vpc
-      GroupDescription: #{db_id}LambdaEndpoint - HTTPS from this stack's own Lambdas only
+      # EC2's own GroupDescription character set excludes apostrophes
+      # too, not just em-dashes -- "this stack's own" was a real,
+      # live rejection ("Invalid security group description").
+      GroupDescription: #{db_id}LambdaEndpoint - HTTPS from this stacks own Lambdas only
 
   #{db_id}LambdaEndpointIngress:
     Type: AWS::EC2::SecurityGroupIngress
