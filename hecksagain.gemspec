@@ -26,8 +26,15 @@ Gem::Specification.new do |spec|
 
   spec.metadata["allowed_push_host"] = "https://this.gem.is.not.published"
 
-  # Postgres/Sqlite are ADAPTERS, reached only if a domain's .hecksagon
-  # wires one — the runtime itself boots on the in-memory adapter with
-  # neither installed. Declaring them here would force a database client
-  # library on every project that never touches either.
+  # UNLIKE Postgres/Sqlite (ADAPTERS, reached only if a domain's
+  # .hecksagon wires one — declaring them here would force a database
+  # client library on every project that never touches either), prism
+  # is a genuinely unconditional dependency: adapters/driven/prism.rb's
+  # own `require "prism"` runs the moment `require "hecksagain"` does,
+  # not lazily. Real, not merely tidy — Ruby 3.3+ bundles prism as a
+  # default gem so this went unnoticed everywhere prism was already
+  # present for free; Ruby 3.2 (AWS Lambda's own managed runtime, among
+  # others) does not, and `require "hecksagain"` failed outright there
+  # with prism undeclared (caught live building for Lambda).
+  spec.add_dependency "prism"
 end
