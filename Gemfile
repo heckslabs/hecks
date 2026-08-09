@@ -19,6 +19,18 @@ gem "google-id-token", "~> 1.4"
 # should never need this installed.
 gem "aws-sdk-lambda", "~> 1.0"
 
+# For lib/hecksagain/presentation/app.rb — lazily required there, same
+# reasoning as the adapters above: a domain that never boots the
+# presentation surface should never need a Rack implementation
+# installed. rackup/webrick supply `bin/present`'s own dev server;
+# neither is a runtime dependency of the presentation app itself,
+# which only needs `Rack::Request`/`Rack::Response` and is handed to
+# whatever server the embedding project already runs.
+gem "rack", "~> 3.0"
+gem "rackup", "~> 2.0"
+gem "webrick", "~> 1.9"
+gem "rack-test", "~> 2.0"
+
 # PINNED, NOT LEFT TO THE RESOLVER — oauth2's own dependency chain
 # pulls in a real `json` gem where none was in this bundle before
 # (Ruby's own bundled default, 2.7.2, answered every require here
