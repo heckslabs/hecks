@@ -16,7 +16,15 @@ build-EmbryonautFunction:
 		echo "cargo-lambda isn't installed. Install it once with: pip3 install cargo-lambda"; \
 		exit 1; \
 	}
-	test -f $(WASM) || (cd /Users/christopheryoung/Projects/hecksagain && bin/project_wasm /Users/christopheryoung/Projects/embryonaut)
+# ALWAYS rebuilt, never `test -f $(WASM) || ...` — that guard only
+# checked EXISTENCE, not staleness, so a wasm built once at the
+# start of a work session silently kept getting deployed through
+# every later kernel change (a real, live bug: this cost a stale
+# deploy against a wasm that predated the kernel's own "mutations"
+# field). `bin/project_wasm` recompiles fast enough that "always
+# rebuild" is the safe default, matching rust/host's own bootstrap
+# build just below, which was never guarded this way to begin with.
+	cd /Users/christopheryoung/Projects/hecksagain && bin/project_wasm /Users/christopheryoung/Projects/embryonaut
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
