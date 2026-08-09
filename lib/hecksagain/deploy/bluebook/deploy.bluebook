@@ -1,0 +1,87 @@
+# A TOOLING-INTERNAL DOMAIN, not a business one — never attached via
+# `uses_framework`, never seen by an end-user domain. `bin/project_deploy`
+# boots this directory directly (Ports::Loading.bootstrap + load_domain,
+# the same pipeline lib/hecksagain/runtime/loader.rb uses, minus a
+# `.world`/`.hecksagon` this domain has no need for) and dispatches one
+# command against it before generating anything from a domain's own
+# `deployed_to("AwsLambda")` settings.
+#
+# WHY THIS EXISTS: `world.bluebook`'s `Wiring`/`Setting` is a DELIBERATELY
+# open, untyped map — "a verb's schema is not even contained in the file
+# being parsed" (syntax.bluebook's own header on this). That's the right
+# call for `Wiring` itself (an adapter verb's shape genuinely isn't the
+# world language's business), but it leaves `deployed_to`'s ACTUAL shape
+# validated nowhere — `bin/project_deploy` used to check it by hand
+# (`deploy_settings[:adapter] == "AwsLambda" or abort ...`,
+# `fetch(:region) { abort ... }`), the exact raw-Ruby-refusal pattern
+# every other kind of bluebook mistake in this codebase does NOT use.
+# This closes that gap the same way any other rule gets enforced here:
+# as a real command, real invariants, a real corpus-testable refusal —
+# not a hand-written abort string discovered only by running the script.
+Hecks.bluebook "Deploy" do
+  aggregate "LambdaTarget" do
+    description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
+
+    identified_by { domain.value }
+
+    attribute :domain,  DomainName
+    attribute :region,  Region
+    attribute :memory,  Memory
+    attribute :timeout, Timeout
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a domain is named") { !value.to_s.empty? }
+    end
+
+    value_object "Region" do
+      attribute :value, String
+      invariant("a region is named") { !value.to_s.empty? }
+    end
+
+    # 128-10240 MB — AWS Lambda's own real ceiling and floor, not a
+    # number this domain invented. A typo here used to fail deep inside
+    # a real `sam deploy`, sometimes minutes in; now it refuses before
+    # a single file is generated.
+    value_object "Memory" do
+      attribute :value, Integer
+      invariant("memory is at least 128 MB") { value >= 128 }
+      invariant("memory is at most 10240 MB") { value <= 10240 }
+    end
+
+    # 900s — Lambda's own real ceiling.
+    value_object "Timeout" do
+      attribute :value, Integer
+      invariant("a timeout is positive") { value.positive? }
+      invariant("a timeout fits Lambda's own 900s ceiling") { value <= 900 }
+    end
+
+    # ALL FOUR REQUIRED — deliberately, not `optional: true` +
+    # `default:`. Confirmed directly against CommandInterpreter's own
+    # `normalize_args`/`coerce_declared_arguments` (interpreting.rb):
+    # `next unless normalized.key?(attribute.name)` skips coercion
+    # entirely for an absent key, so a command-level `default:` is
+    # honored ONLY at the JSON/Rust-codegen boundary (`scalar_from_json_
+    # expr`'s own domain), never by Ruby's own direct dispatch — a
+    # `default:` here would be quietly false advertising. "What memory
+    # defaults to when unspecified" stays exactly where it already
+    # lived (bin/project_deploy's own `fetch(:memory, 512)`); this
+    # command validates a FULLY-RESOLVED target, and bin/project_deploy
+    # resolves the default before ever dispatching.
+    command "Declare" do
+      goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
+
+      attribute :domain,  DomainName
+      attribute :region,  Region
+      attribute :memory,  Memory
+      attribute :timeout, Timeout
+
+      then_set :domain,  to: :domain
+      then_set :region,  to: :region
+      then_set :memory,  to: :memory
+      then_set :timeout, to: :timeout
+
+      emits "LambdaTargetDeclared"
+    end
+  end
+end
