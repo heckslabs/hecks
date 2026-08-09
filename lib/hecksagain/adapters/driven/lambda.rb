@@ -1,0 +1,115 @@
+require_relative "lambda/client"
+require_relative "../../ports/query/in_memory"
+require_relative "../../runtime/instance"
+
+module Hecksagain
+  module Adapters
+    # THE READ-SIDE HALF OF LAMBDA ROUTING — `persisted_by("Lambda")`'s
+    # own adapter, resolved through the SAME `Ports::Persistence`
+    # machinery `persisted_by("Postgres")`/`persisted_by("Memory")`
+    # already use (`Runtime::Registry#repository`, `RepositoryFactory
+    # .build`) — no new framework plumbing, just a new adapter class at
+    # the name the existing lookup already expects. See
+    # `Runtime::RemoteDispatcher` for the write-side half; the two
+    # compose through one shared `Client` per domain rather than each
+    # inventing its own AWS wiring.
+    #
+    # READ-ONLY, DELIBERATELY — `append`/`project` raise rather than
+    # silently no-op. A write reaching this class would mean
+    # `Runtime::CommandInterpreter` ran locally against a Lambda-routed
+    # domain, which is exactly the bypass `Runtime::RemoteDispatcher`
+    # exists to prevent (business-rule validation must happen in Rust
+    # for these domains, not be pre-computed here against an
+    # incomplete local view). A loud failure here is the correct
+    # outcome, not a bug to route around.
+    class Lambda
+      attr_reader :aggregate
+
+      def initialize(aggregate:, settings: {}, root: nil)
+        @aggregate = aggregate
+        domain = settings[:domain] || settings["domain"] || aggregate.name
+        region = settings[:region] || settings["region"] || "us-east-1"
+        # TWO DIFFERENT "domain"s, deliberately not conflated: `domain`
+        # (this aggregate's OWN bluebook name — "Identity", "Governance")
+        # only ever prefixes the instances lookup, since that's how
+        # rust/host's own `Store::instances()` keys every record
+        # (`registry.rb`'s own `"#{a[:domain_name]}::#{a[:name]}#"`
+        # dump format, unchanged by which chapter attached it). The
+        # FUNCTION to actually call is a different question: Governance
+        # and Identity aggregates are compiled into the ATTACHING
+        # domain's own Lambda (one merged `Store` per target — Phase 0's
+        # framework-bluebook work), never a function of their own, so
+        # `settings[:domain]` is the wrong signal for `Client.new`.
+        # `root` is the boot's own directory (`Registry#root`, shared by
+        # EVERY bluebook in one registry regardless of which one
+        # attached it) — `File.basename(root)` reproduces the exact
+        # same string `bin/project_deploy`'s own `stack_name` computes
+        # from the domain PATH, so the two can never name two
+        # different functions for the same deploy.
+        function_domain = root ? File.basename(root) : domain
+        @client = Client.new(domain: function_domain, region: region)
+        @prefix = "#{domain}::#{aggregate.hecks_name}#"
+      end
+
+      def find(id)
+        instances[id.to_s]
+      end
+
+      def all = instances.values
+
+      def count = instances.size
+
+      def query(specification, args = {})
+        Ports::Query::InMemory.execute(instances.values, specification, args)
+      end
+
+      # `entries`/`append`/`project` — the append-only contract
+      # `Ports::Persistence::AppendOnly` requires of every adapter
+      # (raises at construction if any are missing). `entries` is `[]`
+      # unconditionally: Lambda's own Postgres is already the durable
+      # store (rust/host's rehydrate-and-replay journal, Phase 1) —
+      # there is no local write-ahead log for `recover!` to replay.
+      def entries = []
+
+      def append(entry)
+        raise Runtime::WiringError,
+              "Lambda-backed repositories are read-only — dispatch #{entry.id.inspect}'s command through " \
+              "Runtime::RemoteDispatcher instead of writing through the repository directly"
+      end
+
+      def project(entry)
+        raise Runtime::WiringError,
+              "Lambda-backed repositories are read-only — dispatch #{entry.id.inspect}'s command through " \
+              "Runtime::RemoteDispatcher instead of writing through the repository directly"
+      end
+
+      private
+
+      # CACHED FOR THIS ADAPTER'S LIFETIME, not re-fetched per call —
+      # `.all`, `.find`, `.count`, `.query` inside one request/boot
+      # share ONE Lambda invoke, matching how Postgres shares one open
+      # connection rather than reconnecting per method. Keyed by bare
+      # id (the part after "Domain::Aggregate#"), not the full
+      # "Domain::Aggregate#id" string — callers already know which
+      # aggregate they're asking this instance about.
+      def instances
+        @instances ||= @client.read.fetch("instances", {}).filter_map { |key, state|
+          next unless key.start_with?(@prefix)
+
+          [key.delete_prefix(@prefix), build_instance(key.delete_prefix(@prefix), state)]
+        }.to_h
+      end
+
+      # Lambda's own JSON response is already Ruby-decoded with STRING
+      # keys (plain `JSON.parse`, no `symbolize_names:`) — every other
+      # adapter's own `instance(row)` builder (Postgres, Sqlite) hands
+      # `Runtime::Instance.new` a SYMBOL-keyed state hash instead. A
+      # round trip through `JSON.generate`/`JSON.parse` is simpler and
+      # safer than a hand-rolled deep-symbolize helper for what is not
+      # a hot path.
+      def build_instance(id, state)
+        Runtime::Instance.new(aggregate: @aggregate, id: id, state: JSON.parse(JSON.generate(state), symbolize_names: true))
+      end
+    end
+  end
+end

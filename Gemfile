@@ -12,6 +12,13 @@ gem "sqlite3", "~> 2.0"
 gem "oauth2", "~> 2.0"
 gem "google-id-token", "~> 1.4"
 
+# For testing Adapters::Lambda / Runtime::RemoteDispatcher,
+# lib/hecksagain/adapters/driven/lambda/client.rb — lazily required
+# there, same reasoning as oauth2/google-id-token above: a domain
+# that never binds `dispatched_by("Lambda")`/`persisted_by("Lambda")`
+# should never need this installed.
+gem "aws-sdk-lambda", "~> 1.0"
+
 # PINNED, NOT LEFT TO THE RESOLVER — oauth2's own dependency chain
 # pulls in a real `json` gem where none was in this bundle before
 # (Ruby's own bundled default, 2.7.2, answered every require here

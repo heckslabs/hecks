@@ -246,6 +246,7 @@ Hecks.bluebook "Bluebook" do
         member name: "InvariantViolation"
         member name: "LifecycleRefused"
         member name: "NotFound"
+        member name: "RemoteRefusal"
         member name: "TypeMismatch"
         member name: "Unauthorized"
         member name: "UnknownArgument"
