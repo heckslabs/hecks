@@ -43,8 +43,12 @@ module Hecksagain
         # exactly (see its own comment on why: one merged Lambda per
         # deploy, not one per attached chapter, and `root` is the one
         # signal every bluebook in this registry shares regardless of
-        # which one attached it).
-        @client = Adapters::Lambda::Client.new(domain: File.basename(registry.root), region: region)
+        # which one attached it) — INCLUDING that same adapter's own
+        # `ENV["DOMAIN_NAME"]`-first fix: `root` is always `/var/task`
+        # inside a deployed Lambda, giving "task" instead of the real
+        # domain name (a real, live AccessDeniedException on
+        # "hecksagain-task" caught this).
+        @client = Adapters::Lambda::Client.new(domain: ENV["DOMAIN_NAME"] || File.basename(registry.root), region: region)
         # READ-SIDE DELEGATE ONLY (see class comment) — never dispatched
         # through; a real Dispatcher's own `query`/`reference_query`
         # already resolve generically via `registry.repository(...)`,

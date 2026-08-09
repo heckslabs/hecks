@@ -45,8 +45,21 @@ module Hecksagain
         # attached it) — `File.basename(root)` reproduces the exact
         # same string `bin/project_deploy`'s own `stack_name` computes
         # from the domain PATH, so the two can never name two
-        # different functions for the same deploy.
-        function_domain = root ? File.basename(root) : domain
+        # different functions for the same deploy... on a LOCAL boot,
+        # where `root` is a real project directory. Inside the deployed
+        # Lambda itself `root` is ALWAYS `/var/task` (every Lambda's own
+        # fixed code root, regardless of domain) — `File.basename` gives
+        # "task", not the domain name, and invokes the wrong function
+        # entirely. A real, live AccessDeniedException on
+        # "hecksagain-task" caught this: invisible through every earlier
+        # phase's own verify step, all run from a local boot, until
+        # WebFunction became the first Ruby process to EVER make this
+        # exact call from inside a deployed Lambda. `DOMAIN_NAME` (set
+        # by bin/project_deploy's own WebFunction Environment) is the
+        # real, unambiguous signal in that specific context; the
+        # root-basename heuristic stays as the local-boot fallback,
+        # unchanged.
+        function_domain = ENV["DOMAIN_NAME"] || (root ? File.basename(root) : domain)
         @client = Client.new(domain: function_domain, region: region)
         @prefix = "#{domain}::#{aggregate.hecks_name}#"
       end
