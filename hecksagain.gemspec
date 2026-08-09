@@ -1,4 +1,7 @@
-require_relative "lib/hecksagain"
+# lib/hecksagain/version.rb, NOT "lib/hecksagain" — the whole
+# framework, not just VERSION, the moment this required more; see that
+# file's own header for the real chicken-and-egg bug this avoids.
+require_relative "lib/hecksagain/version"
 
 Gem::Specification.new do |spec|
   spec.name        = "hecksagain"
