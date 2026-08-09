@@ -36,6 +36,7 @@ build-EmbryonautFunction:
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
 	cp $(WASM) $(ARTIFACTS_DIR)/embryonaut.wasm
+	cp /Users/christopheryoung/Projects/hecksagain/rust/dist/embryonaut.ir.json $(ARTIFACTS_DIR)/embryonaut.ir.json
 
 # `sam build <resource>` WIPES .aws-sam/build/ entirely before
 # building just the one resource named -- confirmed live: building
@@ -60,6 +61,7 @@ restore-EmbryonautFunction-build:
 	@mkdir -p .aws-sam/build/EmbryonautFunction
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/EmbryonautFunction/bootstrap
 	cp $(WASM) .aws-sam/build/EmbryonautFunction/embryonaut.wasm
+	cp /Users/christopheryoung/Projects/hecksagain/rust/dist/embryonaut.ir.json .aws-sam/build/EmbryonautFunction/embryonaut.ir.json
 	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "EmbryonautFunction:" } or raise "restore-EmbryonautFunction-build: EmbryonautFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-EmbryonautFunction-build: no CodeUri line found under EmbryonautFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: EmbryonautFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
 # `make mint-era` — takes hecksagain-embryonaut's RDS instance from freshly
@@ -168,76 +170,6 @@ mint-era:
 	echo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \
 	exit $$BOOT_STATUS
 
-# WebFunction's own `pg` gem needs a native extension SAM's
-# default Ruby builder can't produce correctly: the precompiled
-# aarch64-linux binary needs GLIBC 2.29+, but Lambda's ruby3.2
-# MANAGED runtime is Amazon Linux 2 (glibc 2.26) — a real, live
-# "Init<NameError>: uninitialized constant PG::Error" caught this
-# (rescuing PG::Error itself failed to resolve, because pg's own
-# `require` died before ever reaching the file that defines it).
-# Built once, from source, in the SAME container `sam build
-# --use-container` itself uses (its glibc, not the host's, is what
-# has to match the deployed runtime) — then cached under
-# PG_NATIVE_DIR so every later `make deploy` skips straight to the
-# fast path. Delete that directory to force a clean rebuild.
-#
-# OpenSSL is built `no-shared` and linked STATICALLY into libpq, so
-# the libpq.so this produces carries no runtime dependency on
-# whatever OpenSSL (if any) happens to already be on the Lambda
-# execution image — sidesteps the AL2 package conflict between
-# `openssl-libs` and the build image's own pre-installed
-# `openssl-snapsafe-libs` entirely, rather than fighting it.
-PG_NATIVE_DIR := /Users/christopheryoung/Projects/hecksagain/tmp/pg-native-arm64-ruby3.2
-
-$(PG_NATIVE_DIR)/pg_ext.so:
-	@mkdir -p $(PG_NATIVE_DIR)
-	@echo "Building WebFunction's pg native extension from source (cached under $(PG_NATIVE_DIR) after this — a few minutes, one time only)..."
-	docker run --rm --platform linux/arm64 -v $(PG_NATIVE_DIR):/out \
-		--entrypoint /bin/bash public.ecr.aws/sam/build-ruby3.2:latest-arm64 -c ' \
-			set -e; \
-			yum install -y perl-IPC-Cmd >/dev/null; \
-			cd /tmp; \
-			curl -sL https://www.openssl.org/source/openssl-3.0.15.tar.gz | tar xz; \
-			cd openssl-3.0.15; \
-			./Configure linux-aarch64 no-shared no-tests --prefix=/tmp/openssl-install >/dev/null; \
-			make -j$$(nproc) >/dev/null; \
-			make install_sw >/dev/null; \
-			cd /tmp; \
-			curl -sL https://ftp.postgresql.org/pub/source/v16.4/postgresql-16.4.tar.gz | tar xz; \
-			cd postgresql-16.4; \
-			CPPFLAGS="-I/tmp/openssl-install/include" LDFLAGS="-L/tmp/openssl-install/lib" \
-				./configure --without-readline --without-zlib --without-icu --with-ssl=openssl --prefix=/tmp/pg-install >/dev/null; \
-			make -C src/include install >/dev/null; \
-			make -C src/interfaces/libpq -j$$(nproc) install >/dev/null; \
-			cd /tmp; \
-			gem fetch pg -v 1.6.3 --platform ruby >/dev/null; \
-			gem unpack pg-1.6.3.gem --target=/tmp/gemsrc >/dev/null; \
-			cd /tmp/gemsrc/pg-1.6.3/ext; \
-			ruby -I.. -I../lib extconf.rb --with-pg-include=/tmp/pg-install/include --with-pg-lib=/tmp/pg-install/lib >/dev/null; \
-			make >/dev/null; \
-			cp pg_ext.so /out/pg_ext.so; \
-			cp /tmp/pg-install/lib/libpq.so.5.16 /out/libpq.so.5.16; \
-		'
-
-# `find`, not a hardcoded gem-version path — survives /Users/christopheryoung/Projects/embryonaut's
-# own pg version bumping in its Gemfile.lock without this Makefile
-# needing regeneration to match. libpq.so.5.16 lands beside the
-# rest of WebFunction's code at /var/task/lib — the ruby3.2
-# base image's OWN baked-in LD_LIBRARY_PATH default already searches
-# that exact path, so no rpath patching AND no explicit
-# LD_LIBRARY_PATH override belongs in template.yaml (setting one
-# there REPLACES the image's full default list instead of extending
-# it — a real, live "libcrypt.so.1: cannot open shared object file"
-# caught this — WebFunction's own Environment no longer sets
-# it at all, on purpose).
-.PHONY: patch-pg-native
-patch-pg-native: $(PG_NATIVE_DIR)/pg_ext.so
-	@PG_EXT=$$(find .aws-sam/build/WebFunction/vendor/bundle -path "*/pg-*/lib/3.2/pg_ext.so" | head -1); \
-		test -n "$$PG_EXT" || { echo "patch-pg-native: no pg_ext.so found under .aws-sam/build/WebFunction — run sam build --use-container WebFunction first"; exit 1; }; \
-		cp $(PG_NATIVE_DIR)/pg_ext.so "$$PG_EXT"
-	@mkdir -p .aws-sam/build/WebFunction/lib
-	cp $(PG_NATIVE_DIR)/libpq.so.5.16 .aws-sam/build/WebFunction/lib/libpq.so.5.16
-	ln -sf libpq.so.5.16 .aws-sam/build/WebFunction/lib/libpq.so.5
 
 # Owns hecksagain-embryonaut-web-google-oauth's WHOLE lifecycle (create on
 # first run, update every run after — idempotent, cheap, no reason
@@ -246,8 +178,13 @@ patch-pg-native: $(PG_NATIVE_DIR)/pg_ext.so
 # gitignored .env.local, so the real client_id/secret never lands in
 # this generated, git-TRACKED template.yaml as plaintext. Read by
 # name (`{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:...}}`,
-# template.yaml's own WebFunction Environment), not by `!Ref` —
-# see that comment for why this secret isn't a stack resource at all.
+# template.yaml's own Environment — EmbryonautFunction's
+# own), not by `!Ref` — see that comment for why this secret isn't a
+# stack resource at all. NOT nested inside patch-pg-native's own
+# pg_version gate above -- a real, live "No rule to make target
+# `sync-google-oauth'" caught that this target used to only exist
+# when a Ruby WebFunction (with its own pg gem) was also present,
+# even though Google OAuth itself has nothing to do with pg at all.
 .PHONY: sync-google-oauth
 sync-google-oauth:
 	@CLIENT_ID=$$(grep '^GOOGLE_CLIENT_ID=' /Users/christopheryoung/Projects/embryonaut/.env.local | cut -d= -f2-); \
@@ -256,7 +193,6 @@ sync-google-oauth:
 		SECRET_JSON=$$(ruby -rjson -e 'puts JSON.generate({client_id: ARGV[0], client_secret: ARGV[1]})' "$$CLIENT_ID" "$$CLIENT_SECRET"); \
 		aws secretsmanager put-secret-value --secret-id hecksagain-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null 2>&1 || \
 		aws secretsmanager create-secret --name hecksagain-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null
-
 
 
 # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
@@ -277,21 +213,8 @@ sync-google-oauth:
 
 .PHONY: deploy mint-era
 deploy:
-	# TWO SEPARATE builds, not one `--use-container` run -- that flag is
-	# global to `sam build`, but EmbryonautFunction deliberately builds on
-	# THIS machine's own toolchain (cargo-lambda already cross-compiles
-	# to arm64 without a container -- build-EmbryonautFunction's own comment
-	# on why), which a generic provided.al2023 container doesn't have
-	# at all (a real, live "Make Failed" caught this). Only WebFunction
-	# needs the container, to cross-compile pg's native extension for
-	# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before
-	# building just the one named, so EmbryonautFunction's own build gets
-	# restored below (restore-EmbryonautFunction-build's own comment on why).
-	sam build EmbryonautFunction
-	sam build --use-container WebFunction
-	$(MAKE) restore-EmbryonautFunction-build
-	$(MAKE) patch-pg-native
+	sam build
 	$(MAKE) sync-google-oauth
-	@WEB_URL=$$(aws lambda get-function-url-config --function-name hecksagain-embryonaut-web --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \
+	@WEB_URL=$$(aws lambda get-function-url-config --function-name hecksagain-embryonaut --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \
 	sam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"
 	$(MAKE) mint-era

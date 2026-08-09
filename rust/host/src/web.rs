@@ -16,6 +16,8 @@
 // `main.rs` falls through to its existing `read`/`verb` handling
 // untouched in that case, zero risk to the internal-dispatch path.
 
+use crate::auth;
+use crate::auth::Session;
 use crate::dispatch;
 use crate::journal::LineageConfig;
 use serde_json::{json, Value};
@@ -24,6 +26,8 @@ use std::path::Path;
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
+
+const UNGATED_PATHS: &[&str] = &["/login", "/logout", "/auth/google", "/auth/google/callback"];
 
 fn ir() -> Option<&'static Value> {
     static IR: OnceLock<Option<Value>> = OnceLock::new();
@@ -55,21 +59,66 @@ pub async fn render(
     } else {
         raw_body.to_string()
     };
+    let cookies = extract_cookies(body);
 
-    Some(route(domain_ir, method, path, &query, &raw_body, client, wasm_path, config).await)
+    Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config).await)
 }
 
+fn extract_cookies(body: &Value) -> HashMap<String, String> {
+    // API Gateway v2 / Function URL payload format's own `cookies`
+    // array — each element one "name=value" pair split off the raw
+    // Cookie header already. Falls back to a raw `headers.cookie`
+    // string (semicolon-separated) for anything that sends it that
+    // way instead — both shapes reduce to the same map either way.
+    let mut map = HashMap::new();
+    if let Some(list) = body.get("cookies").and_then(|v| v.as_array()) {
+        for c in list {
+            if let Some((k, v)) = c.as_str().and_then(|s| s.split_once('=')) {
+                map.insert(k.trim().to_string(), v.trim().to_string());
+            }
+        }
+    } else if let Some(header) = body.get("headers").and_then(|h| h.get("cookie")).and_then(|v| v.as_str()) {
+        for pair in header.split(';') {
+            if let Some((k, v)) = pair.split_once('=') {
+                map.insert(k.trim().to_string(), v.trim().to_string());
+            }
+        }
+    }
+    map
+}
+
+fn session_secret() -> String {
+    std::env::var("SESSION_SECRET").unwrap_or_default()
+}
+
+fn redirect_uri() -> String {
+    std::env::var("GOOGLE_REDIRECT_URI").unwrap_or_default()
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn route(
     domain_ir: &Value,
     method: &str,
     path: &str,
     query: &HashMap<String, String>,
     raw_body: &str,
+    cookies: &HashMap<String, String>,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
 ) -> Value {
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let secret = session_secret();
+    let session = cookies.get("session").and_then(|c| auth::parse_session_cookie(&secret, c));
+
+    if let Some(response) = auth_route(path, method, query, raw_body, session.as_ref(), &secret, client, wasm_path, config).await {
+        return response;
+    }
+
+    if !UNGATED_PATHS.contains(&path) && session.is_none() {
+        return redirect("/login");
+    }
+
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
 
     if segments.is_empty() {
@@ -105,6 +154,171 @@ async fn route(
     }
 
     respond(404, "text/plain", &format!("no route for {path}"))
+}
+
+// ---- auth: /login, /logout, /auth/google(/callback), /admin/members ----
+// Mirrors embryonaut_access_control.rb's own route shapes exactly
+// (README's own "Signing in" section, Ruby side) -- same paths, same
+// query-param error codes, same "GrantAccess is separate from Admit"
+// rule. `None` for anything that isn't one of these paths, so `route`
+// falls through to its ordinary IR-driven dispatch untouched.
+#[allow(clippy::too_many_arguments)]
+async fn auth_route(
+    path: &str,
+    method: &str,
+    query: &HashMap<String, String>,
+    raw_body: &str,
+    session: Option<&Session>,
+    secret: &str,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+) -> Option<Value> {
+    match (method, path) {
+        ("GET", "/login") => Some(html(200, &login_page(query.get("error").map(|s| s.as_str())))),
+
+        ("POST", "/logout") => Some(redirect_with_cookie("/login", "session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax")),
+
+        ("GET", "/auth/google") => match auth::authorization_url(&redirect_uri(), secret) {
+            Ok(url) => Some(redirect(&url)),
+            Err(e) => Some(respond(500, "text/plain", &format!("Google sign-in isn't configured: {e}"))),
+        },
+
+        ("GET", "/auth/google/callback") => Some(google_callback(query, client, wasm_path, config, secret).await),
+
+        ("GET", "/admin/members") => {
+            let Some(session) = session else { return Some(redirect("/login")) };
+            if !is_admin(client, wasm_path, &session.identity_id).await {
+                return Some(html(403, "<p>Admins only.</p>"));
+            }
+            Some(html(200, &admin_members_page(client).await))
+        }
+
+        ("POST", "/admin/members") => {
+            let Some(session) = session else { return Some(redirect("/login")) };
+            if !is_admin(client, wasm_path, &session.identity_id).await {
+                return Some(html(403, "<p>Admins only.</p>"));
+            }
+            let form = parse_form(raw_body);
+            let email = form.get("email").cloned().unwrap_or_default();
+            let role = form.get("role").cloned().unwrap_or_default();
+            match auth::grant_access(client, wasm_path, config, &email, &role).await {
+                Ok(true) => Some(redirect("/admin/members")),
+                Ok(false) => Some(html(404, "<p>No member with that email.</p>")),
+                Err(e) => Some(html(500, &format!("<p>{}</p>", esc(&e.to_string())))),
+            }
+        }
+
+        _ => None,
+    }
+}
+
+async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, identity_id: &str) -> bool {
+    match dispatch::read(client, wasm_path).await {
+        Ok(read) => auth::holds_admin(read.get("instances").unwrap_or(&json!({})), identity_id),
+        Err(_) => false,
+    }
+}
+
+async fn google_callback(
+    query: &HashMap<String, String>,
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    config: &LineageConfig,
+    secret: &str,
+) -> Value {
+    let Some(code) = query.get("code") else { return redirect("/login?error=google_failed") };
+    let Some(state) = query.get("state") else { return redirect("/login?error=google_failed") };
+    if auth::verify_state(state, secret).is_err() {
+        return redirect("/login?error=google_failed");
+    }
+
+    let claims = match auth::verify(code, &redirect_uri()).await {
+        Ok(c) => c,
+        Err(_) => return redirect("/login?error=google_failed"),
+    };
+
+    let read = match dispatch::read(client, wasm_path).await {
+        Ok(r) => r,
+        Err(_) => return redirect("/login?error=google_failed"),
+    };
+    let instances = read.get("instances").cloned().unwrap_or(json!({}));
+
+    let session = match auth::resolve_identity(&instances, &claims.issuer, &claims.subject) {
+        Some(identity_id) => auth::session_for_member_by_identity(client, &identity_id).await.unwrap_or(None),
+        None => None,
+    };
+    let session = match session {
+        Some(s) => Some(s),
+        None if claims.email_verified => {
+            let email = claims.email.clone().unwrap_or_default();
+            match auth::provision(client, wasm_path, config, &email, &claims.issuer, &claims.subject).await {
+                Ok(s) => s,
+                Err(_) => None,
+            }
+        }
+        None => None,
+    };
+
+    let Some(session) = session else { return redirect("/login?error=google_unlinked") };
+    let cookie = format!("session={}; Path=/; HttpOnly; Secure; SameSite=Lax", auth::session_cookie(secret, &session));
+    redirect_with_cookie("/", &cookie)
+}
+
+const ERROR_MESSAGES: &[(&str, &str)] = &[
+    ("google_unlinked", "That Google account isn't recognized here."),
+    ("google_failed", "Google sign-in didn't go through. Try again."),
+];
+
+fn login_page(error: Option<&str>) -> String {
+    let message = error.and_then(|e| ERROR_MESSAGES.iter().find(|(k, _)| *k == e)).map(|(_, m)| *m);
+    let error_html = message.map(|m| format!(r#"<p class="text-red-600 text-sm mb-4">{}</p>"#, esc(m))).unwrap_or_default();
+    format!(
+        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign in</title><script src="https://cdn.tailwindcss.com"></script></head>
+        <body class="bg-slate-50 text-slate-900 min-h-screen flex items-center justify-center">
+        <div class="w-full max-w-sm p-8 bg-white border border-slate-200 rounded-lg">
+        <h1 class="text-xl font-semibold mb-1">Sign in</h1>
+        <p class="text-slate-500 text-sm mb-6">Sign in with your Google account.</p>
+        {error_html}
+        <a href="/auth/google" class="block w-full text-center py-2 border border-slate-300 rounded-md hover:border-slate-400">Sign in with Google</a>
+        </div></body></html>"#
+    )
+}
+
+async fn admin_members_page(client: &Mutex<Client>) -> String {
+    let people = auth::all_people(client).await.unwrap_or_default();
+    let rows: String = people
+        .iter()
+        .map(|p| {
+            let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let email = p.get("email").and_then(|v| v.as_str()).unwrap_or("");
+            let role = p.get("role").and_then(|v| v.as_str()).unwrap_or("—");
+            let access = if p.get("linked").and_then(|v| v.as_bool()) == Some(true) {
+                "linked"
+            } else if p.get("granted").and_then(|v| v.as_bool()) == Some(true) {
+                "granted, not yet signed in"
+            } else {
+                "no access"
+            };
+            format!(
+                r#"<tr class="border-b border-slate-100"><td class="py-2 pr-4">{}</td><td class="py-2 pr-4">{}</td><td class="py-2 pr-4">{}</td><td class="py-2">{}</td></tr>"#,
+                esc(name), esc(email), esc(role), esc(access)
+            )
+        })
+        .collect();
+
+    format!(
+        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Members</title><script src="https://cdn.tailwindcss.com"></script></head>
+        <body class="bg-slate-50 text-slate-900 min-h-screen"><main class="max-w-2xl mx-auto px-4 py-8">
+        <p class="mb-4"><a href="/" class="text-slate-500 hover:text-slate-700">&larr; back</a></p>
+        <h1 class="text-xl font-semibold mb-4">Members</h1>
+        <table class="w-full text-sm mb-6"><thead><tr class="text-left text-slate-500 text-xs uppercase"><th class="py-2 pr-4">Name</th><th class="py-2 pr-4">Email</th><th class="py-2 pr-4">Role</th><th class="py-2">Access</th></tr></thead><tbody>{rows}</tbody></table>
+        <form method="post" action="/admin/members" class="flex gap-2 items-center">
+        <input type="email" name="email" placeholder="email of an existing Member" required class="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm" />
+        <select name="role" class="border border-slate-300 rounded-md px-3 py-2 text-sm"><option value="Admin">Admin</option><option value="Member">Member</option></select>
+        <button type="submit" class="px-4 py-2 bg-slate-900 text-white rounded-md text-sm">Grant access</button>
+        </form></main></body></html>"#
+    )
 }
 
 // ---- IR helpers -----------------------------------------------------
@@ -742,7 +956,7 @@ fn esc(value: &str) -> String {
 
 fn page(title: &str, body: &str) -> String {
     format!(
-        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{} — Pizzas</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 text-slate-900 min-h-screen"><header class="bg-white border-b border-slate-200"><div class="max-w-3xl mx-auto px-4 py-3"><a href="/" class="font-semibold text-slate-900">rust/host — served straight off the bluebook IR</a></div></header><main class="max-w-3xl mx-auto px-4 py-8">{}</main></body></html>"#,
+        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{}</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 text-slate-900 min-h-screen"><header class="bg-white border-b border-slate-200"><div class="max-w-3xl mx-auto px-4 py-3"><a href="/" class="font-semibold text-slate-900">rust/host — served straight off the bluebook IR</a></div></header><main class="max-w-3xl mx-auto px-4 py-8">{}</main></body></html>"#,
         esc(title), body
     )
 }
@@ -753,6 +967,10 @@ fn html(status: u16, body: &str) -> Value {
 
 fn redirect(location: &str) -> Value {
     json!({"statusCode": 302, "headers": {"location": location}, "body": "", "isBase64Encoded": false})
+}
+
+fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
+    json!({"statusCode": 302, "headers": {"location": location}, "cookies": [cookie], "body": "", "isBase64Encoded": false})
 }
 
 fn respond(status: u16, content_type: &str, body: &str) -> Value {

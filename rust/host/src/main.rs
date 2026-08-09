@@ -15,6 +15,7 @@
 // place that sees both at once. The `.wasm` module itself never learns
 // either exists.
 
+mod auth;
 mod dispatch;
 mod journal;
 mod wasm_runner;

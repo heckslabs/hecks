@@ -191,7 +191,7 @@ web_logical_id = "WebFunction"
 # GATEWAY" comment describes — computed here, once, before
 # STACK_OUTPUTS/BASTION_PARAMETERS below need to know whether
 # #{db_id}PublicSubnet exists at all to pass along to bastion.yaml.
-google_oauth_present = web_handler_present &&
+google_oauth_present = (web_handler_present || rust_web) &&
   File.exist?(File.join(domain, ".env.local")) &&
   File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
 
@@ -583,6 +583,21 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
         PLAINDB
       end}
 
+    #{rust_web && google_oauth_present ? <<~RUSTSECRET.each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip : ""}
+    # Auto-generated, never typed or seen -- rust/host's own
+    # auth.rs signs both the session cookie and the OAuth `state`
+    # token with this. Same ManageMasterUserPassword-style pattern
+    # #{db_id} already uses for its own password.
+    #{logical_id}SessionSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        GenerateSecretString:
+          SecretStringTemplate: '{}'
+          GenerateStringKey: session_secret
+          PasswordLength: 64
+          ExcludePunctuation: true
+
+    RUSTSECRET
     #{logical_id}:
       Type: AWS::Serverless::Function#{aurora ? "\n    # `{{resolve:secretsmanager:...}}` dynamic references do NOT\n    # create an implicit CloudFormation dependency on the referenced\n    # resource (documented AWS behavior) -- #{logical_id}'s own\n    # Environment resolves one against #{db_id}Secret below. A plain\n    # `DependsOn: #{db_id}Secret` alone (CREATE_COMPLETE before this\n    # resource's own update starts) still hit a real, live, repeatable\n    # \"Secrets Manager can't find the specified secret\n    # (ResourceNotFoundException)\" -- CREATE_COMPLETE from\n    # CloudFormation's own perspective doesn't guarantee the secret is\n    # yet READABLE via a dynamic reference from a DIFFERENT resource's\n    # own concurrent update (AWS-side eventual consistency, not a\n    # CloudFormation ordering bug `DependsOn` alone can close).\n    # Chaining through #{db_id}Cluster too -- which ALSO reads this\n    # secret, and whose own RDS-side update takes real, substantial\n    # wall-clock time to apply -- gives that propagation window time\n    # to close before #{logical_id}'s own resolution is attempted.\n    DependsOn: [#{db_id}Secret, #{db_id}Cluster]" : ""}
       Metadata:
@@ -655,7 +670,18 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
             # triggers that first boot; a LATER real schema evolution
             # (era 2+) is a separate, later re-generation, not this one.
             HECKS_DOMAIN: #{declared_domain_name}
-            HECKS_ERA: "1"#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json") : ""}
+            HECKS_ERA: "1"#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json") : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
+            # By NAME, not `!Ref` -- same dynamic-reference pattern
+            # DATABASE_URL/SESSION_SECRET already use: `make
+            # sync-google-oauth` owns #{stack_name}-web-google-oauth's
+            # whole lifecycle outside CloudFormation, straight from
+            # #{domain}'s own gitignored .env.local (never baked into
+            # this generated, git-tracked template as plaintext).
+            GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_id}}"
+            GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_secret}}"
+            GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+            SESSION_SECRET: !Sub "{{resolve:secretsmanager:${#{logical_id}SessionSecret}:SecretString:session_secret}}"
+            RUSTOAUTH
         VpcConfig:
           SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]
           SecurityGroupIds: [!Ref #{logical_id}SecurityGroup]
@@ -1253,6 +1279,7 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \tcp $(PG_NATIVE_DIR)/libpq.so.5.16 .aws-sam/build/#{web_logical_id}/lib/libpq.so.5.16
   \tln -sf libpq.so.5.16 .aws-sam/build/#{web_logical_id}/lib/libpq.so.5
 
+  PGNATIVE
   #{google_oauth_present ? <<~SYNCOAUTH : ""}
   # Owns #{stack_name}-web-google-oauth's WHOLE lifecycle (create on
   # first run, update every run after — idempotent, cheap, no reason
@@ -1261,8 +1288,13 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # gitignored .env.local, so the real client_id/secret never lands in
   # this generated, git-TRACKED template.yaml as plaintext. Read by
   # name (`{{resolve:secretsmanager:#{stack_name}-web-google-oauth:...}}`,
-  # template.yaml's own #{web_logical_id} Environment), not by `!Ref` —
-  # see that comment for why this secret isn't a stack resource at all.
+  # template.yaml's own Environment — #{rust_web ? logical_id : web_logical_id}'s
+  # own), not by `!Ref` — see that comment for why this secret isn't a
+  # stack resource at all. NOT nested inside patch-pg-native's own
+  # pg_version gate above -- a real, live "No rule to make target
+  # `sync-google-oauth'" caught that this target used to only exist
+  # when a Ruby WebFunction (with its own pg gem) was also present,
+  # even though Google OAuth itself has nothing to do with pg at all.
   .PHONY: sync-google-oauth
   sync-google-oauth:
   \t@CLIENT_ID=$$(grep '^GOOGLE_CLIENT_ID=' #{domain}/.env.local | cut -d= -f2-); \\
@@ -1273,7 +1305,6 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   \t\taws secretsmanager create-secret --name #{stack_name}-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null
 
   SYNCOAUTH
-  PGNATIVE
   # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
   # (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe
   # to run every time — a second boot against an already-held era 1
@@ -1302,7 +1333,7 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
     end}
   #{google_oauth_present ? <<~OAUTHDEPLOY.each_line.map { |l| "\t" + l }.join.rstrip : "\tsam deploy"}
   $(MAKE) sync-google-oauth
-  @WEB_URL=$$(aws lambda get-function-url-config --function-name #{stack_name}-web --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \\
+  @WEB_URL=$$(aws lambda get-function-url-config --function-name #{rust_web ? stack_name : "#{stack_name}-web"} --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \\
   sam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"
   OAUTHDEPLOY
   \t$(MAKE) mint-era

@@ -258,6 +258,18 @@ Resources:
       DBSubnetGroupName: !Ref EmbryonautDbSubnetGroup
       VPCSecurityGroups: [!Ref EmbryonautDbSecurityGroup]
 
+  # Auto-generated, never typed or seen -- rust/host's own
+  # auth.rs signs both the session cookie and the OAuth `state`
+  # token with this. Same ManageMasterUserPassword-style pattern
+  # EmbryonautDb already uses for its own password.
+  EmbryonautFunctionSessionSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: session_secret
+        PasswordLength: 64
+        ExcludePunctuation: true
   EmbryonautFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -331,6 +343,17 @@ Resources:
           # (era 2+) is a separate, later re-generation, not this one.
           HECKS_DOMAIN: Embryonaut
           HECKS_ERA: "1"
+          HECKS_IR_PATH: !Sub "/var/task/embryonaut.ir.json"
+          # By NAME, not `!Ref` -- same dynamic-reference pattern
+          # DATABASE_URL/SESSION_SECRET already use: `make
+          # sync-google-oauth` owns hecksagain-embryonaut-web-google-oauth's
+          # whole lifecycle outside CloudFormation, straight from
+          # /Users/christopheryoung/Projects/embryonaut's own gitignored .env.local (never baked into
+          # this generated, git-tracked template as plaintext).
+          GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:SecretString:client_id}}"
+          GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:SecretString:client_secret}}"
+          GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+          SESSION_SECRET: !Sub "{{resolve:secretsmanager:${EmbryonautFunctionSessionSecret}:SecretString:session_secret}}"
       VpcConfig:
         SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
         SecurityGroupIds: [!Ref EmbryonautFunctionSecurityGroup]
@@ -348,175 +371,12 @@ Resources:
       # the AWS SDK's own IAM-authenticated Invoke API, which never
       # goes through a Function URL at all.
       FunctionUrlConfig:
-        AuthType: AWS_IAM
-  # THE WEB APP'S OWN LAMBDA — opt-in, see `web_handler_present` above.
-  # VPC-attached for the SAME reason EmbryonautFunction is (Member's own
-  # persistence needs the private RDS instance directly, permanently —
-  # embryonaut.hecksagon's own comment on why), sharing
-  # EmbryonautFunctionSecurityGroup rather than minting a second one, since
-  # both need the identical egress-to-DB rule. That VPC attachment
-  # ALSO cuts off the public internet by default (this stack's own "NO
-  # NAT GATEWAY" design) — but this function has to reach
-  # EmbryonautFunction itself via `lambda:InvokeFunction`, a public AWS API
-  # call. WebFunctionLambdaEndpoint below is the targeted fix: a
-  # VPC Interface Endpoint for the Lambda service ONLY (not a NAT
-  # Gateway) — a few dollars a month, not a general internet route.
-  EmbryonautDbLambdaEndpointSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref EmbryonautDbVpc
-      # EC2's own GroupDescription character set excludes apostrophes
-      # too, not just em-dashes -- "this stack's own" was a real,
-      # live rejection ("Invalid security group description").
-      GroupDescription: EmbryonautDbLambdaEndpoint - HTTPS from this stacks own Lambdas only
-  
-  EmbryonautDbLambdaEndpointIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref EmbryonautDbLambdaEndpointSecurityGroup
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      SourceSecurityGroupId: !Ref EmbryonautFunctionSecurityGroup
-  
-  EmbryonautDbLambdaEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref EmbryonautDbVpc
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.lambda"
-      VpcEndpointType: Interface
-      PrivateDnsEnabled: true
-      SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
-      SecurityGroupIds: [!Ref EmbryonautDbLambdaEndpointSecurityGroup]
-  
-  # Auto-generated, never typed or seen — the SAME
-  # ManageMasterUserPassword pattern EmbryonautDb already uses for its own
-  # password, applied to Sinatra's own session-signing secret instead.
-  WebFunctionSessionSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      GenerateSecretString:
-        SecretStringTemplate: '{}'
-        GenerateStringKey: session_secret
-        PasswordLength: 64
-        ExcludePunctuation: true
-  
-  WebFunction:
-    Type: AWS::Serverless::Function
-    # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
-    # real, live UnsupportedBuilderException caught this); `Runtime:
-    # ruby3.2` alone is enough for SAM to select its own built-in Ruby
-    # bundler workflow automatically. EmbryonautFunction's own `BuildMethod:
-    # makefile` above is different: rust/host isn't a runtime SAM
-    # knows how to build at all, so it needs an explicit custom
-    # workflow — this function doesn't.
-    Properties:
-      FunctionName: hecksagain-embryonaut-web
-      Runtime: ruby3.2
-      Architectures: [arm64]
-      # THREE parts (file.Class.method), not two — aws-lambda-ric's own
-      # 2-part form calls a plain TOP-LEVEL function via __send__, not
-      # a module method; /Users/christopheryoung/Projects/embryonaut/lambda_handler.rb's own comment on
-      # why its module is WebLambdaHandler (not LambdaHandler) explains
-      # the rest — a real, live "LambdaHandler is not a module" caught
-      # both halves of this the hard way.
-      Handler: lambda_handler.WebLambdaHandler.lambda_handler
-      CodeUri: /Users/christopheryoung/Projects/embryonaut
-      MemorySize: 512
-      Timeout: 15
-      Environment:
-        Variables:
-          DOMAIN_ROOT: /var/task
-          DOMAIN_NAME: Embryonaut
-          HECKS_LAMBDA_ROUTING: "true"
-          HECKS_LAMBDA_REGION: us-east-1
-          # SAME setting /Users/christopheryoung/Projects/embryonaut's own fly.toml/Dockerfile already
-          # sets for the Fly deployment this one replaces — Sinatra's
-          # own `host_authorization` default is only PERMISSIVE in
-          # production mode (an empty `permitted_hosts` list means
-          # "allow any host" — checked directly in rack-protection's
-          # own source); its DEVELOPMENT default is the restrictive
-          # one (only localhost/.test), which is what Sinatra falls
-          # back to when NEITHER RACK_ENV nor APP_ENV is set. A real,
-          # live "Host not permitted" 403 against this function's own
-          # unpredictable *.lambda-url.*.on.aws hostname caught the
-          # gap — this function's Environment never set either var.
-          RACK_ENV: production
-          # The precompiled `pg` gem's aarch64-linux native extension
-          # needs GLIBC 2.29+; Lambda's ruby3.2 MANAGED runtime is
-          # Amazon Linux 2 (glibc 2.26) -- a real, live "Init<NameError>:
-          # uninitialized constant PG::Error" caught this (rescuing
-          # PG::Error itself failed to resolve, because pg's own
-          # require died before reaching the file that defines it).
-          # `make deploy`'s own `patch-pg-native` step (this directory's
-          # Makefile) replaces the broken precompiled extension with one
-          # compiled from source, in-container, against a real
-          # SSL-enabled libpq -- and drops that libpq's .so beside it at
-          # /var/task/lib, found by the dynamic loader with NO explicit
-          # LD_LIBRARY_PATH override needed: the base ruby3.2 image's
-          # own baked-in default (`docker inspect
-          # public.ecr.aws/lambda/ruby:3.2-arm64`) is already
-          # "/var/lang/lib:/lib64:/usr/lib64:/var/runtime:/var/runtime/lib:/var/task:/var/task/lib:/opt/lib"
-          # -- setting LD_LIBRARY_PATH here as a Lambda env var
-          # REPLACES that whole list rather than extending it (a real,
-          # live gotcha: Lambda env vars always fully override a
-          # same-named baked-in image env, never merge with it), which
-          # is exactly what broke Ruby's OWN interpreter startup
-          # ("libcrypt.so.1: cannot open shared object file") the one
-          # time this was set explicitly, before libpq.so.5.16 itself
-          # ever got a chance to matter.
-          # Member's own permanent Postgres connection — the SAME RDS
-          # instance EmbryonautFunction itself writes rust/host's flat
-          # journal into, different database engine role (Ruby's own
-          # era/lineage schema, not rust/host's), never the real
-          # Fly-hosted Postgres this whole effort is retiring away from.
-          DATABASE_URL: !Sub
-            - "postgres://postgres:${DbPass}@${DbHost}:5432/embryonaut"
-            - DbPass: !Sub "{{resolve:secretsmanager:${EmbryonautDb.MasterUserSecret.SecretArn}:SecretString:password}}"
-              DbHost: !GetAtt EmbryonautDb.Endpoint.Address
-          SESSION_SECRET: !Sub "{{resolve:secretsmanager:${WebFunctionSessionSecret}:SecretString:session_secret}}"
-          # By NAME, not `!Ref` to a stack resource -- WebFunctionGoogleOauth
-          # is deliberately NOT declared as a CloudFormation resource
-          # here (would need either GenerateSecretString, which can't
-          # invent a real Google client_id/secret, or a value baked
-          # into this git-TRACKED template as plaintext). `make
-          # sync-google-oauth` owns this secret's whole lifecycle
-          # instead, straight from /Users/christopheryoung/Projects/embryonaut's own gitignored
-          # .env.local, outside CloudFormation entirely -- the SAME
-          # "resolved by the deployer's own credentials at deploy
-          # time, never touches the function's execution role" dynamic
-          # -reference mechanism DATABASE_URL/SESSION_SECRET above
-          # already rely on, just pointed at a name instead of a Ref.
-          GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:SecretString:client_id}}"
-          GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:SecretString:client_secret}}"
-          GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
-      VpcConfig:
-        SubnetIds: [!Ref EmbryonautDbSubnetA, !Ref EmbryonautDbSubnetB]
-        SecurityGroupIds: [!Ref EmbryonautFunctionSecurityGroup]
-      # LEAST-PRIVILEGE, scoped to EmbryonautFunction's own ARN specifically
-      # (SAM's own LambdaInvokePolicy template) — WebFunctionRole is
-      # otherwise SAM's bare default execution role (logging only), and
-      # had NO lambda:InvokeFunction permission at all until this: a
-      # real, live AccessDeniedException caught it, the same request
-      # that also caught the wrong-function-name bug just above
-      # (WebFunctionRole is not authorized... on resource
-      # hecksagain-task — this stack has never had ANY policy granting
-      # that action, so the fix isn't complete without adding one).
-      Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref EmbryonautFunction
-      # NONE, not AWS_IAM — real users need to reach sign-in over
-      # plain HTTPS, unlike EmbryonautFunction's own AWS_IAM-protected URL
-      # (this function is the ONLY thing meant to call that one).
-      FunctionUrlConfig:
         AuthType: NONE
 
 
 Outputs:
   FunctionUrl:
     Value: !GetAtt EmbryonautFunctionUrl.FunctionUrl
-  WebFunctionUrl:
-    Value: !GetAtt WebFunctionUrl.FunctionUrl
   # STACK_OUTPUTS (bin/project_deploy, above the heredocs) is the ONE
   # place these four names live — DatabaseEndpoint/DatabaseSecretArn
   # feed `make mint-era`'s own boot step directly; VpcId/
