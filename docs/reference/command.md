@@ -31,6 +31,21 @@ Names who calls this command — "Compliance officer", "Back office". Optional: 
 
 A one-line statement of intent — "Bring in one basket and count it toward the tree's yield." Descriptive only, unlike `role`: nothing enforces that the command's body actually does what its `goal` claims.
 
+## provenance
+
+<!-- generated:begin word=provenance -->
+`provenance from:` — fills `provenance`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| `from:` | literal | true | provenance |
+<!-- generated:end -->
+
+The same fact `Aggregate#provenance` records, one level down — where a
+command's own concept came from, when the command itself was adopted from a
+canonical source rather than authored here. Same shape, same raw Hash, same
+rule: nothing but a human, or future tooling, ever reads it.
+
 ## reference_to
 
 <!-- generated:begin word=reference_to -->

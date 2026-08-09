@@ -1,0 +1,18 @@
+[package]
+name = "rust_web"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate: makes THIS crate its own workspace root (own
+# target/, own Cargo.lock) instead of Cargo walking further up and folding
+# it into whatever workspace `rust` (its path dependency, one directory
+# up) might belong to. `rust` stays a plain standalone package — this is
+# the only crate that needs to declare anything workspace-related.
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rust = { path = ".." }
+wasm-bindgen = "=0.2.126"

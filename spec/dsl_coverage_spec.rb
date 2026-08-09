@@ -10,11 +10,11 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BluebookBuilder" => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
-      %i[vision core supporting generic aggregate read_model policy process_manager classification]
+      %i[vision core supporting generic aggregate report read_model policy process_manager classification]
     ],
     "AggregateBuilder" => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
-      %i[description identified_by reference_to has_many has_one belongs_to value_object command lifecycle
+      %i[description provenance identified_by reference_to has_many has_one belongs_to value_object command lifecycle
          entity query policy attribute list_of attributes]
     ],
     "ValueObjectBuilder" => [
@@ -23,7 +23,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "CommandBuilder" => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      %i[role goal reference_to given ensures then_set sets emits attribute list_of attributes]
+      %i[role goal provenance reference_to given ensures then_set sets emits attribute list_of attributes]
     ],
     "PortBuilder" => [
       Hecksagain::Bluebook::DSL::PortBuilder,
@@ -55,7 +55,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "HecksagonBuilder" => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
-      %i[binds subscribe subscriptions port]
+      %i[binds subscribe subscriptions port uses_framework framework_members]
     ],
     "TranslationBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationBuilder,
@@ -63,7 +63,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "TranslationAggregateBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationAggregateBuilder,
-      %i[rename move convert drop retype compute unresolved method_missing]
+      %i[rename move convert drop retype compute rekey unresolved method_missing]
     ]
   }.freeze
 

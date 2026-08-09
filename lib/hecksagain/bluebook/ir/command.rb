@@ -48,18 +48,21 @@ module Hecksagain
         extend Construct
 
         class << self
-          attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references
+          attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references,
+                      :provenance
 
           def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [],
-                      mutations: [], emits: [], references: nil)
+                      mutations: [], emits: [], references: nil, provenance: nil)
             verb = Class.new(self)
             verb.hecks_name = name.to_s
             verb.absorb(role: role, goal: goal, attributes: attributes, givens: givens,
-                        ensures: ensures, mutations: mutations, emits: emits, references: references&.to_s)
+                        ensures: ensures, mutations: mutations, emits: emits, references: references&.to_s,
+                        provenance: provenance)
             verb
           end
 
-          def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:)
+          def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:,
+                     provenance: nil)
             @role       = role
             @goal       = goal
             @attributes = attributes
@@ -68,6 +71,7 @@ module Hecksagain
             @mutations  = mutations
             @emits      = emits
             @references = references
+            @provenance = provenance
             # Indexed once — attributes are final once absorbed, and every
             # dispatch asks this finder by name.
             @attributes_by_name = attributes.to_h { |held| [held.name, held] }
@@ -104,7 +108,8 @@ module Hecksagain
               givens:     givens.map { |rule| { description: rule.description, canonical: rule.canonical } },
               ensures:    ensures.map { |rule| { description: rule.description, canonical: rule.canonical } },
               mutations:  mutations.map(&:to_h),
-              emits:      emits
+              emits:      emits,
+              provenance: provenance
             }
           end
         end

@@ -1,0 +1,34 @@
+# A native host crate drives the sandboxed WASM module; Postgres persistence is rehydrate-and-replay, not incremental
+
+**Status:** Accepted — implemented. `rust/host/` (new crate: `wasm_runner.rs`, `journal.rs`, `dispatch.rs`, `main.rs`), branch `feat/rust-projection`. Answers the deployment question [0012](0012-wasm-via-wasi-stdio.md) raised but didn't build: "the immediate goal driving this pass wasn't a browser embedding — it was making the compiled Rust artifact runnable in non-browser WASM hosts... the kind relevant to 'run domain logic in workers' on a cloud platform."
+
+## Context
+
+The compiled `.wasm` artifact (0012) and the compiled native binary both dispatch commands against an **in-memory-only** store — proven correct, never persisted anywhere real. Deploying it to AWS Lambda needs two things 0012 explicitly didn't build: a real Postgres-backed store, and an actual host process to run inside Lambda.
+
+Two real constraints shaped the design:
+
+- **WASI preview 1 (`wasm32-wasip1`, what `bin/project_wasm` builds) has no real socket support.** A Postgres TCP connection cannot run inside the sandboxed module itself.
+- **Keeping the `.wasm` artifact in the loop (rather than deploying the native binary directly, which `rust/web` already proves is possible — see 0015) was a deliberate choice**, not a default: WASM's capability-based sandboxing means the dispatch/domain-logic code has zero ambient access to the network or filesystem — a real defense-in-depth property for code that will eventually touch cap-table/governance data. A native-only deployment would throw that boundary away for no benefit.
+
+## Decision
+
+**A new crate, `rust/host/`, is the actual Lambda entry point** (`provided.al2023` custom runtime, `PackageType: Zip`, no container — see the `bin/project_deploy`-generated `deploy/` config). It embeds `wasmtime`/`wasmtime-wasi` to run the `.wasm` module and `tokio-postgres` for persistence — **the crate's first-ever real Cargo dependencies, but scoped entirely to this new, narrow, host-only crate**, the same boundary [0015](0015-wasm-bindgen-browser-projection.md) already established for `rust/web`. Unlike `rust/web`, `rust/host` does NOT depend on `rust` as a path dependency at all — it never links the kernel in-process; the `.wasm` file is loaded and run as an opaque artifact through `wasmtime`, which is the entire point of keeping it sandboxed.
+
+`wasm_runner.rs` is the only file that touches `wasmtime`: one `Engine`/`Store`/instance per call, stdin/stdout wired to `wasmtime_wasi::p2::pipe::{MemoryInputPipe,MemoryOutputPipe}` via two thin `StdinStream`/`StdoutStream` wrapper impls (neither pipe type implements those traits directly in wasmtime-wasi 47.0.3, despite what its own doc comment suggests). Because `wasmtime-wasi`'s p1-sync bridge internally tries to start its own tokio runtime to drive those async pipes, calling `wasm_runner::run` directly from async code panics ("cannot start a runtime from within a runtime") — `dispatch.rs` calls it through `tokio::task::spawn_blocking`, moving it onto a thread with no runtime of its own.
+
+**Persistence is rehydrate-and-replay against ONE flat, whole-domain journal table** (`hecks_lambda_journal`: ordinal, verb, args, recorded_at) — not per-aggregate, not incremental find/save. On each invocation (`dispatch.rs#handle`): load every prior successfully-dispatched command in order, append the new one, replay the WHOLE sequence through `wasm_runner::run`, and persist the new command only if the replay's `refusals` array came back empty. Determinism is the entire correctness argument: every prior row was, by construction, a command that succeeded the first time — replaying the identical steps against the identical empty-start kernel must produce the identical result, so the only step that can legitimately end up in `refusals` is the newest one, appended last.
+
+This needs **zero changes to the sandboxed kernel/dispatch code** — it reuses the exact unmodified `{"steps": [...]} -> {"instances","events","refusals"}` contract `bin/rust_conformance`'s own WASM mode already speaks.
+
+## Consequences
+
+- Rust has no era/lineage concept at all (0011's own open gap) and `rust/host` has no type information about aggregates/commands (that knowledge lives only inside the opaque `.wasm` module) — so the journal is deliberately domain-agnostic and flat, not filtered per-aggregate. Every invocation replays the FULL domain history. Fine for a company-internal tool with modest total event volume; would need real rethinking at a scale where full-log replay per request stops being cheap.
+- Verified with real, sharp tests (`dispatch.rs`'s own `#[cfg(test)]` module, against a real throwaway Postgres database, never the dev database): a first command persists; a SECOND call registering the identical customer reference is refused — proof that rehydration genuinely happened (a broken rehydration path, silently starting from an empty store every time, would have let the duplicate wrongly succeed instead).
+- `rust/web` and `rust/host` are now two independent proofs of the same underlying claim (0007): the compiled kernel is one artifact, reusable behind entirely different host boundaries (a JS function call; a sandboxed subprocess-equivalent driven by a native Postgres-aware wrapper) without changing a line of the kernel itself.
+
+## Rejected alternatives
+
+- **WASI host-function imports** (a wasm-side `Repository<T>` implementation calling host-provided `postgres_find`/`postgres_save` functions via wasmtime's `Linker`, with real socket I/O happening host-side per call). More "incremental" in principle — no full-history replay — but requires a new wasm-side repository implementation, WASI import wiring, and JSON marshaling across the host/guest boundary on every single find/save, for a company-internal tool with a handful of aggregates. Real new machinery this codebase has no precedent for, rejected in favor of reusing the CLI contract that already exists and is already proven.
+- **Deploy the native binary directly, skip WASM for this path entirely** (viable — `rust/web` already proves the kernel links as a plain library with zero sandboxing cost to a JS caller). Rejected specifically for what it gives up: the capability-based sandbox boundary between domain logic and the Postgres connection this crate holds. A native-only Lambda function would have full ambient socket/filesystem access from the same process running arbitrary generated dispatch code — a real security regression for cap-table/governance data.
+- **A container image (`PackageType: Image`, Dockerfile, ECR)**, the default idiomatic shape for a Rust-plus-native-dependencies Lambda. Rejected per explicit direction: a plain `Zip`/`provided.al2023` package needs nothing beyond a `bootstrap` binary and the `.wasm` file — no Docker, no image registry, no container runtime at all.

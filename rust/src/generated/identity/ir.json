@@ -1,0 +1,309 @@
+{
+  "ir_version": 1,
+  "name": "Identity",
+  "version": null,
+  "vision": "Authentication proves an identifier; the organization decides what that identity means.",
+  "classification": "supporting",
+  "aggregates": [
+    {
+      "name": "Identity",
+      "description": "A stable organizational identity, independent of how it was authenticated.",
+      "identified_by": [
+        "identity_id.value"
+      ],
+      "attributes": [
+        {
+          "name": "identity_id",
+          "type": "IdentityId",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "IdentityId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an identity id is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Register",
+          "role": "Identity registrar",
+          "goal": "Recognize an identity",
+          "references": null,
+          "attributes": [
+            {
+              "name": "identity_id",
+              "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "IdentityRegistered"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [],
+      "provenance": null
+    },
+    {
+      "name": "ExternalIdentifier",
+      "description": "One authenticated (issuer, subject) pair, linked to the identity it proves control of.",
+      "identified_by": [
+        "key.value"
+      ],
+      "attributes": [
+        {
+          "name": "identity_id",
+          "type": "Reference<Identity>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "key",
+          "type": "ExternalIdentifierKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "issuer",
+          "type": "Issuer",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "subject",
+          "type": "Subject",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ExternalIdentifierKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a key is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Issuer",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an issuer is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Subject",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a subject is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Link",
+          "role": "Identity registrar",
+          "goal": "Associate an external authenticated subject with an identity",
+          "references": null,
+          "attributes": [
+            {
+              "name": "identity_id",
+              "type": "Reference<Identity>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "key",
+              "type": "ExternalIdentifierKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "issuer",
+              "type": "Issuer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "subject",
+              "type": "Subject",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ExternalIdentifierLinked"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [
+        {
+          "name": "ResolvedBy",
+          "description": "The external identifier linked to this exact (issuer, subject) pair, if any.",
+          "attributes": [
+            {
+              "name": "issuer",
+              "type": "Issuer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "subject",
+              "type": "Subject",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "issuer",
+              "op": "eq",
+              "value": ":issuer"
+            },
+            {
+              "field": "subject",
+              "op": "eq",
+              "value": ":subject"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

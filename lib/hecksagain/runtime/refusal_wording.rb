@@ -46,6 +46,8 @@ module Hecksagain
           "{entity} has no command {command}",
         %w[UnknownVerb aggregate_no_command] =>
           "{aggregate} has no command {command}",
+        %w[UnknownVerb port_no_operation] =>
+          "{port} has no operation {operation}",
         %w[UnknownVerb no_domain] =>
           "no domain {domain} loaded (verb {verb})",
         %w[UnknownVerb no_read_model] =>

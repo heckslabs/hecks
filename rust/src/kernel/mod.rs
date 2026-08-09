@@ -1,0 +1,139 @@
+// HAND-WRITTEN, ON PURPOSE — the small floor every generated per-command
+// function calls into. It knows nothing about Order, PizzaCreated, or any
+// other domain-specific name; everything domain-specific lives in
+// src/generated/, produced by bin/project_rust from canonical IR. Every
+// fact below is cited against docs/guides/running-a-runtime.md and
+// docs/guides/commands.md, not guessed or half-remembered from a prior
+// read of the Ruby source.
+
+pub mod cli;
+pub mod dispatch;
+pub mod expr;
+pub mod json;
+pub mod orchestrate;
+pub mod pattern;
+pub mod repository;
+
+pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
+pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
+pub use json::Json;
+pub use orchestrate::{
+    orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
+};
+pub use repository::{check_reference, check_role, InMemoryRepository, Repository};
+
+#[derive(Debug, Clone)]
+pub struct Event {
+    pub name: String,
+    pub aggregate: String,
+    pub id: String,
+    /// Mirrors Ruby's `payload: args` (running-a-runtime.md's "Commands: the
+    /// roster and what each key means" section — `emits` is the plain list
+    /// of event names a successful dispatch raises; the payload shape
+    /// itself is `Runtime::CommandRules::Emission#emit`, read directly) —
+    /// the dispatching command's own `args.to_json()`, structurally, not a
+    /// debug-formatted string dump (that was this kernel's shape before
+    /// policies/process managers needed to actually forward payload DATA
+    /// into a re-triggered command's own `from_json`, not just print it).
+    pub payload: json::Json,
+    // NOT YET GENERATED: `occurred_at`. Ruby's Event carries a timestamp;
+    // this kernel doesn't have a clock port yet, so it's left off rather
+    // than faked with a wrong value. Flagged, not silently dropped.
+}
+
+/// The complete refusal roster for a command dispatch, per
+/// docs/guides/commands.md's own table (quoted there as "the complete
+/// roster" — not a subset picked for this slice). One Ruby DOMAIN_REFUSALS
+/// class is deliberately NOT here: `UnknownVerb` (dispatching a command
+/// name that doesn't exist at all is a router-level concern, not
+/// something one generated dispatch function raises about itself).
+/// `Unauthorized` (role-mismatch) WAS in that deliberately-absent list —
+/// see `check_role` (repository.rs) and 0019 for how it's generated now.
+///
+/// `AbsentArgument`/`UnknownArgument` ARE variants here, but only ever
+/// raised at the JSON boundary (`from_json`, `rust/project/json_codec.rb`'s
+/// `emit_unknown_argument_check`), never by a generated `dispatch_*`
+/// function itself: a TYPED args struct still makes both structurally
+/// impossible to construct once `from_json` has already succeeded — the
+/// gap this refusal closes is that `from_json`'s own JSON input has no
+/// static shape at all, exactly the reason Ruby needs a runtime check on
+/// its own argument hash. `AbsentArgument` is mostly redundant with the
+/// existing `v.require(...)` failures inside `from_json` (both refuse a
+/// missing required field; this variant exists for a caller who wants to
+/// distinguish "missing" from "wrong shape" by refusal KIND, not just
+/// wording) — `UnknownArgument` is the one that closed a real gap: nothing
+/// checked for an EXTRA key before this.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    GivenNotMet(String),
+    EnsuresNotMet(String),
+    InvariantViolation(String),
+    LifecycleRefused(String),
+    AlreadyExists(String),
+    NotFound(String),
+    TypeMismatch(String),
+    AbsentArgument(String),
+    UnknownArgument(String),
+    Unauthorized(String),
+}
+
+impl std::fmt::Display for Refusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Refusal::GivenNotMet(msg)
+            | Refusal::EnsuresNotMet(msg)
+            | Refusal::InvariantViolation(msg)
+            | Refusal::LifecycleRefused(msg)
+            | Refusal::AlreadyExists(msg)
+            | Refusal::NotFound(msg)
+            | Refusal::TypeMismatch(msg)
+            | Refusal::AbsentArgument(msg)
+            | Refusal::UnknownArgument(msg)
+            | Refusal::Unauthorized(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
+/// Mirrors `CommandInterpreter#call`'s own return shape: `[ctx.instance,
+/// ctx.result]`, where `ctx.result` is built from `emit` — a record plus
+/// whatever events actually fired, or a refusal with no record and no
+/// events at all ("Refusals leave state untouched", commands.md's own
+/// closing section).
+pub type DispatchResult<T> = Result<(T, Vec<Event>), Refusal>;
+
+/// One aggregate record just saved by a command's own dispatch (top-level
+/// or a cascaded policy/saga-leg re-entry) — pushed at the exact same call
+/// site `repo.save` runs, in `dispatch`/`dispatch_entity` (dispatch.rs).
+/// Exists so a HOST (rust/host, which only ever sees this kernel as an
+/// opaque stdin/stdout process — docs/decisions/0012) can build a
+/// per-aggregate journal matching postgres.rb's own shape (`era, aggregate,
+/// aggregate_id, operation, state`) without needing per-command insight
+/// into the domain itself — `cli.rs` reports one `Vec<MutationRecord>` per
+/// step, parallel to `"steps"`, in its `"mutations"` output field.
+///
+/// `operation` is always `"save"` today — no generated dispatch path ever
+/// calls `Repository::delete` (that method doesn't even exist on the trait
+/// — see repository.rs). Add a `"delete"` variant here if that ever
+/// changes; not built now because nothing exercises it.
+#[derive(Debug, Clone)]
+pub struct MutationRecord {
+    pub aggregate: String,
+    pub id: String,
+    pub operation: &'static str,
+    pub state: Json,
+}
+
+/// Generic access to a generated struct's own `to_json()` — every
+/// generated record already has this as an INHERENT method
+/// (`rust/project/json_codec.rb`'s `emit_to_json_flat`); this trait exists
+/// only so `dispatch`/`dispatch_entity` (dispatch.rs), generic over the
+/// record type `T`, can call it without knowing the concrete type. Ruby's
+/// `record.to_json()`-in-a-loop equivalent, made possible in Rust only
+/// through a trait bound. Implemented per aggregate record struct by
+/// `domain_generator.rb`, delegating straight to the inherent method — see
+/// its own comment on why only aggregate records (never value objects,
+/// entities, or Args structs) need it: `dispatch`/`dispatch_entity`'s
+/// generic `T` is always the aggregate record type.
+pub trait ToJson {
+    fn to_json(&self) -> Json;
+}

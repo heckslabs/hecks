@@ -92,7 +92,8 @@ RSpec.describe "the translation language" do
 
     it "refuses an unknown rule rather than skipping it" do
       expect(refusal_for { aggregate("Account") { renmae :cost, to: :amount } })
-        .to eq("a translation rule must be rename, move, convert, drop, retype, compute, or unresolved — got 'renmae'")
+        .to eq("a translation rule must be rename, move, convert, drop, retype, compute, rekey, or unresolved — " \
+               "got 'renmae'")
       expect(refusal_for { banana "Account" })
         .to eq("a translation does not understand 'banana' — it declares aggregate blocks and retired aggregates")
     end

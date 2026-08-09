@@ -13,8 +13,25 @@ module Hecksagain
           @emits     = []
         end
 
-        def role(value) = @role = value
+        # A command carries ONE responsibility role — the language never
+        # declared an OR between two roles, so a second `role` call would
+        # otherwise silently win while the first still looked declared,
+        # exactly the failure mode `reference_to`'s own duplicate guard
+        # (below) already exists to prevent for a command's root.
+        def role(value)
+          raise Malformed,
+                "#{@name} declares role twice — a command carries ONE " \
+                "responsibility; the second would silently win and the " \
+                "first would still look declared" if @role
+
+          @role = value
+        end
+
         def goal(value) = @goal = value
+
+        # See AggregateBuilder#provenance's own comment — identical shape,
+        # one level down.
+        def provenance(from:) = @provenance = from
 
         # `optional:` rides here as well as on a plain attribute : `as:` makes a
         # reference into a NAMED ARGUMENT, and a named argument is exactly the kind
@@ -140,7 +157,8 @@ module Hecksagain
             ensures:    @ensures,
             mutations:  @mutations,
             emits:      @emits,
-            references: @references
+            references: @references,
+            provenance: @provenance
           )
         end
 

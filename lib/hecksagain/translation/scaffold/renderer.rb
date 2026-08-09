@@ -34,7 +34,7 @@ module Hecksagain
           end
         end
 
-        def render_path(path) = path.include?(".") ? path.inspect : ":#{path}"
+        def render_path(path) = path.to_s.include?(".") ? path.to_s.inspect : ":#{path}"
       end
     end
   end

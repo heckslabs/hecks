@@ -65,7 +65,20 @@ module Hecksagain
             end
 
             begin
-              runtime.dispatch(step["verb"], **args)
+              # `role:` — an OPTIONAL per-step key, absent on every one of
+              # the 231 existing `spec/corpus/*.json` steps (their own
+              # unwrapped `runtime.dispatch` call, unchanged, so nothing
+              # already pinned changes behavior). Binds the SAME ambient
+              # caller `refuse_role_mismatch` reads (`Hecksagain.as_caller`,
+              # `Runtime::Caller.as`) for exactly the one dispatch this
+              # step makes, then unbinds — mirrors `Caller.as`'s own
+              # `ensure`-restore, so back-to-back steps with different (or
+              # no) `role:` never leak into each other.
+              if step["role"]
+                Hecksagain.as_caller(role: step["role"]) { runtime.dispatch(step["verb"], **args) }
+              else
+                runtime.dispatch(step["verb"], **args)
+              end
             rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
               refusals << { verb: step["verb"], error: e.message }
             end

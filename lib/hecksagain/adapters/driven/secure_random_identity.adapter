@@ -1,0 +1,3 @@
+Hecks.adapter "SecureRandomIdentity" do
+  port "identity_generation"
+end

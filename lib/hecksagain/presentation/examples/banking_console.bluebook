@@ -1,0 +1,3 @@
+Hecksagain::Presentation.configure "BankingConsole" do
+  expose "Banking"
+end

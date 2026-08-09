@@ -1,0 +1,33 @@
+# Optional attributes become `Option<T>`, or the command is skipped loudly
+
+**Status:** Accepted — implemented. `rust/project/{types,commands,fielded,json_codec,mutations}.rb`, branch `feat/rust-projection`. Closes the gap [0014](0014-rust-json-boundary-argument-checking.md) found and deliberately did not chase into.
+
+## Context
+
+0014 named the shape of the gap but stopped short of it: `optional: true` attributes weren't modeled with `Option<T>` anywhere the generator touches — args structs, entity fields, value-object fields all treated every declared attribute as unconditionally present. `SafeDepositBox.LogVisit`'s own optional `note:` argument failed outright when a real corpus call legitimately omitted it; `CardPayment.Authorize`'s optional `tags:` list defaulted to `[]` instead of staying absent, producing a cosmetic but real mismatch against Ruby's `nil`.
+
+A first attempt at full `Option<T>` modeling (mechanical: struct fields, `Fielded`, `to_json`/`from_json`, invariant checks, creation logic, mutation `:set`) compiled and worked for banking's three real cases, but broke on the domain `bin/project_rust` *always* also generates alongside the target: the self-hosted Bluebook grammar (`lib/hecksagain/language/bluebook/`), which this generator runs through the identical codegen pipeline every time. There, an optional command argument (e.g. `default:`/`pattern:`/`admits:` on `Attribute.Declare`) feeds a non-optional value-object field via `append` — a shape no `Option<T>` struct-field change alone can represent, because the VALUE OBJECT'S OWN field was never meant to be absent; only the caller's argument is omittable. This is a case Ruby's untyped args hash absorbs for free (it just stores `nil`, unchecked) that a compiled Rust struct's fixed shape cannot.
+
+Asked to choose between (a) generalizing `Option<T>` propagation across VO/entity fields wherever ANY optional argument reaches them, transitively, or (b) recognizing that shape as ungenerable today and skipping those specific commands loudly — the same convention `command_skip_reason` already uses for every other construct this generator can't yet honestly represent — the answer chosen was (b).
+
+## Decision
+
+**Model `optional: true` as `Option<T>` everywhere a command/entity attribute's own declared type appears (args structs, entity struct fields, and — a call site the first attempt missed — value-object struct fields, since the self-hosted grammar's own `Field`/`Position` VOs carry `optional: true` attributes too, not just banking/pizzas' entities and commands). Loudly skip, via a new `optional_source_mismatches` check feeding `command_skip_reason`, any command where an optional argument feeds a target this can't represent as absent: a non-optional VO/entity field via `:set` or `append`, or an `identified_by` component (identity has no "absent" state at all).**
+
+Concretely:
+
+- `emit_entity`/`emit_value_object`/args-struct field declarations (`types.rb`, `commands.rb`): `type = "Option<#{type}>" if attr[:optional]`.
+- `emit_fielded_flat`/`emit_to_json_flat`/`emit_from_json_flat` (`fielded.rb`, `json_codec.rb`): each grew an `attr[:optional]` branch alongside the existing list/scalar/nested ones, generically — these three functions serve VOs, args structs, and entities alike, so they assume Option-wrapping wherever `attr[:optional]` is set regardless of which of the three it's on.
+- Invariant checks, creation-time `record_fields`, and `emit_mutation_line`'s `:set` branch (`commands.rb`, `mutations.rb`) all gained an `if let Some(v) = ...`/`unwrap_or_default()` path alongside the unwrapped one.
+- **One target is always safe regardless of source optionality: a record's own list field.** `emit_record`'s rule is that list fields are *never* `Option`-wrapped (a record's own "absent" list is just `vec![]`), so an optional argument feeding a list target — `CardPayment.tags`'s redundant `then_set :tags, to: :tags`, matching the creation-time assignment — resolves cleanly via `.unwrap_or_default()`. `optional_source_mismatches` exempts list targets from the mismatch check for exactly this reason; without the exemption it wrongly flagged `CardPayment.Authorize` itself for skipping.
+- `optional_source_mismatches` (new, `commands.rb`) walks three shapes per command: `:set` mutations sourcing an optional argument into a non-optional non-list target (including the lifecycle field, which is never optional), `:append` mutations sourcing an optional argument into a non-optional element field, and — the shape the first attempt's build failure surfaced (`Member.Declare`'s own `position: Position, optional: true` feeding `identified_by`) — an `identified_by` path whose head is an optional command argument. None of the three is a `then_set` mutation the earlier checks already saw; each needed its own scan.
+
+## Consequences
+
+- Verified on the full corpus: matching instances went from 29/35 (0014's own count) to 30/35 — `SafeDepositBox.LogVisit`'s omitted `note:` now matches exactly. The remaining 5 mismatches are exactly the two gaps 0014 already named and left open: `CardPayment.tags` (`nil` vs `[]` — the record/JSON layer still can't distinguish "never set by a creating argument" from "explicitly emptied," a representation gap this pass didn't touch) and reference-existence checking (`xfer-ghost`, `ext-admits`, and the orphan `Customer`/`Account` records it produces — §8's original, still-deferred gap). Neither is new; neither regressed.
+- The self-hosted meta grammar now skips ~16 commands it previously either generated wrongly or (before 0014/0016) generated with a silently-required argument Ruby treats as optional. Every skip prints its own reason (`command_skip_reason`), matching the existing convention — nothing is silently under-generated.
+- `spec/rust_conformance_spec.rb`'s pinned fixture and the full `bundle exec rspec`/`bin/model_check` suite are green.
+
+## Rejected alternatives
+
+- **Full cross-domain `Option<T>` propagation** — chase every optional argument's reach transitively so nothing needs skipping. Rejected (explicit choice, not just deferred): the self-hosted grammar's own `Field.default`/`.pattern`/`.admits` would need becoming `Option<T>` themselves for this to type-check, which is a bigger, riskier change (every consumer of those VOs downstream would need auditing for `None` handling) for constructs nothing in the actual corpus — banking, pizzas — ever needs generated at all. The "skip loudly" convention already exists for exactly this tradeoff; reaching for a new one here would be inconsistent with how every other ungenerable shape in this generator is handled.

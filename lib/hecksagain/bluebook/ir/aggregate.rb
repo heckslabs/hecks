@@ -11,7 +11,7 @@ module Hecksagain
 
         attr_reader :name, :description, :attributes, :value_objects, :commands,
                     :identified_by, :identity_paths, :identity_heads, :lifecycle,
-                    :entities, :queries, :policies, :ports, :reference_targets
+                    :entities, :queries, :policies, :ports, :reference_targets, :provenance
 
         # An aggregate is a MEMBER of its chapter's namespace — "Pizzas::Pizza" —
         # where everything else is declared ON its owner and joins with ".".
@@ -19,7 +19,8 @@ module Hecksagain
 
         def initialize(name:, description: nil, attributes: [], value_objects: [],
                        commands: [], identified_by: [], lifecycle: nil,
-                       entities: [], queries: [], policies: [], ports: [], reference_targets: [])
+                       entities: [], queries: [], policies: [], ports: [], reference_targets: [],
+                       provenance: nil)
           @entities      = entities
           @queries       = queries
           @policies      = policies
@@ -44,6 +45,7 @@ module Hecksagain
           @identified_by  = @identity_heads.size == 1 ? @identity_heads.first : nil
           @lifecycle     = lifecycle
           @reference_targets = reference_targets
+          @provenance    = provenance
 
           # Indexed once here, since @attributes/@value_objects/@commands/@queries
           # are final by the time an Aggregate exists — every dispatch asks these
@@ -103,11 +105,14 @@ module Hecksagain
             commands:      @commands.map(&:to_h),
             lifecycle:     @lifecycle&.to_h,
             entities:      @entities.map(&:to_h),
-            queries:       @queries.map(&:to_h)
-            # `ports` deliberately absent — Bluebook#to_h is the byte-for-byte
-            # golden-fixture contract (see ir_golden_spec.rb), and the wire
-            # format does not know about ports yet. Held out of the export until
-            # the wire format and the self-hosted grammar both learn this construct.
+            queries:       @queries.map(&:to_h),
+            # ADDITIVE — every domain that declares no port emits `ports: []`,
+            # the same "regenerate deliberately" wire-format change
+            # ir_golden_spec.rb's own header describes; no existing key
+            # moves. See docs/decisions (rust/project/ports.rb) for the
+            # first reader of this.
+            ports:         @ports.map(&:to_h),
+            provenance:    @provenance
           }
         end
       end

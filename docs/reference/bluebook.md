@@ -55,17 +55,17 @@ Marks this chapter a generic subdomain — undifferentiated, off-the-shelf terri
 
 Opens the thing with identity in this domain — `identified_by`, its `attribute`s, `command`s, and lifecycle. See the Aggregate reference page for the full vocabulary inside.
 
-## read_model
+## report
 
-<!-- generated:begin word=read_model -->
-`read_model name do ... end` — opens a `ReadModel` body
+<!-- generated:begin word=report -->
+`report name do ... end` — opens a `ReadModel` body, was `read_model`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a read that gathers heads from several aggregates around one spine — declared at the chapter's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest.
+Opens a read that gathers heads from several aggregates around one spine — declared at the chapter's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest. Spelled `read_model` in every bluebook written before this word's rename — that spelling still boots, forever; `report` is the SME-facing word going forward.
 
 ## policy
 
@@ -89,5 +89,5 @@ The same word as inside an `aggregate` — a reaction to an event, `on`/`trigger
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Chapter-level only, like `read_model` and top-level `policy`, since it belongs to no single aggregate. See the ProcessManager reference page.
+Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Chapter-level only, like `report` and top-level `policy`, since it belongs to no single aggregate. See the ProcessManager reference page.
 

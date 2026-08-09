@@ -277,11 +277,12 @@ Hecks.bluebook "Bluebook" do
         member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
         member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
         member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: ""
-        member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: ""
+        member word: "report",          context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "read_model"
         member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
         member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
 
         member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
+        member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance"
         member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
         member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
@@ -318,6 +319,7 @@ Hecks.bluebook "Bluebook" do
 
         member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
         member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
+        member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
         member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
         member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens"
         # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
@@ -411,6 +413,13 @@ Hecks.bluebook "Bluebook" do
         # THE ONE FIXED WORD .hecksagon'S BODY HAS. Everything else in a
         # hecksagon is the open Const.verb("Adapter") form named above.
         member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
+
+        # A `framework/bluebook/` MEMBER THIS DOMAIN ATTACHES — Governance,
+        # Identity, whatever else lands beside them. Same shape as
+        # `subscribe` beside it: a fact recorded onto THIS hecksagon's own
+        # `framework_members`, AND a load — the same kind `Kernel.load`
+        # itself is — that the record alone could not carry.
+        member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
 
         # THE PRIMARY PORT — the boundary between a domain and its adapters,
         # in hexagonal terms, is exactly what a hecksagon already IS for
@@ -506,11 +515,16 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
         member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-        member keyword: "read_model",      context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+        member keyword: "report",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
         member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+        # ORIGIN, not identity — captured raw, the exact same shape
+        # `attribute ..., default:` already uses for a literal Hash
+        # (`kind: "literal"`, see that row below): no structure imposed
+        # beyond "whatever the author wrote."
+        member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
         # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
         # Customer` attaches an attribute spelled `customer_id` — the language
         # mints the `_id` ending itself, which is why Identify's rule can read it
@@ -559,6 +573,8 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
         member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal"
+        # See Aggregate's own `provenance` row — identical shape, one level down.
+        member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
         # A COMMAND'S REFERENCE MAY BE OPTIONAL AND AN AGGREGATE'S MAY NOT — a
         # head either points at another head or does not, while an argument
         # carrying an id can legitimately be omitted at dispatch.
@@ -701,6 +717,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
         member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
         member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
+        member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
         member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
         member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
         member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"

@@ -62,6 +62,10 @@ module Hecksagain
         @repositories[[domain.to_s, aggregate.hecks_name]] ||= Ports::Persistence.repository(self, domain, aggregate)
       end
 
+      def capability_graph
+        @capability_graph ||= CapabilityGraph.new(self)
+      end
+
       def read_repository(domain, aggregate)
         key = [domain.to_s, aggregate.hecks_name]
         binding = Ports::Projection.binds_for(self, domain, aggregate).first

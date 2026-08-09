@@ -1,0 +1,106 @@
+#!/usr/bin/env ruby
+
+# THE DIFFERENTIAL HARNESS — docs/decisions/0010-ruby-is-the-reference-implementation.md.
+# Ruby is the oracle a second runtime is checked against. This replays a
+# corpus script (the same format spec/corpus/*.json and bin/run already
+# use) through the real interpreter via Fuzzing::Replay — the same
+# isolated-boot-and-reset preamble the fuzzer and property checks use, so
+# a script never sees another run's leftover state — and prints the
+# comparison-relevant surface as JSON: resulting record state, emitted
+# events, and refusals (verb + wording). That is deliberately narrower
+# than Replay's own return value (which also carries reactions/sagas/
+# queries and the booted IR itself) — those either are not
+# JSON-serializable as-is or are not part of what a generated Rust
+# artifact is asked to reproduce per §8's acceptance criteria.
+#
+# Three modes:
+#
+#   bin/rust_conformance <domain> <script.json>
+#     Prints Ruby's own result as JSON — the target a Rust artifact's
+#     same script/domain pair must reproduce byte-for-byte. Redirect this
+#     to a fixture file and it becomes a pinned expectation, the same way
+#     spec/golden/ir/*.json pins canonical IR.
+#
+#   bin/rust_conformance <domain> <script.json> <rust_output.json>
+#     Diffs Ruby's result against a third file — some artifact's own JSON
+#     output for the identical domain/script pair, produced however its
+#     own CLI contract says to. The original interface: still the right
+#     shape for a PINNED fixture, not a live run.
+#
+#   bin/rust_conformance <domain> <script.json> native|<path/to/module.wasm>
+#     THE SUBPROCESS HOOK this file's own header used to say didn't exist
+#     yet ("this tool does not invoke Rust itself... until then, 'give me
+#     a JSON file to compare against' is the whole interface"). `native`
+#     runs rust/target/{release,debug}/rust (bin/project_rust's own
+#     `cargo build` artifact); a `.wasm` path runs it under `wasmtime`
+#     (bin/project_wasm's artifact). Either way `script.json`'s bytes go
+#     on the subprocess's stdin and its stdout is the comparison JSON —
+#     kernel/cli.rs's stdin/stdout contract, the SAME shape Ruby already
+#     prints above, now answerable live instead of only from a pinned file.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "hecksagain/fuzzing"
+require "json"
+require "open3"
+
+def run_subprocess(cmd, stdin_data)
+  stdout, status = Open3.capture2(*cmd, stdin_data: stdin_data)
+  abort "#{cmd.join(' ')} exited #{status.exitstatus}:\n#{stdout}" unless status.success?
+
+  stdout
+end
+
+def native_binary
+  %w[release debug]
+    .map { |profile| File.expand_path("../rust/target/#{profile}/rust", __dir__) }
+    .find { |path| File.executable?(path) }
+end
+
+domain = ARGV.shift or abort "usage: bin/rust_conformance <domain> <script.json> [rust_output.json | native | path/to/module.wasm]"
+script = ARGV.shift or abort "usage: bin/rust_conformance <domain> <script.json> [rust_output.json | native | path/to/module.wasm]"
+other  = ARGV.shift
+
+steps  = JSON.parse(File.read(script)).fetch("steps")
+result = Hecksagain::Fuzzing::Replay.call(domain, steps)
+
+comparable = {
+  "instances" => result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) },
+  "events"    => result[:events].map { |e| { "name" => e[:name], "aggregate" => e[:aggregate], "id" => e[:id].to_s, "payload" => JSON.parse(JSON.generate(e[:payload])) } },
+  "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error] } }
+}
+
+unless other
+  puts JSON.pretty_generate(comparable)
+  exit 0
+end
+
+their_json =
+  case other
+  when "native"
+    bin = native_binary or abort "no native rust binary found under rust/target/{release,debug}/rust — run `cd rust && cargo build` first"
+    run_subprocess([bin], File.read(script))
+  when /\.wasm\z/
+    abort "#{other}: no such file — run bin/project_wasm #{domain} first" unless File.exist?(other)
+    run_subprocess(%w[wasmtime run] + [other], File.read(script))
+  else
+    File.read(other)
+  end
+
+theirs = JSON.parse(their_json)
+mismatches = []
+
+%w[instances events refusals].each do |key|
+  next if comparable[key] == theirs[key]
+
+  mismatches << "#{key}:\n  ruby:  #{comparable[key].inspect}\n  other: #{theirs[key].inspect}"
+end
+
+if mismatches.empty?
+  puts "#{domain} / #{script}: matches."
+  exit 0
+else
+  warn "#{domain} / #{script}: #{mismatches.size} mismatch(es)\n\n#{mismatches.join("\n\n")}"
+  exit 1
+end

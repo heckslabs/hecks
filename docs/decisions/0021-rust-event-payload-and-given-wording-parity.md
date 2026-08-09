@@ -1,0 +1,27 @@
+# Event payload default-fill, and `GivenNotMet`/`EnsuresNotMet` wording, now match Ruby exactly
+
+**Status:** Accepted — implemented. `rust/src/kernel/{json,dispatch}.rs`, `rust/project/{registry,json_codec}.rb`, `spec/rust_conformance_spec.rb`, branch `feat/rust-projection`. Closes the two specific gaps 0012/0013 named as pre-existing and cosmetic — event payload shape, and `GivenNotMet` wording's missing command-name prefix.
+
+## Context
+
+0013 chose to stamp an event's payload with the router's raw, unfiltered `args_json` (not the typed args struct's own `to_json()`), specifically to preserve identity/reference/correlation fields no declared attribute names (a saga leg forwarding `number:` into `Account.Debit`, which doesn't declare `number` as its own attribute). That was the right call for THAT problem, but it left a different one: a value object field filled from a TARGET-type `default:` (`PositiveMoney.currency`, defaulting to `"USD"`) shows up in Ruby's own event payload (built from post-coercion args) but not Rust's raw pre-coercion JSON. Separately, 0012 flagged `GivenNotMet` refusal wording as missing Ruby's own `"{command} refused — "` prefix.
+
+## Decision
+
+**`Json::overlay(base, patch)`** (`json.rs`, hand-written and generic): merges two JSON objects, `patch`'s own fields winning for any key both share, `base`'s own extra keys (identity/reference/correlation arguments no declared attribute names) passing through untouched. `registry.rb`'s router computes `args.to_json()` — the ALREADY-CODED typed struct, whose own `from_json` already fills any `default:` a bare/partial raw value never carried — right after `args` is built, `overlay`s it onto the raw `args_json`, and stamps THAT onto every event `stamp_payload` touches. This keeps 0013's own fix (raw args' extra fields survive) while adding what it was missing (post-coercion defaults survive too) — the two were never actually in tension, just never combined.
+
+**`GivenNotMet`/`EnsuresNotMet`** (`dispatch.rs`): both now format with the same prefix `CommandRules::Admissibility#enforce_givens`/`#enforce_ensures` raise with — `"{command_name} refused — {description}"` — `command_name` was already an in-scope parameter at both raise sites, so this was a pure formatting fix, no new data needed.
+
+**Two smaller wording fixes found and closed along the way** while verifying refusals byte-for-byte against the pinned fixtures: `UnknownArgument`'s own message used the args-struct's own name ("CreditArgs") where Ruby's `command.hecks_name` template uses the command's short name ("Credit") — `emit_from_json_flat` gained a `command_name:` parameter, defaulted to `struct_name` for every caller that isn't an aggregate command's own args struct (VOs/entity commands never pass `unknown_argument_allowlist`, so the default is never actually read there). And `TypeMismatch`'s `numeric_field` template (`"{type}.{field} expects {expected}, got {offered}"`) wasn't matched at all for a wrong-shaped `Integer`/`Float` scalar — a new `scalar_type_error` helper (scoped to those two types specifically, leaving `String` scalar mismatches on the older generic wording since nothing in this corpus exercises Ruby's own wording for that shape) plus a new `Json::inspect` (a Ruby-`#inspect`-style formatter for the "offered" value) closed it.
+
+**The pinned CI spec (`spec/rust_conformance_spec.rb`) now compares `events` and full refusal wording (`verb` + `error`), not just `instances` and refusal verbs** — the two gaps that made a looser comparison the right bar are both closed for the fixtures it actually runs. This is a real widening of the regression net, not just documentation: a future change that reintroduces either gap now fails CI instead of passing silently.
+
+## Consequences
+
+- Verified: both pinned fixtures (`entities_policies_sagas.json`, `role_checking.json`) now match Ruby byte-for-byte on `instances`, `events`, AND full refusal wording, against both the native binary and the WASM artifact.
+- Full `bundle exec rspec` (1073 examples) and `bin/model_check` green.
+- **A much larger refusal-wording gap was found and deliberately left open**, running the full `spec/corpus/banking.json` (231 steps) through the differential harness during this investigation: `LifecycleRefused`'s own `transition_blocked` template, the general VO-`invariant()` message (missing Ruby's own `"(given {offered})"` suffix), `one_of` closed-set membership wording, and entity-element-missing `NotFound` wording all still differ from Ruby's own templates. None of these affect `instances` (the corpus is at full 35/35 parity there, per 0020) — they're pure wording, the SAME class of gap this decision closes two instances of, just a longer tail of remaining templates. Flagged in `rust/project.rb`'s own header, not attempted here: aligning every refusal-wording template in the system is a fundamentally different-shaped task (an audit across `refusal_wording.rb`'s full ~20-entry table) than the two specific, named gaps this decision closes.
+
+## Rejected alternatives
+
+- **Auditing and aligning every refusal-wording template in one pass**, rather than the two specifically-named gaps. Rejected for scope: the two gaps this decision closes were both individually named by prior decisions (0012, 0013) as real, specific, tracked debt; the broader tail (found only once the full corpus was run end-to-end) is a genuinely different-sized undertaking, better scoped as its own future slice than folded in here as scope creep on an already-landed decision.

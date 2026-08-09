@@ -115,6 +115,12 @@ module Hecksagain
 
         def rule(row) = { description: text(row[:description]), canonical: text(row[:canonical]) }
 
+        # `provenance from: {...}` rides the same literal encoding `default:`
+        # does — a flat object literal, self-describing via `inspect` — one
+        # level up: a whole keyword's argument rather than an attribute's
+        # `default:`.
+        def provenance(row) = decode_literal(text(row[:provenance]))
+
         # THE OPTION ROWS, GATHERED BACK into the shapes `extra_options_to_h` spells.
         #
         # One row per part, so a compound option is several rows and a repeated one is

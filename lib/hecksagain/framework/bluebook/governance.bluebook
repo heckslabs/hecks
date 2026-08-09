@@ -1,0 +1,137 @@
+Hecks.bluebook "Governance" do
+  vision "Organizational authority is explicit, reviewable, and historically explainable."
+  supporting
+
+  aggregate "RoleAssignment" do
+    description "One actor holding one role, over one scope, from one point in time — revoked by setting when it ended, never deleted."
+
+    # THE IDENTITY IS THE EVENT, not the (actor, role) pair — an actor can
+    # hold the same role again later, after a prior assignment ended, and
+    # that is a SECOND real assignment, not a state to overwrite. No UUID
+    # adapter exists yet in this codebase to mint a synthetic id, and none
+    # is needed: `starts_at` already makes "this actor started holding this
+    # role at this time" unique on its own.
+    identified_by do
+      actor_id.value
+      role_name.value
+      starts_at.value
+    end
+
+    attribute :actor_id,  IdentityId
+    attribute :role_name, RoleName
+    attribute :scope,     Scope
+    attribute :starts_at, Timestamp
+    attribute :ends_at,   Timestamp, optional: true
+
+    value_object "IdentityId" do
+      attribute :value, String
+      invariant("an identity id is present") { !value.to_s.empty? }
+    end
+
+    value_object "RoleName" do
+      attribute :value, String
+      invariant("a role is named") { !value.to_s.empty? }
+    end
+
+    value_object "Scope" do
+      attribute :value, String
+      invariant("a scope is named") { !value.to_s.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+      invariant("a timestamp is present") { !value.to_s.empty? }
+    end
+
+    command "Assign" do
+      role "Governance administrator"
+      goal "Authorize an actor to perform a responsibility"
+
+      attribute :actor_id,  IdentityId
+      attribute :role_name, RoleName
+      attribute :scope,     Scope
+      attribute :starts_at, Timestamp
+
+      emits "RoleAssigned"
+    end
+
+    command "Revoke" do
+      role "Governance administrator"
+      goal "Remove organizational authority"
+
+      reference_to RoleAssignment
+      attribute :ends_at, Timestamp
+
+      then_set :ends_at, to: :ends_at
+      emits "RoleRevoked"
+    end
+
+    query "AssignmentsForActor" do
+      description "Every role an actor currently or historically holds."
+      attribute :actor_id, IdentityId
+      where(actor_id: :actor_id)
+    end
+  end
+
+  # WHO HOLDS A ROLE is `RoleAssignment`'s question. This is a different one:
+  # may role X ACT AS role Y — the fact `act_as` (the plan's §2) needs before
+  # a caller is allowed to dispatch under a role it does not itself hold.
+  # Same event-log shape as RoleAssignment : a natural key, `ends_at` for
+  # revocation, no delete.
+  aggregate "RoleTransition" do
+    description "Role X is authorized to act as role Y — until revoked."
+
+    identified_by do
+      from_role.value
+      to_role.value
+    end
+
+    attribute :from_role, RoleName
+    attribute :to_role,   RoleName
+    attribute :ends_at,   Timestamp, optional: true
+
+    value_object "RoleName" do
+      attribute :value, String
+      invariant("a role is named") { !value.to_s.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+      invariant("a timestamp is present") { !value.to_s.empty? }
+    end
+
+    command "Grant" do
+      role "Governance administrator"
+      goal "Authorize one role to act as another"
+
+      attribute :from_role, RoleName
+      attribute :to_role,   RoleName
+
+      emits "RoleTransitionGranted"
+    end
+
+    command "Revoke" do
+      role "Governance administrator"
+      goal "Remove an authorized role transition"
+
+      reference_to RoleTransition
+      attribute :ends_at, Timestamp
+
+      then_set :ends_at, to: :ends_at
+      emits "RoleTransitionRevoked"
+    end
+
+    # THE RECORD FOR THIS PAIR, granted or revoked — same deferral
+    # `AssignmentsForActor` already makes for RoleAssignment: the where
+    # clause has no way to ask "and ends_at is absent", so the query
+    # answers with the row and the CALLER reads `ends_at` to tell a
+    # live grant from a revoked one, exactly as it already must for
+    # every assignment.
+    query "Allowed" do
+      description "The role transition granted for this exact pair, if any — revoked or not."
+      attribute :from_role, RoleName
+      attribute :to_role,   RoleName
+      where(from_role: :from_role, to_role: :to_role)
+    end
+  end
+end

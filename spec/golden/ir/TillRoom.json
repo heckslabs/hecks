@@ -68,6 +68,7 @@
 
           ],
           "name": "OpenTill",
+          "provenance": null,
           "references": null,
           "role": "Clerk"
         },
@@ -129,6 +130,7 @@
             }
           ],
           "name": "TakeIn",
+          "provenance": null,
           "references": "Till",
           "role": "Clerk"
         },
@@ -173,6 +175,7 @@
             }
           ],
           "name": "PayOut",
+          "provenance": null,
           "references": "Till",
           "role": "Clerk"
         },
@@ -203,6 +206,7 @@
             }
           ],
           "name": "Bump",
+          "provenance": null,
           "references": "Till",
           "role": "Clerk"
         }
@@ -216,6 +220,10 @@
       ],
       "lifecycle": null,
       "name": "Till",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -336,6 +344,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "TillRoom",
   "policies": [
 

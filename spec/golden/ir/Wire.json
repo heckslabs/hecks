@@ -50,6 +50,7 @@
 
           ],
           "name": "Open",
+          "provenance": null,
           "references": null,
           "role": "Clerk"
         },
@@ -89,6 +90,7 @@
             }
           ],
           "name": "Put",
+          "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
         },
@@ -132,6 +134,7 @@
             }
           ],
           "name": "Take",
+          "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
         },
@@ -153,6 +156,7 @@
 
           ],
           "name": "Shut",
+          "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
         },
@@ -174,6 +178,7 @@
 
           ],
           "name": "Reopen",
+          "provenance": null,
           "references": "Drawer",
           "role": "Clerk"
         }
@@ -202,6 +207,10 @@
         ]
       },
       "name": "Drawer",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -371,6 +380,7 @@
             }
           ],
           "name": "Ask",
+          "provenance": null,
           "references": null,
           "role": "Customer"
         },
@@ -392,6 +402,7 @@
 
           ],
           "name": "Moved",
+          "provenance": null,
           "references": "Wire",
           "role": "System"
         },
@@ -413,6 +424,7 @@
 
           ],
           "name": "Landed",
+          "provenance": null,
           "references": "Wire",
           "role": "System"
         },
@@ -434,6 +446,7 @@
 
           ],
           "name": "Returned",
+          "provenance": null,
           "references": "Wire",
           "role": "System"
         }
@@ -467,6 +480,10 @@
         ]
       },
       "name": "Wire",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -533,6 +550,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "Wire",
   "policies": [
 

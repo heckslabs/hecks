@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+
+# Boots the banking example against the in-memory adapter (same rebind
+# spec/facade/handle_spec.rb already uses — banking.hecksagon itself binds
+# "Heki", a real store this demo has no business needing) and serves
+# presentation.bluebook's rendered forms/views over it.
+#
+#   bin/present
+#   bin/present -p 4567
+#
+# Then, for example:
+#   open http://localhost:4567/                                    # every exposed chapter
+#   open http://localhost:4567/Banking/Customer.html                # every Customer, + Register
+#   open http://localhost:4567/Banking/Account/Overdrawn.html       # a query view
+#   curl  http://localhost:4567/Banking/Account/Debit               # the command's own shape, as JSON
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain/presentation"
+require "rackup"
+
+ROOT = File.expand_path("..", __dir__)
+BANKING_BLUEBOOK  = File.join(ROOT, "examples/banking/bluebook/banking.bluebook")
+# DELIBERATELY NOT UNDER examples/ AT ALL, let alone alongside
+# banking.bluebook itself — every top-level entry under examples/ is its
+# own scanned corpus member (spec/corpus_spec.rb's EXAMPLE_ROOTS,
+# spec/model_check_spec.rb's own copy of the same glob: `Dir.glob(examples/*)`),
+# expected to be a complete, independently model-checked domain with its
+# own corpus script. presentation.bluebook is neither — it is a sample of
+# THIS FEATURE, not a domain, so it lives beside the feature instead.
+PRESENTATION_BLUEBOOK = File.join(ROOT, "lib/hecksagain/presentation/examples/banking_console.bluebook")
+PERSISTENCE_PORT = File.join(ROOT, "lib/hecksagain/ports/persistence.port")
+EXTRACTION_PORT  = File.join(ROOT, "lib/hecksagain/ports/extraction.port")
+MEMORY_ADAPTER   = File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter")
+PRISM_ADAPTER    = File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter")
+
+registry = Hecksagain::Runtime::Registry.new
+
+Hecksagain.with_registry(registry) do
+  Kernel.load(PERSISTENCE_PORT)
+  Kernel.load(EXTRACTION_PORT)
+  Kernel.load(MEMORY_ADAPTER)
+  Kernel.load(PRISM_ADAPTER)
+  Kernel.load(BANKING_BLUEBOOK)
+  Kernel.load(PRESENTATION_BLUEBOOK)
+
+  Hecks.hecksagon("Banking") do
+    ::Banking::Customer.persisted_by("Memory")
+    ::Banking::Account.persisted_by("Memory")
+    ::Banking::SafeDepositBox.persisted_by("Memory")
+    ::Banking::Transfer.persisted_by("Memory")
+    ::Banking::ATMCard.persisted_by("Memory")
+    ::Banking::CardPayment.persisted_by("Memory")
+    ::Banking::ExternalTransfer.persisted_by("Memory")
+    ::Banking::ScheduledPayment.persisted_by("Memory")
+    ::Banking::OnboardingCase.persisted_by("Memory")
+    ::Banking::Statement.persisted_by("Memory")
+  end
+end
+
+registry.verify!
+
+app  = Hecksagain::Presentation::App.for(registry: registry, presentation_name: "BankingConsole")
+port = (ARGV.each_cons(2).find { |flag, _| %w[-p --port].include?(flag) } || [nil, 4567]).last.to_i
+
+puts "presentation.bluebook — Banking, in memory — http://localhost:#{port}/"
+Rackup::Server.start(app: app, Port: port, server: "webrick")

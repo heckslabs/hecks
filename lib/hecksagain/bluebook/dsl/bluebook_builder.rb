@@ -27,12 +27,18 @@ module Hecksagain
           @aggregates << AggregateBuilder.build(name, &block)
         end
 
-        def read_model(name, &block)
+        # `report` is the word; `read_model` is the spelling every existing
+        # bluebook was written under (Syntax::Keyword carries the rename as
+        # `was:`, the same mechanism `then_set`/`sets` already uses), and it
+        # stays answered here forever — a renamed word's old era keeps
+        # booting.
+        def report(name, &block)
           # A read model gathers heads from SEVERAL aggregates, so no single head
           # declares it — the chapter does. Its owner is stamped in `build`, where
           # the chapter namespace exists.
           @read_models << ReadModelBuilder.build(name, &block)
         end
+        alias_method :read_model, :report
 
         def policy(name, &block)
           @policies << PolicyBuilder.build(name, &block)

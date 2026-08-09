@@ -1,0 +1,82 @@
+Hecks.bluebook "Identity" do
+  vision "Authentication proves an identifier; the organization decides what that identity means."
+  supporting
+
+  aggregate "Identity" do
+    description "A stable organizational identity, independent of how it was authenticated."
+
+    identified_by { identity_id.value }
+    attribute :identity_id, IdentityId
+
+    value_object "IdentityId" do
+      attribute :value, String
+      invariant("an identity id is present") { !value.to_s.empty? }
+    end
+
+    # No natural key exists for "a newly recognized identity" — the
+    # caller mints identity_id via Ports::IdentityGeneration.uuid
+    # before dispatching (see spec/ports/identity_generation_spec.rb),
+    # the same pattern proven there against Pizzas.
+    command "Register" do
+      role "Identity registrar"
+      goal "Recognize an identity"
+
+      attribute :identity_id, IdentityId
+      emits "IdentityRegistered"
+    end
+  end
+
+  aggregate "ExternalIdentifier" do
+    description "One authenticated (issuer, subject) pair, linked to the identity it proves control of."
+
+    identified_by { key.value }
+
+    reference_to Identity
+    attribute :key,     ExternalIdentifierKey
+    attribute :issuer,  Issuer
+    attribute :subject, Subject
+
+    value_object "ExternalIdentifierKey" do
+      attribute :value, String
+      invariant("a key is present") { !value.to_s.empty? }
+    end
+
+    value_object "Issuer" do
+      attribute :value, String
+      invariant("an issuer is present") { !value.to_s.empty? }
+    end
+
+    value_object "Subject" do
+      attribute :value, String
+      invariant("a subject is present") { !value.to_s.empty? }
+    end
+
+    # `key` is deliberately not derived here — a caller-side concern
+    # (e.g. SHA256 of issuer+subject), same as any other identity
+    # field this domain never mints itself.
+    command "Link" do
+      role "Identity registrar"
+      goal "Associate an external authenticated subject with an identity"
+
+      reference_to Identity
+      attribute :key,     ExternalIdentifierKey
+      attribute :issuer,  Issuer
+      attribute :subject, Subject
+
+      emits "ExternalIdentifierLinked"
+    end
+
+    # THE OIDC-SHAPED LOOKUP — a token hands over `(issuer, subject)`,
+    # never the `key` this aggregate is actually identified by (`key`
+    # is a caller-side derivation, deliberately not reproduced here —
+    # see `Link`'s own comment). `identity_id` rides the row already,
+    # from `reference_to Identity` above, so a caller reads it straight
+    # off the match rather than needing a second query.
+    query "ResolvedBy" do
+      description "The external identifier linked to this exact (issuer, subject) pair, if any."
+      attribute :issuer,  Issuer
+      attribute :subject, Subject
+      where(issuer: :issuer, subject: :subject)
+    end
+  end
+end

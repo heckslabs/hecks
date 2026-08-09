@@ -7,18 +7,76 @@ module Hecksagain
         module HeadCompiler
           # ── head compilation ───────────────────────────────────────────
 
-          # Era 1: the head is simply the latest save per id.
-          def ensure_first_head!(storage_name)
-            return if view_exists?(head_view(storage_name))
+          # The snapshot table backing one aggregate's CURRENT era: one row
+          # per live id, upserted transactionally by Postgres#append
+          # alongside the journal insert it belongs to, never derived by
+          # scanning history thereafter. Idempotent and unguarded by
+          # `provisioner?` — a plain per-aggregate table, the same
+          # privilege class as the per-aggregate views/matviews already
+          # created this way, not the shared owner-only journal.
+          #
+          # BACKFILLED, not just created, the FIRST time this table comes
+          # into existence for a domain that already has journal history —
+          # a fresh era (compile_head! at mint) never has any, but era 1
+          # against an EXISTING deployment (any domain running before this
+          # snapshot table existed at all) does, and an empty table would
+          # silently erase every already-written record from every read
+          # the instant the head view starts pointing at it. Checked
+          # BEFORE the CREATE, not via ON CONFLICT or similar — this only
+          # ever needs to run once, at the exact moment the table is born.
+          def ensure_head_snapshot!(storage_name, era)
+            name = head_snapshot(storage_name, era)
+            return if table_exists?(name)
 
+            # Locked, not a bare CREATE TABLE IF NOT EXISTS — two processes
+            # booting this aggregate for the very first time concurrently
+            # must not race to CREATE (one wins, one gets a real Postgres
+            # error) NOR both backfill (harmless but wasteful, a full
+            # journal scan twice). Re-checked under the lock: the fast
+            # path above skips locking entirely once any boot has already
+            # finished this once, which is every boot after the first.
+            @db.transaction do
+              @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
+              next if table_exists?(name)
+
+              @db.exec(<<~SQL)
+                CREATE TABLE #{quote(name)} (
+                  id      text PRIMARY KEY,
+                  ordinal bigint NOT NULL,
+                  state   jsonb NOT NULL
+                )
+              SQL
+              backfill_head_snapshot!(name, storage_name, era)
+            end
+          end
+
+          # The exact reduction era 1's OLD live view used to run on every
+          # single read — DISTINCT ON latest-per-id, saves only — run
+          # here, once, as an INSERT instead of a view body.
+          def backfill_head_snapshot!(name, storage_name, era)
             @db.exec(<<~SQL)
-              CREATE OR REPLACE VIEW #{quote(head_view(storage_name))} AS
-              SELECT id, state FROM (
-                SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, operation, state
+              INSERT INTO #{quote(name)} (id, ordinal, state)
+              SELECT id, ordinal, state FROM (
+                SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, ordinal, operation, state
                 FROM #{quoted_journal}
-                WHERE aggregate = #{text_literal(storage_name)}
+                WHERE era = #{era.to_i} AND aggregate = #{text_literal(storage_name)}
                 ORDER BY aggregate_id, ordinal DESC
               ) latest WHERE operation = 'save'
+            SQL
+          end
+
+          def table_exists?(name)
+            @db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name]).getvalue(0, 0) == "t"
+          end
+
+          # Era 1: the head is the snapshot table itself, verbatim — no
+          # per-read reduction over history left to do, because `append`
+          # already keeps the snapshot current as of every write.
+          def ensure_first_head!(storage_name)
+            ensure_head_snapshot!(storage_name, 1)
+            @db.exec(<<~SQL)
+              CREATE OR REPLACE VIEW #{quote(head_view(storage_name))} AS
+              SELECT id, state FROM #{quote(head_snapshot(storage_name, 1))}
             SQL
           end
 
@@ -98,6 +156,7 @@ module Hecksagain
             cut = held.find { |candidate| candidate[:ordinal] == era }&.dig(:watermark)
             declared = edges.last[:translation].for_aggregate(names[:current][edges.size])
             expression = declared ? compile_rules(declared) : "state"
+            id_column = rekeyed?(declared) ? id_case("operation = 'save'", declared) : "aggregate_id"
 
             <<~SQL
               WITH layered AS (
@@ -108,7 +167,7 @@ module Hecksagain
                   WHERE era = #{era - 1} AND aggregate = #{text_literal(names[:storage][era - 2])}#{cut ? " AND ordinal <= #{cut}" : ''}
                 ) layers ORDER BY aggregate_id, ordinal DESC
               )
-              SELECT ordinal, aggregate_id, operation,
+              SELECT ordinal, #{id_column}, operation,
                      CASE WHEN operation = 'save' THEN #{expression} ELSE state END AS state
               FROM layered
             SQL
@@ -120,8 +179,10 @@ module Hecksagain
             chain = edges.each_with_index.map do |edge, index|
               declared = edge[:translation].for_aggregate(names[:current][index + 1])
               expression = declared ? compile_rules(declared) : "state"
-              "edge_#{index + 1} AS (SELECT ordinal, era, aggregate_id, operation, " \
-                "CASE WHEN era <= #{index + 1} AND operation = 'save' THEN #{expression} ELSE state END AS state " \
+              guard = "era <= #{index + 1} AND operation = 'save'"
+              id_column = rekeyed?(declared) ? id_case(guard, declared) : "aggregate_id"
+              "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column}, operation, " \
+                "CASE WHEN #{guard} THEN #{expression} ELSE state END AS state " \
                 "FROM #{index.zero? ? 'tail' : "edge_#{index}"})"
             end
 
@@ -160,8 +221,9 @@ module Hecksagain
           end
 
           # Era N: materialize the translated ancestor tail (edge chain as
-          # CTEs, watermarks baked in), then overlay live current-era rows
-          # in a plain view.
+          # CTEs, watermarks baked in), then overlay this era's OWN live
+          # rows — read from its snapshot table, not re-derived from raw
+          # history — in a plain view.
           #
           # THE FROZEN-TAIL INVARIANT. This materialized view is correct
           # by construction only because BOTH of these hold:
@@ -181,6 +243,16 @@ module Hecksagain
           # needs it: it moves EVERY watermark to the new tip, so every
           # ancestor matview's cut goes stale in the same statement, and
           # layering on one would carry a cut that no longer exists.
+          #
+          # THE LIVE HALF used to be `WHERE era = era AND aggregate = name`
+          # over the raw journal — a DISTINCT ON that re-reduced this era's
+          # ENTIRE write history on every single read, the exact cost this
+          # snapshot table exists to avoid (Postgres#append keeps it
+          # current, transactionally, as of every write). The union below
+          # is bounded by LIVE RECORD COUNT for this era instead of its
+          # write count; the ancestor side was already bounded that way
+          # (the matview only ever holds the reduced tail, never raw
+          # history — see latest_per_id's own comment).
           def compile_head!(aggregate, era, label, edges, full: false)
             storage_name = aggregate.storage_name
             view = matview(storage_name, era, label)
@@ -195,6 +267,11 @@ module Hecksagain
               #{body}
             SQL
 
+            # era-qualified, always a FRESH table for a newly-minted era —
+            # no separate reset step needed; there is structurally nothing
+            # in it yet for anyone to have written, until an append lands
+            # under this era specifically.
+            ensure_head_snapshot!(storage_name, era)
             @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
             @db.exec(<<~SQL)
               CREATE VIEW #{quote(head_view(storage_name))} AS
@@ -202,8 +279,8 @@ module Hecksagain
                 SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, operation, state FROM (
                   SELECT ordinal, aggregate_id, operation, state FROM #{quote(view)}
                   UNION ALL
-                  SELECT ordinal, aggregate_id, operation, state FROM #{quoted_journal}
-                  WHERE era = #{era.to_i} AND aggregate = #{text_literal(storage_name)}
+                  SELECT ordinal, id AS aggregate_id, 'save' AS operation, state
+                  FROM #{quote(head_snapshot(storage_name, era))}
                 ) merged ORDER BY aggregate_id, ordinal DESC
               ) latest WHERE operation = 'save'
             SQL
@@ -267,6 +344,42 @@ module Hecksagain
             expression
           end
 
+          # Whether THIS edge's declared rules for this aggregate include a
+          # rekey — checked directly off the raw IR object, the same way
+          # every other rule kind is already read in `compile_rules`
+          # (`declared.computes`, `declared.moves`, ...), not through the
+          # `Ports::Persistence::Lineage` wrapper the app-level consumers
+          # (coverage_check.rb, minter.rb, layer_two.rb) go through — this
+          # file builds SQL straight off the IR either way.
+          def rekeyed?(declared) = declared && !declared.rekeys.empty?
+
+          # THE ONLY TWO PLACES `aggregate_id` NEEDS TO CHANGE — every
+          # other reduction/select in this file (`latest_per_id`,
+          # `ancestor_tail_sql`, `latest_of`, `compile_head!`'s own final
+          # view, `ensure_first_head!`) reads FROM a chain that, once these
+          # two produce the right column, is already correct — see this
+          # feature's own design notes for why. Guarded so the generated
+          # SQL for the overwhelming common case (no rekey declared, every
+          # existing domain today) stays the bare `aggregate_id` passthrough
+          # it always was — this CASE only appears in an edge that actually
+          # declares one.
+          def id_case(guard, declared)
+            "CASE WHEN #{guard} THEN #{compile_id_expression(declared)} ELSE aggregate_id END AS aggregate_id"
+          end
+
+          # THE REKEY'S OWN SQL — reading `state` directly, not the
+          # progressively-built `expression` chain `compile_compute` reads
+          # from. A rekey doesn't consume or move any field the way a move
+          # or compute does (see `IR::TranslationRekey`'s own comment), so
+          # there is no same-edge rename/move ordering it needs to see
+          # first — it reads the record's stored fields exactly as they
+          # already are, the same `__s` convention `compile_compute`
+          # exposes.
+          def compile_id_expression(declared)
+            rekey = declared.rekeys.first
+            "(SELECT (#{rekey.sql}) FROM (SELECT (state) AS __s) __outer)"
+          end
+
           # A compute is the one rule whose SQL is its only implementation
           # — evaluated exclusively here, inside the compiled head, never
           # in-process. The old field is exposed under its own name (as
@@ -283,9 +396,15 @@ module Hecksagain
           end
 
           def view_exists?(name)
+            # pg_class + pg_table_is_visible, not information_schema/
+            # pg_matviews by bare name — same shared-instance reasoning
+            # as provisioning.rb's own catalog lookups: this must resolve
+            # the name the same way search_path would, or a sibling
+            # domain's same-named view satisfies a check meant for this
+            # domain's own.
             @db.exec_params(
-              "SELECT 1 FROM information_schema.views WHERE table_name = $1 " \
-              "UNION SELECT 1 FROM pg_matviews WHERE matviewname = $1",
+              "SELECT 1 FROM pg_class WHERE relname = $1 AND relkind IN ('v', 'm') " \
+              "AND pg_table_is_visible(oid)",
               [name]
             ).ntuples.positive?
           end

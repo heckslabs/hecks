@@ -43,6 +43,7 @@ Hecks.bluebook "Bluebook" do
     # ensures says what must hold to have finished. Meyer's third leg.
     attribute :ensures,    list_of(Rule)
     attribute :mutations,  list_of(Change)
+    attribute :provenance, CommandText
 
     value_object "CommandName" do
       attribute :value, String
@@ -139,6 +140,9 @@ Hecks.bluebook "Bluebook" do
       attribute :name,  CommandName
       attribute :role,  Actor, optional: true
       attribute :goal,  Goal, optional: true
+      # See Aggregate.Declare's own `provenance` — identical shape, one
+      # level down.
+      attribute :provenance, CommandText, optional: true
 
       attribute :position, Position, optional: true
       emits "VerbDeclared"

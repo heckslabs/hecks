@@ -1,0 +1,204 @@
+#!/usr/bin/env ruby
+
+# Generates Rust source for one domain into rust/src/generated/ — the
+# driver for `RustProjection` (rust/project.rb, alongside the Rust crate
+# it targets, not under lib/hecksagain/), which carries the architecture
+# and what-is/isn't-generated notes in full.
+#
+#   bin/project_rust <domain>
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "hecksagain/bluebook/meta_validator"
+require_relative "../rust/project"
+require "fileutils"
+
+domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
+
+target_registry = Hecksagain::Runtime::Registry.new
+Hecksagain.with_registry(target_registry) do
+  Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
+  Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
+  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
+  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/prism.adapter", __dir__))
+  Kernel.load(File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
+
+  # ALSO the .hecksagon file, not just the .bluebook — this is what
+  # actually fires `uses_framework`, which `Kernel.load`s that framework
+  # member's own .bluebook into this SAME registry as a side effect
+  # (HecksagonBuilder#uses_framework -> Framework.load!, hecksagon_
+  # builder.rb:31-34 / framework.rb:37-46) — the same mechanism the app
+  # itself already relies on at real boot time, not a new one. A domain
+  # with no .hecksagon (or one that attaches nothing) leaves
+  # target_registry.bluebooks with just its own single entry, exactly
+  # as before this line existed.
+  hecksagon_file = File.join(domain, "bluebook", "#{File.basename(domain)}.hecksagon")
+  Kernel.load(hecksagon_file) if File.exist?(hecksagon_file)
+end
+
+# Still .keys.first, unchanged from before .hecksagon was ever loaded
+# here — the target domain's OWN .bluebook is always loaded first,
+# before .hecksagon's uses_framework calls add anything else, so
+# insertion order (Ruby Hash's own guarantee) already puts it first
+# regardless of how many framework chapters get pulled in after it.
+target_domain_name = target_registry.bluebooks.keys.first
+target_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(target_domain_name)
+
+# THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecksagain/language/bluebook/`
+# declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,
+# Query, Entity, Member, Policy, ProcessManager, Handler, Dispatch,
+# Vocabulary, Syntax, ReadModel — in the SAME DSL any business domain uses,
+# so it goes through the identical codegen pipeline as `target_ir` below,
+# not a special case. `MetaValidator.grammar_registry` is the real boot
+# sequence (nine files, in the declared order, merged into one chapter,
+# then judged through its own fixpoint) — reused here rather than
+# re-derived, so this can never silently drift from what MetaValidator
+# itself actually loads.
+meta_ir = Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
+
+out_root = File.expand_path("../rust/src/generated", __dir__)
+FileUtils.mkdir_p(out_root)
+
+# SCOPED clearing, not a whole-tree wipe — multiple domains coexist on
+# disk now (Cargo features select which one actually compiles in, see
+# below), so regenerating Banking must not erase a previously-generated
+# Embryonaut and vice versa. Still cleared per-directory, not merely
+# written into: a previous run for THIS SAME domain/chapter leaves stale
+# .rs files behind otherwise (an aggregate that no longer exists).
+FileUtils.rm_rf(File.join(out_root, "meta"))
+# One-time migration: the old shared `active/` directory this file used
+# to write is retired — `active` is now a set of `#[cfg(feature = ...)]`
+# re-exports living directly in the root mod.rs below, one per domain
+# that has ever been generated, never a directory of its own.
+FileUtils.rm_rf(File.join(out_root, "active"))
+
+target_mod_name = File.basename(domain)
+FileUtils.rm_rf(File.join(out_root, target_mod_name))
+RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
+target_aggregates = RustProjection::DomainGenerator.call(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
+
+# EVERY OTHER BLUEBOOK NOW IN THE REGISTRY — the target domain's own
+# uses_framework calls (fired by loading its .hecksagon, above) pulled
+# these in as a side effect. Each gets generated into its own module
+# (rust/src/generated/governance/, .../identity/, ...), exactly the
+# same call shape as `meta`/the target domain above — no chapter is
+# privileged. `chapter_mod_names` tracks the lowercase module name per
+# chapter so mod.rs (below) can declare all of them. Framework chapters
+# are SHARED across every domain that attaches them (Banking and
+# Embryonaut both use Governance/Identity) and their content is a pure
+# function of the framework bluebook alone, not of who's attaching it —
+# so clearing and regenerating one here is safe and idempotent
+# regardless of which OTHER domain last touched it.
+chapter_mod_names = { target_mod_name => target_domain_name }
+framework_aggregates = (target_registry.bluebooks.keys - [target_domain_name]).flat_map do |chapter_name|
+  chapter_mod_name = chapter_name.downcase
+  chapter_mod_names[chapter_mod_name] = chapter_name
+  chapter_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(chapter_name)
+  FileUtils.rm_rf(File.join(out_root, chapter_mod_name))
+  RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})", File.join(out_root, chapter_mod_name), chapter_mod_name)
+end
+
+# ONE MERGED Store/dispatch_by_name, spanning the target domain AND
+# every framework chapter it attaches — registry.rb's own emit_registry
+# (and reactions.rb's emit_reference_key_table) already read each
+# aggregate's own chapter_mod:/domain_name: fields, so this is just
+# "call them once more over the union" (domain_generator.rb's own
+# header on why this is safe: nothing about a single-chapter call was
+# privileged in the first place). Policies/process managers do NOT
+# merge across chapters here — Governance/Identity declare none today,
+# and real cross-chapter policy routing is registry.rb's own
+# documented, still-open gap (emit_policy_table's header), not
+# attempted by this pass.
+#
+# Written into the TARGET DOMAIN'S OWN directory as `merged.rs` — never
+# a separate shared `active/` module — so it lives and dies with that
+# domain's own generated tree, coexisting with any other domain's
+# `merged.rs` the same way `registry.rs`/`mod.rs` (DomainGenerator's
+# own output, written above) already do. `mod.rs` was already written
+# by DomainGenerator.call for this domain; appended to, not replaced.
+merged_aggregates = target_aggregates + framework_aggregates
+merged_path = File.join(out_root, target_mod_name, "merged.rs")
+File.open(merged_path, "w") do |f|
+  f.puts RustProjection::Projector.emit_registry(merged_aggregates)
+  f.puts
+  f.puts RustProjection::Projector.emit_policy_table(target_domain_name, target_ir[:policies])
+  f.puts
+  f.puts RustProjection::Projector.emit_process_manager_table(target_ir[:process_managers])
+  f.puts
+  f.puts RustProjection::Projector.emit_reference_key_table(
+    chapter_mod_names.map { |mod_name, chapter_name|
+      [chapter_name, (mod_name == target_mod_name ? target_aggregates : framework_aggregates.select { |a| a[:chapter_mod] == mod_name }).map { |a| a[:name] }]
+    }
+  )
+end
+puts "wrote #{merged_path}"
+File.open(File.join(out_root, target_mod_name, "mod.rs"), "a") { |f| f.puts "pub mod merged;" }
+
+# EVERY DOMAIN EVER GENERATED, SCANNED OFF DISK — not just the one this
+# run targeted. A directory counts as an activatable DOMAIN (as opposed
+# to a shared framework chapter like governance/identity, declared as a
+# plain module below but never independently selectable) exactly when
+# it carries its own merged.rs, the file this run just wrote for
+# `target_mod_name` and every prior run left behind for every domain
+# generated before it. This is what makes regenerating Embryonaut leave
+# Banking not merely present on disk but still fully SELECTABLE.
+all_dirs = Dir.children(out_root).select { |name| File.directory?(File.join(out_root, name)) }.sort
+domains  = all_dirs.select { |name| File.exist?(File.join(out_root, name, "merged.rs")) }
+
+root_mod_path = File.join(out_root, "mod.rs")
+File.open(root_mod_path, "w") do |f|
+  f.puts "// GENERATED by bin/project_rust — re-run it to refresh this list."
+  f.puts "pub mod meta;"
+  (all_dirs - ["meta"]).each { |name| f.puts "pub mod #{name};" }
+  f.puts
+  f.puts "// `active` is whichever ONE domain's own merged Store/dispatch table"
+  f.puts "// is selected by Cargo feature (rust/Cargo.toml, kept in sync with this"
+  f.puts "// list by bin/project_rust) — kernel/cli.rs imports"
+  f.puts "// `crate::generated::active::{dispatch_by_name, Store, ...}` unchanged"
+  f.puts "// no matter which domain that resolves to."
+  domains.each do |name|
+    f.puts "#[cfg(feature = #{name.inspect})]"
+    f.puts "pub use #{name}::merged as active;"
+  end
+end
+puts "wrote #{root_mod_path}"
+
+# CARGO.TOML KEPT IN SYNC — one feature per domain on disk (added if
+# missing, never removed here: a domain this run didn't touch stays
+# selectable, per the scoped-clearing change above), `default` set to
+# THIS run's own domain so a plain `cargo build`/`cargo test` keeps
+# behaving exactly like it always has — whichever domain you just ran
+# bin/project_rust for is what a bare build gives you. Any OTHER
+# still-present domain remains reachable explicitly:
+# `cargo build --no-default-features --features banking`.
+#
+# Inserted right after the `default = [...]` line, not appended to the
+# end of the file — Cargo.toml is TOML, and a bare `name = []` appended
+# past `[[bin]]` would parse as belonging to THAT table, not `[features]`.
+cargo_toml_path = File.expand_path("../rust/Cargo.toml", __dir__)
+cargo_toml = File.read(cargo_toml_path)
+unless cargo_toml.include?("[features]")
+  cargo_toml = cargo_toml.sub(/\A/, <<~TOML)
+    # ONE FEATURE PER GENERATED DOMAIN — selects which domain's own
+    # generated::<domain>::merged module `generated::active` re-exports
+    # (rust/src/generated/mod.rs). Kept in sync by bin/project_rust: a
+    # feature is added here whenever a new domain is generated, never
+    # removed (the domain's own generated/<name>/ directory is the
+    # source of truth for whether it still exists). `default` tracks
+    # whichever domain was generated MOST RECENTLY, so a bare
+    # `cargo build`/`cargo test` keeps behaving exactly as it always
+    # has; any other still-generated domain stays reachable via
+    # `--no-default-features --features <name>`.
+    [features]
+    default = []
+
+  TOML
+end
+domains.each do |name|
+  next if cargo_toml =~ /^#{Regexp.escape(name)}\s*=/
+  cargo_toml = cargo_toml.sub(/^default\s*=.*$/) { "#{Regexp.last_match(0)}\n#{name} = []" }
+end
+cargo_toml = cargo_toml.sub(/^default\s*=.*$/, "default = [#{target_mod_name.inspect}]")
+File.write(cargo_toml_path, cargo_toml)
+puts "wrote #{cargo_toml_path} (default feature: #{target_mod_name})"

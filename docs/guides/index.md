@@ -38,3 +38,8 @@ you're not.
 12. **[Extending hecks](extending-hecks.md)** — adding a word to the
     language itself, and the conformance gates that stop it drifting
     from what it says.
+13. **[Running a runtime](running-a-runtime.md)** — a second runtime
+    exists (`rust/`); this is how it works and how to run or extend
+    it: the canonical IR's exact shape, the dispatch order, and how
+    the expression grammar `given`/`ensures`/`invariant` compile down
+    to.

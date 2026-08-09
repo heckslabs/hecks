@@ -17,15 +17,40 @@ module Hecksagain
         # transform produces `expected`; they must agree byte-for-byte on
         # every path a compute doesn't own. Compute paths are exempt — the
         # SQL is their only implementation, and the Layer-3 sample is
-        # their only review.
+        # their only review. A rekeyed aggregate is exempt from this WHOLE
+        # per-record check, for the same reason and one more: there is no
+        # old-id → new-id correspondence to look `after` up by once the id
+        # itself is what changed.
         def layer_two!(violations, aggregate, declared, before, after)
-          unless before.keys.sort == after.keys.sort
+          rekeyed = declared && !declared.rekeys.empty?
+
+          # A rekey legitimately changes the id SET (that's the entire
+          # point) — set-equality would flag every honest rekey as data
+          # loss. What must still hold is RECORD COUNT: a botched rekey
+          # colliding two distinct old ids onto one new id, or dropping one
+          # (its SQL returning NULL), shows up as the count going down —
+          # caught here without needing to track the old→new mapping
+          # itself.
+          if rekeyed
+            unless before.keys.size == after.keys.size
+              violations << "#{aggregate.name}: the record count changed across a rekeying edge " \
+                            "(#{before.keys.size} before, #{after.keys.size} after) — a rekey must not " \
+                            "collide two distinct ids onto one, or drop one"
+            end
+          elsif before.keys.sort != after.keys.sort
             gained = after.keys - before.keys
             lost = before.keys - after.keys
             violations << "#{aggregate.name}: the id set changed across the edge " \
                           "(lost #{lost.sort.inspect}, gained #{gained.sort.inspect})"
           end
           return unless declared
+          # No correspondence between an old id and its rekeyed row exists
+          # in Ruby (the rekey's SQL is its only implementation, same as
+          # compute's) — exempt from the per-record equivalence gate for
+          # the same reason compute paths already are, extended to the
+          # whole record since an old-id lookup into `after` can never
+          # succeed once the id itself has changed.
+          return if rekeyed
 
           rules = Ports::Persistence::Lineage.from_declared(declared, aggregate.name)
           compute_tops = declared.computes.flat_map { |compute| [compute.from, compute.to] }

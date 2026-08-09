@@ -140,10 +140,25 @@ module Hecksagain
         nested_expression(name, path, member)
       end
 
+      # A NUMERIC MEMBER WINS if the value object has one (Price, Money —
+      # what every ordered comparison in the corpus until now compared),
+      # otherwise the SAME single-field fallback `query_expression`'s own
+      # `nested_expression(name, path, member || "value")` already
+      # makes for the COLUMN side — a plain `attribute :value, String`
+      # value object (IdentityId, RoleName, ...) has no numeric member at
+      # all, and returning nil there silently turned an equality
+      # comparison into `IS NULL`, matching nothing. Both sides of one
+      # comparison have to agree on which field they mean, or they
+      # compare two different things and call it a where clause.
       def query_value(value, args)
         value = args[value] if value.is_a?(Symbol)
         hash = value.is_a?(Runtime::Value) ? value.to_h : value
-        return hash.find { |_key, item| item.is_a?(Numeric) }&.last if hash.is_a?(Hash)
+        if hash.is_a?(Hash)
+          numeric = hash.find { |_key, item| item.is_a?(Numeric) }
+          return numeric.last if numeric
+          return hash[:value] if hash.key?(:value)
+          return hash.values.first if hash.size == 1
+        end
 
         Runtime::Value.scalar(value)
       rescue Runtime::TypeMismatch

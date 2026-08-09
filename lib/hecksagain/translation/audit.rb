@@ -41,8 +41,29 @@ module Hecksagain
           violations: violations,
           dropped: declared ? declared.drops.map(&:to_s) : [],
           unfed: unfed(aggregate, declared, after),
-          samples: before.keys.sort.first(SAMPLE_SIZE).map { |id| { id: id, before: before[id], after: after[id] } }
+          samples: samples_for(declared, before, after)
         )
+      end
+
+      def samples_for(declared, before, after)
+        return rekeyed_samples(before, after) if declared && !declared.rekeys.empty?
+
+        before.keys.sort.first(SAMPLE_SIZE).map { |id| { id: id, before: before[id], after: after[id] } }
+      end
+
+      # A rekey changes the id itself, so `before`'s and `after`'s
+      # keyspaces share nothing — pairing by matching id (the ordinary
+      # path above) would show every `after` as nil, telling a human
+      # nothing. Nothing in-process can compute the old→new
+      # correspondence either (the rekey's SQL is its only
+      # implementation, same as compute's own). Shown side by side
+      # instead, each labelled by its OWN id: real records going in,
+      # real records coming out — not claimed to correspond one-to-one,
+      # but enough for the human this rule's only verification depends
+      # on to actually see real shapes and values, not a wall of null.
+      def rekeyed_samples(before, after)
+        before.keys.sort.first(SAMPLE_SIZE).map { |id| { id: "#{id} (before)", before: before[id], after: nil } } +
+          after.keys.sort.first(SAMPLE_SIZE).map { |id| { id: "#{id} (after)", before: nil, after: after[id] } }
       end
     end
   end

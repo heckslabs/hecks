@@ -9,6 +9,16 @@ module Hecksagain
       class Bluebook
         include Construct
 
+        # THE SCHEMA'S OWN VERSION — not a domain's `version:` (Banking's
+        # "v1", a business fact the AUTHOR chose), but the shape `to_h`
+        # itself emits. A consumer reading exported IR with no Ruby DSL to
+        # cross-check against (a build-time generator, a stored snapshot)
+        # needs to know WHICH shape it's holding before it can safely
+        # interpret any of the rest of it. Bump this when `to_h`'s own
+        # shape changes in a way a consumer would need to know about —
+        # not when a domain's own declarations change.
+        IR_VERSION = 1
+
         attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
                     :classification, :read_models, :ports
 
@@ -57,6 +67,7 @@ module Hecksagain
 
         def to_h
           {
+            ir_version:       IR_VERSION,
             name:             @name,
             version:          @version,
             vision:           @vision,

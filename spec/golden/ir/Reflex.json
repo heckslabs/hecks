@@ -57,6 +57,7 @@
             }
           ],
           "name": "Flip",
+          "provenance": null,
           "references": null,
           "role": "Operator"
         },
@@ -87,6 +88,7 @@
             }
           ],
           "name": "Log",
+          "provenance": null,
           "references": "Light",
           "role": "System"
         }
@@ -100,6 +102,10 @@
       ],
       "lifecycle": null,
       "name": "Light",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -245,6 +251,7 @@
 
           ],
           "name": "Install",
+          "provenance": null,
           "references": null,
           "role": "Operator"
         },
@@ -266,6 +273,7 @@
 
           ],
           "name": "Ring",
+          "provenance": null,
           "references": "Echo",
           "role": "Operator"
         }
@@ -279,6 +287,10 @@
       ],
       "lifecycle": null,
       "name": "Echo",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -358,6 +370,7 @@
 
           ],
           "name": "Raise",
+          "provenance": null,
           "references": null,
           "role": "Operator"
         }
@@ -371,6 +384,10 @@
       ],
       "lifecycle": null,
       "name": "Beacon",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -416,6 +433,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "Reflex",
   "policies": [
     {

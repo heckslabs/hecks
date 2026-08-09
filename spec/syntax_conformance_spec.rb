@@ -127,8 +127,9 @@ RSpec.describe "the declared syntax" do
       data_translation: "a sibling artifact — translations/ has its own builder and its own file"
     },
     "Hecksagon" => {
-      binds:         "the builder's own collected Bind records, read by whoever owns them",
-      subscriptions: "the builder's own collected subscription strings, read by whoever owns them"
+      binds:              "the builder's own collected Bind records, read by whoever owns them",
+      subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
+      framework_members:  "the builder's own collected framework-member names, read by whoever owns them"
     },
     "World" => {
       # THE OPEN VERB-SETTINGS CATCH-ALL. `posted_by("Carrier") { office

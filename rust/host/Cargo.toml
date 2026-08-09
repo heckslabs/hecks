@@ -1,0 +1,67 @@
+[package]
+name = "rust_host"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate, same reasoning rust/web's own Cargo.toml
+# gives for itself: makes THIS crate its own workspace root instead of
+# Cargo folding it into whatever workspace `rust` (the kernel crate)
+# might belong to.
+[workspace]
+
+[[bin]]
+name = "bootstrap"
+path = "src/main.rs"
+
+# NO path dependency on `rust` — unlike rust/web (which links the
+# kernel in-process for a JS-callable function, sacrificing nothing
+# since a browser tab is already the sandbox), this crate treats the
+# compiled `.wasm` artifact as an opaque, untrusted-by-default module
+# loaded through wasmtime at runtime, not a Rust library to link
+# against. That's the whole point of keeping WASM in the loop here:
+# dispatch logic runs inside wasmtime's sandbox, with ZERO ambient
+# access to the Postgres connection this crate itself holds — a real
+# capability boundary a direct `rust::kernel::cli::run(...)` call
+# would throw away.
+[dependencies]
+wasmtime = "47.0.3"
+wasmtime-wasi = "47.0.3"
+lambda_runtime = "0.13"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+tokio-postgres = { version = "0.7", features = ["with-serde_json-1"] }
+# RDS Postgres requires TLS by default (confirmed live: "no pg_hba.conf
+# entry ... no encryption" refusing a plain NoTls connection). Pure
+# Rust (rustls), not native-tls/OpenSSL -- OpenSSL's -sys crate needs a
+# real cross-compiled sysroot for aarch64-unknown-linux-gnu that isn't
+# set up when cross-compiling from macOS (confirmed: "Could not find
+# openssl via pkg-config... has not been configured to support
+# cross-compilation"), exactly the C-toolchain pain cargo-lambda's own
+# Zig-based linking exists to avoid.
+#
+# NOT webpki-roots -- confirmed live (InvalidCertificate(UnknownIssuer))
+# that Mozilla's bundle doesn't include Amazon's own RDS CA, a private
+# PKI webpki-roots has no reason to carry. rds-ca-bundle.pem (checked
+# in, embedded via include_bytes!) is AWS's own published bundle
+# (https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)
+# -- the actual, specific trust anchor this app needs, since it only
+# ever talks to the one RDS instance its own template creates.
+#
+# default-features = false: rustls's OWN default pulls in aws_lc_rs
+# (another C-dependent backend, wrapping AWS-LC/BoringSSL) regardless
+# of what's requested on tokio-postgres-rustls -- explicit "ring" here
+# is what actually keeps this pure Rust.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-postgres-rustls = { version = "0.14", default-features = false, features = ["ring"] }
+rustls-pemfile = "2"
+serde_json = "1"
+anyhow = "1"
+# GOOGLE SIGN-IN (auth.rs) -- rustls-tls, not default-tls, same
+# pure-Rust/no-C-toolchain reasoning tokio-postgres-rustls above
+# already gives; the aarch64-unknown-linux-gnu cross-compile has no
+# OpenSSL sysroot configured. jsonwebtoken's own default backend is
+# `ring` too -- one crypto backend across this whole crate, not two.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+jsonwebtoken = "9"
+hmac = "0.12"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }

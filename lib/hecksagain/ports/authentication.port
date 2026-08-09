@@ -1,0 +1,4 @@
+Hecks.port "authentication" do
+  verb   "authenticated_by"
+  signal :reply
+end

@@ -1,0 +1,3 @@
+Hecks.adapter "SequentialIdentity" do
+  port "identity_generation"
+end

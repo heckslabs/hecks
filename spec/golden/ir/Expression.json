@@ -163,6 +163,7 @@
 
           ],
           "name": "Propose",
+          "provenance": null,
           "references": null,
           "role": "Language designer"
         },
@@ -211,6 +212,7 @@
             }
           ],
           "name": "Render",
+          "provenance": null,
           "references": "Operator",
           "role": "Language designer"
         },
@@ -235,6 +237,7 @@
 
           ],
           "name": "Admit",
+          "provenance": null,
           "references": "Operator",
           "role": "Language designer"
         },
@@ -256,6 +259,7 @@
 
           ],
           "name": "Retire",
+          "provenance": null,
           "references": "Operator",
           "role": "Language designer"
         }
@@ -284,6 +288,10 @@
         ]
       },
       "name": "Operator",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -682,6 +690,7 @@
 
           ],
           "name": "Propose",
+          "provenance": null,
           "references": null,
           "role": "Language designer"
         },
@@ -730,6 +739,7 @@
             }
           ],
           "name": "Read",
+          "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
         },
@@ -754,6 +764,7 @@
 
           ],
           "name": "Admit",
+          "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
         },
@@ -775,6 +786,7 @@
 
           ],
           "name": "Retire",
+          "provenance": null,
           "references": "Normalisation",
           "role": "Language designer"
         }
@@ -803,6 +815,10 @@
         ]
       },
       "name": "Normalisation",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -1237,6 +1253,7 @@
 
           ],
           "name": "Extract",
+          "provenance": null,
           "references": null,
           "role": "System"
         },
@@ -1282,6 +1299,7 @@
             }
           ],
           "name": "Note",
+          "provenance": null,
           "references": "Expression",
           "role": "System"
         },
@@ -1310,6 +1328,7 @@
 
           ],
           "name": "Admit",
+          "provenance": null,
           "references": "Expression",
           "role": "System"
         },
@@ -1339,6 +1358,7 @@
 
           ],
           "name": "Reject",
+          "provenance": null,
           "references": "Expression",
           "role": "System"
         }
@@ -1367,6 +1387,10 @@
         ]
       },
       "name": "Expression",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -1614,6 +1638,7 @@
     }
   ],
   "classification": "generic",
+  "ir_version": 1,
   "name": "Expression",
   "policies": [
 

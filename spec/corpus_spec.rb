@@ -31,16 +31,25 @@ RSpec.describe "The corpus" do
 
   GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook")).sort.freeze
 
+  # `lib/hecksagain/framework/bluebook/` holds framework-level domains (Governance, and
+  # whatever else lands beside it) as flat sibling files, the same shape
+  # GRAMMAR_CHAPTERS already walks — not one directory per domain like
+  # `examples/`, since these aren't teaching examples with their own
+  # `bluebook/` subfolder each.
+  FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook")).sort.freeze
+
   # [corpus-script stem, bluebook path] — examples are named after their
-  # directory, grammar chapters after their own file.
+  # directory, grammar chapters and framework members after their own file.
   CORPUS_MEMBERS = (
     EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +
-    GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] }
+    GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
+    FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
   ).freeze
 
   it "finds every domain the corpus declares" do
     expect(EXAMPLE_ROOTS).not_to be_empty
     expect(GRAMMAR_CHAPTERS).not_to be_empty
+    expect(FRAMEWORK_MEMBERS).not_to be_empty
     expect(CORPUS_MEMBERS.map(&:last)).to all(be_truthy)
   end
 

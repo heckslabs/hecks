@@ -1,0 +1,84 @@
+#!/usr/bin/env ruby
+
+# The BROWSER wasm-bindgen projector — decision
+# docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a
+# SEPARATE binary from bin/project_wasm's: that script cross-compiles
+# rust/src/main.rs (the stdin/stdout WASI CLI) unchanged; this one builds
+# rust/web — a separate crate (docs/decisions/0012's "not rejected
+# forever... a plausible future layer" wasm-bindgen alternative), because
+# a wasm-bindgen build needs a `cdylib` crate-type and the `wasm-bindgen`
+# Cargo dependency itself, and 0012 deliberately kept the native/WASI
+# crate std-only with zero dependencies. Same generated domain code
+# either way — this regenerates it through the same bin/project_rust
+# every other projector uses, then builds the browser-only crate on top.
+#
+#   bin/project_wasm_browser <domain>
+#
+# Produces rust/dist/browser/<domain>/{<domain>.js,<domain>_bg.wasm,*.d.ts}
+# — an ES module for `--target web`: `import init, { dispatch } from
+# "./<domain>.js"; await init(); dispatch(JSON.stringify({steps: [...]}))`
+# returns the same `{"instances","events","refusals"}` JSON string
+# bin/rust_conformance and the WASI module already produce.
+
+domain = ARGV.shift or abort "usage: bin/project_wasm_browser <domain>"
+
+root = File.expand_path("..", __dir__)
+web_dir = File.join(root, "rust", "web")
+target_mod_name = File.basename(domain)
+
+unless system("rustup target list --installed 2>/dev/null | grep -qx wasm32-unknown-unknown")
+  abort <<~MSG
+    wasm32-unknown-unknown isn't installed for this toolchain. Install it once with:
+
+        rustup target add wasm32-unknown-unknown
+
+    then re-run bin/project_wasm_browser.
+  MSG
+end
+
+# `wasm-bindgen` (the CLI, run below to post-process the .wasm) must be the
+# EXACT same version as the `wasm-bindgen` crate rust/web/Cargo.toml pins —
+# a mismatch fails at CLI-run time, not build time. Pinned with `=` in
+# Cargo.toml for exactly this reason; read it back rather than hardcoding
+# the version a second place.
+pinned_version = File.read(File.join(web_dir, "Cargo.toml"))[/^wasm-bindgen = "=(.+)"/, 1] or
+  abort "rust/web/Cargo.toml: couldn't find a pinned (\"=x.y.z\") wasm-bindgen version"
+
+installed_version = `wasm-bindgen --version 2>/dev/null`[/[\d.]+/]
+unless installed_version == pinned_version
+  abort <<~MSG
+    wasm-bindgen CLI #{installed_version.inspect} != the pinned crate version #{pinned_version.inspect}. Install the matching CLI once with:
+
+        cargo install wasm-bindgen-cli --version #{pinned_version} --locked
+
+    then re-run bin/project_wasm_browser.
+  MSG
+end
+
+puts "== regenerating rust/src/generated/ for #{domain} =="
+system(File.join(root, "bin", "project_rust"), domain, exception: true)
+
+puts "== cargo build --release --target wasm32-unknown-unknown (rust/web) =="
+Dir.chdir(web_dir) do
+  # `rustup run` rather than a bare `cargo` — see bin/project_wasm's own
+  # comment on the same line; identical reasoning, identical fix.
+  system("rustup", "run", "stable", "cargo", "build", "--release", "--target", "wasm32-unknown-unknown", exception: true)
+end
+
+out_dir = File.join(root, "rust", "dist", "browser", target_mod_name)
+require "fileutils"
+FileUtils.mkdir_p(out_dir)
+
+built = File.join(web_dir, "target", "wasm32-unknown-unknown", "release", "rust_web.wasm")
+puts "== wasm-bindgen --target web =="
+system("wasm-bindgen", "--target", "web", "--out-dir", out_dir, "--out-name", target_mod_name, built, exception: true)
+
+puts "wrote #{out_dir}/"
+puts <<~MSG
+  use it in a browser:
+      <script type="module">
+        import init, { dispatch } from "./#{target_mod_name}.js";
+        await init();
+        const result = dispatch(JSON.stringify({ steps: [...] }));
+      </script>
+MSG

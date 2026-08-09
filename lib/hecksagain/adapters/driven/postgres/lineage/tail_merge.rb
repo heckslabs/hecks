@@ -89,10 +89,23 @@ module Hecksagain
                   end
                 next unless state
 
-                @db.exec_params(
+                # Same two-step append does for a live write — journal
+                # first, snapshot second — because this INSERT bypasses
+                # Postgres#append entirely (it writes through Lineage
+                # directly). Skipping the snapshot half here would mean a
+                # merge winner lands in the journal but head_view — which
+                # reads this era's live rows from the snapshot table, not
+                # by re-scanning the journal — never shows it.
+                ordinal = @db.exec_params(
                   "INSERT INTO #{quoted_journal} (era, aggregate, aggregate_id, operation, state) " \
-                  "VALUES ($1, $2, $3, 'save', $4)",
+                  "VALUES ($1, $2, $3, 'save', $4) RETURNING ordinal",
                   [era, aggregate.storage_name, id, state]
+                )[0]["ordinal"]
+                @db.exec_params(
+                  "INSERT INTO #{quote(head_snapshot(aggregate.storage_name, era))} (id, ordinal, state) VALUES ($1, $2, $3) " \
+                  "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
+                  "WHERE #{quote(head_snapshot(aggregate.storage_name, era))}.ordinal < EXCLUDED.ordinal",
+                  [id, ordinal, state]
                 )
               end
             end
@@ -120,6 +133,18 @@ module Hecksagain
 
           # Ids touched by BOTH worlds since the cut — the old world's
           # post-cut tail INTERSECTed with the new world's own writes.
+          #
+          # KNOWN GAP, not silently risked: this compares raw
+          # `aggregate_id` values, with no notion of "these two different
+          # ids are the same entity, rekeyed." If a domain's history
+          # includes a rekey (see IR::TranslationRekey) and is LATER
+          # merged here, a record's pre-rekey and post-rekey rows will
+          # never intersect — they just silently survive as two separate,
+          # unrelated-looking heads (a duplicate, not corruption: nothing
+          # here deletes or clobbers either side). Resolve any such
+          # duplicate manually after a merge; teaching this INTERSECT
+          # about a rekey mapping is real, separate work, deliberately
+          # out of scope for rekey's first pass.
           def conflict_ids(aggregate, edges, era, cut)
             names = names_by_era(aggregate, edges)
             olds = (1...era).map { |ancestor| text_literal(names[:storage][ancestor - 1]) }.join(", ")

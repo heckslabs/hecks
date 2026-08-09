@@ -7,8 +7,9 @@ Hecks.bluebook "Hecksagon" do
 
     identified_by { domain.value }
 
-    attribute :domain,        HecksagonName
-    attribute :subscriptions, list_of(Subscription)
+    attribute :domain,             HecksagonName
+    attribute :subscriptions,      list_of(Subscription)
+    attribute :framework_members,  list_of(FrameworkMember)
 
     value_object "HecksagonName" do
       attribute :value, String
@@ -18,6 +19,14 @@ Hecks.bluebook "Hecksagon" do
     value_object "Subscription" do
       attribute :value, String
       invariant("a subscription names an event") { !value.to_s.empty? }
+    end
+
+    # A `framework/bluebook/` member this hecksagon attaches — Governance,
+    # Identity, whatever else lands beside them. Same shape as
+    # `Subscription` beside it, one word over.
+    value_object "FrameworkMember" do
+      attribute :value, String
+      invariant("a framework member is named") { !value.to_s.empty? }
     end
 
     command "Declare" do
@@ -39,6 +48,18 @@ Hecks.bluebook "Hecksagon" do
       then_set :subscriptions, append: { value: :event }
 
       emits "SubscriptionAdded"
+    end
+
+    command "UsesFramework" do
+      role "Deployment"
+      goal "Attach a framework/bluebook/ member to this hecksagon"
+
+      reference_to Hecksagon
+      attribute :member, FrameworkMember
+
+      then_set :framework_members, append: { value: :member }
+
+      emits "FrameworkMemberAttached"
     end
   end
 

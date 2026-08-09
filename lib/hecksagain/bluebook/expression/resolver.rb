@@ -29,7 +29,17 @@ module Hecksagain
         FloatLiteral   = Struct.new(:value, keyword_init: true)
         StringLiteral  = Struct.new(:value, keyword_init: true)
         BoolLiteral    = Struct.new(:value, keyword_init: true)
-        NilLiteral     = Struct.new(keyword_init: true)
+        # A plain class, not `Struct.new(keyword_init: true)` — every
+        # sibling leaf node here carries at least one field, but this
+        # one carries none by nature (a nil literal has no data to
+        # hold), and `Struct.new` with zero member names ahead of
+        # `keyword_init:` is real, live Ruby-version-dependent
+        # behavior: works on 3.3, raises "wrong number of arguments
+        # (given 0, expected 1+)" on 3.2 (caught deploying to Lambda's
+        # own ruby3.2 runtime). `.new`/`case ... when NilLiteral` below
+        # are the only two things this type is ever used for, and a
+        # bare class answers both identically.
+        NilLiteral     = Class.new
         Addition       = Struct.new(:left, :right, keyword_init: true)
         SignTest       = Struct.new(:operator, :test, :receiver, keyword_init: true)
         Empty          = Struct.new(:receiver, keyword_init: true)

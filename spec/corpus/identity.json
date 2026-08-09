@@ -1,0 +1,55 @@
+{
+  "name": "identity-parity",
+  "note": "Register two identities, link one external identifier to each — proves ExternalIdentifier's own natural key doesn't collide across different identities.",
+  "expectations": {
+    "events": 4
+  },
+  "steps": [
+    {
+      "verb": "Identity::Identity.Register",
+      "args": {
+        "identity_id": {
+          "value": "id-1"
+        }
+      }
+    },
+    {
+      "verb": "Identity::Identity.Register",
+      "args": {
+        "identity_id": {
+          "value": "id-2"
+        }
+      }
+    },
+    {
+      "verb": "Identity::ExternalIdentifier.Link",
+      "args": {
+        "identity_id": "id-1",
+        "key": {
+          "value": "google:sub-1"
+        },
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-1"
+        }
+      }
+    },
+    {
+      "verb": "Identity::ExternalIdentifier.Link",
+      "args": {
+        "identity_id": "id-2",
+        "key": {
+          "value": "google:sub-2"
+        },
+        "issuer": {
+          "value": "google"
+        },
+        "subject": {
+          "value": "sub-2"
+        }
+      }
+    }
+  ]
+}

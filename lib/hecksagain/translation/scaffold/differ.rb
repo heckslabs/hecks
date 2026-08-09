@@ -69,6 +69,8 @@ module Hecksagain
         # compute, or drop).
         def attribute_rules(held_shape, current_shape)
           rules = []
+          rules << identity_hint(held_shape, current_shape)
+          rules.compact!
           held_attrs = (held_shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
           current_attrs = (current_shape["attributes"] || []).to_h { |attribute| [attribute["name"], attribute] }
 
@@ -147,6 +149,19 @@ module Hecksagain
             end
           end
           paths
+        end
+
+        # THE ONE THING `attribute_rules` COULD NOT SEE BEFORE — the shape
+        # projection already carries `"identity"` (`StorageShape
+        # .project_aggregate`), it was simply never read here. An
+        # unresolved placeholder, not a guess: `coverage_check.rb`'s own
+        # `check_identity_unchanged!` is the real gate this only hints
+        # toward, the same "tool proactively guides you" pattern the
+        # generic unresolved message already gives unfed fields.
+        def identity_hint(held_shape, current_shape)
+          return if held_shape["identity"] == current_shape["identity"]
+
+          { kind: :unresolved, from: :identity, candidates: [] }
         end
 
         def compatible_candidates(appeared, signature)

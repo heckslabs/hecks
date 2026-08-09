@@ -102,6 +102,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -177,6 +178,7 @@
             }
           ],
           "name": "Normalise",
+          "provenance": null,
           "references": "Bluebook",
           "role": "Language"
         }
@@ -190,6 +192,10 @@
       ],
       "lifecycle": null,
       "name": "Bluebook",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -425,6 +431,15 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "provenance",
+          "optional": false,
+          "pattern": null,
+          "type": "LiteralText"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "identified_by",
           "optional": false,
@@ -520,6 +535,15 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "provenance",
+              "optional": true,
+              "pattern": null,
+              "type": "LiteralText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -540,6 +564,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -578,6 +603,7 @@
             }
           ],
           "name": "Identify",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -673,6 +699,7 @@
             }
           ],
           "name": "Attribute",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -768,6 +795,7 @@
             }
           ],
           "name": "Reference",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -863,6 +891,7 @@
             }
           ],
           "name": "Holds",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -916,6 +945,7 @@
             }
           ],
           "name": "Lifecycle",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -971,6 +1001,7 @@
             }
           ],
           "name": "Transition",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -995,6 +1026,7 @@
 
           ],
           "name": "Seal",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         },
@@ -1030,6 +1062,7 @@
             }
           ],
           "name": "Value",
+          "provenance": null,
           "references": "Aggregate",
           "role": "Language"
         }
@@ -1044,6 +1077,10 @@
       ],
       "lifecycle": null,
       "name": "Aggregate",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -1520,6 +1557,15 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "provenance",
+          "optional": false,
+          "pattern": null,
+          "type": "CommandText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "position",
           "optional": false,
           "pattern": null,
@@ -1578,6 +1624,15 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "provenance",
+              "optional": true,
+              "pattern": null,
+              "type": "CommandText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -1598,6 +1653,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -1693,6 +1749,7 @@
             }
           ],
           "name": "Argument",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         },
@@ -1788,6 +1845,7 @@
             }
           ],
           "name": "Reference",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         },
@@ -1840,6 +1898,7 @@
             }
           ],
           "name": "Rule",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         },
@@ -1892,6 +1951,7 @@
             }
           ],
           "name": "Ensure",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         },
@@ -1974,6 +2034,7 @@
             }
           ],
           "name": "Change",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         },
@@ -2017,6 +2078,7 @@
             }
           ],
           "name": "ActsOn",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         },
@@ -2055,6 +2117,7 @@
             }
           ],
           "name": "Announce",
+          "provenance": null,
           "references": "Command",
           "role": "Language"
         }
@@ -2069,6 +2132,10 @@
       ],
       "lifecycle": null,
       "name": "Command",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -2713,6 +2780,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -2768,6 +2836,7 @@
             }
           ],
           "name": "Filter",
+          "provenance": null,
           "references": "Query",
           "role": "Language"
         },
@@ -2836,6 +2905,7 @@
             }
           ],
           "name": "Option",
+          "provenance": null,
           "references": "Query",
           "role": "Language"
         },
@@ -2931,6 +3001,7 @@
             }
           ],
           "name": "Argument",
+          "provenance": null,
           "references": "Query",
           "role": "Language"
         }
@@ -2945,6 +3016,10 @@
       ],
       "lifecycle": null,
       "name": "Query",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -3307,6 +3382,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -3402,6 +3478,7 @@
             }
           ],
           "name": "Field",
+          "provenance": null,
           "references": "ValueObject",
           "role": "Language"
         },
@@ -3441,6 +3518,7 @@
             }
           ],
           "name": "Close",
+          "provenance": null,
           "references": "ValueObject",
           "role": "Language"
         },
@@ -3493,6 +3571,7 @@
             }
           ],
           "name": "Assert",
+          "provenance": null,
           "references": "ValueObject",
           "role": "Language"
         }
@@ -3507,6 +3586,10 @@
       ],
       "lifecycle": null,
       "name": "ValueObject",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -3815,6 +3898,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -3863,6 +3947,7 @@
             }
           ],
           "name": "Pair",
+          "provenance": null,
           "references": "Member",
           "role": "Language"
         }
@@ -3877,6 +3962,10 @@
       ],
       "lifecycle": null,
       "name": "Member",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -4137,6 +4226,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -4175,6 +4265,7 @@
             }
           ],
           "name": "Identify",
+          "provenance": null,
           "references": "Entity",
           "role": "Language"
         },
@@ -4199,6 +4290,7 @@
 
           ],
           "name": "Seal",
+          "provenance": null,
           "references": "Entity",
           "role": "Language"
         },
@@ -4294,6 +4386,7 @@
             }
           ],
           "name": "Attribute",
+          "provenance": null,
           "references": "Entity",
           "role": "Language"
         },
@@ -4347,6 +4440,7 @@
             }
           ],
           "name": "Lifecycle",
+          "provenance": null,
           "references": "Entity",
           "role": "Language"
         },
@@ -4402,6 +4496,7 @@
             }
           ],
           "name": "Transition",
+          "provenance": null,
           "references": "Entity",
           "role": "Language"
         }
@@ -4416,6 +4511,10 @@
       ],
       "lifecycle": null,
       "name": "Entity",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -4796,6 +4895,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         }
@@ -4810,6 +4910,10 @@
       ],
       "lifecycle": null,
       "name": "Policy",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -5046,6 +5150,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -5081,6 +5186,7 @@
             }
           ],
           "name": "State",
+          "provenance": null,
           "references": "ProcessManager",
           "role": "Language"
         }
@@ -5095,6 +5201,10 @@
       ],
       "lifecycle": null,
       "name": "ProcessManager",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -5325,6 +5435,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         }
@@ -5339,6 +5450,10 @@
       ],
       "lifecycle": null,
       "name": "Handler",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -5515,6 +5630,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -5560,6 +5676,7 @@
             }
           ],
           "name": "Bind",
+          "provenance": null,
           "references": "Dispatch",
           "role": "Language"
         }
@@ -5574,6 +5691,10 @@
       ],
       "lifecycle": null,
       "name": "Dispatch",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -5702,6 +5823,10 @@
       ],
       "lifecycle": null,
       "name": "Vocabulary",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -6620,6 +6745,12 @@
             [
               [
                 "name",
+                "RemoteRefusal"
+              ]
+            ],
+            [
+              [
+                "name",
                 "TypeMismatch"
               ]
             ],
@@ -6901,6 +7032,20 @@
               [
                 "template",
                 "{aggregate} has no command {command}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "UnknownVerb"
+              ],
+              [
+                "site",
+                "port_no_operation"
+              ],
+              [
+                "template",
+                "{port} has no operation {operation}"
               ]
             ],
             [
@@ -7252,6 +7397,10 @@
       ],
       "lifecycle": null,
       "name": "Syntax",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -7899,7 +8048,7 @@
             [
               [
                 "word",
-                "read_model"
+                "report"
               ],
               [
                 "context",
@@ -7920,6 +8069,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "was",
+                "read_model"
               ]
             ],
             [
@@ -7998,6 +8151,32 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "word",
+                "provenance"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "provenance"
               ]
             ],
             [
@@ -8518,6 +8697,32 @@
               [
                 "fills",
                 "goal"
+              ]
+            ],
+            [
+              [
+                "word",
+                "provenance"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "provenance"
               ]
             ],
             [
@@ -9827,6 +10032,32 @@
             [
               [
                 "word",
+                "uses_framework"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "framework_members"
+              ]
+            ],
+            [
+              [
+                "word",
                 "port"
               ],
               [
@@ -10274,7 +10505,7 @@
             [
               [
                 "keyword",
-                "read_model"
+                "report"
               ],
               [
                 "context",
@@ -10389,6 +10620,36 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provenance"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "provenance"
               ]
             ],
             [
@@ -11409,6 +11670,36 @@
               [
                 "fills",
                 "goal"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provenance"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "provenance"
               ]
             ],
             [
@@ -14054,6 +14345,36 @@
             [
               [
                 "keyword",
+                "uses_framework"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "framework_members"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "port"
               ],
               [
@@ -14641,6 +14962,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Language"
         },
@@ -14699,6 +15021,7 @@
             }
           ],
           "name": "Gather",
+          "provenance": null,
           "references": "ReadModel",
           "role": "Language"
         },
@@ -14767,6 +15090,7 @@
             }
           ],
           "name": "Option",
+          "provenance": null,
           "references": "ReadModel",
           "role": "Language"
         }
@@ -14781,6 +15105,10 @@
       ],
       "lifecycle": null,
       "name": "ReadModel",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
         {
           "attributes": [
@@ -15008,6 +15336,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "Bluebook",
   "policies": [
 

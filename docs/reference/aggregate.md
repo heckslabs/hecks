@@ -19,6 +19,24 @@ between them is hand-written and survives regeneration.*
 
 A free-text label for the aggregate — no rules attached, read by nothing but a human.
 
+## provenance
+
+<!-- generated:begin word=provenance -->
+`provenance from:` — fills `provenance`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| `from:` | literal | true | provenance |
+<!-- generated:end -->
+
+Where this concept came from, when it was adopted from somewhere else rather
+than invented here — a canonical library, an upstream spec, a prior domain.
+Captured as a raw Hash, untouched, the same way `attribute ..., default:`
+captures one: `provenance from: { source: "...", source_id: "...", source_version: "..." }`.
+It never touches dispatch, identity, or any rule — nothing reads it but a
+human, or future tooling built to reconcile a domain against the source it
+was adopted from.
+
 ## identified_by
 
 <!-- generated:begin word=identified_by -->

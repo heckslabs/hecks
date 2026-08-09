@@ -1,0 +1,10 @@
+{
+  "domain": "examples/pizzas",
+  "note": "The gap this session's user report surfaced: Pizzas::Order's own PaymentGateway port (pizzas.hecksagon) had no Rust-generated dispatch entry at all — the deployed Lambda could never receive the event a real payment webhook fires, so the OnPizzaPaymentReceived policy (pizzas.bluebook) could never trigger Purchase. Exercises the happy path (Receive -> policy -> Purchase, mutating status to \"sold\" with no direct Purchase dispatch anywhere in this script) and the one new refusal surface a port operation adds beyond a command's own (a reference_to naming a record that was never created, routed through the SAME generated check_reference every command's own reference already uses).",
+  "steps": [
+    {"verb": "Pizzas::Order.CreatePizza", "args": {"name": {"value": "port-margherita"}, "pizza": {"price_cents": {"cents": 1200}, "size": {"value": "large"}}}},
+    {"verb": "Pizzas::Order.AddTopping", "args": {"name": "port-margherita", "topping": {"value": "Basil"}, "amount": {"value": 3}}},
+    {"verb": "Pizzas::Order.PaymentGateway.Receive", "args": {"name": "port-margherita", "customer_name": {"value": "Chris"}, "amount": {"cents": 1200}}},
+    {"verb": "Pizzas::Order.PaymentGateway.Receive", "args": {"name": "no-such-order", "customer_name": {"value": "Chris"}, "amount": {"cents": 1200}}}
+  ]
+}

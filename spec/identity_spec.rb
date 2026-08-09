@@ -1,0 +1,108 @@
+require "hecksagain"
+require_relative "fixtures/sequential_identity"
+
+# A local boot, not `boot_in_memory` — Pizzas-specific by design. Same
+# shape spec/governance_spec.rb already uses, plus the identity_generation
+# port/adapter this domain's own Register command actually needs.
+RSpec.describe "Identity" do
+  def boot
+    registry = Hecksagain::Runtime::Registry.new
+
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(File.expand_path("../lib/hecksagain/ports/identity_generation.port", __dir__))
+      Kernel.load(File.expand_path("fixtures/sequential_identity.adapter", __dir__))
+      Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"))
+      Hecks.hecksagon("Identity") do
+        ::Identity::Identity.persisted_by("Memory")
+        ::Identity::ExternalIdentifier.persisted_by("Memory")
+      end
+    end
+
+    registry.verify!
+    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+  end
+
+  let(:runtime) { boot }
+
+  def register
+    Hecksagain::Adapters::SequentialIdentity.reset!
+    minted = Hecksagain::Ports::IdentityGeneration.uuid(runtime.registry)
+    runtime.dispatch("Identity::Identity.Register", identity_id: { value: minted })
+  end
+
+  it "registers an identity minted through the identity-generation port, not a natural key" do
+    result = register
+
+    expect(result.events.map(&:name)).to eq(["IdentityRegistered"])
+    expect(result.instance.id).to eq("1")
+  end
+
+  it "links an external identifier to a real, previously-registered identity" do
+    identity = register
+    result = runtime.dispatch(
+      "Identity::ExternalIdentifier.Link",
+      identity_id: identity.instance.id,
+      key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
+    )
+
+    expect(result.events.map(&:name)).to eq(["ExternalIdentifierLinked"])
+    expect(result.instance.id).to eq("google:sub-1")
+  end
+
+  it "refuses to link an identifier to an identity that doesn't exist" do
+    expect do
+      runtime.dispatch(
+        "Identity::ExternalIdentifier.Link",
+        identity_id: "no-such-identity",
+        key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
+      )
+    end.to raise_error(Hecksagain::Runtime::NotFound)
+  end
+
+  it "lets more than one external identifier link to the same identity" do
+    identity = register
+    google = runtime.dispatch(
+      "Identity::ExternalIdentifier.Link",
+      identity_id: identity.instance.id,
+      key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
+    )
+    microsoft = runtime.dispatch(
+      "Identity::ExternalIdentifier.Link",
+      identity_id: identity.instance.id,
+      key: { value: "microsoft:sub-1" }, issuer: { value: "microsoft" }, subject: { value: "sub-1" }
+    )
+
+    expect([google.instance.id, microsoft.instance.id]).to eq(["google:sub-1", "microsoft:sub-1"])
+  end
+
+  describe "ResolvedBy" do
+    it "finds the identity an authenticated (issuer, subject) pair resolves to" do
+      identity = register
+      runtime.dispatch(
+        "Identity::ExternalIdentifier.Link",
+        identity_id: identity.instance.id,
+        key: { value: "google:sub-1" }, issuer: { value: "google" }, subject: { value: "sub-1" }
+      )
+
+      rows = runtime.query(
+        "Identity::ExternalIdentifier.ResolvedBy",
+        issuer: { value: "google" }, subject: { value: "sub-1" }
+      )
+
+      expect(rows.map { |row| row[:identity_id] }).to eq([identity.instance.id])
+    end
+
+    it "answers empty for a pair nothing has linked" do
+      rows = runtime.query(
+        "Identity::ExternalIdentifier.ResolvedBy",
+        issuer: { value: "google" }, subject: { value: "nobody" }
+      )
+
+      expect(rows).to be_empty
+    end
+  end
+end

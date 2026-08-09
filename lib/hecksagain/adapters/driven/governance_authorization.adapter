@@ -1,0 +1,3 @@
+Hecks.adapter "GovernanceAuthorization" do
+  port "authorization"
+end

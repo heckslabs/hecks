@@ -165,7 +165,8 @@ module Hecksagain
             commands:      own("Command", id).map { |verb| command(verb) },
             lifecycle:     lifecycle(row),
             entities:      declared("Entity", id).map { |piece| entity(piece) },
-            queries:       own("Query", id).map { |ask| query(ask) }
+            queries:       own("Query", id).map { |ask| query(ask) },
+            provenance:    provenance(row)
           }
         end
 

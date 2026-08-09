@@ -1,0 +1,4 @@
+Hecks.adapter "Lambda" do
+  port "persistence"
+  field :region
+end

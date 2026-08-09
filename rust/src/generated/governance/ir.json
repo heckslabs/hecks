@@ -1,0 +1,483 @@
+{
+  "ir_version": 1,
+  "name": "Governance",
+  "version": null,
+  "vision": "Organizational authority is explicit, reviewable, and historically explainable.",
+  "classification": "supporting",
+  "aggregates": [
+    {
+      "name": "RoleAssignment",
+      "description": "One actor holding one role, over one scope, from one point in time — revoked by setting when it ended, never deleted.",
+      "identified_by": [
+        "actor_id.value",
+        "role_name.value",
+        "starts_at.value"
+      ],
+      "attributes": [
+        {
+          "name": "actor_id",
+          "type": "IdentityId",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "role_name",
+          "type": "RoleName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "scope",
+          "type": "Scope",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "starts_at",
+          "type": "Timestamp",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "ends_at",
+          "type": "Timestamp",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "IdentityId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an identity id is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "RoleName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a role is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Scope",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a scope is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Timestamp",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a timestamp is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Assign",
+          "role": "Governance administrator",
+          "goal": "Authorize an actor to perform a responsibility",
+          "references": null,
+          "attributes": [
+            {
+              "name": "actor_id",
+              "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "role_name",
+              "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "scope",
+              "type": "Scope",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "starts_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "RoleAssigned"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Revoke",
+          "role": "Governance administrator",
+          "goal": "Remove organizational authority",
+          "references": "RoleAssignment",
+          "attributes": [
+            {
+              "name": "ends_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "ends_at",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "ends_at"
+              }
+            }
+          ],
+          "emits": [
+            "RoleRevoked"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [
+        {
+          "name": "AssignmentsForActor",
+          "description": "Every role an actor currently or historically holds.",
+          "attributes": [
+            {
+              "name": "actor_id",
+              "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "actor_id",
+              "op": "eq",
+              "value": ":actor_id"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "provenance": null
+    },
+    {
+      "name": "RoleTransition",
+      "description": "Role X is authorized to act as role Y — until revoked.",
+      "identified_by": [
+        "from_role.value",
+        "to_role.value"
+      ],
+      "attributes": [
+        {
+          "name": "from_role",
+          "type": "RoleName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "to_role",
+          "type": "RoleName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "ends_at",
+          "type": "Timestamp",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "RoleName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a role is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Timestamp",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a timestamp is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Grant",
+          "role": "Governance administrator",
+          "goal": "Authorize one role to act as another",
+          "references": null,
+          "attributes": [
+            {
+              "name": "from_role",
+              "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "to_role",
+              "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "RoleTransitionGranted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Revoke",
+          "role": "Governance administrator",
+          "goal": "Remove an authorized role transition",
+          "references": "RoleTransition",
+          "attributes": [
+            {
+              "name": "ends_at",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "ends_at",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "ends_at"
+              }
+            }
+          ],
+          "emits": [
+            "RoleTransitionRevoked"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": null,
+      "entities": [],
+      "queries": [
+        {
+          "name": "Allowed",
+          "description": "The role transition granted for this exact pair, if any — revoked or not.",
+          "attributes": [
+            {
+              "name": "from_role",
+              "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "to_role",
+              "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "from_role",
+              "op": "eq",
+              "value": ":from_role"
+            },
+            {
+              "field": "to_role",
+              "op": "eq",
+              "value": ":to_role"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

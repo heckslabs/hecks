@@ -101,6 +101,19 @@ RSpec.describe "the DSL surface" do
         .to eq(["OutsideEventHappened", "AnotherOutsideEvent"])
     end
 
+    it ".hecksagon's uses_framework loads a framework member into the same registry" do
+      registry = in_registry do
+        Hecks.hecksagon("Hexed") do
+          uses_framework "Governance"
+          Hexed::Thing.posted_by("Carrier")
+        end
+      end
+
+      expect(registry.bluebook("Governance")).not_to be_nil
+      expect(registry.bluebook("Governance").aggregate("RoleAssignment")).not_to be_nil
+      expect(registry.hecksagon("Hexed").framework_members).to eq(["Governance"])
+    end
+
     it ".data_translation registers a rename, a move, a convert, and a drop between two eras" do
       registry = in_registry do
         Hecks.data_translation("Translated", from: "1", to: "2") do
@@ -145,6 +158,27 @@ RSpec.describe "the DSL surface" do
 
       expect([computed.from, computed.to, computed.sql])
         .to eq(["price_cents", "price_dollars", "price_cents::numeric / 100"])
+    end
+
+    it ".data_translation registers a rekey with its SQL expression" do
+      registry = in_registry do
+        Hecks.data_translation("Translated", from: "1", to: "2") do
+          aggregate("Thing") { rekey sql: "(__s ->> 'email')" }
+        end
+      end
+      rekeyed = registry.translations.first.for_aggregate("Thing").rekeys.first
+
+      expect(rekeyed.sql).to eq("(__s ->> 'email')")
+    end
+
+    it ".data_translation refuses a rekey with no sql:" do
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") do
+            aggregate("Thing") { rekey sql: "" }
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs its sql: expression/)
     end
 
     it ".data_translation refuses an unresolved placeholder and an unknown rule" do
@@ -334,6 +368,15 @@ RSpec.describe "the DSL surface" do
           reference_to "Thing"
         end
       end.to raise_error(Malformed, /acts on ONE/)
+    end
+
+    it "refuses a command that declares role twice" do
+      expect do
+        build_command("DoubleRole") do
+          role "Teller"
+          role "Branch manager"
+        end
+      end.to raise_error(Malformed, /role twice/)
     end
 
     it "refuses a given whose source could not be read" do
@@ -548,6 +591,24 @@ RSpec.describe "the DSL surface" do
         { aggregate: "Customer", as: :customer, many: false },
         { aggregate: "Account", as: :accounts, many: true }
       ])
+    end
+
+    it "report is the same word as read_model, just newer" do
+      build = ->(chapter, word) do
+        build_bluebook(chapter) do
+          aggregate "Customer" do
+            identified_by { id.value }
+
+            attribute :reference, CustomerNumber
+            value_object "CustomerNumber" do
+              attribute :value, String
+            end
+          end
+          public_send(word, "CustomerPortfolio") { reference_to Customer, as: :reference }
+        end.read_models.first.to_h
+      end
+
+      expect(build.call("Portfolio", :report)).to eq(build.call("Portfolio2", :read_model))
     end
 
     it "gathers includes declared before the reference, in either order" do
@@ -887,6 +948,13 @@ RSpec.describe "the DSL surface" do
   describe "an aggregate" do
     it "description records what it is" do
       expect(build_aggregate("Described") { description "a thing" }.description).to eq("a thing")
+    end
+
+    it "provenance records where a concept came from, as a literal Hash" do
+      origin = { source: "HecksCanonical", source_id: "aggregate:thing", source_version: "1.0" }
+      provenanced = build_aggregate("Provenanced") { provenance from: origin }
+
+      expect(provenanced.provenance).to eq(origin)
     end
 
     it "identified_by names a field, and the HEAD is what readers look up" do
@@ -1586,6 +1654,13 @@ RSpec.describe "the DSL surface" do
 
     it "goal records why" do
       expect(build_command("CmdGoal") { goal "feed people" }.goal).to eq("feed people")
+    end
+
+    it "provenance records where a concept came from, as a literal Hash" do
+      origin = { source: "HecksCanonical", source_id: "command:thing.do", source_version: "1.0" }
+      command = build_command("CmdProvenance") { provenance from: origin }
+
+      expect(command.provenance).to eq(origin)
     end
 
     it "attribute adds a payload field" do

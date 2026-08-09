@@ -13,6 +13,7 @@ module Hecksagain
           @drops    = []
           @retypes  = []
           @computes = []
+          @rekeys   = []
         end
 
         def rename(old_name, to:)
@@ -73,6 +74,20 @@ module Hecksagain
           @computes << IR::TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
         end
 
+        # THE AGGREGATE'S OWN IDENTITY, changing what it's computed from —
+        # not a field crossing a boundary (`move`), not a value's own
+        # transform (`compute`): the record's key. No path arguments,
+        # unlike every rule above — nothing is consumed from or moved into
+        # `state`, only what identifies the record is recomputed. Same
+        # SQL-only, Postgres-only, human-reviewed-sample-is-the-only-
+        # verification shape `compute` already has, and for the same
+        # reason: there is nothing in-process to check this against.
+        def rekey(sql:)
+          raise Malformed, "a rekey needs its sql: expression" if sql.to_s.empty?
+
+          @rekeys << IR::TranslationRekey.new(sql.to_s)
+        end
+
         # The scaffold writes this where it cannot decide; a file carrying
         # one can only boot into this refusal — never a guess.
         def unresolved(name, candidates: [])
@@ -81,7 +96,8 @@ module Hecksagain
 
         def method_missing(rule, *_args, **_kwargs, &_block)
           raise Malformed,
-                "a translation rule must be rename, move, convert, drop, retype, compute, or unresolved — got '#{rule}'"
+                "a translation rule must be rename, move, convert, drop, retype, compute, rekey, or unresolved — " \
+                "got '#{rule}'"
         end
 
         private def respond_to_missing?(_name, _include_private = false) = true
@@ -89,13 +105,15 @@ module Hecksagain
         def build
           IR::TranslationAggregate.new(
             name: @name, was: @was, renames: @renames, moves: @moves, converts: @converts,
-            drops: @drops, retypes: @retypes, computes: @computes
+            drops: @drops, retypes: @retypes, computes: @computes, rekeys: @rekeys
           )
         end
 
         private
 
         def unresolved_message(name, candidates)
+          return identity_unresolved_message if name.to_sym == :identity
+
           rendered = Array(candidates).map { |candidate| render_path(candidate) }
           if rendered.empty?
             "#{@name}'s translation leaves #{render_path(name)} unresolved (no candidate matched — " \
@@ -108,6 +126,16 @@ module Hecksagain
 
         def render_path(path)
           path.to_s.include?(".") ? path.to_s.inspect : ":#{path}"
+        end
+
+        # THE SCAFFOLD'S OWN HINT for the one drift it can detect but never
+        # resolve on its own — an aggregate's `identified_by` changed. Not
+        # a field to rename/move/drop, so none of the ordinary hints fit;
+        # `coverage_check.rb#check_identity_unchanged!` is the real gate,
+        # this only names the one rule that gets a legitimate mint through it.
+        def identity_unresolved_message
+          "#{@name}'s translation leaves its identity unresolved — identified_by changed since the held era. " \
+            "Declare a rekey rule (a rename/move/drop cannot fix this) before booting."
         end
       end
 

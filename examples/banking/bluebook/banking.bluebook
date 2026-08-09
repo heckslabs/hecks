@@ -2,7 +2,7 @@ Hecks.bluebook "Banking", version: "v1" do
   vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
   core
 
-  read_model "CustomerPortfolio" do
+  report "CustomerPortfolio" do
     description "A customer's cross-account position, rebuilt from aggregate heads."
     reference_to Customer
     include Customer
@@ -17,7 +17,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # A SECOND ROOT, ON PURPOSE. CustomerPortfolio gathers around a customer;
   # this gathers around an account — the compliance officer's actual unit of
   # work, since a hold or a dispute is filed against an account, not a person.
-  read_model "ComplianceDashboard" do
+  report "ComplianceDashboard" do
     description "One account, its own status, and any card charges disputed against it — the working set for a compliance review."
     reference_to Account
     include Account
@@ -36,7 +36,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
     # A REVIEW WORKS FROM A SNAPSHOT, not a page reloaded mid-read while a
     # dispute updates underneath it — the same reasoning as Overdrawn's own,
-    # a projection over on the read_model rather than a query.
+    # a projection over on the report rather than a query.
     freshness :eventual, max_age: 60
     use_index :account_index
   end
@@ -155,6 +155,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
   aggregate "Account" do
     description "A balance belonging to one customer, and the ledger that explains how it got there."
+    provenance from: { source: "HecksCanonical", source_id: "aggregate:account", source_version: "1.0" }
 
     identified_by { number.value }
 
@@ -1315,6 +1316,80 @@ Hecks.bluebook "Banking", version: "v1" do
       description "Cases still waiting on a compliance decision."
       where(status: "screening")
       order_by :reference
+    end
+  end
+
+  aggregate "Statement" do
+    description "A snapshot of one account's activity over one period, generated once and never revised."
+
+    reference_to Account
+    # A COMPOSITE IDENTITY WHOSE FIRST PART IS A BARE REFERENCE, not a
+    # dotted value-object field — SafeDepositBox's own composite identity
+    # dots into two value objects (branch_code.value, box_number.value);
+    # this is the other real shape the language allows.
+    # `AggregateBuilder#identified_by` reads whatever tokens its block's
+    # source holds, with no structural requirement that a component be
+    # dotted — `account_id` here is `reference_to Account`'s own minted
+    # attribute, addressed bare, resolved the same way
+    # `Runtime::Identity.from` resolves any identity head that IS a
+    # declared attribute: read directly, no walk into a value object.
+    identified_by do
+      account_id
+      period.value
+    end
+
+    attribute :period,          StatementPeriod
+    attribute :opening_balance, StatementAmount
+    attribute :closing_balance, StatementAmount
+    attribute :generated_on,    StatementDate
+    attribute :frequency,       StatementFrequency
+
+    value_object "StatementPeriod" do
+      attribute :value, String
+      invariant("a statement names its period") { !value.to_s.empty? }
+    end
+
+    value_object "StatementAmount" do
+      attribute :cents, Integer
+    end
+
+    value_object "StatementDate" do
+      attribute :value, String
+      invariant("a statement is dated") { !value.to_s.empty? }
+    end
+
+    # A CLOSED SET WITH MORE THAN ONE FIELD PER MEMBER — ordinary, public
+    # `one_of do member ... end` syntax (Vocabulary::Comparison in the
+    # self-hosted grammar uses the identical form), not a self-hosted-
+    # grammar exclusive. `admit_member` (Runtime::Value::Admission) only
+    # ever validates the DISCRIMINANT field a caller offers (`cadence`
+    # here) against the members table — it does not fill the other
+    # fields in for you, so a command dispatching this always states
+    # every field, the same as `AddTopping`'s own append fields do.
+    value_object "StatementFrequency" do
+      attribute :cadence,          String
+      attribute :retention_months, Integer
+      attribute :paper_fee_cents,  Integer
+
+      one_of do
+        member cadence: "monthly",   retention_months: 84,  paper_fee_cents: 0
+        member cadence: "quarterly", retention_months: 120, paper_fee_cents: 0
+        member cadence: "annual",    retention_months: 240, paper_fee_cents: 500
+      end
+    end
+
+    command "Generate" do
+      role "System"
+      goal "Close out one period's activity into a permanent record"
+
+      reference_to Account
+      attribute :period,          StatementPeriod
+      attribute :opening_balance, StatementAmount
+      attribute :closing_balance, StatementAmount
+      attribute :generated_on,    StatementDate
+      attribute :frequency,       StatementFrequency
+
+      emits "StatementGenerated"
     end
   end
 

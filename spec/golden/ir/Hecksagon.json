@@ -19,6 +19,15 @@
           "optional": false,
           "pattern": null,
           "type": "Subscription"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "framework_members",
+          "optional": false,
+          "pattern": null,
+          "type": "FrameworkMember"
         }
       ],
       "commands": [
@@ -48,6 +57,7 @@
 
           ],
           "name": "Declare",
+          "provenance": null,
           "references": null,
           "role": "Deployment"
         },
@@ -83,6 +93,43 @@
             }
           ],
           "name": "Subscribe",
+          "provenance": null,
+          "references": "Hecksagon",
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "member",
+              "optional": false,
+              "pattern": null,
+              "type": "FrameworkMember"
+            }
+          ],
+          "emits": [
+            "FrameworkMemberAttached"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Attach a framework/bluebook/ member to this hecksagon",
+          "mutations": [
+            {
+              "fields": {
+                "value": "member"
+              },
+              "op": "append",
+              "target": "framework_members"
+            }
+          ],
+          "name": "UsesFramework",
+          "provenance": null,
           "references": "Hecksagon",
           "role": "Deployment"
         }
@@ -96,6 +143,10 @@
       ],
       "lifecycle": null,
       "name": "Hecksagon",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -147,6 +198,30 @@
 
           ],
           "name": "Subscription"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a framework member is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "FrameworkMember"
         }
       ]
     },
@@ -273,6 +348,7 @@
 
           ],
           "name": "Bind",
+          "provenance": null,
           "references": null,
           "role": "Deployment"
         }
@@ -288,6 +364,10 @@
       ],
       "lifecycle": null,
       "name": "AdapterBinding",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -348,6 +428,10 @@
       ],
       "lifecycle": null,
       "name": "DomainPort",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -444,6 +528,10 @@
       ],
       "lifecycle": null,
       "name": "PortOperation",
+      "ports": [
+
+      ],
+      "provenance": null,
       "queries": [
 
       ],
@@ -546,6 +634,7 @@
     }
   ],
   "classification": "core",
+  "ir_version": 1,
   "name": "Hecksagon",
   "policies": [
 

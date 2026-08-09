@@ -30,6 +30,19 @@ module Hecksagain
     # Runtime::TenantScope.
     class Unauthorized < StandardError; end
 
+    # A Lambda-routed domain's own refusal (rust/host, `Runtime::
+    # RemoteDispatcher`), carrying Rust's own refusal text verbatim —
+    # NOT yet mapped back to the specific matching class above
+    # (GivenNotMet vs. EnsuresNotMet vs. ...), a real, known,
+    # documented gap: the WASM projector's own event/refusal-wording
+    # parity work (ADR 0021) makes the TEXT match Ruby's, but nothing
+    # yet parses that text back into a typed Ruby exception the way a
+    # local dispatch already raises one directly. Callers that only
+    # need "the domain said no" (not which specific rule) are
+    # unaffected; callers pattern-matching a SPECIFIC refusal class
+    # against a Lambda-routed domain are the ones this gap would bite.
+    class RemoteRefusal < StandardError; end
+
     # The domain saying NO — the errors a reaction may legitimately meet and
     # record as an undelivered outcome. A policy whose target refuses is a fact
     # about the domain ; the originating command still stands.
@@ -56,7 +69,7 @@ module Hecksagain
     # of banking's were InvariantViolation.
     DOMAIN_REFUSALS = [
       AbsentArgument, AlreadyExists, EnsuresNotMet, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
-      TypeMismatch, Unauthorized, UnknownArgument, UnknownVerb
+      RemoteRefusal, TypeMismatch, Unauthorized, UnknownArgument, UnknownVerb
     ].freeze
   end
 end

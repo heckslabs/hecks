@@ -1,0 +1,1564 @@
+#!/usr/bin/env ruby
+
+# The AWS DEPLOYMENT projector — docs/decisions/0018-rehydrate-replay-lambda-host.md.
+# Generates the SAM template and build Makefile for rust/host (the
+# wasmtime+Postgres Lambda entry point) from the domain's own `.world`
+# file, the same way bin/project_wasm generates the .wasm artifact from
+# the domain's own `.bluebook` — no hand-authored deployment config for
+# any given domain, only a generator run against whatever it declares.
+#
+# `deployed_to("AwsLambda") { region "..."; memory 512; timeout 10 }` is
+# a NEW verb in a domain's `.world` file, but needs no framework change
+# at all: `Hecks.world`'s own settings-bag is already fully generic
+# (lib/hecksagain/bluebook/dsl/world_builder.rb#method_missing) — the
+# same mechanism `persisted_by`/`projected_by` already use.
+#
+#   bin/project_deploy <domain>
+#
+# Produces deploy/<domain>/{template.yaml,Makefile,samconfig.toml,bastion.yaml}.
+# Self-contained: the template owns its own private VPC/subnets/RDS
+# Postgres instance, not just the Lambda — no externally-supplied
+# database, no secret anyone has to type (RDS's own
+# ManageMasterUserPassword + a CloudFormation dynamic reference compose
+# DATABASE_URL at deploy time). `sam build && sam deploy` from there,
+# no flags needed. PackageType: Zip, Runtime: provided.al2023 — no
+# container, no Docker, no ECR.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "fileutils"
+
+domain = ARGV.shift or abort "usage: bin/project_deploy <domain>"
+root = File.expand_path("..", __dir__)
+domain_name = File.basename(domain)
+world_file = File.join(domain, "bluebook", "#{domain_name}.world")
+
+File.exist?(world_file) or abort "#{world_file} does not exist — a domain needs a .world file to declare deployed_to(\"AwsLambda\")"
+
+registry = Hecksagain::Runtime::Registry.new
+Hecksagain.with_registry(registry) { Kernel.load(world_file) }
+
+# The declared world's own name, not the directory's — same distinction
+# bin/project_rust draws between a domain PATH and its bluebook's own
+# declared name (registry.bluebooks.keys.first, not File.basename).
+world = registry.worlds.values.first or
+  abort "#{world_file} declares no Hecks.world block at all"
+
+# `world.domain` — "Embryonaut", not the directory's lowercase
+# "embryonaut" — is what Ruby's own LineageManager actually writes
+# into `hecks_eras.domain` (Lineage.new(db, bluebook.name), read
+# directly). HECKS_DOMAIN has to match that string exactly, or
+# rust/host's own boot-time `era_exists` check refuses forever no
+# matter how many times `make mint-era` runs — caught live the first
+# time this generator shipped it as `domain_name` (the directory
+# basename) instead.
+declared_domain_name = world.domain
+
+deploy_settings = world.for_verb("deployed_to")
+deploy_settings[:adapter] == "AwsLambda" or
+  abort <<~MSG
+    #{world_file} declares no deployed_to("AwsLambda") block. Add one, e.g.:
+
+        deployed_to("AwsLambda") do
+          region "us-east-1"
+          memory 512
+          timeout 10
+        end
+
+    then re-run bin/project_deploy #{domain}.
+  MSG
+
+# VALIDATED, not hand-checked — dispatches into lib/hecksagain/deploy's
+# own LambdaTarget.Declare (the same given/invariant machinery every
+# other kind of bluebook mistake in this codebase is caught by),
+# replacing what used to be a `fetch(:region) { abort ... }` chain with
+# real, named, corpus-testable refusals: memory/timeout are actual
+# Integers here (never silently stringified) and checked against
+# Lambda's own real 128-10240 MB / 900s ceilings, not just "present or
+# not." Only the DEFAULT VALUES stay Ruby's own concern —
+# deploy.bluebook's own header explains why: a command-level `default:`
+# is honored only at the JSON/Rust-codegen boundary, never by Ruby's
+# own direct dispatch — so this validates a fully-resolved target,
+# after defaulting, not instead of it.
+deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecksagain/deploy", __dir__))
+begin
+  target = deploy_dispatcher.dispatch(
+    "Deploy::LambdaTarget.Declare",
+    domain:   { value: declared_domain_name },
+    region:   { value: deploy_settings[:region] },
+    memory:   { value: deploy_settings.fetch(:memory, 512) },
+    timeout:  { value: deploy_settings.fetch(:timeout, 10) },
+    # "Postgres" — Embryonaut's own live choice, and every domain
+    # declared before this setting existed — unless a domain's own
+    # deployed_to("AwsLambda") names "Aurora" explicitly.
+    database: { value: deploy_settings.fetch(:database, "Postgres") },
+    # "None" — every domain declared before this setting existed,
+    # Embryonaut included (its own public web UI is the separate,
+    # pre-existing lambda_handler.rb-file-presence mechanism, not this
+    # attribute) — unless a domain names "Rust" explicitly.
+    web: { value: deploy_settings.fetch(:web, "None") }
+  ).instance
+rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => e
+  abort "#{world_file}'s deployed_to(\"AwsLambda\") is invalid: #{e.message}"
+end
+
+region   = target.state[:region].value
+memory   = target.state[:memory].value
+timeout  = target.state[:timeout].value
+database = target.state[:database].value
+aurora   = database == "Aurora"
+shared   = database == "Shared"
+rust_web = target.state[:web].value == "Rust"
+
+# THE STOREHOUSE — this domain provisions NO RDS/VPC of its own at all;
+# it borrows another already-deployed domain's instance instead,
+# isolated by a native Postgres SCHEMA (this domain's own lowercase
+# name) rather than a separate database. `owner` is read the same way
+# `pg_version`/`google_oauth_present` below are — a Ruby-level fact off
+# `deploy_settings` directly, not one of `Deploy::LambdaTarget.Declare`'s
+# own validated attributes (deploy.bluebook's own comment on why: which
+# domain owns the shared instance is a deploy-time wiring fact, not a
+# business invariant).
+if shared
+  owner_domain_name = deploy_settings[:owner] or abort <<~MSG
+    #{world_file}'s deployed_to("AwsLambda") declares database "Shared" but no owner. Add one, e.g.:
+
+        deployed_to("AwsLambda") do
+          ...
+          database "Shared"
+          owner "Embryonaut"
+        end
+
+    naming the already-deployed domain whose Postgres instance this one borrows.
+  MSG
+  # `hecksagain-<lowercase name>` / lowercase name-as-dbname — the SAME
+  # two conventions `stack_name`/`DBName: #{domain_name}` below already
+  # commit to for THIS domain; the owner was generated by this same
+  # script and holds to them too.
+  owner_stack_name = "hecksagain-#{owner_domain_name.downcase}"
+  owner_db_name     = owner_domain_name.downcase
+end
+
+# `HECKS_SCHEMA` — rust/host's own optional counterpart to Ruby's
+# `settings[:schema]` (postgres.rb's own `connect_for`). AUTOMATIC for a
+# Shared-mode domain (this domain's own lowercase name — matches the
+# schema the real migration creates for it, `CREATE SCHEMA
+# #{domain_name}`, and needs no separate declaration since Shared mode
+# already implies it). OPTIONAL and explicit otherwise
+# (`deployed_to("AwsLambda") { schema "embryonaut" }`) — for an OWNING
+# domain that later migrates itself onto a shared instance's own schema
+# too (Embryonaut, in the real migration this exists for), without
+# switching its own `database` setting away from where its real RDS
+# instance already lives.
+hecks_schema = shared ? domain_name : deploy_settings[:schema]
+
+out_dir = File.join(root, "deploy", domain_name)
+FileUtils.mkdir_p(out_dir)
+
+logical_id = "#{domain_name.split(/[_-]/).map(&:capitalize).join}Function"
+stack_name = "hecksagain-#{domain_name}"
+
+db_id = "#{logical_id.sub(/Function\z/, '')}Db"
+# The Aurora shape splits the database in two (a DBCluster carrying
+# the managed password/endpoint, plus at least one DBInstance inside
+# it) — every `.Endpoint.Address`/`.MasterUserSecret.SecretArn`
+# reference below has to point at the CLUSTER, not `db_id` itself,
+# when Aurora is chosen. The plain-RDS path is unaffected: `db_ref_id`
+# equals `db_id` exactly, so every one of those references renders
+# byte-identical to before this existed.
+db_ref_id = aurora ? "#{db_id}Cluster" : db_id
+
+# The Aurora path uses a SELF-MANAGED secret (`#{db_id}Secret`, below —
+# see its own comment for why: ManageMasterUserPassword's rotation
+# breaks a Lambda's static Environment), not the plain-RDS path's own
+# `db_ref_id.MasterUserSecret` attribute (which only exists for the
+# managed-password feature at all). `secret_sub` is the identifier for
+# use INSIDE a `!Sub` "${...}" interpolation (dot-free for a plain
+# `!Ref`, dotted for a `!GetAtt` attribute — CloudFormation's `${}`
+# auto-detects either shape); `secret_intrinsic` is the same fact
+# spelled as a bare YAML value, for the one site (STACK_OUTPUTS) that
+# isn't inside a `!Sub` string at all.
+secret_sub       = aurora ? "#{db_id}Secret" : "#{db_ref_id}.MasterUserSecret.SecretArn"
+secret_intrinsic = aurora ? "!Ref #{db_id}Secret" : "!GetAtt #{db_ref_id}.MasterUserSecret.SecretArn"
+
+# OPT-IN, BY FILE PRESENCE — a domain that wants its own web app on
+# Lambda too (not every domain has one; Banking doesn't) drops a
+# `lambda_handler.rb` at its own root, the Rack-to-Function-URL-event
+# adapter Sinatra runs through. No new .world verb for this: the file
+# itself is the declaration, the same way a `.hecksagon` file's mere
+# existence is what makes a domain framework-attached.
+web_handler_present = File.exist?(File.join(domain, "lambda_handler.rb"))
+
+# A domain declares ONE web story, not both — `web "Rust"` (rust/host
+# serves its own web UI in-process) and a `lambda_handler.rb` (a
+# separate Ruby WebFunction) are two different mechanisms for the same
+# job; picking one silently when both are present would be exactly the
+# kind of ambiguity this generator's own `deploy.bluebook` gate exists
+# to refuse instead of guess at.
+if rust_web && web_handler_present
+  abort "#{domain} declares both web \"Rust\" (#{world_file}) and a lambda_handler.rb (#{File.join(domain, 'lambda_handler.rb')}) — pick one."
+end
+
+# Read straight out of the domain's OWN Gemfile.lock, not hardcoded —
+# `patch-pg-native`'s build recipe below has to fetch the SAME pg
+# version Bundler resolved, or its from-source extension and the
+# gem's own Ruby wrapper (lib/pg.rb, autoloads, etc.) can drift apart.
+# The plain, platform-less lock line ("pg (1.6.3)") is what this
+# matches — platform-suffixed siblings ("pg (1.6.3-aarch64-linux)")
+# fail the all-digits-and-dots capture on purpose.
+#
+# OPTIONAL, not required whenever a web app exists — Embryonaut's own
+# Sinatra app talks to Postgres directly (hence `pg` in its
+# Gemfile.lock) but that's THAT app's own choice, not a rule every
+# WebFunction follows. A web app that only ever dispatches through a
+# Lambda-routed domain (RemoteDispatcher/Adapters::Lambda, never a
+# local Postgres connection — hecks_on_web's own apps, e.g.) has no
+# `pg` gem and needs none of the native-extension patching below; the
+# generated Makefile's own `deploy:` target branches on whether this
+# is present, same convention `google_oauth_present` already uses for
+# its own opt-in machinery.
+pg_version = nil
+if web_handler_present
+  pg_version = File.read(File.join(domain, "Gemfile.lock"))[/^\s+pg \(([\d.]+)\)/, 1]
+end
+web_logical_id = "WebFunction"
+
+# OPT-IN, BY FILE PRESENCE + CONTENT — the same convention
+# `web_handler_present` itself uses. `.env.local` is #{domain}'s own
+# gitignored local-dev secrets file (never committed, never read by
+# this tool for anything but detecting the KEY is there); the real
+# VALUE is synced into Secrets Manager by `make sync-google-oauth`
+# below, straight from that same file, at deploy time — never baked
+# into this generated, git-TRACKED template.yaml as plaintext.
+# ALSO gates the NAT Gateway/public subnet template.yaml's own "NO NAT
+# GATEWAY" comment describes — computed here, once, before
+# STACK_OUTPUTS/BASTION_PARAMETERS below need to know whether
+# #{db_id}PublicSubnet exists at all to pass along to bastion.yaml.
+google_oauth_present = (web_handler_present || rust_web) &&
+  File.exist?(File.join(domain, ".env.local")) &&
+  File.read(File.join(domain, ".env.local")).match?(/^GOOGLE_CLIENT_ID=\S/)
+
+# BOTH REFUSED, DELIBERATELY NOT SILENTLY IGNORED — a shared-instance
+# Ruby WebFunction needs its own cross-stack DATABASE_URL wiring this
+# generator doesn't build yet (web_handler_present's own Member-style
+# direct-Postgres binding), and Google OAuth needs a NAT Gateway this
+# domain has none of in Shared mode (it borrows the owner's VPC
+# instead) — wiring OAuth's own public-subnet/NAT requirements through
+# a cross-stack lookup is real, unbuilt design, not a small addition.
+# Neither combination is needed by the real migration this mode exists
+# for (Banking/Pizzas — plain dispatch-only domains, no web app, no
+# OAuth of their own) — refusing loudly here beats generating a
+# template that fails only once someone actually deploys it.
+if shared && web_handler_present
+  abort "#{domain} declares both database \"Shared\" and a lambda_handler.rb — a shared-instance Ruby WebFunction isn't supported yet."
+end
+if shared && google_oauth_present
+  abort "#{domain} declares both database \"Shared\" and Google OAuth (#{domain}/.env.local) — a shared-instance domain's own OAuth wiring isn't supported yet."
+end
+
+# THE STACK↔BASTION CONTRACT — ONE shared table each of template.yaml's
+# Outputs, bastion.yaml's Parameters, and the Makefile's own eval/
+# --parameter-overrides lines reads from below, instead of three to
+# four independent string literals per fact with nothing checking they
+# agree. `var` is the Make variable each output becomes.
+#
+# EMPTY when `shared` — this domain provisions no VPC/RDS of its own to
+# expose at all (bastion.yaml/BASTION_PARAMETERS/mint-era below are all
+# skipped for the same reason: there's nothing here for a bastion to
+# reach). `shared`'s own stack is never an OWNER, so nothing downstream
+# ever needs to look these up FROM it either.
+STACK_OUTPUTS = (shared ? [] : [
+  { key: "VpcId",             var: "VPC_ID",        ref: "!Ref #{db_id}Vpc" },
+  { key: "DbSecurityGroupId", var: "DB_SG_ID",       ref: "!Ref #{db_id}SecurityGroup" },
+  { key: "DatabaseEndpoint",  var: "DB_HOST",       ref: "!GetAtt #{db_ref_id}.Endpoint.Address" },
+  { key: "DatabaseSecretArn", var: "DB_SECRET_ARN", ref: secret_intrinsic },
+  # NOT consumed by anything in THIS domain's own generated output —
+  # a "Shared"-mode domain elsewhere (bin/project_deploy's own Shared
+  # branch, above) looks these two up live to attach ITS OWN Lambda to
+  # this domain's VPC/security group without minting either itself,
+  # the same reuse #{web_logical_id} already does for
+  # #{logical_id}SecurityGroup, one stack over instead of one resource
+  # over.
+  { key: "FunctionSecurityGroupId", var: "FN_SG_ID",            ref: "!Ref #{logical_id}SecurityGroup" },
+  { key: "PrivateSubnetAId",        var: "PRIVATE_SUBNET_A_ID", ref: "!Ref #{db_id}SubnetA" },
+  { key: "PrivateSubnetBId",        var: "PRIVATE_SUBNET_B_ID", ref: "!Ref #{db_id}SubnetB" },
+  # ONLY when google_oauth_present — #{db_id}PublicSubnet (and the
+  # Internet Gateway it's attached through) only exist as resources at
+  # all when the NAT Gateway block does. bastion.yaml needs this: a
+  # VPC accepts only ONE attached Internet Gateway, and one already
+  # exists once this is true — its own temporary IGW+subnet would
+  # collide (a real, live "Resource.AlreadyAssociated" caught this).
+  *(google_oauth_present ? [{ key: "PublicSubnetId", var: "PUBLIC_SUBNET_ID", ref: "!Ref #{db_id}PublicSubnet" }] : []),
+  # A SEPARATE subnet from PublicSubnetId, same shared route
+  # table/Internet Gateway -- #{db_id}PublicSubnet always lands in AZ
+  # index 0 (`!Select [0, !GetAZs '']`), and a real, live CREATE_FAILED
+  # caught this account unable to launch ANY EC2 instance there at all
+  # ("Your requested instance type ... is not supported in your
+  # requested Availability Zone (us-east-1a)") -- NatGateway and RDS
+  # aren't EC2 instances and never hit this, only BastionInstance does.
+  # AZ index 1 instead, matching #{db_id}SubnetB's own choice.
+  *(google_oauth_present ? [{ key: "BastionSubnetId", var: "BASTION_SUBNET_ID", ref: "!Ref #{db_id}BastionPublicSubnet" }] : []),
+]).freeze
+
+# bastion.yaml's own Parameters — deliberately allowed to rename
+# (RdsSecurityGroupId reads better inside bastion.yaml than the stack
+# output's own DbSecurityGroupId), which is exactly the kind of rename
+# that used to be able to silently drift between the two files.
+#
+# EMPTY when `shared` — no bastion.yaml gets generated at all (below);
+# era-minting for a Shared-mode domain reuses its OWNER's already-live
+# tunnel instead of standing up a temporary bastion of its own next to
+# an RDS instance that, in Shared mode, doesn't exist. See the Makefile
+# section's own comment on `mint-era` for the manual path this leaves.
+BASTION_PARAMETERS = (shared ? [] : [
+  { name: "VpcId",              from_output: "VpcId",             type: "AWS::EC2::VPC::Id" },
+  { name: "RdsSecurityGroupId", from_output: "DbSecurityGroupId", type: "AWS::EC2::SecurityGroup::Id" },
+  *(google_oauth_present ? [{ name: "PublicSubnetId", from_output: "PublicSubnetId", type: "AWS::EC2::Subnet::Id" }] : []),
+  *(google_oauth_present ? [{ name: "BastionSubnetId", from_output: "BastionSubnetId", type: "AWS::EC2::Subnet::Id" }] : []),
+]).freeze
+
+# THE CHECK — a generation-time assertion, not a bluebook refusal:
+# this is the generator catching its OWN bug immediately, before
+# writing a single file, instead of producing a bastion.yaml whose
+# Parameter nothing could ever fill.
+BASTION_PARAMETERS.each do |param|
+  STACK_OUTPUTS.any? { |o| o[:key] == param[:from_output] } or
+    raise "bin/project_deploy: bastion parameter #{param[:name]} references undeclared stack output #{param[:from_output]}"
+end
+
+File.write(File.join(out_dir, "template.yaml"), <<~YAML)
+  # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
+  # this file rather than hand-editing. Source: #{world_file}'s own
+  # deployed_to("AwsLambda") block.
+  #
+  # SELF-CONTAINED, ON PURPOSE — this stack owns its own private VPC,
+  # subnets, security groups, and RDS Postgres instance, not just the
+  # Lambda. No externally-supplied VPC/database parameters, no
+  # DatabaseUrl secret anyone has to type: RDS's own
+  # ManageMasterUserPassword generates and stores the password in
+  # Secrets Manager, and DATABASE_URL is composed from it via a
+  # CloudFormation dynamic reference — resolved at deploy time, never
+  # visible in this template, a parameter, or any tool's output.
+  #
+  # NO NAT GATEWAY for #{logical_id} — deliberately. Its own subnets
+  # have no route to the internet at all, only to the RDS instance
+  # inside the same VPC: dispatch a command, read/write the journal.
+  # CloudWatch Logs delivery doesn't go through the function's own VPC
+  # networking, so it needs no route either.
+  #{google_oauth_present ? "  #\n  # #{web_logical_id} is the ONE exception -- real Google OAuth token\n  # exchange (hecksagain's own GoogleAuthentication adapter posting to\n  # https://oauth2.googleapis.com/token) is a genuine third-party HTTPS\n  # call with no AWS PrivateLink/VPC Endpoint option (unlike\n  # lambda:InvokeFunction, above), and #{web_logical_id} is ALSO\n  # VPC-attached (Member's own permanent Postgres binding needs the\n  # private RDS instance directly). A real, live 15-second Lambda\n  # timeout caught this -- the token-exchange POST had nowhere to\n  # route to and just hung. #{db_id}NatGateway below is the real,\n  # ongoing-cost fix (one NAT Gateway, one public subnet) -- opt-in,\n  # the SAME google_oauth_present signal that wires\n  # GOOGLE_CLIENT_ID/SECRET, since nothing else in this stack needs\n  # outbound internet at all." : "  # Real outbound internet access from here (a future external API\n  # call, say) would need a NAT Gateway added -- a real, ongoing cost\n  # this template doesn't take on until something actually needs it."}
+  AWSTemplateFormatVersion: '2010-09-09'
+  Transform: AWS::Serverless-2016-10-31
+  Description: >
+    #{domain_name} — dispatched through hecksagain's rust/host, a
+    wasmtime-sandboxed Rust binary with a rehydrate-and-replay Postgres
+    journal (docs/decisions/0018), backed by its own private RDS
+    Postgres instance. PackageType Zip, no container.
+  #{if google_oauth_present
+      <<~PARAMS
+      Parameters:
+        # Lambda Function URLs get a random, un-derivable hostname at
+        # creation -- #{web_logical_id}'s own GOOGLE_REDIRECT_URI can't
+        # reference `!GetAtt #{web_logical_id}Url.FunctionUrl` from inside
+        # #{web_logical_id}'s OWN Environment (that's a real circular
+        # dependency CloudFormation rejects: the value doesn't exist until
+        # the function+URL do). Resolved OUTSIDE the stack instead --
+        # `make deploy`'s own recipe looks up the CURRENTLY deployed
+        # Function URL (empty on a true first deploy, before the URL
+        # exists at all) and passes it as `--parameter-overrides`; every
+        # deploy after the first self-heals this correctly.
+        WebRedirectBaseUrl:
+          Type: String
+          Default: ""
+      PARAMS
+    elsif shared
+      <<~SHAREDPARAMS
+      Parameters:
+        # THE STOREHOUSE — #{owner_domain_name}'s own live stack Outputs,
+        # looked up at deploy time (Makefile's own `deploy:`/`mint-era`
+        # targets, below) via the SAME `aws cloudformation describe-stacks`
+        # pattern `mint-era` already used for a bastion, one stack over
+        # instead of one sibling stack over. Never a CloudFormation
+        # Export/ImportValue -- this codebase uses none anywhere (bin/
+        # project_deploy's own header on why: a live shell lookup keeps
+        # this stack independently deployable/deletable, never coupled to
+        # #{owner_domain_name}'s own stack through CloudFormation itself).
+        OwningVpcId:
+          Type: AWS::EC2::VPC::Id
+        OwningSubnetAId:
+          Type: AWS::EC2::Subnet::Id
+        OwningSubnetBId:
+          Type: AWS::EC2::Subnet::Id
+        # #{owner_domain_name}'s own Lambda security group, NOT its
+        # DB-facing one -- reused whole, not copied, the same shape
+        # this codebase already trusts elsewhere (a WebFunction sharing
+        # its own dispatch Lambda's security group rather than minting
+        # a second one), one stack over instead of one resource over.
+        # #{owner_domain_name}'s own DB security group already permits
+        # ingress FROM this group (every member of it, regardless of
+        # which stack minted the member -- security group references
+        # match on GROUP MEMBERSHIP, not resource identity), so joining
+        # it is what actually grants this Lambda access, not a new
+        # ingress rule #{owner_domain_name}'s own stack would otherwise
+        # need to add.
+        OwningSecurityGroupId:
+          Type: AWS::EC2::SecurityGroup::Id
+        OwningDatabaseEndpoint:
+          Type: String
+        OwningDatabaseSecretArn:
+          Type: String
+      SHAREDPARAMS
+    else
+      ""
+    end}
+  Resources:
+    #{shared ? "" : <<~OWNDB.each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip}
+    #{db_id}Vpc:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsSupport: true
+        EnableDnsHostnames: true
+
+    #{db_id}SubnetA:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        CidrBlock: 10.0.1.0/24
+        AvailabilityZone: !Select [0, !GetAZs '']
+
+    #{db_id}SubnetB:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        CidrBlock: 10.0.2.0/24
+        AvailabilityZone: !Select [1, !GetAZs '']
+
+    #{google_oauth_present ? <<~NATGW.rstrip : ""}
+    # #{web_logical_id}'s own real Google OAuth token exchange needs
+    # real internet access -- see template.yaml's own "NO NAT GATEWAY"
+    # comment, above, for why. One NAT Gateway, one public subnet,
+    # opt-in on the same google_oauth_present signal that wires
+    # GOOGLE_CLIENT_ID/SECRET -- nothing else in this stack pays for it.
+    #{db_id}PublicSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        CidrBlock: 10.0.3.0/24
+        AvailabilityZone: !Select [0, !GetAZs '']
+        MapPublicIpOnLaunch: true
+
+    #{db_id}InternetGateway:
+      Type: AWS::EC2::InternetGateway
+
+    #{db_id}InternetGatewayAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        InternetGatewayId: !Ref #{db_id}InternetGateway
+
+    #{db_id}PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+
+    #{db_id}PublicRoute:
+      Type: AWS::EC2::Route
+      DependsOn: #{db_id}InternetGatewayAttachment
+      Properties:
+        RouteTableId: !Ref #{db_id}PublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref #{db_id}InternetGateway
+
+    #{db_id}PublicSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref #{db_id}PublicSubnet
+        RouteTableId: !Ref #{db_id}PublicRouteTable
+
+    # A SECOND public subnet, AZ index 1 -- NOT where NatGateway lives
+    # (that's still #{db_id}PublicSubnet, AZ index 0, unaffected: NAT
+    # Gateways aren't EC2 instances and were never the problem). Only
+    # for bastion.yaml's own BastionInstance, a real EC2 instance that
+    # a real, live CREATE_FAILED proved this account can't launch in AZ
+    # index 0 at all -- see BastionSubnetId's own STACK_OUTPUTS comment.
+    # Same shared #{db_id}PublicRouteTable/#{db_id}InternetGateway as
+    # #{db_id}PublicSubnet, not a second IGW -- a VPC accepts only ONE.
+    #{db_id}BastionPublicSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        CidrBlock: 10.0.4.0/24
+        AvailabilityZone: !Select [1, !GetAZs '']
+        MapPublicIpOnLaunch: true
+
+    #{db_id}BastionPublicSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref #{db_id}BastionPublicSubnet
+        RouteTableId: !Ref #{db_id}PublicRouteTable
+
+    #{db_id}NatEip:
+      Type: AWS::EC2::EIP
+      Properties:
+        Domain: vpc
+
+    #{db_id}NatGateway:
+      Type: AWS::EC2::NatGateway
+      Properties:
+        SubnetId: !Ref #{db_id}PublicSubnet
+        AllocationId: !GetAtt #{db_id}NatEip.AllocationId
+
+    # #{db_id}SubnetA/B (PRIVATE — Lambda/RDS live here) had no
+    # explicit route table before this, only the VPC's own implicit
+    # default (local-only, no 0.0.0.0/0 route at all — the ENTIRE
+    # point of "no NAT Gateway" until now). Needs one now, routing
+    # outbound through #{db_id}NatGateway instead of an Internet
+    # Gateway directly — the whole reason a NAT (not just an IGW)
+    # exists: outbound-only, no inbound path back into these subnets.
+    #{db_id}PrivateRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+
+    #{db_id}PrivateRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId: !Ref #{db_id}PrivateRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref #{db_id}NatGateway
+
+    #{db_id}SubnetARouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref #{db_id}SubnetA
+        RouteTableId: !Ref #{db_id}PrivateRouteTable
+
+    #{db_id}SubnetBRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref #{db_id}SubnetB
+        RouteTableId: !Ref #{db_id}PrivateRouteTable
+
+    NATGW
+    #{db_id}SubnetGroup:
+      Type: AWS::RDS::DBSubnetGroup
+      Properties:
+        DBSubnetGroupDescription: !Sub "${AWS::StackName} - private subnets for #{domain_name}'s own RDS instance"
+        SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]
+
+    # NO INLINE SecurityGroupEgress/Ingress ON EITHER GROUP — each would
+    # need to reference the other's id from inside its own Properties,
+    # a genuine circular create-order dependency CloudFormation refuses
+    # outright (cfn-lint E3004). Standard fix: create both groups
+    # empty, then wire the cross-reference through two standalone rule
+    # resources below, each of which can legitimately depend on both
+    # groups already existing.
+    #{logical_id}SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        GroupDescription: #{logical_id} - no inbound (Lambda receives no traffic via its VPC ENI), egress rule attached separately below
+
+    #{db_id}SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        VpcId: !Ref #{db_id}Vpc
+        GroupDescription: #{db_id} - ingress rule attached separately below, from #{logical_id} only
+
+    #{logical_id}EgressToDb:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        GroupId: !Ref #{logical_id}SecurityGroup
+        IpProtocol: tcp
+        FromPort: 5432
+        ToPort: 5432
+        DestinationSecurityGroupId: !Ref #{db_id}SecurityGroup
+
+    #{google_oauth_present ? <<~OAUTHEGRESS.rstrip : ""}
+    # A standalone AWS::EC2::SecurityGroupEgress resource for a group
+    # REPLACES that group's own default allow-all-outbound rule with
+    # ONLY what's explicitly declared here -- #{logical_id}EgressToDb's
+    # own existence already means #{logical_id}SecurityGroup has NO
+    # other egress at all, confirmed live (`aws ec2
+    # describe-security-groups`): every real Google OAuth token-
+    # exchange POST got silently dropped at the SG, not routing, even
+    # with #{db_id}NatGateway fully wired -- the exact-15-second Lambda
+    # timeout (not a DNS/route error) was the giveaway. 443 to
+    # 0.0.0.0/0, not a narrower destination -- Google publishes no
+    # fixed IP range for oauth2.googleapis.com an AWS security group
+    # could reference instead.
+    #{logical_id}EgressToInternet:
+      Type: AWS::EC2::SecurityGroupEgress
+      Properties:
+        GroupId: !Ref #{logical_id}SecurityGroup
+        IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+
+    OAUTHEGRESS
+    #{db_id}IngressFromFunction:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        GroupId: !Ref #{db_id}SecurityGroup
+        IpProtocol: tcp
+        FromPort: 5432
+        ToPort: 5432
+        SourceSecurityGroupId: !Ref #{logical_id}SecurityGroup
+
+    #{if aurora
+        <<~AURORADB.rstrip
+        # Aurora Serverless v2, Postgres-compatible -- the split shape
+        # Aurora needs (a DBCluster carrying the managed password/
+        # endpoint/subnet-group/security-group, plus at least one
+        # DBInstance inside it) is the ONLY thing different from the
+        # plain-RDS path below; Adapters::Postgres/tokio_postgres speak
+        # the identical wire protocol against either endpoint.
+        # SELF-MANAGED, not ManageMasterUserPassword: true -- confirmed
+        # live that the plain-RDS path's own approach (below) has a real
+        # staleness bug for a Lambda's own Environment: CloudFormation's
+        # `{{resolve:secretsmanager:...}}` only resolves an AUTO-ROTATING
+        # managed secret fresh at the Function resource's OWN creation;
+        # RDS's managed-password feature rotates the password itself
+        # shortly after standing up the cluster (confirmed: the FIRST
+        # resolved password stopped authenticating within minutes), and
+        # neither a Code-only update NOR a later `sam deploy` re-resolved
+        # it -- every subsequent invocation kept authenticating with the
+        # now-stale original value, a real "password authentication
+        # failed" caught live. A self-managed secret (generated once,
+        # here, never auto-rotated) has nothing to go stale: the same
+        # resolved value stays correct for as long as this stack exists.
+        # Scoped to the Aurora path alone -- the plain-RDS path below is
+        # Embryonaut's own already-live, proven arrangement, untouched.
+        #{db_id}Secret:
+          Type: AWS::SecretsManager::Secret
+          Properties:
+            GenerateSecretString:
+              SecretStringTemplate: '{"username":"postgres"}'
+              GenerateStringKey: password
+              PasswordLength: 32
+              # Nothing here NEEDS excluding purely for correctness
+              # anymore (rust/host's own parse_database_url never
+              # URI-parses the password segment), but keeping the
+              # generated password free of quote/at-sign/slash is
+              # still the more legible default for anyone pasting
+              # DATABASE_URL by hand while debugging. Deliberately NOT
+              # excluding backslash/apostrophe too, to sidestep YAML's
+              # own nested-quote escaping inside this string entirely
+              # (real, live "found character '@' that cannot start any
+              # token" caught the FIRST attempt at that).
+              ExcludeCharacters: '"@/'
+
+        #{db_id}Cluster:
+          Type: AWS::RDS::DBCluster
+          DeletionPolicy: Snapshot
+          UpdateReplacePolicy: Snapshot
+          # Explicit, not left implicit -- MasterUserPassword's own
+          # dynamic reference below doesn't create one on its own (see
+          # #{logical_id}'s own comment on this same fact).
+          DependsOn: #{db_id}Secret
+          Properties:
+            Engine: aurora-postgresql
+            # Matches the plain-RDS path's own EngineVersion exactly
+            # (below) — confirmed real and Serverless-v2-capable via
+            # `aws rds describe-db-engine-versions --engine
+            # aurora-postgresql --engine-version 16.14`
+            # (ServerlessV2FeaturesSupport: 0.0-256.0), unlike the
+            # first guess here ("16.6" -- a real, live "Cannot find
+            # version 16.6 for aurora-postgresql" caught this).
+            EngineVersion: "16.14"
+            DatabaseName: #{domain_name}
+            MasterUsername: postgres
+            MasterUserPassword: !Sub "{{resolve:secretsmanager:${#{db_id}Secret}:SecretString:password}}"
+            StorageEncrypted: true
+            DBSubnetGroupName: !Ref #{db_id}SubnetGroup
+            VpcSecurityGroupIds: [!Ref #{db_id}SecurityGroup]
+            ServerlessV2ScalingConfiguration:
+              MinCapacity: 0.5
+              MaxCapacity: 1
+
+        #{db_id}Instance:
+          Type: AWS::RDS::DBInstance
+          DeletionPolicy: Snapshot
+          UpdateReplacePolicy: Snapshot
+          Properties:
+            Engine: aurora-postgresql
+            DBInstanceClass: db.serverless
+            DBClusterIdentifier: !Ref #{db_id}Cluster
+            PubliclyAccessible: false
+        AURORADB
+      else
+        <<~PLAINDB.rstrip
+        #{db_id}:
+          Type: AWS::RDS::DBInstance
+          DeletionPolicy: Snapshot
+          UpdateReplacePolicy: Snapshot
+          Properties:
+            Engine: postgres
+            EngineVersion: "16.14"
+            DBInstanceClass: db.t4g.micro
+            AllocatedStorage: "20"
+            StorageEncrypted: true
+            DBName: #{domain_name}
+            MasterUsername: postgres
+            ManageMasterUserPassword: true
+            PubliclyAccessible: false
+            DBSubnetGroupName: !Ref #{db_id}SubnetGroup
+            VPCSecurityGroups: [!Ref #{db_id}SecurityGroup]
+        PLAINDB
+      end}
+    OWNDB
+
+    #{rust_web && google_oauth_present ? <<~RUSTSECRET.each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip : ""}
+    # Auto-generated, never typed or seen -- rust/host's own
+    # auth.rs signs both the session cookie and the OAuth `state`
+    # token with this. Same ManageMasterUserPassword-style pattern
+    # #{db_id} already uses for its own password.
+    #{logical_id}SessionSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        GenerateSecretString:
+          SecretStringTemplate: '{}'
+          GenerateStringKey: session_secret
+          PasswordLength: 64
+          ExcludePunctuation: true
+
+    RUSTSECRET
+    #{logical_id}:
+      Type: AWS::Serverless::Function#{aurora ? "\n    # `{{resolve:secretsmanager:...}}` dynamic references do NOT\n    # create an implicit CloudFormation dependency on the referenced\n    # resource (documented AWS behavior) -- #{logical_id}'s own\n    # Environment resolves one against #{db_id}Secret below. A plain\n    # `DependsOn: #{db_id}Secret` alone (CREATE_COMPLETE before this\n    # resource's own update starts) still hit a real, live, repeatable\n    # \"Secrets Manager can't find the specified secret\n    # (ResourceNotFoundException)\" -- CREATE_COMPLETE from\n    # CloudFormation's own perspective doesn't guarantee the secret is\n    # yet READABLE via a dynamic reference from a DIFFERENT resource's\n    # own concurrent update (AWS-side eventual consistency, not a\n    # CloudFormation ordering bug `DependsOn` alone can close).\n    # Chaining through #{db_id}Cluster too -- which ALSO reads this\n    # secret, and whose own RDS-side update takes real, substantial\n    # wall-clock time to apply -- gives that propagation window time\n    # to close before #{logical_id}'s own resolution is attempted.\n    DependsOn: [#{db_id}Secret, #{db_id}Cluster]" : ""}
+      Metadata:
+        BuildMethod: makefile
+      Properties:
+        # PINNED, not SAM's own auto-suffixed default — a Ruby-side
+        # LambdaClient needs to know this function's name AHEAD OF a
+        # first deploy (there's no chicken-egg lookup step), the same
+        # "configured for me, in the projection" standard every other
+        # piece of generated deploy config already holds to. Matches
+        # `stack_name` above exactly — one name, two places it's read
+        # from, never out of sync since both derive from `domain_name`.
+        FunctionName: #{stack_name}
+        # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
+        # `sam build --use-container WebFunction` run as TWO SEPARATE
+        # single-resource invocations (deploy:'s own comment on why:
+        # cargo-lambda cross-compiles on this host directly, pg's
+        # native extension needs the container -- `--use-container` is
+        # a global sam build flag, can't be scoped per-resource). Each
+        # invocation regenerates .aws-sam/build/template.yaml from
+        # THIS source template for every resource, not just the one it
+        # builds -- a resource with no CodeUri here reverts to
+        # CodeUri-less after the SECOND invocation, and `sam deploy`
+        # then defaults a missing CodeUri to the template's own
+        # containing directory (deploy/#{domain_name}/ itself),
+        # zipping the whole project tree -- including WebFunction's
+        # own source -- as this function's code. A real, live deploy
+        # shipped exactly that broken artifact (confirmed via
+        # `aws lambda get-function` + downloading the actual deployed
+        # zip). Pinning CodeUri here survives that regeneration: it
+        # still resolves to `.aws-sam/build/#{logical_id}/`, where
+        # build-#{logical_id}'s own `cp ... $(ARTIFACTS_DIR)` already
+        # placed the real bootstrap+wasm, regardless of which of the
+        # two sam build calls ran most recently.
+        # "." NOT "#{logical_id}" -- SAM's Makefile build workflow
+        # requires the Makefile to live INSIDE CodeUri itself
+        # (confirmed live: "Makefile not found at
+        # .../EmbryonautFunction/Makefile" when CodeUri named a
+        # directory of its own). This project's one Makefile lives at
+        # the deploy directory's own root, alongside this template --
+        # "." is where it actually is.
+        CodeUri: .
+        PackageType: Zip
+        Runtime: provided.al2023
+        Architectures: [arm64]
+        Handler: bootstrap
+        MemorySize: #{memory}
+        Timeout: #{timeout}
+        Environment:
+          Variables:
+            # {{resolve:secretsmanager:...}} is a CloudFormation dynamic
+            # reference — resolved by the platform at deploy time, never
+            # rendered into the template, this tool's output, or any
+            # CloudTrail/console view of the function's own config as
+            # plaintext outside AWS's own encrypted handling.
+            #{if shared
+                # THE STOREHOUSE — #{owner_domain_name}'s own live
+                # Endpoint/Secret, looked up at deploy time into
+                # OwningDatabaseEndpoint/OwningDatabaseSecretArn (this
+                # template's own Parameters, above), not a resource in
+                # THIS stack. Same dbname as #{owner_domain_name}'s own
+                # DBName -- ONE database, isolated by SCHEMA
+                # (HECKS_SCHEMA below), not a second database.
+                "DATABASE_URL: !Sub\n" \
+                "            - \"postgres://postgres:${DbPass}@${DbHost}:5432/#{owner_db_name}\"\n" \
+                "            - DbPass: !Sub \"{{resolve:secretsmanager:${OwningDatabaseSecretArn}:SecretString:password}}\"\n" \
+                "              DbHost: !Ref OwningDatabaseEndpoint"
+              else
+                "DATABASE_URL: !Sub\n" \
+                "            - \"postgres://postgres:${DbPass}@${DbHost}:5432/#{domain_name}\"\n" \
+                "            - DbPass: !Sub \"{{resolve:secretsmanager:${#{secret_sub}}:SecretString:password}}\"\n" \
+                "              DbHost: !GetAtt #{db_ref_id}.Endpoint.Address"
+              end}
+            HECKS_WASM_PATH: !Sub "/var/task/#{domain_name}.wasm"
+            # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
+            # domain's own declared name, known at generation time the
+            # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
+            # "1" because that's what a FRESH database always gets:
+            # Postgres::LineageManager::EraResolver#check! mints era 1
+            # unconditionally the first time any Ruby process boots
+            # against an empty `hecks_eras` (era_resolver.rb's own
+            # `held.empty?` branch) — deterministic, not guessed. `make
+            # mint-era` (this directory's own Makefile) is what actually
+            # triggers that first boot; a LATER real schema evolution
+            # (era 2+) is a separate, later re-generation, not this one.
+            HECKS_DOMAIN: #{declared_domain_name}
+            HECKS_ERA: "1"#{hecks_schema ? %(\n          HECKS_SCHEMA: #{hecks_schema}) : ""}#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json") : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
+            # By NAME, not `!Ref` -- same dynamic-reference pattern
+            # DATABASE_URL/SESSION_SECRET already use: `make
+            # sync-google-oauth` owns #{stack_name}-web-google-oauth's
+            # whole lifecycle outside CloudFormation, straight from
+            # #{domain}'s own gitignored .env.local (never baked into
+            # this generated, git-tracked template as plaintext).
+            GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_id}}"
+            GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_secret}}"
+            GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+            SESSION_SECRET: !Sub "{{resolve:secretsmanager:${#{logical_id}SessionSecret}:SecretString:session_secret}}"
+            RUSTOAUTH
+        VpcConfig:
+          #{if shared
+              "SubnetIds: [!Ref OwningSubnetAId, !Ref OwningSubnetBId]\n        SecurityGroupIds: [!Ref OwningSecurityGroupId]"
+            else
+              "SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]\n        SecurityGroupIds: [!Ref #{logical_id}SecurityGroup]"
+            end}
+        # AWS_IAM by default — this dispatches real domain commands
+        # (cap-table/governance-shaped data, for Embryonaut's own use);
+        # an unauthenticated public URL is the wrong default for that,
+        # even though it's the simpler one to demo with. NONE only when
+        # `web "Rust"` (rust/host/src/web.rs) makes this the public web
+        # UI itself — safe even though the SAME Function URL also
+        # carries the internal {"verb"}/{"read"} dispatch shapes,
+        # because a Function-URL HTTP event can never be crafted into
+        # that raw top-level shape (Function URLs always wrap the real
+        # HTTP body inside requestContext.http/rawPath/event.body,
+        # unconditionally); that raw shape is reachable only through
+        # the AWS SDK's own IAM-authenticated Invoke API, which never
+        # goes through a Function URL at all.
+        FunctionUrlConfig:
+          AuthType: #{rust_web ? "NONE" : "AWS_IAM"}
+  #{web_handler_present ? <<~WEB.each_line.map { |l| "  " + l }.join : ""}
+  # THE WEB APP'S OWN LAMBDA — opt-in, see `web_handler_present` above.
+  # VPC-attached for the SAME reason #{logical_id} is (Member's own
+  # persistence needs the private RDS instance directly, permanently —
+  # embryonaut.hecksagon's own comment on why), sharing
+  # #{logical_id}SecurityGroup rather than minting a second one, since
+  # both need the identical egress-to-DB rule. That VPC attachment
+  # ALSO cuts off the public internet by default (this stack's own "NO
+  # NAT GATEWAY" design) — but this function has to reach
+  # #{logical_id} itself via `lambda:InvokeFunction`, a public AWS API
+  # call. #{web_logical_id}LambdaEndpoint below is the targeted fix: a
+  # VPC Interface Endpoint for the Lambda service ONLY (not a NAT
+  # Gateway) — a few dollars a month, not a general internet route.
+  #{db_id}LambdaEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref #{db_id}Vpc
+      # EC2's own GroupDescription character set excludes apostrophes
+      # too, not just em-dashes -- "this stack's own" was a real,
+      # live rejection ("Invalid security group description").
+      GroupDescription: #{db_id}LambdaEndpoint - HTTPS from this stacks own Lambdas only
+
+  #{db_id}LambdaEndpointIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref #{db_id}LambdaEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref #{logical_id}SecurityGroup
+
+  #{db_id}LambdaEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref #{db_id}Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.lambda"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]
+      SecurityGroupIds: [!Ref #{db_id}LambdaEndpointSecurityGroup]
+
+  # Auto-generated, never typed or seen — the SAME
+  # ManageMasterUserPassword pattern #{db_id} already uses for its own
+  # password, applied to Sinatra's own session-signing secret instead.
+  #{web_logical_id}SessionSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: session_secret
+        PasswordLength: 64
+        ExcludePunctuation: true
+
+  #{web_logical_id}:
+    Type: AWS::Serverless::Function
+    # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
+    # real, live UnsupportedBuilderException caught this); `Runtime:
+    # ruby3.2` alone is enough for SAM to select its own built-in Ruby
+    # bundler workflow automatically. #{logical_id}'s own `BuildMethod:
+    # makefile` above is different: rust/host isn't a runtime SAM
+    # knows how to build at all, so it needs an explicit custom
+    # workflow — this function doesn't.
+    Properties:
+      FunctionName: #{stack_name}-web
+      Runtime: ruby3.2
+      Architectures: [arm64]
+      # THREE parts (file.Class.method), not two — aws-lambda-ric's own
+      # 2-part form calls a plain TOP-LEVEL function via __send__, not
+      # a module method; #{domain}/lambda_handler.rb's own comment on
+      # why its module is WebLambdaHandler (not LambdaHandler) explains
+      # the rest — a real, live "LambdaHandler is not a module" caught
+      # both halves of this the hard way.
+      Handler: lambda_handler.WebLambdaHandler.lambda_handler
+      CodeUri: #{domain}
+      MemorySize: 512
+      Timeout: 15
+      Environment:
+        Variables:
+          DOMAIN_ROOT: /var/task
+          DOMAIN_NAME: #{declared_domain_name}
+          HECKS_LAMBDA_ROUTING: "true"
+          HECKS_LAMBDA_REGION: #{region}
+          # SAME setting #{domain}'s own fly.toml/Dockerfile already
+          # sets for the Fly deployment this one replaces — Sinatra's
+          # own `host_authorization` default is only PERMISSIVE in
+          # production mode (an empty `permitted_hosts` list means
+          # "allow any host" — checked directly in rack-protection's
+          # own source); its DEVELOPMENT default is the restrictive
+          # one (only localhost/.test), which is what Sinatra falls
+          # back to when NEITHER RACK_ENV nor APP_ENV is set. A real,
+          # live "Host not permitted" 403 against this function's own
+          # unpredictable *.lambda-url.*.on.aws hostname caught the
+          # gap — this function's Environment never set either var.
+          RACK_ENV: production
+          # The precompiled `pg` gem's aarch64-linux native extension
+          # needs GLIBC 2.29+; Lambda's ruby3.2 MANAGED runtime is
+          # Amazon Linux 2 (glibc 2.26) -- a real, live "Init<NameError>:
+          # uninitialized constant PG::Error" caught this (rescuing
+          # PG::Error itself failed to resolve, because pg's own
+          # require died before reaching the file that defines it).
+          # `make deploy`'s own `patch-pg-native` step (this directory's
+          # Makefile) replaces the broken precompiled extension with one
+          # compiled from source, in-container, against a real
+          # SSL-enabled libpq -- and drops that libpq's .so beside it at
+          # /var/task/lib, found by the dynamic loader with NO explicit
+          # LD_LIBRARY_PATH override needed: the base ruby3.2 image's
+          # own baked-in default (`docker inspect
+          # public.ecr.aws/lambda/ruby:3.2-arm64`) is already
+          # "/var/lang/lib:/lib64:/usr/lib64:/var/runtime:/var/runtime/lib:/var/task:/var/task/lib:/opt/lib"
+          # -- setting LD_LIBRARY_PATH here as a Lambda env var
+          # REPLACES that whole list rather than extending it (a real,
+          # live gotcha: Lambda env vars always fully override a
+          # same-named baked-in image env, never merge with it), which
+          # is exactly what broke Ruby's OWN interpreter startup
+          # ("libcrypt.so.1: cannot open shared object file") the one
+          # time this was set explicitly, before libpq.so.5.16 itself
+          # ever got a chance to matter.
+          # Member's own permanent Postgres connection — the SAME RDS
+          # instance #{logical_id} itself writes rust/host's flat
+          # journal into, different database engine role (Ruby's own
+          # era/lineage schema, not rust/host's), never the real
+          # Fly-hosted Postgres this whole effort is retiring away from.
+          DATABASE_URL: !Sub
+            - "postgres://postgres:${DbPass}@${DbHost}:5432/#{domain_name}"
+            - DbPass: !Sub "{{resolve:secretsmanager:${#{secret_sub}}:SecretString:password}}"
+              DbHost: !GetAtt #{db_ref_id}.Endpoint.Address
+          SESSION_SECRET: !Sub "{{resolve:secretsmanager:${#{web_logical_id}SessionSecret}:SecretString:session_secret}}"
+          #{google_oauth_present ? <<~GOOGLE.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip : <<~NOOAUTH.each_line.with_index.map { |l, i| i.zero? ? l : "        " + l }.join.rstrip}
+          # By NAME, not `!Ref` to a stack resource -- #{web_logical_id}GoogleOauth
+          # is deliberately NOT declared as a CloudFormation resource
+          # here (would need either GenerateSecretString, which can't
+          # invent a real Google client_id/secret, or a value baked
+          # into this git-TRACKED template as plaintext). `make
+          # sync-google-oauth` owns this secret's whole lifecycle
+          # instead, straight from #{domain}'s own gitignored
+          # .env.local, outside CloudFormation entirely -- the SAME
+          # "resolved by the deployer's own credentials at deploy
+          # time, never touches the function's execution role" dynamic
+          # -reference mechanism DATABASE_URL/SESSION_SECRET above
+          # already rely on, just pointed at a name instead of a Ref.
+          GOOGLE_CLIENT_ID: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_id}}"
+          GOOGLE_CLIENT_SECRET: !Sub "{{resolve:secretsmanager:#{stack_name}-web-google-oauth:SecretString:client_secret}}"
+          GOOGLE_REDIRECT_URI: !Sub "${WebRedirectBaseUrl}/auth/google/callback"
+          GOOGLE
+          # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI
+          # deliberately NOT set here — #{domain}'s own .env.local has
+          # no real GOOGLE_CLIENT_ID yet, matching Fly's own current
+          # reality (fly secrets list -a embryonaut-founder-app: only
+          # DATABASE_URL and SESSION_SECRET) that nobody has configured
+          # OAuth for this app at all. Drop real credentials into
+          # .env.local and regenerate to wire this up.
+          NOOAUTH
+      VpcConfig:
+        SubnetIds: [!Ref #{db_id}SubnetA, !Ref #{db_id}SubnetB]
+        SecurityGroupIds: [!Ref #{logical_id}SecurityGroup]
+      # LEAST-PRIVILEGE, scoped to #{logical_id}'s own ARN specifically
+      # (SAM's own LambdaInvokePolicy template) — WebFunctionRole is
+      # otherwise SAM's bare default execution role (logging only), and
+      # had NO lambda:InvokeFunction permission at all until this: a
+      # real, live AccessDeniedException caught it, the same request
+      # that also caught the wrong-function-name bug just above
+      # (WebFunctionRole is not authorized... on resource
+      # hecksagain-task — this stack has never had ANY policy granting
+      # that action, so the fix isn't complete without adding one).
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref #{logical_id}
+      # NONE, not AWS_IAM — real users need to reach sign-in over
+      # plain HTTPS, unlike #{logical_id}'s own AWS_IAM-protected URL
+      # (this function is the ONLY thing meant to call that one).
+      FunctionUrlConfig:
+        AuthType: NONE
+  WEB
+
+  Outputs:
+    FunctionUrl:
+      Value: !GetAtt #{logical_id}Url.FunctionUrl#{web_handler_present ? "\n  WebFunctionUrl:\n    Value: !GetAtt #{web_logical_id}Url.FunctionUrl" : ""}
+    # STACK_OUTPUTS (bin/project_deploy, above the heredocs) is the ONE
+    # place these four names live — DatabaseEndpoint/DatabaseSecretArn
+    # feed `make mint-era`'s own boot step directly; VpcId/
+    # DbSecurityGroupId ALSO feed bastion.yaml's own Parameters (a
+    # separate, sibling stack, created only for the few minutes a mint
+    # takes and destroyed right after, attaching into the SAME private
+    # network without this main template ever knowing a bastion
+    # exists) and the Makefile's own --parameter-overrides. Rename a
+    # key in that table and every consumer follows; reference one that
+    # doesn't exist there and bin/project_deploy refuses before
+    # writing a single file, instead of a bastion.yaml whose Parameter
+    # nothing could ever fill. (`PrivateSubnetId` used to sit here too
+    # — dropped, nothing ever consumed it; bastion.yaml mints its own
+    # subnet instead.)
+    #{STACK_OUTPUTS.map { |o| "#{o[:key]}:\n    Value: #{o[:ref]}" }.join("\n  ")}
+YAML
+
+# THE EPHEMERAL ERA-MINTING BASTION — a SEPARATE, sibling stack
+# (`#{stack_name}-bastion`), never merged into template.yaml itself.
+# The main stack stays exactly as minimal as its own header already
+# commits to (no NAT gateway, no bastion sitting there costing money
+# by default) — this template only ever exists for the few minutes
+# `make mint-era` (below) needs it, then gets deleted. SSM Session
+# Manager only, never SSH: no key pair, no inbound security group rule
+# at all (the instance's own SG declares zero Ingress) — the ONLY way
+# in is `aws ssm start-session`, itself gated by the caller's own IAM
+# permissions, nothing this template opens to the internet.
+# SKIPPED ENTIRELY when `shared` — this domain provisions no RDS/VPC
+# of its own for a bastion to reach (BASTION_PARAMETERS is empty for
+# the same reason, above); a bare `!Ref VpcId` with no declared
+# Parameter would just fail at deploy time. Era-minting for a
+# Shared-mode domain reuses its OWNER's own already-standing
+# infrastructure instead — see the Makefile's own `mint-era` comment
+# for the manual path this leaves until that's automated too.
+unless shared
+File.write(File.join(out_dir, "bastion.yaml"), <<~YAML)
+  # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
+  # this file rather than hand-editing. Deployed and destroyed by
+  # `make mint-era` (this directory's own Makefile) — never left
+  # running: it exists only long enough for one Ruby boot to reach
+  # #{domain_name}'s private RDS instance and mint era 1 (see
+  # template.yaml's own HECKS_DOMAIN/HECKS_ERA comment for why era 1
+  # is knowable ahead of time).
+  AWSTemplateFormatVersion: '2010-09-09'
+  Description: >
+    TEMPORARY — #{domain_name}'s era-minting bastion. Deployed and torn
+    down by `make mint-era`; not meant to run continuously.
+
+  # BASTION_PARAMETERS (bin/project_deploy) — the OTHER end of the
+  # contract template.yaml's own Outputs comment describes; the
+  # Makefile's --parameter-overrides line (below, mint-era target)
+  # fills these from the same table.
+  Parameters:
+    #{BASTION_PARAMETERS.map { |p| "#{p[:name]}:\n    Type: #{p[:type]}" }.join("\n  ")}
+
+  Resources:
+    #{google_oauth_present ? <<~REUSEPUBLIC.each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip : <<~OWNPUBLIC.each_line.with_index.map { |l, i| (i.zero? ? "" : "  ") + l }.join.rstrip}
+    # BastionSubnetId, not a subnet minted here — template.yaml's own
+    # #{db_id}BastionPublicSubnet (and the Internet Gateway it shares
+    # with #{db_id}PublicSubnet) already exist once google_oauth_present
+    # is true, and a VPC accepts only ONE attached Internet Gateway:
+    # this stack's own BastionInternetGateway (below, the no-oauth
+    # branch) would collide with it -- a real, live
+    # "Resource.AlreadyAssociated" caught this. Its own subnet, not
+    # PublicSubnetId directly, despite sharing that subnet's route
+    # table -- PublicSubnetId's AZ can't launch EC2 instances at all on
+    # this account (a real, live CREATE_FAILED caught THAT too); see
+    # BastionSubnetId's own STACK_OUTPUTS comment for the full story.
+    REUSEPUBLIC
+    # A NEW public subnet, not the RDS's own private ones — those have
+    # no internet route at all (template.yaml's own "NO NAT GATEWAY"
+    # header), and the SSM agent needs to reach AWS's own SSM
+    # endpoints over HTTPS. 10.0.99.0/24 is picked to sit outside
+    # template.yaml's own 10.0.1.0/24 and 10.0.2.0/24 ranges inside the
+    # same /16 VPC.
+    BastionSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref VpcId
+        CidrBlock: 10.0.99.0/24
+        AvailabilityZone: !Select [1, !GetAZs '']
+        MapPublicIpOnLaunch: true
+
+    BastionInternetGateway:
+      Type: AWS::EC2::InternetGateway
+
+    BastionVpcGatewayAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref VpcId
+        InternetGatewayId: !Ref BastionInternetGateway
+
+    BastionRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VpcId
+
+    BastionInternetRoute:
+      Type: AWS::EC2::Route
+      DependsOn: BastionVpcGatewayAttachment
+      Properties:
+        RouteTableId: !Ref BastionRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref BastionInternetGateway
+
+    BastionSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId: !Ref BastionSubnet
+        RouteTableId: !Ref BastionRouteTable
+
+    OWNPUBLIC
+    # ZERO Ingress rules — SSM Session Manager is outbound-only from
+    # the instance's side (it dials out to AWS's SSM service), so
+    # nothing needs to reach this instance over the network at all,
+    # despite it sitting in a public subnet with a public IP.
+    BastionSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        VpcId: !Ref VpcId
+        # A plain hyphen, not an em-dash - EC2's GroupDescription field
+        # rejects any non-ASCII character outright (the same class of
+        # bug already caught once this session on RDS's own
+        # DBSubnetGroupDescription - see template.yaml's git history).
+        GroupDescription: "TEMPORARY era-minting bastion - SSM only, no inbound rules"
+
+    BastionToRds:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        GroupId: !Ref RdsSecurityGroupId
+        IpProtocol: tcp
+        FromPort: 5432
+        ToPort: 5432
+        SourceSecurityGroupId: !Ref BastionSecurityGroup
+
+    BastionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: { Service: ec2.amazonaws.com }
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+    BastionInstanceProfile:
+      Type: AWS::IAM::InstanceProfile
+      Properties:
+        Roles: [!Ref BastionRole]
+
+    BastionInstance:
+      Type: AWS::EC2::Instance
+      Properties:
+        # Amazon Linux 2023's own SSM parameter — always the current
+        # AL2023 AMI for whatever region this deploys into, never a
+        # hand-copied, region-specific, staleness-prone AMI id.
+        ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+        InstanceType: t3.micro
+        SubnetId: !Ref #{google_oauth_present ? "BastionSubnetId" : "BastionSubnet"}
+        SecurityGroupIds: [!Ref BastionSecurityGroup]
+        IamInstanceProfile: !Ref BastionInstanceProfile
+        Tags:
+          - { Key: Name, Value: #{stack_name}-bastion }
+
+  Outputs:
+    InstanceId:
+      Value: !Ref BastionInstance
+YAML
+puts "wrote #{out_dir}/bastion.yaml"
+end
+
+# `mint-era`'s own recipe body — a top-level variable, not inlined at
+# its call site inside the Makefile heredoc below, on purpose: Make
+# recipe lines need a literal TAB as their true first character (no
+# leading spaces at all), and nesting this heredoc a second level
+# deeper inside another `#{...}` interpolation (the way OWNDB/PARAMS
+# above handle conditional template.yaml content) would need its own
+# per-line re-indent pass — one that adds SPACES before every line
+# including the already-tab-prefixed recipe ones, corrupting Make's
+# own recipe-line detection. A single top-level heredoc, each line
+# already at its own final indentation (recipe lines as "  \t..." —
+# the SAME two-space-before-the-tab convention every other recipe
+# line in this Makefile already uses, stripped by the encolosing
+# `<<~MAKE` heredoc's own squiggly stripping below, same as them),
+# sidesteps that: nothing re-touches an already-correct line twice.
+mint_era_recipe =
+  if shared
+    <<~SHAREDMINT.rstrip
+    # NOT AUTOMATED YET for a Shared-mode domain — it has no RDS/VPC
+    # of its own to stand a temporary bastion next to (bastion.yaml
+    # itself isn't even generated here — bin/project_deploy's own
+    # comment on why). Minting era 1 for #{domain_name}'s own schema
+    # needs a tunnel to #{owner_domain_name}'s ALREADY-EXISTING RDS
+    # instance instead -- reuse #{owner_domain_name}'s own deploy
+    # directory's `make mint-era` machinery (or an already-open
+    # tunnel to it) to run this domain's own boot against
+    # `postgres://...@<tunnel-host>:<port>/#{owner_db_name}` with
+    # `schema: #{domain_name.inspect}` in LineageManager.check!'s own
+    # settings -- the exact same call this target runs automatically
+    # for a domain with its own dedicated instance.
+    \t@echo "mint-era isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see this target's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel."; \\
+    \texit 1
+    SHAREDMINT
+  else
+    <<~OWNMINT.rstrip
+    \t@echo "Looking up $(STACK)'s VPC/security group..."
+    # STACK_OUTPUTS/BASTION_PARAMETERS (bin/project_deploy) are the ONE
+    # place these OutputKey strings and parameter names live — this eval
+    # chain and the --parameter-overrides line just below are both
+    # generated from the SAME table template.yaml's Outputs and
+    # bastion.yaml's Parameters already read from.
+    \t#{STACK_OUTPUTS.map { |o| %($(eval #{o[:var]} := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='#{o[:key]}'].OutputValue" --output text))) }.join("\n\t")}
+    \t@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+    \taws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \\
+    \t\t--parameter-overrides #{BASTION_PARAMETERS.map { |p| "#{p[:name]}=$(#{STACK_OUTPUTS.find { |o| o[:key] == p[:from_output] }[:var]})" }.join(" ")} \\
+    \t\t--capabilities CAPABILITY_IAM
+    # ONE continuous shell invocation from here on (every line ends in
+    # \\, joining it to the next) — INSTANCE_ID is a SHELL variable, not
+    # a Make one: a Make-level $$(eval $$(shell ...)) expands at parse
+    # time, BEFORE the `aws cloudformation deploy` line above ever runs,
+    # which would make INSTANCE_ID permanently empty. It can only be
+    # computed here, after the bastion stack genuinely exists.
+    #
+    # A COMMENT LINE MUST NEVER SIT BETWEEN TWO \\-CONTINUED RECIPE
+    # LINES — confirmed live, the hard way: a `#`-prefixed line inserted
+    # between `DB_PASS=...; \\` and the line that used it silently
+    # corrupted Make's own assembly of this whole block into one shell
+    # script, and `DB_PASS` came out empty on the far side despite
+    # printing correctly one line earlier. Every explanatory comment for
+    # this whole chain belongs HERE, before it starts, same as this one —
+    # never spliced into the middle of it.
+    #
+    # BASTION TEARDOWN IS PART OF THIS SAME CHAIN, ALL THE WAY THROUGH —
+    # a prior version of this recipe ended at `exit $$BOOT_STATUS` with
+    # no trailing `\\`, which made Make treat the delete-stack lines
+    # after it as a SEPARATE recipe line, reached only on a zero exit.
+    # A failed boot (bad tunnel, bad `ruby -e` invocation, anything) left
+    # the bastion stack standing forever — including a live 5432 ingress
+    # rule punched into the PRODUCTION RDS security group. Teardown now
+    # runs unconditionally, with BOOT_STATUS captured up front and
+    # returned last, so `make mint-era`'s own exit code still reflects
+    # whether era 1 actually got minted.
+    #
+    # `LineageManager.check!` directly below, NOT `Hecks.boot` — also
+    # confirmed live (the very first real invoke: "relation
+    # \\"hecks_eras\\" does not exist", despite this step itself
+    # reporting success): `Hecks.boot` always dispatches persistence
+    # through whatever the domain's OWN .world file declares
+    # (`persisted_by("Heki")` for a domain that hasn't opted into
+    # Postgres for local dev), by EXPLICIT design — loader.rb's own
+    # comment: "persisted_by(\\"Postgres\\") is never inferred from
+    # anything else." `EraCheck.check!` (what `Hecks.boot` runs) is
+    # itself adapter-capability-gated on that same declaration and simply
+    # no-ops for a non-lineage-capable adapter — it never touches
+    # hecks_eras at all. The fix reuses the SAME loading pipeline
+    # `Loader.boot` itself does (`Ports::Loading.bootstrap`/
+    # `load_library`/`load_project`/`load_domain`) to build a real,
+    # fully-loaded registry (bluebook + any uses_framework attachments),
+    # then calls straight into Postgres's own `LineageManager.check!`
+    # with THIS deploy's actual `DATABASE_URL` — bypassing the world
+    # file's own adapter choice entirely, the same targeted pattern
+    # spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
+    # already uses.
+    \t@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \\
+    \techo "Waiting for $$INSTANCE_ID to register with SSM..."; \\
+    \tfor i in $$(seq 1 30); do \\
+    \t\tSTATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \\
+    \t\tif [ "$$STATUS" = "Online" ]; then break; fi; \\
+    \t\tsleep 5; \\
+    \tdone; \\
+    \techo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1..."; \\
+    \taws ssm start-session --target $$INSTANCE_ID \\
+    \t\t--document-name AWS-StartPortForwardingSessionToRemoteHost \\
+    \t\t--parameters "{\\"host\\":[\\"$(DB_HOST)\\"],\\"portNumber\\":[\\"5432\\"],\\"localPortNumber\\":[\\"15432\\"]}" \\
+    \t\t>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \\
+    \tTUNNEL_PID=$$!; \\
+    \tfor i in $$(seq 1 30); do \\
+    \t\tnc -z localhost 15432 2>/dev/null && break; \\
+    \t\tsleep 1; \\
+    \tdone; \\
+    \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
+    \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{domain_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \\
+    \tBOOT_STATUS=$$?; \\
+    \tkill $$TUNNEL_PID 2>/dev/null; \\
+    \techo "Tearing down the temporary bastion stack..."; \\
+    \taws cloudformation delete-stack --stack-name $(BASTION_STACK); \\
+    \taws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \\
+    \techo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \\
+    \texit $$BOOT_STATUS
+    OWNMINT
+  end
+
+File.write(File.join(out_dir, "Makefile"), <<~MAKE)
+  # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
+  # this file rather than hand-editing.
+  #
+  # `sam build` invokes the build-<LogicalId> target below (SAM's own
+  # BuildMethod: makefile convention — see template.yaml's Metadata).
+  # `cargo lambda` (https://www.cargo-lambda.info) cross-compiles
+  # rust/host for arm64 Lambda without Docker or a hand-configured
+  # cross-linker — install once with `pip3 install cargo-lambda` or
+  # `brew install cargo-lambda`.
+
+  HOST_DIR := #{File.join(root, "rust", "host")}
+  WASM     := #{File.join(root, "rust", "dist", "#{domain_name}.wasm")}
+
+  build-#{logical_id}:
+  \t@command -v cargo-lambda >/dev/null 2>&1 || { \\
+  \t\techo "cargo-lambda isn't installed. Install it once with: pip3 install cargo-lambda"; \\
+  \t\texit 1; \\
+  \t}
+  # ALWAYS rebuilt, never `test -f $(WASM) || ...` — that guard only
+  # checked EXISTENCE, not staleness, so a wasm built once at the
+  # start of a work session silently kept getting deployed through
+  # every later kernel change (a real, live bug: this cost a stale
+  # deploy against a wasm that predated the kernel's own "mutations"
+  # field). `bin/project_wasm` recompiles fast enough that "always
+  # rebuild" is the safe default, matching rust/host's own bootstrap
+  # build just below, which was never guarded this way to begin with.
+  \tcd #{root} && bin/project_wasm #{domain}
+  \t@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
+  # `rustup run stable`, not a bare `cargo lambda` — same reasoning
+  # bin/project_wasm's own Makefile-equivalent line holds itself to: a
+  # `cargo`/`rustc` earlier on PATH than rustup's own shims (Homebrew
+  # installs one; common on this kind of machine) is a DIFFERENT
+  # toolchain that never saw `rustup target add`, and fails with
+  # "can't find crate for \`core\`" for the cross target even though
+  # `rustup target list --installed` reports it present.
+  \tcd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
+  \tcp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
+  \tcp $(WASM) $(ARTIFACTS_DIR)/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} $(ARTIFACTS_DIR)/#{domain_name}.ir.json) : ""}
+
+  # `sam build <resource>` WIPES .aws-sam/build/ entirely before
+  # building just the one resource named -- confirmed live: building
+  # #{web_logical_id} second left NO #{logical_id}/ directory behind at
+  # all, and reverted its OWN built CodeUri back to the raw, unbuilt
+  # source value ("../.." -- CodeUri: . resolved two directories up
+  # from .aws-sam/build/template.yaml). `sam deploy` then zips THAT
+  # directory verbatim as #{logical_id}'s own code -- a real, live
+  # deploy shipped #{web_logical_id}'s own source tree (Gemfile,
+  # lambda_handler.rb, even .env.local) as #{logical_id}'s Lambda
+  # package this way, caught by downloading the actually-deployed
+  # code and finding #{web_logical_id}'s file tree inside it.
+  # `deploy:`'s own two separate `sam build <resource>` calls can
+  # never both survive in .aws-sam/build/ at once — this target
+  # re-populates #{logical_id}'s build directory from the SAME
+  # already-built bootstrap+wasm build-#{logical_id} just produced
+  # (untouched by the second sam build call — only .aws-sam/build/
+  # itself gets wiped, never $(HOST_DIR)/target or $(WASM)) and
+  # repoints the built template's CodeUri back at it.
+  .PHONY: restore-#{logical_id}-build
+  restore-#{logical_id}-build:
+  \t@mkdir -p .aws-sam/build/#{logical_id}
+  \tcp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/#{logical_id}/bootstrap
+  \tcp $(WASM) .aws-sam/build/#{logical_id}/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} .aws-sam/build/#{logical_id}/#{domain_name}.ir.json) : ""}
+  \truby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "#{logical_id}:" } or raise "restore-#{logical_id}-build: #{logical_id} resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-#{logical_id}-build: no CodeUri line found under #{logical_id}"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: #{logical_id}"); File.write(".aws-sam/build/template.yaml", lines.join)'
+
+  # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
+  # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
+  # resolve" (template.yaml's own env vars already assume era 1 —
+  # this is what makes that true). Run ONCE per fresh database, before
+  # the first real `sam deploy` of the Lambda itself; safe to re-run
+  # (a second boot against an already-held era 1 is a no-op — see
+  # era_resolver.rb's own quiet-reboot branch). Stands up bastion.yaml
+  # as its own sibling stack, uses it for one Ruby boot over an SSM
+  # tunnel, then deletes it — nothing from this target is left running
+  # afterward.
+  ROOT      := #{root}
+  DOMAIN    := #{domain}
+  STACK     := #{stack_name}
+  BASTION_STACK := #{stack_name}-bastion
+
+  mint-era:
+  #{mint_era_recipe}
+
+  #{pg_version ? <<~PGNATIVE : ""}
+  # #{web_logical_id}'s own `pg` gem needs a native extension SAM's
+  # default Ruby builder can't produce correctly: the precompiled
+  # aarch64-linux binary needs GLIBC 2.29+, but Lambda's ruby3.2
+  # MANAGED runtime is Amazon Linux 2 (glibc 2.26) — a real, live
+  # "Init<NameError>: uninitialized constant PG::Error" caught this
+  # (rescuing PG::Error itself failed to resolve, because pg's own
+  # `require` died before ever reaching the file that defines it).
+  # Built once, from source, in the SAME container `sam build
+  # --use-container` itself uses (its glibc, not the host's, is what
+  # has to match the deployed runtime) — then cached under
+  # PG_NATIVE_DIR so every later `make deploy` skips straight to the
+  # fast path. Delete that directory to force a clean rebuild.
+  #
+  # OpenSSL is built `no-shared` and linked STATICALLY into libpq, so
+  # the libpq.so this produces carries no runtime dependency on
+  # whatever OpenSSL (if any) happens to already be on the Lambda
+  # execution image — sidesteps the AL2 package conflict between
+  # `openssl-libs` and the build image's own pre-installed
+  # `openssl-snapsafe-libs` entirely, rather than fighting it.
+  PG_NATIVE_DIR := #{root}/tmp/pg-native-arm64-ruby3.2
+
+  $(PG_NATIVE_DIR)/pg_ext.so:
+  \t@mkdir -p $(PG_NATIVE_DIR)
+  \t@echo "Building #{web_logical_id}'s pg native extension from source (cached under $(PG_NATIVE_DIR) after this — a few minutes, one time only)..."
+  \tdocker run --rm --platform linux/arm64 -v $(PG_NATIVE_DIR):/out \\
+  \t\t--entrypoint /bin/bash public.ecr.aws/sam/build-ruby3.2:latest-arm64 -c ' \\
+  \t\t\tset -e; \\
+  \t\t\tyum install -y perl-IPC-Cmd >/dev/null; \\
+  \t\t\tcd /tmp; \\
+  \t\t\tcurl -sL https://www.openssl.org/source/openssl-3.0.15.tar.gz | tar xz; \\
+  \t\t\tcd openssl-3.0.15; \\
+  \t\t\t./Configure linux-aarch64 no-shared no-tests --prefix=/tmp/openssl-install >/dev/null; \\
+  \t\t\tmake -j$$(nproc) >/dev/null; \\
+  \t\t\tmake install_sw >/dev/null; \\
+  \t\t\tcd /tmp; \\
+  \t\t\tcurl -sL https://ftp.postgresql.org/pub/source/v16.4/postgresql-16.4.tar.gz | tar xz; \\
+  \t\t\tcd postgresql-16.4; \\
+  \t\t\tCPPFLAGS="-I/tmp/openssl-install/include" LDFLAGS="-L/tmp/openssl-install/lib" \\
+  \t\t\t\t./configure --without-readline --without-zlib --without-icu --with-ssl=openssl --prefix=/tmp/pg-install >/dev/null; \\
+  \t\t\tmake -C src/include install >/dev/null; \\
+  \t\t\tmake -C src/interfaces/libpq -j$$(nproc) install >/dev/null; \\
+  \t\t\tcd /tmp; \\
+  \t\t\tgem fetch pg -v #{pg_version} --platform ruby >/dev/null; \\
+  \t\t\tgem unpack pg-#{pg_version}.gem --target=/tmp/gemsrc >/dev/null; \\
+  \t\t\tcd /tmp/gemsrc/pg-#{pg_version}/ext; \\
+  \t\t\truby -I.. -I../lib extconf.rb --with-pg-include=/tmp/pg-install/include --with-pg-lib=/tmp/pg-install/lib >/dev/null; \\
+  \t\t\tmake >/dev/null; \\
+  \t\t\tcp pg_ext.so /out/pg_ext.so; \\
+  \t\t\tcp /tmp/pg-install/lib/libpq.so.5.16 /out/libpq.so.5.16; \\
+  \t\t'
+
+  # `find`, not a hardcoded gem-version path — survives #{domain}'s
+  # own pg version bumping in its Gemfile.lock without this Makefile
+  # needing regeneration to match. libpq.so.5.16 lands beside the
+  # rest of #{web_logical_id}'s code at /var/task/lib — the ruby3.2
+  # base image's OWN baked-in LD_LIBRARY_PATH default already searches
+  # that exact path, so no rpath patching AND no explicit
+  # LD_LIBRARY_PATH override belongs in template.yaml (setting one
+  # there REPLACES the image's full default list instead of extending
+  # it — a real, live "libcrypt.so.1: cannot open shared object file"
+  # caught this — #{web_logical_id}'s own Environment no longer sets
+  # it at all, on purpose).
+  .PHONY: patch-pg-native
+  patch-pg-native: $(PG_NATIVE_DIR)/pg_ext.so
+  \t@PG_EXT=$$(find .aws-sam/build/#{web_logical_id}/vendor/bundle -path "*/pg-*/lib/3.2/pg_ext.so" | head -1); \\
+  \t\ttest -n "$$PG_EXT" || { echo "patch-pg-native: no pg_ext.so found under .aws-sam/build/#{web_logical_id} — run sam build --use-container #{web_logical_id} first"; exit 1; }; \\
+  \t\tcp $(PG_NATIVE_DIR)/pg_ext.so "$$PG_EXT"
+  \t@mkdir -p .aws-sam/build/#{web_logical_id}/lib
+  \tcp $(PG_NATIVE_DIR)/libpq.so.5.16 .aws-sam/build/#{web_logical_id}/lib/libpq.so.5.16
+  \tln -sf libpq.so.5.16 .aws-sam/build/#{web_logical_id}/lib/libpq.so.5
+
+  PGNATIVE
+  #{google_oauth_present ? <<~SYNCOAUTH : ""}
+  # Owns #{stack_name}-web-google-oauth's WHOLE lifecycle (create on
+  # first run, update every run after — idempotent, cheap, no reason
+  # to cache the way patch-pg-native's own multi-minute build does) —
+  # deliberately OUTSIDE CloudFormation, straight from #{domain}'s own
+  # gitignored .env.local, so the real client_id/secret never lands in
+  # this generated, git-TRACKED template.yaml as plaintext. Read by
+  # name (`{{resolve:secretsmanager:#{stack_name}-web-google-oauth:...}}`,
+  # template.yaml's own Environment — #{rust_web ? logical_id : web_logical_id}'s
+  # own), not by `!Ref` — see that comment for why this secret isn't a
+  # stack resource at all. NOT nested inside patch-pg-native's own
+  # pg_version gate above -- a real, live "No rule to make target
+  # `sync-google-oauth'" caught that this target used to only exist
+  # when a Ruby WebFunction (with its own pg gem) was also present,
+  # even though Google OAuth itself has nothing to do with pg at all.
+  .PHONY: sync-google-oauth
+  sync-google-oauth:
+  \t@CLIENT_ID=$$(grep '^GOOGLE_CLIENT_ID=' #{domain}/.env.local | cut -d= -f2-); \\
+  \t\tCLIENT_SECRET=$$(grep '^GOOGLE_CLIENT_SECRET=' #{domain}/.env.local | cut -d= -f2-); \\
+  \t\ttest -n "$$CLIENT_ID" -a -n "$$CLIENT_SECRET" || { echo "sync-google-oauth: #{domain}/.env.local is missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET"; exit 1; }; \\
+  \t\tSECRET_JSON=$$(ruby -rjson -e 'puts JSON.generate({client_id: ARGV[0], client_secret: ARGV[1]})' "$$CLIENT_ID" "$$CLIENT_SECRET"); \\
+  \t\taws secretsmanager put-secret-value --secret-id #{stack_name}-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null 2>&1 || \\
+  \t\taws secretsmanager create-secret --name #{stack_name}-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null
+
+  SYNCOAUTH
+  # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
+  # (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe
+  # to run every time — a second boot against an already-held era 1
+  # is a no-op, era_resolver.rb's own quiet-reboot branch) so a fresh
+  # database always ends this command with era 1 actually held, not a
+  # separate step someone has to remember. No hand-run AWS CLI
+  # sequence anywhere in this path.
+  #{google_oauth_present ? <<~OAUTHNOTE : ""}
+  # deploy's own last step below looks up #{web_logical_id}'s
+  # CURRENTLY deployed Function URL live (not tracked anywhere
+  # generated) and passes it as WebRedirectBaseUrl -- see that
+  # Parameter's own comment, above, for why GOOGLE_REDIRECT_URI can't
+  # just be a CloudFormation intrinsic. Empty on a genuine first
+  # deploy (before the Url exists at all); every deploy after that
+  # finds the real, STABLE hostname (confirmed unchanged across every
+  # redeploy this session) and self-heals GOOGLE_REDIRECT_URI to match.
+  OAUTHNOTE
+  .PHONY: deploy mint-era
+  deploy:
+  #{if pg_version
+      "\t# TWO SEPARATE builds, not one `--use-container` run -- that flag is\n\t# global to `sam build`, but #{logical_id} deliberately builds on\n\t# THIS machine's own toolchain (cargo-lambda already cross-compiles\n\t# to arm64 without a container -- build-#{logical_id}'s own comment\n\t# on why), which a generic provided.al2023 container doesn't have\n\t# at all (a real, live \"Make Failed\" caught this). Only #{web_logical_id}\n\t# needs the container, to cross-compile pg's native extension for\n\t# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before\n\t# building just the one named, so #{logical_id}'s own build gets\n\t# restored below (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build --use-container #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build\n\t$(MAKE) patch-pg-native"
+    elsif web_handler_present
+      "\t# TWO SEPARATE builds -- #{web_logical_id} has no native extension to\n\t# cross-compile (no `pg` in #{domain}/Gemfile.lock), so a plain `sam\n\t# build` targets it fine; #{logical_id} still gets its own `sam build\n\t# <resource>` first, then restored below -- `sam build <resource>`\n\t# WIPES .aws-sam/build/ before building just the one named, so the\n\t# second call here would otherwise erase #{logical_id}'s own build\n\t# (restore-#{logical_id}-build's own comment on why).\n\tsam build #{logical_id}\n\tsam build #{web_logical_id}\n\t$(MAKE) restore-#{logical_id}-build"
+    else
+      "\tsam build"
+    end}
+  #{google_oauth_present ? <<~OAUTHDEPLOY.each_line.map { |l| "\t" + l }.join.rstrip : "\tsam deploy"}
+  $(MAKE) sync-google-oauth
+  @WEB_URL=$$(aws lambda get-function-url-config --function-name #{rust_web ? stack_name : "#{stack_name}-web"} --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \\
+  if [ -n "$$WEB_URL" ]; then \\
+  \tsam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"; \\
+  else \\
+  \tsam deploy; \\
+  fi
+  OAUTHDEPLOY
+  \t$(MAKE) mint-era
+MAKE
+
+# EVERYTHING `sam deploy --guided` asks interactively — stack name,
+# region, capabilities, rollback behavior — is already known once the
+# domain and its deployed_to("AwsLambda") block are: none of it needs
+# a human typing answers on every deploy. There's no secret to carry
+# here either now: DATABASE_URL is composed inside the template itself
+# from RDS's own auto-generated Secrets Manager password, so nothing
+# gets typed, saved, or passed as a --parameter-overrides flag at all.
+File.write(File.join(out_dir, "samconfig.toml"), <<~TOML)
+  # GENERATED by bin/project_deploy #{domain} — re-run it to refresh
+  # this file rather than hand-editing.
+  version = 0.1
+
+  [default.deploy.parameters]
+  stack_name = "#{stack_name}"
+  region = "#{region}"
+  resolve_s3 = true
+  s3_prefix = "#{stack_name}"
+  capabilities = "CAPABILITY_IAM"
+  confirm_changeset = false
+  disable_rollback = false
+TOML
+
+puts "wrote #{out_dir}/template.yaml"
+puts "wrote #{out_dir}/bastion.yaml" unless shared
+puts "wrote #{out_dir}/Makefile"
+puts "wrote #{out_dir}/samconfig.toml"
+puts
+puts "deploy from #{out_dir} — one command, nothing to type, nothing to remember:"
+puts "    make deploy"

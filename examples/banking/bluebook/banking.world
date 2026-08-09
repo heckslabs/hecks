@@ -7,4 +7,13 @@ Hecks.world "Banking" do
   projected_by("SqliteProjection") do
     database "data/banking_projection.sqlite3"
   end
+
+  # bin/project_deploy's own real target — `deployed_to` is a generic
+  # settings-bag verb, the same way `persisted_by`/`projected_by` are;
+  # nothing about WorldBuilder needed to change for this to work.
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    memory 512
+    timeout 10
+  end
 end
