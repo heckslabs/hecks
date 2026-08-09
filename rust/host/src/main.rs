@@ -47,18 +47,23 @@ async fn main() -> Result<(), Error> {
     // own WiringError wrapping (`cannot bind Postgres at ... for ...`).
     // DATABASE_URL itself is never interpolated into either message
     // (it carries credentials); the underlying error text is the only
-    // detail that travels.
+    // detail that travels. `{e:#}` (anyhow's alternate/chain format),
+    // not `{e}` -- confirmed live (a real "db error" with the actual
+    // Postgres message underneath silently dropped) that a bare `{}`
+    // Display on a tokio_postgres::Error collapses to a near-useless
+    // generic label ("db error") where `{:#}` shows the real server
+    // text ("db error: ERROR: relation ... does not exist").
     let (client, connection) = tokio_postgres::connect(&database_url, tls)
         .await
-        .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e}"))?;
+        .map_err(|e| format!("connecting to Postgres via DATABASE_URL: {e:#}"))?;
     tokio::spawn(async move {
         if let Err(e) = connection.await {
-            eprintln!("postgres connection error: {e}");
+            eprintln!("postgres connection error: {e:#}");
         }
     });
     journal::ensure_schema(&client)
         .await
-        .map_err(|e| format!("provisioning hecks_lambda_journal: {e}"))?;
+        .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
 
     // Which Ruby-shaped lineage journal/era this deployed binary writes
     // as -- operational facts, like Ruby's own settings[:domain]/
@@ -86,7 +91,7 @@ async fn main() -> Result<(), Error> {
     // raw "relation does not exist" the first time a command lands.
     if !journal::era_exists(&client, &domain, era)
         .await
-        .map_err(|e| format!("checking hecks_eras for {domain} era {era}: {e}"))?
+        .map_err(|e| format!("checking hecks_eras for {domain} era {era}: {e:#}"))?
     {
         return Err(format!(
             "cannot boot: {domain} holds no era {era} in hecks_eras -- \
