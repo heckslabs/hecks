@@ -36,6 +36,33 @@ build-PizzasFunction:
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
 	cp $(WASM) $(ARTIFACTS_DIR)/pizzas.wasm
+	cp /Users/christopheryoung/Projects/hecksagain/rust/dist/pizzas.ir.json $(ARTIFACTS_DIR)/pizzas.ir.json
+
+# `sam build <resource>` WIPES .aws-sam/build/ entirely before
+# building just the one resource named -- confirmed live: building
+# WebFunction second left NO PizzasFunction/ directory behind at
+# all, and reverted its OWN built CodeUri back to the raw, unbuilt
+# source value ("../.." -- CodeUri: . resolved two directories up
+# from .aws-sam/build/template.yaml). `sam deploy` then zips THAT
+# directory verbatim as PizzasFunction's own code -- a real, live
+# deploy shipped WebFunction's own source tree (Gemfile,
+# lambda_handler.rb, even .env.local) as PizzasFunction's Lambda
+# package this way, caught by downloading the actually-deployed
+# code and finding WebFunction's file tree inside it.
+# `deploy:`'s own two separate `sam build <resource>` calls can
+# never both survive in .aws-sam/build/ at once — this target
+# re-populates PizzasFunction's build directory from the SAME
+# already-built bootstrap+wasm build-PizzasFunction just produced
+# (untouched by the second sam build call — only .aws-sam/build/
+# itself gets wiped, never $(HOST_DIR)/target or $(WASM)) and
+# repoints the built template's CodeUri back at it.
+.PHONY: restore-PizzasFunction-build
+restore-PizzasFunction-build:
+	@mkdir -p .aws-sam/build/PizzasFunction
+	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/PizzasFunction/bootstrap
+	cp $(WASM) .aws-sam/build/PizzasFunction/pizzas.wasm
+	cp /Users/christopheryoung/Projects/hecksagain/rust/dist/pizzas.ir.json .aws-sam/build/PizzasFunction/pizzas.ir.json
+	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "PizzasFunction:" } or raise "restore-PizzasFunction-build: PizzasFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-PizzasFunction-build: no CodeUri line found under PizzasFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: PizzasFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
 # `make mint-era` — takes hecksagain-pizzas's RDS instance from freshly
 # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
@@ -127,9 +154,12 @@ mint-era:
 		--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
 		>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \
 	TUNNEL_PID=$$!; \
-	sleep 8; \
+	for i in $$(seq 1 30); do \
+		nc -z localhost 15432 2>/dev/null && break; \
+		sleep 1; \
+	done; \
 	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
-	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/pizzas" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
+	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/pizzas" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
 	BOOT_STATUS=$$?; \
 	kill $$TUNNEL_PID 2>/dev/null; \
 	echo "Tearing down the temporary bastion stack..."; \
@@ -149,11 +179,6 @@ mint-era:
 
 .PHONY: deploy mint-era
 deploy:
-	# TWO SEPARATE builds -- WebFunction has no native extension to
-	# cross-compile (no `pg` in /Users/christopheryoung/Projects/pizzas/Gemfile.lock), so a plain `sam
-	# build` targets it fine; PizzasFunction still gets its own `sam build
-	# <resource>` so the other's prior artifacts aren't cleared.
-	sam build PizzasFunction
-	sam build WebFunction
+	sam build
 	sam deploy
 	$(MAKE) mint-era

@@ -54,3 +54,16 @@ FileUtils.cp(built, out)
 
 puts "wrote #{out}"
 puts %(run it: wasmtime run #{out} < script.json)
+
+# The plain-JSON sidecar domain_generator.rb writes beside metadata.rs
+# — rust/host has no path dependency on this crate (see that file's
+# own comment), so a Rust-native web layer reads this file at runtime
+# instead. Copied alongside the .wasm artifact, not embedded in it,
+# same reasoning HECKS_WASM_PATH already gets an external file rather
+# than a compiled-in constant.
+ir_json = File.join(root, "rust", "src", "generated", target_mod_name, "ir.json")
+if File.exist?(ir_json)
+  ir_out = File.join(dist_dir, "#{target_mod_name}.ir.json")
+  FileUtils.cp(ir_json, ir_out)
+  puts "wrote #{ir_out}"
+end

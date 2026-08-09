@@ -289,6 +289,19 @@ module RustProjection
       end
       puts "wrote #{metadata_path}"
 
+      # SAME `ir`, as a plain file — rust/host deliberately carries no
+      # path dependency on this crate (its own Cargo.toml: the .wasm
+      # module is an opaque, untrusted artifact loaded through wasmtime
+      # at runtime, never linked in as Rust source), so metadata.rs's
+      # own IR_JSON constant is unreachable from rust/host at compile
+      # time. bin/project_wasm copies this sidecar into rust/dist/
+      # beside the .wasm artifact, the same way it already copies that
+      # artifact itself, so a Rust-native web layer (rust/host/src/web.rs)
+      # can read it at runtime via HECKS_IR_PATH.
+      ir_json_path = File.join(mod_dir, "ir.json")
+      File.write(ir_json_path, JSON.pretty_generate(ir))
+      puts "wrote #{ir_json_path}"
+
       registry_path = File.join(mod_dir, "registry.rs")
       File.open(registry_path, "w") do |f|
         f.puts Projector.emit_registry(registry_aggregates)

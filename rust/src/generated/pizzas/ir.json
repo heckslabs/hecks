@@ -1,0 +1,499 @@
+{
+  "ir_version": 1,
+  "name": "Pizzas",
+  "version": null,
+  "vision": "Put toppings on a pizza and sell it to a customer.",
+  "classification": "supporting",
+  "aggregates": [
+    {
+      "name": "Order",
+      "description": "An order that gathers toppings on a pizza and is eventually sold to a customer.",
+      "identified_by": [
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "PizzaName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "pizza",
+          "type": "Pizza",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "toppings",
+          "type": "Topping",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "customer_name",
+          "type": "CustomerName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "PizzaName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a pizza is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Price",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a price is never negative",
+              "canonical": "cents >= 0"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "CustomerName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a customer is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ToppingName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a topping is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ToppingAmount",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an amount is positive",
+              "canonical": "value.positive?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Topping",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "amount",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Size",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "small"
+              ]
+            ],
+            [
+              [
+                "value",
+                "large"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "Pizza",
+          "attributes": [
+            {
+              "name": "price_cents",
+              "type": "Price",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "size",
+              "type": "Size",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "CreatePizza",
+          "role": "Chef",
+          "goal": "Put a new pizza on the menu",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "PizzaName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pizza",
+              "type": "Pizza",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "PizzaCreated"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "AddTopping",
+          "role": "Chef",
+          "goal": "Customize a pizza with an ingredient",
+          "references": "Order",
+          "attributes": [
+            {
+              "name": "topping",
+              "type": "ToppingName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "amount",
+              "type": "ToppingAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a sold pizza cannot be changed",
+              "canonical": "status == \"available\""
+            },
+            {
+              "description": "at most 10 toppings",
+              "canonical": "toppings.size < 10"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "toppings",
+              "op": "append",
+              "fields": {
+                "name": "topping",
+                "amount": "amount"
+              }
+            }
+          ],
+          "emits": [
+            "ToppingAdded"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Purchase",
+          "role": "Customer",
+          "goal": "Buy the pizza",
+          "references": "Order",
+          "attributes": [
+            {
+              "name": "customer_name",
+              "type": "CustomerName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "amount",
+              "type": "Price",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a pizza needs at least one topping",
+              "canonical": "toppings.size.positive?"
+            },
+            {
+              "description": "it must still be available",
+              "canonical": "status == \"available\""
+            },
+            {
+              "description": "a payment was actually made",
+              "canonical": "amount.cents.positive?"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "customer_name",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "customer_name"
+              }
+            },
+            {
+              "target": "status",
+              "op": "set",
+              "source": {
+                "kind": "literal",
+                "value": "sold"
+              }
+            }
+          ],
+          "emits": [
+            "PizzaPurchased"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "available",
+        "transitions": [
+          {
+            "command": "Purchase",
+            "to_state": "sold",
+            "from_state": "available"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Available",
+          "description": null,
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "available"
+            }
+          ],
+          "order_by": {
+            "field": "name",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "CostingLessThan",
+          "description": null,
+          "attributes": [
+            {
+              "name": "ceiling",
+              "type": "Price",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "pizza.price_cents.cents",
+              "op": "lt",
+              "value": ":ceiling"
+            }
+          ],
+          "order_by": {
+            "field": "name",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Expensive",
+          "description": null,
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "pizza.price_cents.cents",
+              "op": "gt",
+              "value": "1000"
+            }
+          ],
+          "order_by": {
+            "field": "name",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [
+    {
+      "name": "OnPizzaPaymentReceived",
+      "on_event": "PizzaPaymentReceived",
+      "trigger_command": "Order.Purchase",
+      "target_domain": null
+    }
+  ],
+  "process_managers": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

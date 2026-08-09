@@ -29,6 +29,7 @@ Hecks.bluebook "Deploy" do
     attribute :memory,   Memory
     attribute :timeout,  Timeout
     attribute :database, Database
+    attribute :web,      Web
 
     value_object "DomainName" do
       attribute :value, String
@@ -54,6 +55,28 @@ Hecks.bluebook "Deploy" do
       one_of do
         member value: "Postgres"
         member value: "Aurora"
+      end
+    end
+
+    # "None" (the default — nothing changes for a domain that names
+    # neither this nor drops a `lambda_handler.rb`, e.g. Banking) or
+    # "Rust" — the domain's OWN Lambda (rust/host) also serves a public
+    # web UI in-process (rust/host/src/web.rs), reading HECKS_IR_PATH
+    # (a plain-JSON sidecar bin/project_wasm writes beside the .wasm
+    # artifact) and dispatching through the SAME in-process
+    # dispatch::handle/read the internal {"verb"}/{"read"} path already
+    # uses — no second Lambda, no VPC Interface Endpoint, no Ruby.
+    # Deliberately NOT "Ruby" as a third member here: a Ruby WebFunction
+    # is the pre-existing, SEPARATE `lambda_handler.rb`-file-presence
+    # mechanism (Embryonaut's own), untouched by this attribute —
+    # bin/project_deploy refuses generation outright if a domain
+    # declares `web "Rust"` AND has a `lambda_handler.rb`, rather than
+    # silently picking one.
+    value_object "Web" do
+      attribute :value, String
+      one_of do
+        member value: "None"
+        member value: "Rust"
       end
     end
 
@@ -94,12 +117,14 @@ Hecks.bluebook "Deploy" do
       attribute :memory,   Memory
       attribute :timeout,  Timeout
       attribute :database, Database
+      attribute :web,      Web
 
       then_set :domain,   to: :domain
       then_set :region,   to: :region
       then_set :memory,   to: :memory
       then_set :timeout,  to: :timeout
       then_set :database, to: :database
+      then_set :web,      to: :web
 
       emits "LambdaTargetDeclared"
     end

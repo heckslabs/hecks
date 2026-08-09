@@ -100,16 +100,62 @@ Resources:
   # DBInstance inside it) is the ONLY thing different from the
   # plain-RDS path below; Adapters::Postgres/tokio_postgres speak
   # the identical wire protocol against either endpoint.
+  # SELF-MANAGED, not ManageMasterUserPassword: true -- confirmed
+  # live that the plain-RDS path's own approach (below) has a real
+  # staleness bug for a Lambda's own Environment: CloudFormation's
+  # `{{resolve:secretsmanager:...}}` only resolves an AUTO-ROTATING
+  # managed secret fresh at the Function resource's OWN creation;
+  # RDS's managed-password feature rotates the password itself
+  # shortly after standing up the cluster (confirmed: the FIRST
+  # resolved password stopped authenticating within minutes), and
+  # neither a Code-only update NOR a later `sam deploy` re-resolved
+  # it -- every subsequent invocation kept authenticating with the
+  # now-stale original value, a real "password authentication
+  # failed" caught live. A self-managed secret (generated once,
+  # here, never auto-rotated) has nothing to go stale: the same
+  # resolved value stays correct for as long as this stack exists.
+  # Scoped to the Aurora path alone -- the plain-RDS path below is
+  # Embryonaut's own already-live, proven arrangement, untouched.
+  PizzasDbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"postgres"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        # Nothing here NEEDS excluding purely for correctness
+        # anymore (rust/host's own parse_database_url never
+        # URI-parses the password segment), but keeping the
+        # generated password free of quote/at-sign/slash is
+        # still the more legible default for anyone pasting
+        # DATABASE_URL by hand while debugging. Deliberately NOT
+        # excluding backslash/apostrophe too, to sidestep YAML's
+        # own nested-quote escaping inside this string entirely
+        # (real, live "found character '@' that cannot start any
+        # token" caught the FIRST attempt at that).
+        ExcludeCharacters: '"@/'
+  
   PizzasDbCluster:
     Type: AWS::RDS::DBCluster
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
+    # Explicit, not left implicit -- MasterUserPassword's own
+    # dynamic reference below doesn't create one on its own (see
+    # PizzasFunction's own comment on this same fact).
+    DependsOn: PizzasDbSecret
     Properties:
       Engine: aurora-postgresql
-      EngineVersion: "16.6"
+      # Matches the plain-RDS path's own EngineVersion exactly
+      # (below) — confirmed real and Serverless-v2-capable via
+      # `aws rds describe-db-engine-versions --engine
+      # aurora-postgresql --engine-version 16.14`
+      # (ServerlessV2FeaturesSupport: 0.0-256.0), unlike the
+      # first guess here ("16.6" -- a real, live "Cannot find
+      # version 16.6 for aurora-postgresql" caught this).
+      EngineVersion: "16.14"
       DatabaseName: pizzas
       MasterUsername: postgres
-      ManageMasterUserPassword: true
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${PizzasDbSecret}:SecretString:password}}"
       StorageEncrypted: true
       DBSubnetGroupName: !Ref PizzasDbSubnetGroup
       VpcSecurityGroupIds: [!Ref PizzasDbSecurityGroup]
@@ -129,6 +175,23 @@ Resources:
 
   PizzasFunction:
     Type: AWS::Serverless::Function
+    # `{{resolve:secretsmanager:...}}` dynamic references do NOT
+    # create an implicit CloudFormation dependency on the referenced
+    # resource (documented AWS behavior) -- PizzasFunction's own
+    # Environment resolves one against PizzasDbSecret below. A plain
+    # `DependsOn: PizzasDbSecret` alone (CREATE_COMPLETE before this
+    # resource's own update starts) still hit a real, live, repeatable
+    # "Secrets Manager can't find the specified secret
+    # (ResourceNotFoundException)" -- CREATE_COMPLETE from
+    # CloudFormation's own perspective doesn't guarantee the secret is
+    # yet READABLE via a dynamic reference from a DIFFERENT resource's
+    # own concurrent update (AWS-side eventual consistency, not a
+    # CloudFormation ordering bug `DependsOn` alone can close).
+    # Chaining through PizzasDbCluster too -- which ALSO reads this
+    # secret, and whose own RDS-side update takes real, substantial
+    # wall-clock time to apply -- gives that propagation window time
+    # to close before PizzasFunction's own resolution is attempted.
+    DependsOn: [PizzasDbSecret, PizzasDbCluster]
     Metadata:
       BuildMethod: makefile
     Properties:
@@ -140,6 +203,35 @@ Resources:
       # `stack_name` above exactly — one name, two places it's read
       # from, never out of sync since both derive from `domain_name`.
       FunctionName: hecksagain-pizzas
+      # EXPLICIT, not omitted -- `sam build EmbryonautFunction` and
+      # `sam build --use-container WebFunction` run as TWO SEPARATE
+      # single-resource invocations (deploy:'s own comment on why:
+      # cargo-lambda cross-compiles on this host directly, pg's
+      # native extension needs the container -- `--use-container` is
+      # a global sam build flag, can't be scoped per-resource). Each
+      # invocation regenerates .aws-sam/build/template.yaml from
+      # THIS source template for every resource, not just the one it
+      # builds -- a resource with no CodeUri here reverts to
+      # CodeUri-less after the SECOND invocation, and `sam deploy`
+      # then defaults a missing CodeUri to the template's own
+      # containing directory (deploy/pizzas/ itself),
+      # zipping the whole project tree -- including WebFunction's
+      # own source -- as this function's code. A real, live deploy
+      # shipped exactly that broken artifact (confirmed via
+      # `aws lambda get-function` + downloading the actual deployed
+      # zip). Pinning CodeUri here survives that regeneration: it
+      # still resolves to `.aws-sam/build/PizzasFunction/`, where
+      # build-PizzasFunction's own `cp ... $(ARTIFACTS_DIR)` already
+      # placed the real bootstrap+wasm, regardless of which of the
+      # two sam build calls ran most recently.
+      # "." NOT "PizzasFunction" -- SAM's Makefile build workflow
+      # requires the Makefile to live INSIDE CodeUri itself
+      # (confirmed live: "Makefile not found at
+      # .../EmbryonautFunction/Makefile" when CodeUri named a
+      # directory of its own). This project's one Makefile lives at
+      # the deploy directory's own root, alongside this template --
+      # "." is where it actually is.
+      CodeUri: .
       PackageType: Zip
       Runtime: provided.al2023
       Architectures: [arm64]
@@ -155,7 +247,7 @@ Resources:
           # plaintext outside AWS's own encrypted handling.
           DATABASE_URL: !Sub
             - "postgres://postgres:${DbPass}@${DbHost}:5432/pizzas"
-            - DbPass: !Sub "{{resolve:secretsmanager:${PizzasDbCluster.MasterUserSecret.SecretArn}:SecretString:password}}"
+            - DbPass: !Sub "{{resolve:secretsmanager:${PizzasDbSecret}:SecretString:password}}"
               DbHost: !GetAtt PizzasDbCluster.Endpoint.Address
           HECKS_WASM_PATH: !Sub "/var/task/pizzas.wasm"
           # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
@@ -171,154 +263,23 @@ Resources:
           # (era 2+) is a separate, later re-generation, not this one.
           HECKS_DOMAIN: Pizzas
           HECKS_ERA: "1"
+          HECKS_IR_PATH: !Sub "/var/task/pizzas.ir.json"
       VpcConfig:
         SubnetIds: [!Ref PizzasDbSubnetA, !Ref PizzasDbSubnetB]
         SecurityGroupIds: [!Ref PizzasFunctionSecurityGroup]
-      # AWS_IAM, not NONE — this dispatches real domain commands
+      # AWS_IAM by default — this dispatches real domain commands
       # (cap-table/governance-shaped data, for Embryonaut's own use);
       # an unauthenticated public URL is the wrong default for that,
-      # even though it's the simpler one to demo with.
-      FunctionUrlConfig:
-        AuthType: AWS_IAM
-  # THE WEB APP'S OWN LAMBDA — opt-in, see `web_handler_present` above.
-  # VPC-attached for the SAME reason PizzasFunction is (Member's own
-  # persistence needs the private RDS instance directly, permanently —
-  # embryonaut.hecksagon's own comment on why), sharing
-  # PizzasFunctionSecurityGroup rather than minting a second one, since
-  # both need the identical egress-to-DB rule. That VPC attachment
-  # ALSO cuts off the public internet by default (this stack's own "NO
-  # NAT GATEWAY" design) — but this function has to reach
-  # PizzasFunction itself via `lambda:InvokeFunction`, a public AWS API
-  # call. WebFunctionLambdaEndpoint below is the targeted fix: a
-  # VPC Interface Endpoint for the Lambda service ONLY (not a NAT
-  # Gateway) — a few dollars a month, not a general internet route.
-  PizzasDbLambdaEndpointSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref PizzasDbVpc
-      # EC2's own GroupDescription character set excludes apostrophes
-      # too, not just em-dashes -- "this stack's own" was a real,
-      # live rejection ("Invalid security group description").
-      GroupDescription: PizzasDbLambdaEndpoint - HTTPS from this stacks own Lambdas only
-  
-  PizzasDbLambdaEndpointIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref PizzasDbLambdaEndpointSecurityGroup
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      SourceSecurityGroupId: !Ref PizzasFunctionSecurityGroup
-  
-  PizzasDbLambdaEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref PizzasDbVpc
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.lambda"
-      VpcEndpointType: Interface
-      PrivateDnsEnabled: true
-      SubnetIds: [!Ref PizzasDbSubnetA, !Ref PizzasDbSubnetB]
-      SecurityGroupIds: [!Ref PizzasDbLambdaEndpointSecurityGroup]
-  
-  # Auto-generated, never typed or seen — the SAME
-  # ManageMasterUserPassword pattern PizzasDb already uses for its own
-  # password, applied to Sinatra's own session-signing secret instead.
-  WebFunctionSessionSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      GenerateSecretString:
-        SecretStringTemplate: '{}'
-        GenerateStringKey: session_secret
-        PasswordLength: 64
-        ExcludePunctuation: true
-  
-  WebFunction:
-    Type: AWS::Serverless::Function
-    # NO Metadata.BuildMethod — "bundler" isn't a real SAM value (a
-    # real, live UnsupportedBuilderException caught this); `Runtime:
-    # ruby3.2` alone is enough for SAM to select its own built-in Ruby
-    # bundler workflow automatically. PizzasFunction's own `BuildMethod:
-    # makefile` above is different: rust/host isn't a runtime SAM
-    # knows how to build at all, so it needs an explicit custom
-    # workflow — this function doesn't.
-    Properties:
-      FunctionName: hecksagain-pizzas-web
-      Runtime: ruby3.2
-      Architectures: [arm64]
-      # THREE parts (file.Class.method), not two — aws-lambda-ric's own
-      # 2-part form calls a plain TOP-LEVEL function via __send__, not
-      # a module method; /Users/christopheryoung/Projects/pizzas/lambda_handler.rb's own comment on
-      # why its module is WebLambdaHandler (not LambdaHandler) explains
-      # the rest — a real, live "LambdaHandler is not a module" caught
-      # both halves of this the hard way.
-      Handler: lambda_handler.WebLambdaHandler.lambda_handler
-      CodeUri: /Users/christopheryoung/Projects/pizzas
-      MemorySize: 512
-      Timeout: 15
-      Environment:
-        Variables:
-          DOMAIN_ROOT: /var/task
-          DOMAIN_NAME: Pizzas
-          HECKS_LAMBDA_ROUTING: "true"
-          HECKS_LAMBDA_REGION: us-east-1
-          # SAME setting /Users/christopheryoung/Projects/pizzas's own fly.toml/Dockerfile already
-          # sets for the Fly deployment this one replaces — Sinatra's
-          # own `host_authorization` default is only PERMISSIVE in
-          # production mode (an empty `permitted_hosts` list means
-          # "allow any host" — checked directly in rack-protection's
-          # own source); its DEVELOPMENT default is the restrictive
-          # one (only localhost/.test), which is what Sinatra falls
-          # back to when NEITHER RACK_ENV nor APP_ENV is set. A real,
-          # live "Host not permitted" 403 against this function's own
-          # unpredictable *.lambda-url.*.on.aws hostname caught the
-          # gap — this function's Environment never set either var.
-          RACK_ENV: production
-          # The precompiled `pg` gem's aarch64-linux native extension
-          # needs GLIBC 2.29+; Lambda's ruby3.2 MANAGED runtime is
-          # Amazon Linux 2 (glibc 2.26) -- a real, live "Init<NameError>:
-          # uninitialized constant PG::Error" caught this (rescuing
-          # PG::Error itself failed to resolve, because pg's own
-          # require died before reaching the file that defines it).
-          # `make deploy`'s own `patch-pg-native` step (this directory's
-          # Makefile) replaces the broken precompiled extension with one
-          # compiled from source, in-container, against a real
-          # SSL-enabled libpq -- and drops that libpq's .so beside it at
-          # /var/task/lib, found by the dynamic loader with NO explicit
-          # LD_LIBRARY_PATH override needed: the base ruby3.2 image's
-          # own baked-in default (`docker inspect
-          # public.ecr.aws/lambda/ruby:3.2-arm64`) is already
-          # "/var/lang/lib:/lib64:/usr/lib64:/var/runtime:/var/runtime/lib:/var/task:/var/task/lib:/opt/lib"
-          # -- setting LD_LIBRARY_PATH here as a Lambda env var
-          # REPLACES that whole list rather than extending it (a real,
-          # live gotcha: Lambda env vars always fully override a
-          # same-named baked-in image env, never merge with it), which
-          # is exactly what broke Ruby's OWN interpreter startup
-          # ("libcrypt.so.1: cannot open shared object file") the one
-          # time this was set explicitly, before libpq.so.5.16 itself
-          # ever got a chance to matter.
-          # Member's own permanent Postgres connection — the SAME RDS
-          # instance PizzasFunction itself writes rust/host's flat
-          # journal into, different database engine role (Ruby's own
-          # era/lineage schema, not rust/host's), never the real
-          # Fly-hosted Postgres this whole effort is retiring away from.
-          DATABASE_URL: !Sub
-            - "postgres://postgres:${DbPass}@${DbHost}:5432/pizzas"
-            - DbPass: !Sub "{{resolve:secretsmanager:${PizzasDbCluster.MasterUserSecret.SecretArn}:SecretString:password}}"
-              DbHost: !GetAtt PizzasDbCluster.Endpoint.Address
-          SESSION_SECRET: !Sub "{{resolve:secretsmanager:${WebFunctionSessionSecret}:SecretString:session_secret}}"
-          # GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI
-          # deliberately NOT set here — /Users/christopheryoung/Projects/pizzas's own .env.local has
-          # no real GOOGLE_CLIENT_ID yet, matching Fly's own current
-          # reality (fly secrets list -a embryonaut-founder-app: only
-          # DATABASE_URL and SESSION_SECRET) that nobody has configured
-          # OAuth for this app at all. Drop real credentials into
-          # .env.local and regenerate to wire this up.
-      VpcConfig:
-        SubnetIds: [!Ref PizzasDbSubnetA, !Ref PizzasDbSubnetB]
-        SecurityGroupIds: [!Ref PizzasFunctionSecurityGroup]
-      # NONE, not AWS_IAM — real users need to reach sign-in over
-      # plain HTTPS, unlike PizzasFunction's own AWS_IAM-protected URL
-      # (this function is the ONLY thing meant to call that one).
+      # even though it's the simpler one to demo with. NONE only when
+      # `web "Rust"` (rust/host/src/web.rs) makes this the public web
+      # UI itself — safe even though the SAME Function URL also
+      # carries the internal {"verb"}/{"read"} dispatch shapes,
+      # because a Function-URL HTTP event can never be crafted into
+      # that raw top-level shape (Function URLs always wrap the real
+      # HTTP body inside requestContext.http/rawPath/event.body,
+      # unconditionally); that raw shape is reachable only through
+      # the AWS SDK's own IAM-authenticated Invoke API, which never
+      # goes through a Function URL at all.
       FunctionUrlConfig:
         AuthType: NONE
 
@@ -326,8 +287,6 @@ Resources:
 Outputs:
   FunctionUrl:
     Value: !GetAtt PizzasFunctionUrl.FunctionUrl
-  WebFunctionUrl:
-    Value: !GetAtt WebFunctionUrl.FunctionUrl
   # STACK_OUTPUTS (bin/project_deploy, above the heredocs) is the ONE
   # place these four names live — DatabaseEndpoint/DatabaseSecretArn
   # feed `make mint-era`'s own boot step directly; VpcId/
@@ -349,4 +308,4 @@ Outputs:
   DatabaseEndpoint:
     Value: !GetAtt PizzasDbCluster.Endpoint.Address
   DatabaseSecretArn:
-    Value: !GetAtt PizzasDbCluster.MasterUserSecret.SecretArn
+    Value: !Ref PizzasDbSecret
