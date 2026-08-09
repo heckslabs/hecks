@@ -10,55 +10,32 @@ Description: >
   TEMPORARY — embryonaut's era-minting bastion. Deployed and torn
   down by `make mint-era`; not meant to run continuously.
 
+# BASTION_PARAMETERS (bin/project_deploy) — the OTHER end of the
+# contract template.yaml's own Outputs comment describes; the
+# Makefile's --parameter-overrides line (below, mint-era target)
+# fills these from the same table.
 Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id
   RdsSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
+  PublicSubnetId:
+    Type: AWS::EC2::Subnet::Id
+  BastionSubnetId:
+    Type: AWS::EC2::Subnet::Id
 
 Resources:
-  # A NEW public subnet, not the RDS's own private ones — those have
-  # no internet route at all (template.yaml's own "NO NAT GATEWAY"
-  # header), and the SSM agent needs to reach AWS's own SSM
-  # endpoints over HTTPS. 10.0.99.0/24 is picked to sit outside
-  # template.yaml's own 10.0.1.0/24 and 10.0.2.0/24 ranges inside the
-  # same /16 VPC.
-  BastionSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VpcId
-      CidrBlock: 10.0.99.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
-      MapPublicIpOnLaunch: true
-
-  BastionInternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  BastionVpcGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref VpcId
-      InternetGatewayId: !Ref BastionInternetGateway
-
-  BastionRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VpcId
-
-  BastionInternetRoute:
-    Type: AWS::EC2::Route
-    DependsOn: BastionVpcGatewayAttachment
-    Properties:
-      RouteTableId: !Ref BastionRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref BastionInternetGateway
-
-  BastionSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref BastionSubnet
-      RouteTableId: !Ref BastionRouteTable
-
+  # BastionSubnetId, not a subnet minted here — template.yaml's own
+  # EmbryonautDbBastionPublicSubnet (and the Internet Gateway it shares
+  # with EmbryonautDbPublicSubnet) already exist once google_oauth_present
+  # is true, and a VPC accepts only ONE attached Internet Gateway:
+  # this stack's own BastionInternetGateway (below, the no-oauth
+  # branch) would collide with it -- a real, live
+  # "Resource.AlreadyAssociated" caught this. Its own subnet, not
+  # PublicSubnetId directly, despite sharing that subnet's route
+  # table -- PublicSubnetId's AZ can't launch EC2 instances at all on
+  # this account (a real, live CREATE_FAILED caught THAT too); see
+  # BastionSubnetId's own STACK_OUTPUTS comment for the full story.
   # ZERO Ingress rules — SSM Session Manager is outbound-only from
   # the instance's side (it dials out to AWS's SSM service), so
   # nothing needs to reach this instance over the network at all,
@@ -107,7 +84,7 @@ Resources:
       # hand-copied, region-specific, staleness-prone AMI id.
       ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
       InstanceType: t3.micro
-      SubnetId: !Ref BastionSubnet
+      SubnetId: !Ref BastionSubnetId
       SecurityGroupIds: [!Ref BastionSecurityGroup]
       IamInstanceProfile: !Ref BastionInstanceProfile
       Tags:

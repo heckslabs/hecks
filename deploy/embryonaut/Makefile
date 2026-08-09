@@ -37,6 +37,31 @@ build-EmbryonautFunction:
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
 	cp $(WASM) $(ARTIFACTS_DIR)/embryonaut.wasm
 
+# `sam build <resource>` WIPES .aws-sam/build/ entirely before
+# building just the one resource named -- confirmed live: building
+# WebFunction second left NO EmbryonautFunction/ directory behind at
+# all, and reverted its OWN built CodeUri back to the raw, unbuilt
+# source value ("../.." -- CodeUri: . resolved two directories up
+# from .aws-sam/build/template.yaml). `sam deploy` then zips THAT
+# directory verbatim as EmbryonautFunction's own code -- a real, live
+# deploy shipped WebFunction's own source tree (Gemfile,
+# lambda_handler.rb, even .env.local) as EmbryonautFunction's Lambda
+# package this way, caught by downloading the actually-deployed
+# code and finding WebFunction's file tree inside it.
+# `deploy:`'s own two separate `sam build <resource>` calls can
+# never both survive in .aws-sam/build/ at once — this target
+# re-populates EmbryonautFunction's build directory from the SAME
+# already-built bootstrap+wasm build-EmbryonautFunction just produced
+# (untouched by the second sam build call — only .aws-sam/build/
+# itself gets wiped, never $(HOST_DIR)/target or $(WASM)) and
+# repoints the built template's CodeUri back at it.
+.PHONY: restore-EmbryonautFunction-build
+restore-EmbryonautFunction-build:
+	@mkdir -p .aws-sam/build/EmbryonautFunction
+	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/EmbryonautFunction/bootstrap
+	cp $(WASM) .aws-sam/build/EmbryonautFunction/embryonaut.wasm
+	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "EmbryonautFunction:" } or raise "restore-EmbryonautFunction-build: EmbryonautFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-EmbryonautFunction-build: no CodeUri line found under EmbryonautFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: EmbryonautFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
+
 # `make mint-era` — takes hecksagain-embryonaut's RDS instance from freshly
 # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to
 # resolve" (template.yaml's own env vars already assume era 1 —
@@ -54,13 +79,20 @@ BASTION_STACK := hecksagain-embryonaut-bastion
 
 mint-era:
 	@echo "Looking up $(STACK)'s VPC/security group..."
+# STACK_OUTPUTS/BASTION_PARAMETERS (bin/project_deploy) are the ONE
+# place these OutputKey strings and parameter names live — this eval
+# chain and the --parameter-overrides line just below are both
+# generated from the SAME table template.yaml's Outputs and
+# bastion.yaml's Parameters already read from.
 	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
 	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
 	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
 	$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
+	$(eval PUBLIC_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text))
+	$(eval BASTION_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue" --output text))
 	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
 	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
-		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) \
+		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) PublicSubnetId=$(PUBLIC_SUBNET_ID) BastionSubnetId=$(BASTION_SUBNET_ID) \
 		--capabilities CAPABILITY_IAM
 # ONE continuous shell invocation from here on (every line ends in
 # \, joining it to the next) — INSTANCE_ID is a SHELL variable, not
@@ -77,6 +109,17 @@ mint-era:
 # printing correctly one line earlier. Every explanatory comment for
 # this whole chain belongs HERE, before it starts, same as this one —
 # never spliced into the middle of it.
+#
+# BASTION TEARDOWN IS PART OF THIS SAME CHAIN, ALL THE WAY THROUGH —
+# a prior version of this recipe ended at `exit $$BOOT_STATUS` with
+# no trailing `\`, which made Make treat the delete-stack lines
+# after it as a SEPARATE recipe line, reached only on a zero exit.
+# A failed boot (bad tunnel, bad `ruby -e` invocation, anything) left
+# the bastion stack standing forever — including a live 5432 ingress
+# rule punched into the PRODUCTION RDS security group. Teardown now
+# runs unconditionally, with BOOT_STATUS captured up front and
+# returned last, so `make mint-era`'s own exit code still reflects
+# whether era 1 actually got minted.
 #
 # `LineageManager.check!` directly below, NOT `Hecks.boot` — also
 # confirmed live (the very first real invoke: "relation
@@ -111,16 +154,110 @@ mint-era:
 		--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
 		>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \
 	TUNNEL_PID=$$!; \
-	sleep 8; \
+	for i in $$(seq 1 30); do \
+		nc -z localhost 15432 2>/dev/null && break; \
+		sleep 1; \
+	done; \
 	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
-	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
+	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"] }); puts "booted OK — era resolution ran"' $(DOMAIN); \
 	BOOT_STATUS=$$?; \
 	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \
 	exit $$BOOT_STATUS
-	@echo "Tearing down the temporary bastion stack..."
-	aws cloudformation delete-stack --stack-name $(BASTION_STACK)
-	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK)
-	@echo "$(BASTION_STACK) deleted. Era 1 should now be held — verify with bin/console or a Postgres query against hecks_eras."
+
+# WebFunction's own `pg` gem needs a native extension SAM's
+# default Ruby builder can't produce correctly: the precompiled
+# aarch64-linux binary needs GLIBC 2.29+, but Lambda's ruby3.2
+# MANAGED runtime is Amazon Linux 2 (glibc 2.26) — a real, live
+# "Init<NameError>: uninitialized constant PG::Error" caught this
+# (rescuing PG::Error itself failed to resolve, because pg's own
+# `require` died before ever reaching the file that defines it).
+# Built once, from source, in the SAME container `sam build
+# --use-container` itself uses (its glibc, not the host's, is what
+# has to match the deployed runtime) — then cached under
+# PG_NATIVE_DIR so every later `make deploy` skips straight to the
+# fast path. Delete that directory to force a clean rebuild.
+#
+# OpenSSL is built `no-shared` and linked STATICALLY into libpq, so
+# the libpq.so this produces carries no runtime dependency on
+# whatever OpenSSL (if any) happens to already be on the Lambda
+# execution image — sidesteps the AL2 package conflict between
+# `openssl-libs` and the build image's own pre-installed
+# `openssl-snapsafe-libs` entirely, rather than fighting it.
+PG_NATIVE_DIR := /Users/christopheryoung/Projects/hecksagain/tmp/pg-native-arm64-ruby3.2
+
+$(PG_NATIVE_DIR)/pg_ext.so:
+	@mkdir -p $(PG_NATIVE_DIR)
+	@echo "Building WebFunction's pg native extension from source (cached under $(PG_NATIVE_DIR) after this — a few minutes, one time only)..."
+	docker run --rm --platform linux/arm64 -v $(PG_NATIVE_DIR):/out \
+		--entrypoint /bin/bash public.ecr.aws/sam/build-ruby3.2:latest-arm64 -c ' \
+			set -e; \
+			yum install -y perl-IPC-Cmd >/dev/null; \
+			cd /tmp; \
+			curl -sL https://www.openssl.org/source/openssl-3.0.15.tar.gz | tar xz; \
+			cd openssl-3.0.15; \
+			./Configure linux-aarch64 no-shared no-tests --prefix=/tmp/openssl-install >/dev/null; \
+			make -j$$(nproc) >/dev/null; \
+			make install_sw >/dev/null; \
+			cd /tmp; \
+			curl -sL https://ftp.postgresql.org/pub/source/v16.4/postgresql-16.4.tar.gz | tar xz; \
+			cd postgresql-16.4; \
+			CPPFLAGS="-I/tmp/openssl-install/include" LDFLAGS="-L/tmp/openssl-install/lib" \
+				./configure --without-readline --without-zlib --without-icu --with-ssl=openssl --prefix=/tmp/pg-install >/dev/null; \
+			make -C src/include install >/dev/null; \
+			make -C src/interfaces/libpq -j$$(nproc) install >/dev/null; \
+			cd /tmp; \
+			gem fetch pg -v 1.6.3 --platform ruby >/dev/null; \
+			gem unpack pg-1.6.3.gem --target=/tmp/gemsrc >/dev/null; \
+			cd /tmp/gemsrc/pg-1.6.3/ext; \
+			ruby -I.. -I../lib extconf.rb --with-pg-include=/tmp/pg-install/include --with-pg-lib=/tmp/pg-install/lib >/dev/null; \
+			make >/dev/null; \
+			cp pg_ext.so /out/pg_ext.so; \
+			cp /tmp/pg-install/lib/libpq.so.5.16 /out/libpq.so.5.16; \
+		'
+
+# `find`, not a hardcoded gem-version path — survives /Users/christopheryoung/Projects/embryonaut's
+# own pg version bumping in its Gemfile.lock without this Makefile
+# needing regeneration to match. libpq.so.5.16 lands beside the
+# rest of WebFunction's code at /var/task/lib — the ruby3.2
+# base image's OWN baked-in LD_LIBRARY_PATH default already searches
+# that exact path, so no rpath patching AND no explicit
+# LD_LIBRARY_PATH override belongs in template.yaml (setting one
+# there REPLACES the image's full default list instead of extending
+# it — a real, live "libcrypt.so.1: cannot open shared object file"
+# caught this — WebFunction's own Environment no longer sets
+# it at all, on purpose).
+.PHONY: patch-pg-native
+patch-pg-native: $(PG_NATIVE_DIR)/pg_ext.so
+	@PG_EXT=$$(find .aws-sam/build/WebFunction/vendor/bundle -path "*/pg-*/lib/3.2/pg_ext.so" | head -1); \
+		test -n "$$PG_EXT" || { echo "patch-pg-native: no pg_ext.so found under .aws-sam/build/WebFunction — run sam build --use-container WebFunction first"; exit 1; }; \
+		cp $(PG_NATIVE_DIR)/pg_ext.so "$$PG_EXT"
+	@mkdir -p .aws-sam/build/WebFunction/lib
+	cp $(PG_NATIVE_DIR)/libpq.so.5.16 .aws-sam/build/WebFunction/lib/libpq.so.5.16
+	ln -sf libpq.so.5.16 .aws-sam/build/WebFunction/lib/libpq.so.5
+
+# Owns hecksagain-embryonaut-web-google-oauth's WHOLE lifecycle (create on
+# first run, update every run after — idempotent, cheap, no reason
+# to cache the way patch-pg-native's own multi-minute build does) —
+# deliberately OUTSIDE CloudFormation, straight from /Users/christopheryoung/Projects/embryonaut's own
+# gitignored .env.local, so the real client_id/secret never lands in
+# this generated, git-TRACKED template.yaml as plaintext. Read by
+# name (`{{resolve:secretsmanager:hecksagain-embryonaut-web-google-oauth:...}}`,
+# template.yaml's own WebFunction Environment), not by `!Ref` —
+# see that comment for why this secret isn't a stack resource at all.
+.PHONY: sync-google-oauth
+sync-google-oauth:
+	@CLIENT_ID=$$(grep '^GOOGLE_CLIENT_ID=' /Users/christopheryoung/Projects/embryonaut/.env.local | cut -d= -f2-); \
+		CLIENT_SECRET=$$(grep '^GOOGLE_CLIENT_SECRET=' /Users/christopheryoung/Projects/embryonaut/.env.local | cut -d= -f2-); \
+		test -n "$$CLIENT_ID" -a -n "$$CLIENT_SECRET" || { echo "sync-google-oauth: /Users/christopheryoung/Projects/embryonaut/.env.local is missing GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET"; exit 1; }; \
+		SECRET_JSON=$$(ruby -rjson -e 'puts JSON.generate({client_id: ARGV[0], client_secret: ARGV[1]})' "$$CLIENT_ID" "$$CLIENT_SECRET"); \
+		aws secretsmanager put-secret-value --secret-id hecksagain-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null 2>&1 || \
+		aws secretsmanager create-secret --name hecksagain-embryonaut-web-google-oauth --secret-string "$$SECRET_JSON" >/dev/null
+
+
 
 # `make deploy` — THE one command. Chains `sam build`, `sam deploy`
 # (creates/updates the VPC+RDS+Lambda stack), then `mint-era` (safe
@@ -129,6 +266,15 @@ mint-era:
 # database always ends this command with era 1 actually held, not a
 # separate step someone has to remember. No hand-run AWS CLI
 # sequence anywhere in this path.
+# deploy's own last step below looks up WebFunction's
+# CURRENTLY deployed Function URL live (not tracked anywhere
+# generated) and passes it as WebRedirectBaseUrl -- see that
+# Parameter's own comment, above, for why GOOGLE_REDIRECT_URI can't
+# just be a CloudFormation intrinsic. Empty on a genuine first
+# deploy (before the Url exists at all); every deploy after that
+# finds the real, STABLE hostname (confirmed unchanged across every
+# redeploy this session) and self-heals GOOGLE_REDIRECT_URI to match.
+
 .PHONY: deploy mint-era
 deploy:
 	# TWO SEPARATE builds, not one `--use-container` run -- that flag is
@@ -138,9 +284,14 @@ deploy:
 	# on why), which a generic provided.al2023 container doesn't have
 	# at all (a real, live "Make Failed" caught this). Only WebFunction
 	# needs the container, to cross-compile pg's native extension for
-	# Amazon Linux -- `sam build <resource>` targets just one function
-	# without clearing the other's prior artifacts.
+	# Amazon Linux -- `sam build <resource>` WIPES .aws-sam/build/ before
+	# building just the one named, so EmbryonautFunction's own build gets
+	# restored below (restore-EmbryonautFunction-build's own comment on why).
 	sam build EmbryonautFunction
 	sam build --use-container WebFunction
-	sam deploy
+	$(MAKE) restore-EmbryonautFunction-build
+	$(MAKE) patch-pg-native
+	$(MAKE) sync-google-oauth
+	@WEB_URL=$$(aws lambda get-function-url-config --function-name hecksagain-embryonaut-web --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \
+	sam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"
 	$(MAKE) mint-era
