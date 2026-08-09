@@ -4,6 +4,7 @@ require_relative "event"
 require_relative "errors"
 require_relative "../naming"
 require_relative "../adapters/driven/lambda/client"
+require_relative "../ports/persistence/binding_policy"
 
 module Hecksagain
   module Runtime
@@ -52,15 +53,30 @@ module Hecksagain
       end
 
       def dispatch(verb, saga_correlation: nil, **args)
-        response = @client.dispatch(verb, args)
-
-        refusal = response.fetch("refusals", []).find { |r| r["verb"] == verb }
-        raise RemoteRefusal, "#{verb} refused: #{refusal['error']}" if refusal
-
         domain, aggregate_name, = Naming.split_verb(verb) ||
           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
         aggregate = @registry.bluebook(domain)&.aggregate(aggregate_name) ||
           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name.inspect))
+
+        # NOT EVERY AGGREGATE IN A LAMBDA-ROUTED DOMAIN IS ITSELF
+        # LAMBDA-BOUND — Member's real name->email rekey carries a
+        # `compute` rule (era_check.rb's own `check_compute_rules!`),
+        # which can only ever run against Postgres, permanently. Its
+        # OWN `.hecksagon` bind stays "Postgres" even when
+        # `dispatched_by("Lambda")` is on for everything else — checked
+        # here the SAME way EraCheck itself checks it
+        # (`BindingPolicy.resolve(...).adapter`), so a command against
+        # such an aggregate falls through to the real local Dispatcher
+        # instead of being forwarded to a Lambda that has no way to
+        # represent its lineage history at all.
+        unless Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter == "Lambda"
+          return @local.dispatch(verb, saga_correlation: saga_correlation, **args)
+        end
+
+        response = @client.dispatch(verb, args)
+
+        refusal = response.fetch("refusals", []).find { |r| r["verb"] == verb }
+        raise RemoteRefusal, "#{verb} refused: #{refusal['error']}" if refusal
 
         # THIS STEP'S OWN mutations — `mutations` is one entry per
         # replayed step (rust/host's rehydrate-and-replay design,
