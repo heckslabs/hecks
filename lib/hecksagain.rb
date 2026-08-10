@@ -27,7 +27,9 @@ module Hecksagain
     # holding open ; booting and that ambient state belong to the runtime
     # layer, so this module is their facade and Hecksagain::Runtime is where
     # they live.
-    def boot(path, shared: nil) = Runtime.boot(path, shared: shared)
+    # `install_facade:` — see Runtime::Loader.boot. Defaults on; a caller
+    # that only dispatches by FQN string can skip the global sugar.
+    def boot(path, shared: nil, install_facade: true) = Runtime.boot(path, shared: shared, install_facade: install_facade)
 
     def with_registry(registry, &block) = Runtime.with_registry(registry, &block)
 
