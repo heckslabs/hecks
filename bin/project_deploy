@@ -942,7 +942,19 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
       Environment:
         Variables:
           DOMAIN_ROOT: /var/task
-          DOMAIN_NAME: #{declared_domain_name}
+          # NOT `declared_domain_name` — `Adapters::Lambda`/
+          # `RemoteDispatcher` both read this to compute WHICH
+          # deployed Lambda function to invoke (`hecksagain-\#{...}`,
+          # matching this stack's own name), a question `infra_name`
+          # answers and a domain's own business identity does not.
+          # Real, live, and confirmed the hard way: this was still
+          # wired to `declared_domain_name` when EmbryonautFoundersApp
+          # first deployed, and WebFunction immediately threw
+          # `ResourceNotFoundException: Function not found:
+          # hecksagain-embryonautfoundersapp` on every read AND on the
+          # Google OAuth callback itself — a real signed-in user hit
+          # this within minutes of the deploy that introduced it.
+          DOMAIN_NAME: #{infra_name}
           HECKS_LAMBDA_ROUTING: "true"
           HECKS_LAMBDA_REGION: #{region}#{hecks_schema ? %(\n        HECKS_SCHEMA: #{hecks_schema}) : ""}
           # SAME setting #{domain}'s own fly.toml/Dockerfile already
