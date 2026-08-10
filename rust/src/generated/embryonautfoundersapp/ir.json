@@ -1,0 +1,4083 @@
+{
+  "ir_version": 1,
+  "name": "EmbryonautFoundersApp",
+  "version": "v1",
+  "vision": "Our own company, run the way we ask our clients to run theirs — Members holding the cap table, governing documents carried to execution, clients proposed to and contracted with, products carried from a vision statement to launch, and the accounting that keeps it all honest: invoices raised, payments recorded.",
+  "classification": "core",
+  "aggregates": [
+    {
+      "name": "Member",
+      "description": "A person who holds Units in the Company under the Operating Agreement — Chris, Angie, Meredith today. Email is this Member's own identity — see Email's own comment for why. role/identity_id are app access, granted separately from admission (GrantAccess, below): equity and app access happen to coincide for everyone here today, but the language doesn't conflate them.",
+      "identified_by": [
+        "email.value"
+      ],
+      "attributes": [
+        {
+          "name": "email",
+          "type": "Email",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "name",
+          "type": "MemberName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "title",
+          "type": "MemberTitle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "units",
+          "type": "Units",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "percentage_interest",
+          "type": "PercentageInterest",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "vesting",
+          "type": "VestingSchedule",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "role",
+          "type": "Role",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "identity_id",
+          "type": "IdentityId",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "MemberName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a Member is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "MemberTitle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a Member holds a title",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Units",
+          "attributes": [
+            {
+              "name": "count",
+              "type": "Integer",
+              "list": false,
+              "default": 0,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "Units are not negative",
+              "canonical": "!count.negative?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "PercentageInterest",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Float",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a Percentage Interest is at least 0",
+              "canonical": "value >= 0"
+            },
+            {
+              "description": "a Percentage Interest is at most 100",
+              "canonical": "value <= 100"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "VestingSchedule",
+          "attributes": [
+            {
+              "name": "cliff_units",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "monthly_units",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "commencement_date",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "cliff Units are not negative",
+              "canonical": "!cliff_units.negative?"
+            },
+            {
+              "description": "monthly Units are not negative",
+              "canonical": "!monthly_units.negative?"
+            },
+            {
+              "description": "vesting names its commencement date",
+              "canonical": "!commencement_date.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Email",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an email is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Role",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "Admin"
+              ]
+            ],
+            [
+              [
+                "value",
+                "Member"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "IdentityId",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an identity id is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Admit",
+          "role": "Managing Member",
+          "goal": "Bring a new Member onto the cap table",
+          "references": null,
+          "attributes": [
+            {
+              "name": "email",
+              "type": "Email",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "name",
+              "type": "MemberName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "title",
+              "type": "MemberTitle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "units",
+              "type": "Units",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "percentage_interest",
+              "type": "PercentageInterest",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "vesting",
+              "type": "VestingSchedule",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "email",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "email"
+              }
+            },
+            {
+              "target": "name",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              }
+            },
+            {
+              "target": "title",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "title"
+              }
+            },
+            {
+              "target": "units",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "units"
+              }
+            },
+            {
+              "target": "percentage_interest",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "percentage_interest"
+              }
+            },
+            {
+              "target": "vesting",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "vesting"
+              }
+            }
+          ],
+          "emits": [
+            "MemberAdmitted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Depart",
+          "role": "Managing Member",
+          "goal": "Record that a Member has left — Units go to repurchase, not deletion",
+          "references": "Member",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "MemberDeparted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "GrantAccess",
+          "role": "Admin",
+          "goal": "Let an existing Member sign in to this application",
+          "references": "Member",
+          "attributes": [
+            {
+              "name": "role",
+              "type": "Role",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "role",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "role"
+              }
+            }
+          ],
+          "emits": [
+            "MemberAccessGranted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "LinkIdentity",
+          "role": "System",
+          "goal": "Attach the real Identity a person's first Google sign-in minted",
+          "references": "Member",
+          "attributes": [
+            {
+              "name": "identity_id",
+              "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "identity_id",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "identity_id"
+              }
+            }
+          ],
+          "emits": [
+            "MemberIdentityLinked"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "active",
+        "transitions": [
+          {
+            "command": "Depart",
+            "to_state": "departed",
+            "from_state": "active"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Active",
+          "description": "The current cap table.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            }
+          ],
+          "order_by": {
+            "field": "name",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "ByIdentityId",
+          "description": "The Member row for a real, already-linked Identity.",
+          "attributes": [
+            {
+              "name": "identity_id",
+              "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "identity_id",
+              "op": "eq",
+              "value": ":identity_id"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "FoundingAgreement",
+      "description": "A governing document among the Members — the Operating Agreement, the IP Assignment Agreement, or the Hecks/Embryonaut Boundary — carried from draft to full execution.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "AgreementReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "title",
+          "type": "AgreementTitle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "kind",
+          "type": "Kind",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "version",
+          "type": "AgreementVersion",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "signatories",
+          "type": "Signatory",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "AgreementReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an agreement is referenced",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "AgreementTitle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an agreement is titled",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "AgreementVersion",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an agreement carries a version",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Signatory",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a signatory is named",
+              "canonical": "!name.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Kind",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "OperatingAgreement"
+              ]
+            ],
+            [
+              [
+                "value",
+                "IPAssignment"
+              ]
+            ],
+            [
+              [
+                "value",
+                "Boundary"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Draft",
+          "role": "Managing Member",
+          "goal": "Put a governing document in writing, for attorney review",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "AgreementReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "title",
+              "type": "AgreementTitle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "kind",
+              "type": "Kind",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "version",
+              "type": "AgreementVersion",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "title",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "title"
+              }
+            },
+            {
+              "target": "kind",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "kind"
+              }
+            },
+            {
+              "target": "version",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "version"
+              }
+            }
+          ],
+          "emits": [
+            "FoundingAgreementDrafted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Circulate",
+          "role": "Managing Member",
+          "goal": "Send the draft to every Member for signature",
+          "references": "FoundingAgreement",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "FoundingAgreementCirculated"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Execute",
+          "role": "Managing Member",
+          "goal": "Record that every Member has signed",
+          "references": "FoundingAgreement",
+          "attributes": [
+            {
+              "name": "signatories",
+              "type": "Signatory",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "signatories",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "signatories"
+              }
+            }
+          ],
+          "emits": [
+            "FoundingAgreementExecuted"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "drafted",
+        "transitions": [
+          {
+            "command": "Circulate",
+            "to_state": "circulated",
+            "from_state": "drafted"
+          },
+          {
+            "command": "Execute",
+            "to_state": "executed",
+            "from_state": "circulated"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Executed",
+          "description": "Governing documents fully in force.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "executed"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Client",
+      "description": "A company or person we sell to. Churned rather than deleted — we forget nothing about who we've worked with.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "reference",
+          "type": "ClientReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "name",
+          "type": "ClientName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "contact_email",
+          "type": "EmailAddress",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ClientReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a client is referenced",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ClientName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a client is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "EmailAddress",
+          "attributes": [
+            {
+              "name": "address",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "AddProspect",
+          "role": "COO",
+          "goal": "Bring a prospect into the pipeline",
+          "references": null,
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "ClientReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "name",
+              "type": "ClientName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "contact_email",
+              "type": "EmailAddress",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "name",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              }
+            },
+            {
+              "target": "contact_email",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "contact_email"
+              }
+            }
+          ],
+          "emits": [
+            "ProspectAdded"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Engage",
+          "role": "COO",
+          "goal": "Turn a prospect into a client we're actively working with",
+          "references": "Client",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ClientEngaged"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Pause",
+          "role": "COO",
+          "goal": "Step back from a client without ending the relationship",
+          "references": "Client",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ClientPaused"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Reactivate",
+          "role": "COO",
+          "goal": "Pick a dormant relationship back up",
+          "references": "Client",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ClientReactivated"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Churn",
+          "role": "COO",
+          "goal": "Mark the relationship over",
+          "references": "Client",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ClientChurned"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "prospect",
+        "transitions": [
+          {
+            "command": "Engage",
+            "to_state": "active",
+            "from_state": "prospect"
+          },
+          {
+            "command": "Pause",
+            "to_state": "dormant",
+            "from_state": "active"
+          },
+          {
+            "command": "Reactivate",
+            "to_state": "active",
+            "from_state": "dormant"
+          },
+          {
+            "command": "Churn",
+            "to_state": "churned",
+            "from_state": "active"
+          },
+          {
+            "command": "Churn",
+            "to_state": "churned",
+            "from_state": "dormant"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Prospects",
+          "description": "The pipeline — everyone not yet a working client.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "prospect"
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Active",
+          "description": "Clients we're actively working with today.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Churned",
+          "description": "Former clients, kept for the record.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "churned"
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Engagement",
+      "description": "The technical pipeline that earns a client's trust before a Proposal ever goes out — a story workshop, a domain written from it, a demo built on that domain.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "client_id",
+          "type": "Reference<Client>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "reference",
+          "type": "EngagementReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "use_cases",
+          "type": "UseCase",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "domain_reference",
+          "type": "DomainReference",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "demo_reference",
+          "type": "DemoReference",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "EngagementReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an engagement is referenced",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "UseCase",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a use case says something",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "DomainReference",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a domain reference points somewhere",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "DemoReference",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a demo reference points somewhere",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Schedule",
+          "role": "COO",
+          "goal": "Book a story workshop with a prospective client",
+          "references": null,
+          "attributes": [
+            {
+              "name": "client_id",
+              "type": "Reference<Client>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "reference",
+              "type": "EngagementReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            }
+          ],
+          "emits": [
+            "EngagementScheduled"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "CompleteWorkshop",
+          "role": "COO",
+          "goal": "Record the use cases the story workshop surfaced",
+          "references": "Engagement",
+          "attributes": [
+            {
+              "name": "use_cases",
+              "type": "UseCase",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "use_cases",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "use_cases"
+              }
+            }
+          ],
+          "emits": [
+            "WorkshopCompleted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "DraftDomain",
+          "role": "CEO",
+          "goal": "Write the client's business as a domain, from the workshop",
+          "references": "Engagement",
+          "attributes": [
+            {
+              "name": "domain_reference",
+              "type": "DomainReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "domain_reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "domain_reference"
+              }
+            }
+          ],
+          "emits": [
+            "DomainDrafted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "ShowDemo",
+          "role": "CEO",
+          "goal": "Show the client an example app running on their own domain",
+          "references": "Engagement",
+          "attributes": [
+            {
+              "name": "demo_reference",
+              "type": "DemoReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "demo_reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "demo_reference"
+              }
+            }
+          ],
+          "emits": [
+            "DemoShown"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "stage",
+        "default": "workshop_scheduled",
+        "transitions": [
+          {
+            "command": "CompleteWorkshop",
+            "to_state": "workshop_completed",
+            "from_state": "workshop_scheduled"
+          },
+          {
+            "command": "DraftDomain",
+            "to_state": "domain_drafted",
+            "from_state": "workshop_completed"
+          },
+          {
+            "command": "ShowDemo",
+            "to_state": "demo_shown",
+            "from_state": "domain_drafted"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "ReadyToPropose",
+          "description": "Demo shown — the pipeline's done its job, time to send a Proposal.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "stage",
+              "op": "eq",
+              "value": "demo_shown"
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Proposal",
+      "description": "A pitch to a client, before there's a Contract to sign — valid for a window, then it lapses.",
+      "identified_by": [
+        "number.value"
+      ],
+      "attributes": [
+        {
+          "name": "client_id",
+          "type": "Reference<Client>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "engagement_id",
+          "type": "Reference<Engagement>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "number",
+          "type": "ProposalNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "overview",
+          "type": "ProposalOverview",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "deliverables",
+          "type": "Deliverable",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "term",
+          "type": "EngagementTerm",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "exclusions",
+          "type": "Exclusion",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "line_items",
+          "type": "LineItem",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "valid_for",
+          "type": "ValidityWindow",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ProposalNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a proposal is numbered",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ProposalOverview",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a proposal explains the engagement",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Deliverable",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a deliverable says what you get",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "EngagementTerm",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a term is stated",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Exclusion",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an exclusion says what's out of scope",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Cadence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "one_time"
+              ]
+            ],
+            [
+              [
+                "value",
+                "recurring"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "LineItem",
+          "attributes": [
+            {
+              "name": "item",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "currency",
+              "type": "String",
+              "list": false,
+              "default": "USD",
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "cadence",
+              "type": "Cadence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a line item is named",
+              "canonical": "!item.to_s.empty?"
+            },
+            {
+              "description": "a line item bills something",
+              "canonical": "cents.positive?"
+            },
+            {
+              "description": "a currency is a three-letter code",
+              "canonical": "currency.to_s.size == 3"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ValidityWindow",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a validity window is stated",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Draft",
+          "role": "COO",
+          "goal": "Put a proposed engagement in writing",
+          "references": null,
+          "attributes": [
+            {
+              "name": "client_id",
+              "type": "Reference<Client>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "engagement_id",
+              "type": "Reference<Engagement>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "number",
+              "type": "ProposalNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "overview",
+              "type": "ProposalOverview",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "deliverables",
+              "type": "Deliverable",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "term",
+              "type": "EngagementTerm",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "exclusions",
+              "type": "Exclusion",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "line_items",
+              "type": "LineItem",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "valid_for",
+              "type": "ValidityWindow",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "number",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "number"
+              }
+            },
+            {
+              "target": "overview",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "overview"
+              }
+            },
+            {
+              "target": "deliverables",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "deliverables"
+              }
+            },
+            {
+              "target": "term",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "term"
+              }
+            },
+            {
+              "target": "exclusions",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "exclusions"
+              }
+            },
+            {
+              "target": "line_items",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "line_items"
+              }
+            },
+            {
+              "target": "valid_for",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "valid_for"
+              }
+            }
+          ],
+          "emits": [
+            "ProposalDrafted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Send",
+          "role": "COO",
+          "goal": "Put the pitch in front of the client",
+          "references": "Proposal",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ProposalSent"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Accept",
+          "role": "COO",
+          "goal": "Record that the client wants to move forward",
+          "references": "Proposal",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ProposalAccepted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Decline",
+          "role": "COO",
+          "goal": "Record that the client passed",
+          "references": "Proposal",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ProposalDeclined"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Expire",
+          "role": "COO",
+          "goal": "Let a proposal lapse past its validity window",
+          "references": "Proposal",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ProposalExpired"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "drafted",
+        "transitions": [
+          {
+            "command": "Send",
+            "to_state": "sent",
+            "from_state": "drafted"
+          },
+          {
+            "command": "Accept",
+            "to_state": "accepted",
+            "from_state": "sent"
+          },
+          {
+            "command": "Decline",
+            "to_state": "declined",
+            "from_state": "sent"
+          },
+          {
+            "command": "Expire",
+            "to_state": "expired",
+            "from_state": "sent"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Open",
+          "description": "Sent, awaiting a decision.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "sent"
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Accepted",
+          "description": "Ready to become contracts.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "accepted"
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Contract",
+      "description": "An engagement with a client, from an accepted proposal to signature to delivery.",
+      "identified_by": [
+        "number.value"
+      ],
+      "attributes": [
+        {
+          "name": "client_id",
+          "type": "Reference<Client>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "proposal_id",
+          "type": "Reference<Proposal>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "number",
+          "type": "ContractNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "title",
+          "type": "ContractTitle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "value",
+          "type": "ContractValue",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "scope_of_work",
+          "type": "ScopeOfWork",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "revisions",
+          "type": "Revision",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ContractNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a contract is numbered",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ContractTitle",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a contract is titled",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ContractValue",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "currency",
+              "type": "String",
+              "list": false,
+              "default": "USD",
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a contract is worth something",
+              "canonical": "cents.positive?"
+            },
+            {
+              "description": "a currency is a three-letter code",
+              "canonical": "currency.to_s.size == 3"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ScopeOfWork",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a scope of work says what's being built",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Revision",
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "summary",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a revision is sequenced from one",
+              "canonical": "sequence.positive?"
+            },
+            {
+              "description": "a revision says what changed",
+              "canonical": "!summary.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Draft",
+          "role": "COO",
+          "goal": "Turn an accepted proposal into a contract to sign",
+          "references": null,
+          "attributes": [
+            {
+              "name": "client_id",
+              "type": "Reference<Client>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "proposal_id",
+              "type": "Reference<Proposal>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "number",
+              "type": "ContractNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "title",
+              "type": "ContractTitle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "value",
+              "type": "ContractValue",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "scope_of_work",
+              "type": "ScopeOfWork",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "number",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "number"
+              }
+            },
+            {
+              "target": "title",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "title"
+              }
+            },
+            {
+              "target": "value",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "value"
+              }
+            },
+            {
+              "target": "scope_of_work",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "scope_of_work"
+              }
+            }
+          ],
+          "emits": [
+            "ContractDrafted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Send",
+          "role": "COO",
+          "goal": "Put the draft in front of the client",
+          "references": "Contract",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ContractSent"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Sign",
+          "role": "COO",
+          "goal": "Record the client's signature",
+          "references": "Contract",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ContractSigned"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Activate",
+          "role": "COO",
+          "goal": "Start delivering against a signed contract",
+          "references": "Contract",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ContractActivated"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Complete",
+          "role": "COO",
+          "goal": "Close out a contract we delivered in full",
+          "references": "Contract",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ContractCompleted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Terminate",
+          "role": "COO",
+          "goal": "End an engagement before it completed",
+          "references": "Contract",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ContractTerminated"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Revise",
+          "role": "COO",
+          "goal": "Log a change to the contract — the same revision history a real client folder tracks",
+          "references": "Contract",
+          "attributes": [
+            {
+              "name": "sequence",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "summary",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "revisions",
+              "op": "append",
+              "fields": {
+                "sequence": "sequence",
+                "summary": "summary"
+              }
+            }
+          ],
+          "emits": [
+            "ContractRevised"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "drafted",
+        "transitions": [
+          {
+            "command": "Send",
+            "to_state": "sent",
+            "from_state": "drafted"
+          },
+          {
+            "command": "Sign",
+            "to_state": "signed",
+            "from_state": "sent"
+          },
+          {
+            "command": "Activate",
+            "to_state": "active",
+            "from_state": "signed"
+          },
+          {
+            "command": "Complete",
+            "to_state": "completed",
+            "from_state": "active"
+          },
+          {
+            "command": "Terminate",
+            "to_state": "terminated",
+            "from_state": "sent"
+          },
+          {
+            "command": "Terminate",
+            "to_state": "terminated",
+            "from_state": "signed"
+          },
+          {
+            "command": "Terminate",
+            "to_state": "terminated",
+            "from_state": "active"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "AwaitingSignature",
+          "description": "Sent, not yet signed — the follow-up list.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "sent"
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Active",
+          "description": "Contracts we're currently delivering against.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Completed",
+          "description": "Engagements finished in full.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "completed"
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Product",
+      "description": "Something we build to ship, carried from an idea through a vision statement to a launch.",
+      "identified_by": [
+        "codename.value"
+      ],
+      "attributes": [
+        {
+          "name": "codename",
+          "type": "ProductCodename",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "name",
+          "type": "ProductName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "vision",
+          "type": "VisionStatement",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "ProductCodename",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a product has a codename",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ProductName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a product is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "VisionStatement",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a vision statement says something",
+              "canonical": "!text.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Conceive",
+          "role": "CEO",
+          "goal": "Name a new product idea",
+          "references": null,
+          "attributes": [
+            {
+              "name": "codename",
+              "type": "ProductCodename",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "name",
+              "type": "ProductName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "codename",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "codename"
+              }
+            },
+            {
+              "target": "name",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              }
+            }
+          ],
+          "emits": [
+            "ProductConceived"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "SetVision",
+          "role": "CEO",
+          "goal": "Write down what this product is for, before a line of it is built",
+          "references": "Product",
+          "attributes": [
+            {
+              "name": "vision",
+              "type": "VisionStatement",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "vision",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "vision"
+              }
+            }
+          ],
+          "emits": [
+            "VisionSet"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "BeginDevelopment",
+          "role": "CEO",
+          "goal": "Start building against the vision",
+          "references": "Product",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "DevelopmentStarted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Launch",
+          "role": "CEO",
+          "goal": "Put it in front of clients",
+          "references": "Product",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ProductLaunched"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Sunset",
+          "role": "CEO",
+          "goal": "Retire a product we no longer carry",
+          "references": "Product",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "ProductSunset"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "stage",
+        "default": "concept",
+        "transitions": [
+          {
+            "command": "SetVision",
+            "to_state": "envisioned",
+            "from_state": "concept"
+          },
+          {
+            "command": "BeginDevelopment",
+            "to_state": "in_development",
+            "from_state": "envisioned"
+          },
+          {
+            "command": "Launch",
+            "to_state": "launched",
+            "from_state": "in_development"
+          },
+          {
+            "command": "Sunset",
+            "to_state": "sunset",
+            "from_state": "launched"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "InDevelopment",
+          "description": "What's actively being built.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "stage",
+              "op": "eq",
+              "value": "in_development"
+            }
+          ],
+          "order_by": {
+            "field": "codename",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Launched",
+          "description": "What we currently ship.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "stage",
+              "op": "eq",
+              "value": "launched"
+            }
+          ],
+          "order_by": {
+            "field": "codename",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Invoice",
+      "description": "A bill sent to a client against a contract.",
+      "identified_by": [
+        "number.value"
+      ],
+      "attributes": [
+        {
+          "name": "client_id",
+          "type": "Reference<Client>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "contract_id",
+          "type": "Reference<Contract>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "number",
+          "type": "InvoiceNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "due_on",
+          "type": "InvoiceDueDate",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "line_items",
+          "type": "LineItem",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "InvoiceNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an invoice is numbered",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "InvoiceDueDate",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an invoice has a due date",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "LineItem",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "currency",
+              "type": "String",
+              "list": false,
+              "default": "USD",
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a line item is described",
+              "canonical": "!description.to_s.empty?"
+            },
+            {
+              "description": "a line item bills something",
+              "canonical": "cents.positive?"
+            },
+            {
+              "description": "a currency is a three-letter code",
+              "canonical": "currency.to_s.size == 3"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Draft",
+          "role": "CFO",
+          "goal": "Prepare a bill for a client",
+          "references": null,
+          "attributes": [
+            {
+              "name": "client_id",
+              "type": "Reference<Client>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "contract_id",
+              "type": "Reference<Contract>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "number",
+              "type": "InvoiceNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "due_on",
+              "type": "InvoiceDueDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "line_items",
+              "type": "LineItem",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "number",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "number"
+              }
+            },
+            {
+              "target": "due_on",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "due_on"
+              }
+            },
+            {
+              "target": "line_items",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "line_items"
+              }
+            }
+          ],
+          "emits": [
+            "InvoiceDrafted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Send",
+          "role": "CFO",
+          "goal": "Put the bill in front of the client",
+          "references": "Invoice",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "InvoiceSent"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "MarkPaid",
+          "role": "CFO",
+          "goal": "Record that the client paid in full",
+          "references": "Invoice",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "InvoicePaid"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "MarkOverdue",
+          "role": "CFO",
+          "goal": "Flag a bill that's gone past its due date unpaid",
+          "references": "Invoice",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "InvoiceOverdue"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Void",
+          "role": "CFO",
+          "goal": "Cancel a bill that should never have gone out",
+          "references": "Invoice",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "InvoiceVoided"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "draft",
+        "transitions": [
+          {
+            "command": "Send",
+            "to_state": "sent",
+            "from_state": "draft"
+          },
+          {
+            "command": "MarkPaid",
+            "to_state": "paid",
+            "from_state": "sent"
+          },
+          {
+            "command": "MarkOverdue",
+            "to_state": "overdue",
+            "from_state": "sent"
+          },
+          {
+            "command": "Void",
+            "to_state": "void",
+            "from_state": "draft"
+          },
+          {
+            "command": "Void",
+            "to_state": "void",
+            "from_state": "sent"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Outstanding",
+          "description": "Sent, not yet paid — the collections list.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "sent"
+            }
+          ],
+          "order_by": {
+            "field": "due_on",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Overdue",
+          "description": "Past due and still unpaid.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "overdue"
+            }
+          ],
+          "order_by": {
+            "field": "due_on",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Paid",
+          "description": "Settled invoices.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "paid"
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "Payment",
+      "description": "Money a client sent against an invoice.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "invoice_id",
+          "type": "Reference<Invoice>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "reference",
+          "type": "PaymentReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "amount",
+          "type": "PaymentAmount",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "method",
+          "type": "PaymentMethod",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "received_on",
+          "type": "PaymentDate",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "PaymentReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment is referenced",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "PaymentAmount",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "currency",
+              "type": "String",
+              "list": false,
+              "default": "USD",
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment moves something",
+              "canonical": "cents.positive?"
+            },
+            {
+              "description": "a currency is a three-letter code",
+              "canonical": "currency.to_s.size == 3"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "PaymentMethod",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment method is named",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "PaymentDate",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment has a date",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Record",
+          "role": "CFO",
+          "goal": "Log money the client actually sent",
+          "references": null,
+          "attributes": [
+            {
+              "name": "invoice_id",
+              "type": "Reference<Invoice>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "reference",
+              "type": "PaymentReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "amount",
+              "type": "PaymentAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "method",
+              "type": "PaymentMethod",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "received_on",
+              "type": "PaymentDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "amount",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              }
+            },
+            {
+              "target": "method",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "method"
+              }
+            },
+            {
+              "target": "received_on",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "received_on"
+              }
+            }
+          ],
+          "emits": [
+            "PaymentRecorded"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Refund",
+          "role": "CFO",
+          "goal": "Give money back",
+          "references": "Payment",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "PaymentRefunded"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "recorded",
+        "transitions": [
+          {
+            "command": "Refund",
+            "to_state": "refunded",
+            "from_state": "recorded"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Recorded",
+          "description": "Payments in hand.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "recorded"
+            }
+          ],
+          "order_by": {
+            "field": "received_on",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Refunded",
+          "description": "Payments given back.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "refunded"
+            }
+          ],
+          "order_by": {
+            "field": "received_on",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "RecurringPayment",
+      "description": "A standing recurring charge against a contract — the monthly membership fee, still owed next cycle unless someone stops it.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "client_id",
+          "type": "Reference<Client>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "contract_id",
+          "type": "Reference<Contract>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "reference",
+          "type": "RecurringPaymentReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "amount",
+          "type": "RecurringAmount",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "cadence",
+          "type": "Cadence",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "next_due_on",
+          "type": "DueDate",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "RecurringPaymentReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a recurring payment is referenced",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "RecurringAmount",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "currency",
+              "type": "String",
+              "list": false,
+              "default": "USD",
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a recurring payment charges something",
+              "canonical": "cents.positive?"
+            },
+            {
+              "description": "a currency is a three-letter code",
+              "canonical": "currency.to_s.size == 3"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "DueDate",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a due date is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Cadence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "monthly"
+              ]
+            ],
+            [
+              [
+                "value",
+                "quarterly"
+              ]
+            ],
+            [
+              [
+                "value",
+                "annual"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Start",
+          "role": "CFO",
+          "goal": "Set up a standing charge for the life of a contract",
+          "references": null,
+          "attributes": [
+            {
+              "name": "client_id",
+              "type": "Reference<Client>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "contract_id",
+              "type": "Reference<Contract>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "reference",
+              "type": "RecurringPaymentReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "amount",
+              "type": "RecurringAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "cadence",
+              "type": "Cadence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "next_due_on",
+              "type": "DueDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "reference",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "amount",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              }
+            },
+            {
+              "target": "cadence",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "cadence"
+              }
+            },
+            {
+              "target": "next_due_on",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "next_due_on"
+              }
+            }
+          ],
+          "emits": [
+            "RecurringPaymentStarted"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "AdvanceCycle",
+          "role": "CFO",
+          "goal": "Move the schedule to the next cycle, once this one's been billed",
+          "references": "RecurringPayment",
+          "attributes": [
+            {
+              "name": "next_due_on",
+              "type": "DueDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "only an active recurring payment advances",
+              "canonical": "status == \"active\""
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "next_due_on",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "next_due_on"
+              }
+            }
+          ],
+          "emits": [
+            "CycleAdvanced"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Pause",
+          "role": "CFO",
+          "goal": "Stop billing without ending the arrangement",
+          "references": "RecurringPayment",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "RecurringPaymentPaused"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Resume",
+          "role": "CFO",
+          "goal": "Pick a paused charge back up",
+          "references": "RecurringPayment",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "RecurringPaymentResumed"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Cancel",
+          "role": "CFO",
+          "goal": "End the standing charge for good",
+          "references": "RecurringPayment",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "RecurringPaymentCancelled"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "active",
+        "transitions": [
+          {
+            "command": "Pause",
+            "to_state": "paused",
+            "from_state": "active"
+          },
+          {
+            "command": "Resume",
+            "to_state": "active",
+            "from_state": "paused"
+          },
+          {
+            "command": "Cancel",
+            "to_state": "cancelled",
+            "from_state": "active"
+          },
+          {
+            "command": "Cancel",
+            "to_state": "cancelled",
+            "from_state": "paused"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [
+        {
+          "name": "Active",
+          "description": "Charges still billing, soonest due first.",
+          "attributes": [],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "active"
+            }
+          ],
+          "order_by": {
+            "field": "next_due_on",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ]
+}

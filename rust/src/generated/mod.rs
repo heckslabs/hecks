@@ -2,6 +2,7 @@
 pub mod meta;
 pub mod banking;
 pub mod embryonaut;
+pub mod embryonautfoundersapp;
 pub mod governance;
 pub mod identity;
 pub mod pizzas;
@@ -15,5 +16,7 @@ pub mod pizzas;
 pub use banking::merged as active;
 #[cfg(feature = "embryonaut")]
 pub use embryonaut::merged as active;
+#[cfg(feature = "embryonautfoundersapp")]
+pub use embryonautfoundersapp::merged as active;
 #[cfg(feature = "pizzas")]
 pub use pizzas::merged as active;

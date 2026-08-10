@@ -280,11 +280,57 @@ impl Version {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct FormerlyKnownAs {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for FormerlyKnownAs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl FormerlyKnownAs {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
+        return Err(crate::kernel::Refusal::InvariantViolation("FormerlyKnownAs violates its invariant: a formerly_known_as says something".to_string()));
+    }
+}
+        Ok(())
+    }
+}
+
+impl FormerlyKnownAs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl FormerlyKnownAs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        value: { let x = v.require("value", "FormerlyKnownAs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FormerlyKnownAs.value: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Bluebook {
     pub name: Option<BluebookName>,
     pub vision: Option<Vision>,
     pub classification: Option<Classification>,
     pub version: Option<Version>,
+    pub formerly_known_as: Option<FormerlyKnownAs>,
     pub normalisations: Vec<NormalisationRule>,
 }
 
@@ -296,6 +342,7 @@ impl crate::kernel::Fielded for Bluebook {
             "vision" => self.vision.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "classification" => self.classification.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "normalisations" => Some(Field::Value(Value::List(self.normalisations.len()))),
             _ => None,
         }
@@ -309,6 +356,7 @@ impl Bluebook {
         ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("normalisations".to_string(), crate::kernel::Json::Array(self.normalisations.iter().map(|x| x.to_json()).collect())),
         ])
     }
@@ -321,6 +369,7 @@ impl Bluebook {
         vision: match v.get("vision") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(x)?), },
         classification: match v.get("classification") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Classification::from_json(x)?), },
         version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(x)?), },
+        formerly_known_as: match v.get("formerly_known_as") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(x)?), },
         normalisations: match v.get("normalisations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(NormalisationRule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
@@ -356,6 +405,7 @@ impl crate::kernel::Fielded for DeclareArgs {
             "vision" => self.vision.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "classification" => self.classification.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -368,6 +418,7 @@ pub struct DeclareArgs {
     pub vision: Option<Vision>,
     pub classification: Option<Classification>,
     pub version: Option<Version>,
+    pub formerly_known_as: Option<FormerlyKnownAs>,
 }
 
 pub fn dispatch_declare(
@@ -377,6 +428,7 @@ pub fn dispatch_declare(
         if let Some(v) = &args.vision { v.check_invariants()?; }
         if let Some(v) = &args.classification { v.check_invariants()?; }
         if let Some(v) = &args.version { v.check_invariants()?; }
+        if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
 
     crate::kernel::dispatch(
         repo,
@@ -387,6 +439,7 @@ pub fn dispatch_declare(
             vision: args.vision.clone(),
             classification: args.classification.clone(),
             version: args.version.clone(),
+            formerly_known_as: args.formerly_known_as.clone(),
             normalisations: vec![],
         }),
     },
@@ -417,16 +470,17 @@ impl DeclareArgs {
         ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "vision", "classification", "version", "id"]);
+let unknown = v.unknown_keys(&["name", "vision", "classification", "version", "formerly_known_as", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes name, vision, classification, version",
+        "Declare does not declare {} — it takes name, vision, classification, version, formerly_known_as",
         unknown.join(", ")
     )));
 }
@@ -435,6 +489,7 @@ if !unknown.is_empty() {
         vision: match v.get("vision") { Some(x) => Some(Vision::from_json(x)?), None => None, },
         classification: match v.get("classification") { Some(x) => Some(Classification::from_json(x)?), None => None, },
         version: match v.get("version") { Some(x) => Some(Version::from_json(x)?), None => None, },
+        formerly_known_as: match v.get("formerly_known_as") { Some(x) => Some(FormerlyKnownAs::from_json(x)?), None => None, },
         })
     }
 }

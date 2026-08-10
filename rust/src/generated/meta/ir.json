@@ -49,6 +49,15 @@
           "admits": null
         },
         {
+          "name": "formerly_known_as",
+          "type": "FormerlyKnownAs",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
           "name": "normalisations",
           "type": "NormalisationRule",
           "list": true,
@@ -216,6 +225,28 @@
           ],
           "closed_set": false,
           "members": []
+        },
+        {
+          "name": "FormerlyKnownAs",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a formerly_known_as says something",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
         }
       ],
       "commands": [
@@ -255,6 +286,15 @@
             {
               "name": "version",
               "type": "Version",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "formerly_known_as",
+              "type": "FormerlyKnownAs",
               "list": false,
               "default": null,
               "optional": true,
@@ -7438,6 +7478,32 @@
             [
               [
                 "word",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "word",
                 "core"
               ],
               [
@@ -9962,6 +10028,36 @@
               [
                 "fills",
                 "vision"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "formerly_known_as"
               ]
             ],
             [
