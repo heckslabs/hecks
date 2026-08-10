@@ -4,6 +4,8 @@ require_relative "sql_query_builder"
 require_relative "postgres/lineage"
 require_relative "postgres/lineage_manager"
 require_relative "../../ports/persistence/append_only"
+require_relative "../../query_specification/common/order_by"
+require_relative "../../runtime/errors"
 require_relative "../../runtime/event"
 require_relative "../../runtime/instance"
 require_relative "../../runtime/registry"
@@ -126,8 +128,25 @@ module Hecksagain
         instance(result[0])
       end
 
-      def all
-        @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY id)).map { |row| instance(row) }
+      # order_by IS A RUNTIME VALUE, not framework-authored bluebook source
+      # like every other caller of order_expression — a query param off an
+      # HTTP request, in the console's case. Whitelisted against the
+      # aggregate's own real attributes (plus its lifecycle field) before
+      # it ever reaches order_expression, unlike a declared query's
+      # order_by, which the language itself already only lets name a real
+      # attribute at parse time. Without this, an unknown field wouldn't
+      # error — query_expression degrades a nil attribute to a harmless
+      # no-op path — it would just silently sort by nothing.
+      def all(order_by: nil, direction: :asc)
+        return @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY id)).map { |row| instance(row) } unless order_by
+
+        name = order_by.to_s.split(".").first
+        unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+          raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
+        end
+
+        spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
+        @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY #{order_clause(spec, nil)})).map { |row| instance(row) }
       end
 
       def count = @db.exec(%(SELECT COUNT(*) FROM #{quoted_head}))[0]["count"].to_i

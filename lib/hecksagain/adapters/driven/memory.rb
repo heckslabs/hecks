@@ -1,5 +1,6 @@
 require_relative "../../ports/persistence/append_only"
 require_relative "../../ports/query/in_memory"
+require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
 
 module Hecksagain
@@ -15,8 +16,11 @@ module Hecksagain
       end
 
       def find(id) = @records[id.to_s]
-      def all      = @records.values
       def count    = @records.size
+
+      def all(order_by: nil, direction: :asc)
+        InMemoryOrdering.ordered(@records.values, aggregate: @aggregate, order_by: order_by, direction: direction)
+      end
 
       def query(specification, args = {}, context: {})
         Ports::Query::InMemory.execute(all, specification, args)

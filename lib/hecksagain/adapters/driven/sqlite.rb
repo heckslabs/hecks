@@ -6,6 +6,8 @@ require_relative "sqlite/schema_builder"
 require_relative "sqlite/codec"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../query_specification/common/null_policy"
+require_relative "../../query_specification/common/order_by"
+require_relative "../../runtime/errors"
 require_relative "../../runtime/event"
 require_relative "../../runtime/instance"
 
@@ -56,8 +58,22 @@ module Hecksagain
         Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
       end
 
-      def all
-        @db.execute("SELECT * FROM #{quoted_table} ORDER BY id").map do |row|
+      # order_by IS A RUNTIME VALUE — see postgres.rb's own all for the
+      # full reasoning; whitelisted the identical way before it ever
+      # reaches order_expression.
+      def all(order_by: nil, direction: :asc)
+        order_sql = "ORDER BY id"
+        if order_by
+          name = order_by.to_s.split(".").first
+          unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
+            raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
+          end
+
+          spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
+          order_sql = "ORDER BY #{order_clause(spec, nil)}"
+        end
+
+        @db.execute("SELECT * FROM #{quoted_table} #{order_sql}").map do |row|
           Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row))
         end
       end

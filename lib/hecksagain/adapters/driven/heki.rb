@@ -4,6 +4,7 @@ require_relative "heki/snapshot"
 require_relative "heki/journal"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../ports/query/in_memory"
+require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
 
 module Hecksagain
@@ -39,8 +40,9 @@ module Hecksagain
         instance(id.to_s, record)
       end
 
-      def all
-        store.sort_by { |id, _| id }.map { |id, record| instance(id, record) }
+      def all(order_by: nil, direction: :asc)
+        records = store.sort_by { |id, _| id }.map { |id, record| instance(id, record) }
+        InMemoryOrdering.ordered(records, aggregate: @aggregate, order_by: order_by, direction: direction)
       end
 
       def count = store.size

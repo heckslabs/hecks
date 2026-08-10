@@ -25,7 +25,7 @@ module Hecksagain
         end
 
         def find(id) = @adapter.find(id)
-        def all = @adapter.all
+        def all(**opts) = @adapter.all(**opts)
         def count = @adapter.count
         def entries = @adapter.entries
         def reset!
