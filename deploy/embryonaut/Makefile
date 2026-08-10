@@ -8,8 +8,11 @@
 # cross-linker — install once with `pip3 install cargo-lambda` or
 # `brew install cargo-lambda`.
 
-HOST_DIR := /Users/christopheryoung/Projects/hecksagain/rust/host
-WASM     := /Users/christopheryoung/Projects/hecksagain/rust/dist/embryonaut.wasm
+HOST_DIR := /private/tmp/hecksagain-sync/rust/host
+# `domain_name`, matching bin/project_wasm's own target_mod_name
+# (a Rust-build-pipeline naming convention, not AWS resource
+# identity — see HECKS_WASM_PATH's own comment above).
+WASM     := /private/tmp/hecksagain-sync/rust/dist/embryonautfoundersapp.wasm
 
 build-EmbryonautFunction:
 	@command -v cargo-lambda >/dev/null 2>&1 || { \
@@ -24,7 +27,7 @@ build-EmbryonautFunction:
 # field). `bin/project_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd /Users/christopheryoung/Projects/hecksagain && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
+	cd /private/tmp/hecksagain-sync && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
@@ -35,7 +38,7 @@ build-EmbryonautFunction:
 # `rustup target list --installed` reports it present.
 	cd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
-	cp $(WASM) $(ARTIFACTS_DIR)/embryonaut.wasm
+	cp $(WASM) $(ARTIFACTS_DIR)/embryonautfoundersapp.wasm
 
 # `sam build <resource>` WIPES .aws-sam/build/ entirely before
 # building just the one resource named -- confirmed live: building
@@ -59,7 +62,7 @@ build-EmbryonautFunction:
 restore-EmbryonautFunction-build:
 	@mkdir -p .aws-sam/build/EmbryonautFunction
 	cp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/EmbryonautFunction/bootstrap
-	cp $(WASM) .aws-sam/build/EmbryonautFunction/embryonaut.wasm
+	cp $(WASM) .aws-sam/build/EmbryonautFunction/embryonautfoundersapp.wasm
 	ruby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "EmbryonautFunction:" } or raise "restore-EmbryonautFunction-build: EmbryonautFunction resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-EmbryonautFunction-build: no CodeUri line found under EmbryonautFunction"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: EmbryonautFunction"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
 # `make mint-era` — takes hecksagain-embryonaut's RDS instance from freshly
@@ -72,7 +75,7 @@ restore-EmbryonautFunction-build:
 # as its own sibling stack, uses it for one Ruby boot over an SSM
 # tunnel, then deletes it — nothing from this target is left running
 # afterward.
-ROOT      := /Users/christopheryoung/Projects/hecksagain
+ROOT      := /private/tmp/hecksagain-sync
 DOMAIN    := /Users/christopheryoung/Projects/embryonautfoundersapp
 STACK     := hecksagain-embryonaut
 BASTION_STACK := hecksagain-embryonaut-bastion
@@ -254,7 +257,7 @@ rename-schema:
 # execution image — sidesteps the AL2 package conflict between
 # `openssl-libs` and the build image's own pre-installed
 # `openssl-snapsafe-libs` entirely, rather than fighting it.
-PG_NATIVE_DIR := /Users/christopheryoung/Projects/hecksagain/tmp/pg-native-arm64-ruby3.2
+PG_NATIVE_DIR := /private/tmp/hecksagain-sync/tmp/pg-native-arm64-ruby3.2
 
 $(PG_NATIVE_DIR)/pg_ext.so:
 	@mkdir -p $(PG_NATIVE_DIR)

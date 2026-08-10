@@ -318,7 +318,15 @@ Resources:
             - "postgres://postgres:${DbPass}@${DbHost}:5432/embryonaut"
             - DbPass: !Sub "{{resolve:secretsmanager:${EmbryonautDb.MasterUserSecret.SecretArn}:SecretString:password}}"
               DbHost: !GetAtt EmbryonautDb.Endpoint.Address
-          HECKS_WASM_PATH: !Sub "/var/task/embryonaut.wasm"
+          # `domain_name`, NOT `infra_name` — this names the actual
+          # .wasm FILE bin/project_wasm writes (rust/dist/embryonautfoundersapp.wasm,
+          # its own target_mod_name convention, a Rust-build-pipeline
+          # concern unrelated to AWS resource identity) and what the
+          # Makefile below actually bundles into the Lambda package
+          # under. Confirmed the hard way: pinning this to infra_name
+          # alongside the real AWS-identity fields left it looking for
+          # a file bin/project_wasm never produces.
+          HECKS_WASM_PATH: !Sub "/var/task/embryonautfoundersapp.wasm"
           # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
           # domain's own declared name, known at generation time the
           # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
@@ -429,7 +437,19 @@ Resources:
       Environment:
         Variables:
           DOMAIN_ROOT: /var/task
-          DOMAIN_NAME: EmbryonautFoundersApp
+          # NOT `declared_domain_name` — `Adapters::Lambda`/
+          # `RemoteDispatcher` both read this to compute WHICH
+          # deployed Lambda function to invoke (`hecksagain-#{...}`,
+          # matching this stack's own name), a question `infra_name`
+          # answers and a domain's own business identity does not.
+          # Real, live, and confirmed the hard way: this was still
+          # wired to `declared_domain_name` when EmbryonautFoundersApp
+          # first deployed, and WebFunction immediately threw
+          # `ResourceNotFoundException: Function not found:
+          # hecksagain-embryonautfoundersapp` on every read AND on the
+          # Google OAuth callback itself — a real signed-in user hit
+          # this within minutes of the deploy that introduced it.
+          DOMAIN_NAME: embryonaut
           HECKS_LAMBDA_ROUTING: "true"
           HECKS_LAMBDA_REGION: us-east-1
           HECKS_SCHEMA: embryonautfoundersapp
