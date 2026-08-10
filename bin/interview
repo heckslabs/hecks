@@ -6,8 +6,23 @@
 # command/blue, event/orange, policy/lilac).
 #
 # EVERY INVOCATION IS A FRESH PROCESS. The Interview domain (questions,
-# findings, proposals) is where this session actually lives — Memory by
-# default, or wherever a real app's own `.world` binds it via `--at`.
+# findings, proposals) is where this session actually lives — a real
+# app's own `.world` binding via `--at`, or, with none given, Heki
+# (the file-backed store) writing under `./data`, relative to wherever
+# you're standing when you run this — `Heki#resolve_path`'s own default
+# `dir` when no world supplies one, nothing this file has to scaffold.
+# True in-RAM Memory is NOT offered here on purpose: a one-shot CLI
+# where each command is its own OS process cannot use it as a session
+# store at all — the very next command sees an empty registry, gone
+# before it could be read back. (Memory is still `Interview::Session`'s
+# own default for programmatic/spec use, a single Ruby process — that
+# case is real and unaffected.) `./data` is throwaway bookkeeping, not
+# the saved domain — `save` is what writes something meant to last, and
+# every chapter's records share it freely: `Interview`/`Finding`/
+# `Proposal` are already chapter-scoped by their own `chapter`/
+# `interview_id` fields, the same reason one running app can hold more
+# than one bluebook.
+#
 # The partial bluebook being discovered is NOT stored anywhere: it is
 # rebuilt every time by re-dispatching every WRITTEN proposal's own verb
 # and arguments through `Interview::Lowering` into a fresh
@@ -15,14 +30,28 @@
 # to be durable for its own sake. A language change fails LOUDLY here
 # (`UnknownVerb`/`NotFound` naming exactly what broke), never silently.
 #
+#   bin/interview draft     <slug> --topic T --why "..." "prompt text" [--at DIR]  — the catalogue,
+#   bin/interview publish   <slug> [--at DIR]                                        not chapter-scoped
 #   bin/interview open      <Chapter> --subject "..." --respondent <id> [--at DIR]
 #   bin/interview state     <Chapter> [--at DIR]
 #   bin/interview gaps      <Chapter> [--at DIR]
+#   bin/interview shape     "Bluebook::Aggregate.Declare"        — the verb's own --arg template, resolved
+#                                                                    from the language itself: no chapter, no --at
+#   bin/interview check     <Chapter> [--at DIR]                 — render+reload, no write; catches a renderer/
+#                                                                    reloader disagreement early, not a dispatch bug
+#   bin/interview smoke     <Chapter> [--at DIR]                 — boots the rendered domain for real (Memory,
+#                                                                    a throwaway temp dir) and dispatches every
+#                                                                    declared command + report once, synthesized
+#                                                                    args — catches what `check` cannot
 #   bin/interview ask       <Chapter> "question text" [--topic T] [--source mechanical|catalogue|judgment] [--ref CATALOGUE-REF] [--at DIR]
 #   bin/interview answer    <Chapter> <sequence> "answer text" [--at DIR]
 #   bin/interview establish <Chapter> --ref F1 --topic T "statement" [--at DIR]
+#   bin/interview preview   <Chapter> --verb "Bluebook::X.Y" [--arg name:field:value ...] [--at DIR]  — what
+#                                                                    propose+accept would do, nothing written
 #   bin/interview propose   <Chapter> --ref P1 --finding F1 --verb "Bluebook::X.Y" "rationale" [--arg name:field:value ...] [--at DIR]
 #   bin/interview accept    <Chapter> <proposal-ref> [--at DIR]
+#   bin/interview correct   <Chapter> <proposal-ref> "why it was wrong" [--at DIR]  — a WRITTEN mistake stays
+#                                                                    written; correct just excludes it from replay
 #   bin/interview save      <Chapter> --to DIR
 #   bin/interview suggest   <Chapter> --kind aggregate|command|event|... "meaning" [--near X,Y] [--at DIR]
 #   bin/interview critique  <Chapter> [--at DIR]
@@ -38,9 +67,9 @@
 #
 # `--at DIR` boots a real app directory the normal way (`Hecks.boot`), so
 # the Interview domain's own persistence is whatever that app's `.world`
-# says — Postgres, durably, once one exists. With no `--at`, this runs
-# against Memory, ephemeral by construction: real for trying the shape
-# of a conversation, not for keeping one.
+# says — Postgres, durably, once one exists. With no `--at`, Heki under
+# `./data` is what makes the conversation survive from one command to
+# the next.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
@@ -73,14 +102,36 @@ def paint(text, colour) = Paint.call(text, colour)
 
 # ── booting the Interview domain (real records live here) ────────────
 
-# `--at DIR` boots a real app the ordinary way; with none, an ephemeral
-# Memory-bound boot — the same preamble every spec/probe in this build
-# already uses, matching `bin/scaffold_translation`'s own shape for a
-# script that is not a full app.
+# `--at DIR` boots a real app the ordinary way; with none, a Heki-bound
+# boot rooted at `Dir.pwd` — the same preamble every spec/probe in this
+# build already uses (matching `bin/scaffold_translation`'s own shape
+# for a script that is not a full app), just no longer bound to Memory.
+#
+# HEKI, NOT MEMORY, ON PURPOSE. `bin/interview` is a one-shot CLI: every
+# subcommand is its own OS process, so Memory (pure in-RAM) is gone
+# before the next command could ever read it back — proven live, not
+# assumed.
+#
+# A REAL HECKSAGON *AND* A REAL WORLD, both built inline rather than
+# loaded from `.hecksagon`/`.world` files on disk — the same
+# `Hecks.hecksagon`/`Hecks.world` DSL entry points those files call,
+# producing identical IR (`Registry#add_hecksagon`/`#add_world`); the
+# runtime never distinguishes "loaded from a file" from "built by a
+# script." Declaring the world explicitly, rather than leaning on
+# `Heki#resolve_path`'s own default (`dir` falls back to `"data"` when
+# `registry.world(domain)&.for_binding(...)` finds nothing — an absent
+# world is empty settings, not an error, so it WOULD have booted with
+# no world at all), matches how every real corpus member — banking,
+# pizzas — actually binds Heki: an explicit `persisted_by("Heki") { dir
+# "..." }` in a `.world`, not silence relying on a fallback nobody
+# reading this file would otherwise see. `.interview`, not a bare
+# `data` — this is bookkeeping for the interview itself, not the saved
+# domain, and a dot-directory is the one shape most tools and most
+# `.gitignore`s already know to leave alone.
 def boot_interview_domain(at:)
   return Hecks.boot(at) if at
 
-  registry = Hecksagain::Runtime::Registry.new
+  registry = Hecksagain::Runtime::Registry.new(root: Dir.pwd)
   Hecksagain.with_registry(registry) do
     # EVERY FRAMEWORK PORT AND ADAPTER, the identical call a real
     # `Hecks.boot` makes (`Loader.boot` -> `Folder#load_library`) —
@@ -91,10 +142,14 @@ def boot_interview_domain(at:)
     Hecksagain::Adapters::Folder.new.load_library
     Kernel.load(File.join(ROOT, "lib/hecksagain/framework/bluebook/interview.bluebook"))
     Hecks.hecksagon("Interview") do
-      ::Interview::Interview.persisted_by("Memory")
-      ::Interview::StandingQuestion.persisted_by("Memory")
-      ::Interview::Finding.persisted_by("Memory")
-      ::Interview::Proposal.persisted_by("Memory")
+      ::Interview::Interview.persisted_by("Heki")
+      ::Interview::StandingQuestion.persisted_by("Heki")
+      ::Interview::Finding.persisted_by("Heki")
+      ::Interview::Proposal.persisted_by("Heki")
+    end
+    Hecks.world("Interview") do
+      realm "CLI"
+      persisted_by("Heki") { dir ".interview" }
     end
   end
   registry.verify!
@@ -190,6 +245,224 @@ def render_gaps(session)
   gaps.each { |gap| puts "  #{gap}" }
 end
 
+# ── the verb's own shape, as a ready-to-fill --arg template ───────────
+#
+# WHAT `propose` NEEDS TO KNOW, IN ONE CALL — the same fact
+# `.claude/skills/interview/SKILL.md` says to "read off the language
+# itself, never guess," but which used to mean a chain of hand-written
+# `bin/ir --meta | jq` pipelines: one to list a command's attributes,
+# then one MORE per attribute to resolve which value object it wraps
+# and what field that VO actually declares (rarely but not always
+# `value` — `Position` alone breaks that assumption). Five to ten
+# shell calls to propose one command, every single time, forever,
+# until this collapsed it into one. Reads the SAME real IR objects
+# `bin/ir --meta` exports — `MetaValidator.grammar_registry`, not a
+# second index kept in sync by hand.
+def render_shape(verb_text)
+  chapter_name, aggregate_name, command_name = verb_text.match(/\A([A-Za-z]+)::([A-Za-z]+)\.([A-Za-z]+)\z/)&.captures
+  abort "#{verb_text.inspect} isn't fully qualified — Chapter::Aggregate.Command" unless chapter_name
+
+  registry = Hecksagain::Bluebook::MetaValidator.grammar_registry
+  chapter  = registry.bluebook(chapter_name) or abort "no chapter #{chapter_name.inspect} in the language"
+  aggregate = chapter.aggregate(aggregate_name) or abort "#{chapter_name} declares no aggregate #{aggregate_name.inspect}"
+  command   = aggregate.command(command_name) or abort "#{aggregate_name} declares no command #{command_name.inspect}"
+
+  puts "#{paint(verb_text, :blue)}  —  #{command.goal}"
+  puts addressing_line(chapter, command.references) if command.references
+  puts closed_set_note(verb_text) if CLOSED_SET_VERBS.include?(verb_text)
+  puts READ_MODEL_NOTE if verb_text == "Bluebook::ReadModel.Declare"
+  command.attributes.each { |attribute| puts shape_line(chapter, aggregate, attribute) }
+end
+
+# A REAL CONSTRAINT, NOT A GUESS — traced through
+# `read_model_interpreter.rb`'s own `args.fetch(model.reference_name)`
+# (no default) before building this. A read model joins several
+# aggregates around ONE root, queried by that root's own id — there is
+# no "give me every row" mode, no matter how the `where`/`order_by`
+# options declared on it are shaped; those only ever scope the "many"
+# side WITHIN one root's own projection. `PackingItem.all` (the plain
+# aggregate door, free, no declaration needed) is what "every row"
+# actually means here — enumerate with that, then ask the read model
+# once per id for the joined fact.
+READ_MODEL_NOTE = "  A READ MODEL ANSWERS ONE ROOT AT A TIME, not \"all\" — " \
+                   "call it once per id (from the root aggregate's own .all), never in bulk."
+
+# WHAT `--arg "id::..."` HAS TO SPELL, when a command ACTS ON an
+# existing record rather than creating one — `command.references`
+# names the category (`"ValueObject"`, `"Aggregate"`, ...); every
+# category's own `id` is `Naming.identity(identity_paths)`, a
+# colon-join of its declared identity parts IN ORDER
+# (`Runtime::Identity.of`, the exact function a real dispatch calls to
+# address the same record). Spelling that join out here is what used
+# to mean grepping `lib/hecksagain/language/bluebook/*.bluebook` by
+# hand for one `identified_by` block.
+#
+# A WORKED EXAMPLE, NOT JUST THE FORMULA — `bluebook_id + ":" +
+# name.value` tells you the SHAPE but not what to actually type; typing
+# the wrong composite id by hand (wrong part order, a forgotten level)
+# was a real mistake made mid-interview and only caught by a refusal
+# several steps later. `<bluebook_id>:<name>` is the same formula with
+# each part's own head named instead of spelled abstractly — copy the
+# angle-bracket placeholders out and fill them in.
+def addressing_line(chapter, references)
+  target = chapter.aggregate(references)
+  return "  addresses #{references} — identity unknown (not declared in #{chapter.name})" unless target
+
+  parts = target.identity_paths.empty? ? ["id"] : target.identity_paths
+  example = parts.map { |path| "<#{path.to_s.split('.').first}>" }.join(":")
+  "  addresses #{paint(references, :yellow)} — id = #{parts.join(' + ":" + ')}  (e.g. #{example})"
+end
+
+# THE FULL CLOSED-SET SEQUENCE, discovered the hard way mid-interview:
+# `Member.Declare` alone renders an EMPTY `value_object` block — no
+# refusal at propose time, only a crash once the domain actually loads.
+# All five verbs below print this note, so whichever one you reach for
+# first is the one that tells you what else it needs.
+CLOSED_SET_VERBS = %w[
+  Bluebook::ValueObject.Declare Bluebook::ValueObject.Field
+  Bluebook::Member.Declare Bluebook::Member.Pair Bluebook::ValueObject.Close
+].freeze
+
+def closed_set_note(_verb_text)
+  paint("  A CLOSED SET NEEDS ALL FIVE, not just this one:", :dim) + "\n" +
+    paint("    ValueObject.Declare  — the value object's own root\n" \
+          "    ValueObject.Field    — its field (almost always name: value, type: String)\n" \
+          "    Member.Declare       — one call per admitted row, each with its own position (0, 1, 2, ...)\n" \
+          "    Member.Pair          — one call per row: key: value, value: <the actual text>\n" \
+          "    ValueObject.Close    — rows: <count>, the count of Member rows above", :dim)
+end
+
+def shape_line(chapter, aggregate, attribute)
+  required = attribute.optional? ? "optional" : "required"
+  return "  #{attribute.name.to_s.ljust(14)} reference -> #{attribute.type.target_name.ljust(20)} #{required}   " \
+         "--arg \"#{attribute.name}::<id>\"" if attribute.reference?
+
+  value_object = aggregate.value_object(attribute.type) || chapter.aggregates.filter_map { |a| a.value_object(attribute.type) }.first
+  return "  #{attribute.name.to_s.ljust(14)} #{attribute.type.to_s.ljust(20)} #{required}   " \
+         "(unknown shape — not declared anywhere in #{chapter.name}; try field 'value')" unless value_object
+
+  value_object.attributes.map do |field|
+    "  #{attribute.name.to_s.ljust(14)} #{attribute.type}{#{field.name}: #{field.type}}".ljust(48) +
+      " #{required}   --arg \"#{attribute.name}:#{field.name}:<#{field.type}>\""
+  end.join("\n")
+end
+
+# ── smoke-dispatching a real, rendered domain ──────────────────────────
+#
+# TWO SEPARATE BOOTS, ON PURPOSE. A plain `Runtime::Registry` (the same
+# preamble `Writer.verify!` already uses) is for READING the domain's
+# own shape — aggregates, commands, references, read models — real
+# `IR` objects, not a second hand-parsed index. `Router.boot` is a
+# SEPARATE process entirely, for the actual realm-addressed dispatch
+# (`Development::Chapter::Aggregate.Command`) — the same door a real
+# app calls through, proven live in this build (`Router.boot` is what
+# exposes a report's own query method at all; the plain aggregate door
+# never does). Neither one is asked to do the other's job.
+def run_smoke_test(declaration)
+  Dir.mktmpdir do |dir|
+    write_smoke_domain(dir, declaration)
+
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(File.join(ROOT, "lib/hecksagain/ports/persistence.port"))
+      Kernel.load(File.join(ROOT, "lib/hecksagain/ports/extraction.port"))
+      Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter"))
+      Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter"))
+      Kernel.load(File.join(dir, "bluebook", "#{Hecksagain::Naming.snake(declaration[:name])}.bluebook"))
+    end
+    chapter_ir = registry.bluebook(declaration[:name])
+
+    router = Hecksagain::Router.boot(dir)
+    realm  = "Development" # Writer#world_text's own fixed realm — this is smoke-testing THAT rendered file
+    prefix = "#{realm}::#{declaration[:name]}"
+
+    created  = {}
+    failures = []
+
+    chapter_ir.aggregates.each do |aggregate_ir|
+      creating, noncreating = aggregate_ir.commands.partition(&:creates?)
+
+      creating.each do |command_ir|
+        args = synth_args(chapter_ir, aggregate_ir, command_ir, created)
+        begin
+          result = router.dispatch("#{prefix}::#{aggregate_ir.name}.#{command_ir.hecks_name}", **args)
+          created[aggregate_ir.name] = result.instance.id
+        rescue StandardError => e
+          failures << "#{aggregate_ir.name}.#{command_ir.hecks_name}: #{e.class}: #{e.message}"
+          next
+        end
+
+        noncreating.each do |nc_command|
+          nc_args = synth_args(chapter_ir, aggregate_ir, nc_command, created).merge(id: created[aggregate_ir.name])
+          router.dispatch("#{prefix}::#{aggregate_ir.name}.#{nc_command.hecks_name}", **nc_args)
+        rescue StandardError => e
+          failures << "#{aggregate_ir.name}.#{nc_command.hecks_name}: #{e.class}: #{e.message}"
+        end
+      end
+    end
+
+    chapter_ir.read_models.each do |model|
+      root_id = created[model.reference_target]
+      next unless root_id # nothing was created for this root — nothing to smoke-test yet, not a failure
+
+      router.query("#{prefix}.#{model.query_name}", model.reference_name => root_id)
+    rescue StandardError => e
+      failures << "report #{model.name}: #{e.class}: #{e.message}"
+    end
+
+    if failures.empty?
+      puts paint("smoke test passed — every declared command and report dispatched cleanly", :green)
+    else
+      puts paint("SMOKE TEST FOUND #{failures.size} PROBLEM(S):", :red)
+      failures.each { |f| puts "  #{f}" }
+    end
+  end
+end
+
+def write_smoke_domain(dir, declaration)
+  FileUtils.mkdir_p(File.join(dir, "bluebook"))
+  storage = Hecksagain::Naming.snake(declaration[:name])
+  File.write(File.join(dir, "bluebook", "#{storage}.bluebook"), Hecksagain::Interview::Source.render(declaration))
+  File.write(File.join(dir, "bluebook", "#{storage}.hecksagon"), Hecksagain::Interview::Writer.hecksagon_text(declaration))
+  File.write(File.join(dir, "bluebook", "#{storage}.world"), Hecksagain::Interview::Writer.world_text(declaration))
+end
+
+# ONE SYNTHESIZED ARGUMENT PER DECLARED ATTRIBUTE — never a random
+# guess. A String becomes a fixed marker; an Integer becomes 0; a
+# closed set uses ITS OWN first admitted member (never a value a
+# real `one_of` would legitimately refuse); a reference uses the real
+# id smoke-dispatch already minted for that target earlier in the SAME
+# run — `chapter_ir.aggregates` walks in declaration order for exactly
+# this reason, so whatever TripItem's own shape needs from PackingItem
+# already exists by the time TripItem's own turn comes.
+def synth_args(chapter, aggregate, command, created)
+  command.attributes.to_h do |attribute|
+    if attribute.reference?
+      [attribute.name, created.fetch(attribute.type.target_name, "smoke-test-id")]
+    else
+      [attribute.name, synth_value(chapter, aggregate, attribute.type)]
+    end
+  end
+end
+
+def synth_value(chapter, aggregate, type_name)
+  value_object = aggregate.value_object(type_name) || chapter.aggregates.filter_map { |a| a.value_object(type_name) }.first
+  return "smoke-test" unless value_object
+
+  return value_object.members.first.to_h if value_object.respond_to?(:closed_set?) && value_object.closed_set? && value_object.members.any?
+
+  value_object.attributes.to_h { |field| [field.name, synth_scalar(field.type)] }
+end
+
+def synth_scalar(primitive)
+  case primitive.to_s
+  when "Integer" then 0
+  when "Float" then 0.0
+  when "TrueClass", "FalseClass" then false
+  else "smoke-test"
+  end
+end
+
 # ── argument parsing ─────────────────────────────────────────────────
 
 def flag(name, default = nil)
@@ -219,6 +492,30 @@ when "open"
                              chapter: { value: chapter }, respondent: { value: respondent })
   puts "opened #{paint(session_ref, :green)} against #{chapter}"
 
+# THE CATALOGUE — NOT CHAPTER-SCOPED, on purpose: a standing question is
+# "the practice always asks," independent of any one session, so
+# neither takes a `<Chapter>` argument. Built now because `Draft`/
+# `Publish`/`Retire` were real commands in the domain from the very
+# first task of this build and `bin/interview` never once exposed a
+# way to reach them — the reason `--source catalogue` never got used
+# all session was not that the catalogue wasn't worth it; it was that
+# there was no door to it at all.
+when "draft"
+  slug   = ARGV.shift or abort 'usage: bin/interview draft <slug> --topic T --why "..." "prompt text"'
+  topic  = flag("--topic", "general")
+  why    = flag("--why") or abort "--why is required — a standing question earns its place by saying why it matters"
+  prompt = ARGV.shift or abort "a standing question needs its own prompt text"
+
+  Interview::StandingQuestion.draft(slug: { value: slug }, prompt: { value: prompt },
+                                     topic: { value: topic }, why: { value: why })
+  puts "drafted #{paint(slug, :green)}: #{prompt}"
+
+when "publish"
+  slug = ARGV.shift or abort "usage: bin/interview publish <slug>"
+
+  RUNTIME.dispatch("Interview::StandingQuestion.Publish", slug: { value: slug })
+  puts "published #{paint(slug, :green)} — citable now via `ask ... --source catalogue --ref #{slug}`"
+
 when "state"
   chapter = ARGV.shift or abort "usage: bin/interview state <Chapter>"
   render_state(chapter)
@@ -226,6 +523,57 @@ when "state"
 when "gaps"
   chapter = ARGV.shift or abort "usage: bin/interview gaps <Chapter>"
   render_gaps(rebuild(chapter))
+
+when "shape"
+  verb = ARGV.shift or abort 'usage: bin/interview shape "Bluebook::Aggregate.Declare"'
+  render_shape(verb)
+
+# THE SAME RENDER-AND-RELOAD `save` ALREADY VERIFIES BEFORE WRITING —
+# `Writer.verify!` — run standalone, on demand, nothing written. Built
+# because of a real gap this exact interview hit: three mistakes
+# dispatched cleanly (no refusal at accept time) and only broke at
+# `save`, by which point they were permanently WRITTEN and needed hand
+# edits to the rendered file — see `Proposal::Correct`'s own comment.
+# This catches the ONE class of those three that's checkable without
+# actually dispatching a command against the rendered domain — a
+# construct the renderer/reloader disagree about, the way the closed-set
+# bug here did (a `value_object` that rendered with no fields at all).
+# It will NOT catch the other two — a lifecycle field colliding with an
+# explicit attribute of the same name, or a non-creating command missing
+# `Command.ActsOn` — because both only surface once something is
+# actually DISPATCHED against the loaded domain, not merely reloaded.
+# Named honestly rather than oversold: run this often, but `save` and a
+# real smoke dispatch are still the only complete proof.
+when "check"
+  chapter = ARGV.shift or abort "usage: bin/interview check <Chapter>"
+  session = rebuild(chapter)
+
+  begin
+    Hecksagain::Interview::Writer.verify!(Hecksagain::Interview::Source.render(session.declaration), session.declaration)
+    puts paint("check passed — the rendered text reloads to exactly what it was rendered from", :green)
+  rescue Hecksagain::Bluebook::DSL::Malformed => e
+    abort "not well-formed yet — #{e.message}\n(run `bin/interview gaps #{chapter}` to see what's still open)"
+  rescue Hecksagain::Interview::Writer::Unfaithful => e
+    abort "#{paint('CHECK FAILED', :red)} — #{e.message}"
+  end
+
+# THE ONE GAP `check` NAMES BUT CANNOT CLOSE — a construct can be
+# declared PERFECTLY (reloads clean, `check` passes) and still be
+# WRONG the moment anything actually dispatches against it. Three real
+# bugs this build hit were exactly that shape: a lifecycle field
+# colliding with an explicit attribute, a non-creating command with no
+# `Command.ActsOn`, a report whose join returned nothing back. None of
+# those is a reload disagreement — `check` is silent on all three.
+# `smoke` boots the rendered domain for real (Memory-bound, a
+# throwaway temp dir, nothing written to the real save target) and
+# DISPATCHES — one synthesized call per declared command, one call per
+# declared report, per created root — catching whatever a real
+# conversation would eventually catch anyway, just now instead of
+# later.
+when "smoke"
+  chapter = ARGV.shift or abort "usage: bin/interview smoke <Chapter>"
+  session = rebuild(chapter)
+  run_smoke_test(session.declaration)
 
 # ── non-creating AGGREGATE commands: `.find(id).verb(...)`, the Handle
 #    chaining `Pizza.create_pizza(...).add_topping(...)` proves ──
@@ -272,6 +620,38 @@ when "establish"
                                 topic: { value: topic }, statement: { value: statement })
   puts "established #{paint(ref, :green)}: #{statement}"
 
+# WHAT `propose`+`accept` WOULD DO, WITHOUT DOING IT — no Proposal
+# record, nothing written to `.interview`, nothing appended anywhere.
+# `session.offer` dispatches into the SAME throwaway rebuilt meta-domain
+# `gaps`/`state` already read from — this process exits the moment the
+# command returns, so there is nothing left to leak. Built because
+# every proposal this whole build went straight to `propose`, full
+# ceremony (`--ref`, `--finding`, a rationale), and a wrong guess (the
+# wrong verb, a mistyped composite id) meant a written mistake needing
+# `correct` afterward. `preview` is the same one call, with none of
+# that cost if it's wrong.
+when "preview"
+  chapter = ARGV.shift or abort "usage: bin/interview preview <Chapter> --verb VERB [--arg name:field:value ...]"
+  verb    = flag("--verb") or abort "--verb is required"
+  arguments = []
+  while (raw = flag("--arg"))
+    name, field, value = raw.split(":", 3)
+    arguments << { name: name, field: field.to_s, value: value.to_s }
+  end
+
+  begin
+    lowered_verb, args = Hecksagain::Interview::Lowering.new.lower(verb, arguments)
+    verdict = rebuild(chapter).offer(lowered_verb, **args)
+    if verdict.accepted?
+      puts "#{paint('WOULD WRITE', :green)}  #{lowered_verb}"
+    else
+      puts "#{paint('WOULD REFUSE', :red)}  #{lowered_verb}\n  #{verdict.refusal}"
+      puts "  (#{verdict.wants} — declare what's missing first, then preview again)" if verdict.wants == :prerequisite
+    end
+  rescue Hecksagain::Interview::Lowering::MalformedProposal => e
+    abort "malformed — #{e.message}"
+  end
+
 when "propose"
   chapter = ARGV.shift or abort "usage: bin/interview propose <Chapter> --ref P1 --finding F1 --verb VERB \"rationale\""
   ref     = flag("--ref") or abort "--ref is required"
@@ -315,6 +695,22 @@ when "accept"
     puts "#{paint('REFUSED', :red)}  #{verb}\n  #{verdict.refusal}"
     puts "  (#{verdict.wants} — declare what's missing, then propose this again)" if verdict.wants == :prerequisite
   end
+
+# A WRITTEN MISTAKE, NOT A REFUSAL — the meta-domain took it, and only
+# later (a save, a real boot) did it turn out to be wrong. `written` is a
+# true terminal for `accept`/`reject`/`supersede`, by design (see
+# interview.bluebook's own comment) — this is the one, narrow exception:
+# the record stays exactly as written, forever; only `rebuild` (and so
+# `save`) stop replaying it. Fixing what it got wrong is a NEW proposal,
+# same as everything else — `correct` only says "don't count this one."
+when "correct"
+  chapter = ARGV.shift or abort "usage: bin/interview correct <Chapter> <proposal-ref> \"why it was wrong\""
+  ref     = ARGV.shift or abort "which proposal?"
+  reason  = ARGV.shift or abort "say why — this stays in the record"
+
+  proposal = Interview::Proposal.find(ref) or abort "no proposal #{ref.inspect}"
+  proposal.correct(reason: { value: reason })
+  puts "#{paint('CORRECTED', :yellow)}  #{ref} — excluded from replay from here on"
 
 # ── writing it out for real ─────────────────────────────────────────
 

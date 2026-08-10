@@ -755,6 +755,7 @@ Hecks.bluebook "Interview" do
     attribute :rationale, Rationale
     attribute :arguments, list_of(Argument)
     attribute :refusal,   RefusalText
+    attribute :reason,    CorrectionReason
 
     value_object "ProposalReference" do
       attribute :value, String
@@ -832,6 +833,27 @@ Hecks.bluebook "Interview" do
       attribute :value, String
     end
 
+    # WHY A WRITTEN MISTAKE STILL NEEDS A WORD FOR ITSELF. `written` is a
+    # true terminal for `Supersede`/`Reject` on purpose (see the lifecycle's
+    # own comment below) — but "the meta-domain took it" and "it was the
+    # right thing to have asked for" are different facts, and a real
+    # interview conflates them at its own risk. `bin/interview propose`'s
+    # own worked history found this the hard way: a wrong verb
+    # (`Command.Argument` where `Command.Reference` belonged) and a field
+    # name that collided with a lifecycle's own auto-created attribute both
+    # dispatched cleanly — the meta-domain had no rule to refuse either
+    # one — and only broke the SAVED domain, downstream, permanently. Fixing
+    # either meant hand-editing rendered source, outside every tool this
+    # chapter has. `Correct` is what should have been there instead: the
+    # mistake stays written, in full, in the log — nothing here rewrites it
+    # — but `rebuild`/`Writer` skip a corrected proposal on replay, so its
+    # effect stops reaching the model without a line of source ever being
+    # hand-edited again.
+    value_object "CorrectionReason" do
+      attribute :value, String
+      invariant("a correction says what was wrong") { !value.to_s.empty? }
+    end
+
     lifecycle :status, default: "proposed" do
       # A SELF-TRANSITION so arguments can only be attached while the
       # proposal is still open — the trick `Ask` uses one aggregate up, and
@@ -862,6 +884,14 @@ Hecks.bluebook "Interview" do
       # decision that produced this one.
       transition "Written"   => "written",    from: "accepted"
       transition "Refused"   => "refused",    from: "accepted"
+
+      # NOT a second `Supersede` under another name. `Supersede` retires a
+      # proposal nobody ruled on yet — the decision never happened.
+      # `Correct` retires a proposal the meta-domain DID take, on the
+      # discovery that taking it was a mistake — the decision happened and
+      # is still true history; only its EFFECT stops being replayed. See
+      # `CorrectionReason`'s own comment for why this exists.
+      transition "Correct"   => "corrected",  from: "written"
     end
 
     command "Propose" do
@@ -943,6 +973,18 @@ Hecks.bluebook "Interview" do
       then_set :refusal, to: :refusal
 
       emits "ChangeRefused"
+    end
+
+    command "Correct" do
+      role "Interviewer"
+      goal "Mark a written proposal as a mistake, excluded from replay, without erasing that it was written"
+
+      reference_to Proposal
+      attribute :reason, CorrectionReason
+
+      then_set :reason, to: :reason
+
+      emits "ChangeCorrected"
     end
 
     query "Pending" do

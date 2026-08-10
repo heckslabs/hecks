@@ -367,9 +367,18 @@ module Hecksagain
         text.inspect
       end
 
+      # `symbol_literal`, NOT bare interpolation — a dotted field path
+      # (`position.value`, a nested value-object field, the ordinary shape
+      # for anything but a bare identity scalar) rendered as `:#{field}`
+      # produces `:position.value`, which Ruby parses as a METHOD CALL on
+      # the symbol literal `:position` — `undefined method 'value' for
+      # an instance of Symbol` the first time this ever ran against a
+      # real `order_by` on a nested field. The corpus render-gate never
+      # caught it because no existing corpus member orders by anything
+      # but a bare scalar.
       def order_by_line(order_by)
         direction = order_by[:direction] == "desc" ? ", :desc" : ""
-        "order_by :#{order_by[:field]}#{direction}"
+        "order_by #{symbol_literal(order_by[:field])}#{direction}"
       end
 
       def freshness_line(freshness)

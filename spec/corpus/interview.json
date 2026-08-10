@@ -1,6 +1,6 @@
 {
   "name": "interview-session",
-  "note": "One discovery session end to end: questions asked from all three sources, an answer, a finding cited and confirmed, and a proposal carried through accept to written. Also pins the two rules this chapter can actually enforce — a catalogue question must name its catalogue entry, and a session that asked nothing cannot be concluded.",
+  "note": "One discovery session end to end: questions asked from all three sources, an answer, a finding cited and confirmed, and a proposal carried through accept to written, then corrected once a downstream mistake surfaced (the written record stays, only its replay stops). Also pins the two rules this chapter can actually enforce — a catalogue question must name its catalogue entry, and a session that asked nothing cannot be concluded.",
   "expectations": {
     "event_names": [
       "InterviewOpened",
@@ -14,6 +14,7 @@
       "ArgumentSupplied",
       "ChangeAccepted",
       "ChangeWritten",
+      "ChangeCorrected",
       "InterviewConcluded"
     ],
     "refusals": [
@@ -26,7 +27,7 @@
         "includes": "an interview that asked nothing has discovered nothing"
       }
     ],
-    "events": 15
+    "events": 16
   },
   "steps": [
     {
@@ -137,6 +138,13 @@
     {
       "verb": "Interview::Proposal.Written",
       "args": { "reference": { "value": "p1" } }
+    },
+    {
+      "verb": "Interview::Proposal.Correct",
+      "args": {
+        "reference": { "value": "p1" },
+        "reason": { "value": "the account number alone is not what the respondent meant — corrected by a later proposal, not erased" }
+      }
     },
     {
       "verb": "Interview::Interview.Open",
