@@ -19,6 +19,11 @@ module Hecksagain
           @vision = value
         end
 
+        # A domain's own identity can change — this names what it used to
+        # be, so the storage layer can recognize its own history under the
+        # old name instead of minting a brand-new lineage from nothing.
+        def formerly_known_as(value) = @formerly_known_as = value.to_s
+
         def core       = @classification = :core
         def supporting = @classification = :supporting
         def generic    = @classification = :generic
@@ -67,7 +72,8 @@ module Hecksagain
                                       read_models: @read_models,
                                       policies: policies,
                                       process_managers: @process_managers,
-                                      classification: @classification)
+                                      classification: @classification,
+                                      formerly_known_as: @formerly_known_as)
 
           # Every hop AggregateBuilder#seal_query_field recognised and
           # deferred gets checked for real here — the earliest point a

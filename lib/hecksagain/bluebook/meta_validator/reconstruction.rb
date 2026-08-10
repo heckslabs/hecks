@@ -58,6 +58,7 @@ module Hecksagain
             version:          text(@chapter[:version]),
             vision:           text(@chapter[:vision]),
             classification:   text(@chapter[:classification]),
+            formerly_known_as: text(@chapter[:formerly_known_as]),
             aggregates:       declared("Aggregate", chapter_id).map { |row| aggregate(row) },
             read_models:      declared("ReadModel", chapter_id).map { |row| read_model(row) },
             policies:         declared("Policy", chapter_id).map { |row| policy(row) },

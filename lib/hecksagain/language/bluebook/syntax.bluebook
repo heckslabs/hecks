@@ -269,6 +269,7 @@ Hecks.bluebook "Bluebook" do
         member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
 
         member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
+        member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
         # THREE WORDS FOR ONE FIELD. `core`, `supporting` and `generic` are the
         # three values Classification admits, spelled as bare words rather than
         # as an argument to one — the only place in the language where the VALUE
@@ -514,6 +515,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
 
         member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
+        member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
         member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "report",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"

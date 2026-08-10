@@ -12,7 +12,7 @@ module Hecksagain
         module EraResolver
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
             db = Postgres.connect_for(bluebook.name, settings)
-            lineage = Lineage.new(db, bluebook.name)
+            lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
             lineage.ensure_base!
             role = settings[:role] || settings["role"]
 
@@ -28,6 +28,20 @@ module Hecksagain
 
             current_shape = Runtime::StorageShape.project(bluebook)
             shapes = held.map { |era| [era, Runtime::StorageShape.project(shadow(era[:held_text]))] }
+            if bluebook.formerly_known_as
+              # A held era's shape is re-derived from its own frozen
+              # historical text (shadow(era[:held_text])), so its "name"
+              # is permanently the old one — the frozen text is authentic
+              # record ("this domain really was called that, at the
+              # time") and must never be rewritten. Only the in-memory
+              # shape used for THIS comparison is normalized, and only
+              # where it exactly matches the declared old name, so an
+              # unrelated domain that happens to shape-match some other
+              # domain's history still shows up as a real mismatch.
+              shapes = shapes.map do |era, shape|
+                [era, shape["name"] == bluebook.formerly_known_as ? shape.merge("name" => bluebook.name) : shape]
+              end
+            end
 
             latest, latest_shape = shapes.last
             if latest_shape == current_shape

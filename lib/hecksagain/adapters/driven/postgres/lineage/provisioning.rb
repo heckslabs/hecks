@@ -14,6 +14,7 @@ module Hecksagain
           # ("must be owner of table hecks_eras"). A fence nothing can
           # reach is not a fence.
           def ensure_base!
+            rename_domain! if @formerly_known_as
             return unless provisioner?
 
             @db.exec(<<~SQL)
@@ -127,6 +128,99 @@ module Hecksagain
             @db.exec("ALTER TABLE #{quoted_journal} ENABLE ROW LEVEL SECURITY") unless current["relrowsecurity"] == "t"
             @db.exec("ALTER TABLE #{quoted_journal} FORCE ROW LEVEL SECURITY") unless current["relforcerowsecurity"] == "t"
             install_transforms!
+          end
+
+          # A DOMAIN'S OWN IDENTITY CHANGED — bridge its history under the
+          # new name, before `provisioner?`/the CREATE TABLE IF NOT EXISTS
+          # block below ever run. That ordering is load-bearing, not
+          # tidiness: `provisioner?` and every statement in ensure_base!
+          # test for the journal under `journal` — the NEW name — and a
+          # freshly-renamed domain looks, to those checks, exactly like a
+          # domain that has never been provisioned at all. Left where it
+          # was written, ensure_base! would happily CREATE TABLE IF NOT
+          # EXISTS a brand-new, empty journal under the new name before
+          # this method ever got a chance to run — and the ALTER TABLE ...
+          # RENAME below would then fail, renaming onto a name that
+          # already exists.
+          #
+          # Three-way precheck, cheapest first:
+          #   1. no hecks_eras table at all yet — a genuinely fresh
+          #      database; nothing to bridge, fall through to the
+          #      ordinary provisioning path.
+          #   2. hecks_eras already has rows under the NEW name — this
+          #      rename already ran (a prior boot, possibly this one on a
+          #      retry); idempotent no-op.
+          #   3. hecks_eras has rows under the OLD name — run the
+          #      migration.
+          # Anything else (no rows under either name) falls through
+          # harmlessly — `formerly_known_as` pointing at a name with no
+          # held history is not an error, just inert.
+          def rename_domain!
+            return unless @db.exec_params("SELECT to_regclass($1)", ["hecks_eras"])[0]["to_regclass"]
+            return if @db.exec_params(
+              "SELECT 1 FROM hecks_eras WHERE domain = $1 LIMIT 1", [@domain]
+            ).ntuples.positive?
+            return if @db.exec_params(
+              "SELECT 1 FROM hecks_eras WHERE domain = $1 LIMIT 1", [@formerly_known_as]
+            ).ntuples.zero?
+
+            old_journal  = "hecks_journal_#{Naming.snake(@formerly_known_as)}"
+            old_sequence = "#{old_journal}_ordinal"
+            ordinals = @db.exec_params(
+              "SELECT ordinal FROM hecks_eras WHERE domain = $1 ORDER BY ordinal", [@formerly_known_as]
+            ).map { |row| row["ordinal"].to_i }
+
+            @db.exec("BEGIN")
+            @db.exec("SET LOCAL lock_timeout = '10s'")
+            # Fixed order — old before new, the `eras:` family before the
+            # `ordinal:` family — so two rename attempts (or a rename
+            # racing a mint/plain-write on either name) can only ever
+            # queue behind one another, never deadlock.
+            [
+              "hecks_eras:#{@formerly_known_as}", "hecks_eras:#{@domain}",
+              "hecks_ordinal:#{@formerly_known_as}", "hecks_ordinal:#{@domain}"
+            ].each do |key|
+              @db.exec_params("SELECT pg_advisory_xact_lock(hashtext($1))", [key])
+            end
+
+            @db.exec("ALTER TABLE #{quote(old_journal)} RENAME TO #{quote(journal)}")
+            # An owned SERIAL/IDENTITY sequence moves automatically with
+            # its table and errors if renamed explicitly — this one is a
+            # plain CREATE SEQUENCE the journal's DEFAULT merely points
+            # at (see ensure_base!), so it does need its own rename, and
+            # the column default survives untouched: Postgres stores
+            # nextval('...') as a regclass reference internally, not
+            # literal text.
+            @db.exec("ALTER SEQUENCE #{quote(old_sequence)} RENAME TO #{quote(sequence)}")
+            # ALTER TABLE ... RENAME on the parent does NOT cascade to
+            # child partition names — each one needs its own explicit
+            # rename, sourced from the ordinals held under the OLD name,
+            # captured above before the UPDATE below flips the column.
+            ordinals.each do |ordinal|
+              old_partition = "#{old_journal}_era_#{ordinal}"
+              @db.exec("ALTER TABLE #{quote(old_partition)} RENAME TO #{quote(partition(ordinal))}")
+            end
+
+            %w[hecks_eras hecks_era_texts hecks_approvals].each do |table|
+              @db.exec_params("UPDATE #{table} SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as])
+            end
+            # Unlike its siblings, hecks_attestations is not created in
+            # ensure_base! at all — only lazily, on first reattest! — so a
+            # domain that never needed one must not be forced through an
+            # UPDATE against a table that doesn't exist.
+            if @db.exec_params("SELECT to_regclass($1)", ["hecks_attestations"])[0]["to_regclass"]
+              @db.exec_params("UPDATE hecks_attestations SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as])
+            end
+
+            @db.exec("COMMIT")
+          rescue PG::LockNotAvailable
+            @db.exec("ROLLBACK") rescue nil
+            raise Runtime::WiringError,
+                  "cannot rename #{@formerly_known_as} to #{@domain}: another rename, mint, or write holds " \
+                  "one of the domain locks — waited 10s; try again shortly"
+          rescue PG::Error => error
+            @db.exec("ROLLBACK") rescue nil
+            raise Runtime::WiringError, "cannot rename #{@formerly_known_as} to #{@domain}: #{error.message.strip}"
           end
 
           # Nothing provisioned yet — build it. Provisioned and owned —
