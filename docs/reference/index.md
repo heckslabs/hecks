@@ -6,7 +6,7 @@ the prose between the generated markers is hand-written and
 survives regeneration.
 
 - [File](file.md) — 3 words
-- [Bluebook](bluebook.md) — 8 words
+- [Bluebook](bluebook.md) — 9 words
 - [Aggregate](aggregate.md) — 14 words
 - [Entity](entity.md) — 6 words
 - [Command](command.md) — 9 words

@@ -762,6 +762,10 @@ RSpec.describe "the DSL surface" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
     end
 
+    it "formerly_known_as records what a domain's own identity used to be" do
+      expect(build_bluebook("Renamed") { formerly_known_as "OldName" }.formerly_known_as).to eq("OldName")
+    end
+
     it "policy declares a reaction the domain owns rather than one aggregate" do
       reaction = build_bluebook("Reacting") do
         policy "NotifyOnPlacement" do

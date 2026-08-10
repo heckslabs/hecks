@@ -89,11 +89,12 @@ module Hecksagain
 
         JOURNAL_COLUMNS = "ordinal, era, aggregate, aggregate_id, operation, state, mirrors".freeze
 
-        attr_reader :db, :domain
+        attr_reader :db, :domain, :formerly_known_as
 
-        def initialize(db, domain)
+        def initialize(db, domain, formerly_known_as: nil)
           @db = db
           @domain = domain.to_s
+          @formerly_known_as = formerly_known_as&.to_s
         end
 
         def journal = "hecks_journal_#{Naming.snake(@domain)}"

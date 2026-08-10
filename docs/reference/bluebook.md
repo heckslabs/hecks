@@ -19,6 +19,18 @@ between them is hand-written and survives regeneration.*
 
 A one-line statement of what the domain is for. Optional, but not empty if given — the same value-object invariant fires here as on any string field, enforced by the meta-domain that judges the bluebook itself. Stored on the chapter and readable back after boot as `Chapter.vision`.
 
+## formerly_known_as
+
+<!-- generated:begin word=formerly_known_as -->
+`formerly_known_as formerly_known_as` — fills `formerly_known_as`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | formerly_known_as |
+<!-- generated:end -->
+
+A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the chapter and readable back after boot as `Chapter.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
+
 ## core
 
 <!-- generated:begin word=core -->
