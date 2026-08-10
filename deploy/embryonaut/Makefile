@@ -364,6 +364,34 @@ deploy:
 	sam build --use-container WebFunction
 	$(MAKE) restore-EmbryonautFunction-build
 	$(MAKE) patch-pg-native
+	# THE TRANSACTION-SAFETY GAP, closed for the case that actually
+	# matters: `sam deploy` below is what flips this Lambda's own
+	# HECKS_DOMAIN/HECKS_SCHEMA env vars live — the INSTANT it
+	# completes, real traffic can hit a domain/schema combination
+	# whose era history hasn't been bridged yet if THIS domain was
+	# just renamed (formerly_known_as) or its schema just moved.
+	# `mint-era` already bridges that (era_resolver.rb's own
+	# rename_domain! path, idempotent either way) — it only ran
+	# AFTER `sam deploy` before this existed, which is exactly the
+	# order that left a real live window open the one time this was
+	# actually run in anger (an SSM tunnel flaked mid-bridge, after
+	# the Lambda had already flipped over).
+	#
+	# STILL RUNS AFTER TOO (unchanged, below) — this pre-check
+	# cannot replace that: a domain's VERY FIRST deploy has no
+	# stack, hence no RDS, hence nothing to tunnel to yet, so
+	# mint-era's real first run has to stay where it always was,
+	# once `sam deploy` has just created that RDS instance. This
+	# only ADDS a second, EARLIER run for a domain that already has
+	# a live stack (a rename or an ordinary redeploy) — cheap and
+	# safe either way, since mint-era's own quiet-reboot path is a
+	# no-op the moment nothing has actually changed.
+	@if aws cloudformation describe-stacks --stack-name $(STACK) >/dev/null 2>&1; then \
+		echo "Existing stack found -- bridging era history before this deploy flips $(STACK) over, not after."; \
+		$(MAKE) mint-era || exit 1; \
+	else \
+		echo "No existing stack -- first deploy, nothing to bridge yet; mint-era runs once, below, after the stack (and its RDS instance) exist."; \
+	fi
 	$(MAKE) sync-google-oauth
 	@WEB_URL=$$(aws lambda get-function-url-config --function-name hecksagain-embryonaut-web --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \
 	if [ -n "$$WEB_URL" ]; then \
