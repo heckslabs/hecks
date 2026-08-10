@@ -1,0 +1,159 @@
+{
+  "name": "interview-session",
+  "note": "One discovery session end to end: questions asked from all three sources, an answer, a finding cited and confirmed, and a proposal carried through accept to written. Also pins the two rules this chapter can actually enforce — a catalogue question must name its catalogue entry, and a session that asked nothing cannot be concluded.",
+  "expectations": {
+    "event_names": [
+      "InterviewOpened",
+      "QuestionAsked",
+      "QuestionAnswered",
+      "StandingQuestionPublished",
+      "FindingEstablished",
+      "EvidenceCited",
+      "FindingConfirmed",
+      "ChangeProposed",
+      "ArgumentSupplied",
+      "ChangeAccepted",
+      "ChangeWritten",
+      "InterviewConcluded"
+    ],
+    "refusals": [
+      {
+        "verb": "Interview::Interview.Ask",
+        "includes": "a catalogue question names the entry it came from"
+      },
+      {
+        "verb": "Interview::Interview.Conclude",
+        "includes": "an interview that asked nothing has discovered nothing"
+      }
+    ],
+    "events": 15
+  },
+  "steps": [
+    {
+      "verb": "Interview::Interview.Open",
+      "args": {
+        "session": { "value": "s1" },
+        "subject": { "value": "Acme Bank" },
+        "chapter": { "value": "Acme" },
+        "respondent": { "value": "id-1" }
+      }
+    },
+    {
+      "verb": "Interview::StandingQuestion.Draft",
+      "args": {
+        "slug": { "value": "aggregate-identity" },
+        "prompt": { "value": "What makes two of these the same one?" },
+        "topic": { "value": "identity" },
+        "why": { "value": "An aggregate that cannot say what it is known by silently overwrites the record it should have refused." }
+      }
+    },
+    {
+      "verb": "Interview::StandingQuestion.Publish",
+      "args": { "slug": { "value": "aggregate-identity" } }
+    },
+    {
+      "verb": "Interview::Interview.Ask",
+      "args": {
+        "session": { "value": "s1" },
+        "text": { "value": "What makes two accounts the same account?" },
+        "source": { "value": "catalogue" },
+        "topic": { "value": "identity" },
+        "catalogue_ref": { "value": "aggregate-identity" }
+      }
+    },
+    {
+      "verb": "Interview::Interview.Ask",
+      "args": {
+        "session": { "value": "s1" },
+        "text": { "value": "Who is allowed to waive a fee?" },
+        "source": { "value": "judgment" },
+        "topic": { "value": "role" },
+        "catalogue_ref": { "value": "" }
+      }
+    },
+    {
+      "verb": "Interview::Interview.Ask",
+      "args": {
+        "session": { "value": "s1" },
+        "text": { "value": "A catalogue question that cannot name its entry is judgment wearing a source it did not earn." },
+        "source": { "value": "catalogue" },
+        "topic": { "value": "identity" },
+        "catalogue_ref": { "value": "" }
+      }
+    },
+    {
+      "verb": "Interview::Interview.Question.Answer",
+      "args": {
+        "session": { "value": "s1" },
+        "sequence": { "value": 1 },
+        "answer": { "value": "The account number. Two customers can share every other detail." }
+      }
+    },
+    {
+      "verb": "Interview::Finding.Establish",
+      "args": {
+        "interview_id": "s1",
+        "reference": { "value": "f1" },
+        "sequence": { "value": 1 },
+        "topic": { "value": "identity" },
+        "statement": { "value": "An Account is known by its account number." }
+      }
+    },
+    {
+      "verb": "Interview::Finding.Cite",
+      "args": {
+        "reference": { "value": "f1" },
+        "question": { "value": 1 }
+      }
+    },
+    {
+      "verb": "Interview::Finding.Confirm",
+      "args": { "reference": { "value": "f1" } }
+    },
+    {
+      "verb": "Interview::Proposal.Propose",
+      "args": {
+        "interview_id": "s1",
+        "finding_id": "f1",
+        "reference": { "value": "p1" },
+        "sequence": { "value": 1 },
+        "verb": { "value": "Bluebook::Aggregate.Identify" },
+        "rationale": { "value": "The respondent named the account number as what tells two accounts apart." }
+      }
+    },
+    {
+      "verb": "Interview::Proposal.Supply",
+      "args": {
+        "reference": { "value": "p1" },
+        "name": { "value": "path" },
+        "field": { "value": "value" },
+        "value": { "value": "number.value" }
+      }
+    },
+    {
+      "verb": "Interview::Proposal.Accept",
+      "args": { "reference": { "value": "p1" } }
+    },
+    {
+      "verb": "Interview::Proposal.Written",
+      "args": { "reference": { "value": "p1" } }
+    },
+    {
+      "verb": "Interview::Interview.Open",
+      "args": {
+        "session": { "value": "s2" },
+        "subject": { "value": "Acme Bank" },
+        "chapter": { "value": "Acme" },
+        "respondent": { "value": "id-1" }
+      }
+    },
+    {
+      "verb": "Interview::Interview.Conclude",
+      "args": { "session": { "value": "s2" } }
+    },
+    {
+      "verb": "Interview::Interview.Conclude",
+      "args": { "session": { "value": "s1" } }
+    }
+  ]
+}

@@ -1,0 +1,374 @@
+#!/usr/bin/env ruby
+
+# A live discovery session — one declaration at a time, the language's
+# OWN refusals as the interview's feedback, rendered as an event-storming
+# wall (docs/event-storming-policies.md's mapping: aggregate/yellow,
+# command/blue, event/orange, policy/lilac).
+#
+# EVERY INVOCATION IS A FRESH PROCESS. The Interview domain (questions,
+# findings, proposals) is where this session actually lives — Memory by
+# default, or wherever a real app's own `.world` binds it via `--at`.
+# The partial bluebook being discovered is NOT stored anywhere: it is
+# rebuilt every time by re-dispatching every WRITTEN proposal's own verb
+# and arguments through `Interview::Lowering` into a fresh
+# `Interview::Session` — a head, derived from a journal that already had
+# to be durable for its own sake. A language change fails LOUDLY here
+# (`UnknownVerb`/`NotFound` naming exactly what broke), never silently.
+#
+#   bin/interview open      <Chapter> --subject "..." --respondent <id> [--at DIR]
+#   bin/interview state     <Chapter> [--at DIR]
+#   bin/interview gaps      <Chapter> [--at DIR]
+#   bin/interview ask       <Chapter> "question text" [--topic T] [--source mechanical|catalogue|judgment] [--ref CATALOGUE-REF] [--at DIR]
+#   bin/interview answer    <Chapter> <sequence> "answer text" [--at DIR]
+#   bin/interview establish <Chapter> --ref F1 --topic T "statement" [--at DIR]
+#   bin/interview propose   <Chapter> --ref P1 --finding F1 --verb "Bluebook::X.Y" "rationale" [--arg name:field:value ...] [--at DIR]
+#   bin/interview accept    <Chapter> <proposal-ref> [--at DIR]
+#   bin/interview save      <Chapter> --to DIR
+#   bin/interview suggest   <Chapter> --kind aggregate|command|event|... "meaning" [--near X,Y] [--at DIR]
+#   bin/interview critique  <Chapter> [--at DIR]
+#
+# `suggest`/`critique` are the ONLY two commands that touch
+# `Ports::Agent` — everything above them is plain Ruby, no model
+# involved, because a human running this tool interactively IS the
+# interviewer. These two exist for the headless case: nobody in the
+# room to ask "what should I call this" or "does this look right."
+# `.claude/skills/interview/SKILL.md` never calls either — Claude Code
+# conducting a live session already reasons about names and taste
+# itself, with better context than a one-shot prompt ever gets.
+#
+# `--at DIR` boots a real app directory the normal way (`Hecks.boot`), so
+# the Interview domain's own persistence is whatever that app's `.world`
+# says — Postgres, durably, once one exists. With no `--at`, this runs
+# against Memory, ephemeral by construction: real for trying the shape
+# of a conversation, not for keeping one.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain/interview"
+require "json"
+
+ROOT = File.expand_path("..", __dir__)
+
+# ── colour, in the event-storming vernacular ──────────────────────────
+#
+# NO_COLOR HONOURED — colour is emphasis on text that already reads
+# correctly without it, never the only carrier of a fact.
+module Paint
+  CODES = { yellow: 33, blue: 34, orange: 208, lilac: 141, green: 32, red: 31, dim: 2 }.freeze
+
+  module_function
+
+  def on? = ENV["NO_COLOR"].to_s.empty? && $stdout.tty?
+
+  def call(text, colour)
+    return text unless on?
+
+    code = CODES.fetch(colour)
+    prefix = code > 37 ? "\e[38;5;#{code}m" : "\e[#{code}m"
+    "#{prefix}#{text}\e[0m"
+  end
+end
+
+def paint(text, colour) = Paint.call(text, colour)
+
+# ── booting the Interview domain (real records live here) ────────────
+
+# `--at DIR` boots a real app the ordinary way; with none, an ephemeral
+# Memory-bound boot — the same preamble every spec/probe in this build
+# already uses, matching `bin/scaffold_translation`'s own shape for a
+# script that is not a full app.
+def boot_interview_domain(at:)
+  return Hecks.boot(at) if at
+
+  registry = Hecksagain::Runtime::Registry.new
+  Hecksagain.with_registry(registry) do
+    # EVERY FRAMEWORK PORT AND ADAPTER, the identical call a real
+    # `Hecks.boot` makes (`Loader.boot` -> `Folder#load_library`) —
+    # not a hand-picked subset. Registering `agent`/`ClaudeCode` here
+    # is what lets `suggest`/`critique` below resolve
+    # `Ports::Agent.adapter(RUNTIME.registry)` without a second,
+    # parallel boot path to keep in sync by hand.
+    Hecksagain::Adapters::Folder.new.load_library
+    Kernel.load(File.join(ROOT, "lib/hecksagain/framework/bluebook/interview.bluebook"))
+    Hecks.hecksagon("Interview") do
+      ::Interview::Interview.persisted_by("Memory")
+      ::Interview::StandingQuestion.persisted_by("Memory")
+      ::Interview::Finding.persisted_by("Memory")
+      ::Interview::Proposal.persisted_by("Memory")
+    end
+  end
+  registry.verify!
+  runtime = Hecksagain::Runtime::Dispatcher.new(registry)
+  Hecksagain::Runtime::Loader.bind_runtime(runtime)
+  runtime
+end
+
+# THE ONE GATHERING SESSION FOR THIS CHAPTER — most commands act against
+# "the" interview rather than naming one, so this resolves it the same
+# way a human would ask: whichever session against this chapter is
+# still `gathering`. More than one is named explicitly rather than
+# guessed at; that is a real ambiguity, not a default to paper over.
+
+# QUERIES ARE NOT ON THE DOOR — `Facade::Surface::AggregateDoor` exposes
+# creating verbs, `find`/`all`/`count`/`events`, and the `.hecksagon`
+# binding collector, but no declared `query` at all (confirmed against a
+# live boot: `Interview::Interview.gathering` raises `NoMethodError`).
+# Every read below goes straight through `RUNTIME.query`, which answers
+# an array of plain hashes — `{id:}.merge(state)`, value-object fields
+# still wrapped as `Runtime::Value` — the same shape `forms.rb`'s own
+# `run_query` reads.
+def query(verb, **args) = RUNTIME.query(verb, **args)
+
+def current_session_ref(chapter)
+  gathering = query("Interview::Interview.Gathering").select { |row| row[:chapter].value == chapter }
+  abort "no open interview for #{chapter.inspect} — run `bin/interview open #{chapter} ...` first" if gathering.empty?
+  if gathering.size > 1
+    refs = gathering.map { |row| row[:id] }.join(", ")
+    abort "#{gathering.size} open interviews for #{chapter.inspect} (#{refs}) — this tool does not choose between them"
+  end
+
+  gathering.first[:id]
+end
+
+# EVERY WRITTEN PROPOSAL FOR THIS CHAPTER'S SESSIONS, oldest first — the
+# journal `rebuild` replays. No declared query answers "every proposal,
+# any status" (`Pending`/`Awaiting`/the two `RestingOn...`s each filter
+# by status, because each answers a real operational question, and "all
+# of them, whatever their status" was never one of those until this
+# replay needed it) — so this reads the raw repository via `.all` (a
+# door method that IS real — see above) and filters here instead of
+# inventing a query for a need only this file has.
+def written_proposals_for(chapter)
+  session_refs = query("Interview::Interview.ForChapter", chapter: { value: chapter }).map { |row| row[:id] }
+  Interview::Proposal.all
+                      .select { |p| session_refs.include?(p.interview_id) && p.status == "written" }
+                      .sort_by { |p| p.sequence.value }
+end
+
+# REBUILD THE PARTIAL BLUEBOOK — the head, derived from the journal
+# (`written_proposals_for`) that already had to be durable for its own
+# sake. A language change fails loudly here, never silently.
+def rebuild(chapter)
+  session  = Hecksagain::Interview::Session.open(chapter)
+  lowering = Hecksagain::Interview::Lowering.new
+  written_proposals_for(chapter).each do |proposal|
+    verb, args = lowering.lower(proposal.verb.value, proposal.arguments.map(&:to_h))
+    session.offer(verb, **args)
+  end
+  session
+end
+
+# ── the event-storming wall ────────────────────────────────────────────
+
+def render_state(chapter)
+  session = rebuild(chapter)
+  decl = session.declaration
+
+  puts "#{paint(decl[:name], :yellow)}  ·  #{decl[:aggregates].size} aggregate(s)"
+  puts
+
+  decl[:aggregates].each do |aggregate|
+    puts paint("▐ #{aggregate[:name]}", :yellow)
+    commands = aggregate[:commands] || []
+    if commands.any?
+      puts "  #{commands.map { |c| paint(c[:name], :blue) }.join('  ')}"
+      commands.flat_map { |c| c[:emits] }.compact.each { |event| puts "    #{paint(event, :orange)}" }
+    else
+      puts "  #{paint('(no commands yet)', :dim)}"
+    end
+    puts
+  end
+
+  render_gaps(session)
+end
+
+def render_gaps(session)
+  gaps = session.gaps
+  return puts paint("no gaps — this chapter could seal", :green) if gaps.empty?
+
+  puts paint("gaps", :red)
+  gaps.each { |gap| puts "  #{gap}" }
+end
+
+# ── argument parsing ─────────────────────────────────────────────────
+
+def flag(name, default = nil)
+  idx = ARGV.index(name)
+  return default unless idx
+
+  ARGV.delete_at(idx)
+  ARGV.delete_at(idx)
+end
+
+at = flag("--at")
+command = ARGV.shift or abort "usage: bin/interview <open|state|gaps|ask|answer|establish|propose|accept> ..."
+
+RUNTIME = boot_interview_domain(at: at)
+
+case command
+# ── creating commands: module-level door calls, confirmed against a
+#    live domain throughout this build (Interview.open, Finding.establish,
+#    Proposal.propose all mint their own identity from their own args) ──
+when "open"
+  chapter    = ARGV.shift or abort "usage: bin/interview open <Chapter> --subject ... --respondent ..."
+  subject    = flag("--subject") or abort "--subject is required"
+  respondent = flag("--respondent") or abort "--respondent is required"
+  session_ref = flag("--session") || "#{chapter}-#{Process.pid}"
+
+  Interview::Interview.open(session: { value: session_ref }, subject: { value: subject },
+                             chapter: { value: chapter }, respondent: { value: respondent })
+  puts "opened #{paint(session_ref, :green)} against #{chapter}"
+
+when "state"
+  chapter = ARGV.shift or abort "usage: bin/interview state <Chapter>"
+  render_state(chapter)
+
+when "gaps"
+  chapter = ARGV.shift or abort "usage: bin/interview gaps <Chapter>"
+  render_gaps(rebuild(chapter))
+
+# ── non-creating AGGREGATE commands: `.find(id).verb(...)`, the Handle
+#    chaining `Pizza.create_pizza(...).add_topping(...)` proves ──
+when "ask"
+  chapter = ARGV.shift or abort "usage: bin/interview ask <Chapter> \"question\" [--topic T] [--source S] [--ref REF]"
+  text    = ARGV.shift or abort "a question needs text"
+  topic   = flag("--topic", "general")
+  source  = flag("--source", "judgment")
+  ref     = flag("--ref", "")
+  session_ref = current_session_ref(chapter)
+
+  Interview::Interview.find(session_ref).ask(text: { value: text }, source: { value: source },
+                                              topic: { value: topic }, catalogue_ref: { value: ref })
+  puts "asked (#{source}, #{topic}): #{text}"
+
+# ── an ENTITY command: no Handle chaining sugar exists for these (every
+#    real example in the corpus — SafeDepositBox's Visit/KeyIssuance —
+#    dispatches them raw, dotted verb, parent identity alongside the
+#    entity's own), so this goes straight through RUNTIME.dispatch too ──
+when "answer"
+  chapter  = ARGV.shift or abort "usage: bin/interview answer <Chapter> <sequence> \"answer\""
+  sequence = ARGV.shift or abort "which question?"
+  text     = ARGV.shift or abort "an answer needs text"
+  session_ref = current_session_ref(chapter)
+
+  RUNTIME.dispatch("Interview::Interview.Question.Answer", session: { value: session_ref },
+                    sequence: { value: sequence.to_i }, answer: { value: text })
+  puts "answered ##{sequence}: #{text}"
+
+when "establish"
+  chapter = ARGV.shift or abort "usage: bin/interview establish <Chapter> --ref F1 --topic T \"statement\""
+  ref     = flag("--ref") or abort "--ref is required"
+  topic   = flag("--topic", "general")
+  # FLAGS EXTRACTED BEFORE THIS SHIFT, on purpose — `flag` only removes a
+  # `--name value` pair when it finds one; shifting the trailing
+  # positional (the statement text) first would grab a `--ref`/`--topic`
+  # token instead, whichever happened to still be at ARGV's front. Bit
+  # here once already, while first testing this file end to end.
+  statement = ARGV.shift or abort "a finding needs a statement"
+  session_ref = current_session_ref(chapter)
+  sequence  = query("Interview::Finding.ByTopic", topic: { value: topic }).size + 1
+
+  Interview::Finding.establish(interview_id: session_ref, reference: { value: ref }, sequence: { value: sequence },
+                                topic: { value: topic }, statement: { value: statement })
+  puts "established #{paint(ref, :green)}: #{statement}"
+
+when "propose"
+  chapter = ARGV.shift or abort "usage: bin/interview propose <Chapter> --ref P1 --finding F1 --verb VERB \"rationale\""
+  ref     = flag("--ref") or abort "--ref is required"
+  finding = flag("--finding") or abort "--finding is required"
+  verb    = flag("--verb") or abort "--verb is required"
+  # `--arg` extracted in the loop below, AFTER `rationale` is shifted —
+  # same reason `establish` extracts its flags before its own trailing
+  # positional: a shift must never run while a `--flag` token could
+  # still be sitting at ARGV's front.
+  rationale = ARGV.shift or abort "a proposal needs a rationale"
+  session_ref = current_session_ref(chapter)
+  sequence = query("Interview::Proposal.Pending", interview_id: { value: session_ref }).size + 1
+
+  proposal = Interview::Proposal.propose(interview_id: session_ref, finding_id: finding, reference: { value: ref },
+                                          sequence: { value: sequence }, verb: { value: verb },
+                                          rationale: { value: rationale })
+
+  while (raw = flag("--arg"))
+    name, field, value = raw.split(":", 3)
+    proposal = proposal.supply(name: { value: name }, field: { value: field.to_s }, value: { value: value.to_s })
+  end
+  puts "proposed #{paint(ref, :green)}: #{verb} — #{rationale}"
+
+when "accept"
+  chapter = ARGV.shift or abort "usage: bin/interview accept <Chapter> <proposal-ref>"
+  ref     = ARGV.shift or abort "which proposal?"
+
+  proposal = Interview::Proposal.find(ref) or abort "no proposal #{ref.inspect}"
+  proposal = proposal.accept
+
+  session = rebuild(chapter) # every ALREADY-written proposal; not yet including this one
+  lowering = Hecksagain::Interview::Lowering.new
+  verb, args = lowering.lower(proposal.verb.value, proposal.arguments.map(&:to_h))
+  verdict = session.offer(verb, **args)
+
+  if verdict.accepted?
+    proposal.written
+    puts "#{paint('WRITTEN', :green)}  #{verb}"
+  else
+    proposal.refused(refusal: { value: verdict.refusal })
+    puts "#{paint('REFUSED', :red)}  #{verb}\n  #{verdict.refusal}"
+    puts "  (#{verdict.wants} — declare what's missing, then propose this again)" if verdict.wants == :prerequisite
+  end
+
+# ── writing it out for real ─────────────────────────────────────────
+
+when "save"
+  chapter = ARGV.shift or abort "usage: bin/interview save <Chapter> --to <dir>"
+  to      = flag("--to") or abort "--to <dir> is required — save writes a whole bootable domain directory there"
+
+  begin
+    session = rebuild(chapter)
+    path = Hecksagain::Interview::Writer.save!(session.declaration, to: to)
+    puts "#{paint('WROTE', :green)} #{path}"
+    puts "boots as-is: Hecks.boot(#{to.inspect})"
+  rescue Hecksagain::Bluebook::DSL::Malformed => e
+    abort "not well-formed yet — #{e.message}\n(run `bin/interview gaps #{chapter}` to see what's still open)"
+  rescue Hecksagain::Interview::Writer::Drifted => e
+    abort e.message
+  end
+
+# ── the agent port, headless-only — see the file header ─────────────
+
+when "suggest"
+  chapter = ARGV.shift or abort "usage: bin/interview suggest <Chapter> --kind KIND \"meaning\" [--near X,Y]"
+  kind    = flag("--kind") or abort "--kind is required (aggregate, command, event, value_object, ...)"
+  near    = flag("--near", "").split(",").map(&:strip).reject(&:empty?)
+  meaning = ARGV.shift or abort "what does it mean? give a short phrase"
+
+  begin
+    suggestions = Hecksagain::Ports::Agent.suggest_name(RUNTIME.registry, meaning: meaning, kind: kind, near: near)
+    suggestions.each do |s|
+      puts paint(s.name, :blue) + "  —  #{s.because}"
+      puts "  (passed over: #{s.rejected.join(', ')})" unless s.rejected.empty?
+    end
+  rescue Hecksagain::Runtime::WiringError, Hecksagain::Ports::Agent::Unavailable,
+         Hecksagain::Ports::Agent::ValidationError => e
+    abort "#{paint('no suggestion', :red)} — #{e.message}"
+  end
+
+when "critique"
+  chapter = ARGV.shift or abort "usage: bin/interview critique <Chapter>"
+  session = rebuild(chapter)
+
+  begin
+    findings = Hecksagain::Ports::Agent.critique(RUNTIME.registry, declared: session.declaration, refusals: [],
+                                                  findings: session.gaps.map(&:to_s))
+    if findings.empty?
+      puts paint("no critique — nothing stood out", :green)
+    else
+      findings.each { |f| puts f.to_s }
+    end
+  rescue Hecksagain::Runtime::WiringError, Hecksagain::Ports::Agent::Unavailable,
+         Hecksagain::Ports::Agent::ValidationError => e
+    abort "#{paint('no critique', :red)} — #{e.message}"
+  end
+
+else
+  abort "unknown command #{command.inspect}"
+end

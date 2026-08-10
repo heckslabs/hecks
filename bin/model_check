@@ -106,12 +106,21 @@ end
 domain_arg = ARGV.shift
 example_domains = Dir.glob("#{ROOT}/examples/*/").map { |d| d.chomp("/") }
 grammar_chapters = Dir.glob("#{ROOT}/lib/hecksagain/grammar/*.bluebook").sort
+# THE FRAMEWORK MEMBERS, which spec/model_check_spec.rb has always walked
+# (its own MODEL_CHECK_FRAMEWORK_MEMBERS) and this script never did — so the
+# suite checked Governance and Identity while `bin/model_check` reported
+# "no dead states" without having looked at them. Flat sibling files, not
+# EXAMPLE_ROOTS-shaped, for the reason corpus_spec.rb's own comment gives:
+# these are framework chapters, not teaching examples with a bluebook/
+# subfolder each.
+framework_members = Dir.glob("#{ROOT}/lib/hecksagain/framework/bluebook/*.bluebook").sort
 
 if domain_arg
   ok = examine(File.basename(domain_arg.chomp("/")), bluebook_in(domain_arg.chomp("/")) || domain_arg)
 else
   targets = example_domains.map { |d| [File.basename(d), bluebook_in(d)] }.reject { |_, s| s.nil? } +
-            grammar_chapters.map { |c| [File.basename(c, ".bluebook"), c] }
+            grammar_chapters.map { |c| [File.basename(c, ".bluebook"), c] } +
+            framework_members.map { |m| [File.basename(m, ".bluebook"), m] }
 
   ok = targets.reduce(true) { |all_ok, (name, source)| examine(name, source) && all_ok }
   ok = examine_language && ok
