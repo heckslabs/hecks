@@ -13,6 +13,20 @@ module Hecksagain
 
         def description(value) = @description = value
 
+        # A query parameter naming another aggregate's own identity —
+        # Item.ByOwner's `owner`, filtering by which Camper owns it,
+        # not a free string that only happens to look like one. Only
+        # ever the CROSS-reference half `CommandBuilder#reference_to`
+        # has two of: a query has no root of its own to act on, so
+        # there's no "acts on itself" case to distinguish here, only a
+        # plain attribute typed as a reference —
+        # `AttributeCollector#attribute` already handles an
+        # `IR::Reference` type exactly like any other.
+        def reference_to(type, as: nil, optional: false)
+          demodulised = Naming.demodulise(type)
+          attribute(as || :"#{Naming.snake(demodulised)}_id", IR::Reference.new(demodulised), optional: optional)
+        end
+
         def build
           seal_cursor
           IR::Query.new(

@@ -16,7 +16,7 @@ survives regeneration.
 - [Policy](policy.md) — 3 words
 - [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
-- [Query](query.md) — 13 words
+- [Query](query.md) — 14 words
 - [ReadModel](read_model.md) — 14 words
 - [Type](type.md) — 2 words
 - [Hecksagon](hecksagon.md) — 3 words

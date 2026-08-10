@@ -48,12 +48,13 @@ Names which unchanging field or fields say which record this is — a single pat
 ## reference_to
 
 <!-- generated:begin word=reference_to -->
-`reference_to type, as:` — fills `attributes`
+`reference_to type, as:, optional:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | constant | true | type |
 | `as:` | symbol | false | name |
+| `optional:` | flag | false | optional |
 <!-- generated:end -->
 
 Points at another aggregate by id, not by object — the attribute holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named `target_id` by default, or whatever `as:` names.
@@ -63,12 +64,13 @@ One direction only: if the target aggregate also references this one back, the b
 ## has_many
 
 <!-- generated:begin word=has_many -->
-`has_many type, as:` — fills `attributes`
+`has_many type, as:, optional:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | constant | true | type |
 | `as:` | symbol | false | name |
+| `optional:` | flag | false | optional |
 <!-- generated:end -->
 
 Sugar over `reference_to` — despite the plural name and plural argument, it singularizes its target and mints one scalar reference, not a list. A `has_many Studios` field reads `nil` until set, never `[]`; this language has no direct spelling for a real one-to-many yet, and reaching for `has_many` to get one just hides the gap.
@@ -76,12 +78,13 @@ Sugar over `reference_to` — despite the plural name and plural argument, it si
 ## has_one
 
 <!-- generated:begin word=has_one -->
-`has_one type, as:` — fills `attributes`
+`has_one type, as:, optional:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | constant | true | type |
 | `as:` | symbol | false | name |
+| `optional:` | flag | false | optional |
 <!-- generated:end -->
 
 Sugar over `reference_to` that drops the `_id` suffix, so the field reads as a relationship (`studio`, not `studio_id`).
@@ -89,12 +92,13 @@ Sugar over `reference_to` that drops the `_id` suffix, so the field reads as a r
 ## belongs_to
 
 <!-- generated:begin word=belongs_to -->
-`belongs_to type, as:` — fills `attributes`
+`belongs_to type, as:, optional:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | constant | true | type |
 | `as:` | symbol | false | name |
+| `optional:` | flag | false | optional |
 <!-- generated:end -->
 
 An alias for `has_one` — same attribute, same `_id`-less naming, whichever name reads better at the call site.

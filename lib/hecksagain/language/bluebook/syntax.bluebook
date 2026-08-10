@@ -363,6 +363,13 @@ Hecks.bluebook "Bluebook" do
 
         member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
         member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
+        # ONLY THE CROSS-reference HALF `Command`'s own `reference_to`
+        # has two of (line 324, above) — a query has no root of its
+        # own to act on, so there's no "acts on itself" case here, just
+        # a plain attribute typed as a reference (Item.ByOwner's
+        # `owner`, filtering by which Camper owns it, not a free string
+        # that only happens to look like one).
+        member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
         member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres"
         member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field"
         member word: "limit",           context: "Query", body: "none", inner: "", opens: "", fills: "limit"
@@ -533,6 +540,12 @@ Hecks.bluebook "Bluebook" do
         # as the language's own spelling rather than as a convention.
         member keyword: "reference_to",    context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
         member keyword: "reference_to",    context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        # AN AGGREGATE MAY POINT AT ONE OF SEVERAL TARGETS, NEVER BOTH —
+        # `optional: true` on two sibling `reference_to` calls (Item's
+        # own `personal_list_id`/`camping_list_id`) is how that's said:
+        # each field genuinely absent, not present-but-empty, whenever
+        # the OTHER one is set instead.
+        member keyword: "reference_to",    context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         # THE SAME TWO ARGUMENTS `reference_to` TAKES — a target and an
         # optional alias. What `as:` fills differs in the Ruby builder (no
         # `_id` mint), but that default-naming rule is not a fact this table
@@ -540,10 +553,13 @@ Hecks.bluebook "Bluebook" do
         # argument lands on, and for all four words that field is the same.
         member keyword: "has_many",        context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
         member keyword: "has_many",        context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "has_many",        context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "has_one",         context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
         member keyword: "has_one",         context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "has_one",         context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "belongs_to",      context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
         member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "lifecycle",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
         member keyword: "lifecycle",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
         member keyword: "entity",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
@@ -673,6 +689,14 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
         member keyword: "attribute",       context: "Query", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+        # THE SAME THREE ARGUMENTS `Command`'s own `reference_to` takes
+        # (line 590, above) — a target, an optional alias, and whether
+        # the field it mints may be absent. Query has no self-reference
+        # case to distinguish (query.md's own prose explains why), so
+        # this is the whole shape, not a subset of it.
+        member keyword: "reference_to",    context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+        member keyword: "reference_to",    context: "Query", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "reference_to",    context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: "wheres", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements"
         # THE DIRECTION IS A SECOND POSITIONAL AND DEFAULTS TO :asc — the only
         # two-positional word in the language, and the reason `second` had to be

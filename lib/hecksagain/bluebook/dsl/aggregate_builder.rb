@@ -64,10 +64,18 @@ module Hecksagain
           @identity_paths = paths
         end
 
-        def reference_to(type, as: nil)
+        # `optional:` — matching `CommandBuilder#reference_to`'s own
+        # signature, which already had it; this one never forwarded it
+        # to `attribute()` even though `attribute()` itself already
+        # accepts it. A real gap: an aggregate that can point at ONE OF
+        # several targets (Item's own `personal_list_id`/
+        # `camping_list_id`, never both) needs each reference optional
+        # on the aggregate's own persisted schema, not just as a
+        # command's input.
+        def reference_to(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
+          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target), optional: optional)
         end
 
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
@@ -85,16 +93,16 @@ module Hecksagain
         # (the mutation and read paths alike). A real one-to-many is a
         # separate arc, not a rename of what
         # already parses.
-        def has_many(type, as: nil)
+        def has_many(type, as: nil, optional: false)
           plural = Naming.demodulise(type)
-          reference_to(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym)
+          reference_to(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym, optional: optional)
         end
 
-        def has_one(type, as: nil)
-          reference_to(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym)
+        def has_one(type, as: nil, optional: false)
+          reference_to(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym, optional: optional)
         end
 
-        def belongs_to(type, as: nil) = has_one(type, as: as)
+        def belongs_to(type, as: nil, optional: false) = has_one(type, as: as, optional: optional)
 
         def lifecycle(field, default:, &block)
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)

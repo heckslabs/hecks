@@ -39,6 +39,30 @@ aggregate — the `:symbol` a `where` value can resolve from
 (`attribute :ceiling, Draft` backs `where(draft: { lt: :ceiling })`). A
 `:symbol` naming no such attribute is refused when the bluebook builds.
 
+## reference_to
+
+<!-- generated:begin word=reference_to -->
+`reference_to type, as:, optional:` — fills `attributes`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | constant | true | type |
+| `as:` | symbol | false | name |
+| `optional:` | flag | false | optional |
+<!-- generated:end -->
+
+Declares a query parameter that names another aggregate's own
+identity, not a free string that only happens to look like one —
+`reference_to Camper, as: :owner` inside `query "ByOwner" do ... end`
+gives `owner` the same reference typing a real relationship deserves,
+usable in `where(owner: :owner)` exactly as any other attribute would
+be. Only the cross-reference shape: a query has no root of its own to
+act on, so there is no self-reference form here the way `Command`'s
+own `reference_to` has two of (see command.md) — just a plain
+attribute typed as a reference, `as:` naming it (bare, it would default
+to `camper_id`) and `optional:` working the same way it does anywhere
+else `attribute` accepts it.
+
 ## where
 
 <!-- generated:begin word=where -->
