@@ -40,3 +40,4 @@ end
 
 require_relative "facade/handle"
 require_relative "facade/surface"
+require_relative "facade/json_door"
