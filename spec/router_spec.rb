@@ -99,6 +99,40 @@ RSpec.describe Hecksagain::Router do
     Object.send(:remove_const, :Realm) if Object.const_defined?(:Realm, false)
   end
 
+  # A REAL GAP, HIT LIVE: `install_namespace_entry` installs one method per
+  # declared verb, so an aggregate reached only through the router surface
+  # had no `.find`/`.all`/`.count` at all — the read/CRUD half of what a
+  # plain `Hecksagain.boot` already gives for free via `AggregateDoor`. A
+  # domain whose own commands never happen to include a lookup-by-id query
+  # (real case: a `List` aggregate, read only by id, no query of its own)
+  # had no way to read one record back through the router at all.
+  it "gives every aggregate .find/.all/.count on the router surface too, not just its own declared verbs" do
+    write_domain("catalog", "Catalog", <<~RUBY, realm: "Realm")
+      aggregate "Book" do
+        identified_by { code.value }
+        attribute :code, Code
+        value_object "Code" do
+          attribute :value, String
+        end
+        command "Add" do
+          attribute :code, Code
+        end
+      end
+    RUBY
+
+    described_class.boot(@root)
+    Realm::Catalog::Book.Add(code: { value: "B-1" })
+
+    found = Realm::Catalog::Book.find("B-1")
+    expect(found.id).to eq("B-1")
+    expect(found.code.value).to eq("B-1")
+    expect(Realm::Catalog::Book.all.map(&:id)).to eq(["B-1"])
+    expect(Realm::Catalog::Book.count).to eq(1)
+    expect(Realm::Catalog::Book.find("nope")).to be_nil
+  ensure
+    Object.send(:remove_const, :Realm) if Object.const_defined?(:Realm, false)
+  end
+
   it "resolves an unpinned route to the world's latest domain version" do
     write_domain("banking_v1", "Banking", <<~RUBY, version: "v1")
       aggregate "Account" do
