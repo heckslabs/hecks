@@ -44,8 +44,8 @@ module Hecksagain
             found && Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: found)
           end
 
-          door.define_singleton_method(:all) do
-            dispatcher.registry.repository(domain, ir).all.map do |instance|
+          door.define_singleton_method(:all) do |**opts|
+            dispatcher.registry.repository(domain, ir).all(**opts).map do |instance|
               Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: instance)
             end
           end

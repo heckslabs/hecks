@@ -1,5 +1,6 @@
 require_relative "lambda/client"
 require_relative "../../ports/query/in_memory"
+require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
 
 module Hecksagain
@@ -68,7 +69,9 @@ module Hecksagain
         instances[id.to_s]
       end
 
-      def all = instances.values
+      def all(order_by: nil, direction: :asc)
+        InMemoryOrdering.ordered(instances.values, aggregate: @aggregate, order_by: order_by, direction: direction)
+      end
 
       def count = instances.size
 
