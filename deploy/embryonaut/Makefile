@@ -8,11 +8,11 @@
 # cross-linker — install once with `pip3 install cargo-lambda` or
 # `brew install cargo-lambda`.
 
-HOST_DIR := /private/tmp/hecksagain-sync/rust/host
+HOST_DIR := /private/tmp/hecksagain-ssm-retry-v2/rust/host
 # `domain_name`, matching bin/project_wasm's own target_mod_name
 # (a Rust-build-pipeline naming convention, not AWS resource
 # identity — see HECKS_WASM_PATH's own comment above).
-WASM     := /private/tmp/hecksagain-sync/rust/dist/embryonautfoundersapp.wasm
+WASM     := /private/tmp/hecksagain-ssm-retry-v2/rust/dist/embryonautfoundersapp.wasm
 
 build-EmbryonautFunction:
 	@command -v cargo-lambda >/dev/null 2>&1 || { \
@@ -27,7 +27,7 @@ build-EmbryonautFunction:
 # field). `bin/project_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd /private/tmp/hecksagain-sync && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
+	cd /private/tmp/hecksagain-ssm-retry-v2 && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
@@ -75,7 +75,7 @@ restore-EmbryonautFunction-build:
 # as its own sibling stack, uses it for one Ruby boot over an SSM
 # tunnel, then deletes it — nothing from this target is left running
 # afterward.
-ROOT      := /private/tmp/hecksagain-sync
+ROOT      := /private/tmp/hecksagain-ssm-retry-v2
 DOMAIN    := /Users/christopheryoung/Projects/embryonautfoundersapp
 STACK     := hecksagain-embryonaut
 BASTION_STACK := hecksagain-embryonaut-bastion
@@ -147,6 +147,19 @@ mint-era:
 # file's own adapter choice entirely, the same targeted pattern
 # spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
 # already uses.
+#
+# THE WHOLE TUNNEL IS RESTARTED PER ATTEMPT, not just the boot
+# check retried through one long-lived tunnel — confirmed live,
+# the hard way: an SSM port-forwarding session can start and then
+# exit again within the first few seconds (visible in its own log
+# as a session ID that both starts AND exits before the retries
+# even finish), not merely "slow to become ready". Retrying a
+# Postgres connection five times against a tunnel process that has
+# already died is retrying against a corpse — it fails identically
+# every time, for a different reason than the one the retry was
+# built for. Each attempt below kills whatever tunnel the LAST
+# attempt opened (a no-op the first time) and opens a fresh one,
+# so a dead session gets a real replacement, not just more patience.
 	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
 	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
 	for i in $$(seq 1 30); do \
@@ -154,19 +167,25 @@ mint-era:
 		if [ "$$STATUS" = "Online" ]; then break; fi; \
 		sleep 5; \
 	done; \
-	echo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1..."; \
-	aws ssm start-session --target $$INSTANCE_ID \
-		--document-name AWS-StartPortForwardingSessionToRemoteHost \
-		--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
-		>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \
-	TUNNEL_PID=$$!; \
-	for i in $$(seq 1 30); do \
-		nc -z localhost 15432 2>/dev/null && break; \
-		sleep 1; \
-	done; \
 	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
-	cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"], schema: "embryonautfoundersapp" }); puts "booted OK — era resolution ran"' $(DOMAIN); \
-	BOOT_STATUS=$$?; \
+	BOOT_STATUS=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 and minting era 1 (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"], schema: "embryonautfoundersapp" }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \
+		BOOT_STATUS=$$?; \
+		echo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
 	kill $$TUNNEL_PID 2>/dev/null; \
 	echo "Tearing down the temporary bastion stack..."; \
 	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
@@ -185,6 +204,18 @@ mint-era:
 # Lambda's HECKS_SCHEMA env var, most directly — run `make deploy`
 # right before or right after this, not with a long gap either way).
 rename-schema:
+# THE WHOLE TUNNEL IS RESTARTED PER ATTEMPT, not just probed once
+# through a single long-lived session — confirmed live, the hard
+# way: an SSM port-forwarding session can start and then exit
+# again within seconds, not merely "slow to become ready". Probing
+# the same dead tunnel five times fails identically every time,
+# for a different reason than the retry was built for. Without
+# this restart, a still-dead tunnel also doesn't just fail loudly
+# — `EXISTS_OLD`/`EXISTS_NEW` would both come back empty, which the
+# branch below reads as "neither schema exists" and reports as if
+# that were the real answer, not a connectivity failure wearing
+# its name — which is exactly why `TUNNEL_READY` gates that branch
+# explicitly rather than trusting empty results at face value.
 	@[ -n "$(OLD)" ] && [ -n "$(NEW)" ] || { echo "usage: make rename-schema OLD=<old-schema> NEW=<new-schema>"; exit 1; }
 	@echo "Looking up $(STACK)'s VPC/security group..."
 	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
@@ -207,20 +238,30 @@ rename-schema:
 		if [ "$$STATUS" = "Online" ]; then break; fi; \
 		sleep 5; \
 	done; \
-	echo "Opening an SSM tunnel to $(DB_HOST):5432..."; \
-	aws ssm start-session --target $$INSTANCE_ID \
-		--document-name AWS-StartPortForwardingSessionToRemoteHost \
-		--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
-		>/tmp/$(BASTION_STACK)-tunnel.log 2>&1 & \
-	TUNNEL_PID=$$!; \
-	for i in $$(seq 1 30); do \
-		nc -z localhost 15432 2>/dev/null && break; \
-		sleep 1; \
-	done; \
 	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	TUNNEL_READY=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d embryonaut -tAc "SELECT 1" >/dev/null 2>&1 && { TUNNEL_READY=0; break; }; \
+		echo "tunnel not carrying real traffic yet (attempt $$attempt/5) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
 	EXISTS_OLD=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d embryonaut -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(OLD)'"); \
 	EXISTS_NEW=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d embryonaut -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(NEW)'"); \
-	if [ "$$EXISTS_NEW" = "1" ]; then \
+	if [ "$$TUNNEL_READY" != "0" ]; then \
+		echo "tunnel never carried a real connection -- aborting without touching either schema"; \
+		BOOT_STATUS=1; \
+	elif [ "$$EXISTS_NEW" = "1" ]; then \
 		echo "schema $(NEW) already exists -- already renamed, no-op"; \
 		BOOT_STATUS=0; \
 	elif [ "$$EXISTS_OLD" = "1" ]; then \
@@ -257,7 +298,7 @@ rename-schema:
 # execution image — sidesteps the AL2 package conflict between
 # `openssl-libs` and the build image's own pre-installed
 # `openssl-snapsafe-libs` entirely, rather than fighting it.
-PG_NATIVE_DIR := /private/tmp/hecksagain-sync/tmp/pg-native-arm64-ruby3.2
+PG_NATIVE_DIR := /private/tmp/hecksagain-ssm-retry-v2/tmp/pg-native-arm64-ruby3.2
 
 $(PG_NATIVE_DIR)/pg_ext.so:
 	@mkdir -p $(PG_NATIVE_DIR)
