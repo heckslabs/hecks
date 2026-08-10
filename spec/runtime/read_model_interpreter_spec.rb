@@ -156,6 +156,83 @@ RSpec.describe "a read model's query options" do
       .to contain_exactly(100, 600, 300, 500, 200, 400, 999)
   end
 
+  # ADVERSARIAL, not incidental: read_model_builder.rb's own `include`
+  # comment says this is "Order-independent" — the `:many` flag really
+  # is, resolved at build time once @reference_target is known. The
+  # JOIN never was: this loop used to match a many-side head against
+  # whatever was already accumulated in `projected`, which is empty
+  # the very first time through — so a many-side head declared BEFORE
+  # the root silently returned an empty array, no error, just a
+  # wrong, too-small answer. Every real corpus read model (both of
+  # Banking's) happens to declare its root first, so this never
+  # surfaced there; caught only by deliberately reversing the order.
+  it "joins the many side correctly regardless of which order include declares it and the root in" do
+    build_reversed = lambda do
+      registry = Hecksagain::Runtime::Registry.new
+      Hecksagain.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecks.bluebook("Reordered") do
+          vision "x"
+          generic
+
+          aggregate "Item" do
+            identified_by { name.value }
+            attribute :name, Name
+            value_object "Name" do
+              attribute :value, String
+            end
+            command "Add" do
+              attribute :name, Name
+              then_set :name, to: :name
+            end
+          end
+
+          aggregate "Promotion" do
+            identified_by { ref.value }
+            attribute :ref, Ref
+            reference_to Item, as: :item
+            value_object "Ref" do
+              attribute :value, String
+            end
+            command "Promote" do
+              attribute :ref, Ref
+              reference_to Item
+              then_set :ref, to: :ref
+              then_set :item, to: :item_id
+            end
+          end
+
+          # THE MANY SIDE DECLARED FIRST — the exact ordering that
+          # broke, deliberately, not the accidentally-working order
+          # every real corpus read model happens to use.
+          read_model "Search" do
+            reference_to Item
+            include Promotion
+            include Item
+          end
+        end
+        Hecks.hecksagon("Reordered") do
+          Reordered::Item.persisted_by("Memory")
+          Reordered::Promotion.persisted_by("Memory")
+        end
+      end
+      registry.verify!
+      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    end
+
+    runtime = build_reversed.call
+    Reordered::Item.add(name: { value: "headlamp" })
+    Reordered::Promotion.promote(ref: { value: "p1" }, item_id: "headlamp")
+
+    rows = runtime.query("Reordered.search", item: "headlamp")
+
+    expect(rows.first[:item][:id]).to eq("headlamp")
+    expect(rows.first[:promotions].map { |p| p[:id] }).to eq(["p1"])
+  end
+
   it "applies the same options through Sqlite's native projected-table path" do
     Dir.mktmpdir do |dir|
       registry = Hecksagain::Runtime::Registry.new
