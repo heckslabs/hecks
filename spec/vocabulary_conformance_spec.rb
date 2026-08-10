@@ -201,6 +201,16 @@ RSpec.describe "the declared vocabularies" do
     )
   end
 
+  # NEVER `bind_runtime` — this spec only ever dispatches by raw FQN
+  # string (`runtime.dispatch("DispatchOrder::Widget.Open", ...)`
+  # below), never the Ruby facade sugar `bind_runtime` installs.
+  # `bind_runtime` puts a bare global constant on `Object` per domain
+  # and per aggregate name with no cleanup — "Widget" here once leaked
+  # into an unrelated later spec in the same process that also uses a
+  # generic "Widget" fixture name, corrupting its own unrelated build
+  # (the exact hazard `Bluebook::SmokeTest`'s own `install_facade:
+  # false` exists to avoid — this spec predates that fix and had the
+  # identical exposure).
   def boot(bluebook)
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
@@ -209,8 +219,8 @@ RSpec.describe "the declared vocabularies" do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(bluebook)
-      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
     end
+    Hecksagain::Runtime::Dispatcher.new(registry)
   end
 
   # COVERAGE : every step DISPATCH_ORDER names must resolve to a real
