@@ -36,7 +36,16 @@ module Hecksagain
         repository = @registry.repository(domain, aggregate)
         if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate }))
           records = native
-          return records.map { |record| { id: record.id }.merge(record.state) }
+          # `id:` LAST — an aggregate whose identity field is ALSO a
+          # regular declared attribute (Item's own `attribute :id,
+          # ItemId`, not just its `identified_by`) means `record.state`
+          # already carries its own `:id` key, VO-wrapped, not the
+          # clean scalar `record.id` already resolved. `{id:
+          # record.id}.merge(record.state)` let that duplicate silently
+          # win instead — the same fix `Facade::Handle#to_h` needed.
+          # `interpret`/`reference_interpret`, below, had the identical
+          # bug.
+          return records.map { |record| record.state.merge(id: record.id) }
         end
 
         interpret(repository.all, declared, args)
@@ -80,7 +89,7 @@ module Hecksagain
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
-        capped.map { |r| { id: r.id }.merge(r.state) }
+        capped.map { |r| r.state.merge(id: r.id) }
       end
 
       # `interpret`'s own twin, for reference_call alone — same
@@ -94,7 +103,7 @@ module Hecksagain
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
-        capped.map { |r| { id: r.id }.merge(r.state) }
+        capped.map { |r| r.state.merge(id: r.id) }
       end
 
       # THE NAIVE READING OF A HOP: not a fold, not an id set — for

@@ -29,7 +29,20 @@ module Hecksagain
       end
 
       def [](key) = @state[key.to_sym]
-      def to_h    = { id: @id }.merge(@state)
+
+      # `id:` LAST, not first — an aggregate whose own identity field is
+      # ALSO a regular declared attribute of the same name (Item's own
+      # `attribute :id, ItemId`, not just its `identified_by`) means
+      # `@state` already carries its own `:id` key, VO-wrapped
+      # (`{value: "..."}`), not the clean scalar `@id` already resolved.
+      # `{id: @id}.merge(@state)` let that VO-wrapped duplicate silently
+      # clobber the real identity — measured, not assumed: every caller
+      # of `to_h` (embryonaut_console's own JSON API among them) got a
+      # Hash where every OTHER caller of `.id`/`Handle#id` still got the
+      # clean scalar, a real, silent shape split nothing had caught
+      # yet. Merging the state first, `id:` after, makes identity win
+      # regardless of what the state hash happens to carry.
+      def to_h    = @state.merge(id: @id)
 
       def fqn = "#{@domain}::#{@ir.hecks_name}"
 
