@@ -817,7 +817,15 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
                 "            - DbPass: !Sub \"{{resolve:secretsmanager:${#{secret_sub}}:SecretString:password}}\"\n" \
                 "              DbHost: !GetAtt #{db_ref_id}.Endpoint.Address"
               end}
-            HECKS_WASM_PATH: !Sub "/var/task/#{infra_name}.wasm"
+            # `domain_name`, NOT `infra_name` — this names the actual
+            # .wasm FILE bin/project_wasm writes (rust/dist/#{domain_name}.wasm,
+            # its own target_mod_name convention, a Rust-build-pipeline
+            # concern unrelated to AWS resource identity) and what the
+            # Makefile below actually bundles into the Lambda package
+            # under. Confirmed the hard way: pinning this to infra_name
+            # alongside the real AWS-identity fields left it looking for
+            # a file bin/project_wasm never produces.
+            HECKS_WASM_PATH: !Sub "/var/task/#{domain_name}.wasm"
             # STATIC, not a deploy-time parameter — HECKS_DOMAIN is this
             # domain's own declared name, known at generation time the
             # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
@@ -830,7 +838,7 @@ File.write(File.join(out_dir, "template.yaml"), <<~YAML)
             # triggers that first boot; a LATER real schema evolution
             # (era 2+) is a separate, later re-generation, not this one.
             HECKS_DOMAIN: #{declared_domain_name}
-            HECKS_ERA: "1"#{hecks_schema ? %(\n          HECKS_SCHEMA: #{hecks_schema}) : ""}#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{infra_name}.ir.json") : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
+            HECKS_ERA: "1"#{hecks_schema ? %(\n          HECKS_SCHEMA: #{hecks_schema}) : ""}#{rust_web ? %(\n          HECKS_IR_PATH: !Sub "/var/task/#{domain_name}.ir.json") : ""}#{rust_web && google_oauth_present ? <<~RUSTOAUTH.each_line.with_index.map { |l, i| i.zero? ? "\n          " + l : "          " + l }.join.rstrip : ""}
             # By NAME, not `!Ref` -- same dynamic-reference pattern
             # DATABASE_URL/SESSION_SECRET already use: `make
             # sync-google-oauth` owns #{stack_name}-web-google-oauth's
@@ -1436,7 +1444,10 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # `brew install cargo-lambda`.
 
   HOST_DIR := #{File.join(root, "rust", "host")}
-  WASM     := #{File.join(root, "rust", "dist", "#{infra_name}.wasm")}
+  # `domain_name`, matching bin/project_wasm's own target_mod_name
+  # (a Rust-build-pipeline naming convention, not AWS resource
+  # identity — see HECKS_WASM_PATH's own comment above).
+  WASM     := #{File.join(root, "rust", "dist", "#{domain_name}.wasm")}
 
   build-#{logical_id}:
   \t@command -v cargo-lambda >/dev/null 2>&1 || { \\
@@ -1462,7 +1473,7 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # `rustup target list --installed` reports it present.
   \tcd $(HOST_DIR) && rustup run stable cargo lambda build --release --arm64
   \tcp $(HOST_DIR)/target/lambda/bootstrap/bootstrap $(ARTIFACTS_DIR)/bootstrap
-  \tcp $(WASM) $(ARTIFACTS_DIR)/#{infra_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{infra_name}.ir.json")} $(ARTIFACTS_DIR)/#{infra_name}.ir.json) : ""}
+  \tcp $(WASM) $(ARTIFACTS_DIR)/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} $(ARTIFACTS_DIR)/#{domain_name}.ir.json) : ""}
 
   # `sam build <resource>` WIPES .aws-sam/build/ entirely before
   # building just the one resource named -- confirmed live: building
@@ -1486,7 +1497,7 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   restore-#{logical_id}-build:
   \t@mkdir -p .aws-sam/build/#{logical_id}
   \tcp $(HOST_DIR)/target/lambda/bootstrap/bootstrap .aws-sam/build/#{logical_id}/bootstrap
-  \tcp $(WASM) .aws-sam/build/#{logical_id}/#{infra_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{infra_name}.ir.json")} .aws-sam/build/#{logical_id}/#{infra_name}.ir.json) : ""}
+  \tcp $(WASM) .aws-sam/build/#{logical_id}/#{domain_name}.wasm#{rust_web ? %(\n\tcp #{File.join(root, "rust", "dist", "#{domain_name}.ir.json")} .aws-sam/build/#{logical_id}/#{domain_name}.ir.json) : ""}
   \truby -e 'lines = File.readlines(".aws-sam/build/template.yaml"); start = lines.index { |l| l.strip == "#{logical_id}:" } or raise "restore-#{logical_id}-build: #{logical_id} resource not found in built template"; idx = (start+1...lines.length).find { |i| lines[i] =~ /CodeUri:/ } or raise "restore-#{logical_id}-build: no CodeUri line found under #{logical_id}"; lines[idx] = lines[idx].sub(/CodeUri:.*/, "CodeUri: #{logical_id}"); File.write(".aws-sam/build/template.yaml", lines.join)'
 
   # `make mint-era` — takes #{stack_name}'s RDS instance from freshly
