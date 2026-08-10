@@ -1325,6 +1325,18 @@ mint_era_recipe =
     # file's own adapter choice entirely, the same targeted pattern
     # spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
     # already uses.
+    #
+    # THE BOOT CHECK ITSELF IS RETRIED, not one-shot — `nc -z` below only
+    # proves a LOCAL listener exists ; it does not prove the SSM session
+    # behind it is actually ready to carry real traffic yet. Confirmed
+    # live, repeatedly: `describe-instance-information` reporting
+    # "Online" and a listening local port can both be true seconds
+    # before the tunnel can actually carry a real connection through —
+    # "Connection refused" / "server closed the connection unexpectedly"
+    # on the FIRST attempt, success on a retry a few seconds later, no
+    # other change in between. Five attempts, 3s apart: generous for the
+    # transient case, a bounded ~15s tax on top of a genuine failure
+    # that would have failed every attempt anyway.
     \t@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \\
     \techo "Waiting for $$INSTANCE_ID to register with SSM..."; \\
     \tfor i in $$(seq 1 30); do \\
@@ -1343,8 +1355,13 @@ mint_era_recipe =
     \t\tsleep 1; \\
     \tdone; \\
     \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
-    \tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); puts "booted OK — era resolution ran"' $(DOMAIN); \\
-    \tBOOT_STATUS=$$?; \\
+    \tBOOT_STATUS=1; \\
+    \tfor attempt in 1 2 3 4 5; do \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tBOOT_STATUS=$$?; \\
+    \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- retrying in 3s..."; \\
+    \t\tsleep 3; \\
+    \tdone; \\
     \tkill $$TUNNEL_PID 2>/dev/null; \\
     \techo "Tearing down the temporary bastion stack..."; \\
     \taws cloudformation delete-stack --stack-name $(BASTION_STACK); \\
@@ -1385,6 +1402,16 @@ rename_schema_recipe =
     SHAREDRENAME
   else
     <<~OWNRENAME.rstrip
+    # THE TUNNEL IS PROBED, NOT TRUSTED, before it's used for anything
+    # real — `nc -z` below only proves a local listener exists, not
+    # that the SSM session behind it can actually carry a connection
+    # yet (confirmed live, repeatedly: those two facts can disagree
+    # for a few seconds after `describe-instance-information` already
+    # reports "Online"). Without this, a still-settling tunnel doesn't
+    # just fail loudly — `EXISTS_OLD`/`EXISTS_NEW` would both come
+    # back empty, which the branch below reads as "neither schema
+    # exists" and reports as if that were the real answer, not a
+    # connectivity failure wearing its name.
     \t@[ -n "$(OLD)" ] && [ -n "$(NEW)" ] || { echo "usage: make rename-schema OLD=<old-schema> NEW=<new-schema>"; exit 1; }
     \t@echo "Looking up $(STACK)'s VPC/security group..."
     \t#{STACK_OUTPUTS.map { |o| %($(eval #{o[:var]} := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='#{o[:key]}'].OutputValue" --output text))) }.join("\n\t")}
@@ -1410,9 +1437,18 @@ rename_schema_recipe =
     \t\tsleep 1; \\
     \tdone; \\
     \tDB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \\
+    \tTUNNEL_READY=1; \\
+    \tfor attempt in 1 2 3 4 5; do \\
+    \t\tPGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -tAc "SELECT 1" >/dev/null 2>&1 && { TUNNEL_READY=0; break; }; \\
+    \t\techo "tunnel not carrying real traffic yet (attempt $$attempt/5) -- retrying in 3s..."; \\
+    \t\tsleep 3; \\
+    \tdone; \\
     \tEXISTS_OLD=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(OLD)'"); \\
     \tEXISTS_NEW=$$(PGPASSWORD=$$DB_PASS psql -h localhost -p 15432 -U postgres -d #{infra_name} -tAc "SELECT 1 FROM pg_namespace WHERE nspname = '$(NEW)'"); \\
-    \tif [ "$$EXISTS_NEW" = "1" ]; then \\
+    \tif [ "$$TUNNEL_READY" != "0" ]; then \\
+    \t\techo "tunnel never carried a real connection -- aborting without touching either schema"; \\
+    \t\tBOOT_STATUS=1; \\
+    \telif [ "$$EXISTS_NEW" = "1" ]; then \\
     \t\techo "schema $(NEW) already exists -- already renamed, no-op"; \\
     \t\tBOOT_STATUS=0; \\
     \telif [ "$$EXISTS_OLD" = "1" ]; then \\
