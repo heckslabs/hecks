@@ -1512,6 +1512,14 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # finds the real, STABLE hostname (confirmed unchanged across every
   # redeploy this session) and self-heals GOOGLE_REDIRECT_URI to match.
   OAUTHNOTE
+  #{shared ? <<~SHAREDNOTE : ""}
+  # deploy's own last step below looks up #{owner_domain_name}'s live
+  # stack Outputs (never tracked anywhere generated -- same reasoning
+  # as WebRedirectBaseUrl's own live lookup above, and the SAME
+  # `aws cloudformation describe-stacks` pattern mint-era's own eval
+  # chain, below, already proves works against a sibling stack) and
+  # passes them as this template's own Owning* Parameters.
+  SHAREDNOTE
   .PHONY: deploy mint-era
   deploy:
   #{if pg_version
@@ -1521,15 +1529,29 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
     else
       "\tsam build"
     end}
-  #{google_oauth_present ? <<~OAUTHDEPLOY.each_line.map { |l| "\t" + l }.join.rstrip : "\tsam deploy"}
-  $(MAKE) sync-google-oauth
-  @WEB_URL=$$(aws lambda get-function-url-config --function-name #{rust_web ? stack_name : "#{stack_name}-web"} --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \\
-  if [ -n "$$WEB_URL" ]; then \\
-  \tsam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"; \\
-  else \\
-  \tsam deploy; \\
-  fi
-  OAUTHDEPLOY
+  #{if google_oauth_present
+      <<~OAUTHDEPLOY.each_line.map { |l| "\t" + l }.join.rstrip
+      $(MAKE) sync-google-oauth
+      @WEB_URL=$$(aws lambda get-function-url-config --function-name #{rust_web ? stack_name : "#{stack_name}-web"} --query FunctionUrl --output text 2>/dev/null | sed 's:/$$::'); \\
+      if [ -n "$$WEB_URL" ]; then \\
+      \tsam deploy --parameter-overrides WebRedirectBaseUrl="$$WEB_URL"; \\
+      else \\
+      \tsam deploy; \\
+      fi
+      OAUTHDEPLOY
+    elsif shared
+      <<~SHAREDDEPLOY.each_line.map { |l| "\t" + l }.join.rstrip
+      @OWNER_VPC_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text); \\
+      OWNER_SUBNET_A_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text); \\
+      OWNER_SUBNET_B_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text); \\
+      OWNER_SG_ID=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text); \\
+      OWNER_DB_HOST=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text); \\
+      OWNER_DB_SECRET_ARN=$$(aws cloudformation describe-stacks --stack-name #{owner_stack_name} --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text); \\
+      sam deploy --parameter-overrides OwningVpcId=$$OWNER_VPC_ID OwningSubnetAId=$$OWNER_SUBNET_A_ID OwningSubnetBId=$$OWNER_SUBNET_B_ID OwningSecurityGroupId=$$OWNER_SG_ID OwningDatabaseEndpoint=$$OWNER_DB_HOST OwningDatabaseSecretArn=$$OWNER_DB_SECRET_ARN
+      SHAREDDEPLOY
+    else
+      "\tsam deploy"
+    end}
   \t$(MAKE) mint-era
 MAKE
 
