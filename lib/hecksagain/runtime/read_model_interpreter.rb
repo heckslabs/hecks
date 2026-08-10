@@ -36,8 +36,26 @@ module Hecksagain
           return repository.query_read_model(domain, model, args, bluebook)
         end
 
+        # ROOT FIRST, ALWAYS — regardless of `include` order in the
+        # bluebook. `read_model_builder.rb`'s own `include` is
+        # documented "Order-independent" (the `:many` flag is resolved
+        # at build time, once `@reference_target` is known), but that
+        # promise was never kept HERE: this loop used to run heads in
+        # their literal declared order and match each "many" head
+        # against whatever was ALREADY in `projected` — empty, the
+        # very first time through, if a many-side head happened to be
+        # declared before the root. A real, live bug (not a guess):
+        # `include Promotion` before `include Item` on a read model
+        # whose root IS Item silently returned an empty array for
+        # Promotion — no error, just a wrong, too-small answer — while
+        # the reverse order worked purely by accident. `partition`,
+        # not `sort_by`: Ruby's `sort_by` is not guaranteed stable,
+        # and correctness here must not depend on it being so by
+        # chance on the current MRI build.
+        root_heads, other_heads = model.aggregate_heads.partition { |head| head[:aggregate] == model.reference_target }
         projected = []
-        heads = model.aggregate_heads.each_with_object({}) do |head, report|
+        rows_by_as = {}
+        (root_heads + other_heads).each do |head|
           rows = if head[:aggregate] == model.reference_target
                    [fetch(bluebook, domain, head[:aggregate], reference_id)]
                  else
@@ -51,8 +69,12 @@ module Hecksagain
                  end
           rows = Ports::Query::InMemory.execute(rows, model, args) if head[:as] == eligible
           projected << { aggregate: head[:aggregate], rows: rows }
-          report[head[:as]] = head[:many] ? rows : rows.first
+          rows_by_as[head[:as]] = head[:many] ? rows : rows.first
         end
+        # Declared order preserved in the OUTPUT — only the
+        # computation above needed reordering, not what a caller sees
+        # back.
+        heads = model.aggregate_heads.each_with_object({}) { |head, report| report[head[:as]] = rows_by_as[head[:as]] }
         [heads.transform_values { |value| value.is_a?(Array) ? value.map { |record| Value.materialize(row(record)) } : Value.materialize(row(value)) }]
       end
 
