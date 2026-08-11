@@ -50,7 +50,8 @@ d1_available =
     false
   end
 
-RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, Postgres, and D1" do
+RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, Postgres, and D1",
+               io: true do
   AGREEMENT_DB = "hecksagain_query_agreement_spec".freeze
   # A def sees no file-local the way the hook blocks do — the probe's
   # verdict crosses into agree! as a constant.

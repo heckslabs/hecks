@@ -50,4 +50,14 @@ RSpec.configure do |config|
   config.expect_with(:rspec) { |expectations| expectations.syntax = :expect }
   config.disable_monkey_patching!
   config.order = :random
+
+  # `io: true` marks a spec (or single example) that does real,
+  # uncontrolled I/O — a subprocess spawn, a live Postgres/D1
+  # connection, a `cargo build` — the kind of thing that made a plain
+  # local `bundle exec rspec` slow even though most of it self-skips
+  # when the resource isn't reachable. CI (.github/workflows/ci.yml)
+  # provisions everything for real and always sets `CI`, so it runs
+  # these unfiltered; run them locally on demand with
+  # `CI=true bundle exec rspec` or `bundle exec rspec --tag io`.
+  config.filter_run_excluding io: true unless ENV["CI"]
 end

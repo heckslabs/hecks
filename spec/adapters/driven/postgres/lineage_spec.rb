@@ -7,6 +7,7 @@ require_relative "../../../support/postgres_probe"
 # Runs only when a Postgres server is reachable — the shared probe in
 # support/postgres_probe.rb, like every other Postgres spec here.
 RSpec.describe "lineage in the Postgres adapter",
+               io: true,
                skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
   LINEAGE_DB = "hecksagain_lineage_spec".freeze
 

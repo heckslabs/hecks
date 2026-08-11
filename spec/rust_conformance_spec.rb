@@ -30,7 +30,7 @@ require "hecksagain/fuzzing"
 # deliberately out-of-scope gap) — a NEW fixture that exercises one of
 # those will legitimately fail here until that gap is closed too, the
 # same way any pinned fixture needs verifying before it's added.
-RSpec.describe "Rust conformance (native binary)" do
+RSpec.describe "Rust conformance (native binary)", io: true do
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
   RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 

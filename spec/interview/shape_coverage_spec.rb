@@ -50,7 +50,7 @@ RSpec.describe "bin/interview shape, across the whole meta-language" do
     end
   end
 
-  it "shells out for real, at least once, so the CLI's own wiring stays proven" do
+  it "shells out for real, at least once, so the CLI's own wiring stays proven", io: true do
     verb = EVERY_META_VERB.first
     stdout, status = Open3.capture2(BIN, "shape", verb)
     expect(status).to be_success, "bin/interview shape #{verb.inspect} exited #{status.exitstatus}:\n#{stdout}"

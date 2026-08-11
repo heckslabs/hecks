@@ -13,7 +13,8 @@ require "open3"
 # with each other, parsed back out of real output, not re-derived from
 # the same table that could just as easily be wrong in the same way in
 # all three places at once.
-RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output" do
+RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output",
+               io: true do
   CONTRACT_FIXTURE_BASENAME = "project_deploy_contract_spec_fixture"
 
   # Mirrors spec/deploy_bluebook_spec.rb's own fixture helper —
