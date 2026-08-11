@@ -373,5 +373,37 @@ Hecks.bluebook "Bluebook" do
         member name: "refused"
       end
     end
+
+    # Hecksagain::Presentation::FieldShape's own EMAIL_HINT/URL_HINT/
+    # TEL_HINT/TEXTAREA_HINT (lib/hecksagain/presentation/field_shape.rb)
+    # — the regexes `text_field` matches a text attribute's own NAME
+    # against (case-insensitively) to guess an HTML input type or a
+    # textarea kind, when nothing more specific (a `pattern:`, an
+    # `admits:`, a closed set) already answered the question. Declared
+    # here for the same reason RefusalTemplate is: a LANGUAGE-LEVEL
+    # rendering convention, the same guess for every domain, not
+    # authored per-bluebook — closer to Comparison/SignTest than to a
+    # given. `pattern` is the regex SOURCE, no delimiters or flags
+    # (Ruby's own `Regexp#source`) — spec/field_hint_conformance_spec.rb
+    # holds FieldShape's four hand-typed constants equal to this, both
+    # directions, the same conformance shape refusal_wording_
+    # conformance_spec.rb already holds RefusalTemplate to.
+    #
+    # `resolves_to` names WHICH Field attribute a match sets — `html_type`
+    # for email/url/tel (three candidates, only one wins, checked in that
+    # order), `kind` for textarea (checked separately, and only once
+    # html_type has already fallen through to "text").
+    value_object "FieldHint" do
+      attribute :name,        String
+      attribute :pattern,     String
+      attribute :resolves_to, String
+
+      one_of do
+        member name: "email",    pattern: 'email',                                                 resolves_to: "html_type"
+        member name: "url",      pattern: '\b(url|uri|website|link)\b',                             resolves_to: "html_type"
+        member name: "tel",      pattern: 'phone|\btel(ephone)?\b',                                 resolves_to: "html_type"
+        member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
+      end
+    end
   end
 end
