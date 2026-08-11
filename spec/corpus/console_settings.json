@@ -1,8 +1,8 @@
 {
   "name": "console-settings-parity",
-  "note": "One aggregate's state styled (Declare, then both Set commands), one collection's own presentation curated (Declare, then a representative slice of every Set/Replace command), and the dashboard's own singleton overview stat list (Declare, then ReplaceStats) — enough to prove every declared command actually dispatches, not an exhaustive walk of every field combination.",
+  "note": "One aggregate's state styled (Declare, then every Set command including the opaque-passthrough SetExtra), one collection's own presentation curated (Declare, then a representative slice of every Set/Replace command, including identity_extra_json and a column's own extra_json), and the dashboard's own singleton overview stat list (Declare, then ReplaceStats) — enough to prove every declared command actually dispatches, not an exhaustive walk of every field combination.",
   "expectations": {
-    "events": 10
+    "events": 12
   },
   "steps": [
     {
@@ -24,6 +24,13 @@
       "args": {
         "id": "Client:active",
         "attention": { "value": "false" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::StateStyle.SetExtra",
+      "args": {
+        "id": "Client:active",
+        "extra_json": { "value": "{\"label\":\"Active client\"}" }
       }
     },
     {
@@ -51,8 +58,16 @@
       "args": {
         "id": "Client",
         "identity_field": { "value": "reference" },
-        "identity_strategy": { "value": "slug" },
-        "identity_source": { "value": "name" }
+        "identity_strategy": { "value": "sequence" },
+        "identity_prefix": { "value": "C-" },
+        "identity_extra_json": { "value": "{\"pad\":3}" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.SetExtra",
+      "args": {
+        "id": "Client",
+        "extra_json": { "value": "{\"noun_sing\":\"client\",\"create_label\":\"Add client\"}" }
       }
     },
     {
@@ -61,7 +76,7 @@
         "id": "Client",
         "columns": [
           { "field": "reference" },
-          { "field": "name" }
+          { "field": "name", "extra_json": "{\"as\":\"count\"}" }
         ]
       }
     },
