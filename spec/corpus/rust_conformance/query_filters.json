@@ -1,0 +1,34 @@
+{
+  "domain": "examples/banking",
+  "note": "spec/rust_conformance_spec.rb's own fixture — the ad hoc, single-comparator \"query\" step (the OBJECT form: {aggregate, field, op, value}), proven for real against every one of the eight QueryComparator variants (query_specification/common/comparators.rb) — kernel/cli.rs's own dispatch, and its Ruby mirror in Fuzzing::Replay.run_filter, both call straight into Ports::Query::InMemory rather than re-deriving comparator behavior. Seeds two customers, four accounts (balances 300/500/1000/0, one later frozen, one later closed), and two card payments (one tagged high_risk, one untagged) — the same corners spec/query_comparators_spec.rb already exercises against the real banking bluebook, reused here rather than invented fresh. Covers: eq/ne/gt/gte/lt/lte/in on plain and value-object-wrapped fields (balance's own numeric-member collapse, a dotted balance.cents path landing on the same member directly), contains on both a scalar substring (a plain String field) and real list_of membership (CardPayment.tags, each element its own single-field Tag value object), a genuinely NIL held value (a dotted path with no such member, matched against a null wire value — true for every record, proving nil-vs-nil equality rather than a crash), and a real TYPE-MISMATCH case (gt against a String field, which Ports::Query::InMemory#ordered? answers false for every record rather than refusing — an empty result, not an error). Also exercises the ad hoc filter's OWN refusal boundary — an unrecognized comparator string and an aggregate name this domain doesn't declare — both refusing cleanly and identically on both engines; the OTHER boundary (a NAMED/declared bluebook query, the STRING form of the same \"query\" step, which Ruby answers for real but Rust still refuses on purpose) is deliberately NOT exercised here, since Ruby would not refuse it and this fixture's whole point is byte-for-byte parity — see spec/rust_conformance_spec.rb's own \"named query still refuses cleanly\" example for that boundary proven the other way, against the compiled binary alone. CardPayment.Authorize's second call passes tags: [] explicitly rather than omitting the (optional) argument — an omitted optional list_of argument surfaces a real, PRE-EXISTING, unrelated payload gap (Rust's typed-args-to_json always emits the key as null; Ruby's raw-args payload omits it entirely) this fixture does not exist to prove or fix.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-2"}, "name": {"given": "Bob", "family": "Baker"}, "email": {"address": "bob@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer_id": "cust-1"}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-2"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer_id": "cust-1"}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-3"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer_id": "cust-2"}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-4"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer_id": "cust-2"}},
+    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-1"}, "amount": {"cents": 300, "currency": "USD"}, "narrative": {"text": "Opening"}}},
+    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-2"}, "amount": {"cents": 500, "currency": "USD"}, "narrative": {"text": "Opening"}}},
+    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-3"}, "amount": {"cents": 1000, "currency": "USD"}, "narrative": {"text": "Opening"}}},
+    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-3"}}},
+    {"verb": "Banking::Account.CloseAccount", "args": {"number": {"value": "acct-4"}}},
+    {"verb": "Banking::Customer.Suspend", "args": {"reference": {"value": "cust-1"}, "standing": {"value": "chargeback investigation"}}},
+    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-1", "authorisation": {"value": "auth-1"}, "amount": {"cents": 4200}, "merchant": {"value": "Risky Co"}, "tags": [{"value": "high_risk"}]}},
+    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-2", "authorisation": {"value": "auth-2"}, "amount": {"cents": 1500}, "merchant": {"value": "Ordinary Co"}, "tags": []}},
+
+    {"query": {"aggregate": "Banking::Account", "field": "status", "op": "eq", "value": "open"}},
+    {"query": {"aggregate": "Banking::Customer", "field": "standing", "op": "ne", "value": "good"}},
+    {"query": {"aggregate": "Banking::Account", "field": "balance", "op": "gt", "value": 500}},
+    {"query": {"aggregate": "Banking::Account", "field": "balance.cents", "op": "gte", "value": 500}},
+    {"query": {"aggregate": "Banking::Account", "field": "balance", "op": "lt", "value": 500}},
+    {"query": {"aggregate": "Banking::Account", "field": "balance", "op": "lte", "value": 500}},
+    {"query": {"aggregate": "Banking::Account", "field": "status", "op": "in", "value": "open,frozen"}},
+    {"query": {"aggregate": "Banking::Account", "field": "number", "op": "contains", "value": "acct-1"}},
+    {"query": {"aggregate": "Banking::CardPayment", "field": "tags", "op": "contains", "value": "high_risk"}},
+    {"query": {"aggregate": "Banking::Account", "field": "balance.no_such_member", "op": "eq", "value": null}},
+    {"query": {"aggregate": "Banking::Account", "field": "status", "op": "gt", "value": 5}},
+    {"query": {"aggregate": "Banking::Account", "field": "status", "op": "startswith", "value": "o"}},
+    {"query": {"aggregate": "Banking::Bogus", "field": "status", "op": "eq", "value": "open"}}
+  ]
+}
