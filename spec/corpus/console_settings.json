@@ -1,8 +1,8 @@
 {
   "name": "console-settings-parity",
-  "note": "One aggregate's state styled (Declare, then both Set commands), one collection's own presentation curated (Declare, then a representative slice of every Set/Replace command) — enough to prove every declared command actually dispatches, not an exhaustive walk of every field combination.",
+  "note": "One aggregate's state styled (Declare, then both Set commands), one collection's own presentation curated (Declare, then a representative slice of every Set/Replace command), and the dashboard's own singleton overview stat list (Declare, then ReplaceStats) — enough to prove every declared command actually dispatches, not an exhaustive walk of every field combination.",
   "expectations": {
-    "events": 8
+    "events": 10
   },
   "steps": [
     {
@@ -62,6 +62,21 @@
         "columns": [
           { "field": "reference" },
           { "field": "name" }
+        ]
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Overview.Declare",
+      "args": {
+        "key": { "value": "overview" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Overview.ReplaceStats",
+      "args": {
+        "id": "overview",
+        "stats": [
+          { "label": "Active clients", "collection": "clients", "as": "count", "where_json": "{\"state\":\"active\"}" }
         ]
       }
     }

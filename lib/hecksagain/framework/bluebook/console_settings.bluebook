@@ -332,4 +332,72 @@ Hecks.bluebook "ConsoleSettings" do
       emits "FieldFormatsReplaced"
     end
   end
+
+  # THE DASHBOARD'S OWN STAT CARDS — domain-WIDE, not per-aggregate the
+  # way Collection is (a stat can name any collection, or none in
+  # particular), so this is a SINGLETON: exactly one row, ever, for the
+  # whole console. `identified_by { key.value }` names a literal
+  # constant ("overview") rather than anything a person chooses — the
+  # same reason a creating command needs SOME identity to hydrate
+  # against (hydrate's own "an identity that is invented is neither
+  # derived from the record nor permanently associated with it"
+  # comment), just with the value fixed instead of derived from what's
+  # being declared.
+  aggregate "Overview" do
+    description "The console's own dashboard stat cards, whole. One row, ever — `key` is always the literal 'overview', never chosen. Every stat gets replaced as a whole list on save, the same 'replace whole, never patch one' convention Collection's own columns/detail_fields/preconditions/field_formats already use."
+
+    identified_by { key.value }
+
+    attribute :key,   OverviewKey
+    attribute :stats, list_of(Stat)
+
+    value_object "OverviewKey" do
+      attribute :value, String
+      invariant("is the one true singleton key") { value == "overview" }
+    end
+
+    # `where_json` carries the stat's own recursive filter expression
+    # (`not:` wrapping another whole where clause, `state:`/
+    # `has_related:`/`not_has_related:` combined by implicit AND) —
+    # serialized, not decomposed into the bluebook's own closed
+    # attribute grammar. That tree is genuinely open-ended (arbitrary
+    # nesting depth via `not:`, an arbitrary literal attribute name as
+    # a where key for anything that isn't `state`), and hecksagain's
+    # attribute types have no way to express "arbitrary nested map" at
+    # all — the same reason `sort_default`/`display`/`format` above stay
+    # plain Strings rather than a nested `one_of`. PresentationConfig's
+    # own `validate_where!`/`validate_has_related!` still walk and check
+    # the REAL structure, in Ruby, against the app's own live IR, before
+    # this is ever serialized and dispatched — this field is the
+    # verified-then-opaque storage, not an unchecked one.
+    value_object "Stat" do
+      attribute :label,      String
+      attribute :collection, String
+      attribute :as,         String, optional: true
+      attribute :field,      String, optional: true
+      attribute :where_json, String, optional: true
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Create the one console-wide overview row, before any stat is curated"
+
+      attribute :key, OverviewKey
+
+      given("only the one true singleton key is ever declared") { key.value == "overview" }
+
+      emits "OverviewDeclared"
+    end
+
+    command "ReplaceStats" do
+      role "Console"
+      goal "Replace the dashboard's whole list of stat cards"
+
+      reference_to Overview
+      attribute :stats, list_of(Stat)
+
+      then_set :stats, to: :stats
+      emits "StatsReplaced"
+    end
+  end
 end
