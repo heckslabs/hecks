@@ -88,16 +88,17 @@ module RustProjection
           field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
           next "#{m[:target]}.#{field_name}: not a declared field" unless field_attr
 
-          if source.start_with?("{")
-            literal = Hecksagain::Bluebook::Assembly::Marks.unmark(source)
-            "#{m[:target]}.#{field_name}: literal doesn't bridge to #{field_attr[:type]}" unless literal.is_a?(Hash) && literal_hash_bridgeable?(literal, field_attr[:type], value_objects_by_name)
-          else
-            arg_attr = command[:attributes].find { |a| a[:name].to_s == source }
-            if arg_attr.nil?
-              "#{m[:target]}.#{field_name}: sources undeclared argument #{source}"
-            elsif !bridgeable_value_types?(arg_attr[:type], field_attr[:type], value_objects_by_name)
-              "#{m[:target]}.#{field_name}: #{arg_attr[:type]} doesn't bridge to #{field_attr[:type]}"
-            end
+          # A SYMBOL names an argument, anything else IS the value — the one
+          # distinction the wire spelling carries (Hecksagain::Literal), read
+          # rather than sniffed off the first character.
+          parsed = append_field_source(source)
+          next literal_problem(m, field_name, parsed, field_attr, value_objects_by_name) unless parsed.is_a?(Symbol)
+
+          arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
+          if arg_attr.nil?
+            "#{m[:target]}.#{field_name}: sources undeclared argument #{parsed}"
+          elsif !bridgeable_value_types?(arg_attr[:type], field_attr[:type], value_objects_by_name)
+            "#{m[:target]}.#{field_name}: #{arg_attr[:type]} doesn't bridge to #{field_attr[:type]}"
           end
         end
 
@@ -109,6 +110,19 @@ module RustProjection
         problems << "#{m[:target]}: #{entity[:name]}'s identity doesn't auto-mint" if !present.include?(id_head) && !entity_identity_mint(entity, value_objects_by_name)
         problems
       end
+    end
+
+    # `Marks.read` is the exact, already-proven inverse of the spelling
+    # `appended_fields` writes — the OPPOSITE direction of the same round
+    # trip the self-hosted grammar's own bootstrap uses it for. A Symbol
+    # back means the field names a command ARGUMENT ; anything else IS the
+    # literal value.
+    def append_field_source(source) = Hecksagain::Bluebook::Assembly::Marks.read(source)
+
+    def literal_problem(mutation, field_name, literal, field_attr, value_objects_by_name)
+      return nil if literal.is_a?(Hash) && literal_hash_bridgeable?(literal, field_attr[:type], value_objects_by_name)
+
+      "#{mutation[:target]}.#{field_name}: literal doesn't bridge to #{field_attr[:type]}"
     end
 
     # All transition rows this command names, collapsed into the one
@@ -186,20 +200,16 @@ module RustProjection
       "format!(#{placeholders.inspect}, #{components.map { |c| c[:expr] }.join(', ')})"
     end
 
-    # One `append` field's value — `Marks.unmark` undoes exactly the
-    # `.inspect` `appended_fields` applied to a literal (the OPPOSITE
-    # direction of the same round-trip the self-hosted grammar's own
-    # bootstrap already uses this method for, see marks.rb's own header);
-    # an argument-sourced field runs through the same `value_rhs` bridge
-    # `:set` does. `append_field_problems` already confirmed either
-    # direction bridges before this could be reached.
+    # One `append` field's value. An argument-sourced field runs through the
+    # same `value_rhs` bridge `:set` does ; a literal is built inline.
+    # `append_field_problems` already confirmed either direction bridges
+    # before this could be reached.
     def append_field_rhs(source, field_attr, command, value_objects_by_name)
-      if source.start_with?("{")
-        literal_hash_rhs(Hecksagain::Bluebook::Assembly::Marks.unmark(source), field_attr[:type], value_objects_by_name)
-      else
-        arg_attr = command[:attributes].find { |a| a[:name].to_s == source }
-        value_rhs("args.#{rust_ident_field(arg_attr[:name])}", arg_attr[:type], field_attr[:type], value_objects_by_name)
-      end
+      parsed = append_field_source(source)
+      return literal_hash_rhs(parsed, field_attr[:type], value_objects_by_name) unless parsed.is_a?(Symbol)
+
+      arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
+      value_rhs("args.#{rust_ident_field(arg_attr[:name])}", arg_attr[:type], field_attr[:type], value_objects_by_name)
     end
 
     # `optional:` — true for an aggregate RECORD (every non-list field is

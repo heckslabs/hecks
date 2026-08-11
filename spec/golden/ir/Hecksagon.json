@@ -86,7 +86,7 @@
           "mutations": [
             {
               "fields": {
-                "value": "event"
+                "value": ":event"
               },
               "op": "append",
               "target": "subscriptions"
@@ -122,7 +122,7 @@
           "mutations": [
             {
               "fields": {
-                "value": "member"
+                "value": ":member"
               },
               "op": "append",
               "target": "framework_members"

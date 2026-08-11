@@ -120,8 +120,8 @@
           "mutations": [
             {
               "fields": {
-                "amount": "amount",
-                "name": "topping"
+                "amount": ":amount",
+                "name": ":topping"
               },
               "op": "append",
               "target": "toppings"
@@ -237,7 +237,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "available"
+              "value": "\"available\""
             }
           ]
         },

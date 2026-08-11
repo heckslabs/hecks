@@ -204,8 +204,8 @@
           "mutations": [
             {
               "fields": {
-                "form": "form",
-                "target": "target"
+                "form": ":form",
+                "target": ":target"
               },
               "op": "append",
               "target": "renderings"
@@ -731,8 +731,8 @@
           "mutations": [
             {
               "fields": {
-                "form": "form",
-                "target": "target"
+                "form": ":form",
+                "target": ":target"
               },
               "op": "append",
               "target": "readings"
@@ -1291,8 +1291,8 @@
           "mutations": [
             {
               "fields": {
-                "kind": "kind",
-                "name": "name"
+                "kind": ":kind",
+                "name": ":name"
               },
               "op": "append",
               "target": "references"

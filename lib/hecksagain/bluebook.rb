@@ -20,6 +20,7 @@ end
 # Construct`, the assembly's QuerySpecification marks) — required here
 # because those files' contents are frozen and cannot say so themselves.
 require_relative "construct"
+require_relative "literal"
 require_relative "query_specification"
 
 require_relative "bluebook/expression"

@@ -65,14 +65,11 @@ module RustProjection
       )
     end
 
-    # A `with:` binding's raw wire spelling — `IR.render_value`'s own two
-    # shapes (lib/hecksagain/query_specification/common/comparators.rb,
-    # read directly): a Symbol becomes ":name"; anything else becomes
-    # `.to_s` (a Hash's own `.inspect` form — Ruby's `Hash#to_s` IS
-    # `#inspect`). `Marks.read` is the exact, already-proven inverse
-    # (bridging.rb's `literal_hash_rhs` callers use `Marks.unmark` for the
-    # identical round trip on a `then_set append:` literal field) — reused
-    # rather than re-derived.
+    # A `with:` binding's raw wire spelling — Hecksagain::Literal's, the
+    # same one every other to_h-bound literal field rides. `Marks.read` is
+    # the exact, already-proven inverse (mutations.rb's
+    # `append_field_source` is the identical round trip on a `then_set
+    # append:` field) — reused rather than re-derived.
     def with_value_parsed(raw)
       Hecksagain::Bluebook::Assembly::Marks.read(raw)
     end

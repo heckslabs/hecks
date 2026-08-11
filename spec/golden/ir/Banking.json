@@ -256,12 +256,12 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "active"
+              "value": "\"active\""
             },
             {
               "field": "standing",
               "op": "eq",
-              "value": "good"
+              "value": "\"good\""
             }
           ]
         },
@@ -282,7 +282,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "suspended"
+              "value": "\"suspended\""
             }
           ]
         },
@@ -301,7 +301,7 @@
             {
               "field": "standing",
               "op": "ne",
-              "value": "good"
+              "value": "\"good\""
             }
           ]
         }
@@ -616,9 +616,9 @@
             },
             {
               "fields": {
-                "amount": "amount",
-                "direction": "{:value=>\"credit\"}",
-                "narrative": "narrative"
+                "amount": ":amount",
+                "direction": "{value: \"credit\"}",
+                "narrative": ":narrative"
               },
               "op": "append",
               "target": "ledger"
@@ -689,9 +689,9 @@
             },
             {
               "fields": {
-                "amount": "amount",
-                "direction": "{:value=>\"debit\"}",
-                "narrative": "narrative"
+                "amount": ":amount",
+                "direction": "{value: \"debit\"}",
+                "narrative": ":narrative"
               },
               "op": "append",
               "target": "ledger"
@@ -1145,7 +1145,7 @@
                 {
                   "field": "state",
                   "op": "eq",
-                  "value": "reversed"
+                  "value": "\"reversed\""
                 }
               ]
             }
@@ -1206,7 +1206,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "open"
+              "value": "\"open\""
             }
           ]
         },
@@ -1344,7 +1344,7 @@
             {
               "field": "status",
               "op": "in",
-              "value": "open,frozen"
+              "value": "\"open,frozen\""
             }
           ]
         },
@@ -1363,12 +1363,12 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "open"
+              "value": "\"open\""
             },
             {
               "field": "customer.status",
               "op": "eq",
-              "value": "suspended"
+              "value": "\"suspended\""
             }
           ]
         }
@@ -1795,8 +1795,8 @@
           "mutations": [
             {
               "fields": {
-                "cents": "cents",
-                "narrative": "narrative"
+                "cents": ":cents",
+                "narrative": ":narrative"
               },
               "op": "append",
               "target": "withdrawals"
@@ -1954,7 +1954,7 @@
                 {
                   "field": "state",
                   "op": "eq",
-                  "value": "taken"
+                  "value": "\"taken\""
                 }
               ]
             }
@@ -2006,7 +2006,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "active"
+              "value": "\"active\""
             }
           ]
         },
@@ -2027,7 +2027,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "active"
+              "value": "\"active\""
             }
           ]
         }
@@ -2503,7 +2503,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "debited"
+              "value": "\"debited\""
             }
           ]
         }
@@ -2971,7 +2971,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "authorized"
+              "value": "\"authorized\""
             }
           ]
         },
@@ -2987,7 +2987,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "disputed"
+              "value": "\"disputed\""
             }
           ]
         },
@@ -3003,7 +3003,7 @@
             {
               "field": "tags",
               "op": "contains",
-              "value": "high_risk"
+              "value": "\"high_risk\""
             }
           ]
         }
@@ -3355,7 +3355,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "sent"
+              "value": "\"sent\""
             }
           ]
         }
@@ -3797,7 +3797,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "scheduled"
+              "value": "\"scheduled\""
             }
           ]
         }
@@ -4142,9 +4142,9 @@
           "mutations": [
             {
               "fields": {
-                "date": "date",
-                "note": "note",
-                "sequence": "sequence"
+                "date": ":date",
+                "note": ":note",
+                "sequence": ":sequence"
               },
               "op": "append",
               "target": "visits"
@@ -4180,7 +4180,7 @@
           "mutations": [
             {
               "fields": {
-                "serial": "serial"
+                "serial": ":serial"
               },
               "op": "append",
               "target": "keys"
@@ -4313,7 +4313,7 @@
                 {
                   "field": "state",
                   "op": "eq",
-                  "value": "logged"
+                  "value": "\"logged\""
                 }
               ]
             }
@@ -4436,7 +4436,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "rented"
+              "value": "\"rented\""
             }
           ]
         }
@@ -4806,7 +4806,7 @@
             {
               "field": "status",
               "op": "eq",
-              "value": "screening"
+              "value": "\"screening\""
             }
           ]
         }
@@ -5243,7 +5243,7 @@
                 ],
                 [
                   "narrative",
-                  "{:text=>\"transfer out\"}"
+                  "{text: \"transfer out\"}"
                 ],
                 [
                   "reference",
@@ -5280,7 +5280,7 @@
                 ],
                 [
                   "narrative",
-                  "{:text=>\"transfer in\"}"
+                  "{text: \"transfer in\"}"
                 ],
                 [
                   "reference",
@@ -5340,7 +5340,7 @@
                 ],
                 [
                   "narrative",
-                  "{:text=>\"transfer reversed\"}"
+                  "{text: \"transfer reversed\"}"
                 ]
               ]
             },
@@ -5432,11 +5432,11 @@
                 ],
                 [
                   "kind",
-                  "{:name=>\"current\"}"
+                  "{name: \"current\"}"
                 ],
                 [
                   "daily_limit",
-                  "{:cents=>0}"
+                  "{cents: 0}"
                 ]
               ]
             }

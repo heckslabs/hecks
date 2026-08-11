@@ -142,9 +142,10 @@ module RustProjection
           next unless element
 
           m[:fields].each do |field_name, source|
-            next if source.to_s.start_with?("{") # a literal, not a caller-omittable argument
+            parsed = append_field_source(source)
+            next unless parsed.is_a?(Symbol) # a literal, not a caller-omittable argument
 
-            source_attr = command[:attributes].find { |a| a[:name].to_s == source.to_s }
+            source_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
             next unless source_attr && source_attr[:optional]
 
             field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }

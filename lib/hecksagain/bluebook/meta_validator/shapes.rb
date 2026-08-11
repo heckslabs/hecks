@@ -87,36 +87,17 @@ module Hecksagain
         end
 
         # A literal, read back from the self-describing form Readings#encode_literal
-        # wrote. The forms are exactly the five the Primitive vocabulary admits —
-        # String, Integer, Float, TrueClass, FalseClass — plus a symbol, and a flat
+        # wrote — the same reader Assembly::Marks uses, because it is the same
+        # spelling. The forms are exactly the five the Primitive vocabulary admits —
+        # String, Integer, Float, TrueClass, FalseClass — plus a symbol, and an
         # object literal, which is what `to: { value: "good" }` is: a value object's
         # fields written inline.
-        def decode_literal(text)
-          raw = text.to_s
-          return nil if raw.empty?
-          return decode_object(raw)      if raw.start_with?("{") && raw.end_with?("}")
-          return raw[1..-2]              if raw.start_with?('"') && raw.end_with?('"')
-          return raw[1..].to_sym         if raw.start_with?(":")
-          return true                    if raw == "true"
-          return false                   if raw == "false"
-          return raw.to_i                if raw.match?(/\A-?\d+\z/)
-          return raw.to_f                if raw.match?(/\A-?\d+\.\d+\z/)
-
-          raw
-        end
-
-        # Scanned rather than split on ", ", so a quoted value carrying a comma does
-        # not tear in half.
-        def decode_object(raw)
-          raw.scan(/:(\w+)=>("[^"]*"|[^,}]+)/).to_h do |key, value|
-            [key.to_sym, decode_literal(value.strip)]
-          end
-        end
+        def decode_literal(text) = Literal.read(text)
 
         def rule(row) = { description: text(row[:description]), canonical: text(row[:canonical]) }
 
         # `provenance from: {...}` rides the same literal encoding `default:`
-        # does — a flat object literal, self-describing via `inspect` — one
+        # does — an object literal, self-describing via Hecksagain::Literal — one
         # level up: a whole keyword's argument rather than an attribute's
         # `default:`.
         def provenance(row) = decode_literal(text(row[:provenance]))
@@ -145,9 +126,9 @@ module Hecksagain
         # The IR keeps a where's field as a STRING, not a symbol — it is read back
         # out, never called. The value stays RAW TEXT here on purpose : this
         # feeds the declaration hash Assembly::Marks#where_clause decodes
-        # from (via `unmark`), and decoding twice is worse than once — a
+        # from (via `read`), and decoding twice is worse than once — a
         # kwarg reference (":ceiling") decoded here into the Symbol :ceiling
-        # would have its colon stripped by `unmark`'s own `.to_s` and come
+        # would have its colon stripped by `read`'s own `.to_s` and come
         # back out as the plain string "ceiling", indistinguishable from a
         # literal of the same name. One decode, at the one place that builds
         # the object every comparator actually reads.
