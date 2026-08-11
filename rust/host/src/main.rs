@@ -138,22 +138,37 @@ async fn main() -> Result<(), Error> {
         .map_err(|e| format!("HECKS_ERA must be an integer era ordinal: {e}"))?;
 
     // THE BOOT GATE -- refuses to start rather than write into tables
-    // that may not exist. rust/host never provisions hecks_eras, the
-    // journal partition, or the head-snapshot tables itself; that's
-    // Ruby's LineageManager alone (mint_era!/hold_first!). A missing
-    // row here means either this domain/era was never minted, or the
-    // ordinal is simply wrong -- either way, a clear refusal beats a
-    // raw "relation does not exist" the first time a command lands.
-    if !journal::era_exists(&client, &domain, era)
+    // that may not exist, OR against a shape Ruby's own lineage RLS
+    // fence no longer recognizes as current. rust/host never provisions
+    // hecks_eras, the journal partition, or the head-snapshot tables
+    // itself; that's Ruby's LineageManager alone (mint_era!/hold_first!).
+    // Two distinct refusals, not one merged "bad era" message, because
+    // an operator needs to know which fix applies: mint the domain (if
+    // it's never been minted at all), or redeploy with the era mint_era!
+    // already advanced to (if this checkout is simply stale) -- see
+    // journal::current_era's own header for why a bare existence check
+    // used to let the second case through silently.
+    match journal::current_era(&client, &domain)
         .await
-        .map_err(|e| format!("checking hecks_eras for {domain} era {era}: {e:#}"))?
+        .map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?
     {
-        return Err(format!(
-            "cannot boot: {domain} holds no era {era} in hecks_eras -- \
-             this domain/era must already be minted by Ruby's own LineageManager \
-             (hold_first!/mint_era!) before rust/host can write into it"
-        )
-        .into());
+        None => {
+            return Err(format!(
+                "cannot boot: {domain} holds no era at all in hecks_eras -- \
+                 this domain must already be minted by Ruby's own LineageManager \
+                 (hold_first!) before rust/host can write into it"
+            )
+            .into());
+        }
+        Some(current) if current != era => {
+            return Err(format!(
+                "cannot boot: {domain} is configured for era {era}, but its current \
+                 era is {current} -- this checkout is stale (superseded by a later \
+                 mint_era!) and must be redeployed with HECKS_ERA={current}"
+            )
+            .into());
+        }
+        Some(_) => {}
     }
     let lineage_config = Arc::new(journal::LineageConfig { domain, era });
 

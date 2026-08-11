@@ -27,8 +27,9 @@ pub struct Outcome {
 // `config` names which Ruby-shaped lineage journal/era this call writes
 // its mutations into (journal.rs's own header) — required, not
 // optional: `main.rs` already refused to boot if the configured
-// domain/era isn't provisioned (`journal::era_exists`), so by the time
-// `handle` runs that schema is guaranteed to exist.
+// domain/era isn't provisioned OR isn't current (`journal::current_era`),
+// so by the time `handle` runs that schema is guaranteed to exist and
+// this checkout is guaranteed not to be stale.
 pub async fn handle(
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -300,10 +301,10 @@ mod tests {
 
     // NOT Ruby's real provisioning (Lineage::Provisioning) -- no
     // partitioning, no RLS, no full hecks_eras column set. Just enough
-    // structure for `journal::era_exists` and `append_lineage_mutation`'s
+    // structure for `journal::current_era` and `append_lineage_mutation`'s
     // own INSERT/upsert statements to succeed, so these tests exercise
     // THIS crate's write logic without reproducing Ruby's full DDL --
-    // era_exists's own query only ever reads domain/ordinal, so a
+    // current_era's own query only ever reads domain/ordinal, so a
     // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
     // runs for real.
     async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
