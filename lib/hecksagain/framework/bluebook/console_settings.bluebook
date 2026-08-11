@@ -1,0 +1,335 @@
+Hecks.bluebook "ConsoleSettings" do
+  vision "A generic admin console's own curated UI facts — nav, columns, state tones, which rows a detail panel shows — as real dispatched data instead of a hand-rewritten YAML file. A UI opinion the DOMAIN it's pointed at has no way to answer, never a business record; see embryonaut_console's own presentation_config.rb for the fuller story."
+  supporting
+
+  # A FRAMEWORK MEMBER LIKE IDENTITY/GOVERNANCE — attach with
+  # `uses_framework "ConsoleSettings"` in the consuming app's own
+  # `.hecksagon`, plus a `Hecks.hecksagon "ConsoleSettings" do ... end`
+  # persistence binding (Heki is the common case — a small, local,
+  # per-app settings store, no shared database needed). This used to
+  # boot in a SECOND, independent registry (embryonaut_console's own
+  # console_settings_domain.rb) specifically so no consuming app needed
+  # any change at all — that property is real and now given up on
+  # purpose, in favor of the one binding mechanism every other
+  # framework member already uses, rather than this being the one
+  # exception with its own private boot path.
+  #
+  # NOT named "Presentation" — Hecksagain::Presentation (lib/hecksagain/
+  # presentation/) already names a different, real thing: a dormant
+  # prototype that renders raw forms/query views straight off any IR, zero
+  # config. This chapter is the opposite kind of surface — a CURATED,
+  # hand-authored dashboard's own settings — and picks a name that doesn't
+  # read as the same one.
+  #
+  # SCOPE: the part of presentation.yml actually exercised today — states'
+  # tone/attention, and a collection's nav/columns/detail_fields (incl.
+  # state_filter and the row_columns filter)/preconditions/field_formats/
+  # identity/list_query. `overview.stats` (a recursive where:/has_related:
+  # filter-expression AST) and `after_create` (a dispatch chain with a
+  # literal-or-$field-or-count_query arg shape) are deliberately NOT here
+  # — confirmed unused in any real presentation.yml today, and both are
+  # harder design problems that shouldn't gate this one. Ruby-side
+  # PresentationConfig keeps validating those two exactly as it always has.
+
+  aggregate "StateStyle" do
+    description "One aggregate's one lifecycle state, styled — a tone and whether it needs attention. Every real state gets a row, even a bare one (PresentationConfig's own missing_state_entries! check), so Declare and the two Set commands are separate: a bare row is a real, valid thing to have."
+
+    # `agg`, not `aggregate` — the bluebook DSL's own word for what's being
+    # declared right now; naming an attribute that would shadow it invites
+    # exactly the confusion ui_schema.rb's own identity-collision fix
+    # (see [[project_generic_founder_app]]) already had to work around
+    # once for `id`.
+    identified_by do
+      agg.value
+      state.value
+    end
+
+    attribute :agg,       StateStyleText
+    attribute :state,     StateStyleText
+    attribute :tone,      one_of("good", "warn", "danger", "muted", "accent"), optional: true
+    # `Flag`, wrapping "true"/"false" — not a bare `String` and not
+    # `TrueClass`. Two confirmed-by-trying reasons neither works directly
+    # on an aggregate/command attribute:
+    #   - `TrueClass`/`FalseClass` are real, pre-existing Ruby constants,
+    #     so writing them here resolves through NORMAL Ruby constant
+    #     lookup rather than ever reaching the DSL's own ConstShim (unlike
+    #     a bareword like `Flag`, which has no such constant and so DOES
+    #     reach it) — the meta-validator has no separate case for the
+    #     literal class objects, so it goes looking for a declared value
+    #     object named "TrueClass" and fails. `IR::Attribute::PRIMITIVES`
+    #     lists them, but no real bluebook in this codebase spells one.
+    #   - A bare primitive (`String`, `Integer`) directly on an
+    #     AGGREGATE or COMMAND attribute fails the identical way — every
+    #     real example in this codebase only ever uses `String`/`Integer`
+    #     INSIDE a `value_object do...end` block, never as a top-level
+    #     attribute's own type; reproduced with a 4-line isolated bluebook
+    #     before trusting it as a real rule, not a guess.
+    # PresentationConfig's own Ruby glue converts "true"/"false" at the
+    # boundary.
+    attribute :attention, Flag, optional: true
+
+    value_object "StateStyleText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
+    end
+
+    value_object "Flag" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Give one aggregate's one state a presentation row, styled or bare"
+
+      attribute :agg,   StateStyleText
+      attribute :state, StateStyleText
+
+      given("a style names its own aggregate") { !agg.value.to_s.empty? }
+      given("a style names its own state") { !state.value.to_s.empty? }
+
+      emits "StateStyleDeclared"
+    end
+
+    command "SetTone" do
+      role "Console"
+      goal "Color one state"
+
+      reference_to StateStyle
+      attribute :tone, one_of("good", "warn", "danger", "muted", "accent")
+
+      then_set :tone, to: :tone
+      emits "ToneSet"
+    end
+
+    command "SetAttention" do
+      role "Console"
+      goal "Mark whether one state needs a person's attention"
+
+      reference_to StateStyle
+      attribute :attention, Flag
+
+      then_set :attention, to: :attention
+      emits "AttentionSet"
+    end
+  end
+
+  aggregate "Collection" do
+    description "One app aggregate's own console presentation — nav label, curated columns, detail-panel fields (with an optional entity state_filter and a row_columns subset), identity-assignment strategy, field formats, preconditions, and which query lists it. Every list-shaped piece is rows on this root, never a nested list inside a value object — the same 'an open map is rows on a head' shape Wiring::Setting and Query::AskOption already use, and the same reason: no value object here can hold a map, and this sidesteps ever needing to find out whether one can hold a plain list either."
+
+    identified_by { agg.value }
+
+    attribute :agg,                  SettingsText
+    attribute :label,                SettingsText, optional: true
+    attribute :key,                  SettingsText, optional: true
+    attribute :nav_order,            SettingsNumber, optional: true
+    attribute :primary_field,        SettingsText, optional: true
+    attribute :list_query,           SettingsText, optional: true
+    attribute :identity_field,       SettingsText, optional: true
+    attribute :identity_strategy,    one_of("slug", "sequence", "port"), optional: true
+    attribute :identity_source,      SettingsText, optional: true
+    attribute :identity_prefix,      SettingsText, optional: true
+    attribute :columns,              list_of(Column)
+    attribute :detail_fields,        list_of(DetailField)
+    attribute :detail_field_columns, list_of(DetailFieldColumn)
+    attribute :preconditions,        list_of(Precondition)
+    attribute :field_formats,        list_of(FieldFormat)
+
+    value_object "SettingsText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
+    end
+
+    value_object "SettingsNumber" do
+      attribute :value, Integer
+    end
+
+    # A list/table column. `sortable`/`sort_default` are optional — most
+    # columns take the frontend's own default (sortable, no forced order).
+    # `sort_default` stays a plain String, not an inline `one_of` — a
+    # `one_of(...)` written INSIDE a `value_object do ... end` block
+    # collides with the value object's OWN bare `one_of do member ... end`
+    # closed-set DSL (same method name, different arity — confirmed by
+    # trying it: `wrong number of arguments (given 2, expected 0)`).
+    # `admits:` (a closed set declared elsewhere) is the way around that
+    # collision, but for a field this narrow it isn't worth the extra
+    # sibling value object — PresentationConfig.validate! keeps checking
+    # membership in Ruby, same as it always has.
+    value_object "Column" do
+      attribute :field,        String
+      attribute :sortable,     String, optional: true  # "true"/"false" — see StateStyle.attention's own comment
+      attribute :sort_default, String, optional: true
+    end
+
+    # One field the detail panel shows. `state_filter` only means anything
+    # on an entity-backed rows field (ui_schema.rb's own apply_row_state_
+    # filter checks this at read time, same as it does today) — nothing
+    # here refuses a state_filter on the wrong shape of field, since that
+    # check needs the APP's own live IR, which this domain can't see; it
+    # stays a Ruby-side PresentationConfig.validate! check, same as always.
+    # `display` is a plain String for the same nested-`one_of` collision
+    # reason `sort_default` is, above.
+    value_object "DetailField" do
+      attribute :field,        String
+      attribute :display,      String, optional: true
+      attribute :state_filter, String, optional: true
+    end
+
+    # A rows-shaped detail field's own sub-column filter, FLATTENED to one
+    # row per (field, column) pair rather than nested inside DetailField —
+    # grouped back by `field` on the way out. The same flattening
+    # Query::AskOption already uses for a compound option's own parts.
+    value_object "DetailFieldColumn" do
+      attribute :field,  String
+      attribute :column, String
+    end
+
+    value_object "Precondition" do
+      attribute :field, String
+      attribute :state, String
+    end
+
+    # `format` stays a plain String too — same nested-`one_of` collision.
+    value_object "FieldFormat" do
+      attribute :field,  String
+      attribute :format, String
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Give one app aggregate a presentation row, before anything is curated on it yet"
+
+      attribute :agg, SettingsText
+
+      given("a collection names its own aggregate") { !agg.value.to_s.empty? }
+
+      emits "CollectionDeclared"
+    end
+
+    command "SetLabel" do
+      role "Console"
+      goal "Name a collection's own nav label"
+
+      reference_to Collection
+      attribute :label, SettingsText
+
+      then_set :label, to: :label
+      emits "LabelSet"
+    end
+
+    command "SetKey" do
+      role "Console"
+      goal "Override a collection's own nav/route key"
+
+      reference_to Collection
+      attribute :key, SettingsText
+
+      then_set :key, to: :key
+      emits "KeySet"
+    end
+
+    command "SetNavOrder" do
+      role "Console"
+      goal "Place a collection in the nav"
+
+      reference_to Collection
+      attribute :nav_order, SettingsNumber
+
+      then_set :nav_order, to: :nav_order
+      emits "NavOrderSet"
+    end
+
+    command "SetPrimaryField" do
+      role "Console"
+      goal "Name which field stands in for a whole record"
+
+      reference_to Collection
+      attribute :primary_field, SettingsText
+
+      then_set :primary_field, to: :primary_field
+      emits "PrimaryFieldSet"
+    end
+
+    command "SetListQuery" do
+      role "Console"
+      goal "Name which of an aggregate's own queries lists its records"
+
+      reference_to Collection
+      attribute :list_query, SettingsText
+
+      then_set :list_query, to: :list_query
+      emits "ListQuerySet"
+    end
+
+    command "SetIdentity" do
+      role "Console"
+      goal "Name how a collection assigns its own new records' identity"
+
+      reference_to Collection
+      attribute :identity_field,    SettingsText
+      attribute :identity_strategy, one_of("slug", "sequence", "port")
+      attribute :identity_source,   SettingsText, optional: true
+      attribute :identity_prefix,   SettingsText, optional: true
+
+      then_set :identity_field,    to: :identity_field
+      then_set :identity_strategy, to: :identity_strategy
+      then_set :identity_source,   to: :identity_source
+      then_set :identity_prefix,   to: :identity_prefix
+      emits "IdentitySet"
+    end
+
+    command "ReplaceColumns" do
+      role "Console"
+      goal "Replace a collection's own whole list of table columns"
+
+      reference_to Collection
+      attribute :columns, list_of(Column)
+
+      then_set :columns, to: :columns
+      emits "ColumnsReplaced"
+    end
+
+    command "ReplaceDetailFields" do
+      role "Console"
+      goal "Replace a collection's own whole list of detail-panel fields"
+
+      reference_to Collection
+      attribute :detail_fields, list_of(DetailField)
+
+      then_set :detail_fields, to: :detail_fields
+      emits "DetailFieldsReplaced"
+    end
+
+    command "ReplaceDetailFieldColumns" do
+      role "Console"
+      goal "Replace every rows-field's own sub-column filter, whole"
+
+      reference_to Collection
+      attribute :detail_field_columns, list_of(DetailFieldColumn)
+
+      then_set :detail_field_columns, to: :detail_field_columns
+      emits "DetailFieldColumnsReplaced"
+    end
+
+    command "ReplacePreconditions" do
+      role "Console"
+      goal "Replace a collection's own whole list of dispatch preconditions"
+
+      reference_to Collection
+      attribute :preconditions, list_of(Precondition)
+
+      then_set :preconditions, to: :preconditions
+      emits "PreconditionsReplaced"
+    end
+
+    command "ReplaceFieldFormats" do
+      role "Console"
+      goal "Replace a collection's own whole list of field display formats"
+
+      reference_to Collection
+      attribute :field_formats, list_of(FieldFormat)
+
+      then_set :field_formats, to: :field_formats
+      emits "FieldFormatsReplaced"
+    end
+  end
+end

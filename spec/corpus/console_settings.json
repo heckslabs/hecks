@@ -1,0 +1,83 @@
+{
+  "name": "console-settings-parity",
+  "note": "Style one lifecycle state and curate one collection's own nav/columns/detail fields — proves StateStyle's composite (agg, state) identity and Collection's whole-list Replace* commands round-trip.",
+  "expectations": {
+    "events": 7
+  },
+  "steps": [
+    {
+      "verb": "ConsoleSettings::StateStyle.Declare",
+      "args": {
+        "agg": {
+          "value": "Board"
+        },
+        "state": {
+          "value": "open"
+        }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::StateStyle.SetTone",
+      "args": {
+        "id": "Board:open",
+        "tone": {
+          "value": "good"
+        }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::StateStyle.SetAttention",
+      "args": {
+        "id": "Board:open",
+        "attention": {
+          "value": "true"
+        }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.Declare",
+      "args": {
+        "agg": {
+          "value": "Board"
+        }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.SetLabel",
+      "args": {
+        "id": "Board",
+        "label": {
+          "value": "Kanban"
+        }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.ReplaceColumns",
+      "args": {
+        "id": "Board",
+        "columns": [
+          {
+            "field": "title"
+          },
+          {
+            "field": "owner",
+            "sortable": "false"
+          }
+        ]
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.ReplaceDetailFields",
+      "args": {
+        "id": "Board",
+        "detail_fields": [
+          {
+            "field": "cards",
+            "display": "rows",
+            "state_filter": "active"
+          }
+        ]
+      }
+    }
+  ]
+}
