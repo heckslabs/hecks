@@ -179,6 +179,36 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "split" do
+    it "splits a string on a literal separator, the storehouse-kernel Phrase shape" do
+      valid   = "dispatch::lexicon::query::command_bus"
+      invalid = "dispatch::lexicon"
+
+      expect(evaluate('value.split("::").length == 4', value: valid)).to be(true)
+      expect(evaluate('value.split("::").length == 4', value: invalid)).to be(false)
+    end
+
+    it "raises when the receiver is not a string" do
+      expect { evaluate('value.split("::")', value: 12) }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /split expects a string, got 12/)
+    end
+  end
+
+  describe "last" do
+    it "reads the final segment of a split, composed the way Phrase checks its own terminal casing" do
+      matching    = "dispatch::lexicon::query::command_bus"
+      not_matching = "dispatch::lexicon::query::other"
+
+      expect(evaluate('value.split("::").last == "command_bus"', value: matching)).to be(true)
+      expect(evaluate('value.split("::").last == "command_bus"', value: not_matching)).to be(false)
+    end
+
+    it "raises when the receiver has no #last" do
+      expect { evaluate("value.last", value: 12) }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /last expects a list, got 12/)
+    end
+  end
+
   describe "match?/present?/blank?" do
     it "matches a receiver against a regex literal, the storehouse-kernel format-validation shape" do
       expect(evaluate('value.match?(/\A\d{5}\z/)', value: "94103")).to be(true)
