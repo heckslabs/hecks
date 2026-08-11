@@ -18,9 +18,10 @@ require "spec_helper"
 # is a regression; a shape found missing has to be added to Banking,
 # or named here as a deliberate, accepted gap — never silently absent.
 RSpec.describe "the shapes a port generator needs Banking to exercise" do
-  let(:ir) { Hecksagain::Projector::Exporter.call(banking_registry).fetch("Banking") }
-
-  let(:banking_registry) do
+  # Booted ONCE per file, not per example — every example here only reads
+  # the exported IR back out (`ir`, `all_value_objects`, `all_attributes`
+  # below), nothing dispatches a command, so a shared registry is safe.
+  before(:context) do
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
@@ -29,8 +30,11 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
     end
-    registry
+    @banking_registry = registry
   end
+
+  let(:ir) { Hecksagain::Projector::Exporter.call(banking_registry).fetch("Banking") }
+  let(:banking_registry) { @banking_registry }
 
   def all_value_objects
     ir[:aggregates].flat_map { |a| a[:value_objects] } +

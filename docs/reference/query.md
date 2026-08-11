@@ -51,9 +51,17 @@ aggregate — the `:symbol` a `where` value can resolve from
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-Names a query parameter as another aggregate's own identity — `Card.Active`'s own `Board`, scoping the result to one board's cards when given. A plain attribute typed as a reference; a query has no root of its own to act on the way a command does, so there's no "acts on itself" case to distinguish here, just a parameter. `optional:` lets the same query run unscoped too — every active card everywhere, when no board is named.
-
-<!-- TODO: document this word -->
+Declares a query parameter that names another aggregate's own
+identity, not a free string that only happens to look like one —
+`reference_to Camper, as: :owner` inside `query "ByOwner" do ... end`
+gives `owner` the same reference typing a real relationship deserves,
+usable in `where(owner: :owner)` exactly as any other attribute would
+be. Only the cross-reference shape: a query has no root of its own to
+act on, so there is no self-reference form here the way `Command`'s
+own `reference_to` has two of (see command.md) — just a plain
+attribute typed as a reference, `as:` naming it (bare, it would default
+to `camper_id`) and `optional:` working the same way it does anywhere
+else `attribute` accepts it.
 
 ## where
 

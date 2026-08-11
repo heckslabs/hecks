@@ -1,0 +1,76 @@
+#!/usr/bin/env ruby
+
+# BOOTS A REAL DOMAIN AND ACTUALLY DISPATCHES AGAINST IT — the sibling
+# `bin/model_check` never had. That tool proves a bluebook is
+# STRUCTURALLY sound (no dead states, no unreachable transitions)
+# without ever running a single command; this proves it WORKS,
+# catching exactly the class of bug static analysis structurally
+# cannot see: a lifecycle field colliding with an explicit attribute, a
+# non-creating command missing `Command.ActsOn` — both real, both
+# reloaded clean, checked clean, and only broke once something
+# actually dispatched against them.
+#
+# ONE SYNTHESIZED CALL PER DECLARED COMMAND, ONE PER DECLARED REPORT,
+# per aggregate root created along the way (`Hecksagain::Bluebook
+# ::Synthesizer`) — never a random guess: a closed set uses its own
+# first admitted member, a reference reuses whatever id this same run
+# already minted for that target. Every failure is collected and
+# reported together, not just the first.
+#
+# WHAT THIS CANNOT CATCH: a call that dispatches cleanly but answers
+# WRONG — this tool's own first real use hit exactly that, a report
+# whose join silently returned an empty array with no exception at
+# all. Smoke-testing proves nothing crashes; it does not prove the
+# answer is the right one.
+#
+# A FAILURE HERE IS NOT NECESSARILY A DOMAIN BUG — it may just be the
+# synthesizer's own naive values (0, an empty list, "smoke-test") not
+# satisfying a REAL invariant (a positive amount, a non-empty topping
+# list, an email pattern). Banking and Pizzas both show exactly that:
+# real `given`/invariant checks a genuinely simple domain never had to
+# satisfy. Building a synthesizer that respects arbitrary invariants is
+# real constraint-aware generation — a separate, much bigger tool than
+# this one. Read a failure here as "either a real bug, or a value this
+# synthesizer's own limits couldn't produce" — the message underneath
+# almost always says plainly which one it is.
+#
+# NEEDS A REAL `.hecksagon`/`.world`, unlike `bin/model_check` (which
+# only ever reads structure, never dispatches) — a bare `.bluebook`
+# with nothing bound to a real adapter has nothing this tool can
+# actually run commands against.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "hecksagain/bluebook/smoke_test"
+
+ROOT = File.expand_path("..", __dir__)
+
+def wired?(dir) = !Dir.glob(File.join(dir, "**/*.hecksagon")).empty?
+
+dir_arg = ARGV.shift
+targets =
+  if dir_arg
+    [dir_arg]
+  else
+    Dir.glob("#{ROOT}/examples/*/").map { |d| d.chomp("/") }.select { |d| wired?(d) }
+  end
+
+abort "no wired example domains found (none of examples/* has a .hecksagon)" if targets.empty?
+
+ok = true
+targets.each do |dir|
+  name = File.basename(dir)
+  puts "── #{name}"
+  failures = Hecksagain::Bluebook::SmokeTest.call(dir)
+  if failures.empty?
+    puts "   clean — every declared command and report dispatched cleanly"
+  else
+    ok = false
+    puts "   #{failures.size} failure(s)"
+    failures.each { |f| puts "     #{f}" }
+  end
+end
+
+puts
+puts ok ? "Every declared command and report dispatched cleanly." : "SMOKE TEST FOUND PROBLEMS."
+exit(ok ? 0 : 1)

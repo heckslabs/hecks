@@ -1,21 +1,14 @@
 require "hecksagain"
+require_relative "../../../support/postgres_probe"
 
 # `formerly_known_as` — a domain's own declared identity can change, and
 # this proves the storage layer bridges its real history under the new
 # name instead of minting a brand-new lineage from nothing. Runs only
-# when a Postgres server is reachable, like every other Postgres spec
-# here. `require "pg"` explicitly — hecksagain's own require is lazy now.
-postgres_available =
-  begin
-    require "pg"
-    PG.connect(dbname: "postgres").close
-    true
-  rescue LoadError, PG::Error
-    false
-  end
-
+# when a Postgres server is reachable — the shared probe in
+# support/postgres_probe.rb, like every other Postgres spec here.
 RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
-               skip: (postgres_available ? false : "no reachable Postgres — start one to run this spec") do
+               io: true,
+               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
   RENAME_DB = "hecksagain_domain_rename_spec".freeze
   RENAME_ROLE = "hecksagain_domain_rename_spec_app".freeze
 

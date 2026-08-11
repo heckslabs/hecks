@@ -30,8 +30,13 @@ RSpec.describe "the guides" do
   end
 
   GUIDES.each do |path|
-    it "#{File.basename(path)} says nothing its examples cannot back" do
-      guide = Doctest.parse(path)
+    # Parsed here, at collection-build time, not inside the `it` — a
+    # guide's postgres pragma has to be known BEFORE the example runs,
+    # so it can carry as `io: true` and get excluded locally by default
+    # the same as every other real-Postgres spec.
+    guide = Doctest.parse(path)
+
+    it "#{File.basename(path)} says nothing its examples cannot back", io: guide.postgres do
       skip "no reachable Postgres — start one to run this guide" if guide.postgres && !Doctest::POSTGRES_AVAILABLE
       if File.basename(path) == "schema-evolution.md" && !Doctest::PIZZAS_HISTORY_AVAILABLE
         skip "documents examples/pizzas' own real era-1→2 migration — only present on a machine " \

@@ -1,22 +1,14 @@
 require "hecksagain"
+require_relative "../../../support/postgres_probe"
 
 # Lineage in the Postgres adapter: the partitioned journal, the
 # hecks_eras rows, the one-transaction mint, and the head compiled as a
 # chain of edges — old entries translated at inclusion, never rewritten.
-# Runs only when a Postgres server is reachable, like every other
-# Postgres spec here. `require "pg"` explicitly — hecksagain's own
-# require is lazy now.
-postgres_available =
-  begin
-    require "pg"
-    PG.connect(dbname: "postgres").close
-    true
-  rescue LoadError, PG::Error
-    false
-  end
-
+# Runs only when a Postgres server is reachable — the shared probe in
+# support/postgres_probe.rb, like every other Postgres spec here.
 RSpec.describe "lineage in the Postgres adapter",
-               skip: (postgres_available ? false : "no reachable Postgres — start one to run this spec") do
+               io: true,
+               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
   LINEAGE_DB = "hecksagain_lineage_spec".freeze
 
   # The genuine table owner for this whole file — an ordinary,

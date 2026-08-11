@@ -43,7 +43,11 @@ require "hecksagain/fuzzing"
 # site, below — is the proof: each was run against UNMODIFIED Rust first
 # to confirm the mismatch was real, then again after the fix, both
 # recorded in each fixture's own `note`.
-RSpec.describe "Rust conformance (native binary)" do
+#
+# `io: true` — a real `cargo build` per fixture's own domain feature,
+# same as every other spec that does real, uncontrolled I/O; excluded
+# locally by default (spec_helper.rb), always run in CI.
+RSpec.describe "Rust conformance (native binary)", io: true do
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
   RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
 

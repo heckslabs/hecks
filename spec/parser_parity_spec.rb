@@ -68,7 +68,13 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   # chapter's own file is named after its ROLE — aggregate.bluebook — not
   # its chapter name, which is always "Bluebook").
   def self.chapter_name_of(bluebook_path)
-    header = File.foreach(bluebook_path).first(20).find { |line| line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
+    # No line cap — `File.foreach` is lazy and `.find` stops at the
+    # first match regardless, so scanning the whole file costs nothing
+    # extra for the common case (every existing corpus member's header
+    # sits on line 1 or 2) and doesn't silently miss an outlier: framework/
+    # bluebook/interview.bluebook's own header comment runs 33 lines
+    # before the declaration, past a 20-line cap this used to carry.
+    header = File.foreach(bluebook_path).find { |line| line =~ /\A\s*Hecks\.bluebook\s+"([^"]+)"/ }
     header && Regexp.last_match(1)
   end
 

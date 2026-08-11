@@ -25,19 +25,22 @@ require "spec_helper"
 # half was never needed for validation. This replaces it.
 RSpec.describe "the judge's coverage of the language" do
   # Banking is the only corpus member carrying every category at once.
-  def banking
-    @banking ||= begin
-      registry = Hecksagain::Runtime::Registry.new
-      Hecksagain.with_registry(registry) do
-        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
-        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
-        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
-      end
-      registry.bluebook("Banking")
+  # Booted ONCE per file — `dispatch` in the examples below always goes
+  # through a `Spy` double, never the real banking runtime, so nothing
+  # here ever mutates and a shared boot is safe.
+  before(:context) do
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
     end
+    @banking = registry.bluebook("Banking")
   end
+
+  def banking = @banking
 
   # Records what the judge asks for, without judging anything.
   class Spy

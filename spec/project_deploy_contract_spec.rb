@@ -13,7 +13,8 @@ require "open3"
 # with each other, parsed back out of real output, not re-derived from
 # the same table that could just as easily be wrong in the same way in
 # all three places at once.
-RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output" do
+RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its own generated output",
+               io: true do
   CONTRACT_FIXTURE_BASENAME = "project_deploy_contract_spec_fixture"
 
   # Mirrors spec/deploy_bluebook_spec.rb's own fixture helper —
@@ -21,9 +22,15 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
   # regardless of where the source domain lives, so the basename here
   # is deliberately unique and the generated directory is removed
   # after every run.
-  def generated_files
+  #
+  # Generated ONCE, in `before(:context)`, and shared across every `it`
+  # below — the three examples read three different facts out of the
+  # identical fixture output, so re-running the real `bin/project_deploy`
+  # subprocess (a fresh Ruby process booting the whole framework) once
+  # per example was pure duplication, not three different checks.
+  before(:context) do
     root = File.expand_path("..", __dir__)
-    generated_dir = File.join(root, "deploy", CONTRACT_FIXTURE_BASENAME)
+    @generated_dir = File.join(root, "deploy", CONTRACT_FIXTURE_BASENAME)
 
     Dir.mktmpdir do |dir|
       domain_dir = File.join(dir, CONTRACT_FIXTURE_BASENAME)
@@ -58,45 +65,39 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
 
       _stdout, stderr, status = Open3.capture3("ruby", File.join(root, "bin/project_deploy"), domain_dir)
       status.success? or raise "bin/project_deploy failed: #{stderr}"
-
-      yield(
-        template: File.read(File.join(generated_dir, "template.yaml")),
-        bastion:  File.read(File.join(generated_dir, "bastion.yaml")),
-        makefile: File.read(File.join(generated_dir, "Makefile"))
-      )
     end
-  ensure
-    FileUtils.rm_rf(generated_dir)
+
+    @files = {
+      template: File.read(File.join(@generated_dir, "template.yaml")),
+      bastion:  File.read(File.join(@generated_dir, "bastion.yaml")),
+      makefile: File.read(File.join(@generated_dir, "Makefile"))
+    }
   end
 
-  it "gives every Makefile OutputKey lookup against the main stack a real template.yaml Output" do
-    generated_files do |files|
-      declared = files[:template][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
-      queried = files[:makefile].scan(/--stack-name \$\(STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
+  after(:context) { FileUtils.rm_rf(@generated_dir) }
 
-      expect(queried).not_to be_empty
-      expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(STACK), but template.yaml's Outputs only declares #{declared}"
-    end
+  it "gives every Makefile OutputKey lookup against the main stack a real template.yaml Output" do
+    declared = @files[:template][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
+    queried = @files[:makefile].scan(/--stack-name \$\(STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
+
+    expect(queried).not_to be_empty
+    expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(STACK), but template.yaml's Outputs only declares #{declared}"
   end
 
   it "gives every Makefile OutputKey lookup against the bastion stack a real bastion.yaml Output" do
-    generated_files do |files|
-      declared = files[:bastion][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
-      queried = files[:makefile].scan(/--stack-name \$\(BASTION_STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
+    declared = @files[:bastion][/^Outputs:\n(.*)\z/m, 1].to_s.scan(/^  (\w+):$/).flatten
+    queried = @files[:makefile].scan(/--stack-name \$\(BASTION_STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
 
-      expect(queried).not_to be_empty
-      expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(BASTION_STACK), but bastion.yaml's Outputs only declares #{declared}"
-    end
+    expect(queried).not_to be_empty
+    expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(BASTION_STACK), but bastion.yaml's Outputs only declares #{declared}"
   end
 
   it "fills every bastion.yaml Parameter from the Makefile's --parameter-overrides, and no others" do
-    generated_files do |files|
-      declared = files[:bastion][/^Parameters:\n(.*?)^Resources:/m, 1].to_s.scan(/^  (\w+):$/).flatten
-      overrides_line = files[:makefile][/--parameter-overrides (.*?) \\/, 1].to_s
-      filled = overrides_line.scan(/(\w+)=/).flatten
+    declared = @files[:bastion][/^Parameters:\n(.*?)^Resources:/m, 1].to_s.scan(/^  (\w+):$/).flatten
+    overrides_line = @files[:makefile][/--parameter-overrides (.*?) \\/, 1].to_s
+    filled = overrides_line.scan(/(\w+)=/).flatten
 
-      expect(declared).not_to be_empty
-      expect(filled.sort).to eq(declared.sort), "bastion.yaml declares Parameters #{declared}, but --parameter-overrides fills #{filled}"
-    end
+    expect(declared).not_to be_empty
+    expect(filled.sort).to eq(declared.sort), "bastion.yaml declares Parameters #{declared}, but --parameter-overrides fills #{filled}"
   end
 end

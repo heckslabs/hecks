@@ -96,7 +96,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
   # THE END-TO-END PROOF — bin/project_deploy itself dispatches into
   # this domain, not a parallel hand-rolled check that happens to agree
   # with it today and silently drifts tomorrow.
-  describe "bin/project_deploy, driven through a scratch fixture domain" do
+  describe "bin/project_deploy, driven through a scratch fixture domain", io: true do
     # `bin/project_deploy` always writes to `<repo_root>/deploy/
     # <domain_basename>` regardless of where the SOURCE domain lives
     # (`root`/`out_dir` in bin/project_deploy are computed from the

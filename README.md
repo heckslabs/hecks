@@ -368,6 +368,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecksagain::Fuzzing::SequenceGenerator) and checks each one th... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
+| `bin/interview` | A live discovery session — one declaration at a time, the language's OWN refusals as the interview's feedback, rendered as an event-storm... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
 | `bin/merge_tail` | Tail-merge: the one deliberate command. It marks a business event — an old app retiring — never a shape change. One transaction: advance ... |
 | `bin/model_check` | STATIC ANALYSIS OVER THE IR — unreachable lifecycle states, transitions nothing can ever fire, saga states no handler chain reaches, a co... |
@@ -390,6 +391,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/rust_kernel_coverage` | THE MECHANICAL, COMMENT-TAG-FREE HALF OF THE GUARANTEE. bin/project_kernel_capabilities generates the ENUM half — the compiler already re... |
 | `bin/scaffold_translation` | The scaffold writes translations; humans resolve ambiguity. Diffs the held era against the current bluebook and writes the edge file: con... |
 | `bin/shape` | The storage-shape projection of one bluebook file, as JSON — the exact form StorageShape.mint_hash hashes to name an era, printed so a bu... |
+| `bin/smoke_test` | BOOTS A REAL DOMAIN AND ACTUALLY DISPATCHES AGAINST IT — the sibling `bin/model_check` never had. That tool proves a bluebook is STRUCTUR... |
 | `bin/stores` | Prints every aggregate's current records, as JSON — the head, not the journal (bin/history prints the full write history instead). bin/st... |
 | `bin/translation_audit` | The audit derives its assertions. Layer 1: every translated state passes the new era's types, invariants, and lifecycle. Layer 2: the com... |
 <!-- generated:end -->
@@ -428,7 +430,8 @@ exactly what it was already good at.
 ## Verify
 
 ```sh
-bundle exec rspec   # the whole suite
-bin/model_check     # static analysis over the IR — unreachable states, dead transitions
-bin/fuzz            # generated sequences, checked against declared properties
+bundle exec rspec                 # the whole suite
+bundle exec parallel_rspec spec   # same suite, split across your machine's cores (local only)
+bin/model_check                   # static analysis over the IR — unreachable states, dead transitions
+bin/fuzz                          # generated sequences, checked against declared properties
 ```

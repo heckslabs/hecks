@@ -1,0 +1,3 @@
+Hecks.adapter "ScriptedAgent" do
+  port "agent"
+end

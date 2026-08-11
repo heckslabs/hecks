@@ -69,8 +69,9 @@ RSpec.describe "a procedure, and when it is a saga" do
   end
 
   # Banking's settlement, which compensates — money out of one account has to come
-  # back if the other will not take it.
-  def settlement
+  # back if the other will not take it. Booted ONCE per file — nothing below
+  # ever dispatches, only reads the loaded process manager's IR back out.
+  before(:context) do
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
@@ -79,8 +80,10 @@ RSpec.describe "a procedure, and when it is a saga" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
     end
-    registry.bluebook("Banking").process_managers.find { |pm| pm.name == "Settlement" }
+    @settlement = registry.bluebook("Banking").process_managers.find { |pm| pm.name == "Settlement" }
   end
+
+  def settlement = @settlement
 
   it "is a procedure without being a saga, when nothing needs undoing" do
     expect(hiring.handlers).not_to be_empty

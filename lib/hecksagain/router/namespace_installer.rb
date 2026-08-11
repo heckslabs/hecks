@@ -1,4 +1,5 @@
 require_relative "../fqn"
+require_relative "../facade/handle"
 
 module Hecksagain
   class Router
@@ -44,6 +45,7 @@ module Hecksagain
       def install!
         current_entries.each { |entry| install_namespace_entry(entry) }
         install_shortcuts!
+        install_aggregate_doors!
         self
       end
 
@@ -65,6 +67,49 @@ module Hecksagain
           target.define_singleton_method(entry.fqn.verb) { |**args| active_router.dispatch(address, **args) }
         else
           target.define_singleton_method(entry.fqn.verb) { |**args| active_router.query(address, **args) }
+        end
+      end
+
+      # `.find`/`.all`/`.count`/`.events`/`.repository` — the SAME read/CRUD
+      # surface `Facade::Surface::AggregateDoor` gives a plain `Hecksagain
+      # .boot`, missing here until now: `install_namespace_entry` above
+      # installs ONE method per declared VERB, so an aggregate with no
+      # commands or queries of its own shape (or simply never asked for
+      # a `find`-shaped query) had no way to look up one record by id
+      # through the router surface at all — real gap, hit live building
+      # a `List` aggregate meant to be read this way. Grouped by
+      # (realm, domain, aggregate) rather than installed per-verb,
+      # because unlike a command or query this is the SAME five methods
+      # regardless of which verb happened to trigger this aggregate's
+      # own namespace module into existing.
+      def install_aggregate_doors!
+        current_entries.reject { |entry| entry.fqn.aggregate.nil? }
+                       .group_by { |entry| [entry.fqn.realm, entry.fqn.domain, entry.fqn.aggregate] }
+                       .each_value { |entries| install_aggregate_door(entries.first) }
+      end
+
+      def install_aggregate_door(entry)
+        dispatcher = entry.dispatcher
+        domain     = entry.fqn.domain
+        ir         = dispatcher.registry.bluebook(domain)&.aggregate(entry.fqn.aggregate)
+        return unless ir # a query/command-only entry whose owner isn't a real aggregate root
+
+        fqn    = "#{domain}::#{ir.hecks_name}"
+        target = namespace_for(entry.fqn.realm, domain, entry.fqn.aggregate)
+
+        target.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
+        target.define_singleton_method(:count)      { dispatcher.registry.repository(domain, ir).count }
+        target.define_singleton_method(:events)     { dispatcher.events.select { |event| event.aggregate == fqn } }
+
+        target.define_singleton_method(:find) do |id|
+          found = dispatcher.registry.repository(domain, ir).find(id)
+          found && Facade::Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: found)
+        end
+
+        target.define_singleton_method(:all) do
+          dispatcher.registry.repository(domain, ir).all.map do |instance|
+            Facade::Handle.new(dispatcher: dispatcher, domain: domain, ir: ir, instance: instance)
+          end
         end
       end
 

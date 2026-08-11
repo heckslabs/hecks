@@ -3,6 +3,7 @@ require "spec_helper"
 require "json"
 require "tmpdir"
 require "fileutils"
+require_relative "../support/postgres_probe"
 
 # A refusal is the domain saying NO. Anything else is the runtime breaking.
 #
@@ -34,7 +35,18 @@ RSpec.describe "every refusal the corpus provokes" do
   end
 
   CORPUS.each do |name, path|
-    it "#{name} raises only errors the domain is allowed to raise" do
+    # `rm_rf(data/)` isolates a Heki-backed copy ("banking") for real —
+    # copying the DIRECTORY copies the store, and wiping `data/` resets
+    # it. It isolates nothing for "pizzas": examples/pizzas' own .world
+    # declares `persisted_by("Postgres")` unconditionally (a fixed
+    # connection string, not a path inside the copied tree — see
+    # support/postgres_probe.rb's own note), so the copy still boots
+    # against the real, shared hecks_pizzas database. `io: true` and
+    # self-skipping otherwise, same as every other real-Postgres spec —
+    # only for "pizzas"; "banking" stays a plain, always-runs example.
+    it "#{name} raises only errors the domain is allowed to raise",
+       io: (name == "pizzas"),
+       skip: (name == "pizzas" && !PostgresProbe::AVAILABLE ? "no reachable Postgres — start one to run this spec" : false) do
       script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/#{name}.json")))
       Dir.mktmpdir do |tmp|
         domain = File.join(tmp, name)

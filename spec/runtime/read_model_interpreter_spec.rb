@@ -348,7 +348,18 @@ RSpec.describe "a rootless read model's own group_by" do
         vision "x"
         generic
 
-        aggregate "Widget" do
+        # "Gadget", not "Widget" — half a dozen OTHER spec files declare
+        # their own bare, top-level "Widget" domain (dsl_spec.rb,
+        # mutation_spec.rb, smoke_test_spec.rb, ...), and this is the
+        # only one that nests its "Widget" under an outer "Nested"
+        # domain. A real, measured collision: whichever ran first left
+        # `Nested::Widget` sitting in the global constant table, and
+        # under `config.order = :random` the NEXT example to declare
+        # its OWN bare `Widget` domain sometimes found Ruby's constant
+        # lookup climbing into `Nested::Widget` before ever reaching
+        # `::Widget` — `uninitialized constant Nested::Widget::Item`,
+        # order-dependent, reproduced directly (not guessed at).
+        aggregate "Gadget" do
           identified_by { ref.value }
           attribute :ref,   Ref
           attribute :group, Ref
@@ -364,20 +375,20 @@ RSpec.describe "a rootless read model's own group_by" do
         end
 
         read_model "Grouped" do
-          include Widget
+          include Gadget
           group_by :group, :ref
         end
       end
-      Hecks.hecksagon("Nested") { Nested::Widget.persisted_by("Memory") }
+      Hecks.hecksagon("Nested") { Nested::Gadget.persisted_by("Memory") }
     end
     registry.verify!
     runtime = Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
 
-    Nested::Widget.declare(ref: { value: "w1" }, group: { value: "g1" })
-    Nested::Widget.declare(ref: { value: "w2" }, group: { value: "g1" })
-    Nested::Widget.declare(ref: { value: "w3" }, group: { value: "g2" })
+    Nested::Gadget.declare(ref: { value: "w1" }, group: { value: "g1" })
+    Nested::Gadget.declare(ref: { value: "w2" }, group: { value: "g1" })
+    Nested::Gadget.declare(ref: { value: "w3" }, group: { value: "g2" })
 
-    grouped = runtime.query("Nested.grouped").first[:widgets]
+    grouped = runtime.query("Nested.grouped").first[:gadgets]
 
     expect(grouped).to eq(
       "g1" => { "w1" => { id: "w1" }, "w2" => { id: "w2" } },
