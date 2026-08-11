@@ -281,19 +281,39 @@ ALLOWLIST = [
           ' declaration behind it at all, so it does not close, or even touch, any of the findings this allowlist ' \
           'entry covers; every one of them is still exactly the gap it was.',
   },
-  {
-    kind: "policy",
-    reason_match: /cross-domain policy/,
-    doc: "docs/decisions/0013-rust-generates-entities-policies-sagas.md (Consequences)",
-    note: '0013\'s own Consequences section: "Cross-domain policies (`across` a domain this single-domain `Store` ' \
-          'never generated) are omitted from the generated table entirely, not represented-and-refused — verified ' \
-          "this matches Ruby's own observable behavior for this corpus specifically (no `Compliance`/" \
-          '`Notifications` bluebook exists anywhere in the repo, so Ruby\'s own `PolicyInterpreter#deliver` already ' \
-          'refuses these the same way)." A per-instance gap in a kind that otherwise works — most policies in a ' \
-          "real domain route fine; only a policy whose target domain wasn't ALSO compiled into this same Store " \
-          "doesn't.",
-  },
 ]
+# REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry
+# that used to live here (matching `reason_match: /cross-domain policy/`,
+# 0013's own Consequences: "omitted from the generated table entirely").
+# `rust/project/reactions.rb`'s `emit_cross_domain_policy_table` now
+# represents these instead of dropping them (`CrossDomainPolicyRule`,
+# `kernel::orchestrate`'s own header) — `domain_generator.rb`'s manifest
+# entry for EVERY policy, cross-domain or not, is `generated: true,
+# routed: true` now, so no finding this rule used to match can be
+# produced anymore; leaving a dead rule in place would silently stop
+# testing anything the day it's removed for real, which is worse than
+# just removing it now with this note explaining why.
+#
+# WHAT THIS TOOL CAN AND CANNOT ATTEST TO, PRECISELY: "generated and
+# reachable through kernel/cli.rs's JSON router" (this file's own header)
+# is now true for a cross-domain policy — `kernel::orchestrate` matches
+# it exactly like a same-domain one and `kernel::cli::run` carries the
+# match out as a `PendingCrossDomainReaction` in its own JSON output
+# ("cross_domain_reactions"). What this tool CANNOT attest to, and never
+# could — it is a codegen-coverage tool, not a live-infrastructure
+# prober — is whether a REAL cross-Lambda delivery attempt (rust/host's
+# `lambda_client.rs`, invoked from `dispatch::handle` after this) actually
+# reaches a live target Lambda: that needs two real domains' Lambdas
+# deployed and invocable, which no environment this tool runs in has.
+# `rust/host/src/lambda_client.rs`'s own header states exactly what IS
+# proven here (function-name computation, request-payload shape, refusal-
+# vs-fault classification, all via `cargo test` against a mock
+# `LambdaInvoker`) versus what remains structurally-argued-but-
+# unverified-without-live-AWS (`AwsLambdaInvoker` itself). That caveat
+# belongs there, not as a permanent allowlist entry here — this tool's
+# own IMPLEMENTED bucket was never a claim of live-infrastructure proof
+# for ANY finding in it (a generated Postgres write path isn't re-proven
+# against a live database by this tool either).
 # NOT ON THIS LIST, ON PURPOSE, THOUGH IT IS DOCUMENTED — era/lineage-bound
 # aggregate support. docs/HECKS_IMPLEMENTATION_PLAN.md's §8 "What's still
 # real and unbuilt" section investigates this by name and calls it out as
