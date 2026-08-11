@@ -52,7 +52,7 @@ module Hecksagain
           return records.map { |record| record.state.merge(id: record.id) }
         end
 
-        interpret(repository.all, declared, args)
+        interpret(repository.all, declared, args, domain: domain)
       end
 
       # The REFERENCE answer — this interpreter's own evaluation, never an
@@ -88,8 +88,8 @@ module Hecksagain
                                                     aggregate: aggregate.hecks_name, query: query_name.inspect))
       end
 
-      def interpret(records, declared, args)
-        matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args) } }
+      def interpret(records, declared, args, domain: nil)
+        matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args, domain: domain) } }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
@@ -195,11 +195,11 @@ module Hecksagain
         ) { |row| comparable(QuerySpecification::FieldPath.dig(row, field)) }
       end
 
-      def where_holds?(clause, record, args)
-        holds?(clause, QuerySpecification::FieldPath.dig(record, clause.field), args)
+      def where_holds?(clause, record, args, domain: nil)
+        holds?(clause, QuerySpecification::FieldPath.dig(record, clause.field), args, record: record, domain: domain)
       end
 
-      def holds?(clause, held, args)
+      def holds?(clause, held, args, record: nil, domain: nil)
         held = comparable(held)
         want = comparable(resolve_query_value(clause.value, args))
 
@@ -212,8 +212,43 @@ module Hecksagain
         when "gte"      then ordered?(held, want) && held >= want
         when "in"       then members(want).include?(held.to_s)
         when "contains" then contains?(held, want)
+        when "none_in_state" then none_in_state?(held, want)
         else                 held == want
         end
+      end
+
+      # Vendored addition, not (yet) upstream hecksagain (migration plan
+      # task 4) -- see comparators.rb's own comment on `none_in_state`
+      # itself. `want` is "Aggregate:state" (a literal, never resolved
+      # through `resolve_query_value`'s Symbol path -- the target names a
+      # TYPE, not an argument). `held` is THIS record's own field value,
+      # already unwrapped by `comparable` -- the point-lookup key. No
+      # `domain:` qualifier on "Aggregate" because the corpus's own usage
+      # never gives one (plan.bluebook's Story reaching Conductor's Claim)
+      # -- searched by bare name across every loaded domain, the same
+      # single free-text lookup `HecksagainRuntime.state` already does for
+      # a caller-supplied aggregate FQN. Ambiguous (two domains declaring
+      # the same aggregate name) is a real, theoretical gap -- picks the
+      # first match rather than refusing, since a where-clause never
+      # raises (see `ordered?`'s own comment on the same contract).
+      def none_in_state?(held, want)
+        aggregate_name, state = want.to_s.split(":", 2)
+        target = find_aggregate_by_name(aggregate_name)
+        return true unless target
+
+        target_domain, target_ir = target
+        record = @registry.repository(target_domain, target_ir).find(held)
+        return true unless record
+
+        comparable(record.state[:state]) != state
+      end
+
+      def find_aggregate_by_name(name)
+        @registry.bluebooks.each do |domain, bluebook|
+          aggregate = bluebook.aggregates.find { |a| a.hecks_name == name }
+          return [domain, aggregate] if aggregate
+        end
+        nil
       end
 
       # gt/gte/lt/lte are numeric-only and silently false otherwise — a
