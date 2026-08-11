@@ -325,9 +325,15 @@ pub async fn provision(
     };
     let identity_id = uuid::Uuid::new_v4().to_string();
 
+    // `None` on all three dispatches below -- this whole function is
+    // SYSTEM-INITIATED provisioning (minting Identity/Governance facts
+    // for a Member the operator already granted access to via
+    // GrantAccess, not a command a logged-in caller is submitting), so
+    // there is no caller role to assert here -- matches what every call
+    // site in this function has always done.
     let register = dispatch::handle(
         client, wasm_path, "Identity::Identity.Register",
-        json!({"identity_id": {"value": identity_id}}), config, invoker,
+        json!({"identity_id": {"value": identity_id}}), None, config, invoker,
     ).await?;
     if !register.accepted {
         anyhow::bail!("Identity::Identity.Register refused: {}", register.result);
@@ -338,7 +344,7 @@ pub async fn provision(
         json!({
             "identity_id": identity_id, "key": {"value": format!("{issuer}:{subject}")},
             "issuer": {"value": issuer}, "subject": {"value": subject},
-        }), config, invoker,
+        }), None, config, invoker,
     ).await?;
     if !link_external.accepted {
         anyhow::bail!("Identity::ExternalIdentifier.Link refused: {}", link_external.result);
@@ -349,7 +355,7 @@ pub async fn provision(
         json!({
             "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": "Embryonaut"},
             "starts_at": {"value": httpdate_now()},
-        }), config, invoker,
+        }), None, config, invoker,
     ).await?;
     if !assign_role.accepted {
         anyhow::bail!("Governance::RoleAssignment.Assign refused: {}", assign_role.result);
