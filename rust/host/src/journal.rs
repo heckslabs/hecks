@@ -1,15 +1,16 @@
-// THE REHYDRATE-AND-REPLAY JOURNAL — flat, non-era-aware, and
-// deliberately domain-agnostic: one table for the WHOLE domain's
-// command history, not one per aggregate. Rust has no era/lineage
-// concept at all (a known, already-documented gap from ADR 0011), and
-// rust/host has no type information about aggregates/commands (that
-// knowledge lives only inside the compiled `.wasm` module, which this
-// crate treats as opaque) — so filtering "which prior commands matter
-// for this one" isn't something rust/host can safely do on its own.
-// Replaying the FULL log on every invocation is the simplest correct
-// answer for a company-internal tool with modest total event volume;
-// see docs/decisions/0018-rehydrate-replay-lambda-host.md for the full
-// tradeoff.
+// THE REHYDRATE-AND-REPLAY JOURNAL — flat and DELIBERATELY non-era-
+// aware, domain-agnostic: one table for the WHOLE domain's command
+// history, not one per aggregate. This journal alone has no era/lineage
+// concept (by design, not by gap — see the generic lineage read/write
+// functions further down this file for the part of this crate that
+// does), and rust/host has no type information about aggregates/
+// commands (that knowledge lives only inside the compiled `.wasm`
+// module, which this crate treats as opaque) — so filtering "which
+// prior commands matter for this one" isn't something rust/host can
+// safely do on its own. Replaying the FULL log on every invocation is
+// the simplest correct answer for a company-internal tool with modest
+// total event volume; see docs/decisions/0018-rehydrate-replay-lambda-
+// host.md for the full tradeoff.
 //
 // Determinism is what makes this safe to persist selectively: every
 // prior journal row was, by construction, a command that succeeded the
@@ -365,6 +366,76 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     Ok(())
 }
 
+// ── GENERIC LINEAGE READS — the READ half of what `append_lineage_
+// mutation` above already is for writes: one function, any lineage-
+// capable aggregate, not a hand-typed one per aggregate. Reads the SAME
+// `<storage>_head` VIEW Ruby's own `Adapters::Postgres#all`/`#find`
+// already read (`lineage.head_view(table)`, postgres/lineage/head_
+// compiler.rb) — a plain view Ruby's LineageManager compiles at mint
+// time, era-union and every rename/move/convert/drop already folded in
+// via SQL (`hecks_tr_*` helpers, head_compiler.rb's own `compile_rules`)
+// BEFORE this crate ever sees a row. That is what makes this safe and
+// simple: neither function below needs to know a single thing about
+// eras, translations, or shape drift — reading the head view IS reading
+// "the current, already-translated truth," by construction, the exact
+// same guarantee auth.rs's own `member_row_by_email`/`member_rows`
+// already leaned on for the one aggregate (`Embryonaut::Member`) that
+// needed it BEFORE this was generic. Those two functions are thin
+// wrappers over these now (auth.rs) — proof this generalizes, not just
+// a parallel implementation.
+//
+// DELIBERATELY NOT WIRED INTO `dispatch::handle`/`dispatch::read`'s OWN
+// rehydrate-replay seed. That seed is fed to the WASM kernel alongside
+// RAW HISTORICAL STEPS (verb+args exactly as originally dispatched,
+// journal.rs's own top header) — a full cold replay re-plays every one
+// of those steps from scratch, in whatever shape they were RECORDED
+// under. Overlaying an already-translated (possibly NEWER-shaped) head
+// state into the SEED a cold replay starts from would make the kernel
+// see an id as already present while also replaying the very step that
+// first creates it — a real, new "AlreadyExists" false refusal, not a
+// fix. A lineage-capable aggregate is architecturally the same case
+// Ruby's own `CommandInterpreter` already treats specially: bound to
+// Postgres, it is dispatched OUTSIDE the in-memory replay engine
+// entirely (`InMemoryRepository` is Ruby's Memory adapter's own
+// concept, never reached for a Postgres-bound aggregate) — never
+// blended into it. rust/host's own Member handling (auth.rs) already
+// follows that split; these functions extend it to any aggregate the
+// exported IR marks lineage-capable (`ir.json`'s `lineage.
+// capable_aggregates`, Projector::Exporter.lineage), rather than
+// leaving Member as a one-off.
+fn head_view(storage_name: &str) -> String {
+    format!("{storage_name}_head")
+}
+
+/// Every live row for one lineage-capable aggregate, already translated
+/// to its current shape — `member_rows`'s own query (auth.rs), made
+/// generic over `storage_name` instead of hard-typed to `"member_head"`.
+pub async fn read_lineage_head_all<C: GenericClient>(
+    client: &C,
+    storage_name: &str,
+) -> anyhow::Result<Vec<(String, serde_json::Value)>> {
+    let rows = client
+        .query(&format!("SELECT id, state FROM {}", quote_ident(&head_view(storage_name))), &[])
+        .await?;
+    Ok(rows.into_iter().map(|row| (row.get(0), row.get(1))).collect())
+}
+
+/// One row by id, already translated — `member_row_by_email`'s own
+/// query (auth.rs), made generic the same way.
+pub async fn read_lineage_head_by_id<C: GenericClient>(
+    client: &C,
+    storage_name: &str,
+    id: &str,
+) -> anyhow::Result<Option<serde_json::Value>> {
+    let row = client
+        .query_opt(
+            &format!("SELECT state FROM {} WHERE id = $1", quote_ident(&head_view(storage_name))),
+            &[&id],
+        )
+        .await?;
+    Ok(row.map(|r| r.get(0)))
+}
+
 #[cfg(test)]
 mod lineage_tests {
     use super::*;
@@ -497,6 +568,75 @@ mod lineage_tests {
             Some(2),
             "era 1's row is still on file, but era 2 is now the live one -- \
              a bare existence check on era 1 would have missed that it's stale"
+        );
+    }
+
+    // THE GENERIC READ PATH, proven against an aggregate that is NOT
+    // Member — the whole point of pulling `member_row_by_email`/
+    // `member_rows`'s own query shape out into `read_lineage_head_by_id`/
+    // `read_lineage_head_all`. Builds the head view BY HAND the way
+    // Ruby's `HeadCompiler#ensure_first_head!` would for a fresh era 1
+    // (a plain `SELECT id, state FROM <storage>_head_snapshot_1`) rather
+    // than reproducing Ruby's whole mint path — this test's own question
+    // is "does the generic reader see what the view presents," not
+    // "does Ruby compile the view correctly" (that's lineage_spec.rb's
+    // job, in Ruby, already).
+    #[tokio::test]
+    async fn read_lineage_head_reads_any_aggregates_view_generically() {
+        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+            .await
+            .expect("connect to postgres");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+
+        client.batch_execute("DROP VIEW IF EXISTS widget_head").await.unwrap();
+        client.batch_execute("DROP TABLE IF EXISTS widget_head_snapshot_1").await.unwrap();
+        client
+            .batch_execute(
+                "CREATE TABLE widget_head_snapshot_1 (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)",
+            )
+            .await
+            .unwrap();
+        client
+            .batch_execute("CREATE VIEW widget_head AS SELECT id, state FROM widget_head_snapshot_1")
+            .await
+            .unwrap();
+
+        let config = LineageConfig { domain: "Fixtures".to_string(), era: 1 };
+        client
+            .batch_execute("CREATE TABLE IF NOT EXISTS hecks_journal_fixtures (ordinal bigserial PRIMARY KEY, era int NOT NULL, aggregate text NOT NULL, aggregate_id text NOT NULL, operation text NOT NULL, state jsonb)")
+            .await
+            .unwrap();
+        append_lineage_mutation(
+            &client,
+            &config,
+            &Mutation { aggregate: "Widget", id: "widget-1", operation: "save", state: &serde_json::json!({ "name": "Gadget" }) },
+        )
+        .await
+        .unwrap();
+        append_lineage_mutation(
+            &client,
+            &config,
+            &Mutation { aggregate: "Widget", id: "widget-2", operation: "save", state: &serde_json::json!({ "name": "Gizmo" }) },
+        )
+        .await
+        .unwrap();
+
+        let one = read_lineage_head_by_id(&client, "widget", "widget-1").await.unwrap();
+        assert_eq!(one, Some(serde_json::json!({ "name": "Gadget" })));
+
+        let missing = read_lineage_head_by_id(&client, "widget", "widget-nonexistent").await.unwrap();
+        assert_eq!(missing, None);
+
+        let mut all = read_lineage_head_all(&client, "widget").await.unwrap();
+        all.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(
+            all,
+            vec![
+                ("widget-1".to_string(), serde_json::json!({ "name": "Gadget" })),
+                ("widget-2".to_string(), serde_json::json!({ "name": "Gizmo" })),
+            ]
         );
     }
 }

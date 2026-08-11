@@ -15,6 +15,16 @@ require_relative "../rust/project"
 require "fileutils"
 require "json"
 
+# A plain Ruby `require`, not a DSL `Kernel.load` below — this only
+# defines the `Hecksagain::Adapters::Postgres` CLASS constant (`lineage_
+# capable?`'s own singleton method lives there), so `registry.adapter_
+# class("Postgres")` (Runtime::EraCheck's own capability lookup, reused
+# below) can resolve it. Safe at generator time and every other time:
+# `require "pg"` is lazy, inside `Postgres.connect_for` only (that
+# file's own comment) — nothing here opens or even attempts a database
+# connection.
+require "hecksagain/adapters/driven/postgres"
+
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
 # EVERY IR HANDED TO THE GENERATOR GOES THROUGH REAL JSON FIRST — never
@@ -35,6 +45,13 @@ Hecksagain.with_registry(target_registry) do
   Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
   Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
   Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/prism.adapter", __dir__))
+  # The DSL declaration (name + fields), NOT the Ruby class required
+  # above — `registry.adapters["Postgres"]` (an IR::Adapter, from THIS
+  # load) and `registry.adapter_class("Postgres")` (the Ruby class, from
+  # the `require` above) are two separate lookups `EraCheck.lineage_
+  # capable?` checks in sequence; both have to be present or it silently
+  # (and correctly, for any OTHER unloaded adapter) answers false.
+  Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/postgres.adapter", __dir__))
   Kernel.load(File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
 
   # ALSO the .hecksagon file, not just the .bluebook — this is what
@@ -57,6 +74,15 @@ end
 # regardless of how many framework chapters get pulled in after it.
 target_domain_name = target_registry.bluebooks.keys.first
 target_ir = json_shaped(Hecksagain::Projector::Exporter.call(target_registry).fetch(target_domain_name))
+
+# MERGED IN, NOT PART OF `Exporter.call`'s OWN OUTPUT — see `Exporter.
+# lineage`'s own header: a binding fact, not a shape fact, so it rides
+# alongside the canonical per-domain IR as its own top-level key rather
+# than inside it (ADR 0001 stays true: `bluebook.to_h` itself never
+# mentions an adapter). Every consumer of `target_ir` from here on
+# (metadata.rs's embedded IR_JSON, the `ir.json` sidecar rust/host
+# already reads at runtime, manifest.json) sees it the same way.
+target_ir[:lineage] = json_shaped(Hecksagain::Projector::Exporter.lineage(target_registry, target_domain_name))
 
 # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecksagain/language/bluebook/`
 # declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,

@@ -142,6 +142,19 @@ def expected_from_ir(ir)
   ir.fetch(:policies).each { |p| expected << [:policy, "#{domain_name}::#{p.fetch(:name)}"] }
   ir.fetch(:process_managers).each { |pm| expected << [:process_manager, "#{domain_name}::#{pm.fetch(:name)}"] }
 
+  # `ir[:lineage]` — a BINDING fact (Projector::Exporter.lineage's own
+  # header), not part of `[:aggregates]`'s own canonical shape, so it's
+  # its own top-level key rather than a field on each aggregate above.
+  # `.fetch(:lineage, {})` — not a bare `.fetch(:lineage)` — because a
+  # domain regenerated before this key existed (a stale checked-in
+  # ir.json this checkout can't refresh, e.g. Embryonaut's) simply has
+  # none, and that must read as "nothing to expect here," never a
+  # KeyError this tool's own manifest cross-check would otherwise raise
+  # on.
+  ir.fetch(:lineage, {}).fetch(:capable_aggregates, []).each do |aggregate|
+    expected << [:lineage_aggregate, "#{domain_name}::#{aggregate.fetch(:name)}"]
+  end
+
   expected
 end
 
@@ -239,6 +252,19 @@ def derive_manifest_from_source(ir, mod_dir)
   ir.fetch(:process_managers).each do |pm|
     manifest << { kind: "process_manager", id: "#{domain_name}::#{pm.fetch(:name)}", generated: nil,
                   reason: "fallback mode does not attempt process-manager verification either, for consistency with the policy caveat above" }
+  end
+
+  # UNCONDITIONALLY generated, same as domain_generator.rb's own manifest
+  # entry for this kind — not a registry.rs-routed construct at all
+  # (rust/project.rb's own header: deliberately never reaches the WASM
+  # kernel), so there is nothing HERE for regex-scanning to be uncertain
+  # about the way a command/query verb's routing is. rust/host's
+  # journal::read_lineage_head_all/_by_id + append_lineage_mutation are
+  # generic over storage_name and already compiled in unconditionally —
+  # true for any domain's ir.json that names one, fallback mode or not.
+  ir.fetch(:lineage, {}).fetch(:capable_aggregates, []).each do |aggregate|
+    manifest << { kind: "lineage_aggregate", id: "#{domain_name}::#{aggregate.fetch(:name)}", generated: true, routed: true,
+                  reason: "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name, verified independent of this domain's own manifest.json" }
   end
 
   manifest
@@ -398,22 +424,34 @@ ALLOWLIST = [
 # own IMPLEMENTED bucket was never a claim of live-infrastructure proof
 # for ANY finding in it (a generated Postgres write path isn't re-proven
 # against a live database by this tool either).
-# NOT ON THIS LIST, ON PURPOSE, THOUGH IT IS DOCUMENTED — era/lineage-bound
-# aggregate support. docs/HECKS_IMPLEMENTATION_PLAN.md's §8 "What's still
-# real and unbuilt" section investigates this by name and calls it out as
-# a DIFFERENT KIND of item than everything else on that list: "not a
-# parity bug in the generator's current single-era output, but an entire
-# missing subsystem... Porting it would mean building a Rust Postgres
-# adapter FIRST, then the whole lineage/shape-diff system on top —
-# genuinely out of proportion to a 'gap,' deliberately left unattempted
-# rather than scoped down into something dishonest." It has no entry
-# above because it structurally CAN'T: nothing in `ir[:aggregates]` (a
-# CURRENT-era snapshot; era/lineage data lives in a separate mechanism —
-# `DeclarationSnapshot`/`era_check`, not `to_h`) ever produces an "era"
-# construct for this tool's `expected_from_ir` to even enumerate, so it
-# can never surface as a raw finding here to allowlist in the first
-# place. Recorded here anyway, per this tool's own design brief, so a
-# reader of this file — not just this run's report — sees it named.
+# NO LONGER "STRUCTURALLY CAN'T SURFACE" — this comment used to explain
+# why era/lineage-bound aggregate support had no allowlist entry: nothing
+# in `ir[:aggregates]` (a current-era snapshot) ever named an aggregate's
+# adapter binding, so `expected_from_ir` had no way to even enumerate it
+# as a raw finding here. `Exporter.lineage` (lib/hecksagain/projector/
+# exporter.rb) closed exactly that gap — `ir[:lineage][:capable_aggregates]`
+# is now a real, exported list, `expected_from_ir`/both manifest builders
+# above both walk it under `kind: "lineage_aggregate"`, and every such
+# aggregate reports IMPLEMENTED: rust/host's `journal::
+# read_lineage_head_all/_by_id` (read) and `journal::
+# append_lineage_mutation` (write, already generic before this) cover
+# ANY aggregate this list ever names, unconditionally — proven for a
+# non-Member aggregate by `journal::lineage_tests::
+# read_lineage_head_reads_any_aggregates_view_generically`.
+#
+# STILL A REAL, NAMED BOUNDARY, THOUGH — not everything era/lineage-
+# shaped moved. Era MINTING, shape-diff detection, and translation-rule
+# SQL compilation (`Runtime::EraGuard`/`EraTamper`, the Postgres
+# adapter's own `lineage_manager/*`) stay Ruby-only, permanently, by
+# architecture (ADR 0007: Rust generates code, never parses bluebook/
+# translation-rule DSL source) — not a gap this tool could ever allowlist
+# its way past, because there is no Rust-side construct for it to be a
+# gap IN. What `lineage_aggregate` findings attest to is narrower and
+# real: rust/host can READ the already-translated current head Ruby's
+# own SQL compiles, and WRITE into the era Ruby's own `hecks_eras`
+# names as current — not that rust/host can MINT an era or DETECT drift
+# itself. rust/project.rb's own header carries the full architectural
+# argument.
 def allowlisted(finding)
   ALLOWLIST.find do |rule|
     next false unless rule[:kind] == finding[:kind].to_s

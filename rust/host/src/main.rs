@@ -18,6 +18,7 @@
 mod auth;
 mod dispatch;
 mod field_hints;
+mod ir;
 mod journal;
 mod lambda_client;
 mod wasm_runner;
