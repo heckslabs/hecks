@@ -115,6 +115,15 @@
 # refusal wording, not just `instances`/refusal verbs — the two gaps that
 # made a looser comparison the right bar are both closed.
 #
+# THE INPUT IS JSON-SHAPED IR, NOT THE LIVE EXPORTER HASH — bin/project_rust
+# round-trips every IR through `JSON.parse(JSON.generate(ir),
+# symbolize_names: true)` before handing it here (see its own `json_shaped`
+# header for why). So `mutation[:op]`/`mutation[:target]`/`attribute[:name]`
+# arrive as Strings, not the Symbols `IR::Attribute#to_h` and
+# `IR::Mutation#to_h` actually build. Everything below compares them in
+# their String form (`m[:op].to_s == "set"`) — correct either way, and the
+# only spelling a Rust-produced `ir.json` could ever hand this generator.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.

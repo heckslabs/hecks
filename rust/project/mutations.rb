@@ -23,7 +23,7 @@ module RustProjection
         next false unless command[:references].nil? # creating
 
         command[:mutations].any? do |m|
-          next false unless m[:op] == :set && m[:target] == attr_name && m[:source][:kind] == "argument"
+          next false unless m[:op].to_s == "set" && m[:target].to_s == attr_name.to_s && m[:source][:kind] == "argument"
 
           source_attr = command[:attributes].find { |a| a[:name].to_s == m[:source][:name].to_s }
           source_attr && source_attr[:optional]
@@ -79,8 +79,8 @@ module RustProjection
     # genuine mismatch would not), and — for an ENTITY target only — an
     # identity that can't be auto-minted and isn't supplied explicitly.
     def append_field_problems(command, aggregate, value_objects_by_name)
-      command[:mutations].select { |m| m[:op] == :append }.flat_map do |m|
-        target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
+      command[:mutations].select { |m| m[:op].to_s == "append" }.flat_map do |m|
+        target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
         element = target_attr && append_element(aggregate, target_attr[:type], value_objects_by_name)
         next ["#{m[:target]}: element type #{target_attr&.dig(:type).inspect} not resolvable"] unless element
 
@@ -211,7 +211,7 @@ module RustProjection
     # a freshly created aggregate" needs it to on a record).
     def emit_mutation_line(mutation, aggregate, command, value_objects_by_name, optional: true)
       target_field   = rust_ident_field(mutation[:target])
-      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
+      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
 
       # The leading "        " restores the OLD code's own hardcoded
       # 8-space prefix — each `Exemplar.render` call below returns
@@ -224,9 +224,9 @@ module RustProjection
     end
 
     def emit_mutation_line_body(mutation, aggregate, command, value_objects_by_name, target_field, lifecycle_field, optional)
-      case mutation[:op]
-      when :append
-        target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+      case mutation[:op].to_s
+      when "append"
+        target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
         vo_type = rust_ident(target_attr[:type])
         entity = aggregate[:entities].find { |e| e[:name] == target_attr[:type] }
         element = entity || value_objects_by_name[target_attr[:type]]
@@ -261,12 +261,12 @@ module RustProjection
           "tmpl_field" => target_field,
           "tmpl_fields_placeholder()" => "#{vo_type} { #{fields_assignment.join(', ')} }"
         )
-      when :set
-        if mutation[:target] == lifecycle_field
+      when "set"
+        if mutation[:target].to_s == lifecycle_field
           rhs = mutation_set_rhs(mutation[:source], "String", command, value_objects_by_name)
           Exemplar.render("mutation_set_plain", "tmpl_field" => target_field, "tmpl_rhs_placeholder2()" => rhs)
         else
-          target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+          target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
           rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
           source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
 
@@ -314,12 +314,12 @@ module RustProjection
             end
           end
         end
-      when :increment, :decrement
+      when "increment", "decrement"
         target_attr, integer_field = arithmetic_target_field(mutation, aggregate, value_objects_by_name)
         vo_type = rust_ident(target_attr[:type])
         field_ident = rust_ident_field(integer_field)
         amount_expr = arithmetic_amount_expr(mutation[:source], command, value_objects_by_name, integer_field)
-        sign = mutation[:op] == :increment ? "+" : "-"
+        sign = mutation[:op].to_s == "increment" ? "+" : "-"
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
         updated = "#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }"
         Exemplar.render(
