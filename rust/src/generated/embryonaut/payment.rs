@@ -313,6 +313,8 @@ pub fn dispatch_record(
     },
         "Record",
         "Embryonaut::Payment",
+        "Payment",
+        "reference.value",
         &args,
         &[
 
@@ -391,6 +393,8 @@ pub fn dispatch_refund(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Refund",
         "Embryonaut::Payment",
+        "Payment",
+        "reference.value",
         &args,
         &[
 

@@ -82,8 +82,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
       # contract spells comes back identically — a field the language stops holding
       # still shows up here as a source key with nothing behind it, and a field
       # REMOVED from the contract is what spec/golden/ir is for. A read model's
-      # filters and which head declared a policy are both held now and neither is on
-      # the wire.
+      # filters are held AND on the wire now (`IR::ReadModel#to_h`, 2026-08-11);
+      # which head declared a policy is held but still not on the wire.
       source.keys.flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
     elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
       source.each_with_index.flat_map { |element, i| differences(element, back[i], "#{path}[#{i}]") }

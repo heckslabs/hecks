@@ -380,6 +380,8 @@ pub fn dispatch_draft(
     },
         "Draft",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 
@@ -460,6 +462,8 @@ pub fn dispatch_send(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Send",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 
@@ -527,6 +531,8 @@ pub fn dispatch_sign(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Sign",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 
@@ -594,6 +600,8 @@ pub fn dispatch_activate(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Activate",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 
@@ -661,6 +669,8 @@ pub fn dispatch_complete(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Complete",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 
@@ -728,6 +738,8 @@ pub fn dispatch_terminate(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Terminate",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 
@@ -798,6 +810,8 @@ pub fn dispatch_revise(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Revise",
         "Embryonaut::Contract",
+        "Contract",
+        "number.value",
         &args,
         &[
 

@@ -2,16 +2,42 @@ module RustProjection
   module Projector
     module_function
 
+    # `InvariantViolation`/`value_object_invariant` — `Value.build`'s own
+    # invariant loop (runtime/value/coercion.rb), read directly: `"#{value_
+    # object.hecks_name} invariant violated — #{invariant.description}
+    # (given #{canonical_fields(fields)})"`, now itself routed through
+    # `RefusalWording.render` on the Ruby side too (the one Ruby-side
+    # change this migration makes — see refusal_wording.rb's own new
+    # `value_object_invariant` entry). `name`/`description` are
+    # codegen-time-static (`vo[:name]`/`inv[:description]`); `offered` is
+    # the one genuinely runtime piece — Ruby's `canonical_fields` is
+    # `JSON.generate(fields.sort_by { |name, _| name.to_s }.to_h)`, and
+    # `self.to_json()` already produces the SAME per-field JSON `fields`
+    # would (0021 closed that parity), just in DECLARATION order rather
+    # than sorted — so this sorts the top-level `(name, value)` pairs
+    # `to_json()` already built rather than re-deriving them, then
+    # stringifies. Only the TOP level is sorted, matching Ruby exactly:
+    # `canonical_fields` never recurses into a nested value object's own
+    # field order, and neither does this.
     def emit_check_invariants(vo, value_objects_by_name, aggregates_by_name)
       name = rust_ident(vo[:name])
+      type_name = vo[:name].to_s
       body = vo[:invariants].map do |inv|
         expr = ExprEmitter.emit_predicate(inv[:canonical])
-        message = "#{name} violates its invariant: #{inv[:description]}"
         <<~RUST.rstrip
                   {
                       let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
                       if !crate::kernel::interpret(&#{expr}, &ctx)?.truthy() {
-                          return Err(crate::kernel::Refusal::InvariantViolation(#{message.inspect}.to_string()));
+                          let mut offered = self.to_json();
+                          if let crate::kernel::Json::Object(fields) = &mut offered {
+                              fields.sort_by(|a, b| a.0.cmp(&b.0));
+                          }
+                          let offered = offered.to_json_string();
+                          return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+                              ("name", #{type_name.inspect}),
+                              ("description", #{inv[:description].inspect}),
+                              ("offered", offered.as_str()),
+                          ])));
                       }
                   }
         RUST

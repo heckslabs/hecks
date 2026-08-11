@@ -65,7 +65,16 @@ impl ScheduledAmount {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("cents")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ScheduledAmount violates its invariant: a scheduled payment amount is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ScheduledAmount"),
+            ("description", "a scheduled payment amount is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -110,7 +119,16 @@ impl PaymentRecipient {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PaymentRecipient violates its invariant: a payment recipient is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PaymentRecipient"),
+            ("description", "a payment recipient is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -155,7 +173,16 @@ impl PaymentDueDate {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PaymentDueDate violates its invariant: a payment due date is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PaymentDueDate"),
+            ("description", "a payment due date is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -200,7 +227,16 @@ impl RetryCount {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, receiver: Box::new(Expr::Lookup("value")) })), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("RetryCount violates its invariant: a retry count is non-negative".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "RetryCount"),
+            ("description", "a retry count is non-negative"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -245,7 +281,16 @@ impl RetryLimit {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("value")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("RetryLimit violates its invariant: a retry limit is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "RetryLimit"),
+            ("description", "a retry limit is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -398,6 +443,8 @@ pub fn dispatch_schedule(
     },
         "Schedule",
         "Banking::ScheduledPayment",
+        "ScheduledPayment",
+        "instruction.value",
         &args,
         &[
 
@@ -475,6 +522,8 @@ pub fn dispatch_execute(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Execute",
         "Banking::ScheduledPayment",
+        "ScheduledPayment",
+        "instruction.value",
         &args,
         &[
 
@@ -542,6 +591,8 @@ pub fn dispatch_cancel(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Cancel",
         "Banking::ScheduledPayment",
+        "ScheduledPayment",
+        "instruction.value",
         &args,
         &[
 
@@ -609,6 +660,8 @@ pub fn dispatch_fail(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Fail",
         "Banking::ScheduledPayment",
+        "ScheduledPayment",
+        "instruction.value",
         &args,
         &[
 
@@ -676,6 +729,8 @@ pub fn dispatch_retry(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Retry",
         "Banking::ScheduledPayment",
+        "ScheduledPayment",
+        "instruction.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a retry is still allowed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Lookup("max_attempts.value")) } },
@@ -744,6 +799,8 @@ pub fn dispatch_abandon(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Abandon",
         "Banking::ScheduledPayment",
+        "ScheduledPayment",
+        "instruction.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "every retry is exhausted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Lookup("max_attempts.value")) } },

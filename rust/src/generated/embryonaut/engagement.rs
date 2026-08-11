@@ -294,6 +294,8 @@ pub fn dispatch_schedule(
     },
         "Schedule",
         "Embryonaut::Engagement",
+        "Engagement",
+        "reference.value",
         &args,
         &[
 
@@ -364,6 +366,8 @@ pub fn dispatch_complete_workshop(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "CompleteWorkshop",
         "Embryonaut::Engagement",
+        "Engagement",
+        "reference.value",
         &args,
         &[
 
@@ -433,6 +437,8 @@ pub fn dispatch_draft_domain(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "DraftDomain",
         "Embryonaut::Engagement",
+        "Engagement",
+        "reference.value",
         &args,
         &[
 
@@ -502,6 +508,8 @@ pub fn dispatch_show_demo(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "ShowDemo",
         "Embryonaut::Engagement",
+        "Engagement",
+        "reference.value",
         &args,
         &[
 

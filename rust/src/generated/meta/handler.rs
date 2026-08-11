@@ -199,6 +199,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Handler",
+        "Handler",
+        "process_manager_id, event_type.value",
         &args,
         &[
 

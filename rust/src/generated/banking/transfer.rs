@@ -25,7 +25,16 @@ impl TransferReference {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("TransferReference violates its invariant: a transfer is referenced".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "TransferReference"),
+            ("description", "a transfer is referenced"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -70,7 +79,16 @@ impl TransferMoney {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("cents")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("TransferMoney violates its invariant: a transfer amount is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "TransferMoney"),
+            ("description", "a transfer amount is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -115,7 +133,16 @@ impl Narrative {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("text"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Narrative violates its invariant: a transfer explains itself".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Narrative"),
+            ("description", "a transfer explains itself"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -257,6 +284,8 @@ pub fn dispatch_request(
     },
         "Request",
         "Banking::Transfer",
+        "Transfer",
+        "reference.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a transfer names its source", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("source"))))))) },
@@ -337,6 +366,8 @@ pub fn dispatch_debited(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Debited",
         "Banking::Transfer",
+        "Transfer",
+        "reference.value",
         &args,
         &[
 
@@ -404,6 +435,8 @@ pub fn dispatch_settle(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Settle",
         "Banking::Transfer",
+        "Transfer",
+        "reference.value",
         &args,
         &[
 
@@ -471,6 +504,8 @@ pub fn dispatch_credited(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Credited",
         "Banking::Transfer",
+        "Transfer",
+        "reference.value",
         &args,
         &[
 
@@ -538,6 +573,8 @@ pub fn dispatch_reverse(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reverse",
         "Banking::Transfer",
+        "Transfer",
+        "reference.value",
         &args,
         &[
 
@@ -605,6 +642,8 @@ pub fn dispatch_reject(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reject",
         "Banking::Transfer",
+        "Transfer",
+        "reference.value",
         &args,
         &[
 

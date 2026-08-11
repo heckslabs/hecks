@@ -1,0 +1,46 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Governance::RoleAssignment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Governance::RoleAssignment.Assign",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Governance::RoleAssignment.Revoke",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Governance::RoleTransition",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Governance::RoleTransition.Grant",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Governance::RoleTransition.Revoke",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Governance::RoleAssignment.AssignmentsForActor",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Governance::RoleTransition.Allowed",
+    "generated": true
+  }
+]

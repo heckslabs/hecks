@@ -240,6 +240,8 @@ pub fn dispatch_conceive(
     },
         "Conceive",
         "Embryonaut::Product",
+        "Product",
+        "codename.value",
         &args,
         &[
 
@@ -311,6 +313,8 @@ pub fn dispatch_set_vision(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "SetVision",
         "Embryonaut::Product",
+        "Product",
+        "codename.value",
         &args,
         &[
 
@@ -379,6 +383,8 @@ pub fn dispatch_begin_development(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "BeginDevelopment",
         "Embryonaut::Product",
+        "Product",
+        "codename.value",
         &args,
         &[
 
@@ -446,6 +452,8 @@ pub fn dispatch_launch(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Launch",
         "Embryonaut::Product",
+        "Product",
+        "codename.value",
         &args,
         &[
 
@@ -513,6 +521,8 @@ pub fn dispatch_sunset(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Sunset",
         "Embryonaut::Product",
+        "Product",
+        "codename.value",
         &args,
         &[
 

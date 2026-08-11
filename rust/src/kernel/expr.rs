@@ -11,15 +11,42 @@
 // grammar can produce, driven by data a generator emits, the same way
 // `CommandInterpreter` is one Ruby method that walks any command's IR
 // rather than one method per command shape.
+//
+// THIS FILE IS A ROUTER, NOT WHERE THE LOGIC LIVES. Every real
+// interpretation rule — what `+` does, what `.empty?` does on a list vs
+// a string, what a `:composite` field's dotted lookup does — is in
+// `expression_operators/<category>.rs` or `attribute_shapes/<shape>.rs`,
+// one file per capability, named after the exact vocabulary
+// `bin/ir --meta` (attribute shapes) and `lib/hecksagain/bluebook/
+// expression/projection.json` (operator categories) already use for it.
+// `interpret`'s own match handles ONLY the leaves no capability file
+// owns (literals, `Lookup`) plus `dispatch_operator`, below, which is
+// EXHAUSTIVE OVER THE GENERATED `OperatorCategory` ENUM WITH NO
+// WILDCARD ARM ON PURPOSE: `bin/project_kernel_capabilities` regenerates
+// that enum straight from the live Ruby grammar (`OperatorCategory`'s
+// own header names the exact call), so the day a `given`/`ensures`/
+// invariant clause gains a new kind of operator, this match stops
+// compiling until a real arm — and the file it calls into — exists for
+// it. A `_ =>` arm here would silently swallow that day instead,
+// routing the new category into whatever arm happened to sit above it,
+// compiling cleanly while quietly interpreting the new capability WRONG.
+// That failure mode is the entire reason this refactor exists, so this
+// match must never grow one back.
 
 use super::Refusal;
+use crate::kernel::attribute_shapes::composite;
+use crate::kernel::expression_operators::{self, comparison, OperatorCategory};
 
 // ── VALUE — the dynamic runtime value an expression evaluates to.
 // Mirrors what Ruby's `Resolver#interpret` can return (Integer/Float/
 // String/true/false/nil), plus one addition: `List(usize)`. Real corpus
 // expressions only ever ask `.size`/`.empty?` of a list-typed field,
 // never index into its elements by expression — so a list field
-// surfaces as its length, not its contents.
+// surfaces as its length, not its contents. Each variant IS one of the
+// four `AttributeShape`s once resolved to a runtime value: `Int`/
+// `Float`/`Str`/`Bool` are `:scalar`, `List` is `:list`, `Nil` is
+// `:optional` (see `attribute_shapes/*.rs` for the shape-owned behavior
+// of each).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     Int(i64),
@@ -31,17 +58,13 @@ pub enum Value {
 }
 
 impl Value {
-    /// Ruby's `Evaluator.truthy?`: `!value.nil? && value != false`.
+    /// Ruby's `Evaluator.truthy?`: `!value.nil? && value != false`. Kept
+    /// here, not split per-shape — every `Value` variant answers this the
+    /// same generic way regardless of WHICH shape produced it, unlike
+    /// `numeric`/`to_s`/`size`/`empty?`, which genuinely differ shape by
+    /// shape and live in `attribute_shapes/*.rs` instead.
     pub fn truthy(&self) -> bool {
         !matches!(self, Value::Nil | Value::Bool(false))
-    }
-
-    fn numeric(&self) -> Option<f64> {
-        match self {
-            Value::Int(i) => Some(*i as f64),
-            Value::Float(f) => Some(*f),
-            _ => None,
-        }
     }
 }
 
@@ -49,9 +72,9 @@ impl Value {
 // object or aggregate record, and command args structs) implements. A
 // dotted `Lookup` path walks this: the first segment resolves against
 // args-then-instance (see `lookup`, below); every later segment walks a
-// `Field::Nested` chain. Implementations are mechanical and generated —
-// one match arm per real attribute, the same shape for every type — not
-// bespoke per command.
+// `Field::Nested` chain via `attribute_shapes::composite`. Implementations
+// are mechanical and generated — one match arm per real attribute, the
+// same shape for every type — not bespoke per command.
 pub enum Field<'a> {
     Value(Value),
     Nested(&'a dyn Fielded),
@@ -92,15 +115,13 @@ impl<'a> Fielded for WithOld<'a> {
     }
 }
 
-// ── COMPARISON — mirrors `Evaluator::Operator` exactly: six comparison
-// operators reduced to two primitives (`less_than`, `equal`) combined
-// with a negation, rather than six separate code paths.
-#[derive(Debug, Clone, Copy)]
-pub struct Comparison {
-    pub less_than: bool,
-    pub equal: bool,
-    pub negated: bool,
-}
+// `Comparison` used to be defined here; it now lives in
+// `expression_operators::comparison` (the "comparison" category owns the
+// algebra it's named for) and is re-exported at this same path so every
+// call site — hand-written or generated (`rust/project/expr_emitter.rb`
+// emits `crate::kernel::Comparison { .. }` literals directly) — keeps
+// working unchanged.
+pub use comparison::Comparison;
 
 // ── EXPR — the full Evaluator + Resolver AST as one recursive Rust enum.
 // Every variant corresponds to exactly one real Ruby node type:
@@ -145,116 +166,82 @@ pub struct EvalContext<'a> {
     pub instance: &'a dyn Fielded,
 }
 
+/// THE ROUTER. Leaves (literals, `Lookup`) are handled directly — they
+/// aren't expression OPERATORS at all (`projection.json`'s own operator
+/// list contains no literal/lookup entries), so they have no
+/// `OperatorCategory` to route through. Everything else falls to
+/// `dispatch_operator`, below.
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     use Expr::*;
-    Ok(match expr {
-        Or(l, r) => Value::Bool(interpret(l, ctx)?.truthy() || interpret(r, ctx)?.truthy()),
-        And(l, r) => Value::Bool(interpret(l, ctx)?.truthy() && interpret(r, ctx)?.truthy()),
-        Not(n) => Value::Bool(!interpret(n, ctx)?.truthy()),
-        Compare { op, left, right } => {
-            let l = interpret(left, ctx)?;
-            let r = interpret(right, ctx)?;
-            Value::Bool(apply(op, &l, &r)?)
-        }
-        // Real corpus only ever calls `.include?` with a String haystack
-        // (INCLUDE_HAYSTACKS also admits Array in Ruby; not generated yet
-        // — no real given/ensures/invariant in either example domain
-        // exercises the Array case).
-        Include { haystack, needle } => match (interpret(haystack, ctx)?, interpret(needle, ctx)?) {
-            (Value::Str(h), Value::Str(n)) => Value::Bool(h.contains(&n)),
-            (h, n) => return Err(eval_error(format!("include? on {h:?} with {n:?} — Array haystacks not generated yet"))),
-        },
-        Int(v) => Value::Int(*v),
-        Float(v) => Value::Float(*v),
-        Str(v) => Value::Str(v.clone()),
-        Bool(v) => Value::Bool(*v),
-        Nil => Value::Nil,
-        Add(l, r) => add(&interpret(l, ctx)?, &interpret(r, ctx)?)?,
-        // A sign test is sugar for comparing the receiver against literal
-        // 0 — no int/float distinction needed here the way a STATIC
-        // compiler would need one, because `apply`/`less_than` below
-        // compare through `Value::numeric` (`f64`) uniformly regardless
-        // of which literal type carries the zero.
-        SignTest { op, receiver } => {
-            let v = interpret(receiver, ctx)?;
-            require_number(&v, "sign test")?;
-            Value::Bool(apply(op, &v, &Value::Int(0))?)
-        }
-        Empty(r) => match interpret(r, ctx)? {
-            Value::Str(s) => Value::Bool(s.is_empty()),
-            Value::List(n) => Value::Bool(n == 0),
-            v => return Err(eval_error(format!("empty? expects a list or string, got {v:?}"))),
-        },
-        ToS(r) => match interpret(r, ctx)? {
-            Value::Str(s) => Value::Str(s),
-            Value::Int(i) => Value::Str(i.to_string()),
-            Value::Float(f) => Value::Str(f.to_string()),
-            Value::Bool(b) => Value::Str(b.to_string()),
-            Value::Nil => Value::Str(String::new()),
-            v => return Err(eval_error(format!("to_s expects a scalar, got {v:?}"))),
-        },
-        Modulo { receiver, divisor } => {
-            let r = require_number(&interpret(receiver, ctx)?, "modulo")?.trunc() as i64;
-            let d = require_number(&interpret(divisor, ctx)?, "modulo")?.trunc() as i64;
-            if d == 0 {
-                return Err(eval_error("divided by 0".to_string()));
-            }
-            Value::Int(r % d)
-        }
-        Size(r) => match interpret(r, ctx)? {
-            Value::Str(s) => Value::Int(s.chars().count() as i64),
-            Value::List(n) => Value::Int(n as i64),
-            v => return Err(eval_error(format!("size expects a list or string, got {v:?}"))),
-        },
-        Lookup(path) => lookup(path, ctx)?,
-    })
-}
-
-/// The algebra itself, on values already resolved — mirrors
-/// `Evaluator.apply` exactly: OR the two primitives together, negate if
-/// the operator says to.
-fn apply(op: &Comparison, lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
-    let lt = op.less_than && less_than(lhs, rhs)?;
-    let eq = op.equal && values_equal(lhs, rhs);
-    Ok(if op.negated { !(lt || eq) } else { lt || eq })
-}
-
-fn less_than(lhs: &Value, rhs: &Value) -> Result<bool, Refusal> {
-    match (lhs.numeric(), rhs.numeric()) {
-        (Some(l), Some(r)) => Ok(l < r),
-        _ => match (lhs, rhs) {
-            (Value::Str(l), Value::Str(r)) => Ok(l < r),
-            _ => Err(eval_error(format!("comparison of {lhs:?} with {rhs:?} failed"))),
-        },
+    match expr {
+        Int(v) => Ok(Value::Int(*v)),
+        Float(v) => Ok(Value::Float(*v)),
+        Str(v) => Ok(Value::Str(v.clone())),
+        Bool(v) => Ok(Value::Bool(*v)),
+        Nil => Ok(Value::Nil),
+        Lookup(path) => lookup(path, ctx),
+        _ => dispatch_operator(category_of(expr), expr, ctx),
     }
 }
 
-fn values_equal(lhs: &Value, rhs: &Value) -> bool {
-    match (lhs.numeric(), rhs.numeric()) {
-        (Some(l), Some(r)) => l == r,
-        _ => lhs == rhs,
+/// Which `OperatorCategory` a non-leaf `Expr` variant belongs to — a
+/// plain, hand-written association (this enum's variant NAMES are
+/// generated; which `Expr` node maps to which of them is not, since
+/// `Expr` itself is hand-written and grows only when this file is
+/// edited). The trailing leaf arm can't actually be reached — `interpret`
+/// above never calls this for a leaf — so it says so rather than
+/// silently returning a wrong category.
+fn category_of(expr: &Expr) -> OperatorCategory {
+    use Expr::*;
+    match expr {
+        Or(..) | And(..) | Not(..) => OperatorCategory::Logical,
+        Include { .. } => OperatorCategory::Membership,
+        Compare { .. } => OperatorCategory::Comparison,
+        Add(..) | Modulo { .. } => OperatorCategory::Arithmetic,
+        SignTest { .. } => OperatorCategory::SignTest,
+        Empty(..) | Size(..) => OperatorCategory::Sized,
+        ToS(..) => OperatorCategory::ToString,
+        Int(..) | Float(..) | Str(..) | Bool(..) | Nil | Lookup(..) => {
+            unreachable!("interpret's own leaf arms handle these before category_of is ever called")
+        }
     }
 }
 
-fn add(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
-    if let (Value::Int(l), Value::Int(r)) = (lhs, rhs) {
-        return Ok(Value::Int(l + r));
+/// THE CENTRAL DISPATCH POINT — see this file's own header. Exhaustive
+/// over `OperatorCategory` with NO wildcard `_ =>` arm: regenerate
+/// `expression_operators::OperatorCategory`
+/// (bin/project_kernel_capabilities) with a variant added or removed and
+/// this match stops compiling until a matching arm — and the
+/// `expression_operators::<name>` file it calls into — is added or
+/// removed by hand. This match must never grow a `_ =>` arm back.
+fn dispatch_operator(category: OperatorCategory, expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
+    use expression_operators::*;
+    match category {
+        OperatorCategory::Logical => logical::interpret(expr, ctx),
+        OperatorCategory::Membership => membership::interpret(expr, ctx),
+        OperatorCategory::Comparison => comparison::interpret(expr, ctx),
+        OperatorCategory::Arithmetic => match expr {
+            Expr::Add(..) => arithmetic::add(expr, ctx),
+            Expr::Modulo { .. } => arithmetic::modulo(expr, ctx),
+            _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Arithmetic, ..) called with {expr:?} — a router bug"))),
+        },
+        OperatorCategory::SignTest => sign_test::interpret(expr, ctx),
+        OperatorCategory::Sized => match expr {
+            Expr::Empty(..) => sized::empty(expr, ctx),
+            Expr::Size(..) => sized::size(expr, ctx),
+            _ => Err(Refusal::TypeMismatch(format!("dispatch_operator(Sized, ..) called with {expr:?} — a router bug"))),
+        },
+        OperatorCategory::ToString => to_string::interpret(expr, ctx),
     }
-    let l = require_number(lhs, "addition")?;
-    let r = require_number(rhs, "addition")?;
-    Ok(Value::Float(l + r))
-}
-
-fn require_number(v: &Value, operation: &str) -> Result<f64, Refusal> {
-    v.numeric().ok_or_else(|| eval_error(format!("{operation} expects a number, got {v:?}")))
 }
 
 /// `Resolver#fetch`: the first path segment is checked against `attrs`
 /// (args) first, `state` (instance) second; every later segment walks a
-/// `Field::Nested` chain. An `EvaluationError` in Ruby is not one of the
-/// nine real `DOMAIN_REFUSALS` — by construction, canonical text was
-/// already validated when the domain booted, so reaching this in the
-/// generated Rust means a codegen bug, not a real business refusal.
+/// `Field::Nested` chain via `attribute_shapes::composite::step`. An
+/// `EvaluationError` in Ruby is not one of the nine real
+/// `DOMAIN_REFUSALS` — by construction, canonical text was already
+/// validated when the domain booted, so reaching this in the generated
+/// Rust means a codegen bug, not a real business refusal.
 /// `TypeMismatch` is the closest existing refusal to "this shouldn't be
 /// possible if the generator is correct," so it's what this raises,
 /// rather than inventing a tenth refusal kind Ruby doesn't have.
@@ -268,20 +255,12 @@ fn lookup(path: &str, ctx: &EvalContext) -> Result<Value, Refusal> {
         .ok_or_else(|| eval_error(format!("cannot resolve {head:?} — no such attribute or argument")))?;
 
     for seg in segments {
-        current = match current {
-            Field::Nested(obj) => obj
-                .field(seg)
-                .ok_or_else(|| eval_error(format!("cannot resolve {seg:?} on {head:?}")))?,
-            Field::Value(v) => return Err(eval_error(format!("{path} — cannot look up {seg:?} on scalar {v:?}"))),
-        };
+        current = composite::step(current, seg, head, path)?;
     }
 
-    match current {
-        Field::Value(v) => Ok(v),
-        Field::Nested(_) => Err(eval_error(format!("{path} resolved to an object, not a scalar"))),
-    }
+    composite::finish(current, path)
 }
 
-fn eval_error(message: String) -> Refusal {
+pub(crate) fn eval_error(message: String) -> Refusal {
     Refusal::TypeMismatch(message)
 }

@@ -3921,7 +3921,7 @@
               "default": null,
               "list": false,
               "name": "position",
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "type": "Position"
             }
@@ -7335,6 +7335,20 @@
               ],
               [
                 "site",
+                "value_object_invariant"
+              ],
+              [
+                "template",
+                "{name} invariant violated — {description} (given {offered})"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
                 "admits_declared_set"
               ],
               [
@@ -7412,6 +7426,100 @@
             ]
           ],
           "name": "Trigger"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pattern",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "resolves_to",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "email"
+              ],
+              [
+                "pattern",
+                "email"
+              ],
+              [
+                "resolves_to",
+                "html_type"
+              ]
+            ],
+            [
+              [
+                "name",
+                "url"
+              ],
+              [
+                "pattern",
+                "\\b(url|uri|website|link)\\b"
+              ],
+              [
+                "resolves_to",
+                "html_type"
+              ]
+            ],
+            [
+              [
+                "name",
+                "tel"
+              ],
+              [
+                "pattern",
+                "phone|\\btel(ephone)?\\b"
+              ],
+              [
+                "resolves_to",
+                "html_type"
+              ]
+            ],
+            [
+              [
+                "name",
+                "textarea"
+              ],
+              [
+                "pattern",
+                "\\b(text|body|note|notes|description|message|comment)\\b"
+              ],
+              [
+                "resolves_to",
+                "kind"
+              ]
+            ]
+          ],
+          "name": "FieldHint"
         }
       ]
     },
@@ -16039,10 +16147,15 @@
       "group_by": [
 
       ],
+      "limit": null,
       "name": "WholeBluebook",
+      "order_by": null,
       "query_name": "whole_bluebook",
       "reference_name": "bluebook",
-      "reference_target": "Bluebook"
+      "reference_target": "Bluebook",
+      "wheres": [
+
+      ]
     }
   ],
   "version": "1",

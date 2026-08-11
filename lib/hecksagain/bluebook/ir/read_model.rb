@@ -56,9 +56,22 @@ module Hecksagain
           @aggregate_heads.find { |head| head[:many] }&.fetch(:as)
         end
 
+        # `wheres`/`order_by`/`limit` are spelled explicitly here, the SAME
+        # mechanism `IR::Query#to_h` already uses (query.rb, read directly
+        # before this was written) — always present, `wheres` a (possibly
+        # empty) array and `order_by`/`limit` nil when undeclared, exactly
+        # like a Query's. `extra_options_to_h` still excludes these three by
+        # name (options.rb), so nothing here double-spells them; the two
+        # constructs now share one encoding for the same three words rather
+        # than a reader needing to learn a second one. See this file's own
+        # `filtered_head_name` and language/bluebook/syntax.bluebook's
+        # `ReadModel` `where`/`order_by`/`limit` member rows for the history
+        # of why this WAS narrower, and 2026-08-11's read-model where/
+        # order_by/limit task for why it stopped being.
         def to_h
           { name: @name, description: @description, reference_name: @reference_name,
-            reference_target: @reference_target, query_name: query_name }
+            reference_target: @reference_target, query_name: query_name,
+            wheres: wheres.map(&:to_h), order_by: order_by&.to_h, limit: limit&.to_h }
             .merge(aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) })
             .merge(group_by: @group_by.map { |row| row.merge(field: row[:field].to_s) })
             .merge(extra_options_to_h)

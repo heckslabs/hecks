@@ -6,6 +6,7 @@
 
 use crate::journal;
 use crate::journal::LineageConfig;
+use crate::lambda_client::{self, LambdaInvoker};
 use crate::wasm_runner;
 use std::path::Path;
 use tokio::sync::Mutex;
@@ -26,14 +27,33 @@ pub struct Outcome {
 // `config` names which Ruby-shaped lineage journal/era this call writes
 // its mutations into (journal.rs's own header) — required, not
 // optional: `main.rs` already refused to boot if the configured
-// domain/era isn't provisioned (`journal::era_exists`), so by the time
-// `handle` runs that schema is guaranteed to exist.
+// domain/era isn't provisioned OR isn't current (`journal::current_era`),
+// so by the time `handle` runs that schema is guaranteed to exist and
+// this checkout is guaranteed not to be stale.
+// `role` -- OPTIONAL, matching `Adapters::Lambda::Client#dispatch`'s own
+// `role: nil` default (lib/hecksagain/adapters/driven/lambda/client.rb):
+// Ruby's client only ever puts a `"role"` key on the wire when a caller
+// is actually bound (`payload["role"] = role if role`), so `None` here
+// reproduces that exactly -- a step with no role looks, on the wire,
+// identical to how every step has always looked. This parameter is
+// `main.rs`'s own fix for a real wiring gap, not a new capability: the
+// kernel side (`check_role`, wired into every generated command's
+// dispatch path) and the WASM-boundary side (`cli.rs`'s own
+// `step.get("role")`) were BOTH already correct and already exercised
+// by the corpus/fuzzer -- but nothing on this side of the wire ever
+// read the incoming Lambda event's `"role"` field at all, so
+// `caller_role` was structurally `None` on every real invocation
+// regardless of what Ruby's client actually sent. Role-based
+// authorization was fully implemented and silently unreachable on the
+// one path that matters.
 pub async fn handle(
     client: &Mutex<Client>,
     wasm_path: &Path,
     verb: &str,
     args: serde_json::Value,
+    role: Option<&str>,
     config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
@@ -79,7 +99,21 @@ pub async fn handle(
         Some(s) => journal::load_steps_after(&txn, s.ordinal).await?,
         None => journal::load_steps(&txn).await?,
     };
-    steps.push(serde_json::json!({ "verb": verb, "args": args.clone() }));
+    // ROLE GOES ON THIS STEP ONLY -- this is the OUTERMOST dispatch, the
+    // one `kernel/cli.rs`'s own comment on `role:` describes as the only
+    // place a step's `role:` key is ever read (every other entry in
+    // `steps` is REPLAYED history that already carried, and already
+    // consumed, whatever role it was dispatched with the first time
+    // around -- re-stamping it here would be redundant at best). Built
+    // as a mutable step rather than inlined into the `json!` literal
+    // above so a roleless call keeps producing the exact same wire shape
+    // it always has (no `"role": null` key appearing where none existed
+    // before).
+    let mut step = serde_json::json!({ "verb": verb, "args": args.clone() });
+    if let Some(role) = role {
+        step["role"] = serde_json::Value::String(role.to_string());
+    }
+    steps.push(step);
     let seed = snapshot.as_ref().map(|s| s.seed.clone()).unwrap_or_else(|| serde_json::json!({}));
 
     let input = serde_json::json!({ "seed": seed, "steps": steps }).to_string();
@@ -92,7 +126,7 @@ pub async fn handle(
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-    let result: serde_json::Value = serde_json::from_str(&output)?;
+    let mut result: serde_json::Value = serde_json::from_str(&output)?;
 
     // See journal.rs's own header: every PRIOR step in this replay
     // already succeeded once, deterministically, so the only step that
@@ -160,10 +194,44 @@ pub async fn handle(
         }
     }
 
+    // THIS step's own cross-domain policy matches only — same "`.last()`
+    // is exactly the step just dispatched" rule `step_mutations` above
+    // already follows, and for the identical reason: every PRIOR step in
+    // this replay already ran (and, if it fired a cross-domain reaction,
+    // already DELIVERED it) on an earlier invocation — re-delivering it
+    // here on every subsequent replay would re-invoke a sibling Lambda
+    // forever. Captured before `commit()`, delivered after — see below.
+    let pending_cross_domain = result
+        .get("cross_domain_reactions")
+        .and_then(|r| r.as_array())
+        .and_then(|steps| steps.last())
+        .and_then(|last| last.as_array())
+        .cloned()
+        .unwrap_or_default();
+
     // Commits (and releases the advisory lock) whether or not anything
     // was appended — a refused command still needs the lock released
     // for the next invocation to proceed.
     txn.commit().await?;
+
+    // DELIVERED AFTER COMMIT, DELIBERATELY — this LOCAL command already
+    // succeeded and is already durable; a cross-Lambda notification is a
+    // best-effort reaction to that fact, not a precondition of it
+    // (mirrors `Runtime::PolicyInterpreter#deliver`'s own "not fatal to
+    // the command that emitted the event," extended one step further:
+    // also not fatal to that command's own local WRITE). A hard invoke
+    // fault (`lambda_client::deliver`'s own `Err` path — see its header)
+    // still propagates out of this whole call via `?`, so it's a real,
+    // visible failure of THIS Lambda invocation's overall response —
+    // just never one that unwinds an already-committed transaction.
+    let mut cross_domain_deliveries = Vec::new();
+    for reaction in &pending_cross_domain {
+        let record = lambda_client::deliver(invoker, reaction).await?;
+        cross_domain_deliveries.push(record.to_json());
+    }
+    if let Some(response) = result.as_object_mut() {
+        response.insert("cross_domain_deliveries".to_string(), serde_json::Value::Array(cross_domain_deliveries));
+    }
 
     Ok(Outcome { result, accepted })
 }
@@ -264,10 +332,10 @@ mod tests {
 
     // NOT Ruby's real provisioning (Lineage::Provisioning) -- no
     // partitioning, no RLS, no full hecks_eras column set. Just enough
-    // structure for `journal::era_exists` and `append_lineage_mutation`'s
+    // structure for `journal::current_era` and `append_lineage_mutation`'s
     // own INSERT/upsert statements to succeed, so these tests exercise
     // THIS crate's write logic without reproducing Ruby's full DDL --
-    // era_exists's own query only ever reads domain/ordinal, so a
+    // current_era's own query only ever reads domain/ordinal, so a
     // minimal hecks_eras row satisfies the SAME boot-gate check main.rs
     // runs for real.
     async fn provision_lineage(client: &Client, domain: &str, era: i32, aggregate_storage_names: &[&str]) {
@@ -341,7 +409,9 @@ mod tests {
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0001"),
+            None,
             &test_config("Banking", 1),
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -387,7 +457,9 @@ mod tests {
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0001"),
+            None,
             &config,
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -409,7 +481,9 @@ mod tests {
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0001"),
+            None,
             &config,
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -440,7 +514,7 @@ mod tests {
         let config = test_config("Banking", 1);
 
         for reference in ["CUST-0004", "CUST-0005", "CUST-0006"] {
-            let outcome = handle(&client, &wasm_path(), "Banking::Customer.Register", register(reference), &config)
+            let outcome = handle(&client, &wasm_path(), "Banking::Customer.Register", register(reference), None, &config, &lambda_client::NeverInvoker)
                 .await
                 .unwrap();
             assert!(outcome.accepted, "registering {reference} should succeed: {:?}", outcome.result);
@@ -482,8 +556,8 @@ mod tests {
         let wasm_path = wasm_path();
 
         let (first, second) = tokio::join!(
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config),
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), None, &config, &lambda_client::NeverInvoker),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), None, &config, &lambda_client::NeverInvoker),
         );
         let (first, second) = (first.unwrap(), second.unwrap());
 
@@ -506,7 +580,9 @@ mod tests {
             &wasm_path(),
             "Banking::Customer.Register",
             register("CUST-0003"),
+            None,
             &test_config("Banking", 1),
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -530,5 +606,180 @@ mod tests {
         // as long after the read as it was before it.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "a read must never persist a journal row");
+    }
+
+    // Records every call it receives and answers with a canned "nothing
+    // refused" body — dispatch.rs's own end-to-end proof that a
+    // cross-domain policy firing for REAL (against the real compiled
+    // banking.wasm, through the real rehydrate-replay path, inside a real
+    // Postgres transaction) reaches `lambda_client::deliver` with the
+    // right function name and payload, and that its outcome lands in
+    // `Outcome.result["cross_domain_deliveries"]` — everything short of
+    // an actual AWS Lambda on the other end (see lambda_client.rs's own
+    // header on why that piece specifically can't be proven here).
+    struct RecordingInvoker {
+        calls: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    impl RecordingInvoker {
+        fn new() -> Self {
+            Self { calls: std::sync::Mutex::new(Vec::new()) }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LambdaInvoker for RecordingInvoker {
+        async fn invoke(&self, function_name: &str, payload: &str) -> anyhow::Result<lambda_client::InvokeOutcome> {
+            self.calls.lock().unwrap().push((function_name.to_string(), payload.to_string()));
+            Ok(lambda_client::InvokeOutcome { body: serde_json::json!({ "refusals": [] }), function_error: false })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_cross_domain_policy_delivers_through_the_real_rehydrate_replay_path() {
+        let client = scratch_db("rust_host_dispatch_test_6").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        let config = test_config("Banking", 1);
+        let invoker = RecordingInvoker::new();
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0007"), None, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("registration should succeed");
+
+        let open_args = serde_json::json!({
+            "number": { "value": "acct-freeze-me" },
+            "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 },
+            "customer_id": "CUST-0007",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_args, None, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("account open should succeed");
+
+        // `Banking::Account.Freeze` announces `AccountFrozen`, matched by
+        // `ReviewOnFreeze` (examples/banking/bluebook/banking.bluebook:
+        // `across "Compliance"`) — the real trigger this whole feature
+        // exists for, running end to end for the first time outside a
+        // pure-WASM corpus comparison.
+        let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-me" } });
+        let outcome = handle(&client, &wasm_path(), "Banking::Account.Freeze", freeze_args, None, &config, &invoker)
+            .await
+            .unwrap();
+        assert!(outcome.accepted, "freeze should succeed: {:?}", outcome.result);
+
+        let deliveries = outcome.result["cross_domain_deliveries"].as_array().unwrap();
+        assert_eq!(deliveries.len(), 1, "exactly one cross-domain reaction should have fired: {deliveries:?}");
+        assert_eq!(deliveries[0]["policy"], "ReviewOnFreeze");
+        assert_eq!(deliveries[0]["target_domain"], "Compliance");
+        assert_eq!(deliveries[0]["delivered"], true);
+
+        {
+            let calls = invoker.calls.lock().unwrap();
+            assert_eq!(calls.len(), 1);
+            let (function_name, payload) = &calls[0];
+            assert_eq!(function_name, "hecksagain-compliance");
+            let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
+            assert_eq!(sent["verb"], "Compliance.OpenReview");
+            assert_eq!(sent["args"]["number"]["value"], "acct-freeze-me");
+        }
+
+        // AND NEVER RE-DELIVERED ON A LATER REPLAY — a fourth command
+        // against this SAME domain rehydrates history including the
+        // Freeze step above, but `pending_cross_domain` only ever reads
+        // the LAST step's own reactions (dispatch.rs's own comment) —
+        // proving the "re-invoke a sibling Lambda forever" bug this
+        // guards against doesn't happen.
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0008"), None, &config, &invoker)
+            .await
+            .unwrap();
+        assert_eq!(invoker.calls.lock().unwrap().len(), 1, "replaying prior history must not re-deliver its cross-domain reaction");
+    }
+
+    // THE BUG, PROVEN — `check_role`/`cli.rs`'s `step.get("role")` were
+    // both already correct and already exercised (this whole file's
+    // other tests dispatch role-gated commands like `Register` above
+    // with `role: None` and rely on the "doubly opt-in" unchecked path —
+    // see `kernel/repository.rs`'s own header). What was NEVER exercised,
+    // anywhere, was a caller that actually BINDS a role and gets checked
+    // against it — because before this fix, nothing between an incoming
+    // Lambda event and this function's own `steps.push` ever carried a
+    // role at all: `main.rs` never read `"role"` off the event body, and
+    // `handle` had no parameter to receive it even if it had. Both halves
+    // had to move together, so this is the first test in this crate that
+    // reaches `check_role` with `caller_role: Some(_)` at all.
+    //
+    // `Banking::Customer.Register` is `check_role(Some("Branch clerk"),
+    // "Register", caller_role)` in the generated registry
+    // (rust/src/generated/banking/registry.rs) — real, corpus-declared,
+    // not a fixture invented for this test.
+    #[tokio::test]
+    async fn a_role_gated_command_is_actually_checked_against_the_caller_role() {
+        let client = scratch_db("rust_host_dispatch_test_7").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer"]).await;
+        let config = test_config("Banking", 1);
+
+        // THE CORRECT ROLE — succeeds, same as every other registration
+        // in this file, just now with a caller actually bound and
+        // actually matching.
+        let matching = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0009"),
+            Some("Branch clerk"),
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap();
+        assert!(
+            matching.accepted,
+            "the declared role should be admitted: {:?}",
+            matching.result
+        );
+
+        // THE WRONG ROLE — this is the actual proof. Against the
+        // pre-fix code (no `role` parameter on `handle`, no `role` key
+        // ever reaching `steps`), there was no way to even express this
+        // call, and the closest equivalent — dispatching with no role at
+        // all — always fell into `check_role`'s unchecked path and
+        // silently succeeded regardless of who claimed to be calling.
+        // Here, with role genuinely threaded through, a mismatched role
+        // must be refused.
+        let mismatched = handle(
+            &client,
+            &wasm_path(),
+            "Banking::Customer.Register",
+            register("CUST-0010"),
+            Some("Teller"),
+            &config,
+            &lambda_client::NeverInvoker,
+        )
+        .await
+        .unwrap();
+        assert!(
+            !mismatched.accepted,
+            "a caller stating the wrong role must be refused, not silently admitted: {:?}",
+            mismatched.result
+        );
+        let refusals = mismatched.result["refusals"].as_array().unwrap();
+        assert_eq!(refusals.len(), 1);
+        let error = refusals[0]["error"].as_str().unwrap();
+        assert!(
+            error.contains("Branch clerk") && error.contains("Teller"),
+            "the refusal should name both the declared role and the caller's mismatched one \
+             (`check_role`'s own message shape): {refusals:?}"
+        );
+
+        // AND THE REFUSED COMMAND WAS NEVER PERSISTED — same discipline
+        // every other refusal in this file is held to.
+        let steps = journal::load_steps(&*client.lock().await).await.unwrap();
+        assert_eq!(steps.len(), 1, "only the correctly-authorized registration should be persisted");
     }
 }

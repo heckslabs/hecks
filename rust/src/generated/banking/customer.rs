@@ -25,7 +25,16 @@ impl CustomerNumber {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("CustomerNumber violates its invariant: a customer reference is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "CustomerNumber"),
+            ("description", "a customer reference is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -70,7 +79,16 @@ impl CustomerStanding {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("CustomerStanding violates its invariant: a standing is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "CustomerStanding"),
+            ("description", "a standing is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -117,13 +135,31 @@ impl PersonName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("given"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PersonName violates its invariant: a given name is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PersonName"),
+            ("description", "a given name is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("family"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PersonName violates its invariant: a family name is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PersonName"),
+            ("description", "a family name is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -298,6 +334,8 @@ pub fn dispatch_register(
     },
         "Register",
         "Banking::Customer",
+        "Customer",
+        "reference.value",
         &args,
         &[
 
@@ -372,6 +410,8 @@ pub fn dispatch_suspend(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Suspend",
         "Banking::Customer",
+        "Customer",
+        "reference.value",
         &args,
         &[
 
@@ -440,6 +480,8 @@ pub fn dispatch_reinstate(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reinstate",
         "Banking::Customer",
+        "Customer",
+        "reference.value",
         &args,
         &[
 
@@ -508,6 +550,8 @@ pub fn dispatch_close(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Close",
         "Banking::Customer",
+        "Customer",
+        "reference.value",
         &args,
         &[
 

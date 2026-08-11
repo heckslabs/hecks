@@ -1,0 +1,585 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Banking::Customer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Suspend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Reinstate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Account",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::Account.LedgerEntry",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Account.LedgerEntry.Amend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Account.LedgerEntry.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Credit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Debit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Freeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Unfreeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CloseAccount",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.ApplyFee",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CorrectFee",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.AccrueInterest",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CorrectInterest",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ATMCard",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::ATMCard.Withdrawal",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::ATMCard.Withdrawal.Dispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Issue",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Rename",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Withdraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Activate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Transfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Debited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Settle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Credited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reject",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::CardPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Authorize",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Capture",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Void",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Refund",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Dispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Chargeback",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.RejectDispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ExternalTransfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Recall",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ScheduledPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Execute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Cancel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Fail",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Retry",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Abandon",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::SafeDepositBox",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.Visit",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.Visit.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.KeyIssuance",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.KeyIssuance.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Rent",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Surrender",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.LogVisit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.IssueKey",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::OnboardingCase",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Decline",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Statement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Statement.Generate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.InGoodStanding",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.Suspended",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.NotGoodStanding",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Open",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Overdrawn",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares freshness — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.HighBalance",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.StrictlyAbove",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.AtMost",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Reachable",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.OpenForSuspendedCustomers",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "where clause on \"customer.status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.Active",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.ByFee",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Transfer.InFlight",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Pending",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Disputed",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Flagged",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ExternalTransfer.Sent",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ScheduledPayment.Due",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::SafeDepositBox.Rented",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares consistency, authorization — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::OnboardingCase.Screening",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::CustomerPortfolio",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::ComplianceDashboard",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::AccountsByKind",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares group_by — out of scope for this generator: offset/cursor/consistency/authorization(TenantScope)/null_semantics beyond the default/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches"
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::ReviewOnFreeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::RetryOnPaymentFailure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::FreezeAccountsOnSuspension",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::NotifyOnClosure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::ReviewOnBoxSurrender",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::FlagKeyReturn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::Settlement",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::ExternalSettlement",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::Onboarding",
+    "generated": true,
+    "routed": true
+  }
+]

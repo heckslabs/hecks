@@ -25,7 +25,16 @@ impl EntityName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("EntityName violates its invariant: an entity is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "EntityName"),
+            ("description", "an entity is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -135,7 +144,7 @@ pub struct PieceField {
     pub list: String,
     pub optional: Option<String>,
     pub pattern: Option<String>,
-    pub default: String,
+    pub default: Option<String>,
     pub admits: Option<String>,
 }
 
@@ -149,7 +158,7 @@ impl crate::kernel::Fielded for PieceField {
             "list" => Some(Field::Value(Value::Str(self.list.clone()))),
             "optional" => self.optional.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "pattern" => self.pattern.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
-            "default" => Some(Field::Value(Value::Str(self.default.clone()))),
+            "default" => self.default.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "admits" => self.admits.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -172,7 +181,7 @@ impl PieceField {
         ("list".to_string(), crate::kernel::Json::Str(self.list.clone())),
         ("optional".to_string(), self.optional.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("pattern".to_string(), self.pattern.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
-        ("default".to_string(), crate::kernel::Json::Str(self.default.clone())),
+        ("default".to_string(), self.default.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("admits".to_string(), self.admits.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -186,7 +195,7 @@ impl PieceField {
         list: { let x = v.require("list", "PieceField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.list: expected String".to_string()))? },
         optional: match v.get("optional") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.optional: expected String".to_string()))?), None => None, },
         pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.pattern: expected String".to_string()))?), None => None, },
-        default: { let x = v.require("default", "PieceField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.default: expected String".to_string()))? },
+        default: match v.get("default") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.default: expected String".to_string()))?), None => None, },
         admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceField.admits: expected String".to_string()))?), None => None, },
         })
     }
@@ -195,7 +204,7 @@ impl PieceField {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceTransition {
     pub command: String,
-    pub from_state: String,
+    pub from_state: Option<String>,
     pub to_state: String,
 }
 
@@ -205,7 +214,7 @@ impl crate::kernel::Fielded for PieceTransition {
         use crate::kernel::Value;
         match name {
             "command" => Some(Field::Value(Value::Str(self.command.clone()))),
-            "from_state" => Some(Field::Value(Value::Str(self.from_state.clone()))),
+            "from_state" => self.from_state.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "to_state" => Some(Field::Value(Value::Str(self.to_state.clone()))),
             _ => None,
         }
@@ -224,7 +233,7 @@ impl PieceTransition {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
         ("command".to_string(), crate::kernel::Json::Str(self.command.clone())),
-        ("from_state".to_string(), crate::kernel::Json::Str(self.from_state.clone())),
+        ("from_state".to_string(), self.from_state.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("to_state".to_string(), crate::kernel::Json::Str(self.to_state.clone())),
         ])
     }
@@ -234,7 +243,7 @@ impl PieceTransition {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         command: { let x = v.require("command", "PieceTransition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.command: expected String".to_string()))? },
-        from_state: { let x = v.require("from_state", "PieceTransition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.from_state: expected String".to_string()))? },
+        from_state: match v.get("from_state") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.from_state: expected String".to_string()))?), None => None, },
         to_state: { let x = v.require("to_state", "PieceTransition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PieceTransition.to_state: expected String".to_string()))? },
         })
     }
@@ -421,6 +430,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -497,6 +508,8 @@ pub fn dispatch_identify(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Identify",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an identity part reaches a scalar", expr: Expr::Or(Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str(".".to_string())) }), Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str("_id".to_string())) })) },
@@ -564,6 +577,8 @@ pub fn dispatch_seal(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Seal",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an entity says what it is known by", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("identified_by"))))) },
@@ -605,6 +620,106 @@ if !unknown.is_empty() {
     }
 }
 
+impl crate::kernel::Fielded for AttributeArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "name" => Some(Field::Nested(&self.name)),
+            "type" => Some(Field::Nested(&self.r#type)),
+            "list" => Some(Field::Nested(&self.list)),
+            "optional" => self.optional.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "pattern" => self.pattern.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "default" => self.default.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "admits" => self.admits.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AttributeArgs {
+    pub name: EntityText,
+    pub r#type: EntityText,
+    pub list: EntityText,
+    pub optional: Option<EntityText>,
+    pub pattern: Option<EntityText>,
+    pub default: Option<EntityText>,
+    pub admits: Option<EntityText>,
+}
+
+pub fn dispatch_attribute(
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: AttributeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+) -> crate::kernel::DispatchResult<Entity> {
+        args.name.check_invariants()?;
+        args.r#type.check_invariants()?;
+        args.list.check_invariants()?;
+        if let Some(v) = &args.optional { v.check_invariants()?; }
+        if let Some(v) = &args.pattern { v.check_invariants()?; }
+        if let Some(v) = &args.default { v.check_invariants()?; }
+        if let Some(v) = &args.admits { v.check_invariants()?; }
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Attribute",
+        "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
+        &args,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.attributes.push(PieceField { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.clone().map(|v| v.value.clone()), optional: args.optional.clone().map(|v| v.value.clone()), pattern: args.pattern.clone().map(|v| v.value.clone()), admits: args.admits.clone().map(|v| v.value.clone()) });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["PieceAttributeAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl AttributeArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), self.name.to_json()),
+        ("type".to_string(), self.r#type.to_json()),
+        ("list".to_string(), self.list.to_json()),
+        ("optional".to_string(), self.optional.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("pattern".to_string(), self.pattern.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("default".to_string(), self.default.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("admits".to_string(), self.admits.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl AttributeArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "entity", "aggregate_id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Attribute does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        name: EntityText::from_json(v.require("name", "AttributeArgs")?)?,
+        r#type: EntityText::from_json(v.require("type", "AttributeArgs")?)?,
+        list: EntityText::from_json(v.require("list", "AttributeArgs")?)?,
+        optional: match v.get("optional") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
+        default: match v.get("default") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
+        })
+    }
+}
+
 impl crate::kernel::Fielded for LifecycleArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -635,6 +750,8 @@ pub fn dispatch_lifecycle(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Lifecycle",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -675,6 +792,86 @@ if !unknown.is_empty() {
         Ok(Self {
         state_field: EntityText::from_json(v.require("state_field", "LifecycleArgs")?)?,
         state_start: EntityText::from_json(v.require("state_start", "LifecycleArgs")?)?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for TransitionArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "command" => Some(Field::Nested(&self.command)),
+            "from_state" => self.from_state.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "to_state" => Some(Field::Nested(&self.to_state)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct TransitionArgs {
+    pub command: EntityText,
+    pub from_state: Option<EntityText>,
+    pub to_state: EntityText,
+}
+
+pub fn dispatch_transition(
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: TransitionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+) -> crate::kernel::DispatchResult<Entity> {
+        args.command.check_invariants()?;
+        if let Some(v) = &args.from_state { v.check_invariants()?; }
+        args.to_state.check_invariants()?;
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Transition",
+        "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
+        &args,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.transitions.push(PieceTransition { command: args.command.value.clone(), from_state: args.from_state.clone().map(|v| v.value.clone()), to_state: args.to_state.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["PieceTransitionAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl TransitionArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("command".to_string(), self.command.to_json()),
+        ("from_state".to_string(), self.from_state.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("to_state".to_string(), self.to_state.to_json()),
+        ])
+    }
+}
+
+impl TransitionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "entity", "aggregate_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Transition does not declare {} — it takes command, from_state, to_state",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        command: EntityText::from_json(v.require("command", "TransitionArgs")?)?,
+        from_state: match v.get("from_state") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
+        to_state: EntityText::from_json(v.require("to_state", "TransitionArgs")?)?,
         })
     }
 }

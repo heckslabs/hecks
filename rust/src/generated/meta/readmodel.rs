@@ -25,7 +25,16 @@ impl ReadModelName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ReadModelName violates its invariant: a read model is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ReadModelName"),
+            ("description", "a read model is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -110,7 +119,16 @@ impl ProjectionPurpose {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ProjectionPurpose violates its invariant: a description says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ProjectionPurpose"),
+            ("description", "a description says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -185,8 +203,8 @@ impl Head {
 pub struct ProjectionOption {
     pub option: String,
     pub key: String,
-    pub value: String,
-    pub at: String,
+    pub value: Option<String>,
+    pub at: Option<String>,
 }
 
 impl crate::kernel::Fielded for ProjectionOption {
@@ -196,8 +214,8 @@ impl crate::kernel::Fielded for ProjectionOption {
         match name {
             "option" => Some(Field::Value(Value::Str(self.option.clone()))),
             "key" => Some(Field::Value(Value::Str(self.key.clone()))),
-            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
-            "at" => Some(Field::Value(Value::Str(self.at.clone()))),
+            "value" => self.value.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "at" => self.at.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -216,8 +234,8 @@ impl ProjectionOption {
         crate::kernel::Json::Object(vec![
         ("option".to_string(), crate::kernel::Json::Str(self.option.clone())),
         ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
-        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
-        ("at".to_string(), crate::kernel::Json::Str(self.at.clone())),
+        ("value".to_string(), self.value.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("at".to_string(), self.at.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -227,8 +245,62 @@ impl ProjectionOption {
         Ok(Self {
         option: { let x = v.require("option", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()))? },
         key: { let x = v.require("key", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()))? },
-        value: { let x = v.require("value", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()))? },
-        at: { let x = v.require("at", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()))? },
+        value: match v.get("value") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.value: expected String".to_string()))?), None => None, },
+        at: match v.get("at") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.at: expected String".to_string()))?), None => None, },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupByField {
+    pub field: String,
+}
+
+impl crate::kernel::Fielded for GroupByField {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "field" => Some(Field::Value(Value::Str(self.field.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl GroupByField {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("field"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "GroupByField"),
+            ("description", "a group_by field is named"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+        Ok(())
+    }
+}
+
+impl GroupByField {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("field".to_string(), crate::kernel::Json::Str(self.field.clone())),
+        ])
+    }
+}
+
+impl GroupByField {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        field: { let x = v.require("field", "GroupByField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByField.field: expected String".to_string()))? },
         })
     }
 }
@@ -283,6 +355,7 @@ pub struct ReadModel {
     pub reference_target: Option<ReadModelText>,
     pub aggregate_heads: Vec<Head>,
     pub options: Vec<ProjectionOption>,
+    pub group_by: Vec<GroupByField>,
     pub position: Option<Position>,
 }
 
@@ -298,6 +371,7 @@ impl crate::kernel::Fielded for ReadModel {
             "reference_target" => self.reference_target.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "aggregate_heads" => Some(Field::Value(Value::List(self.aggregate_heads.len()))),
             "options" => Some(Field::Value(Value::List(self.options.len()))),
+            "group_by" => Some(Field::Value(Value::List(self.group_by.len()))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -315,6 +389,7 @@ impl ReadModel {
         ("reference_target".to_string(), self.reference_target.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("aggregate_heads".to_string(), crate::kernel::Json::Array(self.aggregate_heads.iter().map(|x| x.to_json()).collect())),
         ("options".to_string(), crate::kernel::Json::Array(self.options.iter().map(|x| x.to_json()).collect())),
+        ("group_by".to_string(), crate::kernel::Json::Array(self.group_by.iter().map(|x| x.to_json()).collect())),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -331,6 +406,7 @@ impl ReadModel {
         reference_target: match v.get("reference_target") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
         aggregate_heads: match v.get("aggregate_heads").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Head::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ProjectionOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        group_by: match v.get("group_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(GroupByField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
         })
     }
@@ -367,8 +443,8 @@ impl crate::kernel::Fielded for DeclareArgs {
             "name" => Some(Field::Nested(&self.name)),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "query_name" => Some(Field::Nested(&self.query_name)),
-            "reference_name" => Some(Field::Nested(&self.reference_name)),
-            "reference_target" => Some(Field::Nested(&self.reference_target)),
+            "reference_name" => self.reference_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "reference_target" => self.reference_target.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -382,8 +458,8 @@ pub struct DeclareArgs {
     pub name: ReadModelName,
     pub description: Option<ProjectionPurpose>,
     pub query_name: ReadModelText,
-    pub reference_name: ReadModelText,
-    pub reference_target: ReadModelText,
+    pub reference_name: Option<ReadModelText>,
+    pub reference_target: Option<ReadModelText>,
     pub position: Option<Position>,
 }
 
@@ -393,8 +469,8 @@ pub fn dispatch_declare(
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
         args.query_name.check_invariants()?;
-        args.reference_name.check_invariants()?;
-        args.reference_target.check_invariants()?;
+        if let Some(v) = &args.reference_name { v.check_invariants()?; }
+        if let Some(v) = &args.reference_target { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
 
     crate::kernel::dispatch(
@@ -406,15 +482,18 @@ pub fn dispatch_declare(
             name: Some(args.name.clone()),
             description: args.description.clone(),
             query_name: Some(args.query_name.clone()),
-            reference_name: Some(args.reference_name.clone()),
-            reference_target: Some(args.reference_target.clone()),
+            reference_name: args.reference_name.clone(),
+            reference_target: args.reference_target.clone(),
             aggregate_heads: vec![],
             options: vec![],
+            group_by: vec![],
             position: args.position.clone(),
         }),
     },
         "Declare",
         "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -440,8 +519,8 @@ impl DeclareArgs {
         ("name".to_string(), self.name.to_json()),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("query_name".to_string(), self.query_name.to_json()),
-        ("reference_name".to_string(), self.reference_name.to_json()),
-        ("reference_target".to_string(), self.reference_target.to_json()),
+        ("reference_name".to_string(), self.reference_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("reference_target".to_string(), self.reference_target.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -461,8 +540,8 @@ if !unknown.is_empty() {
         name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(ProjectionPurpose::from_json(x)?), None => None, },
         query_name: ReadModelText::from_json(v.require("query_name", "DeclareArgs")?)?,
-        reference_name: ReadModelText::from_json(v.require("reference_name", "DeclareArgs")?)?,
-        reference_target: ReadModelText::from_json(v.require("reference_target", "DeclareArgs")?)?,
+        reference_name: match v.get("reference_name") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
+        reference_target: match v.get("reference_target") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
         position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
@@ -501,9 +580,11 @@ pub fn dispatch_gather(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Gather",
         "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
         &args,
         &[
-            crate::kernel::GivenSpec { description: "a read model gathers heads only after its reference", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("reference_target.value"))))))) },
+
         ],
         None,
         |record| {
@@ -542,6 +623,161 @@ if !unknown.is_empty() {
         aggregate: ReadModelText::from_json(v.require("aggregate", "GatherArgs")?)?,
         r#as: ReadModelText::from_json(v.require("as", "GatherArgs")?)?,
         many: ReadModelText::from_json(v.require("many", "GatherArgs")?)?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for GroupByArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "field" => Some(Field::Nested(&self.field)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct GroupByArgs {
+    pub field: ReadModelText,
+}
+
+pub fn dispatch_group_by(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GroupByArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        args.field.check_invariants()?;
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "GroupBy",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
+        &args,
+        &[
+            crate::kernel::GivenSpec { description: "a group_by field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("field.value"))))))) },
+        ],
+        None,
+        |record| {
+        record.group_by.push(GroupByField { field: args.field.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["GroupByFieldAdded"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl GroupByArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("field".to_string(), self.field.to_json()),
+        ])
+    }
+}
+
+impl GroupByArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["field", "id", "read_model", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "GroupBy does not declare {} — it takes field",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        field: ReadModelText::from_json(v.require("field", "GroupByArgs")?)?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for OptionArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "option" => Some(Field::Nested(&self.option)),
+            "key" => Some(Field::Nested(&self.key)),
+            "value" => self.value.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "at" => self.at.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct OptionArgs {
+    pub option: ReadModelText,
+    pub key: ReadModelText,
+    pub value: Option<ReadModelText>,
+    pub at: Option<ReadModelText>,
+}
+
+pub fn dispatch_option(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        args.option.check_invariants()?;
+        args.key.check_invariants()?;
+        if let Some(v) = &args.value { v.check_invariants()?; }
+        if let Some(v) = &args.at { v.check_invariants()?; }
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Option",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
+        &args,
+        &[
+            crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
+        ],
+        None,
+        |record| {
+        record.options.push(ProjectionOption { option: args.option.value.clone(), key: args.key.value.clone(), value: args.value.clone().map(|v| v.value.clone()), at: args.at.clone().map(|v| v.value.clone()) });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["OptionAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl OptionArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("option".to_string(), self.option.to_json()),
+        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("at".to_string(), self.at.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl OptionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "read_model", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Option does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        option: ReadModelText::from_json(v.require("option", "OptionArgs")?)?,
+        key: ReadModelText::from_json(v.require("key", "OptionArgs")?)?,
+        value: match v.get("value") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
+        at: match v.get("at") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
         })
     }
 }

@@ -15,3 +15,4 @@ pub mod dispatch;
 pub mod vocabulary;
 pub mod syntax;
 pub mod readmodel;
+pub mod merged;

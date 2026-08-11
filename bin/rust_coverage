@@ -1,0 +1,491 @@
+#!/usr/bin/env ruby
+
+# THE COVERAGE CHECKER — a different question than bin/rust_conformance
+# asks, deliberately, not a replacement for it.
+#
+# bin/rust_conformance is an EQUIVALENCE checker: it runs the SAME script
+# through Ruby and through the generated Rust artifact and diffs the
+# output byte-for-byte. That is exactly the right tool for "did these two
+# things agree?" — but it is structurally blind to a whole CLASS of gap:
+# a construct the generator never emits anything for at all has no case in
+# the corpus to disagree about, so it never shows up as a mismatch. A
+# NAMED/declared query outside `rust/project/queries.rb`'s own generated
+# subset is the standing example TODAY (a real, non-empty subset now
+# genuinely does execute — spec/corpus/rust_conformance/named_queries.json
+# proves it byte-for-byte) — `rust/src/kernel/cli.rs` still refuses
+# anything that subset doesn't cover, which means a corpus script
+# containing one of THOSE query steps either never gets written in the
+# first place, or gets written and both sides just... agree to refuse it.
+# Either way, conformance stays green. The gap is real; the equivalence
+# harness simply cannot see it, by design, because there is nothing on
+# the Rust side to compare Ruby's answer against.
+#
+# This tool asks the other question: for a domain's canonical Bluebook IR
+# (the same JSON `bin/ir <domain>` prints), walk EVERY construct it
+# declares and ask "does `bin/project_rust`'s generated output for this
+# domain actually have a real implementation of this, or not?" — a
+# COVERAGE question, answerable even when there is no runnable comparison
+# to make. It reports three buckets:
+#
+#   IMPLEMENTED  generated, and reachable via kernel/cli.rs's JSON router
+#   DEFERRED     missing, but on the allowlist below with a cited reason
+#                (a KNOWN, deliberate gap — see ALLOWLIST's own header)
+#   GAP          missing, and NOT on the allowlist — a real, actionable
+#                finding; exits non-zero so this can gate CI later
+#
+# TWO KINDS OF "missing," and this tool is honest about which is which
+# (`gap_class` on every finding, sourced from the manifest itself — see
+# rust/project/domain_generator.rb's `manifest_entry` for the full
+# argument):
+#
+#   "whole_kind"    an entire CONSTRUCT KIND has no code path in the
+#                   generator at all, for any domain — `query` and
+#                   `read_model` are the two known examples today. Loud
+#                   by nature: nothing named "query" or "read_model" ever
+#                   quietly slips through, because NOTHING of that kind
+#                   ever generates, for anyone, ever. Low-risk to miss.
+#   "per_instance"  the construct kind mostly works — nine sibling
+#                   commands on the same aggregate generate correctly —
+#                   but THIS declared instance individually failed one of
+#                   the generator's own named checks (an unsupported
+#                   `then_set` shape, an identity `extract_id` can't
+#                   resolve, ...). This is the dangerous kind: it is
+#                   exactly the sort of thing that's easy to stop
+#                   noticing once the loud "whole_kind" gaps are already
+#                   priced in. This tool reports both, but flags which is
+#                   which so a reader doesn't have to guess.
+#
+# SOURCE OF TRUTH — two modes, and this run tells you which one it used:
+#
+#   Manifest mode (preferred). `bin/project_rust` itself now writes
+#   `rust/src/generated/<domain>/manifest.json` — one entry per construct
+#   it made a generate/skip decision about, written by the SAME code that
+#   made the decision, at the moment it made it. This is ground truth,
+#   not a reconstruction: nothing here has to guess why a command didn't
+#   route by re-deriving the generator's own logic a second time.
+#
+#   Fallback mode. If a domain's own `manifest.json` doesn't exist (an
+#   older generated tree, or a domain whose Bluebook source doesn't even
+#   live in this checkout — Embryonaut's does not; its own hecksagon
+#   lives in a separate repository this branch merely references — so
+#   `bin/project_rust` can't be re-run here to produce one), this tool
+#   falls back to regex-scanning the domain's own already-generated
+#   `registry.rs` for the exact quoted verb strings `rust/project/
+#   registry.rb`'s `emit_registry` writes as match-arm keys
+#   (`"Domain::Aggregate.Command" => { ... }`). This is REAL, WORKING
+#   fallback — good enough to answer "is this specific verb routable" —
+#   but strictly less trustworthy than the manifest: it can only see
+#   what's PRESENT, never WHY something is absent (no per-instance
+#   reason text survives regex-scanning generated source the way it
+#   survives being written down at decision time), and it cannot verify
+#   policy/process-manager routing at all (their own generated table
+#   carries no policy/PM *name*, only event/target-verb data — see
+#   `derive_manifest_from_source`'s own note). Findings produced this way
+#   say so explicitly in their own `reason` text.
+#
+#   bin/rust_coverage <domain>
+#
+# `<domain>` is a directory name under rust/src/generated/ — "pizzas",
+# "banking", "embryonaut", "governance", "identity", "meta" — whichever
+# this checkout has actually generated (see rust/src/generated/ itself
+# for the current list; `merged.rs`'s presence marks an independently
+# selectable domain rather than a shared framework chapter, the same
+# distinction bin/project_rust's own root mod.rs comment draws).
+
+require "json"
+require "set"
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+domain = ARGV.shift or abort "usage: bin/rust_coverage <generated-module-name>  (e.g. pizzas, banking, embryonaut, governance, identity)"
+
+generated_root = File.expand_path("../rust/src/generated", __dir__)
+mod_dir = File.join(generated_root, domain)
+Dir.exist?(mod_dir) or abort "#{mod_dir}: no such generated module — run bin/project_rust first, or check rust/src/generated/ for the actual directory name"
+
+ir_path = File.join(mod_dir, "ir.json")
+File.exist?(ir_path) or abort "#{ir_path}: missing — this generated tree predates ir.json (bin/project_rust writes it now); re-run bin/project_rust for this domain"
+ir = JSON.parse(File.read(ir_path), symbolize_names: true)
+
+# ── EXPECTED CONSTRUCTS, DERIVED DIRECTLY FROM IR — independent of
+# whatever the manifest (or the fallback deriver) says about itself. This
+# is what makes the cross-check below possible: a construct that's
+# expected per the IR but has NO manifest entry whatsoever — not even a
+# `generated: false` one — is a gap in the MANIFEST-WRITER itself, the
+# single most dangerous failure mode this tool can catch (a construct
+# that isn't just ungenerated, but that `bin/project_rust` never even
+# considered). Every finding this tool ever reports traces back to one of
+# these `[kind, id]` pairs.
+def expected_from_ir(ir)
+  domain_name = ir.fetch(:name)
+  expected = []
+
+  ir.fetch(:aggregates).each do |aggregate|
+    aggregate_id = "#{domain_name}::#{aggregate.fetch(:name)}"
+    expected << [:aggregate, aggregate_id]
+
+    aggregate.fetch(:commands).each { |c| expected << [:command, "#{aggregate_id}.#{c.fetch(:name)}"] }
+    aggregate.fetch(:queries).each { |q| expected << [:query, "#{aggregate_id}.#{q.fetch(:name)}"] }
+
+    aggregate.fetch(:entities).each do |entity|
+      entity_id = "#{aggregate_id}.#{entity.fetch(:name)}"
+      expected << [:entity, entity_id]
+      entity.fetch(:commands).each { |c| expected << [:entity_command, "#{entity_id}.#{c.fetch(:name)}"] }
+    end
+
+    aggregate.fetch(:ports).each do |port|
+      port.fetch(:operations).each { |op| expected << [:port_operation, "#{aggregate_id}.#{port.fetch(:name)}.#{op.fetch(:name)}"] }
+    end
+  end
+
+  ir.fetch(:read_models).each { |rm| expected << [:read_model, "#{domain_name}::#{rm.fetch(:name)}"] }
+  ir.fetch(:policies).each { |p| expected << [:policy, "#{domain_name}::#{p.fetch(:name)}"] }
+  ir.fetch(:process_managers).each { |pm| expected << [:process_manager, "#{domain_name}::#{pm.fetch(:name)}"] }
+
+  expected
+end
+
+# ── FALLBACK MANIFEST DERIVATION — see this file's own header,
+# "Fallback mode." Used only when `manifest.json` doesn't exist for this
+# domain. Reads the SAME quoted verb strings `emit_registry` (rust/
+# project/registry.rb) writes into `registry.rs`'s own match arms —
+# `"Domain::Aggregate.Command" => { ... }` for a top-level command,
+# `"Domain::Aggregate.Entity.Command" => { ... }` for an entity command,
+# `"Domain::Aggregate.Port.Operation" => { ... }` for a port operation —
+# all three shapes are the exact same `c[:verb].inspect => {` /
+# `p[:verb].inspect => {` pattern regardless of which of the three arm
+# builders (`aggregate_arms`/`entity_arms`/`port_arms`) wrote them, so one
+# regex covers all three.
+def derive_manifest_from_source(ir, mod_dir)
+  domain_name = ir.fetch(:name)
+  registry_src = File.exist?(File.join(mod_dir, "registry.rs")) ? File.read(File.join(mod_dir, "registry.rs")) : ""
+  routed_verbs = registry_src.scan(/^\s*"([A-Za-z0-9_:.]+)"\s*=>\s*\{/).flatten.to_set
+
+  manifest = []
+
+  ir.fetch(:aggregates).each do |aggregate|
+    aggregate_id = "#{domain_name}::#{aggregate.fetch(:name)}"
+    aggregate_file = File.join(mod_dir, "#{aggregate.fetch(:name).downcase}.rs")
+    aggregate_generated = File.exist?(aggregate_file)
+    manifest << {
+      kind: "aggregate", id: aggregate_id, generated: aggregate_generated,
+      **(aggregate_generated ? {} : { gap_class: "per_instance", reason: "fallback mode: no #{File.basename(aggregate_file)} found under #{mod_dir}" })
+    }
+
+    aggregate.fetch(:commands).each do |command|
+      verb = "#{aggregate_id}.#{command.fetch(:name)}"
+      routed = routed_verbs.include?(verb)
+      manifest << {
+        kind: "command", id: verb, generated: routed, routed: routed,
+        **(routed ? {} : { gap_class: "per_instance", reason: "fallback mode: no \"#{verb}\" match arm in registry.rs — this checkout can't re-run bin/project_rust for this domain to get a real manifest, so this only says the verb isn't ROUTED; it can't say whether a dispatch_* function exists but is merely unrouted, or was never generated at all" })
+      }
+    end
+
+    aggregate.fetch(:entities).each do |entity|
+      entity_id = "#{aggregate_id}.#{entity.fetch(:name)}"
+      manifest << { kind: "entity", id: entity_id, generated: aggregate_generated }
+      entity.fetch(:commands).each do |command|
+        verb = "#{entity_id}.#{command.fetch(:name)}"
+        routed = routed_verbs.include?(verb)
+        manifest << {
+          kind: "entity_command", id: verb, generated: routed, routed: routed,
+          **(routed ? {} : { gap_class: "per_instance", reason: "fallback mode: no \"#{verb}\" match arm in registry.rs (see command's own fallback note above — same caveat applies)" })
+        }
+      end
+    end
+
+    aggregate.fetch(:ports).each do |port|
+      port.fetch(:operations).each do |operation|
+        verb = "#{aggregate_id}.#{port.fetch(:name)}.#{operation.fetch(:name)}"
+        routed = routed_verbs.include?(verb)
+        manifest << {
+          kind: "port_operation", id: verb, generated: routed, routed: routed,
+          **(routed ? {} : { gap_class: "per_instance", reason: "fallback mode: no \"#{verb}\" match arm in registry.rs" })
+        }
+      end
+    end
+
+    aggregate.fetch(:queries).each do |query|
+      manifest << {
+        kind: "query", id: "#{aggregate_id}.#{query.fetch(:name)}", generated: false, gap_class: "whole_kind",
+        reason: 'the "query" construct has no generated code path at all — matches kernel/cli.rs\'s own refusal for a "query" step ("query steps are not generated yet")'
+      }
+    end
+  end
+
+  ir.fetch(:read_models).each do |read_model|
+    manifest << {
+      kind: "read_model", id: "#{domain_name}::#{read_model.fetch(:name)}", generated: false, gap_class: "whole_kind",
+      reason: 'the "read_model" construct has no generated code path at all — a distinct construct from "query" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate'
+    }
+  end
+
+  # POLICIES/PROCESS MANAGERS — deliberately reported as UNVERIFIABLE
+  # rather than guessed at. `emit_policy_table`'s own generated rows
+  # carry `event_name`/`event_qualifier`/`target_verb`, never the
+  # policy's own declared NAME — there is no string in registry.rs this
+  # fallback could match a policy's `id` against with any confidence, so
+  # rather than produce a false IMPLEMENTED or a false GAP, `generated`
+  # is left `nil` — this tool's own report renders that as its own
+  # UNKNOWN bucket, excluded from the exit-code gate. Same reasoning for
+  # process managers (the table for those carries `name` — so it COULD
+  # be matched — but is kept consistent with policies here rather than
+  # having only one of the two silently gain precision fallback mode
+  # can't actually promise across the board).
+  ir.fetch(:policies).each do |policy|
+    manifest << { kind: "policy", id: "#{domain_name}::#{policy.fetch(:name)}", generated: nil,
+                  reason: "fallback mode cannot verify policy routing from registry.rs alone (the generated policy table carries no policy name, only event/target-verb data) — this domain's real manifest.json would need bin/project_rust re-run against its own Bluebook source, which isn't in this checkout" }
+  end
+  ir.fetch(:process_managers).each do |pm|
+    manifest << { kind: "process_manager", id: "#{domain_name}::#{pm.fetch(:name)}", generated: nil,
+                  reason: "fallback mode does not attempt process-manager verification either, for consistency with the policy caveat above" }
+  end
+
+  manifest
+end
+
+manifest_path = File.join(mod_dir, "manifest.json")
+if File.exist?(manifest_path)
+  manifest = JSON.parse(File.read(manifest_path), symbolize_names: true)
+  mode = :manifest
+else
+  warn "#{domain}: no manifest.json — falling back to regex-derived coverage from registry.rs (see this file's own \"Fallback mode\" header for exactly what that can and can't tell you)"
+  manifest = derive_manifest_from_source(ir, mod_dir)
+  mode = :fallback
+end
+
+# ── THE ALLOWLIST — every entry here is sourced from something this
+# BRANCH's own docs already say, quoted or closely paraphrased, not
+# invented to make a run come back clean. Per this task's own governing
+# rule: a finding only belongs here because it is ALREADY documented
+# elsewhere as a deliberate deferral — never because this tool happened
+# to find it missing and a clean run looked nicer. Anything genuinely new
+# stays a GAP, on purpose, so it actually gets seen.
+#
+# Matching is by `kind` plus an optional `reason_match` regex tested
+# against the FINDING's own `reason` text (not a hardcoded list of
+# specific IDs) — a cross-domain policy is deferred because it's
+# cross-domain, not because it happens to be named `ReviewOnFreeze`
+# today; naming the general shape here, rather than enumerating today's
+# four instances, means a FIFTH cross-domain policy added later is
+# covered by the same rule instead of silently becoming a new GAP the
+# allowlist forgot to widen for.
+ALLOWLIST = [
+  {
+    kind: "query",
+    # NARROWED, not the whole construct kind any more — a declared
+    # `query "X" do ... end` block now DOES have a real generated Rust
+    # representation, for the subset `rust/project/queries.rb`'s own
+    # `query_skip_reason` admits (one or more field-comparator conditions
+    # against a single aggregate's OWN attributes, via the exact
+    # `filter_entries`/`AggregateScan` machinery the OBJECT-shaped ad hoc
+    # filter already used — kernel/named_query.rs). This entry now
+    # matches only the RESIDUAL shape that generator still doesn't cover:
+    # every reason `query_skip_reason`/`query_where_skip_reason` produce
+    # starts with exactly one of these two prefixes ("declares ..." for a
+    # top-level option this generator doesn't implement — order_by/limit/
+    # offset/cursor/consistency/freshness/authorization/null_semantics/
+    # inspection/index_hints/no wheres at all; "where clause on ..." for
+    # a single clause that hops through a reference, isn't a recognized
+    # own attribute, or carries a literal comparator value whose true
+    # JSON type can't be recovered from the exported IR) — a fifth or
+    # sixth reason added later in that same style is covered by the same
+    # rule, the same "name the general shape, not today's instances"
+    # principle the cross-domain policy entry below already follows.
+    reason_match: /\A(declares |where clause on )/,
+    doc: "rust/project/queries.rb (own header — the full eligibility argument for the field-comparator query subset)",
+    note: 'Confirmed against a real run, not assumed: `bin/rust_coverage banking`/`pizzas`/`governance`/`identity`/' \
+          '`meta` all show real `[query]` entries in IMPLEMENTED now (Banking::CardPayment.Pending/Disputed/Flagged, ' \
+          'Banking::ExternalTransfer.Sent, Governance::RoleAssignment.AssignmentsForActor, Governance::' \
+          'RoleTransition.Allowed, Identity::ExternalIdentifier.ResolvedBy, Bluebook::Bluebook.Called, PLUS (as of ' \
+          '2026-08-11) every order_by/limit-bearing declared query the field-comparator subset otherwise admits — ' \
+          'Banking::ATMCard.Active/ByFee, Account.AtMost/HighBalance/Open/Reachable/StrictlyAbove, Customer.' \
+          'InGoodStanding/NotGoodStanding/Suspended, OnboardingCase.Screening, ScheduledPayment.Due, ' \
+          'Transfer.InFlight, and all 11 of meta\'s own Bluebook::*.DeclaredIn queries — proven byte-for-byte ' \
+          'against Ruby\'s own QueryInterpreter#interpret, spec/corpus/rust_conformance/named_queries.json and ' \
+          'named_queries_order_limit.json) — the OLD claim that "every query still deferred here declares ' \
+          'order_by" is no longer true either: order_by/limit\'s mere PRESENCE stopped being disqualifying the ' \
+          'moment `kernel/query_ordering.rs` gave `named_query.rs` the same sort/limit tail `read_model.rs` already ' \
+          'had. Every query STILL deferred here (Banking::Account.Overdrawn — declares freshness; Banking::' \
+          'SafeDepositBox.Rented — declares consistency/authorization; Banking::Account.' \
+          'OpenForSuspendedCustomers — a where clause hopping through `customer.status`) is excluded for one of ' \
+          'those three genuinely different, still-real reasons, not order_by — read `rust/project/queries.rb`\'s ' \
+          'own header for the full, itemized argument for each.',
+  },
+  {
+    kind: "query",
+    # EMBRYONAUT'S OWN STALE MANIFEST, a real but DIFFERENT residual case
+    # than the entry above — not a shape this generator declines to
+    # cover, but a domain whose checked-in rust/src/generated/embryonaut/
+    # manifest.json predates rust/project/queries.rb entirely and cannot
+    # be refreshed from this checkout (its bluebook source lives in a
+    # separate, private repository — bin/rust_coverage's own "Fallback
+    # mode" header, and this domain's own registry.rs/merged.rs, already
+    # say so for the exact same reason `AggregateScan` needed a matching
+    # note when THAT capability landed). `registry.rs`/`merged.rs` are
+    # already hand-patched with an honest, empty `QUERIES` table rather
+    # than a fabricated one — this is that same acknowledgment reaching
+    # the coverage side, matched by the OLD, now-generically-stale
+    # whole_kind reason text still sitting in that one domain's own
+    # on-disk manifest.json (every OTHER domain's manifest was
+    # regenerated by this change and no longer says this).
+    reason_match: /no generated code path at all — matches kernel\/cli\.rs's own refusal/,
+    doc: "rust/src/generated/embryonaut/registry.rs and merged.rs (own HAND-PATCHED notes, both files, right above their empty QUERIES const)",
+    note: "Embryonaut's own bluebook source isn't available in this repository, so bin/project_rust can't be " \
+          "re-run against it here to give it a fresh manifest.json the way banking/pizzas/governance/identity/meta " \
+          "all just got. Its registry.rs/merged.rs already carry a HAND-PATCHED, honestly-empty `QUERIES` const " \
+          "for the identical reason `AggregateScan`'s own hand-patched empty impl already sits right above each — " \
+          "this entry is the same fact, read from the coverage side instead of the source side. Delete both the " \
+          "day this domain's next real regeneration replaces every one of them with the genuine article.",
+  },
+  {
+    kind: "read_model",
+    # A NEW, HONEST GAP THIS MERGE ITSELF SURFACED — not present on
+    # either side before `main` and `feat/rust-projection` combined.
+    # `main`'s own rootless-read-model work (`report: rootless read
+    # models + group_by`) added `group_by` to `IR::ReadModel` after
+    # `rust/project/read_models.rb` was written against a version of
+    # that IR with no such concept at all (that file's own header
+    # already named this exact scenario as a "future reader diffing
+    # this generator against a newer read_model_interpreter.rb" case).
+    # `Banking::AccountsByKind` is the one real corpus read model that
+    # actually declares `group_by` — genuinely rootless nesting-by-field,
+    # a shape this generator's `kernel/read_model.rs` has no code path
+    # for at all, the same class of "missing subsystem, not a parity
+    # bug" the era/lineage note below already draws a line around.
+    # `Banking::CustomerPortfolio`/`ComplianceDashboard` do NOT belong
+    # here — fixed to be real IMPLEMENTED findings (read_models.rb's own
+    # `READ_MODEL_BARE_KEYS`/value-check fix), not allowlisted away.
+    reason_match: /\Adeclares group_by —/,
+    doc: "rust/project/read_models.rb (own header note on group_by/rootless read models being a main-only concept " \
+         "this generator doesn't cover) and rust/project/queries.rb's own eligibility argument the reason text " \
+         "quotes verbatim",
+    note: "Confirmed against a real run: bin/rust_coverage banking shows Banking::CustomerPortfolio and " \
+          "Banking::ComplianceDashboard as real IMPLEMENTED read_model findings (both regenerated for real, no " \
+          "group_by of their own) — only Banking::AccountsByKind, which actually declares `group_by :kind, " \
+          ":number`, is deferred here.",
+  },
+]
+# REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry
+# that used to live here (matching `reason_match: /cross-domain policy/`,
+# 0013's own Consequences: "omitted from the generated table entirely").
+# `rust/project/reactions.rb`'s `emit_cross_domain_policy_table` now
+# represents these instead of dropping them (`CrossDomainPolicyRule`,
+# `kernel::orchestrate`'s own header) — `domain_generator.rb`'s manifest
+# entry for EVERY policy, cross-domain or not, is `generated: true,
+# routed: true` now, so no finding this rule used to match can be
+# produced anymore; leaving a dead rule in place would silently stop
+# testing anything the day it's removed for real, which is worse than
+# just removing it now with this note explaining why.
+#
+# WHAT THIS TOOL CAN AND CANNOT ATTEST TO, PRECISELY: "generated and
+# reachable through kernel/cli.rs's JSON router" (this file's own header)
+# is now true for a cross-domain policy — `kernel::orchestrate` matches
+# it exactly like a same-domain one and `kernel::cli::run` carries the
+# match out as a `PendingCrossDomainReaction` in its own JSON output
+# ("cross_domain_reactions"). What this tool CANNOT attest to, and never
+# could — it is a codegen-coverage tool, not a live-infrastructure
+# prober — is whether a REAL cross-Lambda delivery attempt (rust/host's
+# `lambda_client.rs`, invoked from `dispatch::handle` after this) actually
+# reaches a live target Lambda: that needs two real domains' Lambdas
+# deployed and invocable, which no environment this tool runs in has.
+# `rust/host/src/lambda_client.rs`'s own header states exactly what IS
+# proven here (function-name computation, request-payload shape, refusal-
+# vs-fault classification, all via `cargo test` against a mock
+# `LambdaInvoker`) versus what remains structurally-argued-but-
+# unverified-without-live-AWS (`AwsLambdaInvoker` itself). That caveat
+# belongs there, not as a permanent allowlist entry here — this tool's
+# own IMPLEMENTED bucket was never a claim of live-infrastructure proof
+# for ANY finding in it (a generated Postgres write path isn't re-proven
+# against a live database by this tool either).
+# NOT ON THIS LIST, ON PURPOSE, THOUGH IT IS DOCUMENTED — era/lineage-bound
+# aggregate support. docs/HECKS_IMPLEMENTATION_PLAN.md's §8 "What's still
+# real and unbuilt" section investigates this by name and calls it out as
+# a DIFFERENT KIND of item than everything else on that list: "not a
+# parity bug in the generator's current single-era output, but an entire
+# missing subsystem... Porting it would mean building a Rust Postgres
+# adapter FIRST, then the whole lineage/shape-diff system on top —
+# genuinely out of proportion to a 'gap,' deliberately left unattempted
+# rather than scoped down into something dishonest." It has no entry
+# above because it structurally CAN'T: nothing in `ir[:aggregates]` (a
+# CURRENT-era snapshot; era/lineage data lives in a separate mechanism —
+# `DeclarationSnapshot`/`era_check`, not `to_h`) ever produces an "era"
+# construct for this tool's `expected_from_ir` to even enumerate, so it
+# can never surface as a raw finding here to allowlist in the first
+# place. Recorded here anyway, per this tool's own design brief, so a
+# reader of this file — not just this run's report — sees it named.
+def allowlisted(finding)
+  ALLOWLIST.find do |rule|
+    next false unless rule[:kind] == finding[:kind].to_s
+    next true if rule[:reason_match].nil?
+
+    rule[:reason_match].match?(finding[:reason].to_s)
+  end
+end
+
+# ── CROSS-CHECK — every EXPECTED [kind, id] pair (derived straight from
+# IR, above) that has NO manifest entry at all, in either mode, becomes
+# its own synthetic finding: a gap in the manifest-writer itself, worth
+# telling apart from an honestly-recorded `generated: false`. See this
+# file's own header on why this is the single most dangerous case to
+# miss.
+manifest_ids = manifest.each_with_object(Hash.new { |h, k| h[k] = Set.new }) { |entry, index| index[entry[:kind].to_sym] << entry[:id] }
+unaccounted = expected_from_ir(ir).reject { |kind, id| manifest_ids[kind].include?(id) }.map do |kind, id|
+  { kind: kind.to_s, id: id, generated: false, gap_class: "unaccounted",
+    reason: "expected per ir.json, but #{mode == :manifest ? 'manifest.json' : 'the fallback deriver'} has NO entry for it at all — " \
+            "not even a recorded skip; the generator's own accounting missed this construct entirely" }
+end
+
+findings = manifest + unaccounted
+
+# ── CLASSIFY — a construct only counts as IMPLEMENTED when it is BOTH
+# generated AND (where the construct has a routing concept at all)
+# actually reachable through kernel/cli.rs's JSON router. A `dispatch_*`
+# function that compiles but that nothing can ever call is not "working"
+# in any sense a coverage report should paper over, so `routed: false`
+# is treated exactly like `generated: false` for bucketing purposes —
+# the distinction stays visible in the reason text, not in which bucket
+# it lands in.
+def functional_gap?(finding) = finding[:generated] == false || finding[:routed] == false
+
+implemented, remainder = findings.partition { |f| f[:generated] && f[:routed] != false }
+unknown, remainder     = remainder.partition { |f| f[:generated].nil? }
+deferred, gap          = remainder.partition { |f| allowlisted(f) }
+
+def print_bucket(label, entries)
+  puts "\n#{label} (#{entries.size})"
+  entries.sort_by { |e| [e[:kind].to_s, e[:id]] }.each do |e|
+    line = "  [#{e[:kind]}] #{e[:id]}"
+    line += " (#{e[:gap_class]})" if e[:gap_class]
+    puts line
+    puts "      #{e[:reason]}" if e[:reason]
+  end
+end
+
+puts "=" * 72
+puts "bin/rust_coverage #{domain}  (source: #{mode == :manifest ? 'manifest.json' : 'FALLBACK — registry.rs regex scan'})"
+puts "=" * 72
+puts "#{ir.fetch(:name)} — #{findings.size} constructs accounted for " \
+     "(#{implemented.size} implemented, #{deferred.size} deferred, #{gap.size} GAP, #{unknown.size} unknown)"
+
+print_bucket("IMPLEMENTED", implemented) unless implemented.empty?
+
+puts "\nDEFERRED (#{deferred.size}) — on the allowlist, with its cited reason"
+deferred.sort_by { |e| [e[:kind].to_s, e[:id]] }.each do |e|
+  rule = allowlisted(e)
+  puts "  [#{e[:kind]}] #{e[:id]}"
+  puts "      allowlist: #{rule[:doc]}"
+end
+
+print_bucket("UNKNOWN — fallback mode couldn't verify either way", unknown) unless unknown.empty?
+
+puts "\nGAP (#{gap.size}) — missing, and NOT on the allowlist: a real, actionable finding"
+gap.sort_by { |e| [e[:kind].to_s, e[:id]] }.each do |e|
+  line = "  [#{e[:kind]}] #{e[:id]}"
+  line += " (#{e[:gap_class]})" if e[:gap_class]
+  puts line
+  puts "      #{e[:reason]}" if e[:reason]
+end
+
+puts
+exit(gap.empty? ? 0 : 1)

@@ -1,0 +1,54 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Pizzas::Order",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Pizzas::Order.CreatePizza",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Pizzas::Order.AddTopping",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Pizzas::Order.Purchase",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "port_operation",
+    "id": "Pizzas::Order.PaymentGateway.Receive",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.Available",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.CostingLessThan",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.Expensive",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "where clause on \"pizza.price_cents.cents\" uses op \"gt\" against a LITERAL value — gt/gte/lt/lte need real Json::Num-vs-Json::Str fidelity this generator can't recover from the exported IR (WhereClause#to_h renders every literal through QuerySpecification.render_value's own .to_s)"
+  },
+  {
+    "kind": "policy",
+    "id": "Pizzas::OnPizzaPaymentReceived",
+    "generated": true,
+    "routed": true
+  }
+]

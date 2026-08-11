@@ -1,0 +1,10 @@
+{
+  "domain": "examples/banking",
+  "note": "LifecycleRefused/transition_blocked — verified genuinely broken before this fixture existed: unmodified Rust said 'Freeze cannot run from \"frozen\" — admits [\"open\"]' (Rust's own {:?} slice-debug rendering of `from_states`), Ruby says 'Freeze refused — status is \"frozen\", and Freeze moves it only from \"open\"' (each admitted state .inspect-quoted, joined with \" or \"). Open an account, Freeze it once (succeeds), Freeze it again (refused — it's already frozen, and Freeze only runs from \"open\").",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"customer_id": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}}},
+    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-1"}}},
+    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-1"}}}
+  ]
+}

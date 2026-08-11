@@ -25,7 +25,16 @@ impl SyntaxName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("SyntaxName violates its invariant: a syntax is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "SyntaxName"),
+            ("description", "a syntax is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -117,7 +126,11 @@ impl Context {
             "World" => Ok(Context::World),
             "DomainPort" => Ok(Context::Domainport),
             "PortOperation" => Ok(Context::Portoperation),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Context: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Context"),
+                ("admitted", "\"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -149,7 +162,11 @@ impl Body {
             "keywords" => Ok(Body::Keywords),
             "source" => Ok(Body::Source),
             "rows" => Ok(Body::Rows),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Body: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Body"),
+                ("admitted", "\"none\", \"keywords\", \"source\", \"rows\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -181,7 +198,11 @@ impl Status {
             "admitted" => Ok(Status::Admitted),
             "deprecated" => Ok(Status::Deprecated),
             "retired" => Ok(Status::Retired),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Status: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Status"),
+                ("admitted", "\"proposed\", \"admitted\", \"deprecated\", \"retired\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -225,7 +246,11 @@ impl ArgumentKind {
             "constant" => Ok(ArgumentKind::Constant),
             "pairs" => Ok(ArgumentKind::Pairs),
             "list" => Ok(ArgumentKind::List),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentKind: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "ArgumentKind"),
+                ("admitted", "\"text\", \"symbol\", \"number\", \"flag\", \"literal\", \"constant\", \"pairs\", \"list\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -257,7 +282,11 @@ impl PairsShape {
             "elements" => Ok(PairsShape::Elements),
             "verbatim" => Ok(PairsShape::Verbatim),
             "sibling" => Ok(PairsShape::Sibling),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("PairsShape: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "PairsShape"),
+                ("admitted", "\"fields\", \"elements\", \"verbatim\", \"sibling\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -279,6 +308,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "hecksagon", context: "File", body: "keywords", inner: "Hecksagon", opens: "Hecksagon", fills: "", status: "admitted", was: "" },
     Keyword { word: "world", context: "File", body: "keywords", inner: "World", opens: "World", fills: "", status: "admitted", was: "" },
     Keyword { word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision", status: "admitted", was: "" },
+    Keyword { word: "formerly_known_as", context: "Bluebook", body: "none", inner: "", opens: "", fills: "formerly_known_as", status: "admitted", was: "" },
     Keyword { word: "core", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "" },
     Keyword { word: "supporting", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "" },
     Keyword { word: "generic", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "" },
@@ -289,6 +319,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "description", context: "Aggregate", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "" },
     Keyword { word: "provenance", context: "Aggregate", body: "none", inner: "", opens: "", fills: "provenance", status: "admitted", was: "" },
     Keyword { word: "identified_by", context: "Aggregate", body: "source", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "" },
+    Keyword { word: "identified_by", context: "Aggregate", body: "none", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "" },
     Keyword { word: "reference_to", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "has_many", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "has_one", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
@@ -302,10 +333,12 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "attribute", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "description", context: "Entity", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "" },
     Keyword { word: "identified_by", context: "Entity", body: "source", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "" },
+    Keyword { word: "identified_by", context: "Entity", body: "none", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "" },
     Keyword { word: "command", context: "Entity", body: "keywords", inner: "Command", opens: "Command", fills: "", status: "admitted", was: "" },
     Keyword { word: "query", context: "Entity", body: "keywords", inner: "Query", opens: "Query", fills: "", status: "admitted", was: "" },
     Keyword { word: "lifecycle", context: "Entity", body: "keywords", inner: "Lifecycle", opens: "", fills: "state_field", status: "admitted", was: "" },
     Keyword { word: "attribute", context: "Entity", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
+    Keyword { word: "reference_to", context: "Entity", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "role", context: "Command", body: "none", inner: "", opens: "", fills: "role", status: "admitted", was: "" },
     Keyword { word: "goal", context: "Command", body: "none", inner: "", opens: "", fills: "goal", status: "admitted", was: "" },
     Keyword { word: "provenance", context: "Command", body: "none", inner: "", opens: "", fills: "provenance", status: "admitted", was: "" },
@@ -330,6 +363,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "dispatch", context: "Handler", body: "none", inner: "", opens: "Dispatch", fills: "", status: "admitted", was: "" },
     Keyword { word: "description", context: "Query", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "" },
     Keyword { word: "attribute", context: "Query", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
+    Keyword { word: "reference_to", context: "Query", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "where", context: "Query", body: "none", inner: "", opens: "", fills: "wheres", status: "admitted", was: "" },
     Keyword { word: "order_by", context: "Query", body: "none", inner: "", opens: "", fills: "order_field", status: "admitted", was: "" },
     Keyword { word: "limit", context: "Query", body: "none", inner: "", opens: "", fills: "limit", status: "admitted", was: "" },
@@ -344,6 +378,7 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "description", context: "ReadModel", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "" },
     Keyword { word: "reference_to", context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target", status: "admitted", was: "" },
     Keyword { word: "include", context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads", status: "admitted", was: "" },
+    Keyword { word: "group_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", status: "admitted", was: "" },
     Keyword { word: "where", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "" },
     Keyword { word: "order_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "" },
     Keyword { word: "limit", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "" },
@@ -414,12 +449,16 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "bluebook", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "bluebook", context: "File", at: "", named: "version", kind: "text", required: "false", fills: "version", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "vision", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "vision", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "formerly_known_as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "aggregate", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "report", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "policy", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "process_manager", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "description", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "provenance", context: "Aggregate", at: "", named: "from", kind: "literal", required: "true", fills: "provenance", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "identified_by", context: "Aggregate", at: "1", named: "", kind: "symbol", required: "false", fills: "identified_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "identified_by", context: "Aggregate", at: "1", named: "", kind: "constant", required: "false", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "identified_by", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "reference_to", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "has_many", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
@@ -442,6 +481,9 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "attribute", context: "Aggregate", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "attribute", context: "Aggregate", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "description", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "identified_by", context: "Entity", at: "1", named: "", kind: "symbol", required: "false", fills: "identified_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "identified_by", context: "Entity", at: "1", named: "", kind: "constant", required: "false", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "identified_by", context: "Entity", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "command", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "query", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "lifecycle", context: "Entity", at: "1", named: "", kind: "symbol", required: "true", fills: "state_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
@@ -452,6 +494,8 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "attribute", context: "Entity", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "attribute", context: "Entity", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "attribute", context: "Entity", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "reference_to", context: "Entity", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "reference_to", context: "Entity", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "role", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "role", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "goal", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "goal", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "provenance", context: "Command", at: "", named: "from", kind: "literal", required: "true", fills: "provenance", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
@@ -501,6 +545,9 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "attribute", context: "Query", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "attribute", context: "Query", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "attribute", context: "Query", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "reference_to", context: "Query", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "reference_to", context: "Query", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
+    Argument { keyword: "reference_to", context: "Query", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "where", context: "Query", at: "1", named: "", kind: "pairs", required: "true", fills: "wheres", selects: "", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements", status: "admitted" },
     Argument { keyword: "order_by", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "order_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },
     Argument { keyword: "order_by", context: "Query", at: "2", named: "", kind: "symbol", required: "false", fills: "order_way", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted" },

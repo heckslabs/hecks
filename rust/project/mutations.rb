@@ -174,11 +174,16 @@ module RustProjection
     # IS a declared command attribute reads that argument directly, no
     # walk; a bare component that is NOT a declared attribute (`owner_id` —
     # "never a declared attribute," per `language/bluebook/behavior.bluebook`'s
-    # own comment) isn't in `args` at all — it's an addressing key allowed
-    # through `refuse_unknown_arguments`'s allowlist the same way `id:`
-    # already is, so the generated dispatch function takes it as its own
-    # extra parameter, the same shape an acting command's caller-supplied
-    # `id: &str` already has.
+    # own comment) isn't in the command's own typed `XArgs` struct at all —
+    # it's an addressing key allowed straight through `refuse_unknown_
+    # arguments`'s allowlist the same way `id:` already is, so it never
+    # became a struct field; the generated dispatch function instead takes
+    # it as its own extra parameter, the same shape an acting command's
+    # caller-supplied `id: &str` already has. `head:` (this branch only)
+    # is that same fact one level RAWER than `expr`/`param` — the bare
+    # JSON key `registry.rb`'s own router reads it off `args_json` under,
+    # once it stops merely declaring the parameter and starts actually
+    # supplying it.
     def identity_components(aggregate, command)
       aggregate[:identified_by].map do |path|
         head, *rest = path.split(".")
@@ -188,7 +193,7 @@ module RustProjection
           { expr: "args.#{rust_ident_field(head)}.to_string()", param: nil }
         else
           param = rust_ident_field(head)
-          { expr: param, param: "#{param}: &str" }
+          { expr: param, param: "#{param}: &str", head: head }
         end
       end
     end
@@ -201,15 +206,122 @@ module RustProjection
     end
 
     # One `append` field's value. An argument-sourced field runs through the
-    # same `value_rhs` bridge `:set` does ; a literal is built inline.
-    # `append_field_problems` already confirmed either direction bridges
-    # before this could be reached.
+    # same `value_rhs` bridge `:set` does; a literal is built inline —
+    # `append_field_source` (this file's own header) is the decode, the
+    # SAME one `append_field_problems` above already used to confirm either
+    # direction bridges before this could be reached. (Decoding through
+    # `Marks.read`/`Literal.read` rather than a raw `"{"`-prefix string
+    # check on `source` directly, because `source` here is the same
+    # wire-spelled value `append_field_problems` already decoded that way —
+    # `Marks.unmark` no longer exists post the Literal-pinning rework, one
+    # reader now, `Literal.read`, reached through `Marks.read`.)
+    #
+    # `arg_attr[:optional]` — `mark_append_optional_fields!` (below) has
+    # already run by the time this is reached, so `field_attr[:optional]`
+    # is ALREADY true whenever `arg_attr[:optional]` is (that is the one
+    # fact this whole file's own marking pass exists to guarantee) — the
+    # `Option<T>`-aware bridge below is therefore always reaching for the
+    # right target shape, never guessing. A caller-omittable argument's
+    # own Rust field is `Option<T>` (commands.rb's own Args-struct rule),
+    # so the ordinary `value_rhs` bridge — built to run against a bare
+    # `T`, the same assumption `mutation_set_rhs`'s sibling `:set` path
+    # gets to keep because ITS only optional+optional case is same-type,
+    # never cross-type — cannot run directly against it; `optional_value_
+    # rhs` runs that identical bridge against the value a `.map` closure
+    # unwraps instead.
     def append_field_rhs(source, field_attr, command, value_objects_by_name)
       parsed = append_field_source(source)
       return literal_hash_rhs(parsed, field_attr[:type], value_objects_by_name) unless parsed.is_a?(Symbol)
 
       arg_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
-      value_rhs("args.#{rust_ident_field(arg_attr[:name])}", arg_attr[:type], field_attr[:type], value_objects_by_name)
+      arg_expr = "args.#{rust_ident_field(arg_attr[:name])}"
+      if arg_attr[:optional]
+        # SAME REPRESENTATION on both sides (`SafeDepositBox::Visit.note`'s
+        # own case: VisitNote -> VisitNote, no real coercion at all) needs
+        # no per-element remap — `args.field` IS already the exact
+        # `Option<TargetType>` the struct field wants, the identical
+        # "just clone the Option itself" shortcut `mutation_set_rhs`'s
+        # `:set` sibling already takes for its one optional+optional case.
+        # Only a REAL cross-type coercion (`Field.default`'s own
+        # `LiteralText -> String` unwrap) needs `optional_value_rhs`'s
+        # own per-element `.map`.
+        same_representation = arg_attr[:type] == field_attr[:type] ||
+          (effective_scalar_type(arg_attr[:type]) && effective_scalar_type(arg_attr[:type]) == effective_scalar_type(field_attr[:type]))
+        return "#{arg_expr}.clone()" if same_representation
+
+        return optional_value_rhs(arg_expr, arg_attr[:type], field_attr[:type], value_objects_by_name)
+      end
+
+      rhs = value_rhs(arg_expr, arg_attr[:type], field_attr[:type], value_objects_by_name)
+      # A field `mark_append_optional_fields!` made `Option<T>` for a
+      # DIFFERENT command's own optional-sourced append (Field's own
+      # `default`, fed both by `Attribute`'s optional argument AND —
+      # nowhere in this corpus, but the shape is real — some sibling
+      # command's non-optional one) still needs `Some(...)` here: THIS
+      # source is required, but the STRUCT FIELD it lands in is optional
+      # regardless of which command is filling it this time.
+      field_attr[:optional] ? "Some(#{rhs})" : rhs
+    end
+
+    # THE OPTIONAL HALF of `value_rhs` — same bridge, run against `v`
+    # (whatever a `.map` closure unwraps an `Option<T>` argument's clone
+    # into) rather than against the raw `Option<T>` expression the
+    # ordinary bridge assumes it never has to see. Produces an
+    # `Option<TargetType>`, matching the field it feeds exactly — see
+    # `append_field_rhs`'s own header for why the field is guaranteed to
+    # already be that shape whenever this runs.
+    def optional_value_rhs(source_expr, source_type, target_type, value_objects_by_name)
+      "#{source_expr}.clone().map(|v| #{value_rhs('v', source_type, target_type, value_objects_by_name)})"
+    end
+
+    # THE STRUCT-LEVEL `Option<T>`-ness of an appended element's own
+    # field, derived from USAGE — the same move `list_attr_creation_
+    # optional?` already makes for a RECORD's own list field, generalised
+    # to a per-FIELD append target (an entity's or a plain value object's,
+    # `append_element`'s own either/or). Ruby's real `appended`
+    # (mutation_applier.rb) resolves a Symbol source straight off `args`;
+    # a caller-omitted `optional: true` argument reads there as a genuine
+    # `nil`, and `Value.build` (coercion.rb) stores it WITHOUT complaint —
+    # `language/bluebook/behavior.bluebook`'s own `Query.Option` says so
+    # directly ("AN OPTION MAY HAVE NO VALUE... a rule about the
+    # LANGUAGE, not about the one spec that noticed"). So one optional-
+    # sourced `then_set append` is reason enough to make the field's own
+    # Rust type `Option<T>` for EVERY command that reaches it.
+    #
+    # Mutated onto the SAME attribute hash every other emitter here
+    # already reads (`emit_value_object`/`emit_entity`'s own `attr
+    # [:optional]` struct-field wrap, `optional_source_mismatches`'s own
+    # skip check) — called once, before either of those run, so nothing
+    # downstream ever has to learn a second, parallel notion of
+    # "optional." Never turns a `true` back to `false` — a field the
+    # domain author already marked optional by hand (`SafeDepositBox::
+    # Visit.note`) needs no rederiving.
+    def mark_append_optional_fields!(aggregate, value_objects_by_name)
+      aggregate[:attributes].each do |target_attr|
+        element = append_element(aggregate, target_attr[:type], value_objects_by_name)
+        next unless element
+
+        aggregate[:commands].each do |command|
+          command[:mutations].each do |m|
+            next unless m[:op].to_s == "append" && m[:target].to_s == target_attr[:name].to_s
+
+            m[:fields].each do |field_name, source|
+              # The same `append_field_source` decode `append_field_rhs`
+              # itself uses — a Symbol back means an argument name (a
+              # caller-omittable one is what this pass is looking for);
+              # anything else IS a literal value, never optional.
+              parsed = append_field_source(source)
+              next unless parsed.is_a?(Symbol)
+
+              source_attr = command[:attributes].find { |a| a[:name].to_s == parsed.to_s }
+              next unless source_attr && source_attr[:optional]
+
+              field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
+              field_attr[:optional] = true if field_attr
+            end
+          end
+        end
+      end
     end
 
     # `optional:` — true for an aggregate RECORD (every non-list field is

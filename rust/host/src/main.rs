@@ -17,7 +17,9 @@
 
 mod auth;
 mod dispatch;
+mod field_hints;
 mod journal;
+mod lambda_client;
 mod wasm_runner;
 mod web;
 
@@ -137,22 +139,37 @@ async fn main() -> Result<(), Error> {
         .map_err(|e| format!("HECKS_ERA must be an integer era ordinal: {e}"))?;
 
     // THE BOOT GATE -- refuses to start rather than write into tables
-    // that may not exist. rust/host never provisions hecks_eras, the
-    // journal partition, or the head-snapshot tables itself; that's
-    // Ruby's LineageManager alone (mint_era!/hold_first!). A missing
-    // row here means either this domain/era was never minted, or the
-    // ordinal is simply wrong -- either way, a clear refusal beats a
-    // raw "relation does not exist" the first time a command lands.
-    if !journal::era_exists(&client, &domain, era)
+    // that may not exist, OR against a shape Ruby's own lineage RLS
+    // fence no longer recognizes as current. rust/host never provisions
+    // hecks_eras, the journal partition, or the head-snapshot tables
+    // itself; that's Ruby's LineageManager alone (mint_era!/hold_first!).
+    // Two distinct refusals, not one merged "bad era" message, because
+    // an operator needs to know which fix applies: mint the domain (if
+    // it's never been minted at all), or redeploy with the era mint_era!
+    // already advanced to (if this checkout is simply stale) -- see
+    // journal::current_era's own header for why a bare existence check
+    // used to let the second case through silently.
+    match journal::current_era(&client, &domain)
         .await
-        .map_err(|e| format!("checking hecks_eras for {domain} era {era}: {e:#}"))?
+        .map_err(|e| format!("checking hecks_eras for {domain}: {e:#}"))?
     {
-        return Err(format!(
-            "cannot boot: {domain} holds no era {era} in hecks_eras -- \
-             this domain/era must already be minted by Ruby's own LineageManager \
-             (hold_first!/mint_era!) before rust/host can write into it"
-        )
-        .into());
+        None => {
+            return Err(format!(
+                "cannot boot: {domain} holds no era at all in hecks_eras -- \
+                 this domain must already be minted by Ruby's own LineageManager \
+                 (hold_first!) before rust/host can write into it"
+            )
+            .into());
+        }
+        Some(current) if current != era => {
+            return Err(format!(
+                "cannot boot: {domain} is configured for era {era}, but its current \
+                 era is {current} -- this checkout is stale (superseded by a later \
+                 mint_era!) and must be redeployed with HECKS_ERA={current}"
+            )
+            .into());
+        }
+        Some(_) => {}
     }
     let lineage_config = Arc::new(journal::LineageConfig { domain, era });
 
@@ -162,11 +179,21 @@ async fn main() -> Result<(), Error> {
     // See dispatch.rs's own comment for what that guards against.
     let client = Arc::new(Mutex::new(client));
     let wasm_path = Arc::new(wasm_path);
+    // ONE `AwsLambdaInvoker` for this process's whole lifetime, same
+    // reasoning as `client`/`wasm_path` above — `aws_config::load_defaults`
+    // resolves credentials/region once at boot (an IAM role's own
+    // environment, inside a deployed Lambda), not per invocation.
+    // `lambda_client.rs`'s own header has the full story on what this is
+    // for: delivering a cross-domain policy reaction the compiled `.wasm`
+    // module could only MATCH, never dispatch (no network inside that
+    // sandbox, structurally).
+    let invoker = Arc::new(lambda_client::AwsLambdaInvoker::from_env().await);
 
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {
         let client = Arc::clone(&client);
         let wasm_path = Arc::clone(&wasm_path);
         let lineage_config = Arc::clone(&lineage_config);
+        let invoker = Arc::clone(&invoker);
         async move {
             let (body, _context) = event.into_parts();
 
@@ -175,7 +202,7 @@ async fn main() -> Result<(), Error> {
             // second Lambda. `None` for anything else (the internal
             // {"read"}/{"verb"} shapes below), so this changes nothing
             // for a domain with no HECKS_IR_PATH configured.
-            if let Some(response) = web::render(&body, &client, &wasm_path, &lineage_config).await {
+            if let Some(response) = web::render(&body, &client, &wasm_path, &lineage_config, invoker.as_ref()).await {
                 return Ok::<serde_json::Value, Error>(response);
             }
 
@@ -193,8 +220,29 @@ async fn main() -> Result<(), Error> {
                 .get("args")
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({}));
+            // `"role"` -- OPTIONAL, mirroring `args` immediately above:
+            // `Adapters::Lambda::Client#dispatch` (Ruby) only puts this
+            // key on the wire when a caller is actually bound
+            // (`payload["role"] = role if role`), so an absent key here
+            // means exactly what it always has -- no caller asserted a
+            // role, and `dispatch::handle`'s own `check_role` stays on
+            // its unchecked path, unchanged. THIS is the fix for a real
+            // wiring gap, not new behavior: `check_role`
+            // (kernel/repository.rs) and `cli.rs`'s own
+            // `step.get("role")` were both already correct and already
+            // exercised (the cross-Lambda-policy-dispatch work reused
+            // this same mechanism successfully) -- but nothing on this
+            // side of the wire ever read an incoming event's `"role"`
+            // field at all, so every real Lambda invocation reached
+            // `check_role` with `caller_role: None` regardless of what
+            // Ruby's client actually sent, and role-based authorization
+            // was silently unreachable in production.
+            let role = body
+                .get("role")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
 
-            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, &lineage_config).await?;
+            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, role.as_deref(), &lineage_config, invoker.as_ref()).await?;
             Ok::<serde_json::Value, Error>(outcome.result)
         }
     }))

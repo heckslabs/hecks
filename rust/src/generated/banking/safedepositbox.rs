@@ -25,7 +25,16 @@ impl BranchCode {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("BranchCode violates its invariant: a branch is coded".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "BranchCode"),
+            ("description", "a branch is coded"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -70,7 +79,16 @@ impl BoxNumber {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("value")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("BoxNumber violates its invariant: a box is numbered from one".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "BoxNumber"),
+            ("description", "a box is numbered from one"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -115,7 +133,16 @@ impl VisitSequence {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("value")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("VisitSequence violates its invariant: a visit sequence is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "VisitSequence"),
+            ("description", "a visit sequence is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -160,7 +187,16 @@ impl VisitDate {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("VisitDate violates its invariant: a visit names its date".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "VisitDate"),
+            ("description", "a visit names its date"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -245,7 +281,16 @@ impl KeySerial {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("KeySerial violates its invariant: a key is serialed".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "KeySerial"),
+            ("description", "a key is serialed"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -292,7 +337,11 @@ impl Size {
             "small" => Ok(Size::Small),
             "medium" => Ok(Size::Medium),
             "large" => Ok(Size::Large),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Size: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Size"),
+                ("admitted", "\"small\", \"medium\", \"large\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -358,6 +407,17 @@ impl Visit {
 }
 
 impl Visit {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            let c0 = v.dig("date.value")?.to_id_component().ok()?;
+            let c1 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(vec![c0, c1].join(", "))
+        })()
+        .unwrap_or_default()
+    }
+}
+
+impl Visit {
     pub fn identity(&self) -> String {
         vec![self.date.value.to_string(), self.sequence.value.to_string()].join(":")
     }
@@ -407,7 +467,7 @@ impl VisitAnnotateArgs {
 
 
 pub fn dispatch_entity_visit_annotate(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, args: VisitAnnotateArgs,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: VisitAnnotateArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.date.check_invariants()?;
@@ -422,6 +482,11 @@ pub fn dispatch_entity_visit_annotate(
         |el: &Visit| el.identity() == element_id,
         "Visit.Annotate",
         "Banking::SafeDepositBox",
+        "SafeDepositBox",
+        "branch_code.value, box_number.value",
+        "Visit",
+        "date.value, sequence.value",
+        element_wants,
         &args,
         &[
 
@@ -493,6 +558,16 @@ impl KeyIssuance {
 }
 
 impl KeyIssuance {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            let c0 = v.dig("serial.value")?.to_id_component().ok()?;
+            Some(c0)
+        })()
+        .unwrap_or_default()
+    }
+}
+
+impl KeyIssuance {
     pub fn identity(&self) -> String {
         self.serial.value.to_string()
     }
@@ -534,7 +609,7 @@ impl KeyIssuanceReturnArgs {
 
 
 pub fn dispatch_entity_keyissuance_return(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, args: KeyIssuanceReturnArgs,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: KeyIssuanceReturnArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
@@ -547,6 +622,11 @@ pub fn dispatch_entity_keyissuance_return(
         |el: &KeyIssuance| el.identity() == element_id,
         "KeyIssuance.Return",
         "Banking::SafeDepositBox",
+        "SafeDepositBox",
+        "branch_code.value, box_number.value",
+        "KeyIssuance",
+        "serial.value",
+        element_wants,
         &args,
         &[
             crate::kernel::GivenSpec { description: "only an issued key is returned", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) } },
@@ -685,6 +765,8 @@ pub fn dispatch_rent(
     },
         "Rent",
         "Banking::SafeDepositBox",
+        "SafeDepositBox",
+        "branch_code.value, box_number.value",
         &args,
         &[
 
@@ -759,6 +841,8 @@ pub fn dispatch_surrender(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Surrender",
         "Banking::SafeDepositBox",
+        "SafeDepositBox",
+        "branch_code.value, box_number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "only a rented box is surrendered", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
@@ -833,6 +917,8 @@ pub fn dispatch_log_visit(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "LogVisit",
         "Banking::SafeDepositBox",
+        "SafeDepositBox",
+        "branch_code.value, box_number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "only a rented box is opened", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
@@ -905,6 +991,8 @@ pub fn dispatch_issue_key(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "IssueKey",
         "Banking::SafeDepositBox",
+        "SafeDepositBox",
+        "branch_code.value, box_number.value",
         &args,
         &[
 

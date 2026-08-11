@@ -409,11 +409,22 @@ Hecks.bluebook "Bluebook" do
         member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
         member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
         # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
-        # three words, same builder module, different landing — `ReadModel#to_h`
-        # omits wheres/order_by/limit, so they have
-        # never been in the IR contract and the language holds them
-        # as option rows instead (Readings#option_rows, `filters: true`). The
-        # `fills` column is where that stops being a comment in one file.
+        # three words, same builder module, different landing — `fills:
+        # "options"` here, `fills: "field"`/`"direction"`/`"value"` etc. on
+        # `Query`'s own rows above. Until 2026-08-11, `ReadModel#to_h` omitted
+        # wheres/order_by/limit entirely, so the language held them ONLY as
+        # option rows (Readings#option_rows, `filters: true`) — never in the
+        # IR contract at all. `ReadModel#to_h` now spells all three
+        # explicitly, the same mechanism `Query#to_h` already used (purely
+        # additive — `extra_options_to_h` still excludes them by name, so
+        # `option_rows`'s own reconstruction path, which reads `wheres`/
+        # `order_by`/`limit` straight off the live node rather than off
+        # `to_h`, is untouched). The `fills` column is still where the
+        # landing difference stops being a comment in one file — a read
+        # model's `where`/`order_by`/`limit` land on `options` here because
+        # `ReadModelBuilder` collects them there before `seal_query_options`
+        # narrows them to the one eligible many-side head; they are visible
+        # on the wire now too.
         member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
         member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
         member word: "limit",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
