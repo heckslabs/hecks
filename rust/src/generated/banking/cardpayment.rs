@@ -65,7 +65,16 @@ impl PaymentAmount {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("cents")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PaymentAmount violates its invariant: a payment amount is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PaymentAmount"),
+            ("description", "a payment amount is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -110,7 +119,16 @@ impl MerchantName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("MerchantName violates its invariant: a merchant name is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "MerchantName"),
+            ("description", "a merchant name is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -155,7 +173,16 @@ impl Tag {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Tag violates its invariant: a tag is not the empty string".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Tag"),
+            ("description", "a tag is not the empty string"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -303,6 +330,8 @@ pub fn dispatch_authorize(
     },
         "Authorize",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -380,6 +409,8 @@ pub fn dispatch_capture(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Capture",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -447,6 +478,8 @@ pub fn dispatch_void(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Void",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -514,6 +547,8 @@ pub fn dispatch_refund(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Refund",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -581,6 +616,8 @@ pub fn dispatch_reverse(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reverse",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -649,6 +686,8 @@ pub fn dispatch_dispute(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Dispute",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -717,6 +756,8 @@ pub fn dispatch_chargeback(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Chargeback",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 
@@ -784,6 +825,8 @@ pub fn dispatch_reject_dispute(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "RejectDispute",
         "Banking::CardPayment",
+        "CardPayment",
+        "authorisation.value",
         &args,
         &[
 

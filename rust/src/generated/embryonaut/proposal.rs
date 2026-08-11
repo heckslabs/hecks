@@ -518,6 +518,8 @@ pub fn dispatch_draft(
     },
         "Draft",
         "Embryonaut::Proposal",
+        "Proposal",
+        "number.value",
         &args,
         &[
 
@@ -607,6 +609,8 @@ pub fn dispatch_send(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Send",
         "Embryonaut::Proposal",
+        "Proposal",
+        "number.value",
         &args,
         &[
 
@@ -674,6 +678,8 @@ pub fn dispatch_accept(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Accept",
         "Embryonaut::Proposal",
+        "Proposal",
+        "number.value",
         &args,
         &[
 
@@ -741,6 +747,8 @@ pub fn dispatch_decline(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Decline",
         "Embryonaut::Proposal",
+        "Proposal",
+        "number.value",
         &args,
         &[
 
@@ -808,6 +816,8 @@ pub fn dispatch_expire(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Expire",
         "Embryonaut::Proposal",
+        "Proposal",
+        "number.value",
         &args,
         &[
 

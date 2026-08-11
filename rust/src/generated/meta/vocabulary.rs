@@ -25,7 +25,16 @@ impl VocabularyName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("VocabularyName violates its invariant: a vocabulary is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "VocabularyName"),
+            ("description", "a vocabulary is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -177,7 +186,11 @@ impl ToStringType {
             "TrueClass" => Ok(ToStringType::Trueclass),
             "FalseClass" => Ok(ToStringType::Falseclass),
             "NilClass" => Ok(ToStringType::Nilclass),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("ToStringType: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "ToStringType"),
+                ("admitted", "\"String\", \"Integer\", \"Float\", \"TrueClass\", \"FalseClass\", \"NilClass\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -206,7 +219,11 @@ impl SizedType {
             "Array" => Ok(SizedType::Array),
             "String" => Ok(SizedType::String),
             "Hash" => Ok(SizedType::Hash),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("SizedType: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "SizedType"),
+                ("admitted", "\"Array\", \"String\", \"Hash\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -241,7 +258,11 @@ impl Primitive {
             "Float" => Ok(Primitive::Float),
             "TrueClass" => Ok(Primitive::Trueclass),
             "FalseClass" => Ok(Primitive::Falseclass),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Primitive: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Primitive"),
+                ("admitted", "\"String\", \"Integer\", \"Float\", \"TrueClass\", \"FalseClass\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -267,7 +288,11 @@ impl NormalisationStrategy {
         match raw {
             "collapse_whitespace" => Ok(NormalisationStrategy::CollapseWhitespace),
             "replace" => Ok(NormalisationStrategy::Replace),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("NormalisationStrategy: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "NormalisationStrategy"),
+                ("admitted", "\"collapse_whitespace\", \"replace\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -342,7 +367,11 @@ impl QueryComparator {
             "lte" => Ok(QueryComparator::Lte),
             "in" => Ok(QueryComparator::In),
             "contains" => Ok(QueryComparator::Contains),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("QueryComparator: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "QueryComparator"),
+                ("admitted", "\"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -380,7 +409,11 @@ impl LoadOrder {
             "translations/*.bluebook" => Ok(LoadOrder::TranslationsBluebook),
             "*.hecksagon" => Ok(LoadOrder::Hecksagon),
             "*.world" => Ok(LoadOrder::World),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("LoadOrder: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "LoadOrder"),
+                ("admitted", "\"*.port\", \"*.adapter\", \"*.bluebook\", \"translations/*.bluebook\", \"*.hecksagon\", \"*.world\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -442,7 +475,11 @@ impl AggregateDispatchOrder {
             "enforce_ensures" => Ok(AggregateDispatchOrder::EnforceEnsures),
             "save" => Ok(AggregateDispatchOrder::Save),
             "emit" => Ok(AggregateDispatchOrder::Emit),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("AggregateDispatchOrder: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "AggregateDispatchOrder"),
+                ("admitted", "\"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate\", \"enforce_givens\", \"admissible_transition\", \"assign_creation_attributes\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"save\", \"emit\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -498,7 +535,11 @@ impl EntityDispatchOrder {
             "enforce_ensures" => Ok(EntityDispatchOrder::EnforceEnsures),
             "save" => Ok(EntityDispatchOrder::Save),
             "emit" => Ok(EntityDispatchOrder::Emit),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("EntityDispatchOrder: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "EntityDispatchOrder"),
+                ("admitted", "\"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"save\", \"emit\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -554,7 +595,11 @@ impl DomainRefusal {
             "Unauthorized" => Ok(DomainRefusal::Unauthorized),
             "UnknownArgument" => Ok(DomainRefusal::Unknownargument),
             "UnknownVerb" => Ok(DomainRefusal::Unknownverb),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("DomainRefusal: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "DomainRefusal"),
+                ("admitted", "\"AbsentArgument\", \"AlreadyExists\", \"EnsuresNotMet\", \"GivenNotMet\", \"InvariantViolation\", \"LifecycleRefused\", \"NotFound\", \"RemoteRefusal\", \"TypeMismatch\", \"Unauthorized\", \"UnknownArgument\", \"UnknownVerb\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -601,6 +646,7 @@ pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "UnknownArgument", site: "unknown_args", template: "{command} does not declare {unknown} — it takes {declared}" },
     RefusalTemplate { refusal: "AbsentArgument", site: "absent_args", template: "{command} was not given {absent} — it takes {declared}" },
     RefusalTemplate { refusal: "InvariantViolation", site: "closed_set_member", template: "{type} admits {admitted} — got {offered}" },
+    RefusalTemplate { refusal: "InvariantViolation", site: "value_object_invariant", template: "{name} invariant violated — {description} (given {offered})" },
     RefusalTemplate { refusal: "InvariantViolation", site: "admits_declared_set", template: "{name} admits {admits} — {admitted} — got {offered}" },
     RefusalTemplate { refusal: "InvariantViolation", site: "undeclared_set", template: "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds" },
     RefusalTemplate { refusal: "Unauthorized", site: "tenant_required", template: "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to" },
@@ -644,7 +690,11 @@ impl Trigger {
             .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Trigger.name: expected string".to_string()))?;
         match raw {
             "refused" => Ok(Trigger::Refused),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Trigger: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Trigger"),
+                ("admitted", "\"refused\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }

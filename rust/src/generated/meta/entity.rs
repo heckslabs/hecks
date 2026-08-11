@@ -25,7 +25,16 @@ impl EntityName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("EntityName violates its invariant: an entity is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "EntityName"),
+            ("description", "an entity is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -421,6 +430,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -497,6 +508,8 @@ pub fn dispatch_identify(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Identify",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an identity part reaches a scalar", expr: Expr::Or(Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str(".".to_string())) }), Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str("_id".to_string())) })) },
@@ -564,6 +577,8 @@ pub fn dispatch_seal(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Seal",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an entity says what it is known by", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("identified_by"))))) },
@@ -650,6 +665,8 @@ pub fn dispatch_attribute(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Attribute",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -733,6 +750,8 @@ pub fn dispatch_lifecycle(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Lifecycle",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -810,6 +829,8 @@ pub fn dispatch_transition(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Transition",
         "Bluebook::Entity",
+        "Entity",
+        "aggregate_id, name.value",
         &args,
         &[
 

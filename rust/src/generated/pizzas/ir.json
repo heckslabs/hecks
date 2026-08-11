@@ -70,9 +70,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Price",
@@ -94,9 +92,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CustomerName",
@@ -118,9 +114,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ToppingName",
@@ -142,9 +136,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ToppingAmount",
@@ -166,9 +158,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Topping",
@@ -192,13 +182,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Size",
@@ -213,9 +199,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -254,13 +238,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -289,15 +269,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "PizzaCreated"
           ],
@@ -338,9 +312,7 @@
               "canonical": "toppings.size < 10"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "toppings",
@@ -395,9 +367,7 @@
               "canonical": "amount.cents.positive?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "customer_name",
@@ -433,16 +403,12 @@
           }
         ]
       },
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Available",
           "description": null,
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "status",
@@ -486,9 +452,7 @@
         {
           "name": "Expensive",
           "description": null,
-          "attributes": [
-
-          ],
+          "attributes": [],
           "wheres": [
             {
               "field": "pizza.price_cents.cents",
@@ -548,9 +512,7 @@
       "provenance": null
     }
   ],
-  "read_models": [
-
-  ],
+  "read_models": [],
   "policies": [
     {
       "name": "OnPizzaPaymentReceived",
@@ -559,9 +521,7 @@
       "target_domain": null
     }
   ],
-  "process_managers": [
-
-  ],
+  "process_managers": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

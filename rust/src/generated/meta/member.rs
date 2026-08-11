@@ -232,6 +232,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Member",
+        "Member",
+        "value_object_id, position.value",
         &args,
         &[
 
@@ -307,6 +309,8 @@ pub fn dispatch_pair(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Pair",
         "Bluebook::Member",
+        "Member",
+        "value_object_id, position.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an admitted row binds a named field", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("key.value"))))))) },

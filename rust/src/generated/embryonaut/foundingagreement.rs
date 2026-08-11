@@ -327,6 +327,8 @@ pub fn dispatch_draft(
     },
         "Draft",
         "Embryonaut::FoundingAgreement",
+        "FoundingAgreement",
+        "reference.value",
         &args,
         &[
 
@@ -403,6 +405,8 @@ pub fn dispatch_circulate(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Circulate",
         "Embryonaut::FoundingAgreement",
+        "FoundingAgreement",
+        "reference.value",
         &args,
         &[
 
@@ -471,6 +475,8 @@ pub fn dispatch_execute(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Execute",
         "Embryonaut::FoundingAgreement",
+        "FoundingAgreement",
+        "reference.value",
         &args,
         &[
 

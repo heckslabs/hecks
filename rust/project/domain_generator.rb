@@ -235,6 +235,8 @@ module RustProjection
             if entity_can_route
               f.puts Projector.emit_extract_id(entity)
               f.puts
+              f.puts Projector.emit_extract_wants(entity)
+              f.puts
               f.puts Projector.emit_self_identity(entity)
               f.puts
             else
@@ -284,6 +286,14 @@ module RustProjection
                 args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}Args",
                 reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
                 role: command[:role],
+                # `entity_element_missing`'s own `{entity}`/`{identity}` —
+                # codegen-time-static off the ENTITY's own declared name/
+                # `identified_by`, threaded through registry.rb's own
+                # dispatch call the same way the PARENT aggregate's
+                # `a[:name]`/`a[:identified_by]` already reach it (that hash
+                # is the full aggregate IR node, no new field needed there).
+                entity_name: entity[:name],
+                entity_identity_reading: entity[:identified_by].join(", "),
               }
             end
           end

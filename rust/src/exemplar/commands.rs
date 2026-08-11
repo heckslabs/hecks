@@ -89,6 +89,8 @@ tmpl_invariant_check_placeholder()?;
         tmpl_hydrate_placeholder(),
         "TmplCmdName",
         "TmplQualifiedName",
+        "TmplAggregateName",
+        "TmplIdentityReading",
         &args,
         &[
 tmpl_given_spec_placeholder(),
@@ -138,7 +140,7 @@ fn tmpl_entity_mutation_lines_placeholder(record: &mut TmplElement) {}
 
 // TMPL:entity_dispatch_fn BEGIN
 pub fn dispatch_entity_tmpl(
-    repo: &mut impl crate::kernel::Repository<TmplRecord>, parent_id: &str, element_id: &str, args: TmplArgs,
+    repo: &mut impl crate::kernel::Repository<TmplRecord>, parent_id: &str, element_id: &str, element_wants: &str, args: TmplArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
@@ -151,6 +153,11 @@ tmpl_invariant_check_placeholder()?;
         |el: &TmplElement| el.identity() == element_id,
         "TmplQualifiedCommandName",
         "TmplQualifiedName",
+        "TmplAggregateName",
+        "TmplParentIdentityReading",
+        "TmplEntityName",
+        "TmplEntityIdentityReading",
+        element_wants,
         &args,
         &[
 tmpl_given_spec_placeholder(),

@@ -25,7 +25,16 @@ impl OnboardingReference {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("OnboardingReference violates its invariant: an onboarding case is referenced".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "OnboardingReference"),
+            ("description", "an onboarding case is referenced"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -70,7 +79,16 @@ impl AccountNumber {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("AccountNumber violates its invariant: an account number is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "AccountNumber"),
+            ("description", "an account number is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -197,6 +215,8 @@ pub fn dispatch_open(
     },
         "Open",
         "Banking::OnboardingCase",
+        "OnboardingCase",
+        "reference.value",
         &args,
         &[
 
@@ -269,6 +289,8 @@ pub fn dispatch_clear(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Clear",
         "Banking::OnboardingCase",
+        "OnboardingCase",
+        "reference.value",
         &args,
         &[
 
@@ -336,6 +358,8 @@ pub fn dispatch_decline(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Decline",
         "Banking::OnboardingCase",
+        "OnboardingCase",
+        "reference.value",
         &args,
         &[
 

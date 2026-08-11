@@ -217,6 +217,19 @@ module RustProjection
       identity = identity_components(aggregate, command)
       identity_extra_params = identity.filter_map { |c| c[:param] }
 
+      # `aggregate_name`/`identity_reading` — the bare (never domain-
+      # qualified) name `CommandInterpreter#hydrate`'s own refusal wording
+      # quotes, and its declared identity reading (`Identity.reading`,
+      # identity.rb: `construct.identity_paths.join(", ")`) — the SAME
+      # join `domain_generator.rb`'s own `reference_checks` already
+      # computes for `reference_target_missing`'s `heads`. Needed by BOTH
+      # `creating_duplicate` and `record_missing` inside `kernel::dispatch`
+      # regardless of whether THIS command creates or acts, so this is
+      # computed once here rather than duplicated in the `if creates`
+      # branch below.
+      aggregate_name    = aggregate[:name].to_s
+      identity_reading  = aggregate[:identified_by].join(", ")
+
       # `struct_field` reused directly (not the whole `plain_struct`
       # wrapper, types.rb) — an Args struct's own surrounding derive is
       # `#[derive(Debug, Clone)]`, no `PartialEq` (never compared),
@@ -325,6 +338,8 @@ module RustProjection
         "tmpl_hydrate_placeholder()" => hydrate,
         '"TmplCmdName"' => cmd.inspect,
         '"TmplQualifiedName"' => "#{domain_name}::#{aggregate[:name]}".inspect,
+        '"TmplAggregateName"' => aggregate_name.inspect,
+        '"TmplIdentityReading"' => identity_reading.inspect,
         "tmpl_given_spec_placeholder()," => given_specs.join("\n"),
         "tmpl_transition_placeholder()" => transition_arg,
         "tmpl_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),
@@ -370,6 +385,16 @@ module RustProjection
       parent_record  = rust_ident(parent_aggregate[:name])
       element_record = rust_ident(entity[:name])
       cmd = rust_ident(command[:name])
+
+      # `record_missing` (the parent lookup) and `entity_element_missing`
+      # (the element lookup) each need their OWN bare name/identity
+      # reading — the parent aggregate's and the entity's are almost never
+      # the same text (`SafeDepositBox` vs `Visit`), so both pairs are
+      # computed here rather than reusing `emit_command`'s single pair.
+      aggregate_name           = parent_aggregate[:name].to_s
+      parent_identity_reading  = parent_aggregate[:identified_by].join(", ")
+      entity_name              = entity[:name].to_s
+      entity_identity_reading  = entity[:identified_by].join(", ")
 
       # THE PARENT'S LIST ATTRIBUTE HOLDING THIS ENTITY — found the exact
       # way `element_of` finds it at Ruby's own runtime (`a.list? &&
@@ -428,6 +453,10 @@ module RustProjection
         "TmplElement" => element_record,
         '"TmplQualifiedCommandName"' => qualified_command_name.inspect,
         '"TmplQualifiedName"' => "#{domain_name}::#{parent_aggregate[:name]}".inspect,
+        '"TmplAggregateName"' => aggregate_name.inspect,
+        '"TmplParentIdentityReading"' => parent_identity_reading.inspect,
+        '"TmplEntityName"' => entity_name.inspect,
+        '"TmplEntityIdentityReading"' => entity_identity_reading.inspect,
         "tmpl_given_spec_placeholder()," => given_specs.join("\n"),
         "tmpl_transition_placeholder()" => transition_arg,
         "tmpl_entity_mutation_lines_placeholder(record);" => mutation_lines.join("\n"),

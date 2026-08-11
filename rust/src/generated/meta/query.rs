@@ -25,7 +25,16 @@ impl QueryName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("QueryName violates its invariant: a query is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "QueryName"),
+            ("description", "a query is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -446,6 +455,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Query",
+        "Query",
+        "owner_id, name.value",
         &args,
         &[
 
@@ -535,6 +546,8 @@ pub fn dispatch_filter(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Filter",
         "Bluebook::Query",
+        "Query",
+        "owner_id, name.value",
         &args,
         &[
 
@@ -616,6 +629,8 @@ pub fn dispatch_option(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Option",
         "Bluebook::Query",
+        "Query",
+        "owner_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
@@ -708,6 +723,8 @@ pub fn dispatch_argument(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Argument",
         "Bluebook::Query",
+        "Query",
+        "owner_id, name.value",
         &args,
         &[
 

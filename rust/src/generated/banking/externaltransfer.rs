@@ -105,7 +105,16 @@ impl ExternalAmount {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("cents")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ExternalAmount violates its invariant: an external transfer amount is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ExternalAmount"),
+            ("description", "an external transfer amount is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -150,7 +159,16 @@ impl BeneficiaryName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("BeneficiaryName violates its invariant: a beneficiary name is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "BeneficiaryName"),
+            ("description", "a beneficiary name is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -294,6 +312,8 @@ pub fn dispatch_request(
     },
         "Request",
         "Banking::ExternalTransfer",
+        "ExternalTransfer",
+        "end_to_end.value",
         &args,
         &[
 
@@ -371,6 +391,8 @@ pub fn dispatch_send(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Send",
         "Banking::ExternalTransfer",
+        "ExternalTransfer",
+        "end_to_end.value",
         &args,
         &[
 
@@ -438,6 +460,8 @@ pub fn dispatch_recall(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Recall",
         "Banking::ExternalTransfer",
+        "ExternalTransfer",
+        "end_to_end.value",
         &args,
         &[
 
@@ -505,6 +529,8 @@ pub fn dispatch_return(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Return",
         "Banking::ExternalTransfer",
+        "ExternalTransfer",
+        "end_to_end.value",
         &args,
         &[
 

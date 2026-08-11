@@ -238,6 +238,8 @@ pub fn dispatch_add_prospect(
     },
         "AddProspect",
         "Embryonaut::Client",
+        "Client",
+        "reference.value",
         &args,
         &[
 
@@ -311,6 +313,8 @@ pub fn dispatch_engage(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Engage",
         "Embryonaut::Client",
+        "Client",
+        "reference.value",
         &args,
         &[
 
@@ -378,6 +382,8 @@ pub fn dispatch_pause(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Pause",
         "Embryonaut::Client",
+        "Client",
+        "reference.value",
         &args,
         &[
 
@@ -445,6 +451,8 @@ pub fn dispatch_reactivate(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reactivate",
         "Embryonaut::Client",
+        "Client",
+        "reference.value",
         &args,
         &[
 
@@ -512,6 +520,8 @@ pub fn dispatch_churn(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Churn",
         "Embryonaut::Client",
+        "Client",
+        "reference.value",
         &args,
         &[
 
