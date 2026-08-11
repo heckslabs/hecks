@@ -209,6 +209,29 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "block-taking all?/any?/none?" do
+    it "aggregates a per-element predicate over a split array" do
+      four_real_segments = "dispatch::lexicon::query::command_bus"
+      one_empty_segment  = "dispatch::::query::command_bus"
+
+      expect(evaluate('value.split("::").all? { |s| s.length > 0 }', value: four_real_segments)).to be(true)
+      expect(evaluate('value.split("::").all? { |s| s.length > 0 }', value: one_empty_segment)).to be(false)
+    end
+
+    it "does not let the block predicate's own comparison operator split the whole expression, the storehouse-kernel Phrase invariant" do
+      expression = 'value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 }'
+
+      expect(evaluate(expression, value: "dispatch::lexicon::query::command_bus")).to be(true)
+      expect(evaluate(expression, value: "dispatch::lexicon::query")).to be(false)
+      expect(evaluate(expression, value: "dispatch::::query::command_bus")).to be(false)
+    end
+
+    it "raises when the receiver is not a list" do
+      expect { evaluate('value.all? { |s| s.length > 0 }', value: "oops") }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
+    end
+  end
+
   describe "match?/present?/blank?" do
     it "matches a receiver against a regex literal, the storehouse-kernel format-validation shape" do
       expect(evaluate('value.match?(/\A\d{5}\z/)', value: "94103")).to be(true)
