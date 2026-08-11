@@ -179,6 +179,20 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "match?/present?/blank?" do
+    it "matches a receiver against a regex literal, the storehouse-kernel format-validation shape" do
+      expect(evaluate('value.match?(/\A\d{5}\z/)', value: "94103")).to be(true)
+      expect(evaluate('value.match?(/\A\d{5}\z/)', value: "not-a-zip")).to be(false)
+    end
+
+    it "treats present?/blank? by Rails-standard emptiness, not bare nil?" do
+      expect(evaluate("value.present?", value: "x")).to be(true)
+      expect(evaluate("value.present?", value: "")).to be(false)
+      expect(evaluate("value.blank?", value: "")).to be(true)
+      expect(evaluate("value.blank?", value: nil)).to be(true)
+    end
+  end
+
   describe "agreeing with Ruby itself" do
     def agrees?(expression, bindings)
       mine = begin
