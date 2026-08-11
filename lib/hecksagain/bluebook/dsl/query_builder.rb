@@ -45,13 +45,45 @@ module Hecksagain
           )
         end
 
-        def self.build(name, &block)
+        def self.build(name, owner_attributes: [], &block)
           builder = new(name)
           builder.instance_eval(&block) if block
+          # `send`, not a public call — this isn't a bluebook DSL word (no
+          # author ever writes `derive_from_owner!` inside a query block),
+          # just internal wiring between this class method and the instance
+          # it just built. Kept private below so syntax_conformance_spec's
+          # own "every word QueryBuilder answers is declared" check doesn't
+          # mistake it for one.
+          builder.send(:derive_from_owner!, owner_attributes, block) if block
           builder.build
         end
 
         private
+
+        # A block parameter names one of the OWNER's (the aggregate or entity
+        # this query is declared on) own already-declared attributes —
+        # `query "ForDecision" do |decision| where decision: :decision end`
+        # on Submission, whose own `attribute :decision, DecisionRef` already
+        # says what `decision` is. Restating `attribute :decision, DecisionRef`
+        # a second time inside the query was pure duplication; this derives
+        # the same type from the owner instead. Only fills in a name the block
+        # body did NOT already declare explicitly (checked AFTER instance_eval
+        # runs, so an existing bluebook still spelling it out both ways keeps
+        # working unchanged — this only removes the need to, never refuses
+        # the choice to). A block parameter matching nothing on the owner is
+        # left alone; MetaValidator's own unresolved-attribute check names it,
+        # the same way a typo in a hand-written `attribute` call already does.
+        def derive_from_owner!(owner_attributes, block)
+          block.parameters.each do |kind, param_name|
+            next unless %i[req opt].include?(kind)
+            next if attributes.any? { |a| a.name == param_name }
+
+            owner_attr = owner_attributes.find { |a| a.name == param_name }
+            next unless owner_attr
+
+            attribute(param_name, owner_attr.type, optional: owner_attr.optional?)
+          end
+        end
 
         # `cursor` parses, round-trips through the IR, and is read by nothing —
         # no interpreter (Memory, Sqlite, Postgres) ever applies it. Refusing

@@ -43,7 +43,7 @@ module Hecksagain
         end
 
         def query(name, &block)
-          @queries << QueryBuilder.build(name, &block)
+          @queries << QueryBuilder.build(name, owner_attributes: attributes, &block)
         end
 
         def lifecycle(field, default:, &block)

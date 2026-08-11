@@ -1129,6 +1129,86 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(ArgumentError, /unknown comparator/)
     end
 
+    describe "a query's own block parameter, derived from the owner's already-declared attribute" do
+      it "derives the block parameter's type from the aggregate's own matching attribute, no attribute call needed" do
+        found = build_aggregate("Submission") do
+          value_object("DecisionRef") { attribute :value, String }
+          attribute :decision, DecisionRef
+
+          query "ForDecision" do |decision|
+            where decision: :decision
+          end
+        end.queries.first
+
+        expect(found.attributes.map { |a| [a.name, a.type] }).to eq([[:decision, "DecisionRef"]])
+      end
+
+      it "still works when the block also declares the attribute explicitly (no duplicate)" do
+        found = build_aggregate("Submission") do
+          value_object("DecisionRef") { attribute :value, String }
+          attribute :decision, DecisionRef
+
+          query "ForDecision" do |decision|
+            attribute :decision, DecisionRef
+            where decision: :decision
+          end
+        end.queries.first
+
+        expect(found.attributes.map(&:name)).to eq([:decision])
+      end
+
+      it "carries optional: true through from the owner's own attribute" do
+        found = build_aggregate("Submission") do
+          value_object("Note") { attribute :value, String }
+          attribute :note, Note, optional: true
+
+          query "ByNote" do |note|
+            where note: :note
+          end
+        end.queries.first
+
+        expect(found.attributes.first.optional?).to eq(true)
+      end
+
+      it "leaves a block parameter alone when nothing on the owner matches it — no attribute silently invented" do
+        found = build_aggregate("Submission") do
+          value_object("Name") { attribute :value, String }
+          attribute :name, Name
+
+          query "Broken" do |nonexistent|
+            where name: "open"
+          end
+        end.queries.first
+
+        expect(found.attributes).to be_empty
+      end
+
+      it "derives from the OWNING ENTITY's own attribute too, not just an aggregate's" do
+        bluebook = build_bluebook("Games") do
+          aggregate "Bracket" do
+            identified_by { bracket_id.value }
+            attribute :bracket_id, BracketId
+            value_object("BracketId") { attribute :value, String }
+            value_object("GameId")    { attribute :value, String }
+            value_object("WinnerRef") { attribute :value, String }
+
+            entity "Game" do
+              identified_by { game_id.value }
+              attribute :game_id, GameId
+              attribute :winner, WinnerRef
+
+              query "WinsByOption" do |winner|
+                where winner: :winner
+              end
+            end
+          end
+        end
+
+        found = bluebook.aggregate("Bracket").entities.first.queries.first
+        expect(found.attributes.map { |a| [a.name, a.type] }).to eq([[:winner, "WinnerRef"]])
+      end
+    end
+
     # THE QUERY SEAL — the same gate then_set gets, closing the same silence.
     # Every case here used to build cleanly and answer wrongly forever: a
     # where over an undeclared field matches nothing on every adapter, an
