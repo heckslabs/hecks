@@ -248,6 +248,25 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "bare-lookup single-field VO scalar unwrap" do
+    SingleFieldDouble = Struct.new(:value) do
+      def to_h = { value: value }
+    end
+
+    it "unwraps a bare (undotted) lookup of a single-field VO to its raw scalar" do
+      wrapped = SingleFieldDouble.new("active")
+
+      expect(evaluate('status == "active"', status: wrapped)).to be(true)
+      expect(evaluate('status == "inactive"', status: wrapped)).to be(false)
+    end
+
+    it "leaves a dotted lookup walking the wrapper's own #[] untouched" do
+      wrapped = SingleFieldDouble.new("active")
+
+      expect(evaluate('status.value == "active"', status: wrapped)).to be(true)
+    end
+  end
+
   describe "match?/present?/blank?" do
     it "matches a receiver against a regex literal, the storehouse-kernel format-validation shape" do
       expect(evaluate('value.match?(/\A\d{5}\z/)', value: "94103")).to be(true)
