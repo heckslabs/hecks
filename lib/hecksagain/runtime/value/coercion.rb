@@ -11,6 +11,28 @@ module Hecksagain
       # typed Value. Extended into Value, so every method here reads as
       # `Value.for`, `Value.build`, … — `self` is the Value class.
       module Coercion
+        # THE FOUR SHAPES AN ATTRIBUTE'S VALUE CAN TAKE — named here because
+        # `for_attribute` immediately below is the one place that actually
+        # branches on all four, and nowhere else in the language collects
+        # them into a single closed list. `Attribute#list?`/`#optional?`
+        # are real predicates on the IR node itself (bluebook/ir/attribute.rb);
+        # `:scalar` and `:composite` are not named predicates there — they
+        # fall out of whether `aggregate.value_object(attribute.type)`
+        # resolves to something, read directly in the `coerced =` line
+        # below — but the branch is exactly as real, so it gets a name here
+        # too rather than staying anonymous.
+        #
+        # A SECOND RUNTIME'S KERNEL PORTS THIS METHOD BY HAND (rust/src/
+        # kernel/attribute_shapes/*.rs — one file per name in this array,
+        # generated into a Rust enum by bin/project_kernel_capabilities so
+        # every match over it is compiler-checked exhaustive). If a fifth
+        # branch is ever added to `for_attribute`, add its name here in the
+        # same breath — this list is that port's only source of truth for
+        # "which shapes exist," and a shape missing from it is a shape the
+        # generated Rust enum, and therefore the kernel, can never learn
+        # about no matter how correct the Ruby below is.
+        SHAPES = %i[scalar list optional composite].freeze
+
         def for(aggregate, name, value)
           attribute = aggregate.attribute(name)
           return value unless attribute
@@ -18,9 +40,17 @@ module Hecksagain
           for_attribute(aggregate, attribute, value)
         end
 
+        # The four `SHAPES` above, in the order this method actually checks
+        # them: `optional`/nil-passthrough first (a value that isn't there
+        # has no shape left to branch on), `list` second (a list of
+        # elements, hydrated as entities), then — inside `coerced =` —
+        # `composite` (the type names a declared value object, rebuilt
+        # recursively via `build`) with `scalar` as what's left once
+        # neither of those applies (the raw value, passed through
+        # unchanged).
         def for_attribute(aggregate, attribute, value)
-          return value if attribute.nil? || value.nil?
-          return hydrate_entity_list(aggregate, attribute, value) if attribute.list?
+          return value if attribute.nil? || value.nil? # :optional
+          return hydrate_entity_list(aggregate, attribute, value) if attribute.list? # :list
           return value unless aggregate.respond_to?(:value_object)
 
           # THE SET THE ATTRIBUTE NAMES IS CHECKED WHERE THE ATTRIBUTE IS KNOWN.

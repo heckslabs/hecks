@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+
+# THE MECHANICAL, COMMENT-TAG-FREE HALF OF THE GUARANTEE.
+# bin/project_kernel_capabilities generates the ENUM half — the compiler
+# already refuses to build once `rust/src/kernel/expr.rs`'s
+# `dispatch_operator` stops being exhaustive over a regenerated
+# `OperatorCategory`/`AttributeShape`. But an enum variant existing is
+# not the same claim as "a human wrote the real interpretation logic for
+# it" — a freshly-added variant could be routed to an EMPTY file, or to
+# no file at all, and `cargo build` would still fail loudly (an
+# unresolved `pub mod`) long before this script ever runs. What this
+# script checks is narrower and comes FIRST, chronologically: for every
+# capability the live Ruby grammar admits right now, does
+# `rust/src/kernel/<category>/<name>.rs` exist at all?
+#
+# NO COMMENT TAG, ON PURPOSE. An earlier design for this kind of check
+# might scan each Rust file for a marker comment naming which capability
+# it implements — but a comment can be pasted into the wrong file, left
+# behind after the logic it described was deleted, or simply never
+# written. A missing FILE at the conventional path cannot lie either way
+# — its absence structurally IS "nobody has implemented this yet," the
+# same reasoning `rust/project/domain_generator.rb`'s own generated
+# `mod.rs` "one #[cfg(feature = ...)] per domain directory found on disk"
+# scan already relies on for a different question ("does this domain
+# still exist"). This script asks the language-level version of that
+# same question.
+#
+# Ground truth is read the same way bin/project_kernel_capabilities reads
+# it — Coercion::SHAPES and Grammar.admitted_operators's own `category`
+# field — never a second, hand-copied list that could quietly drift from
+# either the generator or from `bin/ir --meta` itself.
+#
+#   bin/rust_kernel_coverage
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "hecksagain/grammar"
+require "hecksagain/runtime/value/coercion"
+
+ROOT = File.expand_path("..", __dir__)
+
+def check(category_dir, names, source)
+  names.map do |name|
+    path = File.join(ROOT, "rust/src/kernel", category_dir, "#{name}.rs")
+    { name: name, path: path, present: File.file?(path), source: source }
+  end
+end
+
+rows = check("attribute_shapes", Hecksagain::Runtime::Value::Coercion::SHAPES,
+              "Coercion::SHAPES") +
+       check("expression_operators", Hecksagain::Grammar.admitted_operators.map { |op| op[:category] }.uniq,
+              "Grammar.admitted_operators's own category field")
+
+missing = rows.reject { |row| row[:present] }
+
+rows.each do |row|
+  mark = row[:present] ? "OK  " : "MISS"
+  puts "#{mark}  #{row[:path].sub("#{ROOT}/", '')}  (#{row[:source]}: #{row[:name].inspect})"
+end
+
+if missing.empty?
+  puts "\n#{rows.size}/#{rows.size} kernel capability files present — every attribute shape and " \
+       "expression-operator category the live Ruby grammar admits has a rust/src/kernel/ file at its " \
+       "conventional path."
+  exit 0
+end
+
+warn "\n#{missing.size} capability file(s) missing — the grammar admits these but no hand-written " \
+     "Rust interpretation exists for them yet:"
+missing.each { |row| warn "  #{row[:path].sub("#{ROOT}/", '')}" }
+exit 1
