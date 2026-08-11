@@ -545,9 +545,7 @@
   {
     "kind": "read_model",
     "id": "Banking::ComplianceDashboard",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares freshness, index_hints — IR::ReadModel#to_h structurally never exports where/order_by/limit clause data at all (a documented language design choice, not a generator gap — see this file's own header for the full citation), so a read model declaring any option beyond the bare reference+heads shape has real filtering/ordering/paging/tenant behavior this generator has no data to reconstruct from the canonical IR bin/project_rust actually reads; baking a heads-only answer would silently drop it, exactly the wrong shape this whole project refuses to ship"
+    "generated": true
   },
   {
     "kind": "policy",

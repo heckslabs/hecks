@@ -96,18 +96,24 @@ module Hecksagain
         # `filters: true` adds a read model's wheres, order_by and limit.
         #
         # THE LANGUAGE MAY HOLD MORE THAN `to_h` CARRIES, and this is where that
-        # matters. `ReadModel#to_h` omits all three — `extra_options_to_h` rejects
-        # them by name. So a read model's filtering has never been in
-        # the wire contract, and I first read that as a wall: if the wire
-        # cannot carry it, the language cannot hold it, and a graph assembled from
-        # the language must lose it.
+        # mattered. Until 2026-08-11, `ReadModel#to_h` omitted all three —
+        # `extra_options_to_h` rejects them by name, still does — so a read
+        # model's filtering had never been in the wire contract, and I first
+        # read that as a wall: if the wire cannot carry it, the language cannot
+        # hold it, and a graph assembled from the language must lose it.
         #
         # That was the wrong conclusion. `to_h` is a PROJECTION ; the language
         # is the SOURCE. They have to agree about everything
-        # to_h spells, not about everything the language knows. Held as option rows,
-        # the filters survive the round trip and the wire format does not move an
-        # inch — so read-model filtering can still become a wire
-        # contract later, deliberately, rather than as a side effect of this.
+        # to_h spells, not about everything the language knows. Held as option
+        # rows, the filters survived the round trip regardless of whether the
+        # wire carried them too — which is exactly why, when a LATER task
+        # (Rust read-model codegen) needed `wheres`/`order_by`/`limit` on the
+        # wire for an unrelated reason, `ReadModel#to_h` could be extended to
+        # spell them (the same mechanism `Query#to_h` already used) without
+        # touching this method at all: this reads `node.wheres`/`node.
+        # order_by`/`node.limit` off the live object directly below
+        # (`filter_options`), never off `to_h`, so the wire format moving did
+        # not move this.
         #
         # Named `wheres`, `order_by` and `limit` so they gather back into exactly the
         # declaration keys the assembly already reads.

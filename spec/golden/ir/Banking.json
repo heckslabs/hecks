@@ -5503,10 +5503,15 @@
         }
       ],
       "description": "A customer's cross-account position, rebuilt from aggregate heads.",
+      "limit": null,
       "name": "CustomerPortfolio",
+      "order_by": null,
       "query_name": "customer_portfolio",
       "reference_name": "customer",
-      "reference_target": "Customer"
+      "reference_target": "Customer",
+      "wheres": [
+
+      ]
     },
     {
       "aggregate_heads": [
@@ -5531,10 +5536,24 @@
           "name": "account_index"
         }
       ],
+      "limit": {
+        "value": "5"
+      },
       "name": "ComplianceDashboard",
+      "order_by": {
+        "direction": "desc",
+        "field": "amount"
+      },
       "query_name": "compliance_dashboard",
       "reference_name": "account",
-      "reference_target": "Account"
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "disputed"
+        }
+      ]
     }
   ],
   "version": "v1",

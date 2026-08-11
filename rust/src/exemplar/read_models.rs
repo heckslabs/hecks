@@ -24,6 +24,16 @@ crate::kernel::read_model::ReadModelDef {
             ],
         },
     ],
+    filtered_head: Some("tmpl_as_name"),
+    conditions: &[
+        crate::kernel::QueryCondition {
+            field: "tmpl_field",
+            comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+            value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
+        },
+    ],
+    order_by: Some(crate::kernel::read_model::ReadModelOrderBy { field: "tmpl_order_field", descending: true }),
+    limit: Some(crate::kernel::read_model::ReadModelLimit::Literal(5)),
 },
 ];
 // TMPL:read_model_table END
