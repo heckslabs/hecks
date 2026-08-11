@@ -498,6 +498,10 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
 
 ];
 
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
+
+];
+
 
 
 pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[

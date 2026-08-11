@@ -29,7 +29,8 @@ pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, T
 pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
 pub use json::Json;
 pub use orchestrate::{
-    orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
+    orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
+    SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
 pub use repository::{check_reference, check_role, filter_entries, AggregateScan, InMemoryRepository, Repository};
 
