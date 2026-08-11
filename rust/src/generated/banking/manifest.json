@@ -514,16 +514,12 @@
   {
     "kind": "read_model",
     "id": "Banking::CustomerPortfolio",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares group_by — out of scope for this generator: offset/cursor/consistency/authorization(TenantScope)/null_semantics beyond the default/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches"
+    "generated": true
   },
   {
     "kind": "read_model",
     "id": "Banking::ComplianceDashboard",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares group_by — out of scope for this generator: offset/cursor/consistency/authorization(TenantScope)/null_semantics beyond the default/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches"
+    "generated": true
   },
   {
     "kind": "read_model",

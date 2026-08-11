@@ -112,8 +112,16 @@ module RustProjection
     #   would be refusing a real corpus read model (`Banking::
     #   ComplianceDashboard` declares both) for a reason that has no
     #   bearing on correctness.
+    # `group_by` is IN this list — merged in from `main`'s own rootless-
+    # read-model work (see the long note above), which made `IR::
+    # ReadModel#to_h` spell `group_by:` UNCONDITIONALLY, the same
+    # "always spell the key" move `wheres`/`order_by`/`limit` already
+    # went through (this file's own header, above). So `group_by`'s mere
+    # PRESENCE as a key is no longer a usable disqualifying signal — every
+    # read model carries it now, `[]` when nothing was declared — and it
+    # has to be checked by VALUE instead, explicitly, right below.
     READ_MODEL_BARE_KEYS = %i[name description reference_name reference_target query_name aggregate_heads
-                              wheres order_by limit freshness index_hints].freeze
+                              wheres order_by limit freshness index_hints group_by].freeze
 
     # One declared read model's own eligibility — `nil` (clean) or a
     # specific, honest reason string, the same "one gate every other
@@ -122,6 +130,18 @@ module RustProjection
     def read_model_skip_reason(read_model, aggregates_by_name, unsupported_names)
       extra = read_model.keys.map(&:to_sym) - READ_MODEL_BARE_KEYS
       return read_model_options_skip_reason(extra) if extra.any?
+
+      # A GENUINE `group_by` declaration (a non-empty value, not just the
+      # key's own unconditional presence — see `READ_MODEL_BARE_KEYS`'s
+      # own comment) is real scope this generator doesn't cover, the exact
+      # gap `main`'s own rootless-read-model work opened: no rootless
+      # concept, no nesting-by-field concept, nothing here to bake it into.
+      # Checked before the `reference_to`/root-fetch check below on
+      # purpose — a rootless, `group_by`'d read model (`AccountsByKind`)
+      # has no `reference_target` at all, and reporting THAT as "no
+      # matching aggregate head" would be a true but misleading reason
+      # next to the real, honest one this check gives instead.
+      return read_model_options_skip_reason([:group_by]) if Array(read_model[:group_by]).any?
 
       heads = read_model[:aggregate_heads]
       root = heads.find { |head| head[:aggregate].to_s == read_model[:reference_target].to_s }

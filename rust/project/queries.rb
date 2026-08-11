@@ -296,6 +296,19 @@ module RustProjection
     # where clause is either Symbol-valued (an `arg:`) or a safely-typed
     # literal (a `literal:`), never both, matching `kernel/named_query.rs`'s
     # own `QueryConditionValue` two-variant shape exactly.
+    #
+    # THE LITERAL HALF NEEDS DECODING, not the raw wire text — since the
+    # Literal-pinning rework a string literal rides `Literal.render`'s own
+    # `quote`d spelling (`"active"`, with real quote characters in the
+    # String), the same as every other literal field this codebase reads
+    # back through `Marks.read`/`Literal.read`. `query_where_skip_reason`
+    # already confirmed `kind == :string` for anything literal that reaches
+    # here, so `Literal.read` always hands back a plain String — baking the
+    # UNDECODED wire text in instead would compare a field's real value
+    # against a Rust string literal still wearing its own quote marks,
+    # which can never match (empty results, not a compile error — exactly
+    # what made this silent before spec/rust_conformance_spec.rb's own
+    # named-query/read-model fixtures caught it).
     def query_conditions(query)
       query[:wheres].map do |where|
         raw_value = where[:value].to_s
@@ -304,7 +317,7 @@ module RustProjection
           field: where[:field].to_s,
           op: where[:op].to_s,
           arg: symbol ? raw_value.delete_prefix(":") : nil,
-          literal: symbol ? nil : raw_value,
+          literal: symbol ? nil : Hecksagain::Literal.read(raw_value),
         }
       end
     end
