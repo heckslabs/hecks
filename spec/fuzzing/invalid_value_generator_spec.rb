@@ -7,7 +7,10 @@ require "hecksagain/fuzzing/invalid_value_generator"
 # while changing nothing, which is the failure mode a fuzzer cannot report on
 # itself — a sequence full of accidentally-valid payloads still AGREES.
 RSpec.describe Hecksagain::Fuzzing::InvalidValueGenerator do
-  let(:aggregate) do
+  # Booted ONCE per file — every example below only reads the loaded
+  # aggregate's IR back out (`described_class.corrupt`/`.kinds_for` never
+  # dispatch), so a shared boot is safe.
+  before(:context) do
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
@@ -16,8 +19,10 @@ RSpec.describe Hecksagain::Fuzzing::InvalidValueGenerator do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
     end
-    registry.bluebook("Banking").aggregate("Account")
+    @aggregate = registry.bluebook("Banking").aggregate("Account")
   end
+
+  let(:aggregate) { @aggregate }
 
   def attribute(command_name, argument)
     aggregate.command(command_name).attributes.find { |held| held.name.to_s == argument }

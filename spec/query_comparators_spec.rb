@@ -51,7 +51,11 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime
   end
 
-  let(:runtime) { seed(boot) }
+  # Seeded ONCE per file, not per example — every `it` below only queries
+  # afterward (`seed` is the only place anything is dispatched), so the
+  # same seeded runtime is safe to share.
+  before(:context) { @runtime = seed(boot) }
+  let(:runtime) { @runtime }
 
   it "Eq matches the accounts still open" do
     numbers = runtime.query("Banking::Account.Open").map { |row| row[:number].value }

@@ -38,11 +38,19 @@ RSpec.describe "a construct's identity" do
     end
   end
 
-  # Memoised per example ON PURPOSE. Every load builds a fresh IR graph and the
-  # bind repoints the top-level door at the newest, so two loads in one example
-  # yield two different `Price` records.
-  def pizzas  = @pizzas  ||= boot(CONSTRUCT_PIZZAS)
-  def banking = @banking ||= boot(CONSTRUCT_BANKING)
+  # Booted ONCE per file, not per example — every `it` below only reads the
+  # IR back out (see the file's header: the one real `.dispatch` in this
+  # file always raises `NotFound` before anything persists), so nothing an
+  # earlier example does can leak into a later one. `before(:context)`'s
+  # ivars are copied onto every example instance, so `pizzas`/`banking`
+  # still read as a plain per-example accessor below.
+  before(:context) do
+    @pizzas  = boot(CONSTRUCT_PIZZAS)
+    @banking = boot(CONSTRUCT_BANKING)
+  end
+
+  def pizzas  = @pizzas
+  def banking = @banking
 
   def aggregate_ir(runtime, domain, name)
     runtime.registry.bluebook(domain).aggregate(name)

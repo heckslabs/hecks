@@ -8,18 +8,21 @@ RSpec.describe Hecksagain::Presentation::FieldShape do
   # purely from the IR. The extraction port/adapter still has to be there
   # (`identified_by { ... }` recovers its own canonical text through it at
   # declare time), the one piece of wiring a bare `Kernel.load` can't skip.
-  def banking
+  #
+  # Booted ONCE per file, not per example — nothing below ever dispatches,
+  # only reads the loaded IR back out, so a shared load is safe.
+  before(:context) do
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(BANKING_BLUEBOOK)
     end
-    registry.bluebook("Banking")
+    @banking = registry.bluebook("Banking")
   end
 
-  let(:account)  { banking.aggregate("Account") }
-  let(:customer) { banking.aggregate("Customer") }
+  let(:account)  { @banking.aggregate("Account") }
+  let(:customer) { @banking.aggregate("Customer") }
 
   def resolve(aggregate, attribute_name)
     described_class.resolve(aggregate.attribute(attribute_name), aggregate: aggregate)
