@@ -52,6 +52,23 @@ if let Some(id) = key.strip_prefix("Pizzas::Order#") {
     }
 }
 
+/// `AggregateScan` — kernel/repository.rs's own trait, given a REAL
+/// per-aggregate body here: one `if` per aggregate this domain declared,
+/// the same "Domain::Aggregate" prefix `instances()`'s own dump arms
+/// already use, each returning that ONE aggregate's own (id, to_json())
+/// listing straight off its repository's `entries()`. Falls through to
+/// the trait's own default (`None`) for any prefix that matches none of
+/// them — kernel/cli.rs turns that into a clean "unknown aggregate"
+/// refusal, never a panic.
+impl crate::kernel::AggregateScan for Store {
+    fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
+if aggregate == "Pizzas::Order" {
+    return Some(self.order.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+        None
+    }
+}
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,

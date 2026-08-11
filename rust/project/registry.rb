@@ -113,6 +113,23 @@ module RustProjection
         RUST
       end
 
+      # THE MINIMAL QUERY ENGINE'S OWN AGGREGATE LOOKUP — one `if` per
+      # aggregate, tried against a bare "Domain::Aggregate" prefix (no
+      # trailing "#", unlike `dump_arms`/`seed_arms` above: there is no
+      # id to strip here, the WHOLE string names one aggregate, not one
+      # record). kernel/cli.rs's ad hoc "query" step (the object form)
+      # is the one caller — see repository.rs's own `filter_entries` and
+      # query_comparators.rs's own header for what happens to the
+      # listing this hands back.
+      query_arms = aggregates.map do |a|
+        prefix = "#{a[:domain_name]}::#{a[:name]}"
+        <<~RUST.rstrip
+                  if aggregate == #{prefix.inspect} {
+                      return Some(self.#{a[:mod]}.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+                  }
+        RUST
+      end
+
       aggregate_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         a[:commands].map do |c|
@@ -202,6 +219,7 @@ module RustProjection
         "            tmpl_field: tmpl_store_fields_placeholder()," => store_inits.join("\n"),
         "tmpl_dump_arm_placeholder();" => dump_arms.join("\n"),
         "tmpl_seed_arm_placeholder();" => seed_arms.join("\n"),
+        "tmpl_query_arm_placeholder();" => query_arms.join("\n"),
         '"tmpl_verb" => { tmpl_dispatch_arm_placeholder() }' => dispatch_arms.join("\n")
       )
 

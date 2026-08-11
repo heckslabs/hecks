@@ -169,6 +169,62 @@ if let Some(id) = key.strip_prefix("Bluebook::ReadModel#") {
     }
 }
 
+/// `AggregateScan` — kernel/repository.rs's own trait, given a REAL
+/// per-aggregate body here: one `if` per aggregate this domain declared,
+/// the same "Domain::Aggregate" prefix `instances()`'s own dump arms
+/// already use, each returning that ONE aggregate's own (id, to_json())
+/// listing straight off its repository's `entries()`. Falls through to
+/// the trait's own default (`None`) for any prefix that matches none of
+/// them — kernel/cli.rs turns that into a clean "unknown aggregate"
+/// refusal, never a panic.
+impl crate::kernel::AggregateScan for Store {
+    fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
+if aggregate == "Bluebook::Bluebook" {
+    return Some(self.bluebook.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Aggregate" {
+    return Some(self.aggregate.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Command" {
+    return Some(self.command.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Query" {
+    return Some(self.query.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::ValueObject" {
+    return Some(self.valueobject.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Member" {
+    return Some(self.member.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Entity" {
+    return Some(self.entity.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Policy" {
+    return Some(self.policy.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::ProcessManager" {
+    return Some(self.processmanager.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Handler" {
+    return Some(self.handler.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Dispatch" {
+    return Some(self.dispatch.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Vocabulary" {
+    return Some(self.vocabulary.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::Syntax" {
+    return Some(self.syntax.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Bluebook::ReadModel" {
+    return Some(self.readmodel.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+        None
+    }
+}
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,

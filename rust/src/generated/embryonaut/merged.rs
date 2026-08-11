@@ -169,6 +169,15 @@ if let Some(id) = key.strip_prefix("Identity::ExternalIdentifier#") {
     }
 }
 
+// HAND-PATCHED, NOT GENERATED — see registry.rs's own matching note in
+// this same directory for why (this domain's own bluebook source isn't
+// available in this repository). `AggregateScan`'s own default impl
+// (`None` for every aggregate name, honestly turned into a clean
+// "unknown aggregate" refusal by kernel/cli.rs) is the right stand-in
+// until this domain's next real regeneration replaces it with a full
+// per-aggregate `scan` body.
+impl crate::kernel::AggregateScan for Store {}
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,

@@ -133,6 +133,21 @@ if let Some(id) = key.strip_prefix("Embryonaut::RecurringPayment#") {
     }
 }
 
+// HAND-PATCHED, NOT GENERATED — this domain's own bluebook source isn't
+// available in this repository (see project_embryonaut_founder_app: it's
+// a separate, private app repo that path-references hecksagain), so
+// `bin/project_rust` cannot be re-run for it here the way it just was for
+// Banking/Pizzas/the framework chapters. `AggregateScan`'s own default
+// impl (`fn scan(...) -> None` for every aggregate name — kernel/
+// repository.rs's own header explains why that's a HONEST answer, not a
+// lie: kernel/cli.rs turns `None` into the same clean "unknown
+// aggregate" refusal a genuine typo gets) is exactly the right stand-in
+// until this domain's next real regeneration gives it a full per-
+// aggregate `scan` body like every other domain generated alongside this
+// change already has. Delete this block the day that regeneration
+// happens — `bin/project_rust` will emit a real `impl` in its place.
+impl crate::kernel::AggregateScan for Store {}
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,
