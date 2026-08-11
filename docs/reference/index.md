@@ -8,7 +8,7 @@ survives regeneration.
 - [File](file.md) — 3 words
 - [Bluebook](bluebook.md) — 9 words
 - [Aggregate](aggregate.md) — 14 words
-- [Entity](entity.md) — 6 words
+- [Entity](entity.md) — 7 words
 - [Command](command.md) — 9 words
 - [ValueObject](value_object.md) — 3 words
 - [OneOf](one_of.md) — 1 word
@@ -16,7 +16,7 @@ survives regeneration.
 - [Policy](policy.md) — 3 words
 - [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
-- [Query](query.md) — 13 words
+- [Query](query.md) — 14 words
 - [ReadModel](read_model.md) — 14 words
 - [Type](type.md) — 2 words
 - [Hecksagon](hecksagon.md) — 3 words

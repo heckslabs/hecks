@@ -8718,6 +8718,32 @@
             [
               [
                 "word",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
                 "role"
               ],
               [
@@ -9321,6 +9347,32 @@
               [
                 "word",
                 "attribute"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
+                "reference_to"
               ],
               [
                 "context",
@@ -11713,6 +11765,66 @@
             [
               [
                 "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "role"
               ],
               [
@@ -13226,6 +13338,96 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "optional"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "optional"
               ]
             ],
             [

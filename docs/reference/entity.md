@@ -81,3 +81,18 @@ Opens the same `transition` vocabulary an aggregate's `lifecycle` does, checked 
 
 Declares a field on the entity, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
 
+## reference_to
+
+<!-- generated:begin word=reference_to -->
+`reference_to type, as:` — fills `attributes`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | constant | true | type |
+| `as:` | symbol | false | name |
+<!-- generated:end -->
+
+Points an entity at a real ROOT, the same way an aggregate's own `reference_to` does — a `Card` entity's own `assignee_id`, pointing at a `Team`. Never at another entity: there's no cross-piece addressing anywhere in this language to resolve one against, so this only ever reaches a head.
+
+<!-- TODO: document this word -->
+
