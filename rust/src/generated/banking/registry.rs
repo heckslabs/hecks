@@ -599,10 +599,10 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
-    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnFreeze", event_name: "AccountFrozen", event_qualifier: Some("Account"), target_domain: "Compliance", target_verb: "Compliance.OpenReview" },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications.Send" },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: None, target_domain: "Compliance", target_verb: "Compliance.OpenReview" },
-    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications.Send" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnFreeze", event_name: "AccountFrozen", event_qualifier: Some("Account"), target_domain: "Compliance", target_verb: "Compliance::AccountFreezeReview.Open" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: None, target_domain: "Compliance", target_verb: "Compliance::BoxSurrenderReview.Open" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications::Notifications.Send" },
 ];
 
 fn pm_literal_0() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer out".to_string()))]) }

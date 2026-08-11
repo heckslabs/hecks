@@ -1,0 +1,62 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Compliance::AccountFreezeReview",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::AccountFreezeReview.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::AccountFreezeReview.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::AccountFreezeReview.Escalate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Compliance::BoxSurrenderReview",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::BoxSurrenderReview.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::BoxSurrenderReview.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::BoxSurrenderReview.Escalate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Compliance::AccountFreezeReview",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"account_freeze_review\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Compliance::BoxSurrenderReview",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"box_surrender_review\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
+  }
+]

@@ -329,7 +329,7 @@ mod tests {
     async fn delivers_and_invokes_the_computed_function_name_with_the_verb_args_payload_shape() {
         let invoker = MockLambdaInvoker::answering(serde_json::json!({ "refusals": [] }), false);
 
-        let record = deliver(&invoker, &reaction("Compliance", "Compliance.OpenReview")).await.unwrap();
+        let record = deliver(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open")).await.unwrap();
 
         assert!(record.delivered);
         assert_eq!(record.reason, None);
@@ -340,18 +340,18 @@ mod tests {
         let (function_name, payload) = &calls[0];
         assert_eq!(function_name, "hecksagain-compliance");
         let sent: Value = serde_json::from_str(payload).unwrap();
-        assert_eq!(sent["verb"], "Compliance.OpenReview");
+        assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
         assert_eq!(sent["args"]["number"]["value"], "acct-1");
     }
 
     #[tokio::test]
     async fn a_target_side_refusal_is_recorded_non_fatally_not_raised() {
         let invoker = MockLambdaInvoker::answering(
-            serde_json::json!({ "refusals": [ { "verb": "Compliance.OpenReview", "error": "already under review" } ] }),
+            serde_json::json!({ "refusals": [ { "verb": "Compliance::AccountFreezeReview.Open", "error": "already under review" } ] }),
             false,
         );
 
-        let record = deliver(&invoker, &reaction("Compliance", "Compliance.OpenReview")).await.unwrap();
+        let record = deliver(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open")).await.unwrap();
 
         assert!(!record.delivered);
         assert_eq!(record.reason.as_deref(), Some("already under review"));
@@ -368,7 +368,7 @@ mod tests {
             false,
         );
 
-        let record = deliver(&invoker, &reaction("Compliance", "Compliance.OpenReview")).await.unwrap();
+        let record = deliver(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open")).await.unwrap();
 
         assert!(record.delivered);
     }
@@ -381,7 +381,7 @@ mod tests {
         // swallowed into an ordinary `delivered: false` record.
         let invoker = MockLambdaInvoker::answering(serde_json::json!({ "errorMessage": "unhandled panic" }), true);
 
-        let outcome = deliver(&invoker, &reaction("Compliance", "Compliance.OpenReview")).await;
+        let outcome = deliver(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open")).await;
 
         assert!(outcome.is_err(), "a function_error response must propagate as Err, not a delivered:false record");
     }

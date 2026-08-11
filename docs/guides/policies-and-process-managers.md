@@ -261,15 +261,16 @@ different domain entirely, `across` names it:
 # Account, in examples/banking/bluebook/banking.bluebook
 policy "ReviewOnFreeze" do
   on      "Account.AccountFrozen"
-  trigger "Compliance.OpenReview"
+  trigger "AccountFreezeReview.Open"
   across  "Compliance"
 end
 ```
 
-Banking's own `Compliance` domain is real, but this guide never loads
-it — and that is itself worth seeing, because `across` does not pretend
+Banking's own `Compliance` domain is real — its own standalone
+deployment, `examples/compliance` — but this guide never loads it, and
+that is itself worth seeing, because `across` does not pretend
 otherwise. Open an account, freeze it, and the policy still fires,
-reaching for a domain that genuinely is not there:
+reaching for a domain that genuinely is not loaded HERE:
 
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
@@ -280,9 +281,9 @@ runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a
 before = runtime.reactions.size
 runtime.dispatch("Banking::Account.Freeze", number: "a1")
 runtime.reactions[before..].size     # => 1
-runtime.reactions.last[:trigger]     # => "Compliance::Compliance.OpenReview"
+runtime.reactions.last[:trigger]     # => "Compliance::AccountFreezeReview.Open"
 runtime.reactions.last[:delivered]   # => false
-runtime.reactions.last[:reason]      # => "no domain \"Compliance\" loaded (verb Compliance::Compliance.OpenReview)"
+runtime.reactions.last[:reason]      # => "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
 
 Banking::Account.find("a1").status   # => "frozen"
 ```

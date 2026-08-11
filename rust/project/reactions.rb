@@ -74,16 +74,27 @@ module RustProjection
 
     # ── THE CROSS-DOMAIN POLICY TABLE — every policy `local_policy_rows`
     # above filtered OUT, represented instead of dropped. `target_verb`
-    # here is the BARE verb (`policy[:trigger_command]`, e.g. "OpenReview"),
-    # not domain-qualified the way a local `PolicyRule#target_verb` is —
-    # this is exactly what `Adapters::Lambda::Client#dispatch`'s own
-    # payload shape expects (`{"verb": verb, "args": args}`, where the
-    # Lambda invoked IS the domain, so the verb it receives is already
-    # implicitly scoped to it; Ruby's own `RemoteDispatcher#dispatch`
-    # still forwards the FULL "Domain::Aggregate.Command" verb because a
-    # target Lambda's own registry may hold more than one chapter — this
-    # generator has no equivalent multi-chapter ambiguity to resolve for
-    # a policy's bare `trigger_command`, so it stays exactly as declared).
+    # here is FULLY QUALIFIED (`"#{target_domain}::#{trigger_command}"`),
+    # the SAME formula `local_policy_rows` uses, above — NOT the bare
+    # `policy[:trigger_command]` this used to emit.
+    #
+    # FOUND LIVE, deploying a real second domain (Compliance) to actually
+    # prove cross-domain delivery for the first time: a bare verb refuses
+    # with "unknown command" against ANY compiled target, single-chapter
+    # or not — `dispatch_by_name`'s own generated match arms are ALWAYS
+    # "Domain::Aggregate.Command", the same convention every other verb
+    # in this whole system already uses (`kernel::cli::run`'s own
+    # top-level step, `RemoteDispatcher#dispatch`'s real cross-Lambda
+    # calls, `Adapters::Lambda::Client#dispatch`). The OLD reasoning here
+    # ("the Lambda invoked IS the domain, so the verb it receives is
+    # already implicitly scoped to it") assumed a target Lambda's own
+    # dispatch table could somehow be UNqualified for a single-chapter
+    # compile — never actually true; nothing in `rust/project/registry.rb`
+    # ever emits an unqualified match arm. Confirmed both ways: compiled
+    # `examples/compliance` refuses a bare "AccountFreezeReview.Open" as
+    # "unknown command" and accepts "Compliance::AccountFreezeReview.Open"
+    # cleanly. This was never caught before because no domain had ever
+    # deployed a real second Lambda to receive one of these calls.
     def emit_cross_domain_policy_table(domain_name, policies)
       rows = policies.filter_map do |policy|
         target_domain = policy[:target_domain] || domain_name
@@ -92,9 +103,10 @@ module RustProjection
         event_name = policy_event_name(policy[:on_event])
         qualifier = policy_event_qualifier(policy[:on_event])
         qualifier_expr = qualifier ? "Some(#{qualifier.inspect})" : "None"
+        target_verb = "#{target_domain}::#{policy[:trigger_command]}"
 
         "    crate::kernel::CrossDomainPolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
-          "event_qualifier: #{qualifier_expr}, target_domain: #{target_domain.inspect}, target_verb: #{policy[:trigger_command].to_s.inspect} },"
+          "event_qualifier: #{qualifier_expr}, target_domain: #{target_domain.inspect}, target_verb: #{target_verb.inspect} },"
       end
 
       puts "cross-domain policy table: #{rows.size} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched" if rows.any?

@@ -352,6 +352,7 @@ Every domain this repository's own tests and docs draw examples from:
 
 <!-- generated:begin id=corpus -->
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
+- **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
 <!-- generated:end -->
 

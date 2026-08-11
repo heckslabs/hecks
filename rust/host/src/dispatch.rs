@@ -685,7 +685,15 @@ mod tests {
             let (function_name, payload) = &calls[0];
             assert_eq!(function_name, "hecksagain-compliance");
             let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
-            assert_eq!(sent["verb"], "Compliance.OpenReview");
+            // FULLY QUALIFIED, not the bare "Compliance.OpenReview" this
+            // used to assert — found live, deploying a real second domain
+            // (Compliance) to actually prove cross-domain delivery for the
+            // first time: `dispatch_by_name`'s own generated match arms are
+            // ALWAYS "Domain::Aggregate.Command" (reactions.rb's own
+            // `emit_cross_domain_policy_table` header has the full story on
+            // the bug this was), and Compliance's own aggregate is named
+            // `AccountFreezeReview`, not `Compliance`.
+            assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
             assert_eq!(sent["args"]["number"]["value"], "acct-freeze-me");
         }
 

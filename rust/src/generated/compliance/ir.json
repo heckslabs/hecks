@@ -1,0 +1,339 @@
+{
+  "ir_version": 1,
+  "name": "Compliance",
+  "version": null,
+  "vision": "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.",
+  "classification": "supporting",
+  "aggregates": [
+    {
+      "name": "AccountFreezeReview",
+      "description": "The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened.",
+      "identified_by": [
+        "number.value"
+      ],
+      "attributes": [
+        {
+          "name": "number",
+          "type": "AccountNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "AccountNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an account number is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "System",
+          "goal": "Register that a frozen account needs compliance review",
+          "references": null,
+          "attributes": [
+            {
+              "name": "number",
+              "type": "AccountNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "number",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "number"
+              }
+            }
+          ],
+          "emits": [
+            "AccountFreezeReviewOpened"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Clear",
+          "role": "Compliance officer",
+          "goal": "Confirm the freeze was warranted, or resolve it, with nothing further to escalate",
+          "references": "AccountFreezeReview",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "AccountFreezeReviewCleared"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Escalate",
+          "role": "Compliance officer",
+          "goal": "Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral",
+          "references": "AccountFreezeReview",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "AccountFreezeReviewEscalated"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Clear",
+            "to_state": "cleared",
+            "from_state": "open"
+          },
+          {
+            "command": "Escalate",
+            "to_state": "escalated",
+            "from_state": "open"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    },
+    {
+      "name": "BoxSurrenderReview",
+      "description": "The compliance review a surrendered safe deposit box gets — audit/escheatment implications, not a fraud contain the way a freeze is, but the same after-the-fact review shape.",
+      "identified_by": [
+        "branch_code.value",
+        "box_number.value"
+      ],
+      "attributes": [
+        {
+          "name": "branch_code",
+          "type": "BranchCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "box_number",
+          "type": "BoxNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "BranchCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a branch is coded",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "BoxNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a box is numbered from one",
+              "canonical": "value.positive?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "System",
+          "goal": "Register that a surrendered box needs compliance review",
+          "references": null,
+          "attributes": [
+            {
+              "name": "branch_code",
+              "type": "BranchCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "box_number",
+              "type": "BoxNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "branch_code",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "branch_code"
+              }
+            },
+            {
+              "target": "box_number",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "box_number"
+              }
+            }
+          ],
+          "emits": [
+            "BoxSurrenderReviewOpened"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Clear",
+          "role": "Compliance officer",
+          "goal": "Confirm the surrender needs no further compliance action",
+          "references": "BoxSurrenderReview",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "BoxSurrenderReviewCleared"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Escalate",
+          "role": "Compliance officer",
+          "goal": "Send a genuine finding on to whatever handles it next",
+          "references": "BoxSurrenderReview",
+          "attributes": [],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "BoxSurrenderReviewEscalated"
+          ],
+          "provenance": null
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Clear",
+            "to_state": "cleared",
+            "from_state": "open"
+          },
+          {
+            "command": "Escalate",
+            "to_state": "escalated",
+            "from_state": "open"
+          }
+        ]
+      },
+      "entities": [],
+      "queries": [],
+      "ports": [],
+      "provenance": null
+    }
+  ],
+  "read_models": [],
+  "policies": [],
+  "process_managers": [],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+      {
+        "name": "AccountFreezeReview",
+        "storage_name": "account_freeze_review"
+      },
+      {
+        "name": "BoxSurrenderReview",
+        "storage_name": "box_surrender_review"
+      }
+    ]
+  }
+}

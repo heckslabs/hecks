@@ -4795,7 +4795,7 @@
     {
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
-      "trigger_command": "Compliance.OpenReview",
+      "trigger_command": "AccountFreezeReview.Open",
       "target_domain": "Compliance"
     },
     {
@@ -4819,7 +4819,7 @@
     {
       "name": "ReviewOnBoxSurrender",
       "on_event": "BoxSurrendered",
-      "trigger_command": "Compliance.OpenReview",
+      "trigger_command": "BoxSurrenderReview.Open",
       "target_domain": "Compliance"
     },
     {

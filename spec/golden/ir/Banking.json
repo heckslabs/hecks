@@ -5190,7 +5190,7 @@
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
       "target_domain": "Compliance",
-      "trigger_command": "Compliance.OpenReview"
+      "trigger_command": "AccountFreezeReview.Open"
     },
     {
       "name": "RetryOnPaymentFailure",
@@ -5214,7 +5214,7 @@
       "name": "ReviewOnBoxSurrender",
       "on_event": "BoxSurrendered",
       "target_domain": "Compliance",
-      "trigger_command": "Compliance.OpenReview"
+      "trigger_command": "BoxSurrenderReview.Open"
     },
     {
       "name": "FlagKeyReturn",

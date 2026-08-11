@@ -469,7 +469,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
     policy "ReviewOnFreeze" do
       on      "Account.AccountFrozen"
-      trigger "Compliance.OpenReview"
+      trigger "AccountFreezeReview.Open"
       across  "Compliance"
     end
   end
@@ -1411,7 +1411,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # names why both facts are real; this is where each finds its audience.
   policy "ReviewOnBoxSurrender" do
     on      "BoxSurrendered"
-    trigger "Compliance.OpenReview"
+    trigger "BoxSurrenderReview.Open"
     across  "Compliance"
   end
 

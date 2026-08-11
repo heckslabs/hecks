@@ -48,3 +48,14 @@ Hecks.hecksagon "Identity" do
   Identity::Identity.persisted_by("Memory")
   Identity::ExternalIdentifier.persisted_by("Memory")
 end
+
+# COMPLIANCE IS DELIBERATELY NOT `uses_framework`'d HERE, unlike
+# Governance/Identity above — it's a genuine standalone domain (its own
+# examples/compliance/, its own deploy, its own Lambda), reached only
+# through the two `across "Compliance"` policies below (real cross-
+# domain delivery, rust/host's own lambda_client.rs). A domain that
+# wants Compliance's Review aggregates IN-PROCESS instead can still
+# `uses_framework "Compliance"` — the bluebook itself supports either
+# consumption mode (lib/hecksagain/framework/bluebook/compliance.
+# bluebook's own header) — Banking's own choice here is cross-Lambda,
+# on purpose, to prove that path for real.

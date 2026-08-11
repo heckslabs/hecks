@@ -1,0 +1,4 @@
+Hecks.hecksagon "Compliance" do
+  Compliance::AccountFreezeReview.persisted_by("Postgres")
+  Compliance::BoxSurrenderReview.persisted_by("Postgres")
+end

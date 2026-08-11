@@ -1,0 +1,36 @@
+{
+  "name": "compliance-parity",
+  "note": "Both aggregates through their full lifecycle once each — a frozen account cleared (no finding), a surrendered box escalated (a real finding) — proving Open/Clear/Escalate all work, not just the creating command.",
+  "domain": "examples/compliance",
+  "expectations": {
+    "events": 4
+  },
+  "steps": [
+    {
+      "verb": "Compliance::AccountFreezeReview.Open",
+      "args": {
+        "number": { "value": "acct-1" }
+      }
+    },
+    {
+      "verb": "Compliance::AccountFreezeReview.Clear",
+      "args": {
+        "number": { "value": "acct-1" }
+      }
+    },
+    {
+      "verb": "Compliance::BoxSurrenderReview.Open",
+      "args": {
+        "branch_code": { "value": "DOWNTOWN" },
+        "box_number": { "value": 12 }
+      }
+    },
+    {
+      "verb": "Compliance::BoxSurrenderReview.Escalate",
+      "args": {
+        "branch_code": { "value": "DOWNTOWN" },
+        "box_number": { "value": 12 }
+      }
+    }
+  ]
+}

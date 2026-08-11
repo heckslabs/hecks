@@ -1,0 +1,150 @@
+Hecks.bluebook "Compliance" do
+  vision "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next."
+  supporting
+
+  # LIVES HERE (lib/hecksagain/framework/bluebook/), NOT under some
+  # domain's own examples/ directory, but that's a statement about
+  # SOURCE SHARING, not about how it's consumed — unlike Governance/
+  # Identity (which every real attaching domain only ever wants IN-
+  # PROCESS), Compliance genuinely supports BOTH modes from the same
+  # source: a domain that wants Review handled locally can
+  # `uses_framework "Compliance"` exactly like those two; a domain that
+  # wants it as a real, separately-deployed service — Banking's own
+  # choice, examples/compliance/ — reaches it through `across
+  # "Compliance"` on a policy instead, genuine cross-Lambda delivery.
+  # Nothing about this bluebook's own declarations changes between the
+  # two; only whether the CONSUMER merges it in or deploys it apart.
+  #
+  # CONTAIN FIRST, INVESTIGATE SECOND — the real pattern this domain
+  # exists for. Banking's own "Compliance officer" role already acts
+  # directly and synchronously in three places (Customer.Suspend/
+  # Reinstate, Account.Freeze/Unfreeze, OnboardingCase.Clear/Decline) —
+  # this domain is deliberately NOT a fourth. By the time either
+  # aggregate below is opened, the containing action (a freeze, a box
+  # surrender) has ALREADY happened, unilaterally, elsewhere; this
+  # domain never asks permission, it is TOLD a fact and gives the same
+  # officer a place to record what they decided about it afterward.
+  #
+  # TWO AGGREGATES, NOT ONE — found live, designing this: Banking's own
+  # `ReviewOnFreeze`/`ReviewOnBoxSurrender` policies forward their
+  # triggering event's payload VERBATIM (`policy` blocks have no `with:`
+  # reshaping — only a `process_manager`'s own `dispatch ... with:` can
+  # do that), and the two events carry genuinely different fields
+  # (`AccountFrozen`: `number`; `BoxSurrendered`: `branch_code` +
+  # `box_number`). One shared aggregate would need either an artificial
+  # union of both shapes or a reshaping step that doesn't exist for a
+  # policy. Two small aggregates, each identified by its own subject's
+  # own natural key, need neither.
+
+  aggregate "AccountFreezeReview" do
+    description "The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened."
+
+    identified_by AccountNumber, as: :number
+
+    value_object "AccountNumber" do
+      attribute :value, String
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Clear"    => "cleared",   from: "open"
+      transition "Escalate" => "escalated", from: "open"
+    end
+
+    # SYSTEM-TRIGGERED, matching `AccountFrozen`'s own payload shape
+    # field for field — `Banking::Account.AccountFrozen`'s `number` is
+    # the ONLY field this ever receives (ReviewOnFreeze's own `on
+    # "Account.AccountFrozen"`), so this declares exactly that and
+    # nothing more; an unrecognized field would refuse at the JSON
+    # boundary rather than silently drop it.
+    command "Open" do
+      role "System"
+      goal "Register that a frozen account needs compliance review"
+
+      attribute :number, AccountNumber
+
+      then_set :number, to: :number
+
+      emits "AccountFreezeReviewOpened"
+    end
+
+    command "Clear" do
+      role "Compliance officer"
+      goal "Confirm the freeze was warranted, or resolve it, with nothing further to escalate"
+
+      reference_to AccountFreezeReview
+
+      emits "AccountFreezeReviewCleared"
+    end
+
+    command "Escalate" do
+      role "Compliance officer"
+      goal "Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral"
+
+      reference_to AccountFreezeReview
+
+      emits "AccountFreezeReviewEscalated"
+    end
+  end
+
+  aggregate "BoxSurrenderReview" do
+    description "The compliance review a surrendered safe deposit box gets — audit/escheatment implications, not a fraud contain the way a freeze is, but the same after-the-fact review shape."
+
+    identified_by do
+      branch_code.value
+      box_number.value
+    end
+
+    attribute :branch_code, BranchCode
+    attribute :box_number,  BoxNumber
+
+    value_object "BranchCode" do
+      attribute :value, String
+      invariant("a branch is coded") { !value.to_s.empty? }
+    end
+
+    value_object "BoxNumber" do
+      attribute :value, Integer
+      invariant("a box is numbered from one") { value.positive? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Clear"    => "cleared",   from: "open"
+      transition "Escalate" => "escalated", from: "open"
+    end
+
+    # Matches `BoxSurrendered`'s own payload field for field
+    # (`ReviewOnBoxSurrender`'s own `on "BoxSurrendered"`) — the same
+    # discipline `AccountFreezeReview.Open` holds itself to, above.
+    command "Open" do
+      role "System"
+      goal "Register that a surrendered box needs compliance review"
+
+      attribute :branch_code, BranchCode
+      attribute :box_number,  BoxNumber
+
+      then_set :branch_code, to: :branch_code
+      then_set :box_number,  to: :box_number
+
+      emits "BoxSurrenderReviewOpened"
+    end
+
+    command "Clear" do
+      role "Compliance officer"
+      goal "Confirm the surrender needs no further compliance action"
+
+      reference_to BoxSurrenderReview
+
+      emits "BoxSurrenderReviewCleared"
+    end
+
+    command "Escalate" do
+      role "Compliance officer"
+      goal "Send a genuine finding on to whatever handles it next"
+
+      reference_to BoxSurrenderReview
+
+      emits "BoxSurrenderReviewEscalated"
+    end
+  end
+end
