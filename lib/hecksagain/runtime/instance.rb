@@ -65,7 +65,14 @@ module Hecksagain
         @state.key?(name) || super
       end
 
-      def to_h = { id: @id }.merge(@state)
+      # `id: @id` LAST, not first — see Facade::Handle#to_h's own comment
+      # for the full story (the same fix, landed there first): an
+      # aggregate free to declare its own attribute literally named `id`
+      # (BurningManPrep's `Item`, `attribute :id, ItemId`) has that
+      # attribute's own wrapped value object sitting in `@state[:id]` —
+      # merging `@state` on top of `{ id: @id }` let it silently clobber
+      # the correct bare identity. `@id` merged last always wins.
+      def to_h = @state.merge(id: @id)
 
       # A COPY A MUTATION MAY TOUCH. Every adapter but Memory hands `find`
       # a freshly-decoded Instance already; Memory's holds the record it
