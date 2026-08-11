@@ -408,93 +408,71 @@
   {
     "kind": "query",
     "id": "Banking::Customer.InGoodStanding",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Customer.Suspended",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Customer.NotGoodStanding",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Account.Open",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Account.Overdrawn",
     "generated": false,
     "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "reason": "declares freshness — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
   },
   {
     "kind": "query",
     "id": "Banking::Account.HighBalance",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Account.StrictlyAbove",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Account.AtMost",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Account.Reachable",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Account.OpenForSuspendedCustomers",
     "generated": false,
     "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "reason": "where clause on \"customer.status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
   },
   {
     "kind": "query",
     "id": "Banking::ATMCard.Active",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::ATMCard.ByFee",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::Transfer.InFlight",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
@@ -519,23 +497,19 @@
   {
     "kind": "query",
     "id": "Banking::ScheduledPayment.Due",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Banking::SafeDepositBox.Rented",
     "generated": false,
     "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "reason": "declares consistency, authorization — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
   },
   {
     "kind": "query",
     "id": "Banking::OnboardingCase.Screening",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "read_model",

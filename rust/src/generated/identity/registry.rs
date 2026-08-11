@@ -155,6 +155,8 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "issuer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("issuer") },
         crate::kernel::QueryCondition { field: "subject", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("subject") },
     ],
+    order_by: None,
+    limit: None,
 },
 ];
 

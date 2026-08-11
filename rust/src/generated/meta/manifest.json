@@ -341,79 +341,57 @@
   {
     "kind": "query",
     "id": "Bluebook::Aggregate.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Command.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Query.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::ValueObject.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Member.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Entity.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Policy.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::ProcessManager.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Handler.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::Dispatch.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Bluebook::ReadModel.DeclaredIn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "read_model",

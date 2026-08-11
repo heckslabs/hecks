@@ -612,6 +612,107 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "name", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("name") },
     ],
+    order_by: None,
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Aggregate.DeclaredIn",
+    aggregate: "Bluebook::Aggregate",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "bluebook_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Command.DeclaredIn",
+    aggregate: "Bluebook::Command",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "aggregate_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Query.DeclaredIn",
+    aggregate: "Bluebook::Query",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "aggregate_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::ValueObject.DeclaredIn",
+    aggregate: "Bluebook::ValueObject",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "aggregate_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Member.DeclaredIn",
+    aggregate: "Bluebook::Member",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "value_object_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("value_object_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Entity.DeclaredIn",
+    aggregate: "Bluebook::Entity",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "aggregate_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("aggregate_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Policy.DeclaredIn",
+    aggregate: "Bluebook::Policy",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "bluebook_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::ProcessManager.DeclaredIn",
+    aggregate: "Bluebook::ProcessManager",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "bluebook_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Handler.DeclaredIn",
+    aggregate: "Bluebook::Handler",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "process_manager_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("process_manager_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::Dispatch.DeclaredIn",
+    aggregate: "Bluebook::Dispatch",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "handler_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("handler_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Bluebook::ReadModel.DeclaredIn",
+    aggregate: "Bluebook::ReadModel",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "bluebook_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("bluebook_id") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "position", descending: false }),
+    limit: None,
 },
 ];
 

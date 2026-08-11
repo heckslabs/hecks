@@ -89,30 +89,38 @@ RSpec.describe "Rust conformance (native binary)" do
 
   # THE OTHER "query" STEP SHAPE'S OWN REMAINING BOUNDARY — a NAMED/declared
   # bluebook ask (the STRING form) whose OWN shape this generator's query
-  # codegen doesn't cover (`Banking::Account.Open` declares `order_by`,
-  # `rust/project/queries.rb`'s own eligibility gate — see query_filters.json
-  # above for the queries that DO now execute for real). Ruby answers this
-  # one for real (`Fuzzing::Replay` dispatches it through `runtime.query`)
-  # but this compiled binary still, deliberately, does not. NOT a
-  # byte-for-byte parity check against Ruby — there is nothing to be "in
-  # conformance" with here, Ruby doesn't refuse this at all — this instead
-  # proves the boundary itself is HONEST: a clean `Refusal::TypeMismatch`,
-  # valid JSON, exit 0, never a panic or a wrong-but-silent answer, even
-  # though a real named query (query_filters.json's own CardPayment.Pending/
-  # Disputed/Flagged, ExternalTransfer.Sent, Governance's/Identity's — see
-  # that fixture) now genuinely executes right alongside it in the very same
-  # binary.
+  # codegen doesn't cover. Used to be `Banking::Account.Open` (it declared
+  # `order_by`, which disqualified it outright) — that closed 2026-08-11,
+  # the moment `kernel/query_ordering.rs` gave `named_query.rs` the same
+  # sort/limit tail `read_model.rs` already had (see named_queries_order_
+  # limit.json for `Account.Open` now genuinely executing, byte-for-byte
+  # against Ruby). `Banking::Account.OpenForSuspendedCustomers` takes its
+  # place here — it hops through a reference (`where(:"customer.status" =>
+  # "suspended")`, checked on Customer, not Account's own declared fields),
+  # a genuinely different and still-real gap `rust/project/queries.rb`'s
+  # own header names as read_model territory, not something order_by/limit
+  # support touches at all. Ruby answers this one for real (`Fuzzing::
+  # Replay` dispatches it through `runtime.query`) but this compiled binary
+  # still, deliberately, does not. NOT a byte-for-byte parity check against
+  # Ruby — there is nothing to be "in conformance" with here, Ruby doesn't
+  # refuse this at all — this instead proves the boundary itself is
+  # HONEST: a clean `Refusal::TypeMismatch`, valid JSON, exit 0, never a
+  # panic or a wrong-but-silent answer, even though a real named query
+  # (query_filters.json's own CardPayment.Pending/Disputed/Flagged,
+  # ExternalTransfer.Sent, Governance's/Identity's, and now every order_by/
+  # limit-bearing declared query in named_queries_order_limit.json) now
+  # genuinely executes right alongside it in the very same binary.
   it "a named/declared query step whose shape this generator doesn't cover still refuses cleanly (not a byte-for-byte comparison — Ruby answers this one for real)" do
     binary = build_rust_for("banking")
     skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
-    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.Open" }] }))
+    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.OpenForSuspendedCustomers" }] }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
     rust_output = JSON.parse(stdout)
     expect(rust_output["refusals"].size).to eq(1)
-    expect(rust_output["refusals"][0]["verb"]).to eq("Banking::Account.Open")
-    expect(rust_output["refusals"][0]["error"]).to include("Banking::Account.Open").and include("is not generated for this domain")
+    expect(rust_output["refusals"][0]["verb"]).to eq("Banking::Account.OpenForSuspendedCustomers")
+    expect(rust_output["refusals"][0]["error"]).to include("Banking::Account.OpenForSuspendedCustomers").and include("is not generated for this domain")
     expect(rust_output["queries"]).to eq([])
   end
 end

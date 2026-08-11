@@ -9,29 +9,45 @@
 //
 // SCOPE: exactly the subset `rust/project/queries.rb`'s own
 // `query_skip_reason` admits — one or more field-comparator conditions,
-// ANDed together, against a single aggregate's OWN attributes (no
-// order_by/limit/cursor/consistency/freshness/authorization/null_semantics/
-// inspection/index_hints; no where clause hopping through a reference; no
-// literal comparator value whose true JSON type the exported IR can't
-// recover). A declared query outside that subset simply has no row in the
-// generated table at all — `kernel/cli.rs`'s own STRING-shaped "query" step
-// refuses it the same clean way an unrouted command already does, never
-// silently wrong.
+// ANDed together, against a single aggregate's OWN attributes, PLUS (as of
+// 2026-08-11) a declared `order_by`/`limit` on that same result set —
+// still no cursor/consistency/freshness/authorization/null_semantics/
+// inspection/index_hints/offset; no where clause hopping through a
+// reference; no literal comparator value whose true JSON type the
+// exported IR can't recover; no order_by field that doesn't reduce to a
+// plain JSON string or number. A declared query outside that subset
+// simply has no row in the generated table at all — `kernel/cli.rs`'s own
+// STRING-shaped "query" step refuses it the same clean way an unrouted
+// command already does, never silently wrong.
 //
 // GROUND TRUTH: `Runtime::QueryInterpreter#interpret`
 // (lib/hecksagain/runtime/query_interpreter.rb), read directly — for THIS
-// subset specifically (no order_by/limit/hop), `interpret` and its own
-// differential twin `reference_interpret` are PROVABLY the identical
-// answer: both share the exact same `ordered` helper (with `order_by: nil`
-// that's `Ports::Query::Ordering.apply`'s own identity-only sort, i.e. by
-// id — the same order `repository::filter_entries`'s own id-ascending sort
-// already produces), and a hop-free where clause makes `reference_where_
-// holds?` fall straight through to `where_holds?` via its own early return
-// (`return where_holds?(clause, record, args) unless step`) — never a
-// second, separately-computed answer. `kernel/cli.rs`'s STRING-form
-// dispatch leans on exactly this property to report `reference_rows` as a
-// clone of `rows` rather than actually re-running a second walk.
-use super::{query_comparators::QueryComparator, repository, AggregateScan, Json, Refusal};
+// subset specifically (no hop), `interpret` and its own differential twin
+// `reference_interpret` are PROVABLY the identical answer, order_by/limit
+// included: both share the exact same `ordered`/`capped` sequence —
+// `ordered = ordered(matched, declared.order_by, declared.null_semantics)`
+// then `capped = declared.limit ? ordered.first(resolve_query_value(
+// declared.limit.value, args).to_i) : ordered` — applied AFTER the where
+// clauses (`matched`), which is the only place the two interpreters ever
+// differ (`reference_where_holds?` vs plain `where_holds?`); a hop-free
+// where clause makes `reference_where_holds?` fall straight through to
+// `where_holds?` via its own early return (`return where_holds?(clause,
+// record, args) unless step`), so order_by/limit run on an IDENTICAL
+// `matched` set either way, never a second, separately-computed answer.
+// `kernel/cli.rs`'s STRING-form dispatch leans on exactly this property
+// to report `reference_rows` as a clone of `rows` rather than actually
+// re-running a second walk.
+//
+// order_by/limit ARE NOT hand-written here a second time — `query_ordering
+// ::apply` (kernel/query_ordering.rs) is the SAME identity-sort/declared-
+// order/limit tail `read_model::run` already calls for a read model's own
+// eligible head; that module's own header has the full argument for why a
+// declared query needing this was simple reuse rather than new invention
+// once it existed, and the one real structural difference between the two
+// callers (a read model choosing among several aggregate heads; a query
+// ordering/capping its own single result set directly, with no head
+// selection at all).
+use super::{query_comparators::QueryComparator, query_ordering, repository, AggregateScan, Json, Refusal};
 
 /// ONE declared query, compiled. `verb` is the fully-qualified
 /// "Domain::Aggregate.QueryName" `kernel/cli.rs`'s STRING-form "query" step
@@ -40,11 +56,20 @@ use super::{query_comparators::QueryComparator, repository, AggregateScan, Json,
 /// filter step (`kernel/cli.rs`'s own `run_filter`) already resolves
 /// through, so a query and an ad hoc filter against the same aggregate
 /// always answer the SAME "unknown aggregate" refusal path.
+/// `order_by`/`limit` are `None` for a query that declares neither — the
+/// ordinary case, and the ONLY case before 2026-08-11. Both reuse
+/// `query_ordering::OrderBy`/`Limit` directly (no `named_query`-local
+/// wrapper type the way `read_model::ReadModelOrderBy`/`ReadModelLimit`
+/// briefly were before THEY became aliases for the same reason) — this is
+/// a brand-new consumer of that shared shape, so there was never a
+/// pre-existing local type here to migrate away from.
 #[derive(Debug, Clone, Copy)]
 pub struct QueryDef {
     pub verb: &'static str,
     pub aggregate: &'static str,
     pub conditions: &'static [QueryCondition],
+    pub order_by: Option<query_ordering::OrderBy>,
+    pub limit: Option<query_ordering::Limit>,
 }
 
 /// ONE where clause, compiled — `field`/`comparator` read exactly like the
@@ -86,11 +111,16 @@ pub enum QueryConditionValue {
 /// ascending, ALWAYS" — chaining preserves that through every step, so the
 /// final result stays sorted by id exactly like a single-condition filter
 /// already is, matching `Runtime::QueryInterpreter#interpret`'s own
-/// single-pass `wheres.all? { ... }` AND for this hop-free, order-free
-/// subset). `store` is generic over `AggregateScan`, not any one domain's
-/// own `Store` — matching `filter_entries`'s own design: nothing here is
-/// domain-specific, only the `QueryDef` data a generated `QUERIES` table
-/// hands it is.
+/// single-pass `wheres.all? { ... }` AND for this hop-free subset), THEN
+/// `query_ordering::apply` for the declared `order_by`/`limit` — Ruby's
+/// own `ordered`/`capped` sequence, run AFTER `matched` the identical way
+/// `interpret` itself orders: this module's own header has the full
+/// ground-truth citation for why that sequencing (filter first, order/cap
+/// second) is provably right, not just a plausible guess at Ruby's order
+/// of operations. `store` is generic over `AggregateScan`, not any one
+/// domain's own `Store` — matching `filter_entries`'s own design: nothing
+/// here is domain-specific, only the `QueryDef` data a generated `QUERIES`
+/// table hands it is.
 pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json) -> Result<Vec<(String, Json)>, Refusal> {
     let mut entries = store
         .scan(def.aggregate)
@@ -104,7 +134,7 @@ pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json) -> Result<Ve
         entries = repository::filter_entries(entries, condition.field, condition.comparator, &want);
     }
 
-    Ok(entries)
+    Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.limit.as_ref(), args))
 }
 
 /// The lookup `kernel/cli.rs`'s STRING-form "query" step dispatches

@@ -181,39 +181,18 @@ module RustProjection
         return "eligible head #{head[:aggregate]}'s own #{reason}" if reason
       end
 
-      order_reason = read_model_order_by_skip_reason(read_model[:order_by], aggregate, value_objects_by_name)
+      # `declared_order_by_skip_reason`/`declared_limit_skip_reason` — moved
+      # to `queries.rb` (2026-08-11), not defined here: a declared AGGREGATE
+      # query needed the IDENTICAL field-kind/literal-shape checks for its
+      # own `order_by`/`limit` (that file's own header has the argument),
+      # and both are already generic over "some aggregate, some order_by/
+      # limit hash" — nothing in either check is read-model-specific, so
+      # the only change reuse asked of them was the name (module_function
+      # already put them within reach of every file in this module).
+      order_reason = declared_order_by_skip_reason(read_model[:order_by], aggregate, value_objects_by_name)
       return order_reason if order_reason
 
-      read_model_limit_skip_reason(read_model[:limit])
-    end
-
-    def read_model_order_by_skip_reason(order_by, aggregate, value_objects_by_name)
-      return nil unless order_by
-
-      field = order_by[:field].to_s
-      kind = query_field_kind(aggregate, field, value_objects_by_name)
-      return nil if %i[string number].include?(kind)
-
-      "declares order_by on #{field.inspect} — this generator can only sort a field that reduces to a plain " \
-        "JSON string or number (kind: #{kind}); a hop through a reference, an entity-scoped field, a list_of " \
-        "field, or a multi-member non-numeric value object can't be compared generically"
-    end
-
-    # `limit`'s own literal value rides the wire through `QuerySpecification.
-    # render_value` (`.to_s` for anything that isn't a Symbol), so a real
-    # Integer literal ("5") and a genuinely non-numeric literal are only
-    # told apart here, the same "recover the true type or refuse" caution
-    # `queries.rb`'s own literal-comparator reasoning already holds to — a
-    # Symbol arg (":page_size") needs no such check, it resolves from real,
-    # correctly-typed wire args at dispatch time.
-    def read_model_limit_skip_reason(limit)
-      return nil unless limit
-
-      raw = limit[:value].to_s
-      return nil if raw.start_with?(":") || raw.match?(/\A-?\d+\z/)
-
-      "declares limit #{raw.inspect} — not a literal integer or a caller-bound Symbol arg, so this generator " \
-        "can't compile a real limit count from it"
+      declared_limit_skip_reason(read_model[:limit])
     end
 
     def read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)

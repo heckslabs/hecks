@@ -2,7 +2,13 @@
 // see mod.rs's own header. `QueryDef`/`QueryCondition`/`QueryConditionValue`
 // are real kernel types (`rust/src/kernel/named_query.rs`); `QueryComparator`
 // is the same closed, eight-variant enum the ad hoc filter step already
-// dispatches on (`rust/src/kernel/query_comparators.rs`).
+// dispatches on (`rust/src/kernel/query_comparators.rs`). `QueryDef`'s own
+// `order_by`/`limit` (added 2026-08-11) are `crate::kernel::query_ordering::
+// OrderBy`/`Limit` — the SAME shared type `read_models.rs`'s own
+// `ReadModelDef` reaches through the `read_model::ReadModelOrderBy`/
+// `ReadModelLimit` aliases (kernel/read_model.rs); this file spells the
+// canonical path directly since `QueryDef` has no read-model alias to go
+// through.
 #![allow(dead_code, unused_variables)]
 
 // `const` context can't call a non-`const` function — the same reason
@@ -23,6 +29,8 @@ crate::kernel::QueryDef {
             value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
         },
     ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true }),
+    limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),
 },
 ];
 // TMPL:query_table END

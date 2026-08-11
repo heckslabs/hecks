@@ -721,11 +721,113 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
 crate::kernel::QueryDef {
+    verb: "Banking::Customer.InGoodStanding",
+    aggregate: "Banking::Customer",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
+        crate::kernel::QueryCondition { field: "standing", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("good") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Customer.Suspended",
+    aggregate: "Banking::Customer",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("suspended") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: true }),
+    limit: Some(crate::kernel::query_ordering::Limit::Literal(50)),
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Customer.NotGoodStanding",
+    aggregate: "Banking::Customer",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "standing", comparator: crate::kernel::query_comparators::QueryComparator::Ne, value: crate::kernel::QueryConditionValue::Literal("good") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.Open",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.HighBalance",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Gte, value: crate::kernel::QueryConditionValue::Arg("floor") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.StrictlyAbove",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Gt, value: crate::kernel::QueryConditionValue::Arg("floor") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: true }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.AtMost",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "balance", comparator: crate::kernel::query_comparators::QueryComparator::Lte, value: crate::kernel::QueryConditionValue::Arg("cap") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "balance", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.Reachable",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::In, value: crate::kernel::QueryConditionValue::Literal("open,frozen") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::ATMCard.Active",
+    aggregate: "Banking::ATMCard",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "nickname", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::ATMCard.ByFee",
+    aggregate: "Banking::ATMCard",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("active") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "daily_fee", descending: false }),
+    limit: Some(crate::kernel::query_ordering::Limit::Literal(3)),
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Transfer.InFlight",
+    aggregate: "Banking::Transfer",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("debited") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "status", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
     verb: "Banking::CardPayment.Pending",
     aggregate: "Banking::CardPayment",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("authorized") },
     ],
+    order_by: None,
+    limit: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::CardPayment.Disputed",
@@ -733,6 +835,8 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
     ],
+    order_by: None,
+    limit: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::CardPayment.Flagged",
@@ -740,6 +844,8 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "tags", comparator: crate::kernel::query_comparators::QueryComparator::Contains, value: crate::kernel::QueryConditionValue::Literal("high_risk") },
     ],
+    order_by: None,
+    limit: None,
 },
 crate::kernel::QueryDef {
     verb: "Banking::ExternalTransfer.Sent",
@@ -747,6 +853,26 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("sent") },
     ],
+    order_by: None,
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::ScheduledPayment.Due",
+    aggregate: "Banking::ScheduledPayment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("scheduled") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "due_on", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::OnboardingCase.Screening",
+    aggregate: "Banking::OnboardingCase",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("screening") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "reference", descending: false }),
+    limit: None,
 },
 crate::kernel::QueryDef {
     verb: "Governance::RoleAssignment.AssignmentsForActor",
@@ -754,6 +880,8 @@ crate::kernel::QueryDef {
     conditions: &[
         crate::kernel::QueryCondition { field: "actor_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("actor_id") },
     ],
+    order_by: None,
+    limit: None,
 },
 crate::kernel::QueryDef {
     verb: "Governance::RoleTransition.Allowed",
@@ -762,6 +890,8 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "from_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("from_role") },
         crate::kernel::QueryCondition { field: "to_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("to_role") },
     ],
+    order_by: None,
+    limit: None,
 },
 crate::kernel::QueryDef {
     verb: "Identity::ExternalIdentifier.ResolvedBy",
@@ -770,6 +900,8 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "issuer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("issuer") },
         crate::kernel::QueryCondition { field: "subject", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("subject") },
     ],
+    order_by: None,
+    limit: None,
 },
 ];
 
