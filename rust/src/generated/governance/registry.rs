@@ -155,3 +155,21 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         _ => None,
     }
 }
+
+pub const QUERIES: &[crate::kernel::QueryDef] = &[
+crate::kernel::QueryDef {
+    verb: "Governance::RoleAssignment.AssignmentsForActor",
+    aggregate: "Governance::RoleAssignment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "actor_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("actor_id") },
+    ],
+},
+crate::kernel::QueryDef {
+    verb: "Governance::RoleTransition.Allowed",
+    aggregate: "Governance::RoleTransition",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "from_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("from_role") },
+        crate::kernel::QueryCondition { field: "to_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("to_role") },
+    ],
+},
+];
