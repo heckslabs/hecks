@@ -25,7 +25,16 @@ impl AggregateName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("AggregateName violates its invariant: an aggregate is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "AggregateName"),
+            ("description", "an aggregate is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -70,7 +79,16 @@ impl Description {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Description violates its invariant: a description says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Description"),
+            ("description", "a description says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -387,7 +405,16 @@ impl FieldName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("FieldName violates its invariant: an attribute is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "FieldName"),
+            ("description", "an attribute is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -432,7 +459,16 @@ impl TypeName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("TypeName violates its invariant: a type is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "TypeName"),
+            ("description", "a type is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -517,7 +553,16 @@ impl ListFlag {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("true".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("false".to_string())) })), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ListFlag violates its invariant: list is true or false".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ListFlag"),
+            ("description", "list is true or false"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -686,6 +731,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -762,6 +809,8 @@ pub fn dispatch_identify(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Identify",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an identity part reaches a scalar", expr: Expr::Or(Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str(".".to_string())) }), Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str("_id".to_string())) })) },
@@ -847,6 +896,8 @@ pub fn dispatch_attribute(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Attribute",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -944,6 +995,8 @@ pub fn dispatch_reference(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reference",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -1041,6 +1094,8 @@ pub fn dispatch_holds(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Holds",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -1124,6 +1179,8 @@ pub fn dispatch_lifecycle(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Lifecycle",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -1201,6 +1258,8 @@ pub fn dispatch_transition(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Transition",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -1272,6 +1331,8 @@ pub fn dispatch_seal(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Seal",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an aggregate says what it is known by", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("identified_by"))))) },
@@ -1340,6 +1401,8 @@ pub fn dispatch_value(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Value",
         "Bluebook::Aggregate",
+        "Aggregate",
+        "bluebook_id, name.value",
         &args,
         &[
 

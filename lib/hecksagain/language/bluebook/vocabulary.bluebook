@@ -346,6 +346,8 @@ Hecks.bluebook "Bluebook" do
                template: "{command} was not given {absent} — it takes {declared}"
         member refusal: "InvariantViolation", site: "closed_set_member",
                template: "{type} admits {admitted} — got {offered}"
+        member refusal: "InvariantViolation", site: "value_object_invariant",
+               template: "{name} invariant violated — {description} (given {offered})"
         member refusal: "InvariantViolation", site: "admits_declared_set",
                template: "{name} admits {admits} — {admitted} — got {offered}"
         member refusal: "InvariantViolation", site: "undeclared_set",

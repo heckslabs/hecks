@@ -1,0 +1,8 @@
+{
+  "domain": "examples/banking",
+  "note": "InvariantViolation/closed_set_member, AccountKind's own `one_of` — verified genuinely broken before this fixture existed, and not just in wording: unmodified Rust raised `Refusal::TypeMismatch` with 'AccountKind: unknown member \"bogus\"'; Ruby raises `InvariantViolation` (a `one_of` membership check is an invariant on the value object being built, not a shape mismatch) with 'AccountKind admits \"current\", \"savings\", \"reserve\" — got \"bogus\"'. Opening an account with a `kind` name that isn't one of the three declared members.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"customer_id": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "bogus"}, "daily_limit": {"cents": 100000}}}
+  ]
+}

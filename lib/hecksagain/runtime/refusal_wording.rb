@@ -82,6 +82,8 @@ module Hecksagain
           "{command} was not given {absent} — it takes {declared}",
         %w[InvariantViolation closed_set_member] =>
           "{type} admits {admitted} — got {offered}",
+        %w[InvariantViolation value_object_invariant] =>
+          "{name} invariant violated — {description} (given {offered})",
         %w[InvariantViolation admits_declared_set] =>
           "{name} admits {admits} — {admitted} — got {offered}",
         %w[InvariantViolation undeclared_set] =>

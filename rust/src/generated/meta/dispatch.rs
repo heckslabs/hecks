@@ -240,6 +240,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Dispatch",
+        "Dispatch",
+        "handler_id, command_name.value",
         &args,
         &[
 
@@ -317,6 +319,8 @@ pub fn dispatch_bind(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Bind",
         "Bluebook::Dispatch",
+        "Dispatch",
+        "handler_id, command_name.value",
         &args,
         &[
 

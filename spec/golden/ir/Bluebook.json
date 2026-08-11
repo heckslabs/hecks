@@ -7293,6 +7293,20 @@
               ],
               [
                 "site",
+                "value_object_invariant"
+              ],
+              [
+                "template",
+                "{name} invariant violated — {description} (given {offered})"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
                 "admits_declared_set"
               ],
               [

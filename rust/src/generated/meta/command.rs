@@ -25,7 +25,16 @@ impl CommandName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("CommandName violates its invariant: a command is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "CommandName"),
+            ("description", "a command is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -474,7 +483,16 @@ impl ArgName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ArgName violates its invariant: an argument is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ArgName"),
+            ("description", "an argument is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -818,6 +836,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
 
@@ -916,6 +936,8 @@ pub fn dispatch_argument(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Argument",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
 
@@ -1013,6 +1035,8 @@ pub fn dispatch_reference(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Reference",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
 
@@ -1096,6 +1120,8 @@ pub fn dispatch_rule(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Rule",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
@@ -1170,6 +1196,8 @@ pub fn dispatch_ensure(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Ensure",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
@@ -1254,6 +1282,8 @@ pub fn dispatch_change(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Change",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a mutation names a target", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("target.value"))))))) },
@@ -1331,6 +1361,8 @@ pub fn dispatch_acts_on(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "ActsOn",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a command names what it acts on", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("root.value"))))))) },
@@ -1400,6 +1432,8 @@ pub fn dispatch_announce(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Announce",
         "Bluebook::Command",
+        "Command",
+        "owner_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an event is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("announces.value"))))))) },

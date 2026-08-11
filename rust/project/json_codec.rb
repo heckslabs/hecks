@@ -378,6 +378,17 @@ module RustProjection
     # `Fielded` nor invariant checking today, and doesn't get a JSON codec
     # here either, for the same reason: nothing in either example domain
     # looks one up generically or passes one as a command argument.
+    # `InvariantViolation`/`closed_set_member` — `refusal_wording.rb`'s own
+    # template, `"{type} admits {admitted} — got {offered}"` — read
+    # directly and reproduced byte-for-byte the same way `emit_admits_check`
+    # (constraints.rb) already does for the sibling `admits_declared_set`
+    # site: `type` prints bare (`value_object.hecks_name`, a plain string),
+    # `admitted` is the FULL member list, each entry already `.inspect`-
+    # quoted and joined with ", " (`admit_member`, admission.rb: `admitted.
+    # map(&:inspect).join(", ")`) — resolved once here at codegen time,
+    # since every member is already known statically, the same reasoning
+    # `admitted_set_members` (constraints.rb) already applies to the OTHER
+    # closed-set door.
     def emit_closed_set_codec(vo)
       name = rust_ident(vo[:name])
       field_name = rust_field(vo[:attributes].first[:name])
@@ -387,9 +398,18 @@ module RustProjection
       # subs hash serves both `render_each` calls below.
       row_subs = rows.map { |variant, raw| { "TmplKind" => name, "TmplMemberA" => variant, '"tmpl_member_a"' => raw.inspect } }
 
+      type_name = vo[:name].to_s
+      admitted  = rows.map { |_variant, raw| raw.inspect }.join(", ")
+
       Exemplar.assemble(
         "closed_set_codec",
-        { "TmplKind" => name, '"tmpl_field_name"' => field_name.inspect, "tmpl_field_name" => field_name },
+        {
+          "TmplKind" => name,
+          '"tmpl_field_name"' => field_name.inspect,
+          "tmpl_field_name" => field_name,
+          '"tmpl_closed_set_type"' => type_name.inspect,
+          '"tmpl_closed_set_admitted"' => admitted.inspect,
+        },
         slots: {
           "closed_set_codec:TO_JSON_ARM"   => Exemplar.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
           "closed_set_codec:FROM_JSON_ARM" => Exemplar.render_each("closed_set_codec:FROM_JSON_ARM", row_subs),
@@ -517,6 +537,40 @@ module RustProjection
           '"tmpl_error_text"' => "#{name}: no identity found (tried #{tried})".inspect,
         },
         field_id: "extract_id:TIER1_LINE",
+        field_subs_list: tier1_subs
+      )
+    end
+
+    # `element_of`'s own `wants` (entity_interpreter.rb), for
+    # `entity_element_missing`'s `{wants}` — the ONE genuinely runtime
+    # piece `kernel::dispatch_entity`'s new refusal wording needs (see
+    # `dispatch.rs`'s own header on that parameter). Deliberately a TIER1-
+    # ONLY dig, unlike `emit_extract_id`'s three-tier chain: Ruby's own
+    # `wants` never falls back to an `id`/reference-key tier at all — reread
+    # `element_of`, it raises `entity_element_no_identity` the moment ANY
+    # identity-path head is missing from `args`, so by the time `wants` is
+    # actually computed every part is already known present. Joined with
+    # `", "`, not `":"` — the one real difference from `extract_id`'s own
+    # `tier1_join`, matching `wants.map { |_h, path, want| Identity.scalar
+    # (path, want) }.join(", ")` exactly.
+    def emit_extract_wants(entity)
+      name = rust_ident(entity[:name])
+
+      tier1_subs = entity[:identified_by].each_with_index.map { |path, i| { '"tmpl_path"' => path.inspect, "c0" => "c#{i}" } }
+      wants_join =
+        if entity[:identified_by].size == 1
+          "c0"
+        else
+          "vec![#{entity[:identified_by].size.times.map { |i| "c#{i}" }.join(', ')}].join(\", \")"
+        end
+
+      Exemplar.compose(
+        "extract_wants",
+        {
+          "TmplExtractWantsType" => name,
+          "tmpl_wants_join_placeholder()" => wants_join,
+        },
+        field_id: "extract_wants:TIER1_LINE",
         field_subs_list: tier1_subs
       )
     end

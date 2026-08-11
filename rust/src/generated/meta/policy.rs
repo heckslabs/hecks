@@ -25,7 +25,16 @@ impl PolicyName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PolicyName violates its invariant: a policy is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PolicyName"),
+            ("description", "a policy is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -260,6 +269,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Policy",
+        "Policy",
+        "bluebook_id, name.value",
         &args,
         &[
 

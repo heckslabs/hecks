@@ -24,15 +24,25 @@ require "hecksagain/fuzzing"
 # `CommandRules::Admissibility` raises with. Fixtures with no "query" step
 # at all (every fixture below except query_filters.json) trivially pass
 # the `queries` comparison — both engines report an empty array — so
-# adding it here costs those fixtures nothing. Fixtures below are
-# picked/maintained specifically to stay clear of the OTHER refusal-
-# wording templates this generator still doesn't match byte-for-byte
-# (LifecycleRefused's `transition_blocked`, the general VO-`invariant`
-# message, `one_of` closed-set membership, entity-element-missing —
-# `rust/project.rb`'s own header names these as a real, separate,
-# deliberately out-of-scope gap) — a NEW fixture that exercises one of
-# those will legitimately fail here until that gap is closed too, the
-# same way any pinned fixture needs verifying before it's added.
+# adding it here costs those fixtures nothing.
+#
+# THE REFUSAL-WORDING GAP THIS FILE USED TO NAME IS CLOSED. Fixtures used
+# to be picked/maintained specifically to stay CLEAR of `LifecycleRefused`'s
+# `transition_blocked`, the general VO-`invariant` message, `one_of`
+# closed-set membership, and entity-element-missing — `rust/project.rb`'s
+# own header used to name these as a real, separate, deliberately
+# out-of-scope gap. `bin/project_refusal_wording` (generating `rust/src/
+# kernel/refusal_wording.rs`, `RefusalSite`) closed all four, plus
+# `record_missing` via `Hydrate::Act` (found live, previously unnamed) and
+# a wrong REFUSAL CLASS on `closed_set_member` (`TypeMismatch`, not
+# `InvariantViolation` — a behavioral bug, not just wording). The general
+# VO-invariant message is no longer a gap at all: it was promoted into
+# `RefusalWording::TEMPLATES`/`Vocabulary::RefusalTemplate` on the RUBY
+# side too, so both engines render it off one declared template.
+# `spec/corpus/rust_conformance/refusal_wording_*.json` — one fixture per
+# site, below — is the proof: each was run against UNMODIFIED Rust first
+# to confirm the mismatch was real, then again after the fix, both
+# recorded in each fixture's own `note`.
 RSpec.describe "Rust conformance (native binary)" do
   RUST_CONFORMANCE_FIXTURES = Dir.glob(File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/*.json")).sort
   RUST_DIR = File.join(InMemoryDomain::ROOT, "rust")
