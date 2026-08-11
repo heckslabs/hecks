@@ -1386,7 +1386,12 @@ mint_era_recipe =
 # override the way mint_era_recipe's inline `LineageManager.check!`
 # call does — they resolve their own DB connection purely off the
 # domain's `.world` file, which reads that same env var.
-translation_recipe = lambda do |verb, script, extra_args = ""|
+# `cwd:`/`run_prefix:` — every existing caller runs a hecksagain-owned
+# script from hecksagain's own $(ROOT) with `-Ilib` (source, not the
+# installed gem); `migrate_console_settings_recipe` below is the one
+# exception, an APP-owned script that needs the app's own Gemfile
+# context instead — `cd $(DOMAIN) && bundle exec ruby`, not `-Ilib`.
+translation_recipe = lambda do |verb, script, extra_args = "", cwd: "$(ROOT)", run_prefix: "ruby -Ilib"|
   if shared
     <<~SHAREDTRANSLATION.rstrip
     \t@echo "#{verb} isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see mint-era's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel."; \\
@@ -1421,7 +1426,7 @@ translation_recipe = lambda do |verb, script, extra_args = ""|
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" HECKS_SCHEMA="#{hecks_schema}" ruby -Ilib #{script} $(DOMAIN) #{extra_args}&& { RUN_STATUS=0; break; }; \\
+    \t\tcd #{cwd} && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" HECKS_SCHEMA="#{hecks_schema}" #{run_prefix} #{script} #{cwd == "$(ROOT)" ? "$(DOMAIN) " : ""}#{extra_args}&& { RUN_STATUS=0; break; }; \\
     \t\tRUN_STATUS=$$?; \\
     \t\techo "#{verb} attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\
@@ -1438,6 +1443,20 @@ end
 
 scaffold_translation_recipe = translation_recipe.call("scaffold-translation", "bin/scaffold_translation")
 translation_audit_recipe = translation_recipe.call("translation-audit", "bin/translation_audit")
+
+# `make migrate-console-settings` — the SAME bastion/tunnel/retry/
+# teardown chain as scaffold-translation/translation-audit, running an
+# APP-owned one-time migration script instead of one of hecksagain's
+# own bin/ tools (see translation_recipe's own `cwd:`/`run_prefix:`
+# comment). Only meaningful for a domain that actually has one — most
+# domains don't, so this target is generated unconditionally but simply
+# has nothing to run for them; harmless (`bundle exec ruby` on a
+# missing file just fails loudly, same as any other missing script
+# would).
+migrate_console_settings_recipe = translation_recipe.call(
+  "migrate-console-settings", "bin/migrate_console_settings", "",
+  cwd: "$(DOMAIN)", run_prefix: "bundle exec ruby"
+)
 
 # `rename-schema`'s own recipe body — same top-level-variable-not-inlined
 # reasoning as `mint_era_recipe` just above (recipe lines need a literal
@@ -1646,6 +1665,16 @@ File.write(File.join(out_dir, "Makefile"), <<~MAKE)
   # actually applies the edge; this only checks it.
   translation-audit:
   #{translation_audit_recipe}
+
+  # `make migrate-console-settings` — runs this domain's own
+  # bin/migrate_console_settings (if it has one) over the same bastion
+  # tunnel every other Postgres-touching target here uses, against the
+  # real deployed database instead of local dev. A one-time data
+  # migration, not a repeatable ops procedure like mint-era/scaffold-
+  # translation — generated the same way regardless, per this
+  # project's own standing rule against hand-run ops steps.
+  migrate-console-settings:
+  #{migrate_console_settings_recipe}
 
   # `make rename-schema OLD=<old> NEW=<new>` — a native `ALTER SCHEMA
   # ... RENAME TO ...` over the same bastion tunnel mint-era uses,
