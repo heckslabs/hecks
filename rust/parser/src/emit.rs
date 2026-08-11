@@ -121,7 +121,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ("entities".to_string(), JsonValue::Array(a.entities.iter().map(entity_json).collect())),
         ("queries".to_string(), JsonValue::Array(a.queries.iter().map(query_json).collect())),
         ("ports".to_string(), JsonValue::Array(a.ports.iter().map(domain_port_json).collect())),
-        ("provenance".to_string(), JsonValue::opt_str(&a.provenance)),
+        ("provenance".to_string(), a.provenance.as_ref().map(ruby_value_json).unwrap_or(JsonValue::Null)),
     ])
 }
 
@@ -188,7 +188,7 @@ fn command_json(c: &ir::Command) -> JsonValue {
         ("ensures".to_string(), JsonValue::Array(c.ensures.iter().map(given_json).collect())),
         ("mutations".to_string(), JsonValue::Array(c.mutations.iter().map(mutation_json).collect())),
         ("emits".to_string(), JsonValue::strings(&c.emits)),
-        ("provenance".to_string(), JsonValue::opt_str(&c.provenance)),
+        ("provenance".to_string(), c.provenance.as_ref().map(ruby_value_json).unwrap_or(JsonValue::Null)),
     ])
 }
 
@@ -249,60 +249,98 @@ fn lifecycle_json(l: &ir::Lifecycle) -> JsonValue {
 }
 
 /// `IR::Query#to_h` (lib/hecksagain/bluebook/ir/query.rb) merged with
-/// `QuerySpecification::Common::Options#extra_options_to_h` — empty for
-/// every pizzas.bluebook query (none declares offset/cursor/consistency/
-/// freshness/authorization/inspection/index_hints, and `null_semantics`
-/// defaults, which `extra_options_to_h` itself drops), so nothing beyond
-/// `name/description/attributes/wheres/order_by/limit` is ever emitted
-/// here — `extra_options` stays an empty `BTreeMap` for this stage.
+/// `QuerySpecification::Common::Options#extra_options_to_h` — the latter
+/// via `query_options_json`, which appends `offset`/`cursor`/
+/// `consistency`/`freshness`/`authorization`/`null_semantics`/
+/// `inspection`/`index_hints` IN THAT FIXED RUBY ORDER, only for
+/// whichever ones this query actually declared (`ir::QueryOptions`'s own
+/// header explains why this can't be a plain sorted-keys map).
 fn query_json(q: &ir::Query) -> JsonValue {
     let mut pairs = vec![
         ("name".to_string(), JsonValue::str(q.name.clone())),
         ("description".to_string(), JsonValue::opt_str(&q.description)),
         ("attributes".to_string(), JsonValue::Array(q.attributes.iter().map(attribute_json).collect())),
-        (
-            "wheres".to_string(),
-            JsonValue::Array(
-                q.wheres
-                    .iter()
-                    .map(|w| {
-                        JsonValue::Object(vec![
-                            ("field".to_string(), JsonValue::str(w.field.clone())),
-                            ("op".to_string(), JsonValue::str(w.op.clone())),
-                            ("value".to_string(), JsonValue::str(w.value.clone())),
-                        ])
-                    })
-                    .collect(),
-            ),
-        ),
-        (
-            "order_by".to_string(),
-            q.order_by
-                .as_ref()
-                .map(|o| {
-                    JsonValue::Object(vec![
-                        ("field".to_string(), JsonValue::str(o.field.clone())),
-                        ("direction".to_string(), JsonValue::str(o.direction.clone())),
-                    ])
-                })
-                .unwrap_or(JsonValue::Null),
-        ),
-        ("limit".to_string(), q.limit.as_ref().map(|l| JsonValue::Object(vec![("value".to_string(), JsonValue::str(l.value.clone()))])).unwrap_or(JsonValue::Null)),
+        ("wheres".to_string(), JsonValue::Array(q.wheres.iter().map(where_clause_json).collect())),
+        ("order_by".to_string(), order_by_json(&q.order_by)),
+        ("limit".to_string(), limit_json(&q.limit)),
     ];
-    for (key, value) in &q.extra_options {
-        pairs.push((key.clone(), JsonValue::str(value.clone())));
-    }
+    pairs.extend(query_options_json(&q.options));
     JsonValue::Object(pairs)
 }
 
-/// `IR::Entity#to_h` (lib/hecksagain/bluebook/ir/entity.rb). NOT exercised
-/// by pizzas.bluebook (`Order` declares no `entity`, per
-/// `parse::entity`'s own still-stubbed header) — `a.entities` is always
-/// empty for this stage, so this function is never actually called, but
-/// still has to type-check `aggregate_json`'s own mapping over it. Field
-/// order transcribed from the real Ruby source anyway, on the same
-/// "correct even if unreachable" basis `build/naming.rs::pascal` already
-/// documents.
+fn where_clause_json(w: &ir::WhereClause) -> JsonValue {
+    JsonValue::Object(vec![
+        ("field".to_string(), JsonValue::str(w.field.clone())),
+        ("op".to_string(), JsonValue::str(w.op.clone())),
+        ("value".to_string(), JsonValue::str(w.value.clone())),
+    ])
+}
+
+fn order_by_json(order_by: &Option<ir::OrderBy>) -> JsonValue {
+    order_by
+        .as_ref()
+        .map(|o| {
+            JsonValue::Object(vec![
+                ("field".to_string(), JsonValue::str(o.field.clone())),
+                ("direction".to_string(), JsonValue::str(o.direction.clone())),
+            ])
+        })
+        .unwrap_or(JsonValue::Null)
+}
+
+fn limit_json(limit: &Option<ir::LimitSpec>) -> JsonValue {
+    limit.as_ref().map(|l| JsonValue::Object(vec![("value".to_string(), JsonValue::str(l.value.clone()))])).unwrap_or(JsonValue::Null)
+}
+
+/// `QuerySpecification::Common::Options#extra_options_to_h` — shared
+/// verbatim by `query_json`/`read_model_json`, since both Ruby classes
+/// `< Options` and reject the identical set (`wheres`/`order_by`/`limit`
+/// excluded by name; `null_semantics` excluded only when it's the
+/// default `{mode: "native"}`, which `ir::QueryOptions.null_semantics`
+/// is already `None` for — see that field's own comment). Returns pairs
+/// in Ruby's own DECLARED field order, appending only the ones actually
+/// present — an absent `Option`/empty `Vec` contributes NOTHING, the
+/// same as `extra_options_to_h`'s own `.reject { value.nil? || value ==
+/// [] }`.
+fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
+    let mut pairs = Vec::new();
+    if let Some(value) = &o.offset {
+        pairs.push(("offset".to_string(), JsonValue::Object(vec![("value".to_string(), JsonValue::str(value.clone()))])));
+    }
+    if let Some(value) = &o.cursor {
+        pairs.push(("cursor".to_string(), JsonValue::Object(vec![("value".to_string(), JsonValue::str(value.clone()))])));
+    }
+    if let Some(c) = &o.consistency {
+        let mut fields = vec![("mode".to_string(), JsonValue::str(c.mode.clone()))];
+        fields.push(("timeout".to_string(), c.timeout.as_ref().map(|t| JsonValue::str(t.clone())).unwrap_or(JsonValue::Null)));
+        pairs.push(("consistency".to_string(), JsonValue::Object(fields)));
+    }
+    if let Some(f) = &o.freshness {
+        let mut fields = vec![("mode".to_string(), JsonValue::str(f.mode.clone()))];
+        fields.push(("max_age".to_string(), f.max_age.as_ref().map(|a| JsonValue::str(a.clone())).unwrap_or(JsonValue::Null)));
+        pairs.push(("freshness".to_string(), JsonValue::Object(fields)));
+    }
+    if let Some(a) = &o.authorization {
+        let mut fields = vec![("policy".to_string(), JsonValue::str(a.policy.clone()))];
+        fields.push(("tenant".to_string(), a.tenant.as_ref().map(|t| JsonValue::str(t.clone())).unwrap_or(JsonValue::Null)));
+        pairs.push(("authorization".to_string(), JsonValue::Object(fields)));
+    }
+    if let Some(mode) = &o.null_semantics {
+        pairs.push(("null_semantics".to_string(), JsonValue::Object(vec![("mode".to_string(), JsonValue::str(mode.clone()))])));
+    }
+    if let Some(mode) = &o.inspection {
+        pairs.push(("inspection".to_string(), JsonValue::Object(vec![("mode".to_string(), JsonValue::str(mode.clone()))])));
+    }
+    if !o.index_hints.is_empty() {
+        let hints = o.index_hints.iter().map(|h| JsonValue::Object(vec![("name".to_string(), JsonValue::str(h.name.clone()))])).collect();
+        pairs.push(("index_hints".to_string(), JsonValue::Array(hints)));
+    }
+    pairs
+}
+
+/// `IR::Entity#to_h` (lib/hecksagain/bluebook/ir/entity.rb). STAGE 4:
+/// real, confirmed by banking.bluebook's own `LedgerEntry`/`Withdrawal`/
+/// `Visit`/`KeyIssuance` (`parse::entity`, previously fully stubbed).
 fn entity_json(e: &ir::Entity) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(e.name.clone())),
@@ -315,14 +353,13 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
     ])
 }
 
-/// `IR::ReadModel#to_h` (lib/hecksagain/bluebook/ir/read_model.rb). STAGE
-/// 3: `report`/`read_model` (`console_settings.bluebook`'s own `Styles`/
-/// `Curated`) — `wheres`/`order_by`/`limit` stay hardcoded to their
-/// always-empty/nil shape since no read model this parser builds yet
-/// declares any (`parse::read_model` refuses `reference_to`/`where`/
-/// `order_by`/... as not-yet-implemented) — real for `include`/
-/// `group_by`/`description`, which both of console_settings.bluebook's
-/// reports actually exercise.
+/// `IR::ReadModel#to_h` (lib/hecksagain/bluebook/ir/read_model.rb) —
+/// `wheres`/`order_by`/`limit` spelled explicitly (the SAME mechanism
+/// `query_json` uses, per `read_model.rb`'s own 2026-08-11 comment on
+/// why), `aggregate_heads`/`group_by` after them, then
+/// `query_options_json` — real for `ComplianceDashboard` (banking.bluebook's
+/// own filtered/ordered/capped/fresh/indexed read model), the first real
+/// corpus member to declare any of the three.
 fn read_model_json(r: &ir::ReadModel) -> JsonValue {
     let mut pairs = vec![
         ("name".to_string(), JsonValue::str(r.name.clone())),
@@ -330,9 +367,9 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
         ("reference_name".to_string(), JsonValue::opt_str(&r.reference_name)),
         ("reference_target".to_string(), JsonValue::opt_str(&r.reference_target)),
         ("query_name".to_string(), JsonValue::str(r.query_name.clone())),
-        ("wheres".to_string(), JsonValue::Array(Vec::new())),
-        ("order_by".to_string(), JsonValue::Null),
-        ("limit".to_string(), JsonValue::Null),
+        ("wheres".to_string(), JsonValue::Array(r.wheres.iter().map(where_clause_json).collect())),
+        ("order_by".to_string(), order_by_json(&r.order_by)),
+        ("limit".to_string(), limit_json(&r.limit)),
         (
             "aggregate_heads".to_string(),
             JsonValue::Array(
@@ -353,15 +390,13 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
             JsonValue::Array(r.group_by.iter().map(|field| JsonValue::Object(vec![("field".to_string(), JsonValue::str(field.clone()))])).collect()),
         ),
     ];
-    for (key, value) in &r.extra_options {
-        pairs.push((key.clone(), JsonValue::str(value.clone())));
-    }
+    pairs.extend(query_options_json(&r.options));
     JsonValue::Object(pairs)
 }
 
 /// `IR::ProcessManager#to_h` (lib/hecksagain/bluebook/ir/process_manager.rb).
-/// NOT exercised — pizzas.bluebook declares no `process_manager` — same
-/// "unreachable but must type-check" basis as `entity_json` above.
+/// STAGE 4: real, confirmed by banking.bluebook's own three sagas
+/// (`Settlement`/`ExternalSettlement`/`Onboarding`).
 fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(pm.name.clone())),
@@ -369,7 +404,32 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
         ("starts_on".to_string(), JsonValue::opt_str(&pm.starts_on)),
         ("ends_on".to_string(), JsonValue::opt_str(&pm.ends_on)),
         ("states".to_string(), JsonValue::strings(&pm.states)),
-        ("handlers".to_string(), JsonValue::Array(Vec::new())),
+        ("handlers".to_string(), JsonValue::Array(pm.handlers.iter().map(process_manager_handler_json).collect())),
+    ])
+}
+
+/// `IR::ProcessManagerHandler#to_h`.
+fn process_manager_handler_json(h: &ir::ProcessManagerHandler) -> JsonValue {
+    JsonValue::Object(vec![
+        ("event_type".to_string(), JsonValue::str(h.event_type.clone())),
+        ("from_state".to_string(), JsonValue::str(h.from_state.clone())),
+        ("to_state".to_string(), JsonValue::str(h.to_state.clone())),
+        ("dispatches".to_string(), JsonValue::Array(h.dispatches.iter().map(dispatch_spec_json).collect())),
+    ])
+}
+
+/// `IR::DispatchSpec#to_h` — `with_spec.map { |key, value| [key.to_s,
+/// IR.render_value(value)] }`, rendered as an ARRAY of `[key, value]`
+/// pairs (never a JSON object) since `IR::DispatchSpec#to_h`'s own
+/// `with_spec:` is `with_spec.map { ... }` over an Array of pairs, not a
+/// Hash — confirmed by reading `process_manager.rb` directly.
+fn dispatch_spec_json(d: &ir::DispatchSpec) -> JsonValue {
+    JsonValue::Object(vec![
+        ("command_name".to_string(), JsonValue::str(d.command_name.clone())),
+        (
+            "with_spec".to_string(),
+            JsonValue::Array(d.with_spec.iter().map(|(k, v)| JsonValue::Array(vec![JsonValue::str(k.clone()), JsonValue::str(v.clone())])).collect()),
+        ),
     ])
 }
 

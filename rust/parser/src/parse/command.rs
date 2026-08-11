@@ -3,9 +3,12 @@
 //! through canonical.rs (BOTH spellings — `{ ... }` and `do ... end`, see
 //! `parse::mod::source_body_text`'s own header), `sets`' four named forms
 //! (`to`/`append`/`increment`/`decrement`, the op-selection column
-//! `Argument#selects` names), and `emits` list capture. `ensures` (the
-//! postcondition sibling of `given`) is declared but not exercised by any
-//! real corpus member yet — still falls through to `not_built_yet`.
+//! `Argument#selects` names), and `emits` list capture. STAGE 4 adds
+//! `ensures` (the postcondition sibling of `given`, identical `source`-body
+//! shape and canonicalization — confirmed real: `Account.Debit`'s own two
+//! `ensures`, `ScheduledPayment.Retry`'s one) and `provenance` (identical
+//! raw-Hash-capture shape to `AggregateBuilder#provenance`, one level down
+//! — not exercised by any real corpus command yet, kept correct anyway).
 
 use crate::build::naming;
 use crate::build::references;
@@ -51,6 +54,16 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
                 command.givens.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+            }
+            "ensures" => {
+                let description = super::positional_text(file, line, "ensures", &gated.args, 1)?;
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                command.ensures.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+            }
+            "provenance" => {
+                let raw = super::named_raw(&gated.args, "from")
+                    .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;
+                command.provenance = Some(ruby_value::read(raw.trim()));
             }
             "sets" => command.mutations.push(build_mutation(file, line, &gated.args)?),
             _ => return Err(super::not_built_yet("Command", gated.row, file, line, &gated.call.word)),

@@ -129,7 +129,8 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
         .ok_or_else(|| RunError::Usage("hecks-parse resolve <file.hecksagon>".to_string()))?;
     let source = fs::read_to_string(path).map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
 
-    let lines = lex::lines(&source);
+    let joined = lex::join_continuations(&source);
+    let lines = lex::lines(&joined);
     let mut pos = 0usize;
     let (row, call, header_line) = parse::file::parse_header(path, &lines, &mut pos)?;
 
@@ -168,14 +169,13 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// exists to make impossible. Grouped by construct, in the same order
 /// `parse::mod::dispatch_stub` maps contexts.
 ///
-/// STAGE 2 built the first block (pizzas.bluebook). STAGE 3 adds the
-/// entries marked below — the framework trio's own multi-path
-/// `identified_by` (no NEW word; still just `("identified_by",
-/// "Aggregate")`, now covering its SOURCE form too, not only the
-/// bare-TYPE form), inline `one_of(...)` attribute types (also no new
-/// word — `one_of`'s Type-context row was already declared, just not
-/// exercised), `description`/`report`/`include`/`group_by` for
-/// `ReadModel`, and `description` for `Query`.
+/// STAGE 2 built the first block (pizzas.bluebook). STAGE 3 added the
+/// entries marked below. STAGE 4 (banking.bluebook — entities, composite
+/// identity, process managers, read models with every query option,
+/// `provenance`, a nested `policy`, `belongs_to`, `on`'s blockless form —
+/// also confirmed by the concurrently-landed `compliance`/`interview`
+/// real corpus members, which this stage's own real construction work
+/// happened to fully cover too) adds the entries marked STAGE 4.
 const COVERED_PAIRS: &[(&str, &str)] = &[
     ("bluebook", "File"),
     ("hecksagon", "File"),
@@ -185,18 +185,30 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("generic", "Bluebook"),
     ("aggregate", "Bluebook"),
     ("policy", "Bluebook"),
+    ("process_manager", "Bluebook"), // STAGE 4
     ("description", "Aggregate"),
+    ("provenance", "Aggregate"), // STAGE 4
     ("identified_by", "Aggregate"),
     ("attribute", "Aggregate"),
     ("value_object", "Aggregate"),
     ("lifecycle", "Aggregate"),
+    ("entity", "Aggregate"), // STAGE 4
     ("query", "Aggregate"),
     ("command", "Aggregate"),
+    ("policy", "Aggregate"), // STAGE 4
     ("reference_to", "Aggregate"), // STAGE 3
+    ("belongs_to", "Aggregate"), // STAGE 4
+    ("description", "Entity"),    // STAGE 4
+    ("identified_by", "Entity"),  // STAGE 4
+    ("attribute", "Entity"),      // STAGE 4
+    ("command", "Entity"),        // STAGE 4
+    ("query", "Entity"),          // STAGE 4
+    ("lifecycle", "Entity"),      // STAGE 4
     ("role", "Command"),
     ("goal", "Command"),
     ("reference_to", "Command"),
     ("given", "Command"),
+    ("ensures", "Command"), // STAGE 4
     ("sets", "Command"),
     ("emits", "Command"),
     ("attribute", "Command"),
@@ -209,8 +221,20 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("attribute", "Query"),
     ("where", "Query"),
     ("order_by", "Query"),
+    ("limit", "Query"),       // STAGE 4
+    ("freshness", "Query"),   // STAGE 4
+    ("authorize", "Query"),   // STAGE 4
+    ("consistency", "Query"), // STAGE 4
+    ("use_index", "Query"),   // STAGE 4
     ("on", "Policy"),
     ("trigger", "Policy"),
+    ("across", "Policy"), // STAGE 4
+    ("correlates_by", "ProcessManager"), // STAGE 4
+    ("starts_on", "ProcessManager"),     // STAGE 4
+    ("ends_on", "ProcessManager"),       // STAGE 4
+    ("state", "ProcessManager"),         // STAGE 4
+    ("on", "ProcessManager"),            // STAGE 4
+    ("dispatch", "Handler"),             // STAGE 4
     ("port", "Hecksagon"),
     ("operation", "DomainPort"),
     ("reference_to", "PortOperation"),
@@ -220,6 +244,12 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("description", "ReadModel"), // STAGE 3
     ("include", "ReadModel"),     // STAGE 3
     ("group_by", "ReadModel"),    // STAGE 3
+    ("reference_to", "ReadModel"), // STAGE 4
+    ("where", "ReadModel"),        // STAGE 4
+    ("order_by", "ReadModel"),     // STAGE 4
+    ("limit", "ReadModel"),        // STAGE 4
+    ("freshness", "ReadModel"),    // STAGE 4
+    ("use_index", "ReadModel"),    // STAGE 4
 ];
 
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {

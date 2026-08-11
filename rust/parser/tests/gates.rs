@@ -11,7 +11,9 @@
 //! `value_object.bluebook`/`policy.bluebook`/`lifecycle.bluebook` now
 //! parse for REAL (see `now_implemented_fixtures_parse_for_real` below),
 //! since `parse::command`/`parse::query`/`parse::value_object`/
-//! `parse::policy`/`parse::lifecycle` all stopped being stubs.
+//! `parse::policy`/`parse::lifecycle` all stopped being stubs. STAGE 4
+//! adds `process_manager.bluebook` to that same list (`parse::
+//! process_manager`, previously fully stubbed).
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -26,23 +28,23 @@ fn run(args: &[&str]) -> Output {
 
 #[test]
 fn still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct() {
-    // STILL genuinely not built: `aggregate.bluebook` exercises
-    // `identified_by`'s bare-FIELD form specifically (`identified_by
-    // :name`, not the bare-TYPE form pizzas.bluebook uses, nor the
-    // SOURCE/block form governance.bluebook/console_settings.bluebook use
-    // and `build/identity.rs`/`parse::aggregate` now resolve), and
-    // `entity`/`process_manager` have no `parse::*::parse_body` of their
-    // own yet at all. `report`/ReadModel moved to
-    // `now_implemented_fixtures_parse_for_real` below — STAGE 3 taught
-    // `parse::read_model` to build real IR for `description`/`include`/
-    // `group_by`.
-    let cases: &[(&str, &str, &str)] = &[
-        ("aggregate.bluebook", "FixtureAggregate", "Aggregate"),
-        ("entity.bluebook", "FixtureEntity", "Entity"),
-        ("process_manager.bluebook", "FixtureProcessManager", "ProcessManager"),
-    ];
+    // STILL genuinely not built: `aggregate.bluebook`/`entity.bluebook`
+    // both exercise `identified_by`'s bare-FIELD form specifically
+    // (`identified_by :name`, not the bare-TYPE form pizzas.bluebook
+    // uses, nor the SOURCE/block form governance.bluebook/
+    // console_settings.bluebook use and `build/identity.rs` resolves) —
+    // STAGE 4 shares this resolution between `parse::aggregate` and
+    // `parse::entity` via `parse::mod::parse_identified_by` (`EntityBuilder
+    // #identified_by` is, per its own comment, "the aggregate's method
+    // line for line"), so BOTH now report the identical, construct-
+    // agnostic diagnostic ("identified_by (bare-field form)") rather than
+    // a per-construct-prefixed one — checked for that shared wording here
+    // instead of a construct name. `process_manager.bluebook` moved to
+    // `now_implemented_fixtures_parse_for_real` below — STAGE 4 taught
+    // `parse::process_manager` to build real IR.
+    let cases: &[(&str, &str)] = &[("aggregate.bluebook", "FixtureAggregate"), ("entity.bluebook", "FixtureEntity")];
 
-    for (file, chapter, expected_construct) in cases {
+    for (file, chapter) in cases {
         let path = fixture(file);
         let output = run(&["chapter", "--chapter", chapter, path.to_str().unwrap()]);
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -52,8 +54,8 @@ fn still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct() {
         assert!(stdout.is_empty(), "{file}: stdout must stay empty on a still-pending failure — never a partial/fabricated ir.json, got {stdout}");
         assert!(stderr.contains("not yet implemented"), "{file}: expected a not-yet-implemented diagnostic, got: {stderr}");
         assert!(
-            stderr.contains(expected_construct),
-            "{file}: expected the diagnostic to name {expected_construct}, got: {stderr}"
+            stderr.contains("identified_by (bare-field form)"),
+            "{file}: expected the shared bare-field-form diagnostic, got: {stderr}"
         );
     }
 }
@@ -73,6 +75,7 @@ fn now_implemented_fixtures_parse_for_real() {
         ("policy.bluebook", "FixturePolicy"),
         ("lifecycle.bluebook", "FixtureLifecycle"),
         ("read_model.bluebook", "FixtureReadModel"),
+        ("process_manager.bluebook", "FixtureProcessManager"), // STAGE 4
     ];
 
     for (file, chapter) in cases {
@@ -153,9 +156,18 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
     assert!(stdout.contains("[\"report\", \"Bluebook\"]"), "expected report/Bluebook covered, got: {stdout}");
     assert!(stdout.contains("[\"include\", \"ReadModel\"]"), "expected include/ReadModel covered, got: {stdout}");
     assert!(stdout.contains("[\"group_by\", \"ReadModel\"]"), "expected group_by/ReadModel covered, got: {stdout}");
-    // STILL not covered — entity/process_manager have no parse_body of
-    // their own yet.
-    assert!(!stdout.contains("\"Entity\""), "Entity is still Stage 1 — coverage must not overclaim it: {stdout}");
+    // STAGE 4: `entity`/`process_manager` now have real `parse_body`s of
+    // their own (banking.bluebook's own `LedgerEntry`/`Settlement`, and
+    // the concurrently-landed `compliance`/`interview` real corpus
+    // members this stage's own work happened to fully cover too).
+    assert!(stdout.contains("[\"identified_by\", \"Entity\"]"), "expected identified_by/Entity covered, got: {stdout}");
+    assert!(stdout.contains("[\"correlates_by\", \"ProcessManager\"]"), "expected correlates_by/ProcessManager covered, got: {stdout}");
+    assert!(stdout.contains("[\"dispatch\", \"Handler\"]"), "expected dispatch/Handler covered, got: {stdout}");
+    // STILL not covered — the bare-FIELD `identified_by` form has no
+    // real corpus member exercising it yet, so `Entity`'s OWN coverage
+    // stays partial (real for the six words banking.bluebook's pieces
+    // actually use, not a blanket claim).
+    assert!(!stdout.contains("[\"has_many\", \"Aggregate\"]"), "has_many is still not built — coverage must not overclaim it: {stdout}");
 }
 
 #[test]

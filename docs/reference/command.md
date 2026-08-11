@@ -120,7 +120,11 @@ Declares an argument this command needs, scalar or value object — same word, s
 ## ensures
 
 <!-- generated:begin word=ensures -->
-`ensures do ... end` — fills `ensures`
+`ensures description do ... end` — fills `ensures`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | description |
 <!-- generated:end -->
 
 A postcondition, read AFTER the mutation runs but before `save` — `old` names the record as it stood before, so the check can assert a relationship between the two states, not just a fact about one. A false read raises `EnsuresNotMet` and the write never reaches the store. See commands.md for why this catches what a forgotten `given` doesn't.

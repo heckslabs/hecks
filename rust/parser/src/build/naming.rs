@@ -93,6 +93,20 @@ pub fn plural(text: &str) -> String {
     format!("{text}s")
 }
 
+/// `Hecksagain::Naming.singularize` — the inverse of `plural`, used by
+/// `has_many`'s own target-name derivation (`has_many Invoices` points at
+/// `Invoice`). Two suffix rules only, tried in order — the SAME two
+/// `plural` itself inverts, not a general-purpose singularizer.
+pub fn singularize(text: &str) -> String {
+    if text.len() > 3 && text.ends_with("ies") {
+        return format!("{}y", &text[..text.len() - 3]);
+    }
+    if text.len() > 1 && text.ends_with('s') {
+        return text[..text.len() - 1].to_string();
+    }
+    text.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

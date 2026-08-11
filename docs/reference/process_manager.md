@@ -64,7 +64,7 @@ here, or the declaration is refused at load time.
 ## on
 
 <!-- generated:begin word=on -->
-`on event_type, event_type, transition: do ... end` — opens a `Handler` body
+`on event_type, event_type, transition: do ... end` / `on event_type, event_type, transition:` — opens a `Handler` body
 
 | argument | kind | required | fills |
 |---|---|---|---|

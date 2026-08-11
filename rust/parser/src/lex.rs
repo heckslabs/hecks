@@ -39,6 +39,110 @@ pub fn lines(source: &str) -> Vec<SourceLine<'_>> {
         .collect()
 }
 
+/// A CALL ARGUMENT'S OWN Hash/Array/paren literal may span MORE than one
+/// physical line — `dispatch`'s own `with:` value, real corpus syntax
+/// confirmed by banking.bluebook's `Onboarding` saga:
+///
+///   dispatch "Banking::Account.Open", with: {
+///     customer_id: :customer,
+///     number:      :account_number,
+///     kind:        { name: "current" },
+///     daily_limit: { cents: 0 }
+///   }
+///
+/// No earlier corpus member (pizzas, the framework trio, the grammar
+/// chapters) ever wrote a call whose own `(){}[]` don't balance by end of
+/// physical line, so `classify`/`split_opener` never needed to look past
+/// one line's own text at all. This is a PREPROCESSING pass over the
+/// RAW file text, run once before `lines()` — not a change to `lines()`
+/// or `classify` themselves — so it has to reproduce the SAME line COUNT
+/// the input had (a merged-away physical line becomes an EMPTY output
+/// line, never removed outright), or every diagnostic after a merge
+/// would report the wrong line number.
+///
+/// Comments are stripped HERE, independently, per ORIGINAL physical
+/// line, before any joining happens — a comment on an interior line of a
+/// merge group, left in place, would otherwise swallow every line joined
+/// after it once `lines()`'s own (single, whole-merged-line) comment
+/// strip ran on the RESULT instead.
+///
+/// Deliberately NOT aware of `do ... end` nesting at all — `do`/`end`
+/// are words, not brackets, so a predicate body spanning many physical
+/// lines (`given(...) do ... end`) is completely untouched by this pass
+/// (confirmed: every real corpus predicate's own brackets, if it has
+/// any, already balance on the one line it's written on); only a call's
+/// own trailing `(){}[]` can ever leave depth nonzero at end of line.
+pub fn join_continuations(source: &str) -> String {
+    let raw_lines: Vec<&str> = source.lines().collect();
+    let mut out: Vec<String> = vec![String::new(); raw_lines.len()];
+    let mut depth: i32 = 0;
+    let mut merge_target: Option<usize> = None;
+
+    for (idx, raw_line) in raw_lines.iter().enumerate() {
+        let text = strip_comment(raw_line).trim();
+
+        match merge_target {
+            Some(target) if target != idx => {
+                if !text.is_empty() {
+                    if !out[target].is_empty() {
+                        out[target].push(' ');
+                    }
+                    out[target].push_str(text);
+                }
+            }
+            _ => {
+                out[idx].push_str(text);
+                merge_target = Some(idx);
+            }
+        }
+
+        depth += bracket_delta(text);
+        if depth <= 0 {
+            depth = 0;
+            merge_target = None;
+        }
+    }
+
+    out.join("\n")
+}
+
+/// The NET change in `(){}[]` depth a line of already-comment-stripped
+/// text contributes — quote-aware (a bracket character inside a quoted
+/// string never counts), the same scanning shape `find_top_level_
+/// assignment` already uses elsewhere in this module. Not bracket-TYPE
+/// aware (a stray `}` matching an unrelated `[` would still balance) —
+/// the same simplification `find_top_level_assignment`'s own depth
+/// counter already makes; real bluebook source never actually mismatches
+/// bracket types, so this is a legitimate shortcut, not a guess.
+fn bracket_delta(text: &str) -> i32 {
+    let mut depth = 0i32;
+    let mut quoting = false;
+    let mut escaping = false;
+    for ch in text.chars() {
+        if escaping {
+            escaping = false;
+            continue;
+        }
+        if quoting && ch == '\\' {
+            escaping = true;
+            continue;
+        }
+        if ch == '"' {
+            quoting = !quoting;
+            continue;
+        }
+        if quoting {
+            continue;
+        }
+        match ch {
+            '(' | '{' | '[' => depth += 1,
+            ')' | '}' | ']' => depth -= 1,
+            _ => {}
+        }
+    }
+    depth
+}
+
 fn strip_comment(line: &str) -> &str {
     let mut quoting = false;
     let mut escaping = false;

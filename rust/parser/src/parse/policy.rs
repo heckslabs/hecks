@@ -18,6 +18,14 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Policy.{word}"))
 }
 
+// STAGE 4: `across` (a cross-domain policy's `target_domain`) —
+// confirmed real: banking.bluebook's own `NotifyOnClosure`/
+// `ReviewOnFreeze`/`ReviewOnBoxSurrender`/`FlagKeyReturn`. Also newly
+// real: a policy declared INSIDE an `aggregate` (Account's own
+// `ReviewOnFreeze`) — `parse::aggregate` calls this SAME `parse_body`
+// and hoists the result onto the chapter itself, mirroring
+// `AggregateBuilder#policy`'s own hoist.
+
 /// Parses a `policy "Name" do ... end` body, given the header's already-
 /// read `name`.
 pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::Policy> {
@@ -31,6 +39,7 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
         match gated.row.word {
             "on" => policy.on_event = Some(super::positional_text(file, gated.line.number, "on", &gated.args, 1)?),
             "trigger" => policy.trigger_command = Some(super::positional_text(file, gated.line.number, "trigger", &gated.args, 1)?),
+            "across" => policy.target_domain = Some(super::positional_text(file, gated.line.number, "across", &gated.args, 1)?),
             _ => return Err(super::not_built_yet("Policy", gated.row, file, gated.line.number, &gated.call.word)),
         }
     }

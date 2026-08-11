@@ -14,8 +14,6 @@
 //! against Ruby's own `to_h` again at Stage 2, when this first has to
 //! byte-match a real golden.
 
-use std::collections::BTreeMap;
-
 /// A `nil`-or-value Ruby field, rendered through `Hecksagain::Literal`
 /// where the Ruby side does so (member/where/mutation source values) — see
 /// ruby_value.rs. Plain JSON-shaped fields (strings, bools, numbers, lists)
@@ -95,7 +93,18 @@ pub struct Command {
     pub ensures: Vec<Ensures>,
     pub mutations: Vec<Mutation>,
     pub emits: Vec<String>,
-    pub provenance: Option<String>,
+    // `CommandBuilder#provenance` — the RAW captured Hash (`provenance
+    // from: { ... }`), same "Origin, not runtime identity" shape
+    // `AggregateBuilder#provenance` carries one level up. NOT run through
+    // `Literal.render` — `IR::Command#to_h`'s own `provenance: provenance`
+    // embeds the raw Ruby Hash straight into `JSON.generate`, so this is
+    // `Literal` (the same captured-value type `Attribute#default` already
+    // uses), not a String. Not exercised by any real corpus command yet
+    // (only Account, an AGGREGATE, declares one in banking.bluebook) —
+    // kept correct anyway, the same "right even if unreachable today"
+    // basis `emit.rs`'s own entity/process-manager renderers already used
+    // before Stage 4 exercised them for real.
+    pub provenance: Literal,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -120,10 +129,74 @@ pub struct Query {
     pub wheres: Vec<WhereClause>,
     pub order_by: Option<OrderBy>,
     pub limit: Option<LimitSpec>,
-    // extra_options_to_h — offset/cursor/consistency/freshness/authorization/
-    // null_semantics/inspection/index_hints — an open map, kept unstructured
-    // for Stage 1 since nothing builds a Query yet.
-    pub extra_options: BTreeMap<String, String>,
+    pub options: QueryOptions,
+}
+
+/// `ConsistencySpec#to_h` (`lib/hecksagain/query_specification/common/consistency_spec.rb`)
+/// — `mode` bare (`mode.to_s`, no colon), `timeout` Literal-rendered
+/// (`QuerySpecification.render_value`, only present when given).
+#[derive(Debug, Clone, Default)]
+pub struct ConsistencySpec {
+    pub mode: String,
+    pub timeout: Option<String>,
+}
+
+/// `FreshnessSpec#to_h` — same shape as `ConsistencySpec`, `max_age` in
+/// place of `timeout`.
+#[derive(Debug, Clone, Default)]
+pub struct FreshnessSpec {
+    pub mode: String,
+    pub max_age: Option<String>,
+}
+
+/// `AuthorizationSpec#to_h` — BOTH fields bare `.to_s` (never
+/// Literal-rendered): `policy` a Symbol's bare name, `tenant` likewise
+/// when given.
+#[derive(Debug, Clone, Default)]
+pub struct AuthorizationSpec {
+    pub policy: String,
+    pub tenant: Option<String>,
+}
+
+/// `IndexHint#to_h` — `{name: name.to_s}`.
+#[derive(Debug, Clone, Default)]
+pub struct IndexHint {
+    pub name: String,
+}
+
+/// Mirrors `QuerySpecification::Common::Options#extra_options_to_h`
+/// FIELD FOR FIELD, in Ruby's own declared order (`options_to_h`:
+/// offset, cursor, consistency, freshness, authorization, null_semantics,
+/// inspection, index_hints) — a TYPED struct rather than the Stage-1
+/// `BTreeMap<String, String>` this replaces, because a `BTreeMap` iterates
+/// its keys ALPHABETICALLY, which silently disagrees with Ruby's own
+/// declared field order the moment two options land on the SAME query
+/// (confirmed real: `SafeDepositBox.Rented`'s own `authorize`+
+/// `consistency` — alphabetically "authorization" sorts before
+/// "consistency", but Ruby's own `options_to_h` writes `consistency`
+/// FIRST). Shared verbatim by `Query` and `ReadModel` — both `< Options`
+/// on the Ruby side, and `extra_options_to_h` excludes `wheres`/
+/// `order_by`/`limit` by name in both, which is why those three stay
+/// separate fields on each IR struct instead of living here too.
+#[derive(Debug, Clone, Default)]
+pub struct QueryOptions {
+    // OffsetSpec/CursorSpec-shaped ({value: Literal-rendered}) — already
+    // fully rendered text by the time it lands here, same convention
+    // `LimitSpec.value` already uses.
+    pub offset: Option<String>,
+    pub cursor: Option<String>,
+    pub consistency: Option<ConsistencySpec>,
+    pub freshness: Option<FreshnessSpec>,
+    pub authorization: Option<AuthorizationSpec>,
+    // `NullSemantics#to_h`'s `mode.to_s` — `extra_options_to_h` drops this
+    // key entirely when it's the default (`{mode: "native"}`), so this is
+    // `None` both when `nulls` was never declared AND when it was
+    // declared as `:native` — the caller never needs to tell those two
+    // apart, matching Ruby's own `.reject` there exactly.
+    pub null_semantics: Option<String>,
+    // `InspectionSpec#to_h`'s `mode.to_s`.
+    pub inspection: Option<String>,
+    pub index_hints: Vec<IndexHint>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -167,7 +240,12 @@ pub struct Aggregate {
     pub entities: Vec<Entity>,
     pub queries: Vec<Query>,
     pub ports: Vec<DomainPort>,
-    pub provenance: Option<String>,
+    // See `Command.provenance`'s own comment — same raw-captured-Hash
+    // shape, one level up (`AggregateBuilder#provenance`). Real for
+    // banking.bluebook's own `Account` (`provenance from: { source:
+    // "HecksCanonical", source_id: "aggregate:account", source_version:
+    // "1.0" }`) — the FIRST real corpus member to declare one.
+    pub provenance: Literal,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -200,13 +278,24 @@ pub struct ReadModel {
     pub reference_name: Option<String>,
     pub reference_target: Option<String>,
     pub query_name: String,
+    // `IR::ReadModel#to_h` spells `wheres`/`order_by`/`limit` explicitly,
+    // the SAME mechanism `IR::Query#to_h` uses (2026-08-11's read-model
+    // where/order_by/limit task, `read_model.rb`'s own comment) — real for
+    // `ComplianceDashboard` (banking.bluebook's own filtered, ordered,
+    // capped read model), the first real corpus member to declare any.
+    pub wheres: Vec<WhereClause>,
+    pub order_by: Option<OrderBy>,
+    pub limit: Option<LimitSpec>,
     pub aggregate_heads: Vec<AggregateHead>,
     // `ReadModelBuilder#group_by`'s own `{field: field.to_sym}` rows have
     // exactly one key — a bare `Vec<String>` of field names carries the
     // same information with no loss, and `read_model_json` re-wraps each
     // one into its own `{"field": ...}` object at emit time.
     pub group_by: Vec<String>,
-    pub extra_options: BTreeMap<String, String>,
+    // See `Query.options`'s own header — the identical
+    // `extra_options_to_h` shape, shared verbatim rather than a second
+    // `BTreeMap`-ordering hazard copied one struct over.
+    pub options: QueryOptions,
 }
 
 #[derive(Debug, Clone, Default)]

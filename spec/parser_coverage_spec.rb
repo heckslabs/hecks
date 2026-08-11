@@ -55,34 +55,44 @@ RSpec.describe "the Rust parser's own coverage" do
   # `hecks-parse coverage` reports; a drift between the two lists is
   # exactly the unaccounted-pair failure below. STAGE 2 built the first
   # block (pizzas.bluebook, ~60% of the language surface in one file).
-  # STAGE 3 adds the block marked below — the framework trio's own
-  # multi-path `identified_by` (no NEW pair: `identified_by`/`Aggregate`
-  # already covered its bare-TYPE form, now also covers its SOURCE/block
-  # form), an aggregate-level `reference_to` (identity.bluebook's own
-  # `ExternalIdentifier`), inline `one_of(...)` attribute types (no new
-  # pair either — `one_of`/`Type` was already a live row, just not yet
-  # exercised by any real corpus member), and `report`/`include`/
-  # `group_by`/a `ReadModel`'s own `description`, plus `description` for
-  # `Query`.
+  # STAGE 3 added the block marked below. STAGE 4 (banking.bluebook —
+  # entities, composite identity, process managers, read models with
+  # every query option, `provenance`, a nested `policy`, `belongs_to`,
+  # `on`'s blockless form — also confirmed by the concurrently-landed
+  # `compliance`/`interview` real corpus members, which this stage's own
+  # real construction work happened to fully cover too) adds the pairs
+  # marked STAGE 4.
   COVERED_PAIRS = [
     %w[bluebook File], %w[hecksagon File],
     %w[vision Bluebook], %w[core Bluebook], %w[supporting Bluebook], %w[generic Bluebook],
     %w[aggregate Bluebook], %w[policy Bluebook],
+    %w[process_manager Bluebook], # STAGE 4
     %w[description Aggregate], %w[identified_by Aggregate], %w[attribute Aggregate],
     %w[value_object Aggregate], %w[lifecycle Aggregate], %w[query Aggregate], %w[command Aggregate],
     %w[reference_to Aggregate], # STAGE 3
+    %w[provenance Aggregate], %w[entity Aggregate], %w[policy Aggregate], %w[belongs_to Aggregate], # STAGE 4
+    %w[description Entity], %w[identified_by Entity], %w[attribute Entity], # STAGE 4
+    %w[command Entity], %w[query Entity], %w[lifecycle Entity], # STAGE 4
     %w[role Command], %w[goal Command], %w[reference_to Command], %w[given Command],
     %w[sets Command], %w[emits Command], %w[attribute Command],
+    %w[ensures Command], # STAGE 4
     %w[attribute ValueObject], %w[one_of ValueObject], %w[invariant ValueObject],
     %w[member OneOf],
     %w[transition Lifecycle],
     %w[description Query], # STAGE 3
     %w[attribute Query], %w[where Query], %w[order_by Query],
+    %w[limit Query], %w[freshness Query], %w[authorize Query], %w[consistency Query], %w[use_index Query], # STAGE 4
     %w[on Policy], %w[trigger Policy],
+    %w[across Policy], # STAGE 4
+    %w[correlates_by ProcessManager], %w[starts_on ProcessManager], %w[ends_on ProcessManager], # STAGE 4
+    %w[state ProcessManager], %w[on ProcessManager], # STAGE 4
+    %w[dispatch Handler], # STAGE 4
     %w[port Hecksagon],
     %w[operation DomainPort],
     %w[reference_to PortOperation], %w[attribute PortOperation], %w[emits PortOperation],
-    %w[report Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel] # STAGE 3
+    %w[report Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel], # STAGE 3
+    %w[reference_to ReadModel], %w[where ReadModel], %w[order_by ReadModel], # STAGE 4
+    %w[limit ReadModel], %w[freshness ReadModel], %w[use_index ReadModel] # STAGE 4
   ].sort.freeze
 
   # THE ALLOWLIST — every (word, context) pair the language declares,

@@ -15,6 +15,8 @@
 pub mod closed_sets;
 pub mod identity;
 pub mod naming;
+pub mod pattern_subset;
 pub mod query_derive;
+pub mod query_options;
 pub mod read_model;
 pub mod references;

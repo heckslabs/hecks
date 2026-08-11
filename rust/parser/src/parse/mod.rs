@@ -30,6 +30,7 @@ pub mod query;
 pub mod read_model;
 pub mod value_object;
 
+use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::keywords::{self, ArgumentRow, KeywordRow};
@@ -721,12 +722,30 @@ pub(crate) fn positional_text(file: &str, line: usize, word: &str, args: &Argume
 }
 
 /// A required SYMBOL positional argument, stripped of its leading colon —
-/// `attribute :name`, `sets :toppings`, `order_by :name`.
+/// `attribute :name`, `sets :toppings`, `order_by :name`. Handles BOTH
+/// bare (`:name`) and quoted (`:"a.b"`) spellings — the quoted form is
+/// real, dotted-path syntax a bare identifier cannot spell
+/// (`correlates_by :"reference.value"`, `process_manager`'s own required
+/// scalar correlation key — `ProcessManagerBuilder#validate!`'s own
+/// comment on why the dot is mandatory).
 pub(crate) fn positional_symbol(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
     let raw = positional_raw(file, line, word, args, at)?.trim();
-    raw.strip_prefix(':')
-        .map(|s| s.to_string())
-        .ok_or_else(|| Diagnostic::new(file, line, format!("'{word}'s positional argument {at} ('{raw}') is not a symbol")))
+    symbol_text(raw).ok_or_else(|| Diagnostic::new(file, line, format!("'{word}'s positional argument {at} ('{raw}') is not a symbol")))
+}
+
+/// The bare name out of a symbol TOKEN as WRITTEN in source — `:name` ->
+/// `name`, `:"a.b"` -> `a.b`. Distinct from `ruby_value::read`, which
+/// reads back a Symbol from a RENDERED wire value (`Literal.render`'s own
+/// output) rather than source syntax; the two never overlap, but neither
+/// alone covers what a `kind: "symbol"` argument may actually look like
+/// at the syntax layer.
+fn symbol_text(raw: &str) -> Option<String> {
+    let rest = raw.strip_prefix(':')?;
+    if rest.len() >= 2 && rest.starts_with('"') && rest.ends_with('"') {
+        Some(ruby_value::unquote_for_symbol(rest))
+    } else {
+        Some(rest.to_string())
+    }
 }
 
 /// A CONSTANT (bareword type name) positional argument, raw — `attribute
@@ -742,8 +761,10 @@ pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<
 }
 
 /// A NAMED SYMBOL argument, stripped of its leading colon — `as: :name`.
+/// See `positional_symbol`'s own comment on `symbol_text` — same
+/// bare-or-quoted handling, named-argument side.
 pub(crate) fn named_symbol(args: &ArgumentGateResult, name: &str) -> Option<String> {
-    named_raw(args, name).and_then(|raw| raw.trim().strip_prefix(':')).map(|s| s.to_string())
+    named_raw(args, name).and_then(|raw| symbol_text(raw.trim()))
 }
 
 /// A NAMED TEXT argument, unquoted — none of pizzas.bluebook's own named
@@ -797,6 +818,75 @@ pub(crate) fn source_body_text(file: &str, lines: &[SourceLine], pos: &mut usize
     }
 }
 
+/// The `identified_by` forms this parser actually resolves/refuses —
+/// shared by `parse::aggregate` and `parse::entity`, since
+/// `AttributeCollector#resolve_identity_field!`/`#resolve_identity_type!`
+/// is the SAME module both `AggregateBuilder` and `EntityBuilder`
+/// include, and `EntityBuilder#identified_by` is (per its own comment)
+/// `AggregateBuilder`'s method line for line. See
+/// `build/identity.rs`'s own header for why the TYPE form is a
+/// DERIVATION while `Paths` (the SOURCE-shaped block form, either
+/// spelling) is not: its body already IS the identity, captured raw and
+/// canonicalized, never resolved against already-declared attributes.
+/// The FIELD form (`identified_by :field`) is still left
+/// `not_yet_implemented` — no real corpus member exercises it yet.
+pub(crate) enum PendingIdentity {
+    Type { line: usize, target: String, as_field: Option<String>, insert_at: usize },
+    Paths(Vec<String>),
+}
+
+/// `AggregateBuilder#identified_by`/`EntityBuilder#identified_by` — the
+/// THREE forms Ruby's own single method distinguishes: a bareword
+/// starting uppercase is a value object (the TYPE form, `identified_by
+/// PizzaName, as: :name`, `Opener::None`); starting lowercase (a Symbol)
+/// is the FIELD form (`identified_by :field`, `Opener::None`, still not
+/// exercised by any real corpus member — refused with an honest
+/// not-yet-implemented diagnostic); a BLOCK — spelled either
+/// `identified_by { ... }` (`Opener::BraceBlock`) or `identified_by
+/// do ... end` (`Opener::DoBlock`) — is the SOURCE form, captured raw and
+/// canonicalized, one path per whitespace-separated token in the
+/// canonical text, mirroring `Ports::Extraction.canonical(path).to_s
+/// .split(" ").reject(&:empty?)` exactly.
+pub(crate) fn parse_identified_by(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    line: usize,
+    args: &ArgumentGateResult,
+    opener: &Opener,
+    insert_at: usize,
+) -> ParseResult<PendingIdentity> {
+    match opener {
+        Opener::None => {
+            let text = positional_constant(file, line, "identified_by", args, 1)?;
+            match classify_lexical_kind(text) {
+                "constant" => {
+                    let as_field = named_symbol(args, "as");
+                    Ok(PendingIdentity::Type { line, target: text.to_string(), as_field, insert_at })
+                }
+                "symbol" => Err(Diagnostic::not_yet_implemented(file, line, "identified_by (bare-field form)")),
+                other => Err(Diagnostic::new(file, line, format!("'identified_by's positional argument reads as {other}, neither a value object nor a field"))),
+            }
+        }
+        Opener::DoBlock { .. } | Opener::BraceBlock { .. } => {
+            let raw = source_body_text(file, lines, pos, opener)?;
+            paths_from_source(file, line, &raw)
+        }
+    }
+}
+
+/// `identified_by`'s SOURCE-shaped body (either spelling) -> its own
+/// identity paths, canonicalized and whitespace-split — see
+/// `parse_identified_by`'s own header.
+fn paths_from_source(file: &str, line: usize, raw: &str) -> ParseResult<PendingIdentity> {
+    let canonical = canonical::apply(raw);
+    let paths: Vec<String> = canonical.split(' ').filter(|s| !s.is_empty()).map(str::to_string).collect();
+    if paths.is_empty() {
+        return Err(Diagnostic::new(file, line, "'identified_by' names no field"));
+    }
+    Ok(PendingIdentity::Paths(paths))
+}
+
 pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &ArgumentGateResult) -> ParseResult<(ir::Attribute, Option<ir::ValueObject>)> {
     let name = positional_symbol(file, line, word, args, 1)?;
     let (type_name, list, closed_set) = match args.positional.iter().find(|(idx, _)| *idx == 2) {
@@ -807,6 +897,21 @@ pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &Argume
     let optional = named_flag(args, "optional");
     let pattern = named_text(args, "pattern");
     let admits = named_text(args, "admits");
+    // `AttributeCollector#attribute`'s own `refuse_unshared_pattern(name,
+    // pattern) if pattern` — called BEFORE the attribute is built, at
+    // declaration time, exactly the fail-closed spot Ruby itself refuses
+    // in. Confirmed real: banking.bluebook's own `EmailAddress` value
+    // object declares a pattern that MUST pass this (spelled with
+    // explicit ranges for exactly this reason, per its own comment).
+    if let Some(pat) = &pattern {
+        if let Some(rejection) = crate::build::pattern_subset::validate(pat) {
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!("'{name}'s pattern {pat:?} uses a {} — {}", rejection.construct, rejection.reason),
+            ));
+        }
+    }
     Ok((ir::Attribute { name, type_name, list, default, optional, pattern, admits }, closed_set))
 }
 

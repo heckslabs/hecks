@@ -146,6 +146,24 @@ pub fn read(text: &str) -> Value {
     if is_quoted(raw) {
         return Value::Str(unquote(raw));
     }
+    // A SINGLE-QUOTED Ruby string LITERAL — SOURCE syntax `Literal.read`
+    // itself never has to handle (its own `quoted?` only ever sees
+    // DOUBLE-quoted text, since `Literal.render` never emits anything
+    // else on the wire), but this function is also what `positional_
+    // text`/`named_text` reach for to read a call argument's raw SOURCE
+    // text the FIRST time, before anything is ever rendered — and Ruby's
+    // own lexer admits single quotes there too. Confirmed real:
+    // banking.bluebook's own `EmailAddress` pattern (`pattern:
+    // '^[^@ ]+@[^@ ]+\.[^@ ]+$'`) — a single-quoted literal was the
+    // right spelling for exactly the reason its own comment gives (no
+    // double-quote escape processing to fight with a regex full of
+    // backslashes). Ruby single-quote escaping is NARROWER than double
+    // (`\\` -> `\`, `\'` -> `'`, every other backslash sequence stays
+    // LITERAL — `\.` stays `\.`, not a processed escape), so this is a
+    // separate unescaping pass, not a reuse of `unquote`'s.
+    if is_single_quoted(raw) {
+        return Value::Str(unquote_single(raw));
+    }
     if raw.starts_with('{') && raw.ends_with('}') {
         return read_hash(raw);
     }
@@ -171,6 +189,37 @@ fn is_float(raw: &str) -> bool {
 
 fn is_quoted(raw: &str) -> bool {
     raw.len() >= 2 && raw.starts_with('"') && raw.ends_with('"')
+}
+
+fn is_single_quoted(raw: &str) -> bool {
+    raw.len() >= 2 && raw.starts_with('\'') && raw.ends_with('\'')
+}
+
+/// Ruby single-quoted string unescaping — `\\` -> `\`, `\'` -> `'`,
+/// every OTHER backslash sequence left exactly as written (unlike
+/// `unquote`'s double-quote rules, which unescape any `\x` pair).
+fn unquote_single(raw: &str) -> String {
+    let inner = &raw[1..raw.len() - 1];
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.peek() {
+                Some('\\') => {
+                    out.push('\\');
+                    chars.next();
+                }
+                Some('\'') => {
+                    out.push('\'');
+                    chars.next();
+                }
+                _ => out.push('\\'),
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    out
 }
 
 fn unquote(raw: &str) -> String {

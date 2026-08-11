@@ -86,26 +86,31 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
 
   # EVERY MEMBER WAS PENDING AT STAGE 1, each with the SAME honest reason.
   # STAGE 2 removed "pizzas" — it got a REAL byte-match assertion instead
-  # (REAL_PARITY_MEMBERS below). STAGE 3 removes the framework trio
-  # ("identity", "governance", "console_settings") the SAME way — named
-  # per-member (not one blanket comment) so a future stage's own
-  # shrinkage is a visible diff: Stage 4 removes "banking" next, and so
-  # on, ending empty at Stage 6.
+  # (REAL_PARITY_MEMBERS below). STAGE 3 removed the framework trio
+  # ("identity", "governance", "console_settings") the SAME way. STAGE 4
+  # removes "banking" — entities, composite identity, process managers,
+  # read models with every query option, `provenance`, a nested `policy`,
+  # `belongs_to`, and `on`'s blockless form — the deliberately "big one"
+  # per the plan.
   #
-  # "expression" and "translation" ALSO come out here, a genuine bonus
-  # this stage did not set out to build: they're `PARITY_GRAMMAR_CHAPTERS`
-  # members (Stage 5's own named target), but Stage 3's own REQUIRED
-  # shared-gate fixes — `given`/`invariant` admitting a `do ... end`
-  # spelling (not just `{ }`, `parse::mod::source_body_text`), and an
-  # AGGREGATE-level `reference_to` (identity.bluebook's own
-  # `ExternalIdentifier`) — happened to be exactly what both grammar
-  # chapters were ALSO waiting on, and nothing else. Confirmed byte-exact
-  # against Ruby's own `ir.json` before being moved here, the identical
-  # discipline every other REAL_PARITY_MEMBERS entry gets — leaving them
-  # marked "pending: not yet implemented" once they demonstrably are
-  # would be exactly the kind of false claim this whole harness exists to
-  # make impossible, so they're promoted rather than left stale.
-  PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) - %w[pizzas identity governance console_settings expression translation])
+  # "expression"/"translation" (Stage 3) and, now, "compliance"/
+  # "interview" (Stage 4) ALSO come out here, genuine bonuses neither
+  # stage set out to build: two concurrently-landed real corpus members
+  # (`examples/compliance/`, `lib/hecksagain/framework/bluebook/
+  # interview.bluebook`) that Stage 4's own real construction work
+  # (entity/process_manager/read-model-options/provenance/nested-policy)
+  # happened to fully cover, confirmed byte-exact against Ruby's own
+  # `ir.json` before being moved here — the identical discipline every
+  # other REAL_PARITY_MEMBERS entry gets. Leaving a member that
+  # demonstrably round-trips marked "pending: not yet implemented" would
+  # be exactly the kind of false claim this whole harness exists to make
+  # impossible, so they're promoted rather than left stale — this is also
+  # exactly the safety net working as designed: both showed up as
+  # spec FAILURES ("a PENDING member that no longer fails the way its own
+  # reason says it should") the moment this stage's real construction
+  # work made them stop failing, not a silent pass.
+  PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
+                     %w[pizzas identity governance console_settings expression translation banking compliance interview])
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
   # Every remaining PENDING member's own expected diagnostic — plain
@@ -129,23 +134,24 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
   # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
   # honest if pizzas.bluebook's own file ever moves.
-  REAL_PARITY_MEMBERS = %w[pizzas].to_h { |stem|
+  REAL_PARITY_MEMBERS = %w[pizzas banking compliance].to_h { |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
     bluebook = bluebook_in(domain) or raise "#{domain} has no .bluebook"
     chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
     [stem, [chapter_name, [bluebook, hecksagon_in(domain)].compact]]
   }.merge(
-    # THE FRAMEWORK TRIO — STAGE 3. A framework bluebook has no
+    # THE FRAMEWORK TRIO (Stage 3) PLUS "interview" (Stage 4's own
+    # bonus — see PENDING_MEMBERS' comment). A framework bluebook has no
     # `.hecksagon` of its own (confirmed by reading
-    # lib/hecksagain/framework/bluebook/ directly — three `.bluebook`
-    # files, zero `.hecksagon` siblings): the comparison target is
-    # `hecks-parse chapter --chapter <Name> <bluebook>` standing alone,
-    # no `uses_framework`/`resolve` multi-file step needed (that
+    # lib/hecksagain/framework/bluebook/ directly): the comparison target
+    # is `hecks-parse chapter --chapter <Name> <bluebook>` standing
+    # alone, no `uses_framework`/`resolve` multi-file step needed (that
     # mechanism only matters for a CONSUMING app's own `.hecksagon`,
-    # e.g. banking.hecksagon's real `uses_framework "Governance"` —
-    # Stage 4 territory, confirmed by grepping the whole corpus: pizzas
-    # never uses it, banking does).
-    %w[identity governance console_settings].to_h { |stem|
+    # e.g. banking.hecksagon's real `uses_framework "Governance"`/
+    # `"Identity"` — real Stage 4 territory, and banking.hecksagon's own
+    # sibling `Hecks.hecksagon "Governance"`/`"Identity"` blocks, a SEPARATE
+    # finding `parse::chapter`'s own header explains).
+    %w[identity governance console_settings interview].to_h { |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecksagain/framework/bluebook/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"

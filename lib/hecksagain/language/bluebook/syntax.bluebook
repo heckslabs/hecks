@@ -381,6 +381,17 @@ Hecks.bluebook "Bluebook" do
         member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
         member word: "state",           context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "states"
         member word: "on",              context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: ""
+        # THE BLOCKLESS FORM — `ProcessManagerBuilder#on(event_type,
+        # transition:, &block)` takes an OPTIONAL block ("handler.
+        # instance_eval(&block) if block"), so a leg with nothing to
+        # dispatch is legal with no `do ... end` at all: banking.bluebook's
+        # own `Onboarding` saga has no answer to "OnboardingDeclined" —
+        # nothing was ever created to undo, so the leg is a bare state
+        # transition and the SAME word needs a second row, the same
+        # reason `identified_by` carries two — `body` is the only column
+        # that tells them apart, and the argument rows below already join
+        # by (word, context) alone, so they serve both.
+        member word: "on",              context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
 
         member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: ""
 
@@ -675,6 +686,18 @@ Hecks.bluebook "Bluebook" do
         member keyword: "reference_to",    context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "name"
         member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
         member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
+        # THE MISSING TWIN — `ensures`'s own Keyword row (`body: "source"`,
+        # above) has carried `fills: "ensures"` since `ensures` was first
+        # declared, but this Argument row — `given`'s own, one line up —
+        # was never written beside it. A parser gating on the Argument
+        # table alone (this file's WHOLE point) refused every real
+        # `ensures("...")  { ... }` outright: "'ensures' takes no
+        # arguments." Found by Stage 4 while getting banking.bluebook's
+        # own `Account.Debit`/`ScheduledPayment.Retry` to parse — both
+        # already loaded fine in Ruby (`CommandBuilder#ensures` never
+        # consulted this table at all), which is exactly the kind of
+        # staleness this file exists to make impossible to miss.
+        member keyword: "ensures",         context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
         member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
         # `to:`/`increment:`/`decrement:`/`append:` ALL SHARE ONE KIND NOW
         # (generic-bluebook-reader arc, M7) — every one of them fills

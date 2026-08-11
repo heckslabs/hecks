@@ -37,3 +37,21 @@ pub fn header_name(call: &Call) -> Option<String> {
         _ => None,
     }
 }
+
+/// The header's own OPTIONAL `version:` named argument — `Hecks.bluebook
+/// "Banking", version: "v1" do`, `bluebook`'s own `named: "version"` row
+/// (`context: "File"`). Not exercised by pizzas.bluebook/the framework
+/// trio/the grammar chapters (none pins a version) — confirmed real by
+/// banking.bluebook, the first real corpus member to.
+pub fn header_version(call: &Call) -> Option<String> {
+    ruby_value::split_items(&call.args).into_iter().find_map(|segment| {
+        let (name, value) = super::as_named(&segment)?;
+        if name != "version" {
+            return None;
+        }
+        Some(match ruby_value::read(value.trim()) {
+            ruby_value::Value::Str(s) => s,
+            other => ruby_value::to_s(&other),
+        })
+    })
+}

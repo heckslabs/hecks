@@ -68,6 +68,21 @@ pub fn apply(file: &str, lines: &[SourceLine], pos: &mut usize, bluebook: &mut i
                     let name = super::positional_text(file, gated.line.number, "port", &gated.args, 1)?;
                     let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
                 }
+                // `uses_framework "Governance"`/`subscribe "..."` —
+                // ACCEPTED AND IGNORED, per the plan's own finding #5:
+                // `.hecksagon` contributes exactly two things to `ir.json`
+                // (`port ... do ... end` and `uses_framework` ITSELF, but
+                // only in the sense of "which OTHER chapters get
+                // generated" — `IR::Bluebook#to_h` carries no
+                // `framework_members`/`uses_framework` key at all,
+                // confirmed by reading `bluebook.rb` directly). Gated for
+                // real (word/body/argument all already ran above), then
+                // dropped — the SAME "shape-matched, contents dropped"
+                // treatment `apply_aggregate_qualified` already gives
+                // `persisted_by`/`projected_by`. Confirmed real:
+                // banking.hecksagon's own `uses_framework "Governance"`/
+                // `"Identity"`.
+                "uses_framework" | "subscribe" => {}
                 _ => return Err(super::not_built_yet("Hecksagon", gated.row, file, gated.line.number, &gated.call.word)),
             },
         }
