@@ -1,0 +1,10 @@
+# One hand-written case per grammar form — Query. `where`'s own argument
+# is a POSITIONAL open map of pairs (`pairs_shape: "elements"` — each pair
+# independently becomes a new WhereClause), not a named argument.
+Hecks.bluebook "FixtureQuery" do
+  aggregate "Widget" do
+    query "ByName" do
+      where name: "widget"
+    end
+  end
+end

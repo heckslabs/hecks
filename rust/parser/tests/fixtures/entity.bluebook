@@ -1,0 +1,14 @@
+# One hand-written case per grammar form — Entity. A piece of an
+# aggregate with an identity of its own; admits fewer words than an
+# aggregate (no value_object, no policy, no nested entity). `entity`
+# opens first so the walker's recursion into `Entity` context (and the
+# not-yet-implemented diagnostic naming it) is what this fixture actually
+# exercises — see tests/gates.rs.
+Hecks.bluebook "FixtureEntity" do
+  aggregate "Widget" do
+    entity "Part" do
+      identified_by :label
+      attribute :label, String
+    end
+  end
+end

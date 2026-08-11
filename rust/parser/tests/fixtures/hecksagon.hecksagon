@@ -1,0 +1,8 @@
+# One hand-written case per grammar form — Hecksagon (a SIBLING artifact
+# to .bluebook, its own File-context entry point — see syntax.bluebook's
+# own comment on why only its entry point and few genuinely fixed words
+# are declared, not `persisted_by`/`projected_by`/`subscribe`'s open
+# adapter-verb vocabulary).
+Hecks.hecksagon "FixtureHecksagon" do
+  uses_framework "Governance"
+end

@@ -1,0 +1,11 @@
+# One hand-written case per grammar form — Command. A verb declared on
+# an aggregate; `sets` is the current spelling (`was: "then_set"`, both
+# answered forever per the rename column — see syntax.bluebook).
+Hecks.bluebook "FixtureCommand" do
+  aggregate "Widget" do
+    command "Rename" do
+      attribute :name, String
+      sets :name, to: :name
+    end
+  end
+end

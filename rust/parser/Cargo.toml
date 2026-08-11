@@ -1,0 +1,30 @@
+[package]
+name = "hecks_parse"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate — same reasoning rust/host's and rust/web's own
+# Cargo.toml already give for themselves: makes THIS crate its own
+# workspace root (own target/, own Cargo.lock) instead of Cargo walking
+# up and folding it into whatever workspace `rust` (the kernel crate, a
+# separate sibling directory) might belong to.
+#
+# NOT under rust/src/: rust/src/lib.rs compiles into three shipped
+# artifacts (native, wasm32-wasip1, and rust/web's cdylib) — parser code
+# is build-time-only and would inflate all three for nothing. Keeping
+# this a sibling crate, like rust/host and rust/web already are, keeps
+# the `rust` crate's zero-dependency/WASM-size discipline (ADR 0012)
+# intact.
+[workspace]
+
+[[bin]]
+name = "hecks-parse"
+path = "src/main.rs"
+
+# NO DEPENDENCIES beyond std, on purpose — this crate reads bytes and
+# writes JSON text by hand (see src/emit.rs), the same "no dependency
+# earns its way past std" discipline rust/src/ already holds itself to,
+# for a crate that has even less reason to need one: it never ships in
+# a deployed artifact, so there's no runtime-size argument for pulling
+# one in, only build-time compile cost to avoid.
+[dependencies]

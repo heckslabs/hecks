@@ -1,0 +1,13 @@
+# One hand-written case per grammar form — DomainPort/PortOperation
+# (shared by DomainPortBuilder/PortOperationBuilder — the same builder
+# pairing spec/syntax_conformance_spec.rb's own BUILDER table declares).
+# `port` is a Hecksagon-context word only — never `.bluebook`.
+Hecks.hecksagon "FixtureDomainPort" do
+  port "Payments" do
+    operation "Receive" do
+      reference_to Order
+      attribute :amount, Integer
+      emits "PaymentReceived"
+    end
+  end
+end

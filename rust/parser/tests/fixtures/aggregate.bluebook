@@ -1,0 +1,12 @@
+# One hand-written case per grammar form — Aggregate. Deliberately small
+# (a real corpus member, examples/pizzas/bluebook/pizzas.bluebook, already
+# exercises this construct at full size) — this fixture exists to give
+# parse::aggregate and parse::mod's own gate machinery something concrete
+# and minimal to run against in `cargo test`, not to be exhaustive.
+Hecks.bluebook "FixtureAggregate" do
+  aggregate "Widget" do
+    description "a minimal aggregate fixture"
+    identified_by :name
+    attribute :name, String
+  end
+end

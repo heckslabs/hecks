@@ -1,0 +1,13 @@
+# One hand-written case per grammar form — ProcessManager (and, sharing
+# its own builder in Ruby, Handler — ProcessManagerBuilder::HandlerBuilder,
+# a nested class rather than a standalone one).
+Hecks.bluebook "FixtureProcessManager" do
+  process_manager "WidgetSetup" do
+    correlates_by :widget_id
+    starts_on "Widget.Created"
+
+    on "Widget.Created", transition: { "start" => "started" } do
+      dispatch "Notify"
+    end
+  end
+end

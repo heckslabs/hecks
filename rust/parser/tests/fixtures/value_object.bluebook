@@ -1,0 +1,14 @@
+# One hand-written case per grammar form — ValueObject (and, sharing its
+# own builder in Ruby, OneOf — see spec/syntax_conformance_spec.rb's
+# BUILDER table).
+Hecks.bluebook "FixtureValueObject" do
+  aggregate "Widget" do
+    value_object "Color" do
+      attribute :value, String
+      one_of do
+        member value: "red"
+        member value: "blue"
+      end
+    end
+  end
+end

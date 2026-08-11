@@ -1,0 +1,7 @@
+# One hand-written case per grammar form — ReadModel. `report` is the
+# current spelling (`was: "read_model"`).
+Hecks.bluebook "FixtureReadModel" do
+  report "WidgetSummary" do
+    include Widget, as: :widget
+  end
+end

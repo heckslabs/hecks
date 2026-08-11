@@ -1,0 +1,13 @@
+# One hand-written case per grammar form — Lifecycle. NOT a category of
+# its own (`opens: ""` — a DECLARED FOLD onto the enclosing Aggregate/
+# Entity). `transition`'s own argument is a single Ruby hash-rocket pair
+# (`pairs_shape: "fields"`) plus a separate `from:` — real corpus syntax
+# (examples/pizzas/bluebook/pizzas.bluebook), not `identifier: value`
+# shorthand.
+Hecks.bluebook "FixtureLifecycle" do
+  aggregate "Widget" do
+    lifecycle :status, default: "available" do
+      transition "Activate" => "active", from: "available"
+    end
+  end
+end
