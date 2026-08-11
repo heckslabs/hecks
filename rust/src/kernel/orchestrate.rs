@@ -17,6 +17,19 @@
 // separate gap if a future need ever wants to inspect the log itself, not
 // silently pretended away.
 //
+// CROSS-DOMAIN POLICIES (`across "OtherDomain"`) are matched here the
+// SAME way a same-domain policy is (event_name/event_qualifier), but
+// never dispatched here — this module is the WASM-sandboxed kernel
+// (docs/decisions/0012), no network, no way to reach another domain's
+// own deployed Lambda. `react_policies` below pushes a
+// `PendingCrossDomainReaction` instead of recursing into `orchestrate`,
+// and `kernel::cli::run` carries that list out through this call's own
+// JSON output for rust/host (the UNSANDBOXED layer, real AWS SDK access)
+// to actually deliver — `rust/host/src/lambda_client.rs` is that
+// delivery, a direct port of `Adapters::Lambda::Client`'s own
+// function-name computation and invoke shape. See that file's own header
+// for the full mirror.
+//
 // ALSO NOT REPLICATED: `Correlation#saga_correlation`'s full three-tier
 // resolution (dotted lookup into the CURRENT event's payload; else a
 // `saga_correlation:` stamp carried on the event itself; else
@@ -40,6 +53,46 @@ pub struct PolicyRule {
     pub event_name: &'static str,
     pub event_qualifier: Option<&'static str>,
     pub target_verb: &'static str,
+}
+
+/// A `policy "Name" do on ... trigger ... across "OtherDomain" end` block —
+/// `PolicyRule`'s own cross-domain twin, docs/decisions/0013's own
+/// Consequences section named this gap by name: this single-domain
+/// `Store` never compiled `OtherDomain`'s aggregates in, so there is no
+/// `dispatch_fn` this WASM module could route into even if it wanted to.
+/// PREVIOUSLY this row was simply never emitted (`reactions.rb`'s
+/// `emit_policy_table` filtered it out entirely) — represented now
+/// instead, the same "loud, not silent" instinct `emit_policy_table`'s own
+/// header already applies to the domain-mismatch case. `policy_name` rides
+/// along purely for the delivery record a HOST layer produces once this
+/// fires (below) — `PolicyRule` has no equivalent field because nothing
+/// downstream of a same-domain reaction ever needed to name the policy
+/// that caused it; a cross-Lambda invoke that might fail is exactly the
+/// case where naming it back to an operator matters.
+pub struct CrossDomainPolicyRule {
+    pub policy_name: &'static str,
+    pub event_name: &'static str,
+    pub event_qualifier: Option<&'static str>,
+    pub target_domain: &'static str,
+    pub target_verb: &'static str,
+}
+
+/// ONE MATCHED-BUT-UNROUTABLE cross-domain reaction — this WASM module's
+/// own honest confession that a policy fired and it could not deliver it,
+/// carrying everything an UNSANDBOXED host layer (network access this
+/// module structurally lacks — see this file's header and rust/host's own
+/// `lambda_client.rs`) needs to finish the job: which Lambda to invoke
+/// (`target_domain`), what to invoke it with (`target_verb`), and the
+/// SAME whole-payload-verbatim forwarding `react_policies`'s local branch
+/// already does for a same-domain policy (this file's own comment on
+/// "not reshaped, not filtered" — identical rule, just deferred to a
+/// caller instead of applied here).
+#[derive(Clone)]
+pub struct PendingCrossDomainReaction {
+    pub policy_name: String,
+    pub target_domain: String,
+    pub target_verb: String,
+    pub payload: Json,
 }
 
 /// A `with:` binding's value — `dispatch "Cmd", with: { key: :symbol_ref,
@@ -155,6 +208,7 @@ pub fn orchestrate<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
+    cross_domain_policies: &'static [CrossDomainPolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
@@ -164,6 +218,7 @@ pub fn orchestrate<S>(
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
+    cross_domain: &mut Vec<PendingCrossDomainReaction>,
 ) -> Result<(), Refusal> {
     let events = dispatch_fn(store, verb, args, caller_role, mutations)?;
 
@@ -179,8 +234,8 @@ pub fn orchestrate<S>(
             continue;
         }
 
-        react_policies(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, &event, depth, all_events, mutations);
-        advance_process_managers(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, &event, depth, all_events, mutations);
+        react_policies(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, &event, depth, all_events, mutations, cross_domain);
+        advance_process_managers(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, &event, depth, all_events, mutations, cross_domain);
     }
 
     Ok(())
@@ -191,6 +246,7 @@ fn react_policies<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
+    cross_domain_policies: &'static [CrossDomainPolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
@@ -198,6 +254,7 @@ fn react_policies<S>(
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
+    cross_domain: &mut Vec<PendingCrossDomainReaction>,
 ) {
     // `Naming.demodulise(event.aggregate)` — the LAST "::" segment
     // ("Banking::Account" -> "Account").
@@ -218,7 +275,29 @@ fn react_policies<S>(
         // `caller_role: None` — `Dispatcher#reenter`'s own `Caller.
         // without`: a policy reaction is system-triggered, never carries
         // whatever caller the ORIGINAL step bound.
-        let _ = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, policy.target_verb, &event.payload, None, depth + 1, all_events, mutations);
+        let _ = orchestrate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, policy.target_verb, &event.payload, None, depth + 1, all_events, mutations, cross_domain);
+    }
+
+    // CROSS-DOMAIN — matched the identical way, but never dispatched here
+    // (this file's own header). Recorded, not recursed into: whatever
+    // that target verb itself goes on to react to is a SEPARATE WASM
+    // module's own `orchestrate` call, run by rust/host after it delivers
+    // this one via `lambda_client.rs`, not this call.
+    for policy in cross_domain_policies {
+        if policy.event_name != event.name {
+            continue;
+        }
+        if let Some(qualifier) = policy.event_qualifier {
+            if qualifier != emitting {
+                continue;
+            }
+        }
+        cross_domain.push(PendingCrossDomainReaction {
+            policy_name: policy.policy_name.to_string(),
+            target_domain: policy.target_domain.to_string(),
+            target_verb: policy.target_verb.to_string(),
+            payload: event.payload.clone(),
+        });
     }
 }
 
@@ -230,6 +309,7 @@ fn advance_process_managers<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
+    cross_domain_policies: &'static [CrossDomainPolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
@@ -237,6 +317,7 @@ fn advance_process_managers<S>(
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
+    cross_domain: &mut Vec<PendingCrossDomainReaction>,
 ) {
     for pm in process_managers {
         let Some(correlation) = correlation_of(pm, event, reference_key_fn) else { continue };
@@ -268,10 +349,10 @@ fn advance_process_managers<S>(
             let args = build_dispatch_args(pm, spec, event, &correlation, &memory);
             // `caller_role: None` — same `Caller.without` reasoning as
             // `react_policies`: a saga leg is system-triggered.
-            let outcome = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events, mutations);
+            let outcome = orchestrate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events, mutations, cross_domain);
 
             if outcome.is_err() {
-                compensate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, pm, &key, event, &correlation, &memory, depth, all_events, mutations);
+                compensate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, pm, &key, event, &correlation, &memory, depth, all_events, mutations, cross_domain);
             }
         }
 
@@ -294,6 +375,7 @@ fn compensate<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     policies: &'static [PolicyRule],
+    cross_domain_policies: &'static [CrossDomainPolicyRule],
     process_managers: &'static [ProcessManagerDef],
     reference_key_fn: fn(&str) -> Option<&'static str>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
@@ -305,6 +387,7 @@ fn compensate<S>(
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
+    cross_domain: &mut Vec<PendingCrossDomainReaction>,
 ) {
     let current_state = match sagas.get(key) {
         Some(instance) => instance.state.clone(),
@@ -319,6 +402,6 @@ fn compensate<S>(
 
     for spec in compensation.dispatches {
         let args = build_dispatch_args(pm, spec, event, correlation, memory);
-        let _ = orchestrate(store, dispatch_fn, policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events, mutations);
+        let _ = orchestrate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events, mutations, cross_domain);
     }
 }

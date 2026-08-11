@@ -15,5 +15,7 @@ pub mod pizzas;
 pub use banking::merged as active;
 #[cfg(feature = "embryonaut")]
 pub use embryonaut::merged as active;
+#[cfg(feature = "meta")]
+pub use meta::merged as active;
 #[cfg(feature = "pizzas")]
 pub use pizzas::merged as active;

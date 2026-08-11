@@ -25,7 +25,16 @@ impl AccountNumber {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("AccountNumber violates its invariant: an account number is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "AccountNumber"),
+            ("description", "an account number is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -70,7 +79,16 @@ impl DailyLimit {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, receiver: Box::new(Expr::Lookup("cents")) })), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("DailyLimit violates its invariant: a daily limit is non-negative".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "DailyLimit"),
+            ("description", "a daily limit is non-negative"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -115,7 +133,16 @@ impl LedgerSequence {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("value")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("LedgerSequence violates its invariant: a ledger sequence is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "LedgerSequence"),
+            ("description", "a ledger sequence is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -159,7 +186,11 @@ impl LedgerDirection {
         match raw {
             "credit" => Ok(LedgerDirection::Credit),
             "debit" => Ok(LedgerDirection::Debit),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("LedgerDirection: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "LedgerDirection"),
+                ("admitted", "\"credit\", \"debit\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -188,7 +219,16 @@ impl Money {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::ToS(Box::new(Expr::Lookup("currency")))))), right: Box::new(Expr::Int(3)) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Money violates its invariant: a currency is a three-letter code".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Money"),
+            ("description", "a currency is a three-letter code"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -237,13 +277,31 @@ impl PositiveMoney {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("cents")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PositiveMoney violates its invariant: an amount is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PositiveMoney"),
+            ("description", "an amount is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::ToS(Box::new(Expr::Lookup("currency")))))), right: Box::new(Expr::Int(3)) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("PositiveMoney violates its invariant: a currency is a three-letter code".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "PositiveMoney"),
+            ("description", "a currency is a three-letter code"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -292,7 +350,11 @@ impl AccountKind {
             "current" => Ok(AccountKind::Current),
             "savings" => Ok(AccountKind::Savings),
             "reserve" => Ok(AccountKind::Reserve),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("AccountKind: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "AccountKind"),
+                ("admitted", "\"current\", \"savings\", \"reserve\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -319,7 +381,16 @@ impl Narrative {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("text"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Narrative violates its invariant: a movement explains itself".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Narrative"),
+            ("description", "a movement explains itself"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -405,6 +476,16 @@ impl LedgerEntry {
 }
 
 impl LedgerEntry {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(c0)
+        })()
+        .unwrap_or_default()
+    }
+}
+
+impl LedgerEntry {
     pub fn identity(&self) -> String {
         self.sequence.value.to_string()
     }
@@ -450,7 +531,7 @@ impl LedgerEntryAmendArgs {
 
 
 pub fn dispatch_entity_ledgerentry_amend(
-    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, args: LedgerEntryAmendArgs,
+    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, element_wants: &str, args: LedgerEntryAmendArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Account> {
         args.adjustment.check_invariants()?;
@@ -464,6 +545,11 @@ pub fn dispatch_entity_ledgerentry_amend(
         |el: &LedgerEntry| el.identity() == element_id,
         "LedgerEntry.Amend",
         "Banking::Account",
+        "Account",
+        "number.value",
+        "LedgerEntry",
+        "sequence.value",
+        element_wants,
         &args,
         &[
             crate::kernel::GivenSpec { description: "an amendment leaves a non-negative amount", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Add(Box::new(Expr::Lookup("amount.cents")), Box::new(Expr::Lookup("adjustment.cents")))), right: Box::new(Expr::Int(0)) } },
@@ -520,7 +606,7 @@ impl LedgerEntryReverseArgs {
 
 
 pub fn dispatch_entity_ledgerentry_reverse(
-    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, args: LedgerEntryReverseArgs,
+    repo: &mut impl crate::kernel::Repository<Account>, parent_id: &str, element_id: &str, element_wants: &str, args: LedgerEntryReverseArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Account> {
         args.narrative.check_invariants()?;
@@ -533,6 +619,11 @@ pub fn dispatch_entity_ledgerentry_reverse(
         |el: &LedgerEntry| el.identity() == element_id,
         "LedgerEntry.Reverse",
         "Banking::Account",
+        "Account",
+        "number.value",
+        "LedgerEntry",
+        "sequence.value",
+        element_wants,
         &args,
         &[
 
@@ -681,6 +772,8 @@ pub fn dispatch_open(
     },
         "Open",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
 
@@ -760,6 +853,8 @@ pub fn dispatch_credit(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Credit",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "the account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
@@ -834,6 +929,8 @@ pub fn dispatch_debit(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Debit",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "the account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
@@ -907,6 +1004,8 @@ pub fn dispatch_freeze(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Freeze",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
 
@@ -974,6 +1073,8 @@ pub fn dispatch_unfreeze(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Unfreeze",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
 
@@ -1041,6 +1142,8 @@ pub fn dispatch_close_account(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "CloseAccount",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an account closes empty", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, receiver: Box::new(Expr::Lookup("balance.cents")) } },
@@ -1112,6 +1215,8 @@ pub fn dispatch_apply_fee(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "ApplyFee",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "the balance covers a fee", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
@@ -1183,6 +1288,8 @@ pub fn dispatch_correct_fee(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "CorrectFee",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a correction cannot exceed collected fees", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("fees_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
@@ -1252,6 +1359,8 @@ pub fn dispatch_accrue_interest(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "AccrueInterest",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
 
@@ -1321,6 +1430,8 @@ pub fn dispatch_correct_interest(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "CorrectInterest",
         "Banking::Account",
+        "Account",
+        "number.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a correction cannot exceed accrued interest", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("interest_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },

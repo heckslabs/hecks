@@ -120,7 +120,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             }
@@ -614,7 +614,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -666,7 +666,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -1617,7 +1617,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -1643,7 +1643,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -2635,7 +2635,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -2679,7 +2679,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -2688,7 +2688,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             }
@@ -3205,7 +3205,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -3231,7 +3231,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -3680,7 +3680,7 @@
               "type": "Position",
               "list": false,
               "default": null,
-              "optional": true,
+              "optional": false,
               "pattern": null,
               "admits": null
             }
@@ -3984,7 +3984,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -4019,7 +4019,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -6811,6 +6811,20 @@
               ],
               [
                 "site",
+                "value_object_invariant"
+              ],
+              [
+                "template",
+                "{name} invariant violated — {description} (given {offered})"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "InvariantViolation"
+              ],
+              [
+                "site",
                 "admits_declared_set"
               ],
               [
@@ -6882,6 +6896,98 @@
               [
                 "name",
                 "refused"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "FieldHint",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pattern",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "resolves_to",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "email"
+              ],
+              [
+                "pattern",
+                "email"
+              ],
+              [
+                "resolves_to",
+                "html_type"
+              ]
+            ],
+            [
+              [
+                "name",
+                "url"
+              ],
+              [
+                "pattern",
+                "\\b(url|uri|website|link)\\b"
+              ],
+              [
+                "resolves_to",
+                "html_type"
+              ]
+            ],
+            [
+              [
+                "name",
+                "tel"
+              ],
+              [
+                "pattern",
+                "phone|\\btel(ephone)?\\b"
+              ],
+              [
+                "resolves_to",
+                "html_type"
+              ]
+            ],
+            [
+              [
+                "name",
+                "textarea"
+              ],
+              [
+                "pattern",
+                "\\b(text|body|note|notes|description|message|comment)\\b"
+              ],
+              [
+                "resolves_to",
+                "kind"
               ]
             ]
           ]
@@ -14507,7 +14613,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -14516,7 +14622,7 @@
               "type": "String",
               "list": false,
               "default": null,
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "admits": null
             }
@@ -14789,6 +14895,9 @@
       "reference_name": "bluebook",
       "reference_target": "Bluebook",
       "query_name": "whole_bluebook",
+      "wheres": [],
+      "order_by": null,
+      "limit": null,
       "aggregate_heads": [
         {
           "aggregate": "Bluebook",

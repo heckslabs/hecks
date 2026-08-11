@@ -1,0 +1,401 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Bluebook",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Bluebook.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Bluebook.Normalise",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Aggregate",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Identify",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Attribute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Reference",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Holds",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Lifecycle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Transition",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Seal",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Value",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Command",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Argument",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Reference",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Rule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Ensure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Change",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.ActsOn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Announce",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Query",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Filter",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Option",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Argument",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::ValueObject",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Field",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Assert",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Member",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Member.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Member.Pair",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Entity",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Identify",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Seal",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Attribute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Lifecycle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Transition",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Policy",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Policy.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::ProcessManager",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ProcessManager.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ProcessManager.State",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Handler",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Handler.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Dispatch",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Dispatch.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Dispatch.Bind",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Vocabulary",
+    "generated": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Syntax",
+    "generated": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::ReadModel",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Gather",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Option",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Bluebook.Called",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Aggregate.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Command.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Query.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::ValueObject.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Member.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Entity.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Policy.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::ProcessManager.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Handler.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Dispatch.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::ReadModel.DeclaredIn",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "Bluebook::WholeBluebook",
+    "generated": true
+  }
+]

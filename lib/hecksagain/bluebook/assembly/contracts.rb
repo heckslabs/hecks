@@ -236,7 +236,25 @@ module Hecksagain
             index_hints:      [:index_hints,      :index_hints]
           },
           rows: { options: :read_model_option_rows },
-          reads: { reference_name: :symbol, aggregate_heads: [:each, :head], group_by: [:each, :group_by_field] },
+          # `wheres` needs its own reader for the same reason Query's does — a
+          # list defaults to `[]`, not the generic `text(row[key])` cell reader's
+          # `nil` — even though a read model's row never carries `wheres` as a
+          # native field the way Query's does (`[:each, :where_clause]` over an
+          # absent `row[:wheres]` is `Array(nil).map { ... }`, i.e. `[]`, always).
+          # The REAL values, when a read model declares any, arrive through
+          # `options_of(row)`'s merge in `read_model` below (dispatched as
+          # generic Option rows, `read_model_option_rows`/`filter_options` — not
+          # as dedicated where-clause rows), which overrides this default. Until
+          # `IR::ReadModel#to_h` spelled `wheres`/`order_by`/`limit`
+          # unconditionally, `round_trip_spec`'s own "SOURCE KEYS ONLY" +compare
+          # never asked about this key at all, so the `nil`-vs-`[]` gap between
+          # this contract's default and `to_h`'s own `[]` default went unnoticed.
+          # `order_by`/`limit` need no matching entry — the generic reader's
+          # `nil` already agrees with `to_h`'s own nil-when-undeclared default
+          # for those two. `group_by` needs its own reader the same way — a
+          # rootless read model's grouping keys, added independently on main.
+          reads: { reference_name: :symbol, aggregate_heads: [:each, :head],
+                  group_by: [:each, :group_by_field], wheres: [:each, :where_clause] },
           derived: {
             position: :walk,
             query_name: [:computed, :query_name],

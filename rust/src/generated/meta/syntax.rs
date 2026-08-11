@@ -25,7 +25,16 @@ impl SyntaxName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("SyntaxName violates its invariant: a syntax is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "SyntaxName"),
+            ("description", "a syntax is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -117,7 +126,11 @@ impl Context {
             "World" => Ok(Context::World),
             "DomainPort" => Ok(Context::Domainport),
             "PortOperation" => Ok(Context::Portoperation),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Context: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Context"),
+                ("admitted", "\"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -149,7 +162,11 @@ impl Body {
             "keywords" => Ok(Body::Keywords),
             "source" => Ok(Body::Source),
             "rows" => Ok(Body::Rows),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Body: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Body"),
+                ("admitted", "\"none\", \"keywords\", \"source\", \"rows\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -181,7 +198,11 @@ impl Status {
             "admitted" => Ok(Status::Admitted),
             "deprecated" => Ok(Status::Deprecated),
             "retired" => Ok(Status::Retired),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("Status: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "Status"),
+                ("admitted", "\"proposed\", \"admitted\", \"deprecated\", \"retired\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -225,7 +246,11 @@ impl ArgumentKind {
             "constant" => Ok(ArgumentKind::Constant),
             "pairs" => Ok(ArgumentKind::Pairs),
             "list" => Ok(ArgumentKind::List),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentKind: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "ArgumentKind"),
+                ("admitted", "\"text\", \"symbol\", \"number\", \"flag\", \"literal\", \"constant\", \"pairs\", \"list\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -257,7 +282,11 @@ impl PairsShape {
             "elements" => Ok(PairsShape::Elements),
             "verbatim" => Ok(PairsShape::Verbatim),
             "sibling" => Ok(PairsShape::Sibling),
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("PairsShape: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "PairsShape"),
+                ("admitted", "\"fields\", \"elements\", \"verbatim\", \"sibling\""),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }

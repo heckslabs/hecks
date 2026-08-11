@@ -508,6 +508,8 @@ pub fn dispatch_admit(
     },
         "Admit",
         "Embryonaut::Member",
+        "Member",
+        "email.value",
         &args,
         &[
 
@@ -590,6 +592,8 @@ pub fn dispatch_depart(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Depart",
         "Embryonaut::Member",
+        "Member",
+        "email.value",
         &args,
         &[
 
@@ -658,6 +662,8 @@ pub fn dispatch_grant_access(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "GrantAccess",
         "Embryonaut::Member",
+        "Member",
+        "email.value",
         &args,
         &[
 
@@ -726,6 +732,8 @@ pub fn dispatch_link_identity(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "LinkIdentity",
         "Embryonaut::Member",
+        "Member",
+        "email.value",
         &args,
         &[
 

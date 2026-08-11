@@ -115,8 +115,8 @@
 # refusal wording, not just `instances`/refusal verbs — the two gaps that
 # made a looser comparison the right bar are both closed.
 #
-# THE INPUT IS JSON-SHAPED IR, NOT THE LIVE EXPORTER HASH — bin/project_rust
-# round-trips every IR through `JSON.parse(JSON.generate(ir),
+# TWELFTH SLICE — THE INPUT IS JSON-SHAPED IR, NOT THE LIVE EXPORTER HASH —
+# bin/project_rust round-trips every IR through `JSON.parse(JSON.generate(ir),
 # symbolize_names: true)` before handing it here (see its own `json_shaped`
 # header for why). So `mutation[:op]`/`mutation[:target]`/`attribute[:name]`
 # arrive as Strings, not the Symbols `IR::Attribute#to_h` and
@@ -124,20 +124,30 @@
 # their String form (`m[:op].to_s == "set"`) — correct either way, and the
 # only spelling a Rust-produced `ir.json` could ever hand this generator.
 #
+# THIRTEENTH SLICE — the refusal-wording table itself, GENERATED rather than
+# hand-typed per call site: `bin/project_refusal_wording` reads `Hecksagain
+# ::Runtime::RefusalWording::TEMPLATES` directly and writes `rust/src/
+# kernel/refusal_wording.rs` (`RefusalSite`, one variant per (class, site)
+# pair, all 39 entries — the full table, not just the ones a real Rust call
+# site raises today). Closes every gap the ELEVENTH SLICE's own note named:
+# `LifecycleRefused`'s `transition_blocked`, `one_of` closed-set membership
+# (which was ALSO the wrong REFUSAL CLASS — `TypeMismatch`, not
+# `InvariantViolation` — not merely the wrong wording), entity-element-
+# missing `NotFound`, and `record_missing` via `Hydrate::Act` (found live,
+# previously unnamed) all now render byte-for-byte against Ruby. The
+# general VO-`invariant()` message is no longer a gap to close but a NEW
+# table entry: `InvariantViolation`/`value_object_invariant` was promoted
+# out of a hand-built string on the RUBY side too (`coercion.rb`'s own
+# `Value.build`), so both engines now render it off the exact same
+# declared template. `spec/corpus/rust_conformance/refusal_wording_*.json`
+# — one fixture per site — proves each byte-for-byte, including a
+# multi-field value object (`PersonName`) whose declaration order and
+# sorted order genuinely diverge, not a case where they'd coincidentally
+# agree.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
-#   - The REST of the refusal-wording table (`refusal_wording.rb`'s own
-#     ~20 entries) — `LifecycleRefused`'s `transition_blocked` template,
-#     the general VO-`invariant()` message (missing Ruby's own `"(given
-#     {offered})"` suffix), `one_of` closed-set membership wording, and
-#     entity-element-missing `NotFound` wording all still differ from
-#     Ruby's own templates (found running the FULL `spec/corpus/
-#     banking.json` through the differential harness — 0021's own
-#     Consequences). None affect `instances` (full 35/35 parity, per
-#     0020) — pure wording, the same class of gap 0021 closes two
-#     instances of, just a longer remaining tail. A real, deliberately
-#     out-of-scope future slice, not silently skipped.
 #   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
 #     produces the right SIDE EFFECTS without also reproducing the log
 #     `bin/rust_conformance`'s own comparable surface never reads.
@@ -165,9 +175,20 @@
 #     would mean building a Rust Postgres adapter FIRST, then the whole
 #     lineage/shape-diff system on top of it — a materially different,
 #     larger project than anything this generator does today, not a
-#     command/attribute-shaped gap to close. Query/read-model generation
+#     command/attribute-shaped gap to close. `read_model` generation
 #     (never attempted at all, §8's own original scope) is the same kind
 #     of thing: a missing subsystem, not a parity gap.
+#
+# FOURTEENTH SLICE — a NAMED/declared bluebook `query "X" do ... end` block
+# now generates too, for the subset expressible as one or more field-
+# comparator conditions against a single aggregate's OWN attributes
+# (`rust/project/queries.rb`'s own header has the full eligibility
+# argument). `read_model` (a cross-aggregate ask, `IR::ReadModel`) is
+# still the missing-subsystem gap the paragraph above describes — this
+# slice doesn't touch it, and a query that itself needs order_by/limit/
+# a reference hop/a type-unrecoverable literal comparator still has no
+# generated row either, refused the same clean way an unrouted command
+# already is.
 #
 # ONE CONCERN PER FILE, all reopening the SAME two module_function
 # modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
@@ -188,4 +209,6 @@ require_relative "project/commands"
 require_relative "project/ports"
 require_relative "project/registry"
 require_relative "project/reactions"
+require_relative "project/queries"
+require_relative "project/read_models"
 require_relative "project/domain_generator"

@@ -61,6 +61,26 @@ if let Some(id) = key.strip_prefix("Governance::RoleTransition#") {
     }
 }
 
+/// `AggregateScan` — kernel/repository.rs's own trait, given a REAL
+/// per-aggregate body here: one `if` per aggregate this domain declared,
+/// the same "Domain::Aggregate" prefix `instances()`'s own dump arms
+/// already use, each returning that ONE aggregate's own (id, to_json())
+/// listing straight off its repository's `entries()`. Falls through to
+/// the trait's own default (`None`) for any prefix that matches none of
+/// them — kernel/cli.rs turns that into a clean "unknown aggregate"
+/// refusal, never a panic.
+impl crate::kernel::AggregateScan for Store {
+    fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
+if aggregate == "Governance::RoleAssignment" {
+    return Some(self.roleassignment.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Governance::RoleTransition" {
+    return Some(self.roletransition.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+        None
+    }
+}
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,
@@ -122,6 +142,10 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
 
 ];
 
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
+
+];
+
 
 
 pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
@@ -135,3 +159,29 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         _ => None,
     }
 }
+
+pub const QUERIES: &[crate::kernel::QueryDef] = &[
+crate::kernel::QueryDef {
+    verb: "Governance::RoleAssignment.AssignmentsForActor",
+    aggregate: "Governance::RoleAssignment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "actor_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("actor_id") },
+    ],
+    order_by: None,
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Governance::RoleTransition.Allowed",
+    aggregate: "Governance::RoleTransition",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "from_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("from_role") },
+        crate::kernel::QueryCondition { field: "to_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("to_role") },
+    ],
+    order_by: None,
+    limit: None,
+},
+];
+
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
+
+];

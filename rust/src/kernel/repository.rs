@@ -82,7 +82,104 @@ pub fn check_reference<T: Clone>(
     if value.is_empty() || repo.find(value).is_some() {
         return Ok(());
     }
-    Err(super::Refusal::NotFound(format!("no {target} with {heads} {value:?}")))
+    // `NotFound`/`reference_target_missing` — `resolve_references`
+    // (command_rules/references.rb), read directly. Already textually
+    // correct before this migration (`heads` was already the same
+    // codegen-time-joined string `domain_generator.rb`'s own
+    // `reference_checks` computes, `value:?` was already the same
+    // `.inspect`-equivalent Debug quoting) — routed through `RefusalSite`
+    // anyway, for drift-proofing: a future hand-edit here can no longer
+    // silently diverge from Ruby's own table the way a bare `format!`
+    // could.
+    Err(super::Refusal::NotFound(super::RefusalSite::NotFoundReferenceTargetMissing.render(&[
+        ("target", target),
+        ("heads", heads),
+        ("key", &format!("{value:?}")),
+    ])))
+}
+
+/// Every generated domain's own `Store` gets this — `kernel/cli.rs`'s ad
+/// hoc, single-comparator "query" step (the OBJECT form) needs to turn a
+/// bare runtime STRING ("Banking::Account") into that one aggregate's
+/// own (id, to_json()) listing, without knowing at compile time which
+/// domain is active (`generated::active` is a Cargo-feature re-export —
+/// see cli.rs's own header). The DEFAULT — `None`, for every name — is
+/// what a `Store` gets for free the moment it exists, before
+/// `rust/project/registry.rb`'s `emit_registry` has generated a REAL
+/// per-aggregate override for it (a domain generated before this trait
+/// existed, or one this repository holds no bluebook source for at all —
+/// see kernel/cli.rs's own note on Embryonaut, whose generated tree is
+/// hand-patched with the bare default impl rather than a real one, for
+/// exactly that reason). `cli.rs` turns `None` into the SAME clean
+/// "unknown aggregate" refusal either way — from the caller's side there
+/// is no difference between "this aggregate doesn't exist" and "this
+/// domain hasn't been regenerated with scan support yet," and there does
+/// not need to be: both are honestly "cannot answer this," never a wrong
+/// answer or a panic.
+pub trait AggregateScan {
+    fn scan(&self, aggregate: &str) -> Option<Vec<(String, super::Json)>> {
+        let _ = aggregate;
+        None
+    }
+}
+
+/// THE MINIMAL QUERY ENGINE'S OWN FILTER STEP — given one aggregate's
+/// full (id, to_json()) listing (`AggregateScan::scan`, above) and a
+/// single dotted field path/comparator/wire value, return only the
+/// matching (id, json) pairs, sorted by id ascending.
+///
+/// Id-ascending, ALWAYS, matches Ruby exactly even though nothing here
+/// declares an `order_by` at all: `Ports::Query::Ordering.apply`'s own
+/// header explains why — "the identity tier is what makes an ask total";
+/// a query with no declared order still sorts by `record.id.to_s` before
+/// returning, in BOTH `Ports::Query::InMemory.execute` and
+/// `QueryInterpreter#interpret`. `InMemoryRepository`'s own backing store
+/// is a `BTreeMap` (already id-ascending on the way in), so this sort is
+/// a no-op in practice for THIS kernel and a correctness guarantee in
+/// principle — nothing about `AggregateScan::scan`'s own contract
+/// promises id order forever, and a future adapter behind the same
+/// trait might not back onto a `BTreeMap` at all.
+///
+/// `field`/`comparator`/`want` ground truth: `Ports::Query::InMemory#holds?`
+/// (lib/hecksagain/ports/query/in_memory.rb) — see query_comparators.rs's
+/// own header for the full citation, including the real, adversarially-
+/// exercised specs this was checked against rather than merely read.
+pub fn filter_entries(
+    entries: Vec<(String, super::Json)>,
+    field: &str,
+    comparator: super::query_comparators::QueryComparator,
+    want: &super::Json,
+) -> Vec<(String, super::Json)> {
+    let want = super::query_comparators::comparable(want);
+    let mut matched: Vec<(String, super::Json)> = entries
+        .into_iter()
+        .filter(|(_, record)| {
+            let held = record.dig(field).cloned().unwrap_or(super::Json::Null);
+            comparator.matches(&super::query_comparators::comparable(&held), &want)
+        })
+        .collect();
+    matched.sort_by(|a, b| a.0.cmp(&b.0));
+    matched
+}
+
+/// One matched record, as a ROW — the field named `"id"` prepended to
+/// whatever `to_json()` already produced, matching Ruby's own row shape
+/// exactly (`QueryInterpreter#call`'s `{ id: record.id }.merge(record.
+/// state)`, and — for a read model — `ReadModelInterpreter#row`'s own
+/// plain `record.to_h`, which for a live Ruby aggregate record already
+/// carries `id` alongside every other attribute, unlike this kernel's own
+/// generated `to_json()`): an answer names its own id inline, distinct
+/// from `instances()`'s own "Domain::Aggregate#id" -> state MAP shape,
+/// which carries id only in the key, never inside the value. Shared here,
+/// not left private to `cli.rs`, because a read model's own output nests
+/// this same wrapping at EVERY level (the root row AND every reference-
+/// matched sibling row, `kernel/read_model.rs`'s own `run`) — not just
+/// the single top-level row an ad hoc filter or a named query ever
+/// produces.
+pub fn row_json(id: String, record: super::Json) -> super::Json {
+    let super::Json::Object(mut fields) = record else { return record };
+    fields.insert(0, ("id".to_string(), super::Json::Str(id)));
+    super::Json::Object(fields)
 }
 
 /// `refuse_role_mismatch` — `CommandRules::Authorization`
@@ -114,5 +211,13 @@ pub fn check_role(command_role: Option<&str>, command_name: &str, caller_role: O
     if caller == role {
         return Ok(());
     }
-    Err(super::Refusal::Unauthorized(format!("{command_name} refused — role: {role}, and the caller stated {caller}")))
+    // `Unauthorized`/`role_mismatch` — `refuse_role_mismatch`
+    // (command_rules/authorization.rb), read directly. Already textually
+    // correct before this migration; routed through `RefusalSite` for the
+    // same drift-proofing reason `check_reference` above now is.
+    Err(super::Refusal::Unauthorized(super::RefusalSite::UnauthorizedRoleMismatch.render(&[
+        ("command", command_name),
+        ("role", role),
+        ("caller_role", caller),
+    ])))
 }

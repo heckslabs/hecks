@@ -133,6 +133,45 @@ if let Some(id) = key.strip_prefix("Embryonaut::RecurringPayment#") {
     }
 }
 
+// HAND-PATCHED, NOT GENERATED — this domain's own bluebook source isn't
+// available in this repository (see project_embryonaut_founder_app: it's
+// a separate, private app repo that path-references hecksagain), so
+// `bin/project_rust` cannot be re-run for it here the way it just was for
+// Banking/Pizzas/the framework chapters. `AggregateScan`'s own default
+// impl (`fn scan(...) -> None` for every aggregate name — kernel/
+// repository.rs's own header explains why that's a HONEST answer, not a
+// lie: kernel/cli.rs turns `None` into the same clean "unknown
+// aggregate" refusal a genuine typo gets) is exactly the right stand-in
+// until this domain's next real regeneration gives it a full per-
+// aggregate `scan` body like every other domain generated alongside this
+// change already has. Delete this block the day that regeneration
+// happens — `bin/project_rust` will emit a real `impl` in its place.
+impl crate::kernel::AggregateScan for Store {}
+
+// HAND-PATCHED, NOT GENERATED — same reason and same fate as the
+// `AggregateScan` impl immediately above: this domain's own bluebook
+// source isn't available in this repository, so `rust/project/queries.rb`
+// never ran against it to decide which of Embryonaut's own declared
+// queries (if any) belong in this table. An EMPTY table is the honest
+// stand-in — `kernel/cli.rs`'s STRING-form "query" step turns a miss here
+// into the same clean refusal an unrouted command already gets, never a
+// silent wrong answer. Delete this block the day this domain's next real
+// regeneration gives it a real, possibly non-empty, generated table.
+pub const QUERIES: &[crate::kernel::QueryDef] = &[];
+
+// HAND-PATCHED, NOT GENERATED — same reason and same fate as `QUERIES`
+// immediately above, now that a `read_model` construct (`report "X" do
+// ... end`) has a real generated code path too (`rust/project/
+// read_models.rb`/`kernel/read_model.rs`): this domain's own bluebook
+// source isn't available in this repository, so that generator never ran
+// against it to decide which of Embryonaut's own declared read models
+// (if any) belong in this table. An EMPTY table is the honest stand-in —
+// `kernel/cli.rs`'s STRING-form "query" step turns a miss here into the
+// same clean refusal an unrouted command already gets, never a silent
+// wrong answer. Delete this block the day this domain's next real
+// regeneration gives it a real, possibly non-empty, generated table.
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[];
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,
@@ -480,6 +519,10 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
+
+];
+
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
 
 ];
 

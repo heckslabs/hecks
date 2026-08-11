@@ -26,25 +26,32 @@ module RustProjection
     # behavior" split every other generated/kernel pair in this project
     # already holds to.
     #
-    # CROSS-DOMAIN POLICIES ARE SKIPPED, loudly, not silently narrowed:
-    # `bin/project_rust <domain>` compiles exactly ONE target domain (plus
-    # the self-hosted meta-language) into one `Store` — a policy whose
-    # `across` names a domain THIS build never generated has no
-    # `dispatch_by_name`/`Store` to route to at all, structurally, the same
-    # way Ruby's own `PolicyInterpreter#deliver` refuses one reaching a
-    # domain that was never loaded ("no domain \"X\" loaded" —
-    # policy_interpreter.rb, read directly) UNLESS that domain's bluebook
-    # sits alongside the target's in the same directory and gets loaded by
-    # the SAME boot. Checked live against this corpus: `examples/banking/
-    # bluebook/` holds only `banking.bluebook` — no `Compliance`/
-    # `Notifications` bluebook exists anywhere in this repo — so Ruby's OWN
-    # runtime already refuses these identically (a no-op on final state
-    # either way). A future domain that DOES co-locate its cross-domain
-    # policy targets would need `bin/project_rust` to compile more than one
-    # domain into one `Store` before this could route them — a real,
-    # separate, still-open gap, not attempted here.
+    # CROSS-DOMAIN POLICIES ARE SPLIT OUT, not skipped: `bin/project_rust
+    # <domain>` still compiles exactly ONE target domain (plus the
+    # self-hosted meta-language) into one `Store` — a policy whose
+    # `across` names a domain THIS build never generated still has no
+    # `dispatch_by_name`/`Store` to route to LOCALLY. What changed is
+    # that local dispatch is no longer the only way this project delivers
+    # a command: `rust/host` (the unsandboxed host layer, real AWS SDK
+    # access this WASM-compiled kernel structurally lacks — see
+    # orchestrate.rs's own header) can invoke that OTHER domain's own
+    # deployed Lambda directly, a straight port of Ruby's own
+    # `Adapters::Lambda::Client`. `emit_cross_domain_policy_table`, below,
+    # emits these rows into their OWN table (`CrossDomainPolicyRule`, not
+    # `PolicyRule` — a different shape, since there is no local
+    # `target_verb` to dispatch, only a domain+verb pair for rust/host's
+    # `lambda_client.rs` to invoke remotely) instead of dropping them.
     def emit_policy_table(domain_name, policies)
-      rows = policies.filter_map do |policy|
+      rows = local_policy_rows(domain_name, policies)
+
+      Exemplar.render(
+        "policy_table",
+        'crate::kernel::PolicyRule { event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },' => rows.join("\n")
+      )
+    end
+
+    def local_policy_rows(domain_name, policies)
+      policies.filter_map do |policy|
         target_domain = policy[:target_domain] || domain_name
         next nil unless target_domain == domain_name
 
@@ -55,13 +62,39 @@ module RustProjection
 
         "    crate::kernel::PolicyRule { event_name: #{event_name.inspect}, event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect} },"
       end
+    end
 
-      skipped = policies.size - rows.size
-      puts "policy table: #{rows.size} routable, #{skipped} cross-domain (skipped — see reactions.rb's own header)" if skipped.positive?
+    # ── THE CROSS-DOMAIN POLICY TABLE — every policy `local_policy_rows`
+    # above filtered OUT, represented instead of dropped. `target_verb`
+    # here is the BARE verb (`policy[:trigger_command]`, e.g. "OpenReview"),
+    # not domain-qualified the way a local `PolicyRule#target_verb` is —
+    # this is exactly what `Adapters::Lambda::Client#dispatch`'s own
+    # payload shape expects (`{"verb": verb, "args": args}`, where the
+    # Lambda invoked IS the domain, so the verb it receives is already
+    # implicitly scoped to it; Ruby's own `RemoteDispatcher#dispatch`
+    # still forwards the FULL "Domain::Aggregate.Command" verb because a
+    # target Lambda's own registry may hold more than one chapter — this
+    # generator has no equivalent multi-chapter ambiguity to resolve for
+    # a policy's bare `trigger_command`, so it stays exactly as declared).
+    def emit_cross_domain_policy_table(domain_name, policies)
+      rows = policies.filter_map do |policy|
+        target_domain = policy[:target_domain] || domain_name
+        next nil if target_domain == domain_name
+
+        event_name = policy_event_name(policy[:on_event])
+        qualifier = policy_event_qualifier(policy[:on_event])
+        qualifier_expr = qualifier ? "Some(#{qualifier.inspect})" : "None"
+
+        "    crate::kernel::CrossDomainPolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
+          "event_qualifier: #{qualifier_expr}, target_domain: #{target_domain.inspect}, target_verb: #{policy[:trigger_command].to_s.inspect} },"
+      end
+
+      puts "cross-domain policy table: #{rows.size} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched" if rows.any?
 
       Exemplar.render(
-        "policy_table",
-        'crate::kernel::PolicyRule { event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },' => rows.join("\n")
+        "cross_domain_policy_table",
+        'crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb" },' =>
+          rows.join("\n")
       )
     end
 

@@ -169,6 +169,31 @@ if let Some(id) = key.strip_prefix("Identity::ExternalIdentifier#") {
     }
 }
 
+// HAND-PATCHED, NOT GENERATED — see registry.rs's own matching note in
+// this same directory for why (this domain's own bluebook source isn't
+// available in this repository). `AggregateScan`'s own default impl
+// (`None` for every aggregate name, honestly turned into a clean
+// "unknown aggregate" refusal by kernel/cli.rs) is the right stand-in
+// until this domain's next real regeneration replaces it with a full
+// per-aggregate `scan` body.
+impl crate::kernel::AggregateScan for Store {}
+
+// HAND-PATCHED, NOT GENERATED — same reason and fate as the
+// `AggregateScan` impl immediately above (registry.rs's own matching note
+// in this same directory has the full argument): an EMPTY table is the
+// honest stand-in until this domain's next real regeneration gives it a
+// real one, possibly non-empty across Embryonaut/Governance/Identity
+// alike (`bin/project_rust`'s own merged-registry step).
+pub const QUERIES: &[crate::kernel::QueryDef] = &[];
+
+// HAND-PATCHED, NOT GENERATED — same reason and fate as `QUERIES`
+// immediately above, now that a `read_model` construct has a real
+// generated code path too (registry.rs's own matching note in this same
+// directory has the full argument). An EMPTY table is the honest
+// stand-in until this domain's next real regeneration gives it a real
+// one, possibly non-empty across Embryonaut/Governance/Identity alike.
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[];
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,
@@ -555,6 +580,10 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
+
+];
+
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
 
 ];
 

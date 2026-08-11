@@ -283,7 +283,13 @@ RSpec.describe RustProjection::Exemplar do
 
       out = described_class.assemble(
         "closed_set_codec",
-        { "TmplKind" => "LedgerDirection", '"tmpl_field_name"' => '"value"', "tmpl_field_name" => "value" },
+        {
+          "TmplKind" => "LedgerDirection",
+          '"tmpl_field_name"' => '"value"',
+          "tmpl_field_name" => "value",
+          '"tmpl_closed_set_type"' => '"LedgerDirection"',
+          '"tmpl_closed_set_admitted"' => '"\"credit\", \"debit\""',
+        },
         slots: {
           "closed_set_codec:TO_JSON_ARM"   => described_class.render_each("closed_set_codec:TO_JSON_ARM", row_subs),
           "closed_set_codec:FROM_JSON_ARM" => described_class.render_each("closed_set_codec:FROM_JSON_ARM", row_subs),
@@ -306,7 +312,11 @@ RSpec.describe RustProjection::Exemplar do
                 match raw {
                     "credit" => Ok(LedgerDirection::Credit),
                     "debit" => Ok(LedgerDirection::Debit),
-                    other => Err(crate::kernel::Refusal::TypeMismatch(format!("LedgerDirection: unknown member {:?}", other))),
+                    other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                        ("type", "LedgerDirection"),
+                        ("admitted", "\\"credit\\", \\"debit\\""),
+                        ("offered", &format!("{:?}", other)),
+                    ]))),
                 }
             }
         }

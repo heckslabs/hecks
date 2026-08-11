@@ -10,6 +10,20 @@
 // rendered as different arm shapes — is exactly what `Exemplar.assemble`
 // (plural slots) exists for, where every other shape so far only needed
 // `Exemplar.compose` (one slot).
+//
+// `from_json`'s final `other => ...` arm is `InvariantViolation`/
+// `closed_set_member` — `admit_member` (runtime/value/admission.rb), read
+// directly: a `one_of` membership check is an invariant on the value
+// object being BUILT, never a shape mismatch, so this is
+// `InvariantViolation`, not the `TypeMismatch` this arm raised before this
+// migration. `admitted`/`offered` are both already `.inspect`-quoted the
+// way Ruby's own `admitted.map(&:inspect).join(", ")`/`offered.inspect`
+// are; the member list is baked in as codegen-time-known text
+// (`json_codec.rb`'s `emit_closed_set_codec` already resolved every
+// member at generation time), never re-derived from `TO_JSON_ARM` here.
+// Kept OUT of the fenced region below on purpose — every word here would
+// otherwise be baked into EVERY generated closed-set `from_json`, once
+// per enum, across every domain.
 #![allow(dead_code, unused_variables)]
 
 use crate::exemplar::types::TmplKind;
@@ -38,7 +52,11 @@ impl TmplKind {
             // TMPL:closed_set_codec:FROM_JSON_ARM BEGIN
             "tmpl_member_a" => Ok(TmplKind::TmplMemberA),
             // TMPL:closed_set_codec:FROM_JSON_ARM END
-            other => Err(crate::kernel::Refusal::TypeMismatch(format!("TmplKind: unknown member {:?}", other))),
+            other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
+                ("type", "tmpl_closed_set_type"),
+                ("admitted", "tmpl_closed_set_admitted"),
+                ("offered", &format!("{:?}", other)),
+            ]))),
         }
     }
 }
@@ -240,6 +258,38 @@ impl TmplExtractIdType {
 // TMPL:extract_id END
 
 fn tmpl_tier1_join_placeholder() -> String {
+    String::new()
+}
+
+// `extract_wants` — `element_of`'s own `wants` (entity_interpreter.rb),
+// for `dispatch_entity`'s `entity_element_missing` refusal message. The
+// SAME TIER1 dig `extract_id` above performs (an entity command's own
+// identity paths are ALWAYS present by the time this is worth computing —
+// `element_of` raises `entity_element_no_identity` first if any part is
+// missing, so Ruby's own `wants` never falls back to an `id`/reference-key
+// tier the way `extract_id`'s THREE-tier chain does), joined with ", "
+// rather than ":" — `wants.map { |_h, path, want| Identity.scalar(path,
+// want) }.join(", ")`, read directly. Infallible (`String`, not
+// `Result<String, Refusal>`): this is ONLY ever read for a refusal
+// MESSAGE, never to address a record, so a genuinely unreachable missing
+// part degrades to an empty string rather than a second way for dispatch
+// itself to fail.
+struct TmplExtractWantsType;
+// TMPL:extract_wants BEGIN
+impl TmplExtractWantsType {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            // TMPL:extract_wants:TIER1_LINE BEGIN
+            let c0 = v.dig("tmpl_path")?.to_id_component().ok()?;
+            // TMPL:extract_wants:TIER1_LINE END
+            Some(tmpl_wants_join_placeholder())
+        })()
+        .unwrap_or_default()
+    }
+}
+// TMPL:extract_wants END
+
+fn tmpl_wants_join_placeholder() -> String {
     String::new()
 }
 

@@ -49,7 +49,7 @@ pub struct NormalisationRule {
     pub source_token: String,
     pub replacement: String,
     pub boundary: String,
-    pub position: String,
+    pub position: Option<String>,
 }
 
 impl crate::kernel::Fielded for NormalisationRule {
@@ -61,7 +61,7 @@ impl crate::kernel::Fielded for NormalisationRule {
             "source_token" => Some(Field::Value(Value::Str(self.source_token.clone()))),
             "replacement" => Some(Field::Value(Value::Str(self.replacement.clone()))),
             "boundary" => Some(Field::Value(Value::Str(self.boundary.clone()))),
-            "position" => Some(Field::Value(Value::Str(self.position.clone()))),
+            "position" => self.position.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -82,7 +82,7 @@ impl NormalisationRule {
         ("source_token".to_string(), crate::kernel::Json::Str(self.source_token.clone())),
         ("replacement".to_string(), crate::kernel::Json::Str(self.replacement.clone())),
         ("boundary".to_string(), crate::kernel::Json::Str(self.boundary.clone())),
-        ("position".to_string(), crate::kernel::Json::Str(self.position.clone())),
+        ("position".to_string(), self.position.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
@@ -94,7 +94,7 @@ impl NormalisationRule {
         source_token: { let x = v.require("source_token", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.source_token: expected String".to_string()))? },
         replacement: { let x = v.require("replacement", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.replacement: expected String".to_string()))? },
         boundary: { let x = v.require("boundary", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.boundary: expected String".to_string()))? },
-        position: { let x = v.require("position", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.position: expected String".to_string()))? },
+        position: match v.get("position") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.position: expected String".to_string()))?), None => None, },
         })
     }
 }
@@ -121,7 +121,16 @@ impl BluebookName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("BluebookName violates its invariant: a chapter is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "BluebookName"),
+            ("description", "a chapter is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -166,7 +175,16 @@ impl Vision {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Vision violates its invariant: a vision says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Vision"),
+            ("description", "a vision says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -211,7 +229,16 @@ impl Classification {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("core".to_string())) }), Box::new(Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("supporting".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("generic".to_string())) })))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Classification violates its invariant: a chapter is core, supporting, or generic".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Classification"),
+            ("description", "a chapter is core, supporting, or generic"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -256,7 +283,16 @@ impl Version {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Version violates its invariant: a version says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Version"),
+            ("description", "a version says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -392,6 +428,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
         &args,
         &[
 
@@ -435,6 +473,96 @@ if !unknown.is_empty() {
         vision: match v.get("vision") { Some(x) => Some(Vision::from_json(x)?), None => None, },
         classification: match v.get("classification") { Some(x) => Some(Classification::from_json(x)?), None => None, },
         version: match v.get("version") { Some(x) => Some(Version::from_json(x)?), None => None, },
+        })
+    }
+}
+
+impl crate::kernel::Fielded for NormaliseArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "strategy" => Some(Field::Nested(&self.strategy)),
+            "source_token" => Some(Field::Nested(&self.source_token)),
+            "replacement" => Some(Field::Nested(&self.replacement)),
+            "boundary" => Some(Field::Nested(&self.boundary)),
+            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct NormaliseArgs {
+    pub strategy: RuleText,
+    pub source_token: RuleText,
+    pub replacement: RuleText,
+    pub boundary: RuleText,
+    pub position: Option<RuleText>,
+}
+
+pub fn dispatch_normalise(
+    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: NormaliseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+) -> crate::kernel::DispatchResult<Bluebook> {
+        args.strategy.check_invariants()?;
+        args.source_token.check_invariants()?;
+        args.replacement.check_invariants()?;
+        args.boundary.check_invariants()?;
+        if let Some(v) = &args.position { v.check_invariants()?; }
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Normalise",
+        "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
+        &args,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.normalisations.push(NormalisationRule { strategy: args.strategy.value.clone(), source_token: args.source_token.value.clone(), replacement: args.replacement.value.clone(), boundary: args.boundary.value.clone(), position: args.position.clone().map(|v| v.value.clone()) });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["NormalisationAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl NormaliseArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("strategy".to_string(), self.strategy.to_json()),
+        ("source_token".to_string(), self.source_token.to_json()),
+        ("replacement".to_string(), self.replacement.to_json()),
+        ("boundary".to_string(), self.boundary.to_json()),
+        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ])
+    }
+}
+
+impl NormaliseArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Normalise does not declare {} — it takes strategy, source_token, replacement, boundary, position",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        strategy: RuleText::from_json(v.require("strategy", "NormaliseArgs")?)?,
+        source_token: RuleText::from_json(v.require("source_token", "NormaliseArgs")?)?,
+        replacement: RuleText::from_json(v.require("replacement", "NormaliseArgs")?)?,
+        boundary: RuleText::from_json(v.require("boundary", "NormaliseArgs")?)?,
+        position: match v.get("position") { Some(x) => Some(RuleText::from_json(x)?), None => None, },
         })
     }
 }

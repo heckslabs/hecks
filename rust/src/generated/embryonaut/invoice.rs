@@ -277,6 +277,8 @@ pub fn dispatch_draft(
     },
         "Draft",
         "Embryonaut::Invoice",
+        "Invoice",
+        "number.value",
         &args,
         &[
 
@@ -354,6 +356,8 @@ pub fn dispatch_send(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Send",
         "Embryonaut::Invoice",
+        "Invoice",
+        "number.value",
         &args,
         &[
 
@@ -421,6 +425,8 @@ pub fn dispatch_mark_paid(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "MarkPaid",
         "Embryonaut::Invoice",
+        "Invoice",
+        "number.value",
         &args,
         &[
 
@@ -488,6 +494,8 @@ pub fn dispatch_mark_overdue(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "MarkOverdue",
         "Embryonaut::Invoice",
+        "Invoice",
+        "number.value",
         &args,
         &[
 
@@ -555,6 +563,8 @@ pub fn dispatch_void(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Void",
         "Embryonaut::Invoice",
+        "Invoice",
+        "number.value",
         &args,
         &[
 
