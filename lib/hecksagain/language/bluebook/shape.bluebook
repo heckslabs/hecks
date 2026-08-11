@@ -189,7 +189,21 @@ Hecks.bluebook "Bluebook" do
       reference_to ValueObject
       attribute :shape, MemberText
 
-      attribute :position, Position, optional: true
+      # NOT `optional: true`, unlike every sibling `Declare`'s own
+      # `position:` (Aggregate/Entity/Command/Query/ValueObject) — those
+      # are all genuinely omittable because declaration order is a fact
+      # ABOUT them, never a fact that NAMES them. A Member has no other
+      # distinguishing fact (this aggregate's own header, above: "its
+      # pairs are an OPEN MAP... position is not a mint"), so IT is one of
+      # `identified_by`'s two parts. Omitting it here doesn't leave a
+      # Member merely un-ordered — `Runtime::Identity.of` (identity.rb)
+      # refuses the WHOLE identity the instant one part reads `nil`, so
+      # dispatching without `position:` always, unconditionally, refuses
+      # ("creates a Member — pass position.value"), never partially
+      # succeeds. Marking it optional there was cargo-culted from the
+      # sibling `Declare`s rather than reasoned about — the caller was
+      # never actually free to omit it, so this says what was already true.
+      attribute :position, Position
       emits "MemberDeclared"
     end
 
