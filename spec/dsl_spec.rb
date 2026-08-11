@@ -1052,7 +1052,7 @@ RSpec.describe "the DSL surface" do
           Hecksagain::Bluebook::DSL::AggregateBuilder.build("Both") do
             identified_by(:id) { id.value }
           end
-        end.to raise_error(Malformed, /identified_by takes a field name or a block, not both/)
+        end.to raise_error(Malformed, /identified_by takes a field name\/value object or a block, not both/)
       end
 
       it "works the same way on an entity, deriving from the OWNING AGGREGATE's own value object" do
@@ -1073,6 +1073,78 @@ RSpec.describe "the DSL surface" do
         game = bluebook.aggregate("Bracket").entities.first
         expect(game.identity_paths).to eq(["game_id.value"])
         expect(game.identified_by).to eq(:game_id)
+      end
+    end
+
+    describe "identified_by ValueObject — minting the attribute from the type, mirroring reference_to" do
+      it "mints the attribute AND derives its path, no separate attribute call needed" do
+        found = build_aggregate("Order") do
+          identified_by PizzaName
+          value_object("PizzaName") { attribute :value, String }
+        end
+
+        expect(found.identified_by).to eq(:pizza_name)
+        expect(found.identity_paths).to eq(["pizza_name.value"])
+        expect(found.attributes.map { |a| [a.name, a.type] }).to eq([[:pizza_name, "PizzaName"]])
+      end
+
+      it "as: overrides the minted attribute's own name" do
+        found = build_aggregate("Order") do
+          identified_by PizzaName, as: :name
+          value_object("PizzaName") { attribute :value, String }
+        end
+
+        expect(found.identified_by).to eq(:name)
+        expect(found.identity_paths).to eq(["name.value"])
+        expect(found.attributes.map(&:name)).to eq([:name])
+      end
+
+      it "refuses a value object with more than one field, naming every candidate" do
+        expect do
+          build_aggregate("Thing") do
+            identified_by ThingRef
+            value_object("ThingRef") do
+              attribute :value, String
+              attribute :pad, Integer
+            end
+          end
+        end.to raise_error(Malformed, /identified_by names ThingRef, which has 2 fields \(value, pad\)/)
+      end
+
+      it "refuses a type naming no declared value object" do
+        expect do
+          build_aggregate("Thing") { identified_by Nonexistent }
+        end.to raise_error(Malformed, /identified_by names Nonexistent, which is not a declared value object/)
+      end
+
+      it "refuses as: on the bare-field-name form — as: only applies to the value-object form" do
+        expect do
+          build_aggregate("Thing") do
+            value_object("Name") { attribute :value, String }
+            attribute :name, Name
+            identified_by :name, as: :other
+          end
+        end.to raise_error(Malformed, /identified_by :name takes no as:/)
+      end
+
+      it "works the same way on an entity, minting from the OWNING AGGREGATE's own value object" do
+        bluebook = build_bluebook("Games") do
+          aggregate "Bracket" do
+            identified_by { bracket_id.value }
+            attribute :bracket_id, BracketId
+            value_object("BracketId") { attribute :value, String }
+            value_object("WinnerRef") { attribute :value, String }
+
+            entity "Game" do
+              identified_by WinnerRef, as: :winner
+            end
+          end
+        end
+
+        game = bluebook.aggregate("Bracket").entities.first
+        expect(game.identified_by).to eq(:winner)
+        expect(game.identity_paths).to eq(["winner.value"])
+        expect(game.attributes.map { |a| [a.name, a.type] }).to eq([[:winner, "WinnerRef"]])
       end
     end
 

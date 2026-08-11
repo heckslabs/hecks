@@ -132,6 +132,34 @@ module Hecksagain
                   "specific one"
           end
         end
+
+        # `identified_by PizzaName` — the bare-TYPE form, mirroring
+        # `reference_to`'s own shape exactly: pass the value object, not a
+        # field name, and the attribute itself is MINTED here (no separate
+        # `attribute :name, PizzaName` line needed at all) the same way
+        # `reference_to Team` mints `:team_id` on its own. The minted
+        # attribute's own name is `as:` if given, or `Naming.snake` of the
+        # type otherwise — same convention `reference_to`'s own `as:`
+        # already uses. Requires EXACTLY one field on the value object, for
+        # the identical reason `resolve_identity_field!` does — refused,
+        # naming every candidate, rather than guessing.
+        def resolve_identity_type!(type, as, value_objects, context_name)
+          target = Naming.demodulise(type)
+          vo = value_objects.find { |v| v.hecks_name.to_s == target }
+          raise Malformed, "#{context_name}.identified_by names #{target}, which is not a declared value object" unless vo
+
+          if vo.attributes.size != 1
+            raise Malformed,
+                  "#{context_name}.identified_by names #{target}, which has #{vo.attributes.size} " \
+                  "fields (#{vo.attributes.map(&:name).join(', ')}) — identified_by ValueObject only " \
+                  "derives a path when it has exactly one field; write identified_by { field.<field> } " \
+                  "naming the specific one"
+          end
+
+          field = (as || Naming.snake(target)).to_sym
+          attribute(field, target)
+          ["#{field}.#{vo.attributes.first.name}"]
+        end
       end
     end
   end

@@ -55,11 +55,27 @@ module Hecksagain
         # `number` to exist — the same reason `balance >= amount` works in a given.
         # The canonical form collapses the block's newlines to single spaces, so
         # the paths arrive here already separated and in the order written.
-        def identified_by(field = nil, &path)
-          if field
-            raise Malformed, "#{@name}.identified_by takes a field name or a block, not both" if path
+        def identified_by(target = nil, as: nil, &path)
+          if target
+            raise Malformed, "#{@name}.identified_by takes a field name/value object or a block, not both" if path
 
-            @identity_field_pending = field
+            # A bareword constant (`PizzaName`) and a quoted field name
+            # (`:name`) are BOTH plain Ruby Symbols by the time they reach
+            # here — `const_missing` always hands Ruby a Symbol, and this
+            # DSL's own bluebook-level resolver returns it unchanged (see
+            # ConstShim's own comment on why a Module wrapper can't be made
+            # to hold). Distinguished the same way the language already
+            # reads everywhere else: a value object is PascalCase, a field
+            # is snake_case — the FIRST CHARACTER's own case is what
+            # `reference_to`/`attribute` themselves lean on implicitly by
+            # only ever being handed one or the other.
+            if target.to_s[0] =~ /[A-Z]/
+              @identity_type_pending = [target, as]
+            else
+              raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
+
+              @identity_field_pending = target
+            end
             return
           end
 
@@ -178,9 +194,12 @@ module Hecksagain
         private
 
         def resolve_pending_identity!
-          return unless @identity_field_pending
-
-          @identity_paths = resolve_identity_field!(@identity_field_pending, @value_objects + closed_sets, @name)
+          if @identity_type_pending
+            type, as = @identity_type_pending
+            @identity_paths = resolve_identity_type!(type, as, @value_objects + closed_sets, @name)
+          elsif @identity_field_pending
+            @identity_paths = resolve_identity_field!(@identity_field_pending, @value_objects + closed_sets, @name)
+          end
         end
 
         # Every reference is told which IR::Aggregate declares it, so it can

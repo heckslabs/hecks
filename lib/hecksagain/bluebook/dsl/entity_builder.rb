@@ -30,11 +30,21 @@ module Hecksagain
         # port an aggregate's is, so the two constructs cannot drift apart in
         # how they spell an identity — INCLUDING the several-path form, which a
         # piece may say for the same reason a head may.
-        def identified_by(field = nil, &path)
-          if field
-            raise Malformed, "#{@name}.identified_by takes a field name or a block, not both" if path
+        def identified_by(target = nil, as: nil, &path)
+          if target
+            raise Malformed, "#{@name}.identified_by takes a field name/value object or a block, not both" if path
 
-            @identity_field_pending = field
+            # See AggregateBuilder#identified_by's own comment — both forms
+            # arrive as plain Symbols here; distinguished by case the same
+            # way the rest of the language already does (PascalCase type,
+            # snake_case field).
+            if target.to_s[0] =~ /[A-Z]/
+              @identity_type_pending = [target, as]
+            else
+              raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
+
+              @identity_field_pending = target
+            end
             return
           end
 
@@ -80,9 +90,12 @@ module Hecksagain
         private
 
         def resolve_pending_identity!
-          return unless @identity_field_pending
-
-          @identity_paths = resolve_identity_field!(@identity_field_pending, @owner_value_objects, @name)
+          if @identity_type_pending
+            type, as = @identity_type_pending
+            @identity_paths = resolve_identity_type!(type, as, @owner_value_objects, @name)
+          elsif @identity_field_pending
+            @identity_paths = resolve_identity_field!(@identity_field_pending, @owner_value_objects, @name)
+          end
         end
       end
     end
