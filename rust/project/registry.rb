@@ -133,12 +133,36 @@ module RustProjection
       aggregate_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         a[:commands].map do |c|
-          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? '' : '&id, '}args, mutations)"
+          # A CREATING command's own IDENTITY-EXTRA parameters — the bare,
+          # not-a-declared-attribute `identified_by` heads
+          # (`identity_components`'s third shape, mutations.rb —
+          # `owner_id`, the corpus's one real example) that never made it
+          # into `c[:args_struct]`. Read straight off `args_json` the same
+          # way `id_line` below already reads an ACTING command's own `id`
+          # — a bare top-level JSON field, not something `from_json`'s
+          # typed struct carries — then passed positionally into
+          # `dispatch_call`, in the exact order `commands.rb`'s own
+          # `fn_signature` declared them (`identity_extra_params +
+          # ["args: ...", ...]`, emit_command, read directly).
+          # `Refusal::NotFound`, not `TypeMismatch` — a wholly absent
+          # `owner_id` is exactly `CommandInterpreter#hydrate`'s own
+          # "creating_no_identity" case (`Identity.of` reads `nil` for a
+          # part `args.key?` doesn't have, which poisons the whole
+          # identity), never a value that arrived and merely didn't
+          # parse.
+          extra_names  = Array(c[:identity_extra_params])
+          extra_idents = extra_names.map { |name| rust_ident_field(name) }
+          extra_lines  = extra_names.zip(extra_idents).map do |name, ident|
+            "let #{ident} = args_json.dig(#{name.to_s.inspect}).ok_or_else(|| crate::kernel::Refusal::NotFound(#{"#{c[:verb]} creates a #{a[:record]} — pass #{name}".inspect}.to_string()))?.to_id_component()?;"
+          end
+          extra_pass = extra_idents.map { |ident| "&#{ident}, " }.join
+
+          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? extra_pass : '&id, '}args, mutations)"
           id_line = c[:creates] ? "" : "let id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
-          body = [id_line, "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
+          body = [id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
                   "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
 

@@ -192,6 +192,91 @@ impl Member {
     }
 }
 
+impl crate::kernel::Fielded for DeclareArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value_object_id" => Some(Field::Value(Value::Str(self.value_object_id.clone()))),
+            "shape" => Some(Field::Nested(&self.shape)),
+            "position" => Some(Field::Nested(&self.position)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct DeclareArgs {
+    pub value_object_id: String,
+    pub shape: MemberText,
+    pub position: Position,
+}
+
+pub fn dispatch_declare(
+    repo: &mut impl crate::kernel::Repository<Member>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+) -> crate::kernel::DispatchResult<Member> {
+        args.shape.check_invariants()?;
+        args.position.check_invariants()?;
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Create {
+        id: format!("{}:{}", args.value_object_id.to_string(), args.position.value.to_string()),
+        build: Box::new(|| Member {
+            value_object_id: Some(args.value_object_id.clone()),
+            shape: Some(args.shape.clone()),
+            pairs: vec![],
+            position: Some(args.position.clone()),
+        }),
+    },
+        "Declare",
+        "Bluebook::Member",
+        &args,
+        &[
+
+        ],
+        None,
+        |record| {
+        let _ = record;
+            Ok(())
+        },
+        &[
+
+        ],
+        &["MemberDeclared"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl DeclareArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value_object_id".to_string(), crate::kernel::Json::Str(self.value_object_id.clone())),
+        ("shape".to_string(), self.shape.to_json()),
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
+}
+
+impl DeclareArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value_object_id", "shape", "position", "id"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Declare does not declare {} — it takes value_object_id, shape, position",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value_object_id: { let x = v.require("value_object_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.value_object_id: expected String".to_string()))? },
+        shape: MemberText::from_json(v.require("shape", "DeclareArgs")?)?,
+        position: Position::from_json(v.require("position", "DeclareArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for PairArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
