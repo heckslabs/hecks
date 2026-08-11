@@ -122,6 +122,13 @@ module RustProjection
 
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+        # BEFORE anything below reads a single `attr[:optional]` off an
+        # entity/value-object field — every one of those reads (the
+        # struct-field wrap two loops down, `command_skip_reason`'s own
+        # optional-source check) needs to see the derived fact, not just
+        # whatever the domain author wrote by hand (mutations.rb's own
+        # header on why this is safe to run unconditionally, every time).
+        Projector.mark_append_optional_fields!(aggregate, value_objects_by_name)
 
         unsupported = Projector.unsupported_attribute_types(aggregate, value_objects_by_name)
         if unsupported.any?
@@ -329,25 +336,32 @@ module RustProjection
 
             # A CREATING command's identity comes from its own typed args
             # (build_identity_expr, already inside emit_command's output) —
-            # routable regardless of extract_id, UNLESS that expression
-            # itself needs an EXTRA function parameter (identity_components'
-            # third shape — mutations.rb's own `owner_id` example: an
-            # addressing key that is neither a dotted path nor a declared
-            # command attribute). The generated `dispatch_*` signature then
-            # takes that as a bare `&str` no JSON step shape supplies, so
-            # the router can't call it either — skipped the same "loudly,
-            # by name and reason" way an ungenerable command already is.
+            # routable regardless of extract_id, INCLUDING when that
+            # expression needs an EXTRA function parameter
+            # (identity_components' third shape — mutations.rb's own
+            # `owner_id` example: an addressing key that is neither a
+            # dotted path nor a declared command attribute). That
+            # parameter's own JSON key is `head:` (mutations.rb, same
+            # file) — a bare top-level field in `args_json` exactly the
+            # way `id:`/a reference key already are for an ACTING
+            # command's own `extract_id`, never part of the strongly-typed
+            # `XArgs` struct (it was deliberately excluded from
+            # `command[:attributes]`, per `refuse_unknown_arguments`'s own
+            # allowlist) — so `registry.rb`'s router reads it off the SAME
+            # raw JSON every other addressing key already comes from,
+            # rather than needing a JSON step shape of its own.
             # An ACTING command's `id` comes from extract_id instead, so
             # it's routable only when THAT is (json_codec.rb's own gap).
             creates = command[:references].nil?
-            if creates && Projector.identity_components(aggregate, command).any? { |c| c[:param] }
-              extra_param_reason = "identity needs an extra caller-supplied parameter no JSON step shape carries"
-              puts "skipping #{command_verb}'s JSON router entry: #{extra_param_reason}"
-              manifest << manifest_entry(kind: "command", id: command_verb, generated: true, routed: false,
-                                          gap_class: "per_instance",
-                                          reason: "generated as a real Rust function, but not JSON-dispatchable — #{extra_param_reason}")
-              next
-            end
+            # `identity_components` is a CREATING command's own concern
+            # only (mutations.rb's own header on `identity_components`:
+            # "never called for an acting command") — an acting command's
+            # `aggregate[:identified_by]` describes the SAME head's
+            # identity, but that command reaches an EXISTING record via
+            # `extract_id`/`id_line` below, not via minting one, so asking
+            # for its own extra params here would name a JSON field
+            # (`owner_id`) this command never actually needs supplied.
+            identity_extra_params = creates ? Projector.identity_components(aggregate, command).filter_map { |c| c[:head] } : []
 
             unless creates || can_route
               # PREVIOUSLY SILENT: this branch used to fall through to the
@@ -373,6 +387,7 @@ module RustProjection
               fn: Projector.dispatch_fn_name(Projector.rust_ident(command[:name])),
               args_struct: args_struct,
               creates: creates,
+              identity_extra_params: identity_extra_params,
               reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
               role: command[:role],
             }
