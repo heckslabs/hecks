@@ -22,7 +22,13 @@ A free-text label for the entity — no rules attached, read by nothing but a hu
 ## identified_by
 
 <!-- generated:begin word=identified_by -->
-`identified_by do ... end` — fills `identified_by`
+`identified_by identified_by, type, as: do ... end` / `identified_by identified_by, type, as:` — fills `identified_by`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | false | identified_by |
+| positional 1 | constant | false | type |
+| `as:` | symbol | false | name |
 <!-- generated:end -->
 
 Names the field that tells one element of the list apart from another — unique within the parent, not globally, since a `FoyerTicketNumber` only has to be unambiguous inside its own counter. See entities.md for how this identity is carried alongside the parent's own when a command or query reaches through the aggregate.

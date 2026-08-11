@@ -40,7 +40,13 @@ was adopted from.
 ## identified_by
 
 <!-- generated:begin word=identified_by -->
-`identified_by do ... end` — fills `identified_by`
+`identified_by identified_by, type, as: do ... end` / `identified_by identified_by, type, as:` — fills `identified_by`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | false | identified_by |
+| positional 1 | constant | false | type |
+| `as:` | symbol | false | name |
 <!-- generated:end -->
 
 Names which unchanging field or fields say which record this is — a single path (`{ tag.value }`) reads back exactly as written, and several paths, one per line, join in declaration order (`"north:3"`). The block is never called; its source is read the same way a `given`'s is, so a path names a field with no method behind it required. Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — the second `Establish` against an existing identity refuses as a duplicate, not a fresh record.

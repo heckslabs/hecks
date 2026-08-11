@@ -218,12 +218,16 @@ Hecks.bluebook "Bluebook" do
     #            only opens something)
     #
     # ONE ROW PER (WORD, CONTEXT, FORM), so a word admitting two forms has two
-    # rows. `identified_by` used to be the one case of this — a bare-symbol
-    # form the builder accepted and the language's own `Identify` given
-    # refused, "written by nobody" per zero corpus usage — deleted from both
-    # once found, rather than kept as a form the two halves of the project
-    # disagreed about. The same word in two contexts is two rows and often two
-    # different `fills`, which is the whole reason `context` is part of the key :
+    # rows. `identified_by` is the one case of this, and has been twice over
+    # for opposite reasons. The first was a bare-symbol form the builder
+    # accepted and the language's own `Identify` given refused, "written by
+    # nobody" per zero corpus usage — deleted from both once found, rather
+    # than kept as a form the two halves of the project disagreed about. The
+    # second is the pair of blockless forms that later replaced it, which
+    # DERIVE the scalar path the deleted one never reached and so are
+    # admitted where it was not — see the rows themselves. The same word in
+    # two contexts is two rows and often two different `fills`, which is the
+    # whole reason `context` is part of the key :
     # `order_by` fills `order_field` on an ask and an option row on a read model.
     #
     # A FIELD WITH NO WORD IS REAL AND IS NOT AN OMISSION HERE.
@@ -285,6 +289,17 @@ Hecks.bluebook "Bluebook" do
         member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
         member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance"
         member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
+        # A SECOND ROW BECAUSE THE BODY IS WHAT DIFFERS. `identified_by
+        # :name` and `identified_by PizzaName, as: :name` take an argument
+        # and NO block ; the original takes a block and no argument. `body`
+        # is the only column that separates them, and a reader that gates on
+        # it — the fourth of a projected parser's four gates — would refuse
+        # `pizzas.bluebook` line 8 against the source row alone. The
+        # argument rows below join by (word, context) and so belong to both
+        # rows; which form is being read is decided by the body that
+        # follows, not by the arguments, which is the join's own limit
+        # showing again rather than a fact left out.
+        member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
         member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
         # already grew in the wild, declared in this table
@@ -316,6 +331,10 @@ Hecks.bluebook "Bluebook" do
         # against an aggregate's eleven.
         member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
         member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
+        # The same two rows an aggregate carries, for the same reason — a
+        # piece is identified exactly the way a head is, and EntityBuilder's
+        # own `identified_by` is the aggregate's method line for line.
+        member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by"
         member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
         member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
         member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
@@ -532,6 +551,25 @@ Hecks.bluebook "Bluebook" do
         # (`kind: "literal"`, see that row below): no structure imposed
         # beyond "whatever the author wrote."
         member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
+        # THE BLOCKLESS FORMS, AND NEITHER IS REQUIRED. `identified_by` takes
+        # an argument or a block and refuses both together, so the slot is
+        # genuinely omissible and both rows say so — the difference from
+        # `on`'s own two-kinds-at-one-position rows below, where the slot is
+        # mandatory and `required` sits on one row alone. Nothing here can
+        # say "an argument or a body, one of the two" ; the `body: "none"`
+        # keyword row beside the source one is as close as the table gets.
+        #
+        # A SYMBOL NAMES AN ATTRIBUTE ALREADY DECLARED and derives the path
+        # out of its own value object's single field, so the whole of what
+        # it fills is `identified_by` itself. A CONSTANT MINTS the attribute
+        # first, which is why its two rows are `reference_to`'s two rows —
+        # a target and an optional alias, filling `type` and `name`. Both
+        # arrive as plain Ruby Symbols and are told apart by the FIRST
+        # CHARACTER's case, the same reading the language already leans on
+        # everywhere else; `kind` is where that stops being implicit.
+        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by"
+        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type"
+        member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
         # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
         # Customer` attaches an attribute spelled `customer_id` — the language
         # mints the `_id` ending itself, which is why Identify's rule can read it
@@ -567,6 +605,10 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "Aggregate", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
 
         member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+        # See Aggregate's own three rows above — the same method, one level down.
+        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by"
+        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type"
+        member keyword: "identified_by",   context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
         member keyword: "command",         context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
         member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
         member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"

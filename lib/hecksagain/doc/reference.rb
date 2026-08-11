@@ -54,15 +54,22 @@ module Hecksagain
         end.merge("index.md" => render_index)
       end
 
+      # A WORD ADMITTING TWO FORMS HAS TWO ROWS — syntax.bluebook's own
+      # stated rule, and `identified_by` (a block, or a bare argument and
+      # none) is the case that made it real again. One SECTION per word all
+      # the same: the prose is the word's rather than the form's, and the
+      # argument rows join by (word, context) and so already cover every
+      # form. Grouped rather than rendered per row, or a reader would meet
+      # the same heading and the same paragraph twice.
       def render_page(context, prose, path)
-        words = keywords.select { |row| row[:context] == context }
-        orphans = prose.keys - words.map { |row| row[:word] }
+        words = keywords.select { |row| row[:context] == context }.group_by { |row| row[:word] }
+        orphans = prose.keys - words.keys
         unless orphans.empty?
           raise "#{path} carries prose for #{orphans.join(', ')}, which the language no longer " \
                 "declares in #{context} — deleting writing is a human's decision, so decide"
         end
 
-        sections = words.map { |row| render_word(row, prose[row[:word]]) }
+        sections = words.map { |word, forms| render_word(forms, prose[word]) }
         <<~PAGE
           # #{context}
 
@@ -86,19 +93,24 @@ module Hecksagain
         inside.empty? ? "Words available in the #{context} body." : "Words available inside #{inside}."
       end
 
-      def render_word(row, prose)
+      # One SPELLING per form, everything else off the first row — the
+      # columns that differ between two forms of one word are `body` (which
+      # is what the spelling shows) and nothing else.
+      def render_word(forms, prose)
+        row = forms.first
         table = argument_table(row)
         facts = []
         facts << "opens a `#{row[:opens]}` body" unless row[:opens].to_s.empty?
         facts << "fills `#{row[:fills]}`" unless row[:fills].to_s.empty?
         facts << "**status: #{status_of(row)}**" unless status_of(row) == "admitted"
         facts << "was `#{row[:was]}`" unless row[:was].to_s.empty?
+        spellings = forms.map { |form| "`#{signature(form)}`" }.join(" / ")
 
         <<~WORD
           ## #{row[:word]}
 
           #{generated_begin(row[:word])}
-          `#{signature(row)}`#{facts.empty? ? '' : " — #{facts.join(', ')}"}
+          #{spellings}#{facts.empty? ? '' : " — #{facts.join(', ')}"}
           #{table}#{GENERATED_END}
 
           #{prose_or_sentinel(prose)}
@@ -139,7 +151,7 @@ module Hecksagain
 
       def render_index
         listed = contexts.map do |context|
-          count = keywords.count { |row| row[:context] == context }
+          count = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.size
           "- [#{context}](#{page_name(context)}) — #{count} #{count == 1 ? 'word' : 'words'}"
         end
         <<~INDEX
@@ -281,7 +293,7 @@ module Hecksagain
           path = File.join(directory, page_name(context))
           prose = File.exist?(path) ? harvest(File.read(path)) : {}
           keywords.select { |row| row[:context] == context && live?(row) && prose[row[:word]].nil? }
-                  .map { |row| "#{row[:word]} (#{context})" }
+                  .map { |row| "#{row[:word]} (#{context})" }.uniq
         end
       end
     end
