@@ -317,8 +317,8 @@
           "mutations": [
             {
               "fields": {
-                "key": "key",
-                "value": "value"
+                "key": ":key",
+                "value": ":value"
               },
               "op": "append",
               "target": "settings"

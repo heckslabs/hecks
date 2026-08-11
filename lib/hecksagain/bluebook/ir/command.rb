@@ -11,11 +11,11 @@ module Hecksagain
           base.merge(source: classified_source)
         end
 
-        def appended_fields
-          source.transform_values do |value|
-            value.is_a?(Symbol) ? value.to_s : value.inspect
-          end
-        end
+        # An APPEND binds several fields at once, each from either a command
+        # ARGUMENT (a Symbol) or a LITERAL. It used to spell the Symbol bare
+        # and inspect the rest, which is the opposite of what a where-clause
+        # did with the same two kinds — see Hecksagain::Literal.
+        def appended_fields = source.transform_values { |value| Literal.render(value) }
 
         def classified_source
           if source.is_a?(Symbol)

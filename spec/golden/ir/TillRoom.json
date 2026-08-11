@@ -114,7 +114,7 @@
             },
             {
               "fields": {
-                "amount": "amount",
+                "amount": ":amount",
                 "direction": "\"in\""
               },
               "op": "append",
@@ -167,7 +167,7 @@
             },
             {
               "fields": {
-                "amount": "amount",
+                "amount": ":amount",
                 "direction": "\"out\""
               },
               "op": "append",

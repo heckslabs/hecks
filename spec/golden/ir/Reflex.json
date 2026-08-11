@@ -153,7 +153,7 @@
             {
               "field": "condition",
               "op": "eq",
-              "value": "on"
+              "value": "\"on\""
             }
           ]
         }

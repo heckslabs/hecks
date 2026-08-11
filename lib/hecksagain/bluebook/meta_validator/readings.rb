@@ -152,14 +152,14 @@ module Hecksagain
             next set_row(mutation) unless mutation.op == :append
 
             mutation.source.map do |field, argument|
-              # Spelled the way IR::Mutation#appended_fields spells it: a symbol bare
-              # because it names an argument, anything else inspected because it IS
-              # the value. `then_set :marks, append: { direction: "out" }` binds a
-              # LITERAL, and storing it raw made it indistinguishable from an
-              # argument called out.
+              # Spelled the way IR::Mutation#appended_fields spells it, because
+              # Assembly::Marks reads this row back through the same reader it
+              # reads that field with. `then_set :marks, append: { direction:
+              # "out" }` binds a LITERAL, and storing it raw made it
+              # indistinguishable from an argument called out.
               { target: mutation.target, op: mutation.op, field: field,
                 kind: argument.is_a?(Symbol) ? "argument" : "literal",
-                source: argument.is_a?(Symbol) ? argument.to_s : encode_literal(argument) }
+                source: Literal.render(argument) }
             end
           end
         end
@@ -232,6 +232,13 @@ module Hecksagain
           # "#<struct LimitSpec value=3>".
           return node.limit&.to_h&.fetch(:value, nil) if "#{category}.#{field}" == "Query.limit"
 
+          # `provenance from: {...}` is a HASH offered into a text field, and
+          # handing it over raw let the runtime's own coercion spell it — which
+          # meant Ruby's `Hash#to_s`, whose spelling changed under us between
+          # 3.3 and 3.4. Encoded here, the same way `default:` already is and the
+          # same way Shapes#provenance reads it back.
+          return encode_literal(node.provenance) if field == :provenance
+
           # `identified_by` is no longer a FIELD of any declaration — it is a list,
           # filled by Identify one part at a time, so it is read through `identity_rows`
           # like every other list rather than special-cased here. What this branch
@@ -299,10 +306,13 @@ module Hecksagain
         # `to_s` threw the type away: 0.0 came back "0.0", and `{ value: "good" }`
         # came back its inspect string with nowhere to say it had been a hash. The
         # language already stores code as text — `canonical: "cents >= 0"` — so an
-        # encoding is in keeping; it simply has to be SELF-DESCRIBING. `inspect` is:
-        # a number is bare, a string is quoted, a symbol wears its colon, an object
-        # wears its braces. Shapes#decode_literal reads it back.
-        def encode_literal(value) = value.nil? ? nil : value.inspect
+        # encoding is in keeping; it simply has to be SELF-DESCRIBING. That rule is
+        # now Hecksagain::Literal's, stated once and shared with every other
+        # to_h-bound literal field ; Shapes#decode_literal reads it back.
+        #
+        # nil stays nil rather than becoming "nil": absent is a real answer here,
+        # and the language's own field is optional.
+        def encode_literal(value) = value.nil? ? nil : Literal.render(value)
 
         # The way back out: an aggregate id becomes the type the IR spells. The
         # id is a JOIN of chapter + name (Naming::IDENTITY_JOIN, the same join

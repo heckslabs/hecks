@@ -88,7 +88,7 @@ module RustProjection
     # append's literal `direction: { value: "debit" }` targets exactly
     # this shape, `LedgerDirection`). Shared by `:set`'s literal source and
     # `:append`'s literal fields — the same Hash-shaped literal, unmarked
-    # from either `classified_source`'s raw value or `Marks.unmark` of an
+    # from either `classified_source`'s raw value or `Marks.read` of an
     # `appended_fields` string, bridges the identical way once it's a Hash.
     def literal_hash_bridgeable?(hash, target_type, value_objects_by_name)
       vo = value_objects_by_name[target_type]

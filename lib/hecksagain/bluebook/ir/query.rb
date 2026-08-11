@@ -1,7 +1,7 @@
 module Hecksagain
   module Bluebook
     module IR
-      def self.render_value(value) = QuerySpecification.render_value(value)
+      def self.render_value(value) = Literal.render(value)
 
       # A query — an ASK, declared on an aggregate or on one of its entities.
       #

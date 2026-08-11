@@ -692,7 +692,7 @@ RSpec.describe "the DSL surface" do
         end
       end.read_models.first
 
-      expect(model.wheres.first.to_h).to eq(field: "status", op: "eq", value: "active")
+      expect(model.wheres.first.to_h).to eq(field: "status", op: "eq", value: %q("active"))
       expect(model.aggregate_heads).to eq([{ aggregate: "Account", as: :accounts, many: true }])
       expect(model.offset.to_h).to eq(value: "5")
       expect(model.authorization.to_h).to eq(policy: "portfolio_access", tenant: "customer_id")
@@ -1229,7 +1229,7 @@ RSpec.describe "the DSL surface" do
       end.queries.first
 
       expect(found.name).to eq("Available")
-      expect(found.wheres.map(&:to_h)).to eq([{ field: "status", op: "eq", value: "available" }])
+      expect(found.wheres.map(&:to_h)).to eq([{ field: "status", op: "eq", value: %q("available") }])
       expect(found.order_by.to_h).to eq({ field: "name", direction: "desc" })
       expect(found.limit.to_h).to eq({ value: "10" })
       expect(found.offset.to_h).to eq({ value: "5" })
@@ -1939,7 +1939,7 @@ RSpec.describe "the DSL surface" do
       mutation = build_command("CmdAppend") { then_set :parts, append: { size: :size } }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:parts, :append])
-      expect(mutation.to_h[:fields]).to eq(size: "size")
+      expect(mutation.to_h[:fields]).to eq(size: ":size")
     end
 
     it "then_set increment: reads a command argument to add" do

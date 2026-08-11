@@ -185,11 +185,11 @@
           "mutations": [
             {
               "fields": {
-                "boundary": "boundary",
-                "position": "position",
-                "replacement": "replacement",
-                "source_token": "source_token",
-                "strategy": "strategy"
+                "boundary": ":boundary",
+                "position": ":position",
+                "replacement": ":replacement",
+                "source_token": ":source_token",
+                "strategy": ":strategy"
               },
               "op": "append",
               "target": "normalisations"
@@ -638,7 +638,7 @@
           "mutations": [
             {
               "fields": {
-                "value": "path"
+                "value": ":path"
               },
               "op": "append",
               "target": "identified_by"
@@ -728,13 +728,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":type"
               },
               "op": "append",
               "target": "attributes"
@@ -824,13 +824,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "points_at"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":points_at"
               },
               "op": "append",
               "target": "attributes"
@@ -920,13 +920,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "holds"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":holds"
               },
               "op": "append",
               "target": "attributes"
@@ -1034,9 +1034,9 @@
           "mutations": [
             {
               "fields": {
-                "command": "command",
-                "from_state": "from_state",
-                "to_state": "to_state"
+                "command": ":command",
+                "from_state": ":from_state",
+                "to_state": ":to_state"
               },
               "op": "append",
               "target": "transitions"
@@ -1097,7 +1097,7 @@
           "mutations": [
             {
               "fields": {
-                "name": "name"
+                "name": ":name"
               },
               "op": "append",
               "target": "value_objects"
@@ -1778,13 +1778,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":type"
               },
               "op": "append",
               "target": "attributes"
@@ -1874,13 +1874,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "points_at"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":points_at"
               },
               "op": "append",
               "target": "attributes"
@@ -1932,8 +1932,8 @@
           "mutations": [
             {
               "fields": {
-                "canonical": "canonical",
-                "description": "description"
+                "canonical": ":canonical",
+                "description": ":description"
               },
               "op": "append",
               "target": "givens"
@@ -1985,8 +1985,8 @@
           "mutations": [
             {
               "fields": {
-                "canonical": "canonical",
-                "description": "description"
+                "canonical": ":canonical",
+                "description": ":description"
               },
               "op": "append",
               "target": "ensures"
@@ -2065,11 +2065,11 @@
           "mutations": [
             {
               "fields": {
-                "field": "field",
-                "kind": "kind",
-                "op": "op",
-                "source": "source",
-                "target": "target"
+                "field": ":field",
+                "kind": ":kind",
+                "op": ":op",
+                "source": ":source",
+                "target": ":target"
               },
               "op": "append",
               "target": "mutations"
@@ -2152,7 +2152,7 @@
           "mutations": [
             {
               "fields": {
-                "name": "announces"
+                "name": ":announces"
               },
               "op": "append",
               "target": "emits"
@@ -2869,9 +2869,9 @@
           "mutations": [
             {
               "fields": {
-                "field": "field",
-                "op": "op",
-                "value": "value"
+                "field": ":field",
+                "op": ":op",
+                "value": ":value"
               },
               "op": "append",
               "target": "wheres"
@@ -2937,10 +2937,10 @@
           "mutations": [
             {
               "fields": {
-                "at": "at",
-                "key": "key",
-                "option": "option",
-                "value": "value"
+                "at": ":at",
+                "key": ":key",
+                "option": ":option",
+                "value": ":value"
               },
               "op": "append",
               "target": "options"
@@ -3030,13 +3030,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":type"
               },
               "op": "append",
               "target": "attributes"
@@ -3507,13 +3507,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":type"
               },
               "op": "append",
               "target": "attributes"
@@ -3605,8 +3605,8 @@
           "mutations": [
             {
               "fields": {
-                "canonical": "canonical",
-                "description": "description"
+                "canonical": ":canonical",
+                "description": ":description"
               },
               "op": "append",
               "target": "invariants"
@@ -3981,8 +3981,8 @@
           "mutations": [
             {
               "fields": {
-                "key": "key",
-                "value": "value"
+                "key": ":key",
+                "value": ":value"
               },
               "op": "append",
               "target": "pairs"
@@ -4300,7 +4300,7 @@
           "mutations": [
             {
               "fields": {
-                "value": "path"
+                "value": ":path"
               },
               "op": "append",
               "target": "identified_by"
@@ -4415,13 +4415,13 @@
           "mutations": [
             {
               "fields": {
-                "admits": "admits",
-                "default": "default",
-                "list": "list",
-                "name": "name",
-                "optional": "optional",
-                "pattern": "pattern",
-                "type": "type"
+                "admits": ":admits",
+                "default": ":default",
+                "list": ":list",
+                "name": ":name",
+                "optional": ":optional",
+                "pattern": ":pattern",
+                "type": ":type"
               },
               "op": "append",
               "target": "attributes"
@@ -4529,9 +4529,9 @@
           "mutations": [
             {
               "fields": {
-                "command": "command",
-                "from_state": "from_state",
-                "to_state": "to_state"
+                "command": ":command",
+                "from_state": ":from_state",
+                "to_state": ":to_state"
               },
               "op": "append",
               "target": "transitions"
@@ -5221,7 +5221,7 @@
           "mutations": [
             {
               "fields": {
-                "name": "name"
+                "name": ":name"
               },
               "op": "append",
               "target": "states"
@@ -5710,8 +5710,8 @@
           "mutations": [
             {
               "fields": {
-                "key": "key",
-                "value": "value"
+                "key": ":key",
+                "value": ":value"
               },
               "op": "append",
               "target": "with_spec"
@@ -15312,9 +15312,9 @@
           "mutations": [
             {
               "fields": {
-                "aggregate": "aggregate",
-                "as": "as",
-                "many": "many"
+                "aggregate": ":aggregate",
+                "as": ":as",
+                "many": ":many"
               },
               "op": "append",
               "target": "aggregate_heads"
@@ -15380,10 +15380,10 @@
           "mutations": [
             {
               "fields": {
-                "at": "at",
-                "key": "key",
-                "option": "option",
-                "value": "value"
+                "at": ":at",
+                "key": ":key",
+                "option": ":option",
+                "value": ":value"
               },
               "op": "append",
               "target": "options"
