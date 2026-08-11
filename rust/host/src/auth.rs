@@ -28,6 +28,7 @@
 use crate::dispatch;
 use crate::journal;
 use crate::journal::LineageConfig;
+use crate::lambda_client::LambdaInvoker;
 use serde_json::{json, Value};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -303,6 +304,7 @@ pub async fn session_for_member_by_identity(client: &Mutex<Client>, identity_id:
 // mints Identity/Governance facts for a Member who already has `role`
 // set (via GrantAccess) but no `identity_id` yet, matching
 // embryonaut_access_control.rb's `provision` exactly.
+#[allow(clippy::too_many_arguments)]
 pub async fn provision(
     client: &Mutex<Client>,
     wasm_path: &Path,
@@ -310,6 +312,7 @@ pub async fn provision(
     email: &str,
     issuer: &str,
     subject: &str,
+    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Option<Session>> {
     let member = match member_row_by_email(client, email).await? {
         Some(m) => m,
@@ -324,7 +327,7 @@ pub async fn provision(
 
     let register = dispatch::handle(
         client, wasm_path, "Identity::Identity.Register",
-        json!({"identity_id": {"value": identity_id}}), config,
+        json!({"identity_id": {"value": identity_id}}), config, invoker,
     ).await?;
     if !register.accepted {
         anyhow::bail!("Identity::Identity.Register refused: {}", register.result);
@@ -335,7 +338,7 @@ pub async fn provision(
         json!({
             "identity_id": identity_id, "key": {"value": format!("{issuer}:{subject}")},
             "issuer": {"value": issuer}, "subject": {"value": subject},
-        }), config,
+        }), config, invoker,
     ).await?;
     if !link_external.accepted {
         anyhow::bail!("Identity::ExternalIdentifier.Link refused: {}", link_external.result);
@@ -346,7 +349,7 @@ pub async fn provision(
         json!({
             "actor_id": {"value": identity_id}, "role_name": {"value": role}, "scope": {"value": "Embryonaut"},
             "starts_at": {"value": httpdate_now()},
-        }), config,
+        }), config, invoker,
     ).await?;
     if !assign_role.accepted {
         anyhow::bail!("Governance::RoleAssignment.Assign refused: {}", assign_role.result);
