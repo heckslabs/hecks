@@ -1,0 +1,22 @@
+Hecks.world "Compliance" do
+  realm "Examples"
+  persisted_by("Postgres") do
+    database "postgres://localhost/hecks_compliance"
+  end
+
+  # SELF-CONTAINED, DELIBERATELY — not Shared mode (Banking/Pizzas/
+  # Embryonaut's own convention, examples/banking/bluebook/banking.world).
+  # Shared mode's own mint-era step isn't actually automated yet for a
+  # domain with no RDS/VPC of its own to stand a bastion next to (that
+  # Makefile's own generated comment says so plainly) — this domain is
+  # meant to be deployed, verified live, and torn back down in one
+  # session, not left running, so the "idle shared-infra cost" argument
+  # Shared mode exists to solve doesn't apply here the way it does for a
+  # domain meant to stay up. `make deploy` alone is fully automated for
+  # this path today (proven live by Pizzas).
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    memory 512
+    timeout 10
+  end
+end
