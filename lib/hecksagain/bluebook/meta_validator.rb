@@ -109,13 +109,24 @@ module Hecksagain
       #
       # It stayed unlanded for one wrong belief, worth naming because it looked so
       # much like a wall: that the language may only hold what `to_h` carries.
-      # `ReadModel#to_h` omits a read model's filters, so read-model filtering
-      # seemed impossible to read back —
+      # `ReadModel#to_h` omitted a read model's filters until 2026-08-11, so
+      # read-model filtering seemed impossible to read back —
       # and hoisted policies lost which head declared them for the same reason.
       # But `to_h` is a PROJECTION and the language is the
       # SOURCE. They must agree about everything to_h spells ; they need not be the
-      # same size. Both are held now, as declarations the wire format never sees, and
-      # the wire format did not move an inch.
+      # same size. Both were held even before the wire format carried them, as
+      # declarations the wire format didn't yet see.
+      #
+      # UPDATE, 2026-08-11: the wire format DID move, on purpose, for a reason
+      # unrelated to this file — a Rust-codegen task needed `wheres`/
+      # `order_by`/`limit` on the wire to compile a read model's real declared
+      # filtering, and the boundary described above was never load-bearing for
+      # THIS mechanism (`option_rows`/`filter_options` in meta_validator/
+      # readings.rb read `node.wheres`/`node.order_by`/`node.limit` off the
+      # live object directly, never off `to_h`), so extending `to_h` changed
+      # nothing here. `ReadModel#to_h` now spells all three explicitly, the
+      # same mechanism `Query#to_h` already used — purely additive, still
+      # agreeing with the language about everything it spells.
       #
       # What is CACHED is the declarations, not the graph. A hash carries no Ruby
       # classes, so a second load of the same chapter assembles fresh ones — which is

@@ -15409,10 +15409,15 @@
         }
       ],
       "description": "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read.",
+      "limit": null,
       "name": "WholeBluebook",
+      "order_by": null,
       "query_name": "whole_bluebook",
       "reference_name": "bluebook",
-      "reference_target": "Bluebook"
+      "reference_target": "Bluebook",
+      "wheres": [
+
+      ]
     }
   ],
   "version": "1",
