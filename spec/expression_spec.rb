@@ -232,6 +232,22 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "start_with? and end_with?" do
+    it "checks both ends of a string, the storehouse-kernel Params JSON-object shape" do
+      expression = 'value.start_with?("{") && value.end_with?("}")'
+
+      expect(evaluate(expression, value: '{"a":1}')).to be(true)
+      expect(evaluate(expression, value: "[1,2]")).to be(false)
+    end
+
+    it "raises when the receiver is not a string" do
+      expect { evaluate('value.start_with?("{")', value: 12) }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /start_with\? expects a string, got 12/)
+      expect { evaluate('value.end_with?("}")', value: 12) }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /end_with\? expects a string, got 12/)
+    end
+  end
+
   describe "match?/present?/blank?" do
     it "matches a receiver against a regex literal, the storehouse-kernel format-validation shape" do
       expect(evaluate('value.match?(/\A\d{5}\z/)', value: "94103")).to be(true)
