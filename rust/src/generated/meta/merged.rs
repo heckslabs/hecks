@@ -541,6 +541,13 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::meta::readmodel::dispatch_gather(&mut store.readmodel, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::ReadModel.GroupBy" => {
+              let id = crate::generated::meta::readmodel::ReadModel::extract_id(args_json)?;
+              let args = crate::generated::meta::readmodel::GroupByArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Language"), "GroupBy", caller_role)?;
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::meta::readmodel::dispatch_group_by(&mut store.readmodel, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::ReadModel.Option" => {
               let id = crate::generated::meta::readmodel::ReadModel::extract_id(args_json)?;
               let args = crate::generated::meta::readmodel::OptionArgs::from_json(args_json)?;
@@ -717,28 +724,5 @@ crate::kernel::QueryDef {
 ];
 
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
-crate::kernel::read_model::ReadModelDef {
-    verb: "Bluebook.WholeBluebook",
-    reference_name: "bluebook",
-    heads: &[
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Bluebook", as_name: "bluebook", many: false, is_root: true, reference_fields: &[] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Aggregate", as_name: "aggregates", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Bluebook", field: "bluebook_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Command", as_name: "commands", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Aggregate", field: "aggregate_id" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Entity", field: "entity_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::ValueObject", as_name: "value_objects", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Aggregate", field: "aggregate_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Query", as_name: "queries", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Aggregate", field: "aggregate_id" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Entity", field: "entity_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Entity", as_name: "entities", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Aggregate", field: "aggregate_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Member", as_name: "members", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::ValueObject", field: "value_object_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Policy", as_name: "policies", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Bluebook", field: "bluebook_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::ProcessManager", as_name: "process_managers", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Bluebook", field: "bluebook_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Handler", as_name: "handlers", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::ProcessManager", field: "process_manager_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Dispatch", as_name: "dispatches", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Handler", field: "handler_id" }] },
-        crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::ReadModel", as_name: "read_models", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Bluebook", field: "bluebook_id" }] },
-    ],
-    filtered_head: None,
-    conditions: &[
 
-    ],
-    order_by: None,
-    limit: None,
-},
 ];
