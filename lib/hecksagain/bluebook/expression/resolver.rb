@@ -79,6 +79,40 @@ module Hecksagain
         # field that could legitimately be "" rather than absent.
         Presence       = Struct.new(:receiver, :negated, keyword_init: true)
 
+        # `receiver.split("SEP")` -- vendored addition, not (yet) upstream
+        # hecksagain (migration plan task 9): confirmed the single
+        # highest-value new finding of the real-dispatch smoke sweep --
+        # the bus's own core `Phrase` value object (dispatch/lexicon/
+        # query/command_bus.bluebook, all four storehouse-kernel files,
+        # byte-identical text) validates its four-segment shape with
+        # `value.split("::").length == 4 && value.split("::").all? { |s|
+        # s.length > 0 }` -- `.split(` matched none of this grammar's
+        # known suffixes, so it fell through to the `Lookup` catch-all,
+        # which split the RAW EXPRESSION TEXT on "." (not the runtime
+        # value) and crashed with `TypeError: no implicit conversion of
+        # Symbol into Integer` the moment `String#[]` was handed a
+        # Symbol segment -- meaning every command taking a Phrase was
+        # entirely undispatchable, confirmed live via `Lexicon::Lexicon.
+        # Lookup`/`Query::Query.Run`, not inferred. Produces a real
+        # Array, deliberately not a scalar -- `.length`/`.all?` compose
+        # with it below the same way they compose with any other
+        # receiver, because `parse` recurses on the receiver text and
+        # the existing `Size` node (`.length`/`.size`) already treats
+        # "whatever `interpret` returns" as its receiver's value, not a
+        # fixed type. Separator is taken literally between the quotes,
+        # same "no sub-grammar to recurse into" precedent `MatchesRegex`
+        # already set for its own `/pattern/` text above.
+        Split          = Struct.new(:receiver, :separator, keyword_init: true)
+
+        # `receiver.last` -- vendored addition, not (yet) upstream
+        # hecksagain (migration plan task 9), same pass as `Split` above
+        # and built for the same `Phrase`/`Path` value objects --
+        # `Query::Phrase`'s own invariant chains `.split("::").last.
+        # match?(...)` to check the fourth segment's casing. Same shape
+        # as `.length`/`.size` (Size) and `.empty?` (Empty) -- a plain
+        # receiver-in, scalar-out accessor, no sub-grammar of its own.
+        Last           = Struct.new(:receiver, keyword_init: true)
+
         module_function
 
         def resolve(expr, state, attrs)
@@ -120,6 +154,12 @@ module Hecksagain
           return Presence.new(receiver: parse(Regexp.last_match(1)), negated: false) if expr =~ /\A(.+)\.present\?\z/
           return Presence.new(receiver: parse(Regexp.last_match(1)), negated: true)  if expr =~ /\A(.+)\.blank\?\z/
 
+          if expr =~ /\A(.+)\.split\("([^"]*)"\)\z/
+            return Split.new(receiver: parse(Regexp.last_match(1)), separator: Regexp.last_match(2))
+          end
+
+          return Last.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.last\z/
+
           Lookup.new(path: expr)
         end
 
@@ -151,6 +191,10 @@ module Hecksagain
           when Presence
             present = !blank?(interpret(node.receiver, state, attrs))
             node.negated ? !present : present
+          when Split
+            split_value(interpret(node.receiver, state, attrs), node.separator)
+          when Last
+            last_of(interpret(node.receiver, state, attrs))
           when Lookup
             lookup(node.path, state, attrs)
           end
@@ -251,6 +295,32 @@ module Hecksagain
           return value.empty? if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
 
           raise EvaluationError, "empty? expects a list or string, got #{describe(value)}"
+        end
+
+        # `.split("SEP")` -- vendored addition, see the `Split` struct's
+        # own comment above. Only a String receiver makes sense to
+        # split -- unlike `.length`/`.size`/`.empty?`, which are already
+        # meaningful over Array/Hash too, `.split` is a String-only
+        # method in the corpus's own usage (every occurrence found this
+        # pass splits a Phrase's own string value).
+        def split_value(value, separator)
+          raise EvaluationError, "split expects a string, got #{describe(value)}" unless value.is_a?(String)
+
+          value.split(separator)
+        end
+
+        # `.last` -- vendored addition, see the `Last` struct's own
+        # comment above. Duck-typed on `respond_to?(:last)` rather than
+        # hard-coding Array -- the one corpus usage found this pass
+        # (`Query::Phrase`'s `.split("::").last`) always receives a
+        # `Split`-produced Array, but nothing about `.last` itself is
+        # Array-specific, and this matches `Empty`/`Size`'s own
+        # duck-typed-over-a-known-set precedent without inventing a
+        # narrower rule than the method needs.
+        def last_of(value)
+          return value.last if value.respond_to?(:last)
+
+          raise EvaluationError, "last expects a list, got #{describe(value)}"
         end
 
         # Declared the same way in Vocabulary::ToStringType
