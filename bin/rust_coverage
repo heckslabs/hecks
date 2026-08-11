@@ -338,6 +338,33 @@ ALLOWLIST = [
           "this entry is the same fact, read from the coverage side instead of the source side. Delete both the " \
           "day this domain's next real regeneration replaces every one of them with the genuine article.",
   },
+  {
+    kind: "read_model",
+    # A NEW, HONEST GAP THIS MERGE ITSELF SURFACED — not present on
+    # either side before `main` and `feat/rust-projection` combined.
+    # `main`'s own rootless-read-model work (`report: rootless read
+    # models + group_by`) added `group_by` to `IR::ReadModel` after
+    # `rust/project/read_models.rb` was written against a version of
+    # that IR with no such concept at all (that file's own header
+    # already named this exact scenario as a "future reader diffing
+    # this generator against a newer read_model_interpreter.rb" case).
+    # `Banking::AccountsByKind` is the one real corpus read model that
+    # actually declares `group_by` — genuinely rootless nesting-by-field,
+    # a shape this generator's `kernel/read_model.rs` has no code path
+    # for at all, the same class of "missing subsystem, not a parity
+    # bug" the era/lineage note below already draws a line around.
+    # `Banking::CustomerPortfolio`/`ComplianceDashboard` do NOT belong
+    # here — fixed to be real IMPLEMENTED findings (read_models.rb's own
+    # `READ_MODEL_BARE_KEYS`/value-check fix), not allowlisted away.
+    reason_match: /\Adeclares group_by —/,
+    doc: "rust/project/read_models.rb (own header note on group_by/rootless read models being a main-only concept " \
+         "this generator doesn't cover) and rust/project/queries.rb's own eligibility argument the reason text " \
+         "quotes verbatim",
+    note: "Confirmed against a real run: bin/rust_coverage banking shows Banking::CustomerPortfolio and " \
+          "Banking::ComplianceDashboard as real IMPLEMENTED read_model findings (both regenerated for real, no " \
+          "group_by of their own) — only Banking::AccountsByKind, which actually declares `group_by :kind, " \
+          ":number`, is deferred here.",
+  },
 ]
 # REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry
 # that used to live here (matching `reason_match: /cross-domain policy/`,
