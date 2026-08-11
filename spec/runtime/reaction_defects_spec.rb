@@ -7,9 +7,16 @@ require "spec_helper"
 # the command that emitted the event still stands, and the log says why.
 #
 # The runtime BREAKING (a NoMethodError in an interpreter, a NameError from a
-# missing constant) is a defect. It used to land in the same place, via a
-# blanket `rescue StandardError`, and be written as `delivered: false` beside
-# every legitimate refusal — so a crashed runtime read as normal operation.
+# missing constant) is a defect. It once had two wrong homes in a row : first
+# a blanket `rescue StandardError` that wrote it as `delivered: false` beside
+# every legitimate refusal, so a crashed runtime read as normal operation ;
+# then, after that was narrowed to DOMAIN_REFUSALS alone, nothing caught it at
+# all, so it propagated straight through the ALREADY-SUCCEEDED triggering
+# command's own `dispatch` call and blew that up too. Neither is right : a
+# defect is now caught (so the triggering command's success stands), but
+# recorded distinguishably (`defect: true`, the error's own class) rather than
+# folded into an ordinary refusal's shape, and warned to STDERR so it is never
+# silent.
 RSpec.describe "a reaction that cannot be delivered" do
   let(:event) do
     Hecksagain::Runtime::Event.new(
@@ -52,13 +59,15 @@ RSpec.describe "a reaction that cannot be delivered" do
     expect(registry.reaction_log.first).to include(delivered: false, reason: "bell already rung")
   end
 
-  it "RAISES a defect in the runtime rather than logging it as an undelivered reaction" do
+  it "RECORDS a defect in the runtime, distinguishably, rather than raising or logging it as a refusal" do
     registry = registry_for(policy)
     interpreter = Hecksagain::Runtime::PolicyInterpreter.new(
       registry, door: door_raising(NoMethodError.new("undefined method `boom'"))
     )
 
-    expect { interpreter.react(event, "Reflex") }.to raise_error(NoMethodError, /boom/)
-    expect(registry.reaction_log).to be_empty
+    expect { interpreter.react(event, "Reflex") }.to output(/ReactToRing.*Rang.*boom/m).to_stderr
+    expect(registry.reaction_log.first).to include(
+      delivered: false, reason: "undefined method `boom'", defect: true, error_class: "NoMethodError"
+    )
   end
 end

@@ -87,4 +87,40 @@ RSpec.describe "a policy" do
 
     expect(Pizzas::Order.find(pizza.id).status).to eq("sold")
   end
+
+  # `reaction_defects_spec.rb` proves the split at PolicyInterpreter's own
+  # level, in isolation. This proves it end to end, through the SAME
+  # `Dispatcher#dispatch` a real caller uses : the triggering command
+  # (`Flip`) has already succeeded and persisted by the time its own
+  # `Flipped` event fires `LogOnFlip`, and a genuine defect in the
+  # REACTION's target must not reach back and fail the caller's own
+  # dispatch for a command it already got right.
+  #
+  # `reenter` is overridden on this one `runtime` instance, not stubbed with
+  # a mocking framework this codebase otherwise never reaches for — the
+  # override only intercepts the one verb this test cares about breaking
+  # (`Reflex::Light.Log`, `LogOnFlip`'s own trigger) and calls straight
+  # through to the real dispatch for everything else, so `Flip` itself, and
+  # every other path this fixture exercises, runs unmodified.
+  it "keeps the triggering command's own success when the reaction it fires is a defect, not a refusal" do
+    runtime = boot_reflex
+    real_reenter = runtime.method(:reenter)
+    runtime.define_singleton_method(:reenter) do |verb, **args|
+      raise NoMethodError, "undefined method `boom' for nil" if verb == "Reflex::Light.Log"
+
+      real_reenter.call(verb, **args)
+    end
+
+    result = nil
+    expect { result = runtime.dispatch("Reflex::Light.Flip", name: { value: "light-1" }, id: "light-1") }
+      .to output(/LogOnFlip.*Flipped.*Reflex::Light\.Log.*boom/m).to_stderr
+
+    expect(result.events.map(&:name)).to eq(["Flipped"])
+    expect(Reflex::Light.find("light-1").condition.to_h).to eq(value: "on")
+
+    expect(runtime.reactions).to contain_exactly(
+      hash_including(policy: "LogOnFlip", on: "Flipped", trigger: "Reflex::Light.Log",
+                     delivered: false, defect: true, error_class: "NoMethodError")
+    )
+  end
 end

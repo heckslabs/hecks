@@ -82,6 +82,50 @@ RSpec.describe "a process manager" do
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 9_500)
   end
 
+  # Same split as the policy interpreter, proven end to end through the same
+  # `Dispatcher#dispatch` a real caller uses: `Wire.Ask` has already
+  # succeeded and persisted `WireAsked` by the time the procedure's own
+  # first leg (`Wire::Drawer.Take`) runs, and a genuine defect in THAT leg
+  # must not reach back and fail `Ask`'s own dispatch.
+  #
+  # `reenter` is overridden on this one `runtime`, not stubbed with a
+  # mocking framework — same technique, and same reasoning, as
+  # `spec/runtime/policy_spec.rb`'s equivalent test: only the one verb this
+  # test means to break is intercepted, everything else runs unmodified.
+  it "keeps the triggering command's own success, and skips unwind, when a saga leg is a defect not a refusal" do
+    runtime = funded
+    real_reenter = runtime.method(:reenter)
+    runtime.define_singleton_method(:reenter) do |verb, **args|
+      raise NoMethodError, "undefined method `boom' for nil" if verb == "Wire::Drawer.Take"
+
+      real_reenter.call(verb, **args)
+    end
+
+    result = nil
+    expect {
+      result = runtime.dispatch("Wire::Wire.Ask",
+                                reference: { value: "wire-defect" }, amount: { cents: 500 },
+                                source: "left", destination: "right")
+    }.to output(/Carry.*wire-defect.*Wire::Drawer\.Take.*boom/m).to_stderr
+
+    expect(result.events.map(&:name)).to eq(["WireAsked"])
+    expect(Wire::Wire.find("wire-defect").status).to eq("asked")
+
+    # The money never left — the leg that would have taken it is exactly
+    # the one that crashed instead of running.
+    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
+
+    expect(runtime.sagas).to include(
+      hash_including(process_manager: "Carry", instance: "wire-defect", dispatch: "Wire::Drawer.Take",
+                     delivered: false, defect: true, error_class: "NoMethodError")
+    )
+
+    # NO unwind : `on :refused` never fires for a defect, so the instance
+    # stays exactly where it landed rather than moving to "returned".
+    expect(runtime.sagas).not_to include(hash_including(on: "refused"))
+    expect(runtime.registry.saga_instances["Carry"]["wire-defect"][:state]).to eq("asked")
+  end
+
   it "records an event that arrives in the wrong phase, and does not advance" do
     runtime = funded
     runtime.dispatch("Wire::Drawer.Shut", number: { value: "right" })
