@@ -700,6 +700,39 @@ impl Trigger {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct FieldHint {
+    pub name: &'static str,
+    pub pattern: &'static str,
+    pub resolves_to: &'static str,
+}
+
+pub const FIELD_HINT: &[FieldHint] = &[
+    FieldHint { name: "email", pattern: "email", resolves_to: "html_type" },
+    FieldHint { name: "url", pattern: "\\b(url|uri|website|link)\\b", resolves_to: "html_type" },
+    FieldHint { name: "tel", pattern: "phone|\\btel(ephone)?\\b", resolves_to: "html_type" },
+    FieldHint { name: "textarea", pattern: "\\b(text|body|note|notes|description|message|comment)\\b", resolves_to: "kind" },
+];
+
+impl FieldHint {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("name".to_string(), crate::kernel::Json::Str(self.name.to_string())),
+        ("pattern".to_string(), crate::kernel::Json::Str(self.pattern.to_string())),
+        ("resolves_to".to_string(), crate::kernel::Json::Str(self.resolves_to.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in FIELD_HINT {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name) && v.get("pattern").and_then(crate::kernel::Json::as_str) == Some(row.pattern) && v.get("resolves_to").and_then(crate::kernel::Json::as_str) == Some(row.resolves_to) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("FieldHint: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Vocabulary {
     pub name: Option<VocabularyName>,
 }
