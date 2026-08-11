@@ -1,5 +1,6 @@
 require "hecksagain"
 require "tmpdir"
+require_relative "../support/postgres_probe"
 # `pg` is required explicitly — the adapter only requires it lazily,
 # inside `Postgres.connect_for` — see postgres_spec.rb's own note.
 require "pg"
@@ -22,16 +23,11 @@ require "pg"
 # expectation is an independent oracle, worked out by hand from the
 # fixture table, and cross-adapter agreement follows transitively from
 # every engine matching it.
-# `require "pg"` HERE, explicitly — same reasoning as postgres_spec.rb's
-# own comment: hecksagain's own require is lazy now.
-postgres_available =
-  begin
-    require "pg"
-    PG.connect(dbname: "postgres").close
-    true
-  rescue LoadError, PG::Error
-    false
-  end
+# The reachability probe itself lives in support/postgres_probe.rb,
+# shared by every Postgres spec — a real `PG.connect` round trip asking
+# the identical question five separate times over was real, redundant
+# I/O.
+postgres_available = PostgresProbe::AVAILABLE
 
 # D1 needs real Cloudflare credentials (CLOUDFLARE_ACCOUNT_ID,
 # CLOUDFLARE_D1_DATABASE_ID, CLOUDFLARE_D1_API_TOKEN) — optional, same as

@@ -255,96 +255,16 @@ end
 # and what field that VO actually declares (rarely but not always
 # `value` — `Position` alone breaks that assumption). Five to ten
 # shell calls to propose one command, every single time, forever,
-# until this collapsed it into one. Reads the SAME real IR objects
-# `bin/ir --meta` exports — `MetaValidator.grammar_registry`, not a
-# second index kept in sync by hand.
-def render_shape(verb_text)
-  chapter_name, aggregate_name, command_name = verb_text.match(/\A([A-Za-z]+)::([A-Za-z]+)\.([A-Za-z]+)\z/)&.captures
-  abort "#{verb_text.inspect} isn't fully qualified — Chapter::Aggregate.Command" unless chapter_name
-
-  registry = Hecksagain::Bluebook::MetaValidator.grammar_registry
-  chapter  = registry.bluebook(chapter_name) or abort "no chapter #{chapter_name.inspect} in the language"
-  aggregate = chapter.aggregate(aggregate_name) or abort "#{chapter_name} declares no aggregate #{aggregate_name.inspect}"
-  command   = aggregate.command(command_name) or abort "#{aggregate_name} declares no command #{command_name.inspect}"
-
-  puts "#{paint(verb_text, :blue)}  —  #{command.goal}"
-  puts addressing_line(chapter, command.references) if command.references
-  puts closed_set_note(verb_text) if CLOSED_SET_VERBS.include?(verb_text)
-  puts READ_MODEL_NOTE if verb_text == "Bluebook::ReadModel.Declare"
-  command.attributes.each { |attribute| puts shape_line(chapter, aggregate, attribute) }
-end
-
-# A REAL CONSTRAINT, NOT A GUESS — traced through
-# `read_model_interpreter.rb`'s own `args.fetch(model.reference_name)`
-# (no default) before building this. A read model joins several
-# aggregates around ONE root, queried by that root's own id — there is
-# no "give me every row" mode, no matter how the `where`/`order_by`
-# options declared on it are shaped; those only ever scope the "many"
-# side WITHIN one root's own projection. `PackingItem.all` (the plain
-# aggregate door, free, no declaration needed) is what "every row"
-# actually means here — enumerate with that, then ask the read model
-# once per id for the joined fact.
-READ_MODEL_NOTE = "  A READ MODEL ANSWERS ONE ROOT AT A TIME, not \"all\" — " \
-                   "call it once per id (from the root aggregate's own .all), never in bulk."
-
-# WHAT `--arg "id::..."` HAS TO SPELL, when a command ACTS ON an
-# existing record rather than creating one — `command.references`
-# names the category (`"ValueObject"`, `"Aggregate"`, ...); every
-# category's own `id` is `Naming.identity(identity_paths)`, a
-# colon-join of its declared identity parts IN ORDER
-# (`Runtime::Identity.of`, the exact function a real dispatch calls to
-# address the same record). Spelling that join out here is what used
-# to mean grepping `lib/hecksagain/language/bluebook/*.bluebook` by
-# hand for one `identified_by` block.
+# until this collapsed it into one.
 #
-# A WORKED EXAMPLE, NOT JUST THE FORMULA — `bluebook_id + ":" +
-# name.value` tells you the SHAPE but not what to actually type; typing
-# the wrong composite id by hand (wrong part order, a forgotten level)
-# was a real mistake made mid-interview and only caught by a refusal
-# several steps later. `<bluebook_id>:<name>` is the same formula with
-# each part's own head named instead of spelled abstractly — copy the
-# angle-bracket placeholders out and fill them in.
-def addressing_line(chapter, references)
-  target = chapter.aggregate(references)
-  return "  addresses #{references} — identity unknown (not declared in #{chapter.name})" unless target
-
-  parts = target.identity_paths.empty? ? ["id"] : target.identity_paths
-  example = parts.map { |path| "<#{path.to_s.split('.').first}>" }.join(":")
-  "  addresses #{paint(references, :yellow)} — id = #{parts.join(' + ":" + ')}  (e.g. #{example})"
-end
-
-# THE FULL CLOSED-SET SEQUENCE, discovered the hard way mid-interview:
-# `Member.Declare` alone renders an EMPTY `value_object` block — no
-# refusal at propose time, only a crash once the domain actually loads.
-# All five verbs below print this note, so whichever one you reach for
-# first is the one that tells you what else it needs.
-CLOSED_SET_VERBS = %w[
-  Bluebook::ValueObject.Declare Bluebook::ValueObject.Field
-  Bluebook::Member.Declare Bluebook::Member.Pair Bluebook::ValueObject.Close
-].freeze
-
-def closed_set_note(_verb_text)
-  paint("  A CLOSED SET NEEDS ALL FIVE, not just this one:", :dim) + "\n" +
-    paint("    ValueObject.Declare  — the value object's own root\n" \
-          "    ValueObject.Field    — its field (almost always name: value, type: String)\n" \
-          "    Member.Declare       — one call per admitted row, each with its own position (0, 1, 2, ...)\n" \
-          "    Member.Pair          — one call per row: key: value, value: <the actual text>\n" \
-          "    ValueObject.Close    — rows: <count>, the count of Member rows above", :dim)
-end
-
-def shape_line(chapter, aggregate, attribute)
-  required = attribute.optional? ? "optional" : "required"
-  return "  #{attribute.name.to_s.ljust(14)} reference -> #{attribute.type.target_name.ljust(20)} #{required}   " \
-         "--arg \"#{attribute.name}::<id>\"" if attribute.reference?
-
-  value_object = aggregate.value_object(attribute.type) || chapter.aggregates.filter_map { |a| a.value_object(attribute.type) }.first
-  return "  #{attribute.name.to_s.ljust(14)} #{attribute.type.to_s.ljust(20)} #{required}   " \
-         "(unknown shape — not declared anywhere in #{chapter.name}; try field 'value')" unless value_object
-
-  value_object.attributes.map do |field|
-    "  #{attribute.name.to_s.ljust(14)} #{attribute.type}{#{field.name}: #{field.type}}".ljust(48) +
-      " #{required}   --arg \"#{attribute.name}:#{field.name}:<#{field.type}>\""
-  end.join("\n")
+# The actual lookup lives in `Hecksagain::Interview::Shape` — a pure
+# function of the verb, extracted so both this CLI and its own spec can
+# call it in-process, rather than every check paying for a fresh
+# `MetaValidator.grammar_registry` build per verb.
+def render_shape(verb_text)
+  puts Hecksagain::Interview::Shape.render(verb_text, paint: Paint.method(:call))
+rescue Hecksagain::Interview::Shape::UnknownVerb => e
+  abort e.message
 end
 
 # ── smoke-dispatching a real, rendered domain ──────────────────────────
@@ -476,7 +396,15 @@ end
 at = flag("--at")
 command = ARGV.shift or abort "usage: bin/interview <open|state|gaps|ask|answer|establish|propose|accept> ..."
 
-RUNTIME = boot_interview_domain(at: at)
+# `shape` is a pure grammar lookup — chapter/aggregate/command metadata
+# already resident in MetaValidator.grammar_registry — and, alone among
+# every command below, never touches a session's own store (its own
+# usage comment already says "no chapter, no --at"). Booting the full
+# Interview domain for it anyway used to mean every `shape` call paid
+# for Folder#load_library's disk scan, the interview.bluebook parse,
+# and a Heki `.interview` directory it would never write to — real I/O
+# for a command that needs none of it.
+RUNTIME = boot_interview_domain(at: at) unless command == "shape"
 
 case command
 # ── creating commands: module-level door calls, confirmed against a

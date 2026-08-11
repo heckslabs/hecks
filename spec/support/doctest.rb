@@ -1,5 +1,6 @@
 require "tempfile"
 require "prism"
+require_relative "postgres_probe"
 
 # EXECUTABLE DOCUMENTATION — a guide's fenced examples are extracted and
 # run against the real runtime, so a guide that lies goes red in CI. The
@@ -49,14 +50,10 @@ module Doctest
   Block = Struct.new(:kind, :code, :line, keyword_init: true)
   Guide = Struct.new(:path, :blocks, :postgres, keyword_init: true)
 
-  POSTGRES_AVAILABLE =
-    begin
-      require "pg"
-      PG.connect(dbname: "postgres").close
-      true
-    rescue StandardError
-      false
-    end
+  # Shared with every other Postgres spec via support/postgres_probe.rb —
+  # a real `PG.connect` round trip asking the identical question, not a
+  # copy of the probe itself.
+  POSTGRES_AVAILABLE = PostgresProbe::AVAILABLE
 
   # schema-evolution.md's opening section is not a fixture — it reads
   # `examples/pizzas`' own real era-1→2 migration back out of whatever

@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecksagain/interview"
 require "open3"
 
 # `bin/interview shape`'S KNOWLEDGE WAS ONLY AS WIDE AS ONE NIGHT'S
@@ -13,6 +14,17 @@ require "open3"
 # ANY real verb the language declares, across all three meta chapters
 # (`Bluebook`, `World`, `Hecksagon`), not just the ones this build's
 # proposals happened to name.
+#
+# `Hecksagain::Interview::Shape.render` is called IN-PROCESS, not
+# through a fresh `bin/interview shape` subprocess per verb — the two
+# used to be indistinguishable (`render_shape` lived only in the CLI
+# script), but a fresh process pays for a fresh `MetaValidator.
+# grammar_registry` build every single time (~0.3s, the dominant cost —
+# real Ruby startup is ~0.1s of it), 50-odd times over, for a pure
+# function of the verb that never touches a session's own store. One
+# `it "shells out for real"` below still spawns the actual binary, so
+# the CLI's own wiring (ARGV parsing, exit status, stdout) stays proven
+# too.
 RSpec.describe "bin/interview shape, across the whole meta-language" do
   BIN = File.join(InMemoryDomain::ROOT, "bin/interview")
 
@@ -28,12 +40,21 @@ RSpec.describe "bin/interview shape, across the whole meta-language" do
     end
   end
 
-  every_meta_verb.each do |verb|
+  EVERY_META_VERB = every_meta_verb
+
+  EVERY_META_VERB.each do |verb|
     it "renders a shape for #{verb} without crashing" do
-      stdout, status = Open3.capture2(BIN, "shape", verb)
-      expect(status).to be_success, "bin/interview shape #{verb.inspect} exited #{status.exitstatus}:\n#{stdout}"
-      expect(stdout).not_to be_empty
-      expect(stdout).to include(verb)
+      rendered = Hecksagain::Interview::Shape.render(verb)
+      expect(rendered).not_to be_empty
+      expect(rendered).to include(verb)
     end
+  end
+
+  it "shells out for real, at least once, so the CLI's own wiring stays proven" do
+    verb = EVERY_META_VERB.first
+    stdout, status = Open3.capture2(BIN, "shape", verb)
+    expect(status).to be_success, "bin/interview shape #{verb.inspect} exited #{status.exitstatus}:\n#{stdout}"
+    expect(stdout).not_to be_empty
+    expect(stdout).to include(verb)
   end
 end

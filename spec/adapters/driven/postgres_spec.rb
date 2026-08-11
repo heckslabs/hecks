@@ -1,25 +1,14 @@
 require "hecksagain"
+require_relative "../../support/postgres_probe"
 
 # Runs only when a Postgres server is reachable (any local default
 # install will do). CI and pre-push provide one:
 # a local instance or `docker run postgres` — this spec manages its own
-# scratch database and needs no configuration at all.
-#
-# `require "pg"` HERE, explicitly — hecksagain's own require is lazy now
-# (loaded only where Postgres::connect_for actually connects), so this
-# spec's own top-level probe can no longer lean on `require "hecksagain"`
-# to have loaded it as a side effect.
-postgres_available =
-  begin
-    require "pg"
-    PG.connect(dbname: "postgres").close
-    true
-  rescue LoadError, PG::Error
-    false
-  end
-
+# scratch database and needs no configuration at all. The reachability
+# probe itself lives in support/postgres_probe.rb, shared by every
+# Postgres spec — see that file for why.
 RSpec.describe Hecksagain::Adapters::Postgres,
-               skip: (postgres_available ? false : "no reachable Postgres — start one to run this spec") do
+               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
   SPEC_DB = "hecksagain_adapter_spec".freeze
 
   before(:all) do
