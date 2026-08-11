@@ -748,7 +748,11 @@ async fn submit(
     let verb = format!("{domain_name}::{agg}.{cname}");
     let args = extract_args(fields, raw);
 
-    let outcome = match dispatch::handle(client, wasm_path, &verb, args, config, invoker).await {
+    // `None` -- the web UI has no notion of an authenticated caller's
+    // role yet (a separate, not-yet-built concern; see auth.rs's own
+    // session handling), so this preserves exactly the behavior every
+    // command submitted through the Founder App has always had.
+    let outcome = match dispatch::handle(client, wasm_path, &verb, args, None, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };
