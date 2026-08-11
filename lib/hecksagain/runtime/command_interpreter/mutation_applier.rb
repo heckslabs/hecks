@@ -38,8 +38,21 @@ module Hecksagain
           end
         end
 
+        # A symbol source names a COMMAND ARGUMENT first (append: cards,
+        # assignee_id: :assignee_id — the ordinary case), falling back to
+        # the AGGREGATE'S OWN CURRENT FIELD when it isn't one — a caller
+        # appending at the end without computing or supplying a position
+        # (`position: :next_position`, a field the command never declares
+        # as an argument at all). `args.key?`, not a truthiness check on
+        # the value — an explicitly-nil argument still counts as "the
+        # caller named it," same distinction `assign_creation_attributes`
+        # already draws.
         def appended(instance, aggregate, mutation, args)
-          fields       = mutation.source.transform_values { |source| source.is_a?(Symbol) ? args[source] : source }
+          fields       = mutation.source.transform_values do |source|
+            next source unless source.is_a?(Symbol)
+
+            args.key?(source) ? args[source] : instance[source]
+          end
           element_type = aggregate.attribute(mutation.target)&.type
           value_object = aggregate.value_object(element_type)
           if value_object
