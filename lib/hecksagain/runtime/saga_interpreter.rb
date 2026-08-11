@@ -93,11 +93,36 @@ module Hecksagain
           @registry.saga_log << record.merge(delivered: true)
         rescue *DOMAIN_REFUSALS => error
           # Same rule as the policy interpreter : a refusal by the target is
-          # a recorded outcome ; a defect in the runtime is not, and now
-          # flies instead of being written into the saga log as though the
-          # step had simply been declined.
+          # a recorded outcome, and the leg that raised it UNWINDS — see
+          # `unwind`'s own comment for why the procedure runs its
+          # compensation here rather than leaving the money (or whatever
+          # else a leg moved) sitting out.
           @registry.saga_log << record.merge(delivered: false, reason: error.message)
           unwind(pm, event, instance, correlation, domain)
+        rescue StandardError => error
+          # A DEFECT, not a refusal — see PolicyInterpreter#deliver's own
+          # comment for the full reasoning: the same DOMAIN_REFUSALS split,
+          # and the same "the triggering command already succeeded and
+          # persisted by the time this runs" fact that makes catching it
+          # here safe rather than reckless. Recorded distinguishably
+          # (`defect: true`, plus the error's own class) and warned to
+          # STDERR rather than left to blow up the ORIGINAL dispatch that
+          # started this saga leg.
+          #
+          # DELIBERATELY DOES NOT `unwind`, unlike the branch above — that
+          # is this method's one asymmetry with the policy interpreter's.
+          # `unwind` runs the domain's OWN `on :refused` compensation, which
+          # exists to undo a leg the domain itself declined. A crash is not
+          # a decision the domain made ; running the compensating dispatch
+          # for it would misrepresent what happened (there was no refusal
+          # to compensate for) and could dispatch a real command against
+          # state nobody actually decided to change. The instance is left
+          # exactly where it landed, for a human to find via the warning
+          # and the log.
+          warn "[hecksagain] defect in saga #{pm.name} — instance #{correlation.inspect} " \
+               "dispatching #{spec.command_name}: #{error.class}: #{error.message}"
+          @registry.saga_log << record.merge(delivered: false, reason: error.message,
+                                             defect: true, error_class: error.class.name)
         end
       end
 
