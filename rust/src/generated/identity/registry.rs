@@ -142,3 +142,14 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         _ => None,
     }
 }
+
+pub const QUERIES: &[crate::kernel::QueryDef] = &[
+crate::kernel::QueryDef {
+    verb: "Identity::ExternalIdentifier.ResolvedBy",
+    aggregate: "Identity::ExternalIdentifier",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "issuer", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("issuer") },
+        crate::kernel::QueryCondition { field: "subject", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("subject") },
+    ],
+},
+];

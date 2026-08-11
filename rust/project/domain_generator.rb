@@ -114,6 +114,14 @@ module RustProjection
       # about; written to `manifest.json` at the end of this method,
       # alongside the `ir.json` sidecar this method already writes.
       manifest = []
+      # ONE ENTRY PER GENERATED NAMED QUERY — `queries.rb`'s own
+      # `query_conditions` output, accumulated the same way
+      # `registry_aggregates` is: written into THIS chapter's own
+      # `registry.rs` below, and RETURNED so a multi-chapter caller
+      # (`bin/project_rust`'s merged registry) can union it with every
+      # OTHER chapter's own query_defs the same way it already unions
+      # `registry_aggregates`.
+      query_defs = []
       aggregates_by_name = ir[:aggregates].to_h { |a| [a[:name], a] }
       unsupported_names = ir[:aggregates].select do |a|
         vo_by_name = a[:value_objects].to_h { |vo| [vo[:name], vo] }
@@ -458,32 +466,41 @@ module RustProjection
         }
       end
 
-      # ── QUERIES AND READ MODELS — an ENTIRE CONSTRUCT KIND this
-      # generator has no code path for at all, for any domain, ever
-      # (`grep -rn "read_model\|:queries" rust/project/*.rb` finds
-      # nothing — no emitter, no skip-check, nothing). This is the
-      # "whole_kind" half of the two-kinds-of-gap distinction
-      # `manifest_entry`'s header names: not a per-instance failure any
-      # individual query/read_model could have avoided by being shaped
-      # differently, but the entire capability being unbuilt. `query`
-      # matches `kernel/cli.rs`'s own explicit refusal wording
-      # ("query steps are not generated yet") — this just makes that
-      # same fact walkable per-domain instead of only readable from one
-      # hand-written string. `read_model` is a DIFFERENT construct
-      # (`IR::ReadModel`, a cross-aggregate ask — see its own class
-      # comment) that happens to share the same fate for the same
-      # underlying reason (no generated code path), not because it's
-      # secretly the same gap as `query`.
+      # ── QUERIES — a declared `query "X" do ... end` block now generates
+      # for real, for the subset `queries.rb`'s own `query_skip_reason`
+      # admits (one or more field-comparator conditions, ANDed, against a
+      # single aggregate's OWN attributes — no order_by/limit/hop/type-
+      # unrecoverable literal). A "per_instance" gap now, not "whole_kind"
+      # — the CONSTRUCT KIND has a real code path; a specific declared
+      # query still lacking a row is a per-instance shape this generator
+      # doesn't cover, the same distinction every OTHER per-instance skip
+      # in this file already draws.
       ir[:aggregates].each do |aggregate|
+        value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+
         aggregate[:queries].each do |query|
-          manifest << manifest_entry(
-            kind: "query", id: "#{domain_name}::#{aggregate[:name]}.#{query[:name]}", generated: false,
-            gap_class: "whole_kind",
-            reason: 'the "query" construct has no generated code path at all — matches kernel/cli.rs\'s own ' \
-                    'refusal for a "query" step ("query steps are not generated yet")'
-          )
+          query_verb = "#{domain_name}::#{aggregate[:name]}.#{query[:name]}"
+          reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name)
+          if reason
+            puts "skipping query #{query_verb}: #{reason}"
+            manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", reason: reason)
+            next
+          end
+
+          manifest << manifest_entry(kind: "query", id: query_verb, generated: true)
+          query_defs << {
+            verb: query_verb,
+            aggregate: "#{domain_name}::#{aggregate[:name]}",
+            conditions: Projector.query_conditions(query),
+          }
         end
       end
+
+      # ── READ MODELS — still an ENTIRE CONSTRUCT KIND this generator
+      # has no code path for at all, for any domain, ever (a
+      # cross-aggregate ask, `IR::ReadModel` — genuinely `read_model`
+      # territory, not the field-comparator subset the query codegen
+      # above covers). "whole_kind" stays exactly the gap it always was.
 
       ir[:read_models].each do |read_model|
         manifest << manifest_entry(
@@ -571,6 +588,8 @@ module RustProjection
         f.puts Projector.emit_process_manager_table(ir[:process_managers])
         f.puts
         f.puts Projector.emit_reference_key_table([[domain_name, generated_aggregates.map { |a| a[:name] }]])
+        f.puts
+        f.puts Projector.emit_query_table(query_defs)
       end
       puts "wrote #{registry_path}"
 
@@ -583,14 +602,18 @@ module RustProjection
       end
       puts "wrote #{mod_path}"
 
-      # RETURNED, not just written — bin/project_rust concatenates this
-      # across every chapter a domain attaches (`uses_framework`) to emit
-      # ONE merged Store/dispatch_by_name spanning all of them (a real,
-      # separate step; see bin/project_rust's own comment). Each entry
-      # already carries its own `chapter_mod:` (set above), so the merged
-      # emitter can qualify cross-chapter paths correctly with no further
-      # tagging needed here.
-      registry_aggregates
+      # RETURNED, not just written — bin/project_rust concatenates
+      # `:aggregates` across every chapter a domain attaches
+      # (`uses_framework`) to emit ONE merged Store/dispatch_by_name
+      # spanning all of them (a real, separate step; see bin/project_rust's
+      # own comment), and `:queries` the same way, for the merged QUERIES
+      # table alongside it. Each aggregate entry already carries its own
+      # `chapter_mod:` (set above), so the merged registry emitter can
+      # qualify cross-chapter paths correctly with no further tagging
+      # needed here; a query_def carries no chapter tag at all because it
+      # never needs one — `verb`/`aggregate` are already fully
+      # domain-qualified strings, exactly like a command's own `verb`.
+      { aggregates: registry_aggregates, queries: query_defs }
     end
   end
 end

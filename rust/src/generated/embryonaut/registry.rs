@@ -148,6 +148,17 @@ if let Some(id) = key.strip_prefix("Embryonaut::RecurringPayment#") {
 // happens — `bin/project_rust` will emit a real `impl` in its place.
 impl crate::kernel::AggregateScan for Store {}
 
+// HAND-PATCHED, NOT GENERATED — same reason and same fate as the
+// `AggregateScan` impl immediately above: this domain's own bluebook
+// source isn't available in this repository, so `rust/project/queries.rb`
+// never ran against it to decide which of Embryonaut's own declared
+// queries (if any) belong in this table. An EMPTY table is the honest
+// stand-in — `kernel/cli.rs`'s STRING-form "query" step turns a miss here
+// into the same clean refusal an unrouted command already gets, never a
+// silent wrong answer. Delete this block the day this domain's next real
+// regeneration gives it a real, possibly non-empty, generated table.
+pub const QUERIES: &[crate::kernel::QueryDef] = &[];
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,

@@ -19,8 +19,8 @@
 // alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{orchestrate, query_comparators, repository, AggregateScan, Event, Json, MutationRecord, Refusal, SagaInstance};
-use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, POLICIES, PROCESS_MANAGERS};
+use super::{named_query, orchestrate, query_comparators, repository, AggregateScan, Event, Json, MutationRecord, Refusal, SagaInstance};
+use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, POLICIES, PROCESS_MANAGERS, QUERIES};
 use std::collections::HashMap;
 
 pub fn run(input: &str) -> String {
@@ -72,44 +72,83 @@ pub fn run(input: &str) -> String {
     let mut query_results: Vec<Json> = Vec::new();
 
     for step in steps {
+        // Read once, ahead of the "query"/"verb" branch below — a query
+        // step's own `args` (Fuzzing::Replay's `runtime.query(question,
+        // **args)`) lives at this SAME sibling `"args"` key a command step
+        // already reads, never inside the `"query"` value itself.
+        let empty_args = Json::Object(vec![]);
+        let args = step.get("args").unwrap_or(&empty_args);
+
         // A `"query"` step (Fuzzing::Replay's other real shape,
         // `step["query"]` instead of `step["verb"]` — a query step carries
         // no verb at all) has TWO shapes on the wire, checked BEFORE
         // requiring "verb" below since a query step legitimately has none:
         //
-        //   STRING  — a NAMED/declared bluebook ask ("Banking::Account.
-        //   Open"), Fuzzing::Replay's original, only shape. Still refused,
-        //   unconditionally: a declared query's own wheres/order_by/limit
-        //   live in the bluebook's IR with no generated Rust representation
-        //   at all (rust/project/domain_generator.rb's own "whole_kind"
-        //   query/read_model tracking, bin/rust_coverage's own header) —
-        //   real, separately-scoped work this change does not attempt.
+        //   STRING  — a NAMED/declared bluebook ask ("Banking::CardPayment.
+        //   Pending"), Fuzzing::Replay's original shape. Executes for real,
+        //   as of `rust/project/queries.rb`/`kernel/named_query.rs`, for
+        //   whichever declared queries this compiled domain's own `QUERIES`
+        //   table (rust/project/registry.rb's `emit_query_table`) carries a
+        //   row for — the subset expressible as one or more field-
+        //   comparator conditions against a single aggregate's OWN
+        //   attributes (queries.rb's own header has the full eligibility
+        //   argument: no order_by/limit/cursor/.../index_hints, no
+        //   reference-hopping where clause, no type-unrecoverable literal
+        //   comparator). A question this table carries no row for — either
+        //   genuinely unknown, or a real declared query whose shape this
+        //   generator doesn't cover — refuses cleanly, the same
+        //   `Refusal::TypeMismatch` an unrouted verb already gets.
         //
         //   OBJECT  — an AD HOC, single-comparator filter ({"aggregate",
-        //   "field", "op", "value"}), new as of this change. Executes for
-        //   real: `run_filter` (below) resolves the named aggregate
-        //   against THIS compiled domain's own `Store` (`AggregateScan`,
-        //   kernel/repository.rs), validates `op` against the eight real
-        //   `QueryComparator` variants (query_comparators.rs), and
-        //   filters that one aggregate's own stored instances. Anything
-        //   this shape doesn't cover — an unrecognized comparator, an
-        //   aggregate this compiled domain doesn't recognize (including,
-        //   honestly, a domain never regenerated with scan support at
-        //   all — AggregateScan's own default) — refuses cleanly, the
-        //   same `Refusal::TypeMismatch` an unrouted verb already gets,
-        //   never a wrong (empty-but-silent) answer and never a panic.
+        //   "field", "op", "value"}). Executes for real: `run_filter`
+        //   (below) resolves the named aggregate against THIS compiled
+        //   domain's own `Store` (`AggregateScan`, kernel/repository.rs),
+        //   validates `op` against the eight real `QueryComparator`
+        //   variants (query_comparators.rs), and filters that one
+        //   aggregate's own stored instances. Anything this shape doesn't
+        //   cover — an unrecognized comparator, an aggregate this compiled
+        //   domain doesn't recognize (including, honestly, a domain never
+        //   regenerated with scan support at all — AggregateScan's own
+        //   default) — refuses cleanly too, never a wrong (empty-but-
+        //   silent) answer and never a panic.
         if let Some(query) = step.get("query") {
             match query {
-                Json::Str(question) => {
-                    refusals.push((
+                Json::Str(question) => match named_query::find(QUERIES, question) {
+                    Some(def) => match named_query::run(&store, def, args) {
+                        Ok(entries) => {
+                            let rows = Json::Array(entries.into_iter().map(|(id, record)| row_json(id, record)).collect());
+                            query_results.push(Json::obj(vec![
+                                ("query", Json::Str(question.clone())),
+                                ("args", args.clone()),
+                                ("rows", rows.clone()),
+                                // PROVABLY equal to `rows`, not merely
+                                // assumed — see named_query.rs's own
+                                // "GROUND TRUTH" paragraph for the exact
+                                // property this leans on: every row this
+                                // table ever holds is, by `queries.rb`'s
+                                // own eligibility gate, hop-free and
+                                // order-free, which is exactly the
+                                // condition under which Ruby's `interpret`
+                                // and `reference_interpret` are the
+                                // identical answer.
+                                ("reference_rows", rows),
+                            ]));
+                        }
+                        Err(refusal) => refusals.push((question.clone(), refusal)),
+                    },
+                    None => refusals.push((
                         question.clone(),
-                        Refusal::TypeMismatch(
-                            "named/declared query steps are not generated yet — only the ad hoc single-comparator \
-                             filter shape ({\"aggregate\",\"field\",\"op\",\"value\"}) executes"
-                                .to_string(),
-                        ),
-                    ));
-                }
+                        Refusal::TypeMismatch(format!(
+                            "named/declared query {question:?} is not generated for this domain — either unknown, or a \
+                             real declared query whose shape this generator's codegen doesn't cover yet (order_by/limit/\
+                             cursor/consistency/freshness/authorization/null_semantics/inspection/index_hints, a where \
+                             clause hopping through a reference, or a literal comparator value whose true JSON type \
+                             can't be recovered from the exported IR — rust/project/queries.rb's own header has the \
+                             full argument); the wheres-only, single-aggregate field-comparator subset and the ad hoc \
+                             filter shape ({{\"aggregate\",\"field\",\"op\",\"value\"}}) both execute for real"
+                        )),
+                    )),
+                },
                 Json::Object(_) => match run_filter(&store, query) {
                     Ok(rows) => query_results.push(Json::obj(vec![("query", query.clone()), ("rows", Json::Array(rows))])),
                     Err(refusal) => refusals.push((filter_label(query), refusal)),
@@ -127,9 +166,6 @@ pub fn run(input: &str) -> String {
             Some(v) => v,
             None => return error_output("step missing \"verb\" or \"query\""),
         };
-
-        let empty_args = Json::Object(vec![]);
-        let args = step.get("args").unwrap_or(&empty_args);
 
         // `role:` — the SAME optional per-step key `Fuzzing::Replay.call`
         // reads (`lib/hecksagain/fuzzing/replay.rb`), now on this side of
