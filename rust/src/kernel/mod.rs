@@ -62,7 +62,7 @@ pub use json::Json;
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
     orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
-    SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
+    SagaInstance, Tables, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
 pub use refusal_wording::RefusalSite;
 pub use repository::{check_reference, check_role, filter_entries, row_json, AggregateScan, InMemoryRepository, Repository};
@@ -84,6 +84,20 @@ pub struct Event {
     // NOT YET GENERATED: `occurred_at`. Ruby's Event carries a timestamp;
     // this kernel doesn't have a clock port yet, so it's left off rather
     // than faked with a wrong value. Flagged, not silently dropped.
+    /// Runtime-only bookkeeping, NEVER serialized — `cli.rs`'s own
+    /// `event_to_json` deliberately excludes it, mirroring Ruby's own
+    /// `Event#to_h` (event.rb: "`correlation` is NOT on the wire"). Stamped
+    /// by `orchestrate` (`saga_correlation` parameter) exactly where
+    /// `Dispatcher#dispatch` stamps it — `announced.each { (event.
+    /// correlation ||= {}).merge!(saga_correlation) }` — when a saga leg's
+    /// own dispatch causes this event (`SagaInterpreter#deliver_saga_
+    /// dispatch`'s own `saga_correlation:` argument). `correlation_head`
+    /// (`pm.correlates_by.split(".").first`) -> the correlating value, so
+    /// an event caused by one saga cannot be misread by an unrelated one
+    /// correlating on a different field — `Correlation#saga_correlation`'s
+    /// own middle tier (orchestrate.rs's `correlation_of`) reads it back.
+    /// `None` for any event no saga dispatch caused, which is most of them.
+    pub correlation: Option<std::collections::HashMap<String, String>>,
 }
 
 /// The complete refusal roster for a command dispatch, per

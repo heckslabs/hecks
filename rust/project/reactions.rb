@@ -46,7 +46,7 @@ module RustProjection
 
       Exemplar.render(
         "policy_table",
-        'crate::kernel::PolicyRule { event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },' => rows.join("\n")
+        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },' => rows.join("\n")
       )
     end
 
@@ -60,7 +60,15 @@ module RustProjection
         qualifier_expr = qualifier ? "Some(#{qualifier.inspect})" : "None"
         target_verb = "#{target_domain}::#{policy[:trigger_command]}"
 
-        "    crate::kernel::PolicyRule { event_name: #{event_name.inspect}, event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect} },"
+        # `policy_name` — orchestrate.rs's own `reaction_log`/`saga_log`
+        # entries need the policy's own declared name (`PolicyInterpreter
+        # #deliver`'s `record = { policy: policy.name, ... }`, read
+        # directly) — previously absent here on purpose (this struct's own
+        # OLD header: "nothing downstream of a same-domain reaction ever
+        # needed to name the policy that caused it"), now needed the same
+        # way `CrossDomainPolicyRule` already carries it.
+        "    crate::kernel::PolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
+          "event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect} },"
       end
     end
 

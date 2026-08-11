@@ -127,7 +127,7 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase" },
+    crate::kernel::PolicyRule { policy_name: "OnPizzaPaymentReceived", event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase" },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[

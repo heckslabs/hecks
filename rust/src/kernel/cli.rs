@@ -19,7 +19,7 @@
 // alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{named_query, orchestrate, query_comparators, read_model, repository, AggregateScan, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance};
+use super::{named_query, orchestrate, query_comparators, read_model, repository, AggregateScan, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance, Tables};
 use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS};
 use std::collections::HashMap;
 
@@ -71,6 +71,15 @@ pub fn run(input: &str) -> String {
     // `mutations`'s own doc comment already states, and is the one place
     // actually equipped to finish the job (`lambda_client.rs`).
     let mut cross_domain_per_step: Vec<Vec<PendingCrossDomainReaction>> = Vec::new();
+    // FLAT, whole-run accumulation — like `events`/`all_events` above,
+    // NOT per-step like `mutations_per_step`/`cross_domain_per_step`.
+    // Matches `Registry#reaction_log`/`#saga_log` exactly: Ruby accumulates
+    // these across the WHOLE boot, never resets them per dispatched step,
+    // and `Fuzzing::Replay.call`'s own return hash (`reactions: runtime.
+    // reactions, sagas: runtime.sagas`) reports the whole-run total the
+    // same way.
+    let mut reaction_log: Vec<Json> = Vec::new();
+    let mut saga_log: Vec<Json> = Vec::new();
     // One entry per successfully-answered "query" step, in step order —
     // Fuzzing::Replay's own `queries` array (lib/hecksagain/fuzzing/
     // replay.rb), read directly: a REFUSED query step (either shape)
@@ -265,21 +274,27 @@ pub fn run(input: &str) -> String {
         // is refused — matching `events`' own behavior one line above.
         let mut step_mutations: Vec<MutationRecord> = Vec::new();
         let mut step_cross_domain: Vec<PendingCrossDomainReaction> = Vec::new();
+        let tables = Tables {
+            policies: POLICIES,
+            cross_domain_policies: CROSS_DOMAIN_POLICIES,
+            process_managers: PROCESS_MANAGERS,
+            reference_key_fn: reference_key_for_aggregate,
+        };
         if let Err(refusal) = orchestrate(
             &mut store,
             dispatch_by_name,
-            POLICIES,
-            CROSS_DOMAIN_POLICIES,
-            PROCESS_MANAGERS,
-            reference_key_for_aggregate,
+            tables,
             &mut sagas,
             verb,
             args,
             caller_role,
+            None,
             0,
             &mut events,
             &mut step_mutations,
             &mut step_cross_domain,
+            &mut reaction_log,
+            &mut saga_log,
         ) {
             refusals.push((verb.to_string(), refusal));
         }
@@ -314,6 +329,12 @@ pub fn run(input: &str) -> String {
         ("mutations".to_string(), mutations_json),
         ("queries".to_string(), Json::Array(query_results)),
         ("cross_domain_reactions".to_string(), cross_domain_json),
+        // `Registry#reaction_log`/`#saga_log`, read directly — see
+        // reaction_log/saga_log's own declaration above for why these are
+        // flat (whole-run) rather than per-step like `mutations`/
+        // `cross_domain_reactions`.
+        ("reactions".to_string(), Json::Array(reaction_log)),
+        ("sagas".to_string(), Json::Array(saga_log)),
     ])
     .to_json_string()
 }

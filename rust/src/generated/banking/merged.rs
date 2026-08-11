@@ -681,8 +681,8 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry" },
-    crate::kernel::PolicyRule { event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.Freeze" },
+    crate::kernel::PolicyRule { policy_name: "RetryOnPaymentFailure", event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry" },
+    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.Freeze" },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[

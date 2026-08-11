@@ -148,12 +148,36 @@
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
-#   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
-#     produces the right SIDE EFFECTS without also reproducing the log
-#     `bin/rust_conformance`'s own comparable surface never reads.
+#   - The reaction/saga LOG (`reaction_log`/`saga_log`) — NO LONGER TRUE.
+#     `kernel::orchestrate` now builds both, record shape for record
+#     shape, split into the SAME five functions Ruby's own `begin_saga`/
+#     `advance_saga`/`deliver_saga_dispatch`/`unwind`/`end_saga` are
+#     (orchestrate.rs's own header — a single merged pass used to
+#     silently produce fewer log entries than Ruby's three independently-
+#     gated methods do). `kernel::cli::run`'s own JSON output carries
+#     both as `"reactions"`/`"sagas"`, matching `Registry#reaction_log`/
+#     `#saga_log` exactly — `spec/rust_conformance_spec.rb` compares them
+#     byte-for-byte now too, for every fixture. ONE deliberate, permanent
+#     exception: Ruby's `rescue StandardError` branch (`defect: true`) has
+#     no Rust equivalent and stays unported — a genuine interpreter crash
+#     in Ruby is a compile error (or a real panic, left to propagate) in
+#     Rust, never a runtime exception to catch and log as routine
+#     (orchestrate.rs's own header has the full argument). Cross-domain
+#     policy matches ALSO don't produce a `reaction_log` entry — this
+#     kernel genuinely cannot know a cross-domain delivery's outcome, and
+#     rust/host doesn't build an equivalent entry there either yet (a
+#     real, separate, documented gap — see this file's own note on
+#     cross-domain live delivery, below).
 #   - `Correlation#saga_correlation`'s middle tier (an explicit
-#     `event.correlation` stamp) — only the first (current event's own
-#     payload) and third (`Naming.reference_key`) tiers are ported.
+#     `event.correlation` stamp) — NO LONGER TRUE either. `orchestrate`
+#     stamps every event a saga leg's own dispatch produces, exactly
+#     where `Dispatcher#dispatch` does (`announced.each { (event.
+#     correlation ||= {}).merge!(saga_correlation) }`); `correlation_of`
+#     reads it back as tier 2, between tier 1 (the dotted payload path)
+#     and tier 3 (`Naming.reference_key`). Proven directly (`orchestrate
+#     .rs`'s own `#[cfg(test)]` module — the existing corpus alone never
+#     needs tier 2 on its own, since its one real user, `AccountDebited`'s
+#     handler reaching `:destination`, always has tier 1 available too).
 #   - Cross-domain policies (`across` a domain this single-domain `Store`
 #     used to leave ungenerated) — NO LONGER TRUE, since `reactions.rb`'s
 #     own `emit_cross_domain_policy_table` (`CrossDomainPolicyRule`,
@@ -164,6 +188,46 @@
 #     to deliver. Left here only as a "this used to be true" marker —
 #     `bin/rust_coverage`'s own header has the fuller account of exactly
 #     what is and isn't proven about the live-delivery half.
+#
+# CROSS-DOMAIN LIVE DELIVERY — a REAL, DELIBERATELY DEFERRED gap,
+# consolidated here rather than left scattered across the three files
+# that each independently touch a piece of it. What IS proven, real,
+# and generated: a cross-domain policy match is represented (not
+# dropped), the exact function-name/payload shape `rust/host/src/
+# lambda_client.rs` computes for delivery is a direct, tested port of
+# `Adapters::Lambda::Client`'s own convention, and a domain-level
+# refusal from that delivery is recognized and swallowed the same way a
+# same-domain reaction's refusal already is (that file's own `tests`
+# module, against a hand-written mock `LambdaInvoker` — no real AWS
+# involved). What is NOT proven, and cannot be from any environment this
+# codebase's own test suite runs in: whether a REAL cross-Lambda invoke
+# — `AwsLambdaInvoker`, `lambda_client.rs`'s own one genuinely
+# unverifiable piece — actually reaches a live target Lambda end to end.
+# That needs two real domains' Lambdas deployed and invocable
+# simultaneously, which no CI run or local `cargo test`/`bundle exec
+# rspec` environment has. Two further, smaller consequences of the same
+# boundary, both real and both left open rather than papered over:
+#   - No `reaction_log` entry exists for a cross-domain match, on EITHER
+#     side of the split — this WASM kernel genuinely cannot know the
+#     delivery's outcome (that only exists once `lambda_client.rs`
+#     finishes the call, one layer up and out of this process entirely),
+#     and rust/host's own dispatch path doesn't build an equivalent log
+#     entry for its own successful/failed deliveries either. A real
+#     divergence from Ruby's own single-process `reaction_log`, which
+#     DOES contain an entry for a cross-domain match (Ruby has no Lambda
+#     boundary to begin with) — `spec/rust_conformance_spec.rb`'s own
+#     header documents this precisely, filtered out of that comparison
+#     using Rust's own `cross_domain_reactions` output as the ground
+#     truth for which policy names it declined to log.
+#   - No delivery RETRY/backoff/dead-letter story exists at all — a hard
+#     invoke fault propagates out of `dispatch::handle`'s own call
+#     (rust/host/src/dispatch.rs) as a visible failure of that Lambda
+#     invocation, the same "not fatal to the already-succeeded local
+#     command, but not silently swallowed either" rule a same-domain
+#     reaction's OWN crash gets (this file's own reaction_log section,
+#     above) — but nothing re-attempts a failed cross-domain delivery.
+#     Not attempted here; a real, separate, future slice if it's ever
+#     needed.
 #
 # ERA/LINEAGE SUPPORT — investigated (0021's own follow-up) and split
 # into two genuinely different questions once `rust/host` (the deployed

@@ -10,12 +10,35 @@
 // (`announced.each { @policies.react }`, THEN `announced.each { @sagas.
 // advance }`), which is why they're one function here too, not two.
 //
-// NOT the reaction/saga LOG (`registry.reaction_log`/`saga_log`) — nothing
-// in `bin/rust_conformance`'s own comparable surface (`instances`,
-// `events`, `refusals`) reads those, so this kernel produces the correct
-// SIDE EFFECTS without also building a byte-for-byte log to match. A real,
-// separate gap if a future need ever wants to inspect the log itself, not
-// silently pretended away.
+// THE REACTION/SAGA LOG (`registry.reaction_log`/`saga_log`) IS PRODUCED
+// NOW, not just the side effects — `PolicyInterpreter#deliver`'s and
+// `SagaInterpreter`'s own record-building, ported record shape for record
+// shape (`begin_saga`/`advance_saga`/`deliver_saga_dispatch`/`unwind`/
+// `end_saga`, split into the SAME five functions below rather than one
+// merged pass, because Ruby's own `advance` calls all three of `begin_
+// saga`/`advance_saga`/`end_saga` UNCONDITIONALLY per (pm, event) pair —
+// each independently gated on its own structural check (`event.name ==
+// pm.starts_on`, `pm.handler_for(event.name)`, `event.name == pm.ends_on`)
+// — and a single merged gate (this file's OWN prior shape) silently
+// produces fewer log entries than Ruby whenever those three checks
+// would have disagreed about whether to fire at all.
+//
+// ONE DELIBERATE, DOCUMENTED, PERMANENT GAP: Ruby's `rescue StandardError`
+// branch (`delivered: false, defect: true, error_class: ...`) has no
+// Rust equivalent and is NOT ported. That branch exists because Ruby's
+// dynamically-typed interpreter can raise a NoMethodError/TypeError/etc.
+// from WITHIN a reaction dispatch — a genuine runtime crash a static,
+// compiled `dispatch_fn` (`Result<Vec<Event>, Refusal>`, never an
+// exception) cannot produce the equivalent of. A bug in generated Rust
+// dispatch code is a Rust bug (a compile error, or — if it ever slipped
+// through — a panic), and a panic here should propagate and abort, not
+// be caught and logged as if it were routine: that is exactly the
+// swallow-a-crash-into-normal-operation failure mode Ruby's own comment
+// on this branch (`policy_interpreter.rb`) warns against, just prevented
+// one layer earlier, by the type system, instead of guarded against at
+// runtime. `spec/rust_conformance_spec.rb`'s own comparison excludes
+// Ruby's `defect: true` reaction_log entries for exactly this reason —
+// see that file's own header.
 //
 // CROSS-DOMAIN POLICIES (`across "OtherDomain"`) are matched here the
 // SAME way a same-domain policy is (event_name/event_qualifier), but
@@ -28,16 +51,13 @@
 // to actually deliver — `rust/host/src/lambda_client.rs` is that
 // delivery, a direct port of `Adapters::Lambda::Client`'s own
 // function-name computation and invoke shape. See that file's own header
-// for the full mirror.
-//
-// ALSO NOT REPLICATED: `Correlation#saga_correlation`'s full three-tier
-// resolution (dotted lookup into the CURRENT event's payload; else a
-// `saga_correlation:` stamp carried on the event itself; else
-// `Naming.reference_key` on the event's own aggregate). Only the first
-// tier is ported — the one every real handler in this corpus's process
-// managers actually needs, confirmed by tracing `spec/corpus/banking.json`
-// against the live Ruby runtime before this was written. A real, separate
-// gap if a future process manager ever needs the other two tiers.
+// for the full mirror. NEITHER SIDE OF THAT SPLIT PRODUCES A `reaction_
+// log` ENTRY for a cross-domain match today — this kernel genuinely
+// cannot know the delivery outcome (that only exists once rust/host
+// finishes the call), and rust/host doesn't build one either yet. A
+// real, separate, documented gap — docs/HECKS_IMPLEMENTATION_PLAN.md's
+// §8 has the fuller account of exactly what is and isn't proven about
+// the live-delivery half.
 
 use super::{Event, Json, MutationRecord, Refusal};
 use std::collections::HashMap;
@@ -50,6 +70,12 @@ pub const MAX_REACTION_DEPTH: usize = 5;
 /// cross-domain policies are absent from this table entirely rather than
 /// represented and refused at runtime.
 pub struct PolicyRule {
+    /// `PolicyInterpreter#deliver`'s own `policy.name` — the reaction_log
+    /// entry's `policy:` field. Absent before this file's own log-parity
+    /// work (its old doc comment: "nothing downstream of a same-domain
+    /// reaction ever needed to name the policy that caused it") — needed
+    /// now, the same way `CrossDomainPolicyRule` already carries it.
+    pub policy_name: &'static str,
     pub event_name: &'static str,
     pub event_qualifier: Option<&'static str>,
     pub target_verb: &'static str,
@@ -146,19 +172,66 @@ pub struct SagaInstance {
     pub memory: Json,
 }
 
+/// `pm.correlates_by.split(".").first` — `IR::ProcessManager#correlation_
+/// head`, read directly (`@correlates_by.to_s.split(".").first.to_sym`).
+/// A pure syntactic derivation, computed here rather than carried as a
+/// SEPARATE generated field on `ProcessManagerDef` — `resolve_with`
+/// below already derived it inline the same way before this existed;
+/// factored out once a second call site (`correlation_of`'s new middle
+/// tier) needed the identical derivation.
+fn correlation_head(correlates_by: &str) -> &str {
+    correlates_by.split('.').next().unwrap_or(correlates_by)
+}
+
+/// `Correlation#saga_correlation`, all three tiers now — see this file's
+/// header. Every tier's result is treated as absent when empty, matching
+/// every one of Ruby's own three callers (`begin_saga`/`advance_saga`/
+/// `end_saga`) independently checking `correlation.to_s.empty?` after
+/// calling this — folded into ONE emptiness check here instead of three
+/// repeated ones at every call site, since nothing downstream ever wants
+/// an empty-string correlation to behave differently from a genuinely
+/// absent one.
 fn correlation_of(pm: &ProcessManagerDef, event: &Event, reference_key_fn: fn(&str) -> Option<&'static str>) -> Option<String> {
+    // TIER 1 — a dotted path into the CURRENT event's own payload
+    // (`TransferRequested`'s `reference.value`, a fresh declaration).
     if let Some(v) = event.payload.dig(pm.correlates_by) {
         if let Ok(id) = v.to_id_component() {
-            return Some(id);
+            if !id.is_empty() {
+                return Some(id);
+            }
         }
     }
-    // Tier 3 — `Naming.reference_key(event.aggregate)`: a leg dispatched
+
+    // TIER 2 — THE STAMP: `event.correlation[pm.correlation_head]`, set
+    // by a PRIOR call to `orchestrate` when THIS event's own dispatch was
+    // itself a saga leg (`deliver_saga_dispatch`'s own `saga_correlation:`
+    // argument, mirrored by `orchestrate`'s own stamping step below). The
+    // corpus example this exists for: `AccountDebited`'s handler reaches
+    // `:destination`, which is present only on the ORIGINAL
+    // `TransferRequested` — but the correlation ITSELF (`:reference`,
+    // tier 1's own field) is also absent from `AccountDebited`'s payload,
+    // so without this tier there would be no way to find the right saga
+    // instance to advance at all.
+    if let Some(stamp) = &event.correlation {
+        if let Some(v) = stamp.get(correlation_head(pm.correlates_by)) {
+            if !v.is_empty() {
+                return Some(v.clone());
+            }
+        }
+    }
+
+    // TIER 3 — `Naming.reference_key(event.aggregate)`: a leg dispatched
     // through its OWN `reference_to` argument (`Transfer.Credited`'s
     // `transfer:`) announces an event whose payload carries THAT key, not
     // `correlates_by`'s dotted field — see this file's header and
     // `reactions.rb`'s `emit_reference_key_table`.
     let key = reference_key_fn(&event.aggregate)?;
-    event.payload.get(key)?.to_id_component().ok()
+    let id = event.payload.get(key)?.to_id_component().ok()?;
+    if id.is_empty() {
+        None
+    } else {
+        Some(id)
+    }
 }
 
 /// `Correlation#dispatch_args`'s value resolution, first tier only (this
@@ -172,8 +245,8 @@ fn resolve_with(pm: &ProcessManagerDef, value: &WithValue, event: &Event, correl
     match value {
         WithValue::Literal(build) => build(),
         WithValue::Ref(name) => {
-            let correlation_head = pm.correlates_by.split('.').next().unwrap_or(pm.correlates_by);
-            if *name == correlation_head {
+            let head = correlation_head(pm.correlates_by);
+            if *name == head {
                 Json::Str(correlation.to_string())
             } else if let Some(v) = event.payload.get(name) {
                 v.clone()
@@ -190,6 +263,18 @@ fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Even
     Json::Object(spec.with.iter().map(|(key, value)| (key.to_string(), resolve_with(pm, value, event, correlation, memory))).collect())
 }
 
+/// Bundles the "same for the whole call tree" tables/functions every
+/// recursive helper below needs, so adding a new one (this file's own
+/// growth over time — `reaction_log`/`saga_log` are the newest) touches
+/// one struct instead of every function signature in the file.
+#[derive(Clone, Copy)]
+pub struct Tables<'a> {
+    pub policies: &'a [PolicyRule],
+    pub cross_domain_policies: &'a [CrossDomainPolicyRule],
+    pub process_managers: &'a [ProcessManagerDef],
+    pub reference_key_fn: fn(&str) -> Option<&'static str>,
+}
+
 /// The recursive reentry loop `Dispatcher#dispatch`/`#reenter` are, ported
 /// generic over the STORE type — `dispatch_fn` is generated `registry.rs`'s
 /// own `dispatch_by_name`, a plain `fn` pointer (not a closure) so this can
@@ -201,26 +286,39 @@ fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Even
 /// announcements). Returns `Err` only when the TOP-level `verb` itself
 /// refuses — a reaction's own downstream refusal is swallowed exactly the
 /// way `PolicyInterpreter#deliver`/`SagaInterpreter#deliver_saga_dispatch`'s
-/// `rescue *DOMAIN_REFUSALS` swallows it (see this file's own header on
-/// why the log itself isn't reproduced).
+/// `rescue *DOMAIN_REFUSALS` swallows it, but now logged there too (this
+/// file's own header).
+///
+/// `saga_correlation` — `Dispatcher#dispatch`'s own stamping step,
+/// `announced.each { (event.correlation ||= {}).merge!(saga_correlation) }`
+/// — applied here, once, to every event THIS call's own `dispatch_fn`
+/// just produced, before any of them reaches a reaction. `None` at the
+/// top-level call (`kernel::cli::run`) and every policy reentry (policies
+/// never stamp); `Some(&stamp)` only from `deliver_saga_dispatch` below.
 #[allow(clippy::too_many_arguments)]
 pub fn orchestrate<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
-    policies: &'static [PolicyRule],
-    cross_domain_policies: &'static [CrossDomainPolicyRule],
-    process_managers: &'static [ProcessManagerDef],
-    reference_key_fn: fn(&str) -> Option<&'static str>,
+    tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     verb: &str,
     args: &Json,
     caller_role: Option<&str>,
+    saga_correlation: Option<&HashMap<String, String>>,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
     cross_domain: &mut Vec<PendingCrossDomainReaction>,
+    reaction_log: &mut Vec<Json>,
+    saga_log: &mut Vec<Json>,
 ) -> Result<(), Refusal> {
-    let events = dispatch_fn(store, verb, args, caller_role, mutations)?;
+    let mut events = dispatch_fn(store, verb, args, caller_role, mutations)?;
+
+    if let Some(stamp) = saga_correlation {
+        for event in &mut events {
+            event.correlation.get_or_insert_with(HashMap::new).extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+    }
 
     for event in events {
         // LOGGED THE MOMENT ITS OWN COMMAND COMMITS — before any reaction
@@ -230,12 +328,17 @@ pub fn orchestrate<S>(
         // an ALREADY-LOGGED fact, never the other way around.
         all_events.push(event.clone());
 
-        if depth + 1 >= MAX_REACTION_DEPTH {
-            continue;
-        }
-
-        react_policies(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, &event, depth, all_events, mutations, cross_domain);
-        advance_process_managers(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, &event, depth, all_events, mutations, cross_domain);
+        // NOT depth-gated here — Ruby's own `SagaInterpreter#advance`
+        // calls `begin_saga`/`advance_saga`/`end_saga` UNCONDITIONALLY
+        // for every event, regardless of depth (this file's header); the
+        // depth ceiling only ever gates the REENTER attempt itself,
+        // checked inside `react_policies`/`deliver_saga_dispatch` below,
+        // per match — not a blanket skip here, which used to silently
+        // produce fewer log entries than Ruby whenever it fired.
+        react_policies(store, dispatch_fn, tables, sagas, &event, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        begin_saga(tables, sagas, &event, saga_log);
+        advance_saga(store, dispatch_fn, tables, sagas, &event, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
+        end_saga(tables, sagas, &event, saga_log);
     }
 
     Ok(())
@@ -245,22 +348,21 @@ pub fn orchestrate<S>(
 fn react_policies<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
-    policies: &'static [PolicyRule],
-    cross_domain_policies: &'static [CrossDomainPolicyRule],
-    process_managers: &'static [ProcessManagerDef],
-    reference_key_fn: fn(&str) -> Option<&'static str>,
+    tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
     cross_domain: &mut Vec<PendingCrossDomainReaction>,
+    reaction_log: &mut Vec<Json>,
+    saga_log: &mut Vec<Json>,
 ) {
     // `Naming.demodulise(event.aggregate)` — the LAST "::" segment
     // ("Banking::Account" -> "Account").
     let emitting = event.aggregate.rsplit("::").next().unwrap_or(event.aggregate.as_str());
 
-    for policy in policies {
+    for policy in tables.policies {
         if policy.event_name != event.name {
             continue;
         }
@@ -269,21 +371,62 @@ fn react_policies<S>(
                 continue;
             }
         }
+
+        // `PolicyInterpreter#deliver`'s own `record = { policy: policy.
+        // name, on: event.name, trigger: target }` — `policy.target_verb`
+        // IS `target` already (domain-qualified by `reactions.rb`'s own
+        // `local_policy_rows`), no further string-building needed.
+        let record = |extra: Vec<(&str, Json)>| -> Json {
+            let mut fields = vec![
+                ("policy", Json::str(policy.policy_name.to_string())),
+                ("on", Json::str(event.name.clone())),
+                ("trigger", Json::str(policy.target_verb.to_string())),
+            ];
+            fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+            Json::obj(fields)
+        };
+
+        if depth + 1 >= MAX_REACTION_DEPTH {
+            reaction_log.push(record(vec![
+                ("delivered", Json::Bool(false)),
+                ("reason", Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached"))),
+            ]));
+            continue;
+        }
+
         // Forward the event's WHOLE payload verbatim as the trigger's own
         // args — docs/guides/policies-and-process-managers.md: "not
-        // reshaped, not filtered." A refusal here is swallowed.
-        // `caller_role: None` — `Dispatcher#reenter`'s own `Caller.
-        // without`: a policy reaction is system-triggered, never carries
-        // whatever caller the ORIGINAL step bound.
-        let _ = orchestrate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, policy.target_verb, &event.payload, None, depth + 1, all_events, mutations, cross_domain);
+        // reshaped, not filtered." `caller_role: None` — `Dispatcher#
+        // reenter`'s own `Caller.without`: a policy reaction is
+        // system-triggered, never carries whatever caller the ORIGINAL
+        // step bound. `saga_correlation: None` — policies never stamp
+        // (only a saga leg's own dispatch does).
+        let outcome = orchestrate(
+            store, dispatch_fn, tables, sagas, policy.target_verb, &event.payload, None, None, depth + 1,
+            all_events, mutations, cross_domain, reaction_log, saga_log,
+        );
+        match outcome {
+            Ok(()) => reaction_log.push(record(vec![("delivered", Json::Bool(true))])),
+            // A refusal is a fact about the target domain, recorded and
+            // not fatal to the command that emitted `event` — matching
+            // `rescue *DOMAIN_REFUSALS`. A genuine Rust panic (this
+            // file's own header: the `defect` case's real analogue) is
+            // NOT caught here and propagates, on purpose.
+            Err(refusal) => reaction_log.push(record(vec![
+                ("delivered", Json::Bool(false)),
+                ("reason", Json::str(refusal.to_string())),
+            ])),
+        }
     }
 
     // CROSS-DOMAIN — matched the identical way, but never dispatched here
-    // (this file's own header). Recorded, not recursed into: whatever
-    // that target verb itself goes on to react to is a SEPARATE WASM
-    // module's own `orchestrate` call, run by rust/host after it delivers
-    // this one via `lambda_client.rs`, not this call.
-    for policy in cross_domain_policies {
+    // (this file's own header). Recorded, not recursed into, and NOT
+    // logged into `reaction_log` either (this file's header: the delivery
+    // outcome doesn't exist yet at this point). Whatever that target verb
+    // itself goes on to react to is a SEPARATE WASM module's own
+    // `orchestrate` call, run by rust/host after it delivers this one via
+    // `lambda_client.rs`, not this call.
+    for policy in tables.cross_domain_policies {
         if policy.event_name != event.name {
             continue;
         }
@@ -301,67 +444,209 @@ fn react_policies<S>(
     }
 }
 
-/// `SagaInterpreter#advance` — `begin_saga`/the handler lookup/
-/// `apply mutations`-equivalent dispatch fan-out/compensation, in that
-/// order, for every declared process manager against this one event.
+/// `SagaInterpreter#begin_saga` — births a fresh instance the moment the
+/// STARTING event arrives. NO log entry at all when `event.name !=
+/// pm.starts_on` (Ruby's own `return unless ...`, silent) or when the
+/// instance already exists (a re-arrival of `starts_on` for an ongoing
+/// conversation — also silent in Ruby).
+fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaInstance>, event: &Event, saga_log: &mut Vec<Json>) {
+    for pm in tables.process_managers {
+        if event.name != pm.starts_on {
+            continue;
+        }
+
+        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else {
+            saga_log.push(Json::obj(vec![
+                ("process_manager", Json::str(pm.name.to_string())),
+                ("on", Json::str(event.name.clone())),
+                ("born", Json::Bool(false)),
+                ("reason", Json::str(format!("no {} in the payload", pm.correlates_by))),
+            ]));
+            continue;
+        };
+
+        let key = (pm.name.to_string(), correlation.clone());
+        if sagas.contains_key(&key) {
+            continue;
+        }
+
+        sagas.insert(key, SagaInstance { state: pm.initial_state.to_string(), memory: event.payload.clone() });
+        saga_log.push(Json::obj(vec![
+            ("process_manager", Json::str(pm.name.to_string())),
+            ("on", Json::str(event.name.clone())),
+            ("instance", Json::str(correlation)),
+            ("born", Json::Bool(true)),
+            ("state", Json::str(pm.initial_state.to_string())),
+        ]));
+    }
+}
+
+/// `SagaInterpreter#advance_saga` — the handler lookup, the from_state
+/// check, then the state transition and its own dispatch fan-out. NO log
+/// entry when `pm.handler_for(event.name)` finds nothing (Ruby's own
+/// `return unless handler`) or when correlation resolves to nothing
+/// (Ruby's own `return if correlation.to_s.empty?`) — both silent.
 #[allow(clippy::too_many_arguments)]
-fn advance_process_managers<S>(
+fn advance_saga<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
-    policies: &'static [PolicyRule],
-    cross_domain_policies: &'static [CrossDomainPolicyRule],
-    process_managers: &'static [ProcessManagerDef],
-    reference_key_fn: fn(&str) -> Option<&'static str>,
+    tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     event: &Event,
     depth: usize,
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
     cross_domain: &mut Vec<PendingCrossDomainReaction>,
+    reaction_log: &mut Vec<Json>,
+    saga_log: &mut Vec<Json>,
 ) {
-    for pm in process_managers {
-        let Some(correlation) = correlation_of(pm, event, reference_key_fn) else { continue };
-        let key = (pm.name.to_string(), correlation.clone());
-
-        // `begin_saga` — births a fresh instance the moment the STARTING
-        // event arrives, memory = that event's whole payload.
-        if event.name == pm.starts_on {
-            sagas.entry(key.clone()).or_insert_with(|| SagaInstance { state: pm.initial_state.to_string(), memory: event.payload.clone() });
-        }
-
+    for pm in tables.process_managers {
         let Some(handler) = pm.handlers.iter().find(|h| h.event_type == event.name) else { continue };
-        let Some(instance) = sagas.get(&key) else { continue };
-        if instance.state != handler.from_state {
+        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else { continue };
+
+        let key = (pm.name.to_string(), correlation.clone());
+        let record = |extra: Vec<(&str, Json)>| -> Json {
+            let mut fields = vec![
+                ("process_manager", Json::str(pm.name.to_string())),
+                ("on", Json::str(event.name.clone())),
+                ("instance", Json::str(correlation.clone())),
+            ];
+            fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+            Json::obj(fields)
+        };
+
+        let Some(state) = sagas.get(&key).map(|instance| instance.state.clone()) else {
+            saga_log.push(record(vec![
+                ("advanced", Json::Bool(false)),
+                ("reason", Json::str(format!("no conversation remembers {correlation:?}"))),
+            ]));
+            continue;
+        };
+        if state != handler.from_state {
+            saga_log.push(record(vec![
+                ("advanced", Json::Bool(false)),
+                ("reason", Json::str(format!("in {state:?}, not {:?}", handler.from_state))),
+            ]));
             continue;
         }
 
-        // `advance_saga` — committed BEFORE running this handler's own
-        // dispatches, matching Ruby's own ordering — a refused
-        // compensation can't re-fire itself, because the state has
-        // already moved past `from_state` by the time any dispatch below
-        // could even fail.
-        let memory = instance.memory.clone();
         if let Some(slot) = sagas.get_mut(&key) {
             slot.state = handler.to_state.to_string();
         }
+        saga_log.push(record(vec![
+            ("advanced", Json::Bool(true)),
+            ("from", Json::str(handler.from_state.to_string())),
+            ("to", Json::str(handler.to_state.to_string())),
+        ]));
 
+        let memory = sagas.get(&key).map(|instance| instance.memory.clone()).unwrap_or(Json::Null);
+        let mut refused = false;
         for spec in handler.dispatches {
             let args = build_dispatch_args(pm, spec, event, &correlation, &memory);
-            // `caller_role: None` — same `Caller.without` reasoning as
-            // `react_policies`: a saga leg is system-triggered.
-            let outcome = orchestrate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events, mutations, cross_domain);
-
-            if outcome.is_err() {
-                compensate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, pm, &key, event, &correlation, &memory, depth, all_events, mutations, cross_domain);
+            let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.clone())].into_iter().collect();
+            let delivered = deliver_saga_dispatch(
+                store, dispatch_fn, tables, sagas, pm, spec, &args, &correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
+            );
+            if delivered == Some(false) {
+                refused = true;
             }
         }
 
-        // `end_saga` — the instance is done, whether it just advanced INTO
-        // its ends_on event or (Onboarding-shaped) transitioned straight
-        // there with no dispatches of its own.
-        if event.name == pm.ends_on {
-            sagas.remove(&key);
+        if refused {
+            compensate(store, dispatch_fn, tables, sagas, pm, &key, event, &correlation, &memory, depth, all_events, mutations, cross_domain, reaction_log, saga_log);
         }
+    }
+}
+
+/// `SagaInterpreter#deliver_saga_dispatch` — one dispatch spec, shared by
+/// BOTH `advance_saga`'s own fan-out above and `compensate`'s (unwind's)
+/// below, matching Ruby's own single method serving both callers.
+/// Returns `Some(true)`/`Some(false)` for delivered/refused (the caller's
+/// own signal for whether to unwind), `None` when the depth ceiling
+/// stopped this leg before it ever tried (Ruby's own early return — no
+/// refusal to compensate for, because nothing was attempted).
+#[allow(clippy::too_many_arguments)]
+fn deliver_saga_dispatch<S>(
+    store: &mut S,
+    dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
+    tables: Tables<'static>,
+    sagas: &mut HashMap<(String, String), SagaInstance>,
+    pm: &ProcessManagerDef,
+    spec: &DispatchSpec,
+    args: &Json,
+    correlation: &str,
+    depth: usize,
+    all_events: &mut Vec<Event>,
+    mutations: &mut Vec<MutationRecord>,
+    cross_domain: &mut Vec<PendingCrossDomainReaction>,
+    reaction_log: &mut Vec<Json>,
+    saga_log: &mut Vec<Json>,
+    stamp: &HashMap<String, String>,
+) -> Option<bool> {
+    let record = |extra: Vec<(&str, Json)>| -> Json {
+        let mut fields = vec![
+            ("process_manager", Json::str(pm.name.to_string())),
+            ("instance", Json::str(correlation.to_string())),
+            ("dispatch", Json::str(spec.command_name.to_string())),
+        ];
+        fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+        Json::obj(fields)
+    };
+
+    if depth + 1 >= MAX_REACTION_DEPTH {
+        saga_log.push(record(vec![
+            ("delivered", Json::Bool(false)),
+            ("reason", Json::str(format!("reaction depth {MAX_REACTION_DEPTH} reached"))),
+        ]));
+        return None;
+    }
+
+    // `caller_role: None` — same `Caller.without` reasoning as
+    // `react_policies`: a saga leg is system-triggered. `saga_correlation:
+    // Some(stamp)` — THE stamp this file's header describes, applied by
+    // `orchestrate` to every event this recursive dispatch itself
+    // produces.
+    let outcome = orchestrate(
+        store, dispatch_fn, tables, sagas, spec.command_name, args, None, Some(stamp), depth + 1,
+        all_events, mutations, cross_domain, reaction_log, saga_log,
+    );
+    match outcome {
+        Ok(()) => {
+            saga_log.push(record(vec![("delivered", Json::Bool(true))]));
+            Some(true)
+        }
+        Err(refusal) => {
+            saga_log.push(record(vec![
+                ("delivered", Json::Bool(false)),
+                ("reason", Json::str(refusal.to_string())),
+            ]));
+            Some(false)
+        }
+    }
+}
+
+/// `SagaInterpreter#end_saga` — the instance is done, whether it just
+/// advanced INTO its `ends_on` event or transitioned straight there with
+/// no dispatches of its own. NO log entry when `event.name != pm.ends_on`,
+/// correlation is absent, or no instance existed to remove — all three
+/// silent in Ruby.
+fn end_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaInstance>, event: &Event, saga_log: &mut Vec<Json>) {
+    for pm in tables.process_managers {
+        if event.name != pm.ends_on {
+            continue;
+        }
+        let Some(correlation) = correlation_of(pm, event, tables.reference_key_fn) else { continue };
+        let key = (pm.name.to_string(), correlation.clone());
+        if sagas.remove(&key).is_none() {
+            continue;
+        }
+
+        saga_log.push(Json::obj(vec![
+            ("process_manager", Json::str(pm.name.to_string())),
+            ("on", Json::str(event.name.clone())),
+            ("instance", Json::str(correlation)),
+            ("ended", Json::Bool(true)),
+        ]));
     }
 }
 
@@ -369,15 +654,14 @@ fn advance_process_managers<S>(
 /// CURRENT (post-transition) state a failed dispatch left the instance in.
 /// Its own dispatches never themselves compensate on failure — matching
 /// Ruby's own guard (the state has already moved past `from_state` before
-/// a second refusal could reach this same branch again).
+/// a second refusal could reach this same branch again). Shares `deliver_
+/// saga_dispatch` with `advance_saga` above, exactly like Ruby's own
+/// `unwind` calls the SAME `deliver_saga_dispatch` its sibling does.
 #[allow(clippy::too_many_arguments)]
 fn compensate<S>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
-    policies: &'static [PolicyRule],
-    cross_domain_policies: &'static [CrossDomainPolicyRule],
-    process_managers: &'static [ProcessManagerDef],
-    reference_key_fn: fn(&str) -> Option<&'static str>,
+    tables: Tables<'static>,
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
     key: &(String, String),
@@ -388,20 +672,148 @@ fn compensate<S>(
     all_events: &mut Vec<Event>,
     mutations: &mut Vec<MutationRecord>,
     cross_domain: &mut Vec<PendingCrossDomainReaction>,
+    reaction_log: &mut Vec<Json>,
+    saga_log: &mut Vec<Json>,
 ) {
-    let current_state = match sagas.get(key) {
-        Some(instance) => instance.state.clone(),
-        None => return,
+    let Some(current_state) = sagas.get(key).map(|instance| instance.state.clone()) else { return };
+    // `pm.handler_for(REFUSED)` — event_type ALONE, read directly
+    // (`IR::ProcessManager#handler_for`: `@handlers.find { |h| h.
+    // event_type == event.to_s }`, no from_state in the match at all). A
+    // from_state mismatch is a SEPARATE check below, logged as its own
+    // `advanced: false` finding — folding it into this `find`'s own
+    // predicate (this file's prior bug) made that branch unreachable and
+    // silently dropped the log entry Ruby produces for exactly this case.
+    let Some(compensation) = pm.handlers.iter().find(|h| h.event_type == REFUSED) else { return };
+
+    let record = |extra: Vec<(&str, Json)>| -> Json {
+        let mut fields = vec![
+            ("process_manager", Json::str(pm.name.to_string())),
+            ("on", Json::str(REFUSED.to_string())),
+            ("instance", Json::str(correlation.to_string())),
+        ];
+        fields.extend(extra.into_iter().map(|(k, v)| (k, v)));
+        Json::obj(fields)
     };
 
-    let Some(compensation) = pm.handlers.iter().find(|h| h.event_type == REFUSED && h.from_state == current_state) else { return };
+    if current_state != compensation.from_state {
+        saga_log.push(record(vec![
+            ("advanced", Json::Bool(false)),
+            ("reason", Json::str(format!("in {current_state:?}, not {:?}", compensation.from_state))),
+        ]));
+        return;
+    }
 
     if let Some(slot) = sagas.get_mut(key) {
         slot.state = compensation.to_state.to_string();
     }
+    saga_log.push(record(vec![
+        ("advanced", Json::Bool(true)),
+        ("from", Json::str(compensation.from_state.to_string())),
+        ("to", Json::str(compensation.to_state.to_string())),
+    ]));
 
     for spec in compensation.dispatches {
         let args = build_dispatch_args(pm, spec, event, correlation, memory);
-        let _ = orchestrate(store, dispatch_fn, policies, cross_domain_policies, process_managers, reference_key_fn, sagas, spec.command_name, &args, None, depth + 1, all_events, mutations, cross_domain);
+        let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
+        deliver_saga_dispatch(
+            store, dispatch_fn, tables, sagas, pm, spec, &args, correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pm(correlates_by: &'static str) -> ProcessManagerDef {
+        ProcessManagerDef {
+            name: "TestSaga",
+            correlates_by,
+            starts_on: "Started",
+            ends_on: "Ended",
+            initial_state: "start",
+            handlers: &[],
+        }
+    }
+
+    fn no_reference_key(_aggregate: &str) -> Option<&'static str> {
+        None
+    }
+
+    // TIER 2, in isolation — `Correlation#saga_correlation`'s own middle
+    // tier: the corpus scenario this exists for (`AccountDebited`'s
+    // handler reaching `:destination`, only present on the ORIGINAL
+    // `TransferRequested`) always has tier 1 (a genuinely present
+    // `reference`-shaped field) available too, so the full conformance
+    // corpus alone never proves tier 2 fires on its OWN. This does: tier
+    // 1 finds nothing (`correlates_by` names a field the payload doesn't
+    // have at all), tier 3 finds nothing (no reference-key function
+    // configured), so only the STAMP `orchestrate`'s own event.
+    // correlation field carries can resolve it.
+    #[test]
+    fn correlation_of_reads_the_stamp_when_the_payload_has_nothing_and_no_reference_key_applies() {
+        let pm = pm("reference.value");
+        let event = Event {
+            name: "SomeEvent".to_string(),
+            aggregate: "Domain::Thing".to_string(),
+            id: "thing-1".to_string(),
+            payload: Json::Object(vec![]),
+            correlation: Some([("reference".to_string(), "xfer-1".to_string())].into_iter().collect()),
+        };
+
+        assert_eq!(correlation_of(&pm, &event, no_reference_key), Some("xfer-1".to_string()));
+    }
+
+    #[test]
+    fn correlation_of_prefers_tier_1_over_the_stamp_when_both_are_present() {
+        let pm = pm("reference.value");
+        let event = Event {
+            name: "SomeEvent".to_string(),
+            aggregate: "Domain::Thing".to_string(),
+            id: "thing-1".to_string(),
+            payload: Json::Object(vec![("reference".to_string(), Json::Object(vec![("value".to_string(), Json::Str("from-payload".to_string()))]))]),
+            correlation: Some([("reference".to_string(), "from-stamp".to_string())].into_iter().collect()),
+        };
+
+        assert_eq!(correlation_of(&pm, &event, no_reference_key), Some("from-payload".to_string()));
+    }
+
+    #[test]
+    fn correlation_of_ignores_an_empty_stamped_value_and_falls_through() {
+        let pm = pm("reference.value");
+        let event = Event {
+            name: "SomeEvent".to_string(),
+            aggregate: "Domain::Thing".to_string(),
+            id: "thing-1".to_string(),
+            payload: Json::Object(vec![]),
+            correlation: Some([("reference".to_string(), String::new())].into_iter().collect()),
+        };
+
+        assert_eq!(correlation_of(&pm, &event, no_reference_key), None);
+    }
+
+    // `orchestrate`'s own stamping step — proven directly here rather
+    // than only through the full recursive call (which needs a real
+    // `dispatch_fn`/`Store`): the exact `(event.correlation ||= {}).
+    // merge!(saga_correlation)` Ruby's `Dispatcher#dispatch` performs.
+    #[test]
+    fn stamping_merges_into_an_existing_correlation_map_rather_than_replacing_it() {
+        let mut events = vec![
+            Event {
+                name: "E".to_string(),
+                aggregate: "Domain::Thing".to_string(),
+                id: "thing-1".to_string(),
+                payload: Json::Null,
+                correlation: Some([("already".to_string(), "here".to_string())].into_iter().collect()),
+            },
+        ];
+        let stamp: HashMap<String, String> = [("reference".to_string(), "xfer-1".to_string())].into_iter().collect();
+        for event in &mut events {
+            event.correlation.get_or_insert_with(HashMap::new).extend(stamp.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+
+        let correlation = events[0].correlation.as_ref().unwrap();
+        assert_eq!(correlation.get("already"), Some(&"here".to_string()));
+        assert_eq!(correlation.get("reference"), Some(&"xfer-1".to_string()));
     }
 }

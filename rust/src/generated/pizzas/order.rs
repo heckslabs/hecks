@@ -730,7 +730,7 @@ pub fn dispatch_operation_paymentgateway_receive(args: PaymentGatewayReceiveArgs
         args.customer_name.check_invariants()?;
         args.amount.check_invariants()?;
     Ok(vec![
-        crate::kernel::Event { name: "PizzaPaymentReceived".to_string(), aggregate: "Pizzas::Order".to_string(), id: args.name.clone(), payload: crate::kernel::Json::Null },
+        crate::kernel::Event { name: "PizzaPaymentReceived".to_string(), aggregate: "Pizzas::Order".to_string(), id: args.name.clone(), payload: crate::kernel::Json::Null, correlation: None },
     ])
 }
 

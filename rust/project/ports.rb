@@ -73,7 +73,7 @@ module RustProjection
 
       events = operation[:emits].map do |event_name|
         "        crate::kernel::Event { name: #{event_name.inspect}.to_string(), aggregate: #{qualified.inspect}.to_string(), " \
-          "id: args.#{identity_field}.clone(), payload: crate::kernel::Json::Null },"
+          "id: args.#{identity_field}.clone(), payload: crate::kernel::Json::Null, correlation: None },"
       end
 
       dispatch_fn = <<~RUST.rstrip
