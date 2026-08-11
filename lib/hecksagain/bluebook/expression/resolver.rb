@@ -48,6 +48,37 @@ module Hecksagain
         Size           = Struct.new(:receiver, keyword_init: true)
         Lookup         = Struct.new(:path, keyword_init: true)
 
+        # `receiver.match?(/pattern/)` -- vendored addition, not (yet)
+        # upstream hecksagain (migration plan task 8): confirmed the
+        # SINGLE most impactful corpus-wide dispatch-time gap of the
+        # whole migration -- `.match?(regex)` appears in nearly every
+        # value_object's format-validation rule across every corpus
+        # this migration touched (email/phone/ISO-8601-timestamp/zip
+        # patterns, dozens of files), and had NO parse support at all:
+        # it fell all the way through to the `Lookup` catch-all below,
+        # which tried to split the ENTIRE ".match?(/\A\d{5}\z/)" text
+        # on "." as if it were a dotted attribute path, and crashed with
+        # an opaque "no implicit conversion of Symbol into Integer"
+        # somewhere downstream -- confirmed live via a real dispatch,
+        # not validate (validate never evaluates a predicate body).
+        # `receiver` still needs its own parse (it may itself be a
+        # dotted lookup, e.g. `some_field.match?(...)`), the pattern
+        # text is taken as-is between the slashes (a Ruby Regexp literal,
+        # not the evaluator's own mini-grammar -- there is nothing to
+        # recurse into).
+        MatchesRegex   = Struct.new(:receiver, :pattern, :flags, keyword_init: true)
+
+        # `.present?`/`.blank?` -- vendored addition, not (yet) upstream
+        # hecksagain (migration plan task 8): the second-most pervasive
+        # gap this pass found, right behind `.match?` -- confirmed real
+        # via the same "no such attribute" Lookup-fallback crash, since
+        # neither suffix existed in this leaf grammar at all. Rails-
+        # standard semantics (blank = nil, or responds_to?(:empty?) &&
+        # empty? ; present = !blank), not just `!nil?` -- matches what
+        # every corpus author actually means by `.present?` on a string
+        # field that could legitimately be "" rather than absent.
+        Presence       = Struct.new(:receiver, :negated, keyword_init: true)
+
         module_function
 
         def resolve(expr, state, attrs)
@@ -80,6 +111,15 @@ module Hecksagain
 
           return Size.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.size\z/
 
+          if expr =~ /\A(.+)\.match\?\(\/(.*)\/([a-z]*)\)\z/m
+            return MatchesRegex.new(receiver: parse(Regexp.last_match(1)),
+                                     pattern: Regexp.last_match(2),
+                                     flags: Regexp.last_match(3))
+          end
+
+          return Presence.new(receiver: parse(Regexp.last_match(1)), negated: false) if expr =~ /\A(.+)\.present\?\z/
+          return Presence.new(receiver: parse(Regexp.last_match(1)), negated: true)  if expr =~ /\A(.+)\.blank\?\z/
+
           Lookup.new(path: expr)
         end
 
@@ -106,9 +146,62 @@ module Hecksagain
             apply_modulo(interpret(node.receiver, state, attrs), interpret(node.divisor, state, attrs))
           when Size
             size_of(interpret(node.receiver, state, attrs))
+          when MatchesRegex
+            matches_regex?(interpret(node.receiver, state, attrs), node.pattern, node.flags)
+          when Presence
+            present = !blank?(interpret(node.receiver, state, attrs))
+            node.negated ? !present : present
           when Lookup
             lookup(node.path, state, attrs)
           end
+        end
+
+        # `.present?`/`.blank?` -- vendored addition, see the
+        # `Presence` struct's own comment above. `nil` and `false` are
+        # blank ; a String/Array/Hash is blank when EMPTY, not merely
+        # falsy -- a VO-wrapped field that IS assigned (`{value: "x"}`,
+        # `Value#to_h`'d first) is present regardless of what its own
+        # inner value holds, matching how every VO-typed field in this
+        # corpus is actually shaped once set at all.
+        def blank?(value)
+          return true if value.nil? || value == false
+
+          # Duck-typed, not `value.is_a?(Runtime::Value)` -- this module
+          # is `Bluebook::Expression`, a different namespace tree from
+          # `Runtime::Value` entirely, and reaching across for a single
+          # class check is the exact cross-module coupling that already
+          # broke `Modulo`'s own `match_call` reference elsewhere in
+          # this file (found live while building this fix, not assumed).
+          value = value.to_h if value.respond_to?(:to_h) && !value.is_a?(Hash)
+          case value
+          when String, Array, Hash then value.empty?
+          else false
+          end
+        end
+
+        # `receiver.match?(/pattern/)` -- vendored addition, see the
+        # `MatchesRegex` struct's own comment above. `receiver_value` is
+        # coerced to a plain String first -- inlined here rather than
+        # calling `Evaluator#string_of` (a DIFFERENT module_function
+        # module; not actually in scope from inside Resolver despite
+        # `Modulo`'s own parse rule above calling a same-named
+        # `match_call` that has the identical cross-module problem --
+        # found live while building this, not assumed).
+        def matches_regex?(receiver_value, pattern, flags)
+          text = case receiver_value
+                 when String, Symbol      then receiver_value.to_s
+                 when Integer, Float      then receiver_value.to_s
+                 when NilClass             then ""
+                 else
+                   raise EvaluationError, "match? expects a scalar, got #{receiver_value.class}"
+                 end
+
+          options = 0
+          options |= Regexp::IGNORECASE if flags.include?("i")
+          options |= Regexp::MULTILINE  if flags.include?("m")
+          options |= Regexp::EXTENDED   if flags.include?("x")
+
+          Regexp.new(pattern, options).match?(text)
         end
 
         def split_addition(expr)
