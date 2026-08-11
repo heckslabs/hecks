@@ -14,6 +14,14 @@ pub mod expression_operators;
 pub mod json;
 pub mod orchestrate;
 pub mod pattern;
+// `QueryComparator` — generated, closed, and DELIBERATELY undispatched.
+// See `bin/project_kernel_capabilities`'s own header and the generated
+// file's own header for the full reasoning: the query engine this enum's
+// variants would eventually route through doesn't exist yet
+// (`cli.rs`'s own "query steps are not generated yet" refusal, and
+// bin/rust_coverage's documented "whole_kind" gap for `query`), so this
+// module is tracked here rather than left undiscoverable.
+pub mod query_comparators;
 pub mod repository;
 
 pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
