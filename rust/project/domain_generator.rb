@@ -469,12 +469,14 @@ module RustProjection
       # ── QUERIES — a declared `query "X" do ... end` block now generates
       # for real, for the subset `queries.rb`'s own `query_skip_reason`
       # admits (one or more field-comparator conditions, ANDed, against a
-      # single aggregate's OWN attributes — no order_by/limit/hop/type-
-      # unrecoverable literal). A "per_instance" gap now, not "whole_kind"
-      # — the CONSTRUCT KIND has a real code path; a specific declared
-      # query still lacking a row is a per-instance shape this generator
-      # doesn't cover, the same distinction every OTHER per-instance skip
-      # in this file already draws.
+      # single aggregate's OWN attributes, PLUS — as of 2026-08-11 — that
+      # same result set's own `order_by`/`limit`; still no hop/type-
+      # unrecoverable literal/offset/cursor/consistency/freshness/
+      # authorization/null_semantics/inspection/use_index). A "per_instance"
+      # gap now, not "whole_kind" — the CONSTRUCT KIND has a real code path;
+      # a specific declared query still lacking a row is a per-instance
+      # shape this generator doesn't cover, the same distinction every
+      # OTHER per-instance skip in this file already draws.
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
 
@@ -492,6 +494,8 @@ module RustProjection
             verb: query_verb,
             aggregate: "#{domain_name}::#{aggregate[:name]}",
             conditions: Projector.query_conditions(query),
+            order_by: query[:order_by] ? Projector.emit_query_order_by(query[:order_by]) : nil,
+            limit: query[:limit] ? Projector.emit_query_limit(query[:limit]) : nil,
           }
         end
       end

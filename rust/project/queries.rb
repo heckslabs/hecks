@@ -5,25 +5,44 @@ module RustProjection
     # ── NAMED QUERY CODEGEN — the subset of a declared `query "X" do
     # ... end` block expressible as one or more field-comparator
     # conditions, ANDed together, against a single aggregate's OWN
-    # attributes: exactly `kernel/repository.rs`'s existing `filter_
-    # entries`/`AggregateScan` machinery, called once per where clause
-    # with THIS query's own declared conditions baked in instead of
-    # supplied ad hoc over the wire. `query_skip_reason` is the single
-    # gate every other function here answers to; `query_conditions` only
-    # ever runs once a query has already passed it.
+    # attributes, PLUS (as of 2026-08-11) that same result set's own
+    # declared `order_by`/`limit`: exactly `kernel/repository.rs`'s
+    # existing `filter_entries`/`AggregateScan` machinery for the where
+    # clauses, chained into `kernel/query_ordering.rs`'s `apply` for the
+    # order/cap — the SAME sort/limit tail `read_models.rb` already ported
+    # for a read model's own eligible head (that module's own header has
+    # the full argument for why this was reuse, not new invention, once it
+    # existed). `query_skip_reason` is the single gate every other
+    # function here answers to; `query_conditions` only ever runs once a
+    # query has already passed it.
     #
     # WHAT THIS DELIBERATELY DOES NOT COVER, and why — read together with
-    # `query_where_skip_reason` below:
+    # `query_where_skip_reason`/`declared_order_by_skip_reason`/
+    # `declared_limit_skip_reason` below:
     #
-    #   order_by / limit / offset / cursor / consistency / freshness /
-    #   authorization / null_semantics / inspection / use_index — every
-    #   one of these is a real capability `Ports::Query::Ordering`/
-    #   `Runtime::QueryInterpreter` implements and this generator does
-    #   not attempt to port. Sorting in particular needs a SECOND kernel
-    #   capability (a declared-field comparator sort, tie-broken by id)
-    #   this branch's minimal query engine never built — baking a where-
-    #   only answer for a query that DECLARES an order would be exactly
-    #   the silently-wrong shape this whole project refuses to ship.
+    #   offset / cursor / consistency / freshness / authorization /
+    #   null_semantics / inspection / use_index — every one of these is a
+    #   real capability `Ports::Query::InMemory`/`TenantScope` implements
+    #   and this generator does not attempt to port, the SAME boundary
+    #   `read_models.rb` draws for a declared read model's own eligible
+    #   head (that file's own header has the full argument — including WHY
+    #   freshness/use_index are tolerated there and NOT here: this
+    #   generator hasn't been given the same "neither is ever read by the
+    #   in-memory interpreter path" case-by-case audit for the AGGREGATE-
+    #   query side of that argument, so it stays conservative rather than
+    #   assume the read-model finding transfers unexamined).
+    #
+    #   an order_by field that doesn't reduce to a plain JSON string or
+    #   number (a hop, an entity-scoped field, a list_of field, a
+    #   multi-member non-numeric value object) — `declared_order_by_skip_
+    #   reason` below, reusing `query_field_kind` the identical way
+    #   `read_models.rb`'s own `read_model_order_by_skip_reason` (now
+    #   moved here and renamed — see that function's own comment) already
+    #   did.
+    #
+    #   a limit whose own declared value isn't a literal integer or a
+    #   caller-bound Symbol arg — `declared_limit_skip_reason` below, same
+    #   move-and-rename.
     #
     #   a where clause hopping through a reference (`customer.status`) —
     #   cross-aggregate joins are `read_model` territory, a different,
@@ -177,16 +196,24 @@ module RustProjection
 
     # A whole declared query's own eligibility. `nil` means every
     # `emit_query_table` needs to fully bake this query in; a String
-    # names the first reason (top-level option, or where clause) that
-    # disqualifies it.
+    # names the first reason (top-level option, where clause, or
+    # order_by/limit content) that disqualifies it.
+    #
+    # order_by/limit's own PRESENCE stopped being disqualifying here
+    # 2026-08-11 — this used to `return` immediately on `query[:order_by]`/
+    # `query[:limit]` before even looking at the where clauses, which meant
+    # a query declaring BOTH order_by and something else genuinely out of
+    # scope (a hop, `freshness`, `authorize`) always reported "declares
+    # order_by" — true, but not the reason that would still exclude it once
+    # order_by itself was supported. Checking extras/use_index/wheres FIRST
+    # now, and content-checking order_by/limit LAST, means the reason this
+    # function returns for a still-excluded query is always the REAL
+    # remaining one, never a stale one order_by/limit merely used to mask.
     def query_skip_reason(query, aggregate, value_objects_by_name)
-      return "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope " \
-             "for the field-comparator subset it covers (see rust/project/queries.rb's own header)" if query[:order_by]
-      return "declares limit, out of scope for the same reason order_by is" if query[:limit]
-
       extras = %i[offset cursor consistency freshness authorization null_semantics inspection].select { |k| query[k] }
-      return "declares #{extras.join(', ')}, out of scope for the same reason order_by is" if extras.any?
-      return "declares use_index, out of scope for the same reason order_by is" if Array(query[:index_hints]).any?
+      return "declares #{extras.join(', ')} — out of scope for this generator (rust/project/queries.rb's own " \
+             "header has the full argument)" if extras.any?
+      return "declares use_index, out of scope for the same reason the extras above are" if Array(query[:index_hints]).any?
 
       return "declares no where clauses at all — nothing for filter_entries to bake in" if Array(query[:wheres]).empty?
 
@@ -195,7 +222,74 @@ module RustProjection
         return reason if reason
       end
 
-      nil
+      order_reason = declared_order_by_skip_reason(query[:order_by], aggregate, value_objects_by_name)
+      return order_reason if order_reason
+
+      declared_limit_skip_reason(query[:limit])
+    end
+
+    # `IR::Query`'s own `order_by`/`limit` content check — MOVED here from
+    # `read_models.rb` (2026-08-11, was `read_model_order_by_skip_reason`/
+    # `read_model_limit_skip_reason`), not duplicated: neither check ever
+    # depended on being a read model in the first place — both take "some
+    # aggregate, some order_by/limit hash" and answer a question that's
+    # equally true of a declared AGGREGATE query's own order_by/limit
+    # (`query_skip_reason` above) and a read model's eligible-head
+    # order_by/limit (`read_models.rb`'s own `read_model_options_content_
+    # skip_reason`, which now calls these same two functions by their new
+    # name). `module_function` already put them within reach of every file
+    # in this module before the move — the move is purely about which file
+    # a reader looks in first, not a reachability fix.
+    def declared_order_by_skip_reason(order_by, aggregate, value_objects_by_name)
+      return nil unless order_by
+
+      field = order_by[:field].to_s
+      kind = query_field_kind(aggregate, field, value_objects_by_name)
+      return nil if %i[string number].include?(kind)
+
+      "declares order_by on #{field.inspect} — this generator can only sort a field that reduces to a plain " \
+        "JSON string or number (kind: #{kind}); a hop through a reference, an entity-scoped field, a list_of " \
+        "field, or a multi-member non-numeric value object can't be compared generically"
+    end
+
+    # `limit`'s own literal value rides the wire through `QuerySpecification.
+    # render_value` (`.to_s` for anything that isn't a Symbol), so a real
+    # Integer literal ("5") and a genuinely non-numeric literal are only
+    # told apart here, the same "recover the true type or refuse" caution
+    # this file's own literal-comparator reasoning already holds to — a
+    # Symbol arg (":page_size") needs no such check, it resolves from real,
+    # correctly-typed wire args at dispatch time.
+    def declared_limit_skip_reason(limit)
+      return nil unless limit
+
+      raw = limit[:value].to_s
+      return nil if raw.start_with?(":") || raw.match?(/\A-?\d+\z/)
+
+      "declares limit #{raw.inspect} — not a literal integer or a caller-bound Symbol arg, so this generator " \
+        "can't compile a real limit count from it"
+    end
+
+    # `order_by`'s own compiled form — the identical `descending` collapse
+    # `read_models.rb`'s own `emit_read_model_order_by` already does,
+    # aimed at the canonical `crate::kernel::query_ordering::OrderBy` path
+    # directly rather than through the `read_model::ReadModelOrderBy` alias
+    # (which resolves to the exact same type — either spelling compiles to
+    # the same struct — but a declared AGGREGATE query has no read-model
+    # baggage to route through, so it spells the shared type's own name).
+    def emit_query_order_by(order_by)
+      descending = order_by[:direction].to_s == "desc" ? "true" : "false"
+      "crate::kernel::query_ordering::OrderBy { field: #{order_by[:field].to_s.inspect}, descending: #{descending} }"
+    end
+
+    # `limit`'s own compiled form — `declared_limit_skip_reason` already
+    # confirmed a non-Arg value is a real literal integer, so `.to_i` here
+    # never silently truncates anything it didn't already refuse. Same
+    # canonical-path reasoning as `emit_query_order_by` just above.
+    def emit_query_limit(limit)
+      raw = limit[:value].to_s
+      return "crate::kernel::query_ordering::Limit::Arg(#{raw.delete_prefix(':').inspect})" if raw.start_with?(":")
+
+      "crate::kernel::query_ordering::Limit::Literal(#{raw.to_i})"
     end
 
     # `query_skip_reason` already returned `nil` for this query — every
@@ -245,8 +339,15 @@ module RustProjection
         "value: #{emit_query_condition_value(condition)} },"
     end
 
+    # `order_by`/`limit` are only ever populated when `query_skip_reason`
+    # already confirmed their content is generable (`nil` for a query that
+    # declares neither, matching `named_query.rs`'s own `QueryDef` header:
+    # "the ordinary case, and the ONLY case before 2026-08-11").
     def emit_query_def(query_def)
       conditions = query_def[:conditions].map { |c| "        #{emit_query_condition(c)}" }.join("\n")
+      order_by = query_def[:order_by] ? "Some(#{query_def[:order_by]})" : "None"
+      limit = query_def[:limit] ? "Some(#{query_def[:limit]})" : "None"
+
       <<~RUST.rstrip
         crate::kernel::QueryDef {
             verb: #{query_def[:verb].inspect},
@@ -254,6 +355,8 @@ module RustProjection
             conditions: &[
         #{conditions}
             ],
+            order_by: #{order_by},
+            limit: #{limit},
         },
       RUST
     end
@@ -273,6 +376,8 @@ module RustProjection
                   value: crate::kernel::QueryConditionValue::Literal("tmpl_literal"),
               },
           ],
+          order_by: Some(crate::kernel::query_ordering::OrderBy { field: "tmpl_order_field", descending: true }),
+          limit: Some(crate::kernel::query_ordering::Limit::Literal(5)),
       },
     RUST
 
