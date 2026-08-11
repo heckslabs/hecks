@@ -269,6 +269,7 @@ Hecks.bluebook "Bluebook" do
         member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
 
         member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
+        member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
         # THREE WORDS FOR ONE FIELD. `core`, `supporting` and `generic` are the
         # three values Classification admits, spelled as bare words rather than
         # as an argument to one — the only place in the language where the VALUE
@@ -307,15 +308,19 @@ Hecks.bluebook "Bluebook" do
         member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
 
         # A PIECE SAYS LESS THAN A HEAD, and the table is where that stops being
-        # folklore : an entity admits no `reference_to`, no `value_object`, no
-        # `policy` and no nested `entity`. Six words, against an aggregate's
-        # eleven.
+        # folklore : an entity admits no `value_object`, no `policy` and no
+        # nested `entity`. `reference_to` is the one exception — a piece can
+        # point at another ROOT the same way its own head can (Card.assignee_id),
+        # just never at another piece, since there's no cross-piece addressing
+        # anywhere in this language to resolve one against. Seven words,
+        # against an aggregate's eleven.
         member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
         member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
         member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
         member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
         member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
         member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
+        member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
 
         member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
         member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
@@ -362,6 +367,7 @@ Hecks.bluebook "Bluebook" do
 
         member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
         member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
+        member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
         member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres"
         member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field"
         member word: "limit",           context: "Query", body: "none", inner: "", opens: "", fills: "limit"
@@ -382,6 +388,7 @@ Hecks.bluebook "Bluebook" do
         member word: "description",     context: "ReadModel", body: "none", inner: "", opens: "", fills: "description"
         member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target"
         member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
+        member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
         # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
         # three words, same builder module, different landing — `ReadModel#to_h`
         # omits wheres/order_by/limit, so they have
@@ -514,6 +521,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
 
         member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
+        member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
         member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "report",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
         member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
@@ -570,6 +578,8 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "Entity", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Entity", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
         member keyword: "attribute",       context: "Entity", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+        member keyword: "reference_to",    context: "Entity", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+        member keyword: "reference_to",    context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
 
         member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
         member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal"
@@ -671,6 +681,9 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
         member keyword: "attribute",       context: "Query", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+        member keyword: "reference_to",    context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+        member keyword: "reference_to",    context: "Query", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "reference_to",    context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: "wheres", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements"
         # THE DIRECTION IS A SECOND POSITIONAL AND DEFAULTS TO :asc — the only
         # two-positional word in the language, and the reason `second` had to be

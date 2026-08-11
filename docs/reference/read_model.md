@@ -36,6 +36,12 @@ every row centers on, everything else in `include` comes back a
 collection around it (see `include`). A read model declares only one;
 a second `reference_to` is refused when the bluebook builds.
 
+Optional: a read model with no `reference_to` at all is ROOTLESS — no
+id argument at dispatch, every `include`d head reads its own aggregate
+whole rather than being matched against a root. At least one `include`
+is still required (a read model naming neither refuses). See
+`group_by`, which this exists for.
+
 ## include
 
 <!-- generated:begin word=include -->
@@ -53,6 +59,32 @@ as the one record, any other included aggregate comes back as a list
 — there's no `many:` to spell out yourself. Declaring the same `as:`
 name twice is refused. See the queries-and-read-models guide for the
 full `ComplianceDashboard` example.
+
+## group_by
+
+<!-- generated:begin word=group_by -->
+`group_by` — fills `group_by`
+<!-- generated:end -->
+
+Nests the eligible collection's own rows into a Hash keyed by one or
+more of its own field values, in the order named — `group_by :agg,
+:state` on a `StateStyle` head comes back `{"Board" => {"open" =>
+{...}, "archived" => {...}}}`, not a flat array. Held to the same
+"exactly one many-side head" rule `where`/`order_by`/etc already are
+(`ReadModelBuilder#seal_group_by`) — grouping is a question about ONE
+collection's own rows. Requesting it also unwraps every single-
+attribute value object on that head's own rows to its bare scalar
+(`Runtime::Value.materialize_unwrapped`, not the plain `materialize`
+every other head still gets) — grouping needs a real scalar to key by
+regardless, so a read model already asking for that gets the unwrap
+for free. Refuses at DISPATCH time (not build time — the aggregate
+this read model targets isn't known until then) if a named field isn't
+one the eligible collection's own aggregate actually declares.
+
+This is also what makes `reference_to` optional: a read model with no
+root — every `include`d head reading its own aggregate whole, no id
+argument at dispatch — is `group_by`'s own real use (nesting a whole
+table by its own field values has no root record to hang off).
 
 ## where
 

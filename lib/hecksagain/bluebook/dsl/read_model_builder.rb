@@ -35,20 +35,48 @@ module Hecksagain
           @includes << [Naming.demodulise(type), as]
         end
 
+        # NAMES which of the eligible head's own fields to nest its rows
+        # under — one level per field, the leaf being that row with the
+        # named fields removed (they're already spent, as the keys that
+        # reached it). The same "exactly one many-side head" rule
+        # `seal_query_options` already enforces for where/order_by/etc
+        # applies here too (`seal_group_by`) — grouping is a question
+        # about ONE collection's own rows, same as those are.
+        def group_by(*fields)
+          # Hash rows, `{field:}`, not bare symbols — same shape
+          # `aggregate_heads` already uses for exactly the reason it
+          # does: the language's own self-hosted grammar (`projection
+          # .bluebook`'s `GroupByField`) has to have SOMETHING to read a
+          # `field:` off of when `Judge` walks this list generically: a
+          # bare `Symbol` has no attribute of its own to read.
+          @group_by = fields.map { |field| { field: field.to_sym } }
+        end
+
+        # `reference_to` is now OPTIONAL — a read model with no root is a
+        # BULK one: every `include`d head reads its own aggregate whole
+        # (no FK match against a root that doesn't exist), and dispatch
+        # takes no id argument at all. This used to be REQUIRED, on the
+        # assumption a read model was always "one root record's own
+        # cross-aggregate view" — true of every real corpus report so
+        # far, but not a truth about read models themselves: `group_by`'s
+        # own real use (nesting an aggregate's OWN whole table by its own
+        # field values) has no root to speak of. Still needs to describe
+        # SOMETHING — zero includes AND no reference is refused.
         def build
-          raise Malformed, "#{@name} needs an aggregate-head reference" unless @reference_target
+          raise Malformed, "#{@name} needs an aggregate-head reference or at least one include" if !@reference_target && Array(@includes).empty?
 
           Array(@includes).each do |target, as|
             add_aggregate_head(target, as, many: target != @reference_target)
           end
           seal_query_options
+          seal_group_by
           seal_cursor
           IR::ReadModel.new(name: @name, description: @description, reference_name: @reference_name,
                             reference_target: @reference_target, aggregate_heads: @aggregate_heads || [],
                             wheres: @wheres || [], order_by: @order_by, limit: @limit, offset: @offset,
                             cursor: @cursor, consistency: @consistency, freshness: @freshness,
                             authorization: @authorization, null_semantics: @null_semantics,
-                            inspection: @inspection,
+                            inspection: @inspection, group_by: @group_by || [],
                             index_hints: @index_hints || [])
         end
 
@@ -81,6 +109,21 @@ module Hecksagain
                 "#{@name} declares where/order_by/limit/offset but includes #{many} many-side " \
                 "aggregates, not exactly one — these options apply to a single collection; " \
                 "name which one by including only it, or drop the options"
+        end
+
+        # Same shape as `seal_query_options`, same reason — `group_by`
+        # answers a question about ONE collection's own rows, so zero or
+        # several many-side heads leaves it with no unambiguous target.
+        def seal_group_by
+          return unless @group_by&.any?
+
+          many = Array(@aggregate_heads).count { |head| head[:many] }
+          return if many == 1
+
+          raise Malformed,
+                "#{@name} declares group_by but includes #{many} many-side " \
+                "aggregates, not exactly one — group_by nests a single collection's " \
+                "own rows; name which one by including only it"
         end
 
         # `cursor` parses, round-trips through the IR, and is read by nothing —

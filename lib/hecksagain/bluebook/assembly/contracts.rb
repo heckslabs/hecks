@@ -41,7 +41,8 @@ module Hecksagain
             name:           [:name,           :plain],
             version:        [:version,        :plain],
             vision:         [:vision,         :plain],
-            classification: [:classification, :plain]
+            classification: [:classification, :plain],
+            formerly_known_as: [:formerly_known_as, :plain]
           },
           rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }
@@ -219,6 +220,7 @@ module Hecksagain
             reference_name:   [:reference_name,   :identity],
             reference_target: [:reference_target, :plain],
             aggregate_heads:  [:aggregate_heads,  [:each, :head]],
+            group_by:         [:group_by,         [:each, :group_by_field]],
             # A read model inherits every option an ask has, so it reads them the
             # same way — see Query.
             wheres:           [:wheres,           [:each, :where_clause]],
@@ -234,7 +236,7 @@ module Hecksagain
             index_hints:      [:index_hints,      :index_hints]
           },
           rows: { options: :read_model_option_rows },
-          reads: { reference_name: :symbol, aggregate_heads: [:each, :head] },
+          reads: { reference_name: :symbol, aggregate_heads: [:each, :head], group_by: [:each, :group_by_field] },
           derived: {
             position: :walk,
             query_name: [:computed, :query_name],

@@ -39,6 +39,22 @@ aggregate — the `:symbol` a `where` value can resolve from
 (`attribute :ceiling, Draft` backs `where(draft: { lt: :ceiling })`). A
 `:symbol` naming no such attribute is refused when the bluebook builds.
 
+## reference_to
+
+<!-- generated:begin word=reference_to -->
+`reference_to type, as:, optional:` — fills `attributes`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | constant | true | type |
+| `as:` | symbol | false | name |
+| `optional:` | flag | false | optional |
+<!-- generated:end -->
+
+Names a query parameter as another aggregate's own identity — `Card.Active`'s own `Board`, scoping the result to one board's cards when given. A plain attribute typed as a reference; a query has no root of its own to act on the way a command does, so there's no "acts on itself" case to distinguish here, just a parameter. `optional:` lets the same query run unscoped too — every active card everywhere, when no board is named.
+
+<!-- TODO: document this word -->
+
 ## where
 
 <!-- generated:begin word=where -->

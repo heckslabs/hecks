@@ -8,7 +8,22 @@ require_relative "registry"
 module Hecksagain
   module Runtime
     class Loader
-      def self.boot(path, shared: nil)
+      # `install_facade:` defaults on — every ordinary caller wants
+      # `Widget::Item.Add(...)` sugar. A caller that only ever dispatches
+      # by FQN string (`SmokeTest`, the one caller so far) can pass
+      # `false` to skip it: `Facade::Surface.install` puts a bare global
+      # Ruby constant on `Object` per domain AND per aggregate name, with
+      # no scoping and no cleanup hook, so a tool booting arbitrary
+      # throwaway domains under generic names ("Widget", "Item", "Tag")
+      # would otherwise leak those names into the rest of the process —
+      # measured, not hypothetical: this exact leak once made an
+      # unrelated `dsl_spec.rb` example resolve a bare `Widget` constant
+      # to a stale smoke-test facade from a deleted temp directory instead
+      # of raising, corrupting that spec's own unrelated build. Skipping
+      # the install is safe because nothing downstream of a raw
+      # `Dispatcher` needs the sugar — `Dispatcher#dispatch`/`#query` work
+      # identically either way.
+      def self.boot(path, shared: nil, install_facade: true)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
         root      = loading.shared_root(shared, directory)
@@ -26,7 +41,8 @@ module Hecksagain
         # before any adapter touches data.
         EraCheck.check!(registry, directory)
         registry.verify!
-        bind_runtime(dispatcher_for(registry))
+        dispatcher = dispatcher_for(registry)
+        install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
       # `RemoteDispatcher` for a domain routed through Lambda,

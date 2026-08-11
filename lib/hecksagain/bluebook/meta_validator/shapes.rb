@@ -188,6 +188,8 @@ module Hecksagain
           }
         end
 
+        def group_by_field(row) = { field: text(row[:field]) }
+
         # THE APPEND FLATTENING, IN REVERSE.
         #
         # An append binds several fields at once and the language's Change holds one

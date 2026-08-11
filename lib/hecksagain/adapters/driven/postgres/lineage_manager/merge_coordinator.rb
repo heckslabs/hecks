@@ -12,7 +12,7 @@ module Hecksagain
         module MergeCoordinator
           def merge!(registry:, bluebook:, settings:, winners: {})
             db = Postgres.connect_for(bluebook.name, settings)
-            lineage = Lineage.new(db, bluebook.name)
+            lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
             lineage.ensure_base!
 
             held = lineage.eras

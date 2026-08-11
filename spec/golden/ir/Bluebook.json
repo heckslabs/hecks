@@ -41,6 +41,15 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "formerly_known_as",
+          "optional": false,
+          "pattern": null,
+          "type": "FormerlyKnownAs"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "normalisations",
           "optional": false,
@@ -86,6 +95,15 @@
               "optional": true,
               "pattern": null,
               "type": "Version"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "formerly_known_as",
+              "optional": true,
+              "pattern": null,
+              "type": "FormerlyKnownAs"
             }
           ],
           "emits": [
@@ -396,6 +414,30 @@
 
           ],
           "name": "Version"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a formerly_known_as says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "FormerlyKnownAs"
         }
       ]
     },
@@ -7944,6 +7986,32 @@
             [
               [
                 "word",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "word",
                 "core"
               ],
               [
@@ -8650,6 +8718,32 @@
             [
               [
                 "word",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
                 "role"
               ],
               [
@@ -9278,6 +9372,32 @@
             [
               [
                 "word",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
                 "where"
               ],
               [
@@ -9637,6 +9757,32 @@
               [
                 "fills",
                 "aggregate_heads"
+              ]
+            ],
+            [
+              [
+                "word",
+                "group_by"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "group_by"
               ]
             ],
             [
@@ -10470,6 +10616,36 @@
               [
                 "fills",
                 "vision"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "formerly_known_as"
               ]
             ],
             [
@@ -11610,6 +11786,66 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "name"
               ]
             ],
             [
@@ -13128,6 +13364,96 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "optional"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "optional"
               ]
             ],
             [
@@ -14874,6 +15200,15 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "group_by",
+          "optional": false,
+          "pattern": null,
+          "type": "GroupByField"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "position",
           "optional": false,
@@ -14925,7 +15260,7 @@
               "default": null,
               "list": false,
               "name": "reference_name",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "type": "ReadModelText"
             },
@@ -14934,7 +15269,7 @@
               "default": null,
               "list": false,
               "name": "reference_target",
-              "optional": false,
+              "optional": true,
               "pattern": null,
               "type": "ReadModelText"
             },
@@ -15003,10 +15338,7 @@
 
           ],
           "givens": [
-            {
-              "canonical": "!reference_target.value.to_s.empty?",
-              "description": "a read model gathers heads only after its reference"
-            }
+
           ],
           "goal": "Attach one aggregate head to the read model",
           "mutations": [
@@ -15021,6 +15353,45 @@
             }
           ],
           "name": "Gather",
+          "provenance": null,
+          "references": "ReadModel",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "field",
+              "optional": false,
+              "pattern": null,
+              "type": "ReadModelText"
+            }
+          ],
+          "emits": [
+            "GroupByFieldAdded"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+            {
+              "canonical": "!field.value.to_s.empty?",
+              "description": "a group_by field is named"
+            }
+          ],
+          "goal": "Nest one collection's own rows by one of its own fields",
+          "mutations": [
+            {
+              "fields": {
+                "field": "field"
+              },
+              "op": "append",
+              "target": "group_by"
+            }
+          ],
+          "name": "GroupBy",
           "provenance": null,
           "references": "ReadModel",
           "role": "Language"
@@ -15301,6 +15672,30 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "field",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!field.to_s.empty?",
+              "description": "a group_by field is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "GroupByField"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "value",
               "optional": false,
               "pattern": null,
@@ -15409,6 +15804,9 @@
         }
       ],
       "description": "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read.",
+      "group_by": [
+
+      ],
       "name": "WholeBluebook",
       "query_name": "whole_bluebook",
       "reference_name": "bluebook",

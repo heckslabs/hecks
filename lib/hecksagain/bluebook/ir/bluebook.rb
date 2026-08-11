@@ -20,10 +20,10 @@ module Hecksagain
         IR_VERSION = 1
 
         attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                    :classification, :read_models, :ports
+                    :classification, :read_models, :ports, :formerly_known_as
 
         def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
-                       process_managers: [], classification: nil, read_models: [])
+                       process_managers: [], classification: nil, read_models: [], formerly_known_as: nil)
           @policies         = policies
           @process_managers = process_managers
           @name       = name.to_s
@@ -34,6 +34,7 @@ module Hecksagain
           @aggregates = aggregates
           @read_models = read_models
           @classification = classification&.to_s
+          @formerly_known_as = formerly_known_as&.to_s
           # A port with NO owning aggregate — declared bare at a hecksagon's
           # root, belonging to the chapter as a whole rather than one record.
           # Attached the same way an aggregate-scoped one is, after the fact,

@@ -19,6 +19,11 @@ Hecks.bluebook "Bluebook" do
     # The same open map a query carries — see Query's AskOption. A read model
     # inherits every specification option an ask has, so it holds them the same way.
     attribute :options,          list_of(ProjectionOption)
+    # WHICH of the eligible head's own fields to nest its rows under, in
+    # declared order. Rows, not a single value object with N fields — an
+    # arbitrary NUMBER of fields, the same reason `aggregate_heads`/
+    # `options` are lists rather than fixed attributes.
+    attribute :group_by,         list_of(GroupByField)
 
     value_object "ReadModelName" do
       attribute :value, String
@@ -49,6 +54,11 @@ Hecks.bluebook "Bluebook" do
       attribute :at,     String
     end
 
+    value_object "GroupByField" do
+      attribute :field, String
+      invariant("a group_by field is named") { !field.to_s.empty? }
+    end
+
     # The way back: everything DECLARED IN the chapter above. The parent
     # reference IS the query.
     # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
@@ -76,8 +86,12 @@ Hecks.bluebook "Bluebook" do
       attribute :name,             ReadModelName
       attribute :description,      ProjectionPurpose, optional: true
       attribute :query_name,       ReadModelText
-      attribute :reference_name,   ReadModelText
-      attribute :reference_target, ReadModelText
+      # Both optional now — a ROOTLESS read model (no `reference_to`
+      # declared at all) has neither. Permanently empty, not "not yet
+      # set" — see Gather's own comment below for why that distinction
+      # matters.
+      attribute :reference_name,   ReadModelText, optional: true
+      attribute :reference_target, ReadModelText, optional: true
 
       attribute :position, Position, optional: true
       emits "ProjectionDeclared"
@@ -99,11 +113,33 @@ Hecks.bluebook "Bluebook" do
       attribute :as,        ReadModelText
       attribute :many,      ReadModelText
 
-      given("a read model gathers heads only after its reference") { !reference_target.value.to_s.empty? }
+      # NOT "reference_target must already be set" anymore — reference_target
+      # is fixed forever at Declare time (nothing ever changes it later), so
+      # that rule was really "this read model must have SOME reference, ever"
+      # — exactly the constraint a ROOTLESS read model (bulk, no root,
+      # `group_by`'s own real use) deliberately doesn't meet, permanently,
+      # on purpose, not by omission. Removed rather than relaxed: there is
+      # no runtime fact left here that distinguishes "forgot to declare a
+      # reference" from "declared rootless on purpose" — both look
+      # identical (`reference_target` empty) by the time Gather is judged.
 
       then_set :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
       emits "HeadGathered"
+    end
+
+    command "GroupBy" do
+      role "Language"
+      goal "Nest one collection's own rows by one of its own fields"
+
+      reference_to ReadModel
+      attribute :field, ReadModelText
+
+      given("a group_by field is named") { !field.value.to_s.empty? }
+
+      then_set :group_by, append: { field: :field }
+
+      emits "GroupByFieldAdded"
     end
 
     command "Option" do

@@ -1,4 +1,5 @@
 require_relative "../bluebook/ir/attribute"
+require_relative "value_object_shape"
 
 module Hecksagain
   module Presentation
@@ -117,9 +118,10 @@ module Hecksagain
         # kept separate because an admitted set changes the OPTIONS, not
         # which field the hop lands on.
         own_shape = own_value_object(attribute, aggregate)
-        return options unless own_shape && own_shape.attributes.size == 1
+        inner = own_shape && ValueObjectShape.sole_attribute(own_shape)
+        return options unless inner
 
-        options.path = "#{common[:path]}.#{own_shape.attributes.first.name}"
+        options.path = "#{common[:path]}.#{inner.name}"
         options
       end
 
@@ -132,7 +134,7 @@ module Hecksagain
         return primitive_field(attribute, common) unless shape
 
         return closed_set_field(shape, common) if shape.closed_set?
-        return money_field(shape, common) if money_shaped?(shape)
+        return money_field(shape, common) if ValueObjectShape.money?(shape)
 
         # A single-attribute value object (EmailAddress{address}, CustomerNumber{value})
         # is a NAME for a scalar, not a genuine group — unwrap it so the form
@@ -141,8 +143,7 @@ module Hecksagain
         # declared on `address`, not on the outer `email` attribute) drives
         # the input type. [[feedback_name_the_scalar_field]] says the same
         # thing about Ruby call sites; a form asks the identical question.
-        if shape.attributes.size == 1
-          inner = shape.attributes.first
+        if (inner = ValueObjectShape.sole_attribute(shape))
           return resolve(inner, aggregate: aggregate, path: "#{common[:path]}.#{inner.name}")
                  .tap { |field| field.optional = common[:optional] || field.optional }
         end
@@ -161,10 +162,6 @@ module Hecksagain
       def self.group_field(shape, aggregate, common)
         children = shape.attributes.map { |inner| resolve(inner, aggregate: aggregate, path: "#{common[:path]}.#{inner.name}") }
         Field.new(path: common[:path], label: common[:label], kind: :group, optional: common[:optional], children: children)
-      end
-
-      def self.money_shaped?(shape)
-        shape.attributes.map { |a| a.name }.sort == %i[cents currency]
       end
 
       def self.money_field(shape, common)

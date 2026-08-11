@@ -5503,6 +5503,9 @@
         }
       ],
       "description": "A customer's cross-account position, rebuilt from aggregate heads.",
+      "group_by": [
+
+      ],
       "name": "CustomerPortfolio",
       "query_name": "customer_portfolio",
       "reference_name": "customer",
@@ -5526,6 +5529,9 @@
         "max_age": "60",
         "mode": "eventual"
       },
+      "group_by": [
+
+      ],
       "index_hints": [
         {
           "name": "account_index"
@@ -5535,6 +5541,28 @@
       "query_name": "compliance_dashboard",
       "reference_name": "account",
       "reference_target": "Account"
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "accounts",
+          "many": true
+        }
+      ],
+      "description": "Every account the bank holds, sorted into what kind it is, then by its own number.",
+      "group_by": [
+        {
+          "field": "kind"
+        },
+        {
+          "field": "number"
+        }
+      ],
+      "name": "AccountsByKind",
+      "query_name": "accounts_by_kind",
+      "reference_name": null,
+      "reference_target": null
     }
   ],
   "version": "v1",

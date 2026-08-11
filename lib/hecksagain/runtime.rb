@@ -62,7 +62,8 @@ module Hecksagain
       attr_reader :current_registry
 
       # Load a bluebook directory and return the Dispatcher bound to it.
-      def boot(path, shared: nil) = Loader.boot(path, shared: shared)
+      # `install_facade:` — see Loader.boot.
+      def boot(path, shared: nil, install_facade: true) = Loader.boot(path, shared: shared, install_facade: install_facade)
 
       # Bind the ambient registry for the duration of the block, restoring
       # whatever was there before. Nesting is safe ; a raise still restores.

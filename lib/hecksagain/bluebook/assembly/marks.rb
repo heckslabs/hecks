@@ -74,6 +74,11 @@ module Hecksagain
           row.to_h { |key, value| [key.to_sym, key.to_sym == :as ? value.to_sym : value] }
         end
 
+        # A group_by field's own name — the builder's native shape is already
+        # `{field: :symbol}`, so this matches it rather than leaving `field`
+        # as the String `Shapes#group_by_field` reads back.
+        def group_by_field(row) = { field: row[:field].to_sym }
+
         # A scalar that was written as itself rather than inspected — a member's
         # value, where the language holds text and the type has to be read back from
         # the shape of it. Unlike `unmark`, a bare word stays a String here, because

@@ -17,6 +17,7 @@
 // below just forward to them — no behavior of their own.
 
 use std::path::Path;
+use std::sync::OnceLock;
 use tokio::io::{AsyncRead, AsyncWrite};
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::cli::{IsTerminal, StdinStream, StdoutStream};
@@ -54,18 +55,47 @@ impl StdoutStream for StepsOut {
     }
 }
 
-/// Runs `wasm_path` (a wasm32-wasip1 module speaking the `{"steps"}` ->
-/// `{"instances","events","refusals"}` CLI contract) against `input`,
-/// returning its stdout. One fresh `Engine`/`Store`/instance per call —
-/// this crate is a Lambda handler, not a long-lived server, so there is
-/// no instance pool to manage and no state to leak between invocations
-/// (the module's own `Store::new()` inside `kernel::cli::run` already
-/// starts empty every call regardless).
-pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
+// COMPILED ONCE PER (warm) LAMBDA EXECUTION ENVIRONMENT, not once per
+// CALL — `Engine`/`Module` hold only the compiled artifact, no
+// per-invocation state at all (that lives entirely in `Store`, still
+// created fresh below, every call), so caching them leaks nothing
+// between invocations. This used to be a real, live cost: every
+// COMMAND dispatch (`dispatch::handle`) runs through here, and
+// `Module::from_file` is wasmtime doing real JIT compilation from raw
+// bytes — a genuine multi-second cost on Lambda's own CPU allocation,
+// paid again on every single warm call, not just a true cold start.
+// `dispatch::read`'s own fast path (a snapshot with nothing to
+// replay) never reaches this function at all, which is why reads
+// stayed fast while every command got slower than the actual
+// rehydrate-replay work here ever needed to be.
+static ENGINE_AND_MODULE: OnceLock<(Engine, Module)> = OnceLock::new();
+
+fn engine_and_module(wasm_path: &Path) -> anyhow::Result<&'static (Engine, Module)> {
+    if let Some(cached) = ENGINE_AND_MODULE.get() {
+        return Ok(cached);
+    }
     let engine = Engine::default();
     let module = Module::from_file(&engine, wasm_path)?;
+    // A LOST RACE IS HARMLESS, NOT WASTED WORK TO AVOID — two calls
+    // both missing the check above (only possible if this process
+    // were ever invoked concurrently; dispatch.rs's own Mutex around
+    // the one Postgres client already makes that vanishingly rare in
+    // practice) would each compile once and only one wins
+    // `get_or_init`; the loser's own Engine/Module are just dropped.
+    // Simpler and just as correct as coordinating who compiles.
+    Ok(ENGINE_AND_MODULE.get_or_init(|| (engine, module)))
+}
 
-    let mut linker: Linker<WasiP1Ctx> = Linker::new(&engine);
+/// Runs `wasm_path` (a wasm32-wasip1 module speaking the `{"steps"}` ->
+/// `{"instances","events","refusals"}` CLI contract) against `input`,
+/// returning its stdout. The compiled module is cached across calls
+/// (see `engine_and_module` above) — `Store`/`Linker`/the instance
+/// itself stay fresh every call, so there is still no state to leak
+/// between invocations.
+pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
+    let (engine, module) = engine_and_module(wasm_path)?;
+
+    let mut linker: Linker<WasiP1Ctx> = Linker::new(engine);
     p1::add_to_linker_sync(&mut linker, |ctx| ctx)?;
 
     let stdout_pipe = MemoryOutputPipe::new(64 * 1024 * 1024);
@@ -74,8 +104,8 @@ pub fn run(wasm_path: &Path, input: &str) -> anyhow::Result<String> {
         .stdout(StepsOut(stdout_pipe.clone()))
         .build_p1();
 
-    let mut store = Store::new(&engine, wasi_ctx);
-    let instance = linker.instantiate(&mut store, &module)?;
+    let mut store = Store::new(engine, wasi_ctx);
+    let instance = linker.instantiate(&mut store, module)?;
     let start = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
 
     // A WASI "command" module calls `proc_exit` (surfaced as a trap
