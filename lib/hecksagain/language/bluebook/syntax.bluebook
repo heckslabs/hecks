@@ -652,6 +652,23 @@ Hecks.bluebook "Bluebook" do
         # `attribute :value` would too.
         member keyword: "attribute",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
+        # A SECOND ROW FOR THE SAME POSITION, same shape as `identified_by`'s
+        # own two `at: "1"` rows just above — one word, two lexical kinds at
+        # the SAME slot. `AttributeCollector#attribute`'s `type` parameter
+        # takes ANY object with no runtime check at all, so a plain quoted
+        # string naming a value object BY NAME (not yet defined as a Ruby
+        # constant at the point `attribute` is called) is real, confirmed
+        # live syntax: `spec/fixtures/hop_chain.bluebook`'s own `attribute
+        # :name, "Name"`, forward-referencing a `value_object("Name") do
+        # ... end` declared a few lines later in the same aggregate — a
+        # bareword `Name` would hit Ruby's own `const_missing` before the
+        # value object exists, but a quoted string sidesteps that
+        # entirely, the exact same reason `admits:` is written as text
+        # rather than a constant path (see that column's own comment,
+        # above). Renders identically to the bareword form either way —
+        # `IR::Attribute#to_h`'s own `type.to_s` doesn't care which
+        # spelling minted it.
+        member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
         member keyword: "attribute",       context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Aggregate", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
@@ -668,6 +685,9 @@ Hecks.bluebook "Bluebook" do
         member keyword: "lifecycle",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
         member keyword: "attribute",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Entity", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
+        # See Aggregate's own second `attribute` row above — the same
+        # forward-reference-by-string form, one level down.
+        member keyword: "attribute",       context: "Entity", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
         member keyword: "attribute",       context: "Entity", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Entity", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
@@ -718,6 +738,8 @@ Hecks.bluebook "Bluebook" do
         member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
         member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "false", fills: "type"
+        # See Aggregate's own second `attribute` row, above — same shape.
+        member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "Command", at: "",  named: "default",   kind: "literal",  required: "false", fills: "default"
         member keyword: "attribute",       context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Command", at: "",  named: "pattern",   kind: "text",     required: "false", fills: "pattern"
@@ -725,6 +747,8 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "attribute",       context: "ValueObject", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "ValueObject", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
+        # See Aggregate's own second `attribute` row, above — same shape.
+        member keyword: "attribute",       context: "ValueObject", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "ValueObject", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
         member keyword: "attribute",       context: "ValueObject", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "ValueObject", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
@@ -783,6 +807,8 @@ Hecks.bluebook "Bluebook" do
         member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
         member keyword: "attribute",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
+        # See Aggregate's own second `attribute` row, above — same shape.
+        member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "Query", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
         member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
@@ -860,6 +886,8 @@ Hecks.bluebook "Bluebook" do
         member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
         member keyword: "attribute",       context: "PortOperation", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "name"
         member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "constant", required: "false", fills: "type"
+        # See Aggregate's own second `attribute` row, above — same shape.
+        member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "PortOperation", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
         member keyword: "attribute",       context: "PortOperation", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
         member keyword: "attribute",       context: "PortOperation", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"

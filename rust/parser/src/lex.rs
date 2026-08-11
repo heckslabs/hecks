@@ -430,14 +430,26 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
     None
 }
 
-/// A top-level `{` immediately preceded (skipping whitespace) by `:` or
-/// `,` is a HASH-LITERAL argument's own opening brace, never a `source`-
-/// shaped block opener: a genuine block/predicate-body brace is always
-/// either the LAST token of the call (`given("desc") { ... }`, preceded
-/// by `)`) or the very first thing after the word itself (`identified_by
-/// { ... }`, nothing precedes it at all — `before` is empty).
+/// A top-level `{` immediately preceded (skipping whitespace) by `:`,
+/// `,`, or `>` is a HASH-LITERAL argument's own opening brace, never a
+/// `source`-shaped block opener: a genuine block/predicate-body brace is
+/// always either the LAST token of the call (`given("desc") { ... }`,
+/// preceded by `)`) or the very first thing after the word itself
+/// (`identified_by { ... }`, nothing precedes it at all — `before` is
+/// empty). `>` (the second character of a hash-rocket `=>`) joins `:`/`,`
+/// for the SAME reason each of them is here: real, confirmed live syntax
+/// — `spec/fixtures/hop_chain.bluebook`'s own parenless `where
+/// :"engagement.client.status" => { ne: "active" }` — was refused
+/// outright without it ("'where' was written with a `{ ... }` block
+/// (expected one of: none)"), even though the identical VALUE shape
+/// already works fine the moment it sits inside wrapping parens
+/// (`where(:"pizza.price_cents.cents" => { lt: :ceiling })`,
+/// pizzas.bluebook) — there, `find_top_level_brace`'s own paren-depth
+/// tracking already excludes the inner `{` for a different reason (depth
+/// 1, not 0) before this character check is ever consulted, so the gap
+/// only shows up in the parenless spelling.
 fn is_hash_literal_brace(before: &str) -> bool {
-    matches!(before.trim_end().chars().last(), Some(':') | Some(','))
+    matches!(before.trim_end().chars().last(), Some(':') | Some(',') | Some('>'))
 }
 
 /// Given text starting at a top-level `{`, returns `(body, rest_after)`

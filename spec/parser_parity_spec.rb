@@ -60,6 +60,14 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   PARITY_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*")).select { |path| File.directory?(path) }.sort.freeze
   PARITY_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook")).sort.freeze
   PARITY_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook")).sort.freeze
+  # STAGE 5's OWN TARGET — narrow, load-bearing unit-test fixtures for
+  # OTHER Ruby specs (era/lineage bumps, model-checker findings, dispatch
+  # ordering, reflex/hop-chain tests), never previously pointed at by
+  # `hecks-parse` at all. Recursive (`**`) on purpose — note the `eras/`
+  # and `model_check/` subdirectories, which a flat `*.bluebook` glob
+  # would silently miss.
+  PARITY_FIXTURES_ROOT = File.join(InMemoryDomain::ROOT, "spec/fixtures")
+  PARITY_FIXTURE_MEMBERS = Dir.glob(File.join(PARITY_FIXTURES_ROOT, "**", "*.bluebook")).sort.freeze
 
   # [chapter name, bluebook path] — the chapter name is what `hecks-parse
   # chapter --chapter <Name>` expects; every real corpus `.bluebook` file
@@ -78,10 +86,21 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     header && Regexp.last_match(1)
   end
 
+  # A FIXTURE'S OWN STEM keeps its subdirectory (`"eras/base"`,
+  # `"model_check/lifecycle_findings"`) rather than the bare basename
+  # every other member uses — `eras/base.bluebook` and a hypothetical
+  # future `model_check/base.bluebook` would otherwise collide, and the
+  # path itself is useful context nowhere else in this file needs to
+  # carry (every other glob root holds one flat directory of members).
+  def self.fixture_stem(path)
+    path.delete_prefix("#{PARITY_FIXTURES_ROOT}/").delete_suffix(".bluebook")
+  end
+
   PARITY_CORPUS_MEMBERS = (
     PARITY_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +
     PARITY_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
-    PARITY_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
+    PARITY_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] } +
+    PARITY_FIXTURE_MEMBERS.map { |member| [fixture_stem(member), member] }
   ).reject { |_stem, path| path.nil? }.freeze
 
   # EVERY MEMBER WAS PENDING AT STAGE 1, each with the SAME honest reason.
@@ -109,8 +128,29 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   # spec FAILURES ("a PENDING member that no longer fails the way its own
   # reason says it should") the moment this stage's real construction
   # work made them stop failing, not a silent pass.
+  #
+  # STAGE 5 removes EVERY `spec/fixtures/**/*.bluebook` member too — the
+  # plan's own Stage 5 was narrowed (see this file's own history/the
+  # session that added this comment) to "wire the fixtures in and confirm
+  # byte-exactness," since the grammar-chapters half already landed as
+  # Stage 3/4 bonuses. All twenty fixtures round-tripped byte-exact
+  # against Ruby's own `ir.json` against the parser AS IT ALREADY STOOD,
+  # with three small real gaps found and fixed along the way (not
+  # overfit to these files alone — each is a genuine, general parser/
+  # grammar fix): `transition`'s own Ruby-hash-literal shorthand spelling
+  # (`from: "x", to: "y"`, no `=>` at all — `parse::mod::
+  # argument_gate_fields_pairs`), `{ ... }` admitted for a `keywords`/
+  # `rows` body the same way `do ... end` already was (`value_object(
+  # "Name") { attribute :value, String }` — `parse::mod::body_gate`/
+  # `parse_nested_body`), a parenless rocket-pair's own nested hash value
+  # (`where :"a.b" => { ne: "x" }` — `lex::is_hash_literal_brace`), and
+  # `attribute`'s type position admitting a quoted forward-reference
+  # string (`attribute :name, "Name"`, a value object declared later in
+  # the same aggregate — `syntax.bluebook`'s own new `text`-kind row +
+  # `parse::mod::resolve_type_expression`).
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
-                     %w[pizzas identity governance console_settings expression translation banking compliance interview])
+                     %w[pizzas identity governance console_settings expression translation banking compliance interview] -
+                     PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
   # Every remaining PENDING member's own expected diagnostic — plain
@@ -165,6 +205,18 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     %w[expression translation].to_h { |stem|
       bluebook = PARITY_GRAMMAR_CHAPTERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecksagain/grammar/#{stem}.bluebook"
+      chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+      [stem, [chapter_name, [bluebook]]]
+    }
+  ).merge(
+    # STAGE 5 — EVERY `spec/fixtures/**/*.bluebook` member, not
+    # hand-listed (see PARITY_FIXTURE_MEMBERS' own `Dir.glob`, above), so
+    # a future fixture is covered automatically. Same standalone shape as
+    # the framework trio/grammar chapters: none of these narrow unit-test
+    # fixtures pairs with a `.hecksagon` (confirmed by `find spec/fixtures
+    # -iname '*.hecksagon'` finding nothing at all).
+    PARITY_FIXTURE_MEMBERS.to_h { |bluebook|
+      stem = fixture_stem(bluebook)
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
       [stem, [chapter_name, [bluebook]]]
     }

@@ -22,12 +22,13 @@ A free-text label for the query — no rules attached, read by nothing but a hum
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, default:, optional:, pattern:, admits:` — fills `attributes`
+`attribute name, type, type, default:, optional:, pattern:, admits:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | name |
 | positional 2 | constant | false | type |
+| positional 2 | text | false | type |
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |

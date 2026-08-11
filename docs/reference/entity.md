@@ -73,12 +73,13 @@ Opens the same `transition` vocabulary an aggregate's `lifecycle` does, checked 
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, default:, optional:, pattern:, admits:` — fills `attributes`
+`attribute name, type, type, default:, optional:, pattern:, admits:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | name |
 | positional 2 | constant | false | type |
+| positional 2 | text | false | type |
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |

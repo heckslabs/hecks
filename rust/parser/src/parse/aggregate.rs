@@ -142,7 +142,8 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             }
             "value_object" => {
                 let vo_name = super::positional_text(file, line, "value_object", &gated.args, 1)?;
-                aggregate.value_objects.push(value_object::parse_body(file, lines, pos, &vo_name)?);
+                let vo = super::parse_nested_body(file, lines, pos, &gated.call.opener, line, |f, l, p| value_object::parse_body(f, l, p, &vo_name))?;
+                aggregate.value_objects.push(vo);
             }
             "lifecycle" => {
                 let field = super::positional_symbol(file, line, "lifecycle", &gated.args, 1)?;

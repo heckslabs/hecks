@@ -11754,6 +11754,36 @@
               ],
               [
                 "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
                 ""
               ],
               [
@@ -12153,6 +12183,36 @@
               [
                 "kind",
                 "constant"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
               ],
               [
                 "required",
@@ -12850,6 +12910,36 @@
               ],
               [
                 "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
                 ""
               ],
               [
@@ -13009,6 +13099,36 @@
               [
                 "kind",
                 "constant"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "ValueObject"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
               ],
               [
                 "required",
@@ -13761,6 +13881,36 @@
               [
                 "kind",
                 "constant"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
               ],
               [
                 "required",
@@ -15457,6 +15607,36 @@
               [
                 "kind",
                 "constant"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
               ],
               [
                 "required",

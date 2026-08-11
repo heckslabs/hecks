@@ -86,24 +86,35 @@ pub fn word_gate<'a>(
 /// same context, and only the body that actually follows disambiguates
 /// which was written.
 ///
-/// A `do ... end` OPENER IS ALSO `source`-COMPATIBLE — Ruby itself treats
-/// `{ ... }` and `do ... end` as the SAME block syntax, and
+/// A `do ... end` OPENER IS ALSO `source`-COMPATIBLE, AND A `{ ... }`
+/// OPENER IS ALSO `keywords`/`rows`-COMPATIBLE — Ruby itself treats
+/// `{ ... }` and `do ... end` as the SAME block syntax (differing only in
+/// precedence, never in what a method does with the block), so this
+/// crate's own choice of which body a word gets is never something the
+/// AUTHOR's choice of delimiter should be allowed to change.
 /// `identified_by`'s own multi-path form (governance.bluebook's
 /// `RoleAssignment`/`RoleTransition`, console_settings.bluebook's
 /// `StateStyle`: `identified_by do actor_id.value; role_name.value; end`)
-/// is written with `do ... end`, never `{ }` — but `syntax.bluebook`
-/// declares only ONE `source` row per `(word, context)`, not a second one
-/// per spelling. Safe to admit unconditionally here (not just for
-/// `identified_by`) because no `(word, context)` pair in the CURRENT table
-/// declares BOTH a `source` row and a `keywords`/`rows` row — confirmed by
-/// reading every `body: "source"` row directly (`identified_by`/
-/// Aggregate+Entity, `given`/Command, `invariant`/ValueObject, `ensures`/
-/// Command): each has at most a sibling `none` row, never a
-/// `keywords`/`rows` one, so widening `DoBlock`'s own compatibility here
-/// can never make an ALREADY-ambiguous word gate on which body a
-/// `do ... end` opener means. If a future word ever declares both, THIS
-/// widening (not the KeywordRow order) becomes the tie-break — worth
-/// revisiting then, not guessed at now.
+/// is written with `do ... end` for a `source` body — but real, confirmed
+/// live syntax runs the OTHER direction too:
+/// `spec/fixtures/hop_chain.bluebook`'s own `value_object("Name") {
+/// attribute :value, String }` writes a `keywords` body (`value_object`'s
+/// own row, `body: "keywords"`) with `{ ... }`, refused outright before
+/// this widening ("'value_object' was written with a `{ ... }` block
+/// (expected one of: keywords)") even though it is exactly as legal as
+/// the `do ... end` spelling right below it in the very same file. But
+/// `syntax.bluebook` declares only ONE row per body kind per `(word,
+/// context)`, not a second one per delimiter. Safe to admit
+/// unconditionally in EITHER direction (not just for one word) because no
+/// `(word, context)` pair in the CURRENT table declares BOTH a `source`
+/// row and a `keywords`/`rows` row — confirmed by reading every `body:
+/// "source"` row directly (`identified_by`/Aggregate+Entity, `given`/
+/// Command, `invariant`/ValueObject, `ensures`/Command): each has at most
+/// a sibling `none` row, never a `keywords`/`rows` one, so widening EITHER
+/// opener's own compatibility here can never make an ALREADY-ambiguous
+/// word gate on which body an opener means. If a future word ever
+/// declares both, THIS widening (not the KeywordRow order) becomes the
+/// tie-break — worth revisiting then, not guessed at now.
 pub fn body_gate<'a>(
     file: &str,
     candidates: &[&'a KeywordRow],
@@ -114,7 +125,7 @@ pub fn body_gate<'a>(
     let compatible: fn(&str) -> bool = match opener {
         Opener::None => |body| body == "none",
         Opener::DoBlock { .. } => |body| body == "keywords" || body == "rows" || body == "source",
-        Opener::BraceBlock { .. } => |body| body == "source",
+        Opener::BraceBlock { .. } => |body| body == "keywords" || body == "rows" || body == "source",
     };
 
     if let Some(row) = candidates.iter().find(|row| compatible(row.body)) {
@@ -372,9 +383,25 @@ pub fn argument_gate(
 /// `pairs_shape: "fields"` — exactly ONE hash-rocket pair
 /// (`"Purchase" => "sold"`), contributing two named sub-fields
 /// (`pair_key_fills`/`pair_value_fields`) to the record this keyword is
-/// already building. Every other top-level segment must be a plain named
-/// argument this word separately declares (`from:`, in `transition`'s own
-/// case).
+/// already building. Every other top-level segment must EITHER be a plain
+/// named argument this word separately declares (`from:`, in `transition`'s
+/// own case) OR — real, confirmed live by
+/// `spec/fixtures/payments.bluebook`'s `transition from: "pending", to:
+/// "received"` — Ruby's OWN `identifier: value` hash-literal shorthand for
+/// THE SAME PAIR: `LifecycleBuilder#transition` (`lib/hecksagain/bluebook/
+/// dsl/lifecycle_builder.rb`) receives one plain Hash and does not care how
+/// its entries were spelled — `{"Close" => "closed"}` and `{to:
+/// "received"}` are the identical Hash shape by the time Ruby's parser is
+/// done, `mapping.delete(:from)` peels off `from:` either way, and
+/// `mapping.each` turns the ONE remaining entry into a transition literally
+/// named after whatever key was left (`:to.to_s == "to"` here — a real,
+/// slightly odd-looking but byte-confirmed transition named "to", not a
+/// parser bug). So an unclaimed `identifier: value` segment (not `from:`,
+/// not any other row this word specifically declares) is reconstructed as
+/// the equivalent `"identifier" => value` text and folds into the SAME
+/// `field_pairs`/"one pair required" accounting a real rocket segment
+/// would — nothing downstream (`lifecycle::parse_body`'s own
+/// `named_raw(&gated.args, "=>")`) needs a second code path for it.
 fn argument_gate_fields_pairs(
     file: &str,
     word: &str,
@@ -383,15 +410,20 @@ fn argument_gate_fields_pairs(
     segments: &[String],
     line: usize,
 ) -> ParseResult<ArgumentGateResult> {
-    let mut rocket_pairs: Vec<String> = Vec::new();
+    let mut field_pairs: Vec<String> = Vec::new();
     let mut nameds: Vec<(String, String)> = Vec::new();
 
     for segment in segments {
         if has_top_level_rocket(segment) {
-            rocket_pairs.push(segment.clone());
+            field_pairs.push(segment.clone());
         } else if let Some((name, value)) = as_named(segment) {
-            validate_named(file, word, rows, name, value, line)?;
-            nameds.push((name.to_string(), value.to_string()));
+            let specifically_declared = rows.iter().any(|r| r.kind != "pairs" && r.named == name);
+            if specifically_declared {
+                validate_named(file, word, rows, name, value, line)?;
+                nameds.push((name.to_string(), value.to_string()));
+            } else {
+                field_pairs.push(format!("\"{name}\" => {value}"));
+            }
         } else {
             return Err(Diagnostic::new(
                 file,
@@ -401,14 +433,14 @@ fn argument_gate_fields_pairs(
         }
     }
 
-    if rocket_pairs.len() > 1 {
-        return Err(Diagnostic::new(file, line, format!("'{word}' takes exactly one 'key => value' pair, got {}", rocket_pairs.len())));
+    if field_pairs.len() > 1 {
+        return Err(Diagnostic::new(file, line, format!("'{word}' takes exactly one 'key => value' pair, got {}", field_pairs.len())));
     }
-    if pairs_row.required == "true" && rocket_pairs.is_empty() {
+    if pairs_row.required == "true" && field_pairs.is_empty() {
         return Err(Diagnostic::new(file, line, format!("'{word}' requires a 'key => value' pair")));
     }
 
-    let named = rocket_pairs.into_iter().map(|pair| ("=>".to_string(), pair)).chain(nameds).collect();
+    let named = field_pairs.into_iter().map(|pair| ("=>".to_string(), pair)).chain(nameds).collect();
     Ok(ArgumentGateResult { positional: Vec::new(), named })
 }
 
@@ -818,6 +850,101 @@ pub(crate) fn source_body_text(file: &str, lines: &[SourceLine], pos: &mut usize
     }
 }
 
+/// Dispatches a NESTED `keywords`/`rows` body to `parse`, regardless of
+/// which of the two legal block delimiters wrote it — `do ... end`
+/// (`Opener::DoBlock`, whose body already lives in `lines`/`*pos` as
+/// ordinary physical lines, closed by a real `end` line the caller's own
+/// `next_line`/`walk_body` loop already knows how to find) or `{ ... }`
+/// (`Opener::BraceBlock`, captured whole on the SAME physical line as the
+/// opening call, real and confirmed live:
+/// `spec/fixtures/hop_chain.bluebook`'s own `value_object("Name") {
+/// attribute :value, String }` — `body_gate`'s own widening, this file's
+/// header, already lets either delimiter reach a `keywords`/`rows` row,
+/// but every per-construct `parse_body` function (`value_object::
+/// parse_body` etc.) walks `(lines, pos)` directly and knows nothing
+/// about `Opener` at all). This is the ONE place that difference gets
+/// absorbed — a `BraceBlock`'s captured text is split into synthetic
+/// one-statement-per-line `SourceLine`s (`brace_body_statements`, below)
+/// terminated by a synthetic `"end"`, so `parse` never needs its own
+/// second code path for it, and every OTHER construct that grows this
+/// same need later reuses this unchanged.
+pub(crate) fn parse_nested_body<T>(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    opener: &Opener,
+    line_number: usize,
+    parse: impl FnOnce(&str, &[SourceLine], &mut usize) -> ParseResult<T>,
+) -> ParseResult<T> {
+    match opener {
+        Opener::BraceBlock { body } => {
+            let owned = brace_body_statements(body);
+            let synthetic: Vec<SourceLine> = owned.iter().map(|text| SourceLine { number: line_number, text: text.as_str() }).collect();
+            let mut synthetic_pos = 0;
+            parse(file, &synthetic, &mut synthetic_pos)
+        }
+        _ => parse(file, lines, pos),
+    }
+}
+
+/// A captured `{ ... }` body's raw text, split into one statement per
+/// top-level (not inside quotes/braces/brackets/parens) `;` — real Ruby
+/// allows `;`-separated statements on one physical line inside a block,
+/// and a single-line `{ ... }` body has no OTHER way to hold more than
+/// one. Only the one-statement case is exercised by any real corpus
+/// member today (`value_object("Name") { attribute :value, String }`),
+/// but the general form costs nothing extra to build correctly alongside
+/// it — the same reasoning `lifecycle::from_values`'s own header gives
+/// for building `transition ... from: [...]`'s list form unexercised.
+/// Ends with a synthetic `"end"` so `parse_nested_body`'s caller — built
+/// entirely around "a body ends at a literal `end` line" — needs no
+/// separate termination rule for this shape.
+fn brace_body_statements(body: &str) -> Vec<String> {
+    let mut statements: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut depth: i32 = 0;
+    let mut quoting = false;
+    let mut escaping = false;
+
+    for ch in body.chars() {
+        if escaping {
+            current.push(ch);
+            escaping = false;
+            continue;
+        }
+        if quoting && ch == '\\' {
+            current.push(ch);
+            escaping = true;
+            continue;
+        }
+        if ch == '"' {
+            quoting = !quoting;
+            current.push(ch);
+            continue;
+        }
+        if quoting {
+            current.push(ch);
+            continue;
+        }
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ';' if depth == 0 => {
+                statements.push(current.trim().to_string());
+                current.clear();
+                continue;
+            }
+            _ => {}
+        }
+        current.push(ch);
+    }
+    statements.push(current.trim().to_string());
+
+    let mut statements: Vec<String> = statements.into_iter().filter(|s| !s.is_empty()).collect();
+    statements.push("end".to_string());
+    statements
+}
+
 /// The `identified_by` forms this parser actually resolves/refuses —
 /// shared by `parse::aggregate` and `parse::entity`, since
 /// `AttributeCollector#resolve_identity_field!`/`#resolve_identity_type!`
@@ -962,6 +1089,22 @@ fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str
             Ok((type_name, false, Some(vo)))
         }
         Some(other) => Err(Diagnostic::not_yet_implemented(file, line, format!("{word}'s inline {other}(...) type"))),
+        // A QUOTED STRING NAMING THE TYPE — real, confirmed live:
+        // `spec/fixtures/hop_chain.bluebook`'s own `attribute :name,
+        // "Name"`, forward-referencing a `value_object("Name") do ... end`
+        // declared later in the same aggregate (a bareword `Name` would
+        // hit Ruby's own `const_missing` before that value object exists —
+        // see syntax.bluebook's own comment on this row for the full
+        // reasoning). Unquoted here the same way `positional_text` reads
+        // any other quoted argument — `IR::Attribute#to_h`'s own
+        // `type.to_s` renders a String and a Class identically, so the
+        // TYPE NAME must survive unwrapped, not as a JSON string carrying
+        // literal quote characters (confirmed live: without this,
+        // `"type": "Name"` came out as `"type": "\"Name\""`).
+        None if classify_lexical_kind(trimmed) == "text" => match ruby_value::read(trimmed) {
+            ruby_value::Value::Str(s) => Ok((s, false, None)),
+            other => Ok((ruby_value::to_s(&other), false, None)),
+        },
         None => Ok((trimmed.to_string(), false, None)),
     }
 }
