@@ -1,0 +1,8 @@
+{
+  "domain": "examples/banking",
+  "note": "AlreadyExists/creating_duplicate — verified genuinely broken before this fixture existed: unmodified Rust said 'Register creates a Banking::Customer that already exists — \"cust-1\"' (domain-qualified aggregate name, no {identity} reading at all), Ruby says 'Register creates a Customer that already exists — reference.value \"cust-1\"' (bare aggregate name, the declared identity path, then the offered id, .inspect-quoted). Registering the SAME reference twice: the first succeeds, the second is refused on the exact same identity it just created.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}}
+  ]
+}

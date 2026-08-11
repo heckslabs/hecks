@@ -115,20 +115,30 @@
 # refusal wording, not just `instances`/refusal verbs — the two gaps that
 # made a looser comparison the right bar are both closed.
 #
+# TWELFTH SLICE — the refusal-wording table itself, GENERATED rather than
+# hand-typed per call site: `bin/project_refusal_wording` reads `Hecksagain
+# ::Runtime::RefusalWording::TEMPLATES` directly and writes `rust/src/
+# kernel/refusal_wording.rs` (`RefusalSite`, one variant per (class, site)
+# pair, all 39 entries — the full table, not just the ones a real Rust call
+# site raises today). Closes every gap the ELEVENTH SLICE's own note named:
+# `LifecycleRefused`'s `transition_blocked`, `one_of` closed-set membership
+# (which was ALSO the wrong REFUSAL CLASS — `TypeMismatch`, not
+# `InvariantViolation` — not merely the wrong wording), entity-element-
+# missing `NotFound`, and `record_missing` via `Hydrate::Act` (found live,
+# previously unnamed) all now render byte-for-byte against Ruby. The
+# general VO-`invariant()` message is no longer a gap to close but a NEW
+# table entry: `InvariantViolation`/`value_object_invariant` was promoted
+# out of a hand-built string on the RUBY side too (`coercion.rb`'s own
+# `Value.build`), so both engines now render it off the exact same
+# declared template. `spec/corpus/rust_conformance/refusal_wording_*.json`
+# — one fixture per site — proves each byte-for-byte, including a
+# multi-field value object (`PersonName`) whose declaration order and
+# sorted order genuinely diverge, not a case where they'd coincidentally
+# agree.
+#
 # WHAT THIS STILL DOES NOT GENERATE — flagged, not silently skipped:
 #   - A BARE (non-`list_of`), non-entity-list attribute whose type names
 #     an entity — not a real shape any aggregate in this corpus declares.
-#   - The REST of the refusal-wording table (`refusal_wording.rb`'s own
-#     ~20 entries) — `LifecycleRefused`'s `transition_blocked` template,
-#     the general VO-`invariant()` message (missing Ruby's own `"(given
-#     {offered})"` suffix), `one_of` closed-set membership wording, and
-#     entity-element-missing `NotFound` wording all still differ from
-#     Ruby's own templates (found running the FULL `spec/corpus/
-#     banking.json` through the differential harness — 0021's own
-#     Consequences). None affect `instances` (full 35/35 parity, per
-#     0020) — pure wording, the same class of gap 0021 closes two
-#     instances of, just a longer remaining tail. A real, deliberately
-#     out-of-scope future slice, not silently skipped.
 #   - The reaction/saga LOG (`reaction_log`/`saga_log`) — `orchestrate`
 #     produces the right SIDE EFFECTS without also reproducing the log
 #     `bin/rust_conformance`'s own comparable surface never reads.
