@@ -1,9 +1,17 @@
 //! Integration tests — drives the actual `hecks-parse` binary as a
 //! subprocess against `tests/fixtures/*`, the same "shell out and check
 //! the real exit code/stderr" discipline `spec/parser_parity_spec.rb`
-//! (Ruby side) uses. Confirms the plan's own core Stage-1 claim: every
-//! fixture fails CLOSED with a real, named diagnostic — never silently
-//! succeeds, never panics, never claims coverage it doesn't have.
+//! (Ruby side) uses. Stage 1's core claim (every fixture fails CLOSED
+//! with a real, named diagnostic — never silently succeeds, never
+//! panics, never claims coverage it doesn't have) still holds for every
+//! construct this crate has NOT built real IR for yet. STAGE 2 shrinks
+//! `STILL_PENDING` below the same way `spec/parser_parity_spec.rb`'s own
+//! `PENDING_MEMBERS`/`spec/parser_coverage_spec.rb`'s own
+//! `STAGE_1_PENDING` shrink — `command.bluebook`/`query.bluebook`/
+//! `value_object.bluebook`/`policy.bluebook`/`lifecycle.bluebook` now
+//! parse for REAL (see `now_implemented_fixtures_parse_for_real` below),
+//! since `parse::command`/`parse::query`/`parse::value_object`/
+//! `parse::policy`/`parse::lifecycle` all stopped being stubs.
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -17,17 +25,18 @@ fn run(args: &[&str]) -> Output {
 }
 
 #[test]
-fn every_bluebook_fixture_fails_closed_naming_its_own_construct() {
+fn still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct() {
+    // STILL genuinely not built: `aggregate.bluebook` exercises
+    // `identified_by`'s bare-FIELD form specifically (`identified_by
+    // :name`, not the bare-TYPE form pizzas.bluebook uses and
+    // `build/identity.rs` now resolves), and `entity`/`report`
+    // (ReadModel)/`process_manager` have no `parse::*::parse_body` of
+    // their own yet at all.
     let cases: &[(&str, &str, &str)] = &[
         ("aggregate.bluebook", "FixtureAggregate", "Aggregate"),
         ("entity.bluebook", "FixtureEntity", "Entity"),
-        ("command.bluebook", "FixtureCommand", "Command"),
-        ("query.bluebook", "FixtureQuery", "Query"),
-        ("value_object.bluebook", "FixtureValueObject", "ValueObject"),
         ("read_model.bluebook", "FixtureReadModel", "ReadModel"),
-        ("policy.bluebook", "FixturePolicy", "Policy"),
         ("process_manager.bluebook", "FixtureProcessManager", "ProcessManager"),
-        ("lifecycle.bluebook", "FixtureLifecycle", "Lifecycle"),
     ];
 
     for (file, chapter, expected_construct) in cases {
@@ -37,12 +46,33 @@ fn every_bluebook_fixture_fails_closed_naming_its_own_construct() {
         let stderr = String::from_utf8_lossy(&output.stderr);
 
         assert_eq!(output.status.code(), Some(1), "{file}: expected exit 1 (parse error). stdout={stdout} stderr={stderr}");
-        assert!(stdout.is_empty(), "{file}: stdout must stay empty on a Stage 1 failure — never a partial/fabricated ir.json, got {stdout}");
+        assert!(stdout.is_empty(), "{file}: stdout must stay empty on a still-pending failure — never a partial/fabricated ir.json, got {stdout}");
         assert!(stderr.contains("not yet implemented"), "{file}: expected a not-yet-implemented diagnostic, got: {stderr}");
         assert!(
             stderr.contains(expected_construct),
             "{file}: expected the diagnostic to name {expected_construct}, got: {stderr}"
         );
+    }
+}
+
+#[test]
+fn now_implemented_fixtures_parse_for_real() {
+    // Stage 2 taught `parse::command`/`parse::query`/`parse::value_object`/
+    // `parse::policy`/`parse::lifecycle` to build real IR — these five
+    // fixtures (unlike the ones above) now succeed outright: exit 0, and
+    // stdout is real, non-empty `ir.json`, not a diagnostic.
+    let cases: &[(&str, &str)] =
+        &[("command.bluebook", "FixtureCommand"), ("query.bluebook", "FixtureQuery"), ("value_object.bluebook", "FixtureValueObject"), ("policy.bluebook", "FixturePolicy"), ("lifecycle.bluebook", "FixtureLifecycle")];
+
+    for (file, chapter) in cases {
+        let path = fixture(file);
+        let output = run(&["chapter", "--chapter", chapter, path.to_str().unwrap()]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        assert!(output.status.success(), "{file}: expected a clean parse now that its construct is built. stderr={stderr}");
+        assert!(stdout.trim_start().starts_with('{'), "{file}: expected real ir.json on stdout, got: {stdout}");
+        assert!(stdout.contains(&format!("\"name\": \"{chapter}\"")), "{file}: expected the chapter's own name in its ir.json, got: {stdout}");
     }
 }
 
@@ -99,11 +129,17 @@ fn a_bare_if_is_refused_by_the_shape_gate() {
 }
 
 #[test]
-fn coverage_prints_a_real_honest_empty_list_at_stage_1() {
+fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
     let output = run(&["coverage"]);
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert_eq!(stdout.trim(), "[]", "Stage 1 has no fully-built construct yet — coverage must not overclaim");
+    assert!(stdout.contains("[\"aggregate\", \"Bluebook\"]"), "expected aggregate/Bluebook covered, got: {stdout}");
+    assert!(stdout.contains("[\"sets\", \"Command\"]"), "expected sets/Command covered (the canonical spelling, not 'then_set'), got: {stdout}");
+    assert!(stdout.contains("[\"where\", \"Query\"]"), "expected where/Query covered, got: {stdout}");
+    assert!(stdout.contains("[\"port\", \"Hecksagon\"]"), "expected port/Hecksagon covered, got: {stdout}");
+    // STILL not covered — entity/report/process_manager have no
+    // parse_body of their own yet.
+    assert!(!stdout.contains("\"Entity\""), "Entity is still Stage 1 — coverage must not overclaim it: {stdout}");
 }
 
 #[test]

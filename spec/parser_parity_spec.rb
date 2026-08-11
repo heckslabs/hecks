@@ -1,4 +1,5 @@
 require "spec_helper"
+require "json"
 require "open3"
 
 # THE DIFFERENTIAL HARNESS — the anti-drift mechanism for the Rust parser,
@@ -7,18 +8,24 @@ require "open3"
 # Dir.glob-derived (never hand-listed) corpus enumeration, so a new
 # example/grammar-chapter/framework member is covered here automatically.
 #
-# STAGE 1: every real corpus member is PENDING — the parser doesn't build
-# IR yet (see rust/parser/src/parse/mod.rs's own header). This spec exists
-# now, and passes now, by asserting exactly that: the pending list is
-# COMPLETE (nothing silently skipped that isn't accounted for), and every
-# member on it genuinely still fails with a Stage-1 "not yet implemented"
-# diagnostic rather than something else. Stage 2 shrinks PENDING_MEMBERS
-# to exclude pizzas.bluebook and adds a real byte-match assertion for it;
-# by Stage 6 this table is empty.
+# STAGE 1 left every real corpus member PENDING — the parser built no IR
+# at all yet. STAGE 2 shrinks PENDING_MEMBERS by exactly one
+# (`pizzas.bluebook` + its `.hecksagon`, ~60% of the language surface in
+# one small file — the plan's own deliberately-first target) and adds a
+# REAL byte-exact assertion for it in REAL_PARITY_MEMBERS below: shell out
+# to `hecks-parse chapter --chapter Pizzas <bluebook> <hecksagon>` and
+# compare the stdout JSON, byte for byte, against Ruby's own
+# `JSON.pretty_generate(Exporter.call(...))` for the SAME two files loaded
+# the same order `bin/project_rust` itself loads them (`.bluebook` first,
+# registering every aggregate; `.hecksagon` second, mutating those
+# already-registered aggregates' own `ports`). Every other corpus member
+# stays pending, untouched, for a later stage. By Stage 6 both tables are
+# empty.
 #
 # A parse error for anything OUTSIDE the pending list — or a PENDING
-# member that no longer fails the way its own reason says it should — is a
-# spec FAILURE with the parser's own stderr inlined, never a silent skip.
+# member that no longer fails the way its own reason says it should, or a
+# REAL_PARITY_MEMBERS entry whose output doesn't byte-match — is a spec
+# FAILURE with the parser's own stderr inlined, never a silent skip.
 RSpec.describe "Rust parser parity (hecks-parse)" do
   PARITY_RUST_PARSER_DIR = File.expand_path("../rust/parser", __dir__)
   PARITY_BINARY_PATH     = File.join(PARITY_RUST_PARSER_DIR, "target", "debug", "hecks-parse")
@@ -37,6 +44,14 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   def self.bluebook_in(domain)
     Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort.first ||
       Dir.glob(File.join(domain, "*.bluebook")).sort.first
+  end
+
+  # The SAME domain's own `.hecksagon`, if it has one — `bin/project_rust`
+  # loads it right after the `.bluebook`, and `hecks-parse chapter` needs
+  # it fed the same way for a REAL_PARITY_MEMBERS comparison.
+  def self.hecksagon_in(domain)
+    Dir.glob(File.join(domain, "bluebook", "*.hecksagon")).sort.first ||
+      Dir.glob(File.join(domain, "*.hecksagon")).sort.first
   end
 
   PARITY_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*")).select { |path| File.directory?(path) }.sort.freeze
@@ -60,14 +75,83 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     PARITY_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] }
   ).reject { |_stem, path| path.nil? }.freeze
 
-  # EVERY MEMBER IS PENDING AT STAGE 1, each with the SAME honest reason —
-  # named per-member (not one blanket comment) so a future stage's own
-  # shrinkage is a visible diff: Stage 2 removes "pizzas" from this table,
-  # Stage 3 the framework trio, and so on, ending empty at Stage 6.
-  PENDING_MEMBERS = PARITY_CORPUS_MEMBERS.to_h { |stem, _path| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
+  # EVERY MEMBER WAS PENDING AT STAGE 1, each with the SAME honest reason.
+  # STAGE 2 removes "pizzas" — it now has a REAL byte-match assertion
+  # instead (REAL_PARITY_MEMBERS below) — named per-member (not one
+  # blanket comment) so a future stage's own shrinkage is a visible diff:
+  # Stage 3 removes the framework trio next, and so on, ending empty at
+  # Stage 6.
+  PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) - %w[pizzas])
+                    .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
-  def self.run_chapter(chapter_name, path)
-    Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, path)
+  # A PENDING member's own expected diagnostic — "not yet implemented"
+  # for every member EXCEPT the two named below, which now surface a
+  # DIFFERENT, genuinely earlier gate failure than Stage 1 ever reached.
+  # This is a real finding, not a Stage 2 regression: pizzas.bluebook's
+  # own real fixes to the SHARED gates (`word_gate`'s `was:` alias —
+  # `then_set`/`sets` — and `kind_matches`'s "literal accepts pairs/list
+  # too" widening, both required for pizzas.bluebook itself, and both
+  # correct independent of which file uses them) let `governance.
+  # bluebook`/`console_settings.bluebook`'s own walks get FURTHER than
+  # Stage 1 ever did, past whatever used to stop them first — and they
+  # now stop instead at `identified_by do ... end`, the MULTI-PATH
+  # block form (`identified_by do actor_id.value; role_name.value; end`,
+  # governance.bluebook:14) written with `do...end` rather than `{ }`.
+  # `syntax.bluebook` only ever declared ONE `source`-shaped row for
+  # `identified_by`, and `lex.rs`'s own `Opener`-to-`body` mapping only
+  # ever treats a `{ ... }` opener as `source`-compatible — never a
+  # `do...end` one, even though Ruby itself accepts either spelling for
+  # a block. That's real, confirmed Stage 3 territory (the plan's own
+  # "multi-path identified_by" line), not pizzas.bluebook's — pizzas
+  # never writes `identified_by` as a block at all (it uses the bare-TYPE
+  # form, `identified_by PizzaName, as: :name`), so fixing this doesn't
+  # belong in this stage's own scope. Named here rather than silently
+  # left to fail the generic assertion below.
+  PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").merge(
+    "governance" => "'identified_by' was written with a `do ... end` block",
+    "console_settings" => "'identified_by' was written with a `do ... end` block"
+  ).freeze
+
+  # stem -> [chapter name, files...] — the files fed to `hecks-parse
+  # chapter`, IN THE SAME ORDER `bin/project_rust` itself loads them: the
+  # domain's own `.bluebook` first (registers every aggregate), then its
+  # `.hecksagon` if it has one (mutates those already-registered
+  # aggregates' own `ports` — `Pizzas::Order.port "PaymentGateway" do
+  # ... end`, real syntax confirmed by reading pizzas.hecksagon directly).
+  # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
+  # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
+  # honest if pizzas.bluebook's own file ever moves.
+  REAL_PARITY_MEMBERS = %w[pizzas].to_h do |stem|
+    domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
+    bluebook = bluebook_in(domain) or raise "#{domain} has no .bluebook"
+    chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+    [stem, [chapter_name, [bluebook, hecksagon_in(domain)].compact]]
+  end.freeze
+
+  def self.run_chapter(chapter_name, *paths)
+    Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, *paths)
+  end
+
+  # Ruby's OWN oracle — the exact sequence `bin/project_rust` itself
+  # loads a domain through (persistence/extraction ports, the memory +
+  # prism adapters, then the domain's own files in order), exported the
+  # SAME way `Exporter.call`/`JSON.pretty_generate` already are — never
+  # the key-sorted `spec/golden/ir/*.json` fixtures (those are
+  # deliberately re-sorted for human-readable diffs, per
+  # `spec/ir_golden_spec.rb`'s own `rendered`/`sorted` — Ruby Hash
+  # insertion order, unsorted, is the real wire contract this parser has
+  # to match).
+  def self.ruby_ir_json(chapter_name, paths)
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      paths.each { |path| Kernel.load(path) }
+    end
+    ir = Hecksagain::Projector::Exporter.call(registry).fetch(chapter_name)
+    "#{JSON.pretty_generate(ir)}\n"
   end
 
   it "finds at least one real corpus member (the enumeration itself isn't silently empty)" do
@@ -79,14 +163,21 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     expect(ghosts).to be_empty, "PENDING_MEMBERS names members the corpus enumeration doesn't have: #{ghosts.inspect}"
   end
 
+  it "keeps REAL_PARITY_MEMBERS and PENDING_MEMBERS disjoint — a member is one or the other, never both" do
+    overlap = REAL_PARITY_MEMBERS.keys & PENDING_MEMBERS.keys
+    expect(overlap).to be_empty, "double-booked: #{overlap.inspect}"
+  end
+
   it "accounts for every real corpus member — nothing silently skipped" do
-    unaccounted = PARITY_CORPUS_MEMBERS.map(&:first) - PENDING_MEMBERS.keys
+    unaccounted = PARITY_CORPUS_MEMBERS.map(&:first) - PENDING_MEMBERS.keys - REAL_PARITY_MEMBERS.keys
     expect(unaccounted).to be_empty,
                            "these corpus members are neither pending nor exercised by a real " \
                            "byte-match assertion below — a member must be one or the other: #{unaccounted.inspect}"
   end
 
   PARITY_CORPUS_MEMBERS.each do |stem, bluebook|
+    next if REAL_PARITY_MEMBERS.key?(stem)
+
     it "#{stem}: still Stage 1 pending, and fails the honest way (not yet implemented, not a crash)" do
       pending_reason = PENDING_MEMBERS[stem]
       skip "#{stem} is not marked pending, but no real byte-match assertion exists for it yet — add one or restore the pending entry" unless pending_reason
@@ -98,18 +189,33 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
       end
 
       stdout, stderr, status = self.class.run_chapter(chapter_name, bluebook)
+      expected_diagnostic = PENDING_MEMBERS_DIAGNOSTIC[stem]
 
       expect(status.exitstatus).to eq(1),
-                                   "#{bluebook}: expected the Stage 1 'not yet implemented' exit code (1), " \
+                                   "#{bluebook}: expected a Stage 1 'not yet built' exit code (1), " \
                                    "got #{status.exitstatus}. stdout:\n#{stdout}\nstderr:\n#{stderr}"
       expect(stdout).to eq(""),
-                        "#{bluebook}: stdout must stay empty on a Stage 1 failure — a non-empty " \
+                        "#{bluebook}: stdout must stay empty on a pending failure — a non-empty " \
                         "stdout here would mean this parser fabricated partial ir.json. stdout:\n#{stdout}"
-      expect(stderr).to include("not yet implemented"),
-                        "#{bluebook}: expected a Stage 1 'not yet implemented' diagnostic on " \
-                        "stderr, got something else — this may be a REAL grammar bug (a genuine " \
-                        "parse error unrelated to Stage 1 staging), which is a spec FAILURE, not " \
-                        "a skip. Full stderr:\n#{stderr}"
+      expect(stderr).to include(expected_diagnostic),
+                        "#{bluebook}: expected '#{expected_diagnostic}' on stderr, got something " \
+                        "else — this may be a REAL grammar bug (a genuine parse error unrelated to " \
+                        "staging), which is a spec FAILURE, not a skip. Full stderr:\n#{stderr}"
+    end
+  end
+
+  REAL_PARITY_MEMBERS.each do |stem, (chapter_name, paths)|
+    it "#{stem}: hecks-parse's own ir.json is byte-identical to Ruby's" do
+      stdout, stderr, status = self.class.run_chapter(chapter_name, *paths)
+
+      expect(status.exitstatus).to eq(0),
+                                   "#{stem}: hecks-parse failed to parse a REAL corpus member — this is a genuine " \
+                                   "parser bug, not staging. stdout:\n#{stdout}\nstderr:\n#{stderr}"
+
+      expected = self.class.ruby_ir_json(chapter_name, paths)
+      expect(stdout).to eq(expected),
+                        "#{stem}: hecks-parse's ir.json does not byte-match Ruby's own " \
+                        "JSON.pretty_generate(Exporter.call(...)) for the same files"
     end
   end
 end

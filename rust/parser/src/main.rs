@@ -113,7 +113,8 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
         })
         .collect::<Result<_, RunError>>()?;
 
-    parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    println!("{}", emit::write(&emit::bluebook_json(&bluebook)));
     Ok(())
 }
 
@@ -157,14 +158,57 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// `spec/parser_coverage_spec.rb` to compare against `syntax.bluebook`'s
 /// own declared set (minus a shrinking, itemized allowlist).
 ///
-/// STAGE 1: this is `[]`. Every parse/*.rs handler stubs out before
-/// reaching `ir.rs`/`build/*.rs`/`emit.rs`, so nothing is "implemented"
-/// in the sense that matters here — a word this parser gates for real but
-/// still can't BUILD isn't a word a caller could actually get `ir.json`
-/// out of. Reporting it as covered would be exactly the kind of claim
-/// this whole plan exists to make impossible — a real, honest, small
-/// (here: empty) list, not vigilance.
+/// STAGE 2: every pair listed here is a word this parser genuinely turns
+/// into real `ir::*` fields for pizzas.bluebook's own real usage of it —
+/// confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparison
+/// against Ruby's own `ir.json` for `Pizzas`, not just "the word gates
+/// cleanly." A word this crate merely GATES but doesn't build real IR
+/// for (e.g. `identified_by`'s bare-field form, `entity`, `report`) stays
+/// off this list — reporting it here would be exactly the kind of claim
+/// this whole plan exists to make impossible. Grouped by construct, in
+/// the same order `parse::mod::dispatch_stub` maps contexts.
+const COVERED_PAIRS: &[(&str, &str)] = &[
+    ("bluebook", "File"),
+    ("hecksagon", "File"),
+    ("vision", "Bluebook"),
+    ("core", "Bluebook"),
+    ("supporting", "Bluebook"),
+    ("generic", "Bluebook"),
+    ("aggregate", "Bluebook"),
+    ("policy", "Bluebook"),
+    ("description", "Aggregate"),
+    ("identified_by", "Aggregate"),
+    ("attribute", "Aggregate"),
+    ("value_object", "Aggregate"),
+    ("lifecycle", "Aggregate"),
+    ("query", "Aggregate"),
+    ("command", "Aggregate"),
+    ("role", "Command"),
+    ("goal", "Command"),
+    ("reference_to", "Command"),
+    ("given", "Command"),
+    ("sets", "Command"),
+    ("emits", "Command"),
+    ("attribute", "Command"),
+    ("attribute", "ValueObject"),
+    ("one_of", "ValueObject"),
+    ("invariant", "ValueObject"),
+    ("member", "OneOf"),
+    ("transition", "Lifecycle"),
+    ("attribute", "Query"),
+    ("where", "Query"),
+    ("order_by", "Query"),
+    ("on", "Policy"),
+    ("trigger", "Policy"),
+    ("port", "Hecksagon"),
+    ("operation", "DomainPort"),
+    ("reference_to", "PortOperation"),
+    ("attribute", "PortOperation"),
+    ("emits", "PortOperation"),
+];
+
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {
-    println!("[]");
+    let pairs: Vec<String> = COVERED_PAIRS.iter().map(|(word, context)| format!("[\"{word}\", \"{context}\"]")).collect();
+    println!("[{}]", pairs.join(", "));
     Ok(())
 }

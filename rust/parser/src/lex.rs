@@ -282,9 +282,15 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
 }
 
 /// The first `{` that is a genuine SOURCE-BODY opener — not one buried
-/// inside a parenthesized argument list, e.g. `where(balance: {gte: 100})`.
-/// `where`'s own trailing `{gte: 100}` is a hash LITERAL argument, not a
-/// `source`-shaped block; only a `{` at paren-depth zero can be one.
+/// inside a parenthesized argument list, e.g. `where(balance: {gte: 100})`
+/// (`where`'s own trailing `{gte: 100}` is a hash LITERAL argument, not a
+/// `source`-shaped block; only a `{` at paren-depth zero is even a
+/// candidate) — AND not a hash-literal argument written WITHOUT wrapping
+/// parens either, real corpus syntax confirmed live:
+/// `then_set :toppings, append: { name: :topping, amount: :amount }`
+/// (pizzas.bluebook) has no parens around its own arguments at all, so
+/// paren-depth alone can't rule its trailing `{...}` out — `is_hash_
+/// literal_brace` is the second check that does.
 fn find_top_level_brace(text: &str) -> Option<usize> {
     let mut quoting = false;
     let mut escaping = false;
@@ -308,11 +314,26 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
         match ch {
             '(' => paren_depth += 1,
             ')' => paren_depth -= 1,
-            '{' if paren_depth == 0 => return Some(idx),
+            '{' if paren_depth == 0 => {
+                if is_hash_literal_brace(&text[..idx]) {
+                    continue;
+                }
+                return Some(idx);
+            }
             _ => {}
         }
     }
     None
+}
+
+/// A top-level `{` immediately preceded (skipping whitespace) by `:` or
+/// `,` is a HASH-LITERAL argument's own opening brace, never a `source`-
+/// shaped block opener: a genuine block/predicate-body brace is always
+/// either the LAST token of the call (`given("desc") { ... }`, preceded
+/// by `)`) or the very first thing after the word itself (`identified_by
+/// { ... }`, nothing precedes it at all — `before` is empty).
+fn is_hash_literal_brace(before: &str) -> bool {
+    matches!(before.trim_end().chars().last(), Some(':') | Some(','))
 }
 
 /// Given text starting at a top-level `{`, returns `(body, rest_after)`
@@ -356,6 +377,52 @@ fn matching_brace_body(text: &str) -> Option<(String, &str)> {
         }
     }
     None
+}
+
+/// `Pizzas::Order.persisted_by("Postgres")` / `Pizzas::Order.port
+/// "PaymentGateway" do` — a HECKSAGON body line addressed to one already-
+/// declared aggregate, via Ruby's own `BindingProxy`
+/// (`lib/hecksagain/bluebook/dsl/binding_proxy.rb`): `<Domain>::
+/// <Aggregate>.<verb>`. Real corpus syntax, confirmed by reading
+/// `examples/pizzas/bluebook/pizzas.hecksagon` directly — not the bare
+/// `Hecks.hecksagon "Name" do` header form `FILE_RECEIVER_PREFIX` already
+/// strips (that's the OUTSIDE of the file; this is legal only inside a
+/// Hecksagon body), and not merged into `classify`'s own general shape
+/// gate: this receiver-qualified form is legal ONLY inside a Hecksagon
+/// body, so `parse::hecksagon` calls this directly rather than every
+/// context inheriting a shape it can't actually use.
+///
+/// Returns `(receiver, rest)` — `receiver` is the WHOLE dotted head
+/// (`"Pizzas::Order"`), `rest` is everything after the `.` (never
+/// re-parsed here; the caller feeds it back through `classify` as an
+/// ordinary call).
+pub fn strip_aggregate_receiver(text: &str) -> Option<(&str, &str)> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() || !bytes[0].is_ascii_uppercase() {
+        return None;
+    }
+
+    let mut i = 0;
+    loop {
+        let start = i;
+        while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+            i += 1;
+        }
+        if i == start || !bytes[start].is_ascii_uppercase() {
+            return None;
+        }
+        if text[i..].starts_with("::") {
+            i += 2;
+            continue;
+        }
+        break;
+    }
+
+    let rest = text[i..].strip_prefix('.')?;
+    if rest.is_empty() {
+        return None;
+    }
+    Some((&text[..i], rest))
 }
 
 fn strip_balanced_parens(text: &str) -> &str {
@@ -402,6 +469,23 @@ fn strip_balanced_parens(text: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn strips_an_aggregate_qualified_receiver() {
+        assert_eq!(strip_aggregate_receiver("Pizzas::Order.persisted_by(\"Postgres\")"), Some(("Pizzas::Order", "persisted_by(\"Postgres\")")));
+        assert_eq!(strip_aggregate_receiver("Pizzas::Order.port \"PaymentGateway\" do"), Some(("Pizzas::Order", "port \"PaymentGateway\" do")));
+    }
+
+    #[test]
+    fn does_not_strip_a_bare_lowercase_call() {
+        assert_eq!(strip_aggregate_receiver("uses_framework \"Governance\""), None);
+        assert_eq!(strip_aggregate_receiver("subscribe \"Deposited\""), None);
+    }
+
+    #[test]
+    fn does_not_strip_end() {
+        assert_eq!(strip_aggregate_receiver("end"), None);
+    }
 
     #[test]
     fn strips_comments_and_blanks() {

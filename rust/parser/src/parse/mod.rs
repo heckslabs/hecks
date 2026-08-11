@@ -31,6 +31,7 @@ pub mod read_model;
 pub mod value_object;
 
 use crate::diag::{Diagnostic, ParseResult};
+use crate::ir;
 use crate::keywords::{self, ArgumentRow, KeywordRow};
 use crate::lex::{self, Call, LineShape, Opener, SourceLine};
 use crate::ruby_value;
@@ -45,8 +46,20 @@ pub fn word_gate<'a>(
     context: &'static str,
     line: usize,
 ) -> ParseResult<Vec<&'a KeywordRow>> {
-    let candidates: Vec<&KeywordRow> =
-        keywords::KEYWORDS.iter().filter(|k| k.live() && k.word == word && k.context == context).collect();
+    // A RENAMED WORD ANSWERS BOTH SPELLINGS — `sets`/`then_set` is the
+    // standing example (syntax.bluebook's own `was:` column, mirrored by
+    // `spec/syntax_conformance_spec.rb`'s "answers every renamed word in
+    // both its spellings"). Every real bluebook in the corpus, including
+    // pizzas.bluebook, is still written under the OLD spelling
+    // (`then_set`), so matching only `k.word == word` would refuse every
+    // one of them — confirmed live, not a hypothetical gap. `k.was` is
+    // never itself a live row (spec/syntax_conformance_spec.rb's "keeps
+    // no renamed-away spelling as a row of its own" already guarantees
+    // that), so this can never double-match two different canonical rows.
+    let candidates: Vec<&KeywordRow> = keywords::KEYWORDS
+        .iter()
+        .filter(|k| k.live() && k.context == context && (k.word == word || (!k.was.is_empty() && k.was == word)))
+        .collect();
 
     if candidates.is_empty() {
         let mut legal: Vec<String> = keywords::KEYWORDS
@@ -97,18 +110,50 @@ pub fn body_gate<'a>(
     Err(Diagnostic::new(file, line, format!("'{word}' was written with {found}")).with_expected(legal))
 }
 
-fn kind_matches(declared: &str, actual: &str) -> bool {
+pub(crate) fn kind_matches(declared: &str, actual: &str) -> bool {
     if declared == actual {
         return true;
     }
-    // `literal` is the WIDEST kind — a default written so its type
-    // survives (`0` rather than `"0"`) — see syntax.bluebook's own
-    // comment on ArgumentKind. Accepts anything that isn't already a
-    // structural (list/pairs/constant) shape.
-    declared == "literal" && matches!(actual, "symbol" | "text" | "number" | "flag")
+    // `literal` is the WIDEST kind — syntax.bluebook's own ArgumentKind
+    // comment: "a default is written so its TYPE survives ... which is
+    // why it is not `text`." A Hash/Array literal survives its own type
+    // exactly the same way a bare number or symbol does — confirmed live:
+    // `then_set :toppings, append: { name: :topping, amount: :amount }`
+    // (pizzas.bluebook) declares `append:` as `kind: "literal"`, and the
+    // value written there is a Hash, not a scalar. Only `constant` (a
+    // bareword TYPE name, e.g. `PizzaName`) is excluded — a type name is
+    // never what a `literal:`-kind argument means.
+    declared == "literal" && actual != "constant"
 }
 
-fn classify_lexical_kind(token: &str) -> &'static str {
+/// A bare `word(...)` call shape whose leading word is itself a LIVE
+/// `Type`-context word (`list_of`, `one_of` — the only two `syntax.
+/// bluebook` currently declares there). `list_of(Topping)` fills a
+/// `kind: "constant"` argument position (an attribute's own type slot)
+/// even though it is lexically a call, not a bareword — confirmed real:
+/// `attribute :toppings, list_of(Topping)` (pizzas.bluebook) is refused
+/// outright without this, since `list_of(Topping)` does not start with an
+/// uppercase letter the way a bare constant does. Reads the SAME
+/// generated `KEYWORDS` table rather than hardcoding "list_of"/"one_of"
+/// as magic strings, so a future Type-context word is recognized here
+/// automatically.
+pub(crate) fn type_context_call_word(token: &str) -> Option<&str> {
+    let open = token.find('(')?;
+    if !token.ends_with(')') {
+        return None;
+    }
+    let word = &token[..open];
+    if word.is_empty() || !word.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return None;
+    }
+    if keywords::KEYWORDS.iter().any(|k| k.live() && k.context == "Type" && k.word == word) {
+        Some(word)
+    } else {
+        None
+    }
+}
+
+pub(crate) fn classify_lexical_kind(token: &str) -> &'static str {
     let t = token.trim();
     if t.starts_with(':') && t.len() > 1 {
         return "symbol";
@@ -132,6 +177,9 @@ fn classify_lexical_kind(token: &str) -> &'static str {
         return "pairs";
     }
     if t.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
+        return "constant";
+    }
+    if type_context_call_word(t).is_some() {
         return "constant";
     }
     // Conservative fallback — an unquoted bare word this classifier
@@ -165,7 +213,7 @@ fn is_number_token(t: &str) -> bool {
 /// from a bare positional symbol (`:eq`, leading colon) by requiring the
 /// colon to trail the identifier rather than lead it, and from a `::`
 /// namespace separator by requiring exactly one colon.
-fn as_named(segment: &str) -> Option<(&str, &str)> {
+pub(crate) fn as_named(segment: &str) -> Option<(&str, &str)> {
     let bytes = segment.as_bytes();
     if bytes.is_empty() || !(bytes[0].is_ascii_alphabetic() || bytes[0] == b'_') {
         return None;
@@ -328,10 +376,24 @@ fn argument_gate_fields_pairs(
     Ok(ArgumentGateResult { positional: Vec::new(), named })
 }
 
-/// `pairs_shape: "verbatim"`/`"elements"` — MANY `identifier: value`
-/// segments merged into one open map (`member code: "JPY", minor_units:
-/// 0`), distinguished from a more specific `named:` row (claimed
-/// individually) by not matching any such row's own name.
+/// `pairs_shape: "verbatim"`/`"elements"` — MANY segments merged into one
+/// open map (`member code: "JPY", minor_units: 0`), distinguished from a
+/// more specific `named:` row (claimed individually) by not matching any
+/// such row's own name.
+///
+/// TWO SEGMENT SHAPES, not one — `as_named`'s `identifier: value` handles
+/// the common case, but a key that is not a bare identifier (a DOTTED
+/// query path) cannot be spelled that way at all: Ruby itself requires a
+/// quoted symbol and hash-rocket syntax for it. Confirmed real, not
+/// hypothetical: `where(:"pizza.price_cents.cents" => { lt: :ceiling })`
+/// (pizzas.bluebook's own `CostingLessThan` query) is refused outright
+/// without this — `:"pizza.price_cents.cents"` starts with `:`, not an
+/// identifier character, so `as_named` never matches it, and the segment
+/// fell through to "bare positional argument", which `where` does not
+/// admit. `has_top_level_rocket` (already used by the `pairs_shape:
+/// "fields"` branch above) is reused here for the same reason it exists
+/// there: the two spellings never overlap, so no segment is ever
+/// ambiguous between them.
 fn argument_gate_named_pairs(
     file: &str,
     word: &str,
@@ -343,10 +405,17 @@ fn argument_gate_named_pairs(
     let mut positionals: Vec<String> = Vec::new();
     let mut nameds: Vec<(String, String)> = Vec::new();
     for segment in segments {
-        match as_named(segment) {
-            Some((name, value)) => nameds.push((name.to_string(), value.to_string())),
-            None => positionals.push(segment.clone()),
+        if let Some((name, value)) = as_named(segment) {
+            nameds.push((name.to_string(), value.to_string()));
+            continue;
         }
+        if has_top_level_rocket(segment) {
+            let (key_text, value_text) = split_top_level_rocket(segment);
+            let name = rocket_key_name(file, word, key_text, line)?;
+            nameds.push((name, value_text.to_string()));
+            continue;
+        }
+        positionals.push(segment.clone());
     }
 
     if !positionals.is_empty() {
@@ -420,6 +489,61 @@ fn has_top_level_rocket(text: &str) -> bool {
     false
 }
 
+/// Splits a segment already known (`has_top_level_rocket`) to contain a
+/// top-level `=>` into `(key_text, value_text)`, both trimmed.
+pub(crate) fn split_top_level_rocket(segment: &str) -> (&str, &str) {
+    let mut quoting = false;
+    let mut escaping = false;
+    let mut depth: i32 = 0;
+    let bytes = segment.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let ch = bytes[i] as char;
+        if escaping {
+            escaping = false;
+            i += 1;
+            continue;
+        }
+        if quoting && ch == '\\' {
+            escaping = true;
+            i += 1;
+            continue;
+        }
+        if ch == '"' {
+            quoting = !quoting;
+            i += 1;
+            continue;
+        }
+        if !quoting {
+            match ch {
+                '{' | '[' => depth += 1,
+                '}' | ']' => depth -= 1,
+                '=' if depth == 0 && bytes.get(i + 1) == Some(&b'>') => {
+                    return (segment[..i].trim(), segment[i + 2..].trim());
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    (segment.trim(), "")
+}
+
+/// The FIELD NAME a `where`/`member` pair's own key names — a bare or
+/// quoted Ruby Symbol literal (`:status`, `:"pizza.price_cents.cents"`).
+/// This language's pairs-argument keys are always symbols (never a
+/// string, never a bareword), so anything else is a real refusal, not a
+/// guess.
+fn rocket_key_name<'a>(file: &str, word: &str, key_text: &'a str, line: usize) -> ParseResult<String> {
+    let Some(rest) = key_text.strip_prefix(':') else {
+        return Err(Diagnostic::new(file, line, format!("'{word}'s key '{key_text}' is not a symbol — a pair's key is always :name or :\"a.dotted.path\"")));
+    };
+    if rest.len() >= 2 && rest.starts_with('"') && rest.ends_with('"') {
+        return Ok(ruby_value::unquote_for_symbol(rest));
+    }
+    Ok(rest.to_string())
+}
+
 fn validate_named(
     file: &str,
     word: &str,
@@ -446,7 +570,7 @@ fn validate_named(
 /// `spec/syntax_conformance_spec.rb` already uses (`OneOf` shares
 /// `ValueObjectBuilder`, `Handler` shares `ProcessManagerBuilder`,
 /// `PortOperation` shares `DomainPortBuilder`).
-fn dispatch_stub(inner_context: &str, file: &str, line: usize, word: &str) -> Diagnostic {
+pub(crate) fn dispatch_stub(inner_context: &str, file: &str, line: usize, word: &str) -> Diagnostic {
     match inner_context {
         "Bluebook" => chapter::not_implemented(file, line, word),
         "Hecksagon" => hecksagon::not_implemented(file, line, word),
@@ -471,6 +595,182 @@ fn dispatch_stub(inner_context: &str, file: &str, line: usize, word: &str) -> Di
         // (if not yet final) Stage 1 behavior — named here rather than
         // silently guessed at.
         other => Diagnostic::not_yet_implemented(file, line, format!("{other}.{word} (unmapped inner context)")),
+    }
+}
+
+/// The honest fallback for a WORD this parser doesn't (yet) build real IR
+/// for — reused by every Stage-2 construct parser (aggregate.rs,
+/// command.rs, ...) for whatever slice of its own grammar pizzas.bluebook
+/// doesn't exercise, so an unimplemented word fails with the EXACT same
+/// diagnostic Stage 1's own generic `walk_body`/`dispatch_stub` already
+/// produced — `tests/gates.rs`'s still-Stage-1 fixtures (entity.bluebook,
+/// read_model.bluebook, process_manager.bluebook) depend on this wording
+/// staying stable across the two code paths.
+pub(crate) fn not_built_yet(context: &str, row: &KeywordRow, file: &str, line: usize, word: &str) -> Diagnostic {
+    if row.inner.is_empty() {
+        dispatch_stub(context, file, line, word)
+    } else {
+        dispatch_stub(row.inner, file, line, word)
+    }
+}
+
+/// ONE GATED LINE — shape, word, body, and argument gates all already
+/// run for real (see this module's own header), returned WITHOUT
+/// consuming any nested body a `do`/`{` opener might introduce; the
+/// caller (a `parse::<construct>::parse_body` function) decides whether
+/// it implements that nested construct and, if so, recurses itself. This
+/// is the Stage 2 REPLACEMENT for `handle_call` above for constructs this
+/// crate now actually builds IR for — `handle_call`/`walk_body` stay
+/// exactly as Stage 1 built them (still used by `main.rs::run_resolve`
+/// and `tests/gates.rs`'s own still-pending Hecksagon fixtures).
+pub(crate) struct GatedLine<'src> {
+    pub line: SourceLine<'src>,
+    pub call: Call,
+    // Always `'static` regardless of the source text's own lifetime —
+    // every `KeywordRow` lives in the GENERATED `keywords::KEYWORDS`
+    // slice, which is itself `'static`.
+    pub row: &'static KeywordRow,
+    pub args: ArgumentGateResult,
+}
+
+/// Reads and gates the next line inside `context`, from `*pos`. `None`
+/// means `end` was found (and consumed) — the body is over. `Some` means
+/// a legal call was found (shape/word/body/argument gates all passed);
+/// `*pos` has advanced past the line ITSELF, never past any nested body.
+pub(crate) fn next_line<'src>(
+    file: &str,
+    lines: &[SourceLine<'src>],
+    pos: &mut usize,
+    context: &'static str,
+) -> ParseResult<Option<GatedLine<'src>>> {
+    let line = *lines.get(*pos).ok_or_else(|| {
+        let last = lines.last().map(|l| l.number).unwrap_or(0);
+        Diagnostic::new(file, last, format!("unexpected end of file — still inside {context}"))
+    })?;
+
+    let shape = lex::classify(file, &line)?;
+    *pos += 1;
+
+    match shape {
+        LineShape::End => Ok(None),
+        LineShape::Call(call) => {
+            let candidates: Vec<&'static KeywordRow> = word_gate(file, &call.word, context, line.number)?;
+            let row: &'static KeywordRow = body_gate(file, &candidates, &call.opener, line.number, &call.word)?;
+            let args = argument_gate(file, row.word, context, &call.args, line.number)?;
+            Ok(Some(GatedLine { line, call, row, args }))
+        }
+    }
+}
+
+/// The N'th (1-based) positional argument's raw captured text, or a gate
+/// failure if it's missing — used only after `argument_gate` has already
+/// confirmed a required positional at that index exists, so the "missing"
+/// branch here is a defensive `unreachable`-shaped error, never actually
+/// hit by a well-formed call.
+fn positional_raw<'a>(file: &str, line: usize, word: &str, args: &'a ArgumentGateResult, at: usize) -> ParseResult<&'a str> {
+    args.positional
+        .iter()
+        .find(|(idx, _)| *idx == at)
+        .map(|(_, text)| text.as_str())
+        .ok_or_else(|| Diagnostic::new(file, line, format!("'{word}' has no positional argument {at}")))
+}
+
+/// A required TEXT (quoted-string) positional argument, unquoted —
+/// `aggregate "Widget"`, `given("description")`, `role "Chef"`.
+pub(crate) fn positional_text(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
+    let raw = positional_raw(file, line, word, args, at)?;
+    Ok(match ruby_value::read(raw) {
+        ruby_value::Value::Str(s) => s,
+        other => ruby_value::to_s(&other),
+    })
+}
+
+/// A required SYMBOL positional argument, stripped of its leading colon —
+/// `attribute :name`, `sets :toppings`, `order_by :name`.
+pub(crate) fn positional_symbol(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
+    let raw = positional_raw(file, line, word, args, at)?.trim();
+    raw.strip_prefix(':')
+        .map(|s| s.to_string())
+        .ok_or_else(|| Diagnostic::new(file, line, format!("'{word}'s positional argument {at} ('{raw}') is not a symbol")))
+}
+
+/// A CONSTANT (bareword type name) positional argument, raw — `attribute
+/// :pizza, Pizza`. Never quoted, never colon-prefixed; taken verbatim.
+pub(crate) fn positional_constant<'a>(file: &str, line: usize, word: &str, args: &'a ArgumentGateResult, at: usize) -> ParseResult<&'a str> {
+    positional_raw(file, line, word, args, at).map(|s| s.trim())
+}
+
+/// A NAMED argument's raw captured text, if the call gave one —
+/// `as: :name`, `optional: true`, `to: "sold"`.
+pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {
+    args.named.iter().find(|(n, _)| n == name).map(|(_, v)| v.as_str())
+}
+
+/// A NAMED SYMBOL argument, stripped of its leading colon — `as: :name`.
+pub(crate) fn named_symbol(args: &ArgumentGateResult, name: &str) -> Option<String> {
+    named_raw(args, name).and_then(|raw| raw.trim().strip_prefix(':')).map(|s| s.to_string())
+}
+
+/// A NAMED TEXT argument, unquoted — none of pizzas.bluebook's own named
+/// arguments happen to be plain quoted text (every `text`-kind named
+/// argument the corpus uses is `pattern:`/`admits:`, neither exercised),
+/// kept for the same completeness `build/naming.rs` documents elsewhere.
+pub(crate) fn named_text(args: &ArgumentGateResult, name: &str) -> Option<String> {
+    named_raw(args, name).map(|raw| match ruby_value::read(raw) {
+        ruby_value::Value::Str(s) => s,
+        other => ruby_value::to_s(&other),
+    })
+}
+
+/// A NAMED FLAG (`true`/`false`) argument — `optional: true`.
+pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
+    named_raw(args, name).map(|raw| raw.trim() == "true").unwrap_or(false)
+}
+
+/// `AttributeCollector#attribute` (attribute_collector.rb) — shared by
+/// every context that admits a bare `attribute` line (Aggregate, Command,
+/// ValueObject, Query, PortOperation — the SAME shape, per
+/// `spec/syntax_conformance_spec.rb`'s own reading of `attribute`'s
+/// declared rows). Position 2 (the type) defaults to `String` when
+/// absent, matching `attribute(name, type = String, ...)`'s own Ruby
+/// default.
+pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &ArgumentGateResult) -> ParseResult<ir::Attribute> {
+    let name = positional_symbol(file, line, word, args, 1)?;
+    let (type_name, list) = match args.positional.iter().find(|(idx, _)| *idx == 2) {
+        None => ("String".to_string(), false),
+        Some((_, text)) => resolve_type_expression(file, line, word, text)?,
+    };
+    let default = named_raw(args, "default").map(ruby_value::read);
+    let optional = named_flag(args, "optional");
+    let pattern = named_text(args, "pattern");
+    let admits = named_text(args, "admits");
+    Ok(ir::Attribute { name, type_name, list, default, optional, pattern, admits })
+}
+
+/// An attribute's own TYPE POSITION — almost always a bare constant
+/// (`Pizza`, `Integer`), but `list_of(Topping)` is real, exercised
+/// syntax (pizzas.bluebook's own `attribute :toppings, list_of(Topping)`)
+/// that reads as a CALL, not a bareword. `type_context_call_word` already
+/// widened `classify_lexical_kind` to accept this at the argument-gate
+/// level; this is where the call actually gets unwrapped into
+/// `(inner_type, list: true)`. `one_of(...)` is the type-position's other
+/// live word (same `Type` context) but is not exercised anywhere in
+/// pizzas.bluebook (its one closed set, `Size`, is a hand-written sibling
+/// `value_object`, not this inline shorthand) — left to fail closed with
+/// a named not-yet-implemented diagnostic rather than guessed at.
+fn resolve_type_expression(file: &str, line: usize, word: &str, text: &str) -> ParseResult<(String, bool)> {
+    let trimmed = text.trim();
+    match type_context_call_word(trimmed) {
+        Some("list_of") => {
+            let open = trimmed.find('(').expect("type_context_call_word already confirmed a '('");
+            let inner = trimmed[open + 1..trimmed.len() - 1].trim();
+            if classify_lexical_kind(inner) != "constant" {
+                return Err(Diagnostic::new(file, line, format!("'{word}'s list_of(...) must hold a constant type name, got '{inner}'")));
+            }
+            Ok((inner.to_string(), true))
+        }
+        Some(other) => Err(Diagnostic::not_yet_implemented(file, line, format!("{word}'s inline {other}(...) type"))),
+        None => Ok((trimmed.to_string(), false)),
     }
 }
 

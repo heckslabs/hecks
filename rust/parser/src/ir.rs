@@ -27,10 +27,29 @@ pub struct Attribute {
     pub name: String,
     pub type_name: String, // `Reference<Target>` spelling for a reference, else the bare type name
     pub list: bool,
-    pub default: Option<String>,
+    // `IR::Attribute#to_h`'s `default:` is the RAW Ruby value the author
+    // wrote (`default: 0`, `default: { cents: 0 }`), passed straight
+    // through with no `Literal.render` — the same "just re-`.generate` the
+    // real value" shape `Mutation`'s own non-append literal source uses
+    // (see `MutationSource::Literal`'s own comment). Not exercised by
+    // pizzas.bluebook (no attribute there declares a default), kept
+    // correct anyway since it's the same one Value type every other
+    // captured-literal field already needs.
+    pub default: Option<crate::ruby_value::Value>,
     pub optional: bool,
     pub pattern: Option<String>,
     pub admits: Option<String>,
+}
+
+impl Attribute {
+    /// The target name out of a `"Reference<Target>"`-spelled `type_name`
+    /// (`ir::Reference#to_s`'s own pinned spelling) — `None` for anything
+    /// else. Used by `PortOperationBuilder#identity_attribute`'s own
+    /// mirror: "does this operation carry an attribute referencing its
+    /// owner".
+    pub fn reference_target(&self) -> Option<&str> {
+        self.type_name.strip_prefix("Reference<").and_then(|rest| rest.strip_suffix('>'))
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -42,10 +61,21 @@ pub struct Given {
 pub type Ensures = Given;
 pub type Invariant = Given;
 
+// `IR::Mutation#classified_source` (lib/hecksagain/bluebook/ir/command.rb)
+// — an ARGUMENT-sourced mutation renders `{kind: "argument", name: ...}`;
+// a LITERAL-sourced one renders `{kind: "literal", value: source}` with
+// `source` passed straight through, NOT through `Literal.render` — a real,
+// confirmed distinction found by reading `spec/golden/ir/Pizzas.json`
+// directly: `Purchase`'s `then_set :status, to: "sold"` renders
+// `"value": "sold"` (a bare JSON string), never `"value": "\"sold\""` the
+// way a WHERE clause's own `Literal.render`-spelled value would. Only
+// `Mutation#appended_fields` (the APPEND op's own `fields:` map) goes
+// through `Literal.render` — kept as a String there for exactly that
+// reason.
 #[derive(Debug, Clone)]
 pub enum MutationSource {
     Argument(String),
-    LiteralValue(String), // Literal::render spelling
+    Literal(crate::ruby_value::Value),
 }
 
 #[derive(Debug, Clone)]

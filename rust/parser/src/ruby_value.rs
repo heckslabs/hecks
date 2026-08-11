@@ -80,6 +80,45 @@ pub fn quote(text: &str) -> String {
     out
 }
 
+/// Ruby's `Symbol#to_s`/`String#to_s` for a captured `Value` — DISTINCT
+/// from `render`: no colon on a Symbol, no quotes on a String. Used only
+/// where the Ruby source itself calls `.to_s` rather than
+/// `Literal.render` — `IR::ValueObject#to_h`'s own `members` field
+/// (`member.map { |field, value| [field.to_s, value.to_s] }`,
+/// value_object.rb), confirmed against `spec/golden/ir/Pizzas.json`:
+/// `member value: "small"` renders as `["value", "small"]`, never
+/// `["value", "\"small\""]`.
+pub fn to_s(value: &Value) -> String {
+    match value {
+        Value::Nil => String::new(),
+        Value::Bool(b) => b.to_string(),
+        Value::Int(n) => n.to_string(),
+        Value::Float(f) => format_ruby_float(*f),
+        Value::Symbol(name) => name.clone(),
+        Value::Str(text) => text.clone(),
+        Value::Bare(text) => text.clone(),
+        // Not exercised anywhere in the pizzas corpus (no member/mutation
+        // value is ever a nested Hash/Array) — Ruby's own Hash#to_s/
+        // Array#to_s is `#inspect`-shaped and version-dependent the same
+        // way `Hash#inspect` itself is (see this crate's own header on
+        // why that hazard was pinned away for `render`). Falls back to
+        // `render`'s own (stable, pinned) spelling rather than guess at
+        // an unreachable case.
+        Value::Hash(_) | Value::Array(_) => render(value),
+    }
+}
+
+/// A quoted Ruby Symbol's OWN inner text, unescaped — `:"a.b"` -> `a.b`.
+/// Distinct from `read`'s own (wire-format) Symbol handling: `read` never
+/// sees a quoted symbol on the wire (`Literal.render` never spells one),
+/// this is for SOURCE syntax a bluebook author actually writes
+/// (`where(:"pizza.price_cents.cents" => ...)`, real corpus syntax).
+/// `rest` is the text strictly after the leading `:`, already confirmed
+/// to start and end with `"`.
+pub fn unquote_for_symbol(rest: &str) -> String {
+    unquote(rest)
+}
+
 pub fn read(text: &str) -> Value {
     let raw = text.trim();
     if raw.is_empty() || raw == "nil" {
