@@ -39,7 +39,8 @@ pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoField
 pub use json::Json;
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
-    orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
+    orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
+    SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
 pub use repository::{check_reference, check_role, filter_entries, AggregateScan, InMemoryRepository, Repository};
 

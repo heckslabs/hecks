@@ -510,26 +510,26 @@ module RustProjection
         )
       end
 
-      # ── POLICIES — generated in general (`emit_policy_table`, called
-      # below), EXCEPT a policy whose `across:` names a domain this same
-      # `bin/project_rust` run didn't also compile into this one `Store`
-      # — reactions.rb's own documented header on `emit_policy_table`
-      # calls this "a real, separate, still-open gap, not attempted
-      # here." A PER-INSTANCE gap in a kind that mostly works, so
-      # `gap_class: "per_instance"`, not `"whole_kind"` — most policies
-      # in a real domain route fine; this is the one shape that doesn't.
+      # ── POLICIES — a same-domain policy generates into `POLICIES`
+      # (`local_policy_rows`) and dispatches locally; a cross-domain
+      # policy (`across:` naming a domain this `bin/project_rust` run
+      # didn't also compile into this one `Store`) generates into the
+      # SEPARATE `CROSS_DOMAIN_POLICIES` table (`emit_cross_domain_policy_
+      # table`) instead — matched by `kernel::orchestrate` the identical
+      # way, recorded as a `PendingCrossDomainReaction` in `kernel::cli::
+      # run`'s own JSON output, and delivered by rust/host's
+      # `lambda_client.rs` (a port of `Adapters::Lambda::Client`) rather
+      # than a local `dispatch_by_name` call. Both are genuinely
+      # generated and reachable through kernel/cli.rs's JSON router now —
+      # what this manifest entry CANNOT attest to is whether the target
+      # Lambda a live cross-domain reaction names actually exists and
+      # accepts the call; that's an operational fact about a real
+      # deploy, not a codegen fact this generator could ever check.
+      # `rust/host/src/lambda_client.rs`'s own header states plainly what
+      # is unit/mock-tested here versus what remains structurally-argued
+      # pending live AWS infrastructure.
       ir[:policies].each do |policy|
-        target_domain = policy[:target_domain] || domain_name
-        if target_domain == domain_name
-          manifest << manifest_entry(kind: "policy", id: "#{domain_name}::#{policy[:name]}", generated: true, routed: true)
-        else
-          manifest << manifest_entry(
-            kind: "policy", id: "#{domain_name}::#{policy[:name]}", generated: false, gap_class: "per_instance",
-            reason: "cross-domain policy (target #{target_domain.inspect}) — this domain compile doesn't also " \
-                    "include that target, so no Store exists for emit_policy_table to route into " \
-                    "(reactions.rb's own documented, still-open gap)"
-          )
-        end
+        manifest << manifest_entry(kind: "policy", id: "#{domain_name}::#{policy[:name]}", generated: true, routed: true)
       end
 
       # ── PROCESS MANAGERS / SAGAS — `emit_process_manager_table`
@@ -584,6 +584,8 @@ module RustProjection
         f.puts Projector.emit_registry(registry_aggregates)
         f.puts
         f.puts Projector.emit_policy_table(domain_name, ir[:policies])
+        f.puts
+        f.puts Projector.emit_cross_domain_policy_table(domain_name, ir[:policies])
         f.puts
         f.puts Projector.emit_process_manager_table(ir[:process_managers])
         f.puts

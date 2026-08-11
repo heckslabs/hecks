@@ -19,8 +19,8 @@
 // alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{named_query, orchestrate, query_comparators, repository, AggregateScan, Event, Json, MutationRecord, Refusal, SagaInstance};
-use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, POLICIES, PROCESS_MANAGERS, QUERIES};
+use super::{named_query, orchestrate, query_comparators, repository, AggregateScan, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance};
+use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES};
 use std::collections::HashMap;
 
 pub fn run(input: &str) -> String {
@@ -63,6 +63,14 @@ pub fn run(input: &str) -> String {
     // so a caller replaying prior history plus exactly one new step can
     // read `mutations.last()` for just the new step's own effect.
     let mut mutations_per_step: Vec<Vec<MutationRecord>> = Vec::new();
+    // One entry per step, parallel to `mutations_per_step` — this
+    // module's own honest confession (orchestrate.rs's header) that a
+    // policy fired but named a domain this compiled `Store` never
+    // included, so nothing here could deliver it. rust/host reads only
+    // `.last()`, the same "just the newly-dispatched step" rule
+    // `mutations`'s own doc comment already states, and is the one place
+    // actually equipped to finish the job (`lambda_client.rs`).
+    let mut cross_domain_per_step: Vec<Vec<PendingCrossDomainReaction>> = Vec::new();
     // One entry per successfully-answered "query" step, in step order —
     // Fuzzing::Replay's own `queries` array (lib/hecksagain/fuzzing/
     // replay.rb), read directly: a REFUSED query step (either shape)
@@ -159,6 +167,7 @@ pub fn run(input: &str) -> String {
                 )),
             }
             mutations_per_step.push(Vec::new());
+            cross_domain_per_step.push(Vec::new());
             continue;
         }
 
@@ -190,10 +199,27 @@ pub fn run(input: &str) -> String {
         // saved something) and stay recorded even though the step itself
         // is refused — matching `events`' own behavior one line above.
         let mut step_mutations: Vec<MutationRecord> = Vec::new();
-        if let Err(refusal) = orchestrate(&mut store, dispatch_by_name, POLICIES, PROCESS_MANAGERS, reference_key_for_aggregate, &mut sagas, verb, args, caller_role, 0, &mut events, &mut step_mutations) {
+        let mut step_cross_domain: Vec<PendingCrossDomainReaction> = Vec::new();
+        if let Err(refusal) = orchestrate(
+            &mut store,
+            dispatch_by_name,
+            POLICIES,
+            CROSS_DOMAIN_POLICIES,
+            PROCESS_MANAGERS,
+            reference_key_for_aggregate,
+            &mut sagas,
+            verb,
+            args,
+            caller_role,
+            0,
+            &mut events,
+            &mut step_mutations,
+            &mut step_cross_domain,
+        ) {
             refusals.push((verb.to_string(), refusal));
         }
         mutations_per_step.push(step_mutations);
+        cross_domain_per_step.push(step_cross_domain);
     }
 
     let events_json = Json::Array(events.iter().map(event_to_json).collect());
@@ -209,6 +235,12 @@ pub fn run(input: &str) -> String {
             .map(|step_mutations| Json::Array(step_mutations.iter().map(mutation_to_json).collect()))
             .collect(),
     );
+    let cross_domain_json = Json::Array(
+        cross_domain_per_step
+            .iter()
+            .map(|step_reactions| Json::Array(step_reactions.iter().map(cross_domain_reaction_to_json).collect()))
+            .collect(),
+    );
 
     Json::Object(vec![
         ("instances".to_string(), Json::Object(store.instances())),
@@ -216,6 +248,7 @@ pub fn run(input: &str) -> String {
         ("refusals".to_string(), refusals_json),
         ("mutations".to_string(), mutations_json),
         ("queries".to_string(), Json::Array(query_results)),
+        ("cross_domain_reactions".to_string(), cross_domain_json),
     ])
     .to_json_string()
 }
@@ -287,6 +320,22 @@ fn mutation_to_json(mutation: &MutationRecord) -> Json {
         ("id", Json::str(mutation.id.clone())),
         ("operation", Json::str(mutation.operation.to_string())),
         ("state", mutation.state.clone()),
+    ])
+}
+
+/// One `PendingCrossDomainReaction` (orchestrate.rs), on the wire —
+/// exactly the four fields rust/host's `lambda_client.rs` needs to
+/// finish delivering what this sandboxed module could only match, not
+/// route: which policy fired, which domain's Lambda to invoke, which
+/// verb to invoke it with, and the event's own payload, forwarded
+/// verbatim (this file's own `react_policies` comment on "not reshaped,
+/// not filtered" — the identical rule, just carried out one layer up).
+fn cross_domain_reaction_to_json(reaction: &PendingCrossDomainReaction) -> Json {
+    Json::obj(vec![
+        ("policy", Json::str(reaction.policy_name.clone())),
+        ("target_domain", Json::str(reaction.target_domain.clone())),
+        ("target_verb", Json::str(reaction.target_verb.clone())),
+        ("payload", reaction.payload.clone()),
     ])
 }
 

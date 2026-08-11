@@ -6,6 +6,7 @@
 
 use crate::journal;
 use crate::journal::LineageConfig;
+use crate::lambda_client::{self, LambdaInvoker};
 use crate::wasm_runner;
 use std::path::Path;
 use tokio::sync::Mutex;
@@ -34,6 +35,7 @@ pub async fn handle(
     verb: &str,
     args: serde_json::Value,
     config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> anyhow::Result<Outcome> {
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
@@ -92,7 +94,7 @@ pub async fn handle(
     let owned_wasm_path = wasm_path.to_path_buf();
     let output =
         tokio::task::spawn_blocking(move || wasm_runner::run(&owned_wasm_path, &input)).await??;
-    let result: serde_json::Value = serde_json::from_str(&output)?;
+    let mut result: serde_json::Value = serde_json::from_str(&output)?;
 
     // See journal.rs's own header: every PRIOR step in this replay
     // already succeeded once, deterministically, so the only step that
@@ -160,10 +162,44 @@ pub async fn handle(
         }
     }
 
+    // THIS step's own cross-domain policy matches only — same "`.last()`
+    // is exactly the step just dispatched" rule `step_mutations` above
+    // already follows, and for the identical reason: every PRIOR step in
+    // this replay already ran (and, if it fired a cross-domain reaction,
+    // already DELIVERED it) on an earlier invocation — re-delivering it
+    // here on every subsequent replay would re-invoke a sibling Lambda
+    // forever. Captured before `commit()`, delivered after — see below.
+    let pending_cross_domain = result
+        .get("cross_domain_reactions")
+        .and_then(|r| r.as_array())
+        .and_then(|steps| steps.last())
+        .and_then(|last| last.as_array())
+        .cloned()
+        .unwrap_or_default();
+
     // Commits (and releases the advisory lock) whether or not anything
     // was appended — a refused command still needs the lock released
     // for the next invocation to proceed.
     txn.commit().await?;
+
+    // DELIVERED AFTER COMMIT, DELIBERATELY — this LOCAL command already
+    // succeeded and is already durable; a cross-Lambda notification is a
+    // best-effort reaction to that fact, not a precondition of it
+    // (mirrors `Runtime::PolicyInterpreter#deliver`'s own "not fatal to
+    // the command that emitted the event," extended one step further:
+    // also not fatal to that command's own local WRITE). A hard invoke
+    // fault (`lambda_client::deliver`'s own `Err` path — see its header)
+    // still propagates out of this whole call via `?`, so it's a real,
+    // visible failure of THIS Lambda invocation's overall response —
+    // just never one that unwinds an already-committed transaction.
+    let mut cross_domain_deliveries = Vec::new();
+    for reaction in &pending_cross_domain {
+        let record = lambda_client::deliver(invoker, reaction).await?;
+        cross_domain_deliveries.push(record.to_json());
+    }
+    if let Some(response) = result.as_object_mut() {
+        response.insert("cross_domain_deliveries".to_string(), serde_json::Value::Array(cross_domain_deliveries));
+    }
 
     Ok(Outcome { result, accepted })
 }
@@ -342,6 +378,7 @@ mod tests {
             "Banking::Customer.Register",
             register("CUST-0001"),
             &test_config("Banking", 1),
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -388,6 +425,7 @@ mod tests {
             "Banking::Customer.Register",
             register("CUST-0001"),
             &config,
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -410,6 +448,7 @@ mod tests {
             "Banking::Customer.Register",
             register("CUST-0001"),
             &config,
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap();
@@ -440,7 +479,7 @@ mod tests {
         let config = test_config("Banking", 1);
 
         for reference in ["CUST-0004", "CUST-0005", "CUST-0006"] {
-            let outcome = handle(&client, &wasm_path(), "Banking::Customer.Register", register(reference), &config)
+            let outcome = handle(&client, &wasm_path(), "Banking::Customer.Register", register(reference), &config, &lambda_client::NeverInvoker)
                 .await
                 .unwrap();
             assert!(outcome.accepted, "registering {reference} should succeed: {:?}", outcome.result);
@@ -482,8 +521,8 @@ mod tests {
         let wasm_path = wasm_path();
 
         let (first, second) = tokio::join!(
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config),
-            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config, &lambda_client::NeverInvoker),
+            handle(&client, &wasm_path, "Banking::Customer.Register", register("CUST-0002"), &config, &lambda_client::NeverInvoker),
         );
         let (first, second) = (first.unwrap(), second.unwrap());
 
@@ -507,6 +546,7 @@ mod tests {
             "Banking::Customer.Register",
             register("CUST-0003"),
             &test_config("Banking", 1),
+            &lambda_client::NeverInvoker,
         )
         .await
         .unwrap()
@@ -530,5 +570,98 @@ mod tests {
         // as long after the read as it was before it.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "a read must never persist a journal row");
+    }
+
+    // Records every call it receives and answers with a canned "nothing
+    // refused" body — dispatch.rs's own end-to-end proof that a
+    // cross-domain policy firing for REAL (against the real compiled
+    // banking.wasm, through the real rehydrate-replay path, inside a real
+    // Postgres transaction) reaches `lambda_client::deliver` with the
+    // right function name and payload, and that its outcome lands in
+    // `Outcome.result["cross_domain_deliveries"]` — everything short of
+    // an actual AWS Lambda on the other end (see lambda_client.rs's own
+    // header on why that piece specifically can't be proven here).
+    struct RecordingInvoker {
+        calls: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    impl RecordingInvoker {
+        fn new() -> Self {
+            Self { calls: std::sync::Mutex::new(Vec::new()) }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LambdaInvoker for RecordingInvoker {
+        async fn invoke(&self, function_name: &str, payload: &str) -> anyhow::Result<lambda_client::InvokeOutcome> {
+            self.calls.lock().unwrap().push((function_name.to_string(), payload.to_string()));
+            Ok(lambda_client::InvokeOutcome { body: serde_json::json!({ "refusals": [] }), function_error: false })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_cross_domain_policy_delivers_through_the_real_rehydrate_replay_path() {
+        let client = scratch_db("rust_host_dispatch_test_6").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        let config = test_config("Banking", 1);
+        let invoker = RecordingInvoker::new();
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0007"), &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("registration should succeed");
+
+        let open_args = serde_json::json!({
+            "number": { "value": "acct-freeze-me" },
+            "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 },
+            "customer_id": "CUST-0007",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_args, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("account open should succeed");
+
+        // `Banking::Account.Freeze` announces `AccountFrozen`, matched by
+        // `ReviewOnFreeze` (examples/banking/bluebook/banking.bluebook:
+        // `across "Compliance"`) — the real trigger this whole feature
+        // exists for, running end to end for the first time outside a
+        // pure-WASM corpus comparison.
+        let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-me" } });
+        let outcome = handle(&client, &wasm_path(), "Banking::Account.Freeze", freeze_args, &config, &invoker)
+            .await
+            .unwrap();
+        assert!(outcome.accepted, "freeze should succeed: {:?}", outcome.result);
+
+        let deliveries = outcome.result["cross_domain_deliveries"].as_array().unwrap();
+        assert_eq!(deliveries.len(), 1, "exactly one cross-domain reaction should have fired: {deliveries:?}");
+        assert_eq!(deliveries[0]["policy"], "ReviewOnFreeze");
+        assert_eq!(deliveries[0]["target_domain"], "Compliance");
+        assert_eq!(deliveries[0]["delivered"], true);
+
+        {
+            let calls = invoker.calls.lock().unwrap();
+            assert_eq!(calls.len(), 1);
+            let (function_name, payload) = &calls[0];
+            assert_eq!(function_name, "hecksagain-compliance");
+            let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
+            assert_eq!(sent["verb"], "Compliance.OpenReview");
+            assert_eq!(sent["args"]["number"]["value"], "acct-freeze-me");
+        }
+
+        // AND NEVER RE-DELIVERED ON A LATER REPLAY — a fourth command
+        // against this SAME domain rehydrates history including the
+        // Freeze step above, but `pending_cross_domain` only ever reads
+        // the LAST step's own reactions (dispatch.rs's own comment) —
+        // proving the "re-invoke a sibling Lambda forever" bug this
+        // guards against doesn't happen.
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0008"), &config, &invoker)
+            .await
+            .unwrap();
+        assert_eq!(invoker.calls.lock().unwrap().len(), 1, "replaying prior history must not re-deliver its cross-domain reaction");
     }
 }

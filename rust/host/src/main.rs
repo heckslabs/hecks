@@ -18,6 +18,7 @@
 mod auth;
 mod dispatch;
 mod journal;
+mod lambda_client;
 mod wasm_runner;
 mod web;
 
@@ -162,11 +163,21 @@ async fn main() -> Result<(), Error> {
     // See dispatch.rs's own comment for what that guards against.
     let client = Arc::new(Mutex::new(client));
     let wasm_path = Arc::new(wasm_path);
+    // ONE `AwsLambdaInvoker` for this process's whole lifetime, same
+    // reasoning as `client`/`wasm_path` above — `aws_config::load_defaults`
+    // resolves credentials/region once at boot (an IAM role's own
+    // environment, inside a deployed Lambda), not per invocation.
+    // `lambda_client.rs`'s own header has the full story on what this is
+    // for: delivering a cross-domain policy reaction the compiled `.wasm`
+    // module could only MATCH, never dispatch (no network inside that
+    // sandbox, structurally).
+    let invoker = Arc::new(lambda_client::AwsLambdaInvoker::from_env().await);
 
     lambda_runtime::run(service_fn(move |event: LambdaEvent<serde_json::Value>| {
         let client = Arc::clone(&client);
         let wasm_path = Arc::clone(&wasm_path);
         let lineage_config = Arc::clone(&lineage_config);
+        let invoker = Arc::clone(&invoker);
         async move {
             let (body, _context) = event.into_parts();
 
@@ -175,7 +186,7 @@ async fn main() -> Result<(), Error> {
             // second Lambda. `None` for anything else (the internal
             // {"read"}/{"verb"} shapes below), so this changes nothing
             // for a domain with no HECKS_IR_PATH configured.
-            if let Some(response) = web::render(&body, &client, &wasm_path, &lineage_config).await {
+            if let Some(response) = web::render(&body, &client, &wasm_path, &lineage_config, invoker.as_ref()).await {
                 return Ok::<serde_json::Value, Error>(response);
             }
 
@@ -194,7 +205,7 @@ async fn main() -> Result<(), Error> {
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({}));
 
-            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, &lineage_config).await?;
+            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, &lineage_config, invoker.as_ref()).await?;
             Ok::<serde_json::Value, Error>(outcome.result)
         }
     }))

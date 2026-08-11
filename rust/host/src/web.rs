@@ -20,6 +20,7 @@ use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
 use crate::journal::LineageConfig;
+use crate::lambda_client::LambdaInvoker;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -39,11 +40,13 @@ fn ir() -> Option<&'static Value> {
     .as_ref()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn render(
     body: &Value,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> Option<Value> {
     let http_event = body.get("requestContext")?.get("http")?;
     let Some(domain_ir) = ir() else {
@@ -61,7 +64,7 @@ pub async fn render(
     };
     let cookies = extract_cookies(body);
 
-    Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config).await)
+    Some(route(domain_ir, method, path, &query, &raw_body, &cookies, client, wasm_path, config, invoker).await)
 }
 
 fn extract_cookies(body: &Value) -> HashMap<String, String> {
@@ -106,12 +109,13 @@ async fn route(
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> Value {
     let domain_name = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let secret = session_secret();
     let session = cookies.get("session").and_then(|c| auth::parse_session_cookie(&secret, c));
 
-    if let Some(response) = auth_route(path, method, query, raw_body, session.as_ref(), &secret, client, wasm_path, config).await {
+    if let Some(response) = auth_route(path, method, query, raw_body, session.as_ref(), &secret, client, wasm_path, config, invoker).await {
         return response;
     }
 
@@ -146,7 +150,7 @@ async fn route(
             let action = format!("/{domain_name}/{}/{}.html", agg_name(aggregate), verb_or_id);
             return command_route(
                 domain_name, aggregate, command, &action, &format, method, query, raw_body,
-                client, wasm_path, config,
+                client, wasm_path, config, invoker,
             )
             .await;
         }
@@ -173,6 +177,7 @@ async fn auth_route(
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> Option<Value> {
     match (method, path) {
         ("GET", "/login") => Some(html(200, &login_page(query.get("error").map(|s| s.as_str())))),
@@ -184,7 +189,7 @@ async fn auth_route(
             Err(e) => Some(respond(500, "text/plain", &format!("Google sign-in isn't configured: {e}"))),
         },
 
-        ("GET", "/auth/google/callback") => Some(google_callback(query, client, wasm_path, config, secret).await),
+        ("GET", "/auth/google/callback") => Some(google_callback(query, client, wasm_path, config, secret, invoker).await),
 
         ("GET", "/admin/members") => {
             let Some(session) = session else { return Some(redirect("/login")) };
@@ -220,12 +225,14 @@ async fn is_admin(client: &Mutex<Client>, wasm_path: &Path, identity_id: &str) -
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn google_callback(
     query: &HashMap<String, String>,
     client: &Mutex<Client>,
     wasm_path: &Path,
     config: &LineageConfig,
     secret: &str,
+    invoker: &dyn LambdaInvoker,
 ) -> Value {
     let Some(code) = query.get("code") else { return redirect("/login?error=google_failed") };
     let Some(state) = query.get("state") else { return redirect("/login?error=google_failed") };
@@ -252,7 +259,7 @@ async fn google_callback(
         Some(s) => Some(s),
         None if claims.email_verified => {
             let email = claims.email.clone().unwrap_or_default();
-            match auth::provision(client, wasm_path, config, &email, &claims.issuer, &claims.subject).await {
+            match auth::provision(client, wasm_path, config, &email, &claims.issuer, &claims.subject, invoker).await {
                 Ok(s) => s,
                 Err(_) => None,
             }
@@ -710,6 +717,7 @@ async fn record_show(domain_name: &str, aggregate: &Value, id: &str, format: &st
 async fn command_route(
     domain_name: &str, aggregate: &Value, command: &Value, action: &str, format: &str, method: &str,
     query: &HashMap<String, String>, raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
 ) -> Value {
     let fields = command_fields(aggregate, command);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
@@ -719,7 +727,7 @@ async fn command_route(
             return respond(200, "application/json", &command.to_string());
         }
         let raw = parse_form(raw_body);
-        return submit(domain_name, aggregate, command, &fields, &raw, client, wasm_path, config, true).await;
+        return submit(domain_name, aggregate, command, &fields, &raw, client, wasm_path, config, true, invoker).await;
     }
 
     if method == "GET" {
@@ -727,20 +735,20 @@ async fn command_route(
     }
 
     let raw = parse_form(raw_body);
-    submit(domain_name, aggregate, command, &fields, &raw, client, wasm_path, config, false).await
+    submit(domain_name, aggregate, command, &fields, &raw, client, wasm_path, config, false, invoker).await
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn submit(
     domain_name: &str, aggregate: &Value, command: &Value, fields: &[Field], raw: &HashMap<String, String>,
-    client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, json_mode: bool,
+    client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig, json_mode: bool, invoker: &dyn LambdaInvoker,
 ) -> Value {
     let agg = agg_name(aggregate);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let verb = format!("{domain_name}::{agg}.{cname}");
     let args = extract_args(fields, raw);
 
-    let outcome = match dispatch::handle(client, wasm_path, &verb, args, config).await {
+    let outcome = match dispatch::handle(client, wasm_path, &verb, args, config, invoker).await {
         Ok(o) => o,
         Err(e) => return respond(500, "text/plain", &format!("{e:#}")),
     };

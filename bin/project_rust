@@ -134,6 +134,8 @@ File.open(merged_path, "w") do |f|
   f.puts
   f.puts RustProjection::Projector.emit_policy_table(target_domain_name, target_ir[:policies])
   f.puts
+  f.puts RustProjection::Projector.emit_cross_domain_policy_table(target_domain_name, target_ir[:policies])
+  f.puts
   f.puts RustProjection::Projector.emit_process_manager_table(target_ir[:process_managers])
   f.puts
   f.puts RustProjection::Projector.emit_reference_key_table(

@@ -554,9 +554,8 @@
   {
     "kind": "policy",
     "id": "Banking::ReviewOnFreeze",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "cross-domain policy (target \"Compliance\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "policy",
@@ -573,23 +572,20 @@
   {
     "kind": "policy",
     "id": "Banking::NotifyOnClosure",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "cross-domain policy (target \"Notifications\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "policy",
     "id": "Banking::ReviewOnBoxSurrender",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "cross-domain policy (target \"Compliance\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "policy",
     "id": "Banking::FlagKeyReturn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "cross-domain policy (target \"Notifications\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "process_manager",
