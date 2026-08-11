@@ -1,0 +1,69 @@
+{
+  "name": "console-settings-parity",
+  "note": "One aggregate's state styled (Declare, then both Set commands), one collection's own presentation curated (Declare, then a representative slice of every Set/Replace command) — enough to prove every declared command actually dispatches, not an exhaustive walk of every field combination.",
+  "expectations": {
+    "events": 8
+  },
+  "steps": [
+    {
+      "verb": "ConsoleSettings::StateStyle.Declare",
+      "args": {
+        "agg": { "value": "Client" },
+        "state": { "value": "active" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::StateStyle.SetTone",
+      "args": {
+        "id": "Client:active",
+        "tone": { "value": "good" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::StateStyle.SetAttention",
+      "args": {
+        "id": "Client:active",
+        "attention": { "value": "false" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.Declare",
+      "args": {
+        "agg": { "value": "Client" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.SetLabel",
+      "args": {
+        "id": "Client",
+        "label": { "value": "Clients" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.SetNavOrder",
+      "args": {
+        "id": "Client",
+        "nav_order": { "value": 1 }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.SetIdentity",
+      "args": {
+        "id": "Client",
+        "identity_field": { "value": "reference" },
+        "identity_strategy": { "value": "slug" },
+        "identity_source": { "value": "name" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::Collection.ReplaceColumns",
+      "args": {
+        "id": "Client",
+        "columns": [
+          { "field": "reference" },
+          { "field": "name" }
+        ]
+      }
+    }
+  ]
+}
