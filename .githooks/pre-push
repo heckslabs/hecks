@@ -19,9 +19,9 @@ set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
-printf '\n[pre-push] rspec\n\n'
+printf '\n[pre-push] rspec (parallel)\n\n'
 
-if ! (cd "$ROOT" && bundle exec rspec); then
+if ! (cd "$ROOT" && bundle exec parallel_rspec spec); then
   printf '\n[pre-push] BLOCKED — the suite is red.\n'
   printf '           Fix it, or push with --no-verify and say why.\n\n'
   exit 1

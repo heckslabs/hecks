@@ -44,4 +44,14 @@ gem "json", "2.7.2"
 group :development, :test do
   gem "rspec", "~> 3.13"
   gem "simplecov", "~> 0.22"
+
+  # Local-only: splits the suite across processes (one per core, by
+  # default) so `bundle exec parallel_rspec spec` uses the machine's own
+  # idle cores instead of running everything on one. NOT wired into CI
+  # or the pre-push hook's `io: true` run — those specs share one real
+  # Postgres service container, and parallelizing against it needs
+  # per-worker database naming this project doesn't have yet (no
+  # ActiveRecord to lean on for that, unlike parallel_tests' own
+  # built-in Rails support).
+  gem "parallel_tests", "~> 4.7"
 end

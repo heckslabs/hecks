@@ -1,4 +1,5 @@
 require "hecksagain"
+require_relative "support/postgres_probe"
 
 RSpec.describe "the DSL surface" do
   def in_registry
@@ -205,7 +206,15 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /does not understand 'banana'/)
     end
 
-    it ".boot loads a domain directory and returns the door" do
+    # A real `Hecks.boot`, not `boot_in_memory` — examples/pizzas' own
+    # .world declares `persisted_by("Postgres")` unconditionally (see
+    # support/postgres_probe.rb's own note on why that probe exists), so
+    # this genuinely needs a reachable Postgres carrying the hecks_pizzas
+    # database — same as every other real-Postgres spec, `io: true` and
+    # self-skipping otherwise.
+    it ".boot loads a domain directory and returns the door",
+       io: true,
+       skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
       runtime = Hecks.boot(File.expand_path("../examples/pizzas", __dir__))
       expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)
       expect(runtime.verbs).to include("Pizzas::Order.Purchase")

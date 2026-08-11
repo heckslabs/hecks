@@ -424,7 +424,8 @@ exactly what it was already good at.
 ## Verify
 
 ```sh
-bundle exec rspec   # the whole suite
-bin/model_check     # static analysis over the IR — unreachable states, dead transitions
-bin/fuzz            # generated sequences, checked against declared properties
+bundle exec rspec                 # the whole suite
+bundle exec parallel_rspec spec   # same suite, split across your machine's cores (local only)
+bin/model_check                   # static analysis over the IR — unreachable states, dead transitions
+bin/fuzz                          # generated sequences, checked against declared properties
 ```

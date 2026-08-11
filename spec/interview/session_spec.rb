@@ -1,5 +1,6 @@
 require "spec_helper"
 require "hecksagain/interview"
+require_relative "../support/postgres_probe"
 
 RSpec.describe Hecksagain::Interview::Session do
   # A FRESH SESSION PER EXAMPLE, against the REAL meta-domain — no double,
@@ -141,8 +142,16 @@ RSpec.describe Hecksagain::Interview::Session do
     expect(b.declaration[:aggregates]).to eq([])
   end
 
+  # A real `Hecks.boot` on examples/pizzas, deliberately — the hazard this
+  # proves survival of only exists if the "elsewhere" boot is a real one.
+  # examples/pizzas' own .world declares `persisted_by("Postgres")`
+  # unconditionally (support/postgres_probe.rb's own note), so this
+  # genuinely needs a reachable Postgres carrying hecks_pizzas — `io: true`
+  # and self-skipping otherwise, same as every other real-Postgres spec.
   it "survives a real Hecks.boot happening elsewhere in the process — the hazard " \
-     "MetaValidator.fresh_runtime has and this class exists to avoid" do
+     "MetaValidator.fresh_runtime has and this class exists to avoid",
+     io: true,
+     skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
     s = session
     s.offer("Bluebook::Aggregate.Declare", bluebook_id: "Loyalty", name: { value: "Member" })
 
