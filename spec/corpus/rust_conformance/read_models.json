@@ -1,32 +1,508 @@
 {
   "domain": "examples/banking",
-  "note": "spec/rust_conformance_spec.rb's own fixture — the read_model construct (`report \"X\" do ... end`, IR::ReadModel), the SECOND real sub-shape of the STRING-form \"query\" step (kernel/cli.rs's own header: a bare \"Domain.Name\" with no \"::\", told apart from a named/declared AGGREGATE query's \"Domain::Aggregate.Name\" shape). Proves `Banking.CustomerPortfolio` (rust/project/read_models.rb's eligibility gate admits it — no where/order_by/limit/freshness/etc declared at all; ComplianceDashboard, which DOES declare freshness/index_hints, stays a documented, deliberate gap — see that file's own header) byte-for-byte against Ruby's real `ReadModelInterpreter#project`, for a REAL multi-instance, multi-customer scenario, not a trivial single-row one: two customers (c1, c2), each with their own Account/CardPayment, so the reference-matching logic is actually exercised both ways — c1's own portfolio must gather everything that traces back to c1 and must NOT gather anything that only traces back to c2 (acct-2's own card payment is the negative case: authorized against a DIFFERENT account, it must be entirely absent from c1's rows). Also exercises a head with TWO reference fields to the SAME target (Transfer's own `source`/`destination`, both `Reference<Account>` — c1's own inbound transfer FROM acct-2 TO acct-1 must still match c1's portfolio via `destination`, even though its `source` points at c2's own account) and a head with reference fields to TWO DIFFERENT targets (CardPayment's own `account_id` — Reference<Account> — and `disputed_by` — Reference<Customer> — disputing customer c1's own payment on acct-1 lets EITHER field alone already match, but is included because Dispute is a real corpus command exercising both reference kinds on one aggregate at once, per that command's own comment in banking.bluebook).",
+  "note": "spec/rust_conformance_spec.rb's own fixture \u2014 the read_model construct (`report \"X\" do ... end`, IR::ReadModel), the SECOND real sub-shape of the STRING-form \"query\" step (kernel/cli.rs's own header: a bare \"Domain.Name\" with no \"::\", told apart from a named/declared AGGREGATE query's \"Domain::Aggregate.Name\" shape). Proves `Banking.CustomerPortfolio` (rust/project/read_models.rb's eligibility gate admits it \u2014 no where/order_by/limit/freshness/etc declared at all; ComplianceDashboard, which DOES declare freshness/index_hints, stays a documented, deliberate gap \u2014 see that file's own header) byte-for-byte against Ruby's real `ReadModelInterpreter#project`, for a REAL multi-instance, multi-customer scenario, not a trivial single-row one: two customers (c1, c2), each with their own Account/CardPayment, so the reference-matching logic is actually exercised both ways \u2014 c1's own portfolio must gather everything that traces back to c1 and must NOT gather anything that only traces back to c2 (acct-2's own card payment is the negative case: authorized against a DIFFERENT account, it must be entirely absent from c1's rows). Also exercises a head with TWO reference fields to the SAME target (Transfer's own `source`/`destination`, both `Reference<Account>` \u2014 c1's own inbound transfer FROM acct-2 TO acct-1 must still match c1's portfolio via `destination`, even though its `source` points at c2's own account) and a head with reference fields to TWO DIFFERENT targets (CardPayment's own `account_id` \u2014 Reference<Account> \u2014 and `disputed_by` \u2014 Reference<Customer> \u2014 disputing customer c1's own payment on acct-1 lets EITHER field alone already match, but is included because Dispute is a real corpus command exercising both reference kinds on one aggregate at once, per that command's own comment in banking.bluebook).",
   "steps": [
-    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "c1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
-    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "c2"}, "name": {"given": "Grace", "family": "Hopper"}, "email": {"address": "grace@example.com"}}},
-
-    {"verb": "Banking::Account.Open", "args": {"customer_id": "c1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}}},
-    {"verb": "Banking::Account.Open", "args": {"customer_id": "c2", "number": {"value": "acct-2"}, "kind": {"name": "current"}, "daily_limit": {"cents": 50000}}},
-
-    {"verb": "Banking::ATMCard.Issue", "args": {"account_id": "acct-1", "serial": {"value": "card-1"}, "daily_fee": {"amount": 1.5}}},
-    {"verb": "Banking::ATMCard.Issue", "args": {"account_id": "acct-2", "serial": {"value": "card-2"}, "daily_fee": {"amount": 2.0}}},
-
-    {"verb": "Banking::Transfer.Request", "args": {"source": "acct-1", "destination": "acct-2", "reference": {"value": "xfer-out"}, "amount": {"cents": 500}, "narrative": {"text": "c1 pays c2"}}},
-    {"verb": "Banking::Transfer.Request", "args": {"source": "acct-2", "destination": "acct-1", "reference": {"value": "xfer-in"}, "amount": {"cents": 250}, "narrative": {"text": "c2 refunds c1"}}},
-
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-1", "authorisation": {"value": "auth-c1"}, "amount": {"cents": 900}, "merchant": {"value": "Airline"}, "tags": []}},
-    {"verb": "Banking::CardPayment.Capture", "args": {"authorisation": {"value": "auth-c1"}}},
-    {"verb": "Banking::CardPayment.Dispute", "args": {"authorisation": {"value": "auth-c1"}, "disputed_by": "c1"}},
-
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-2", "authorisation": {"value": "auth-c2"}, "amount": {"cents": 300}, "merchant": {"value": "Grocer"}, "tags": []}},
-
-    {"verb": "Banking::ExternalTransfer.Request", "args": {"account_id": "acct-1", "end_to_end": {"value": "ext-1"}, "amount": {"cents": 400}, "beneficiary": {"value": "Overseas Ltd"}, "direction": {"value": "debit"}}},
-    {"verb": "Banking::ExternalTransfer.Request", "args": {"account_id": "acct-2", "end_to_end": {"value": "ext-2"}, "amount": {"cents": 150}, "beneficiary": {"value": "Someone"}, "direction": {"value": "debit"}}},
-
-    {"verb": "Banking::ScheduledPayment.Schedule", "args": {"account_id": "acct-1", "instruction": {"value": "instr-1"}, "amount": {"cents": 1200}, "recipient": {"value": "Landlord"}, "due_on": {"value": "2026-09-01"}}},
-    {"verb": "Banking::ScheduledPayment.Schedule", "args": {"account_id": "acct-2", "instruction": {"value": "instr-2"}, "amount": {"cents": 800}, "recipient": {"value": "Utility Co"}, "due_on": {"value": "2026-09-05"}}},
-
-    {"query": "Banking.CustomerPortfolio", "args": {"customer": "c1"}},
-    {"query": "Banking.CustomerPortfolio", "args": {"customer": "c2"}}
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "c1"
+        },
+        "name": {
+          "given": "Ada",
+          "family": "Lovelace"
+        },
+        "email": {
+          "address": "ada@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "c2"
+        },
+        "name": {
+          "given": "Grace",
+          "family": "Hopper"
+        },
+        "email": {
+          "address": "grace@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer_id": "c1",
+        "number": {
+          "value": "acct-1"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "customer_id": "c2",
+        "number": {
+          "value": "acct-2"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 50000
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "account_id": "acct-1",
+        "serial": {
+          "value": "card-1"
+        },
+        "daily_fee": {
+          "amount": 1.5
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "account_id": "acct-2",
+        "serial": {
+          "value": "card-2"
+        },
+        "daily_fee": {
+          "amount": 2.0
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "source": "acct-1",
+        "destination": "acct-2",
+        "reference": {
+          "value": "xfer-out"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "narrative": {
+          "text": "c1 pays c2"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "source": "acct-2",
+        "destination": "acct-1",
+        "reference": {
+          "value": "xfer-in"
+        },
+        "amount": {
+          "cents": 250
+        },
+        "narrative": {
+          "text": "c2 refunds c1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-c1"
+        },
+        "amount": {
+          "cents": 900
+        },
+        "merchant": {
+          "value": "Airline"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-c1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-c1"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-2",
+        "authorisation": {
+          "value": "auth-c2"
+        },
+        "amount": {
+          "cents": 300
+        },
+        "merchant": {
+          "value": "Grocer"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "account_id": "acct-1",
+        "end_to_end": {
+          "value": "ext-1"
+        },
+        "amount": {
+          "cents": 400
+        },
+        "beneficiary": {
+          "value": "Overseas Ltd"
+        },
+        "direction": {
+          "value": "debit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "account_id": "acct-2",
+        "end_to_end": {
+          "value": "ext-2"
+        },
+        "amount": {
+          "cents": 150
+        },
+        "beneficiary": {
+          "value": "Someone"
+        },
+        "direction": {
+          "value": "debit"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "account_id": "acct-1",
+        "instruction": {
+          "value": "instr-1"
+        },
+        "amount": {
+          "cents": 1200
+        },
+        "recipient": {
+          "value": "Landlord"
+        },
+        "due_on": {
+          "value": "2026-09-01"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "account_id": "acct-2",
+        "instruction": {
+          "value": "instr-2"
+        },
+        "amount": {
+          "cents": 800
+        },
+        "recipient": {
+          "value": "Utility Co"
+        },
+        "due_on": {
+          "value": "2026-09-05"
+        }
+      }
+    },
+    {
+      "query": "Banking.CustomerPortfolio",
+      "args": {
+        "customer": "c1"
+      }
+    },
+    {
+      "query": "Banking.CustomerPortfolio",
+      "args": {
+        "customer": "c2"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-1"
+        },
+        "amount": {
+          "cents": 500
+        },
+        "merchant": {
+          "value": "Merchant1"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-1"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-1"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-2"
+        },
+        "amount": {
+          "cents": 1200
+        },
+        "merchant": {
+          "value": "Merchant2"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-2"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-2"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-3"
+        },
+        "amount": {
+          "cents": 300
+        },
+        "merchant": {
+          "value": "Merchant3"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-3"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-3"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-4"
+        },
+        "amount": {
+          "cents": 900
+        },
+        "merchant": {
+          "value": "Merchant4"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-4"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-4"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-5"
+        },
+        "amount": {
+          "cents": 1500
+        },
+        "merchant": {
+          "value": "Merchant5"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-5"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-5"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-6"
+        },
+        "amount": {
+          "cents": 700
+        },
+        "merchant": {
+          "value": "Merchant6"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-6"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-6"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-7"
+        },
+        "amount": {
+          "cents": 1100
+        },
+        "merchant": {
+          "value": "Merchant7"
+        },
+        "tags": []
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-7"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "auth-cd-7"
+        },
+        "disputed_by": "c1"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "account_id": "acct-1",
+        "authorisation": {
+          "value": "auth-cd-undisputed"
+        },
+        "amount": {
+          "cents": 9999
+        },
+        "merchant": {
+          "value": "NeverDisputed"
+        },
+        "tags": []
+      }
+    },
+    {
+      "args": {
+        "account": "acct-1"
+      },
+      "query": "Banking.ComplianceDashboard"
+    }
   ]
 }

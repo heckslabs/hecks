@@ -633,5 +633,11 @@ crate::kernel::read_model::ReadModelDef {
         crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::Dispatch", as_name: "dispatches", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Handler", field: "handler_id" }] },
         crate::kernel::read_model::ReadModelHead { aggregate: "Bluebook::ReadModel", as_name: "read_models", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Bluebook::Bluebook", field: "bluebook_id" }] },
     ],
+    filtered_head: None,
+    conditions: &[
+
+    ],
+    order_by: None,
+    limit: None,
 },
 ];
