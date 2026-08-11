@@ -211,9 +211,29 @@ module Hecksagain
               quote = nil if char == quote
             elsif ['"', "'"].include?(char)
               quote = char
-            elsif char == "("
+            # `{`/`}` depth -- vendored addition, not (yet) upstream
+            # hecksagain (migration plan task 9): this method already
+            # treats `(`/`)` as a grouping construct so an operator
+            # INSIDE a call's parens is never mistaken for a top-level
+            # split point ; `{`/`}` needed the identical treatment the
+            # moment `Bluebook::Expression::Resolver` grew block-taking
+            # `.all?`/`.any?`/`.none? { |s| PREDICATE }` support (see
+            # resolver.rb's own `BlockPredicate` addition) -- without
+            # this, an operator INSIDE the block's own predicate (e.g.
+            # `s.length > 0`) reads as a top-level split of the WHOLE
+            # `value.split("::").all? { |s| s.length > 0 }` expression,
+            # confirmed live via `Lexicon::Lexicon.Lookup`/`Query::Query.
+            # Run` (the exact `Phrase` invariant this gap was found
+            # against) : the stray `>` split the expression in half
+            # before `Resolver.parse` ever saw the block as one atomic
+            # leaf, and the two halves then failed independently with
+            # the same raw `TypeError` the block-predicate fix was
+            # built to close. `{`/`}` cannot legitimately appear inside
+            # a quoted literal either, so this sits beside the existing
+            # paren-depth branch, not instead of it.
+            elsif char == "(" || char == "{"
               depth += 1
-            elsif char == ")"
+            elsif char == ")" || char == "}"
               depth -= 1
             elsif depth.zero? && expr[index, operator.length] == operator
               return index if !block_given? || yield(index)
