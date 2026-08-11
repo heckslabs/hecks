@@ -17,11 +17,18 @@ RSpec.describe "Banking's generated account machine" do
   end
 
   it "preserves the account balance invariant across deterministic command traces" do
+    # Booted ONCE, not once per seed — each seed only ever collides with
+    # ITSELF (a distinct customer ref and a distinct account number), so
+    # 20 independent traces can run against one shared runtime instead of
+    # 20 fresh ~100ms boots. The invariant this checks is per-account
+    # (`stored` below is looked up by this seed's own account number),
+    # so nothing about sharing the runtime changes what's being proven.
+    runtime = boot_banking
+
     20.times do |seed|
-      runtime = boot_banking
-      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c#{seed}" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a#{seed}" },
+      runtime.dispatch("Banking::Account.Open", customer_id: "c#{seed}", number: { value: "a#{seed}" },
                                                 kind: { name: "current" }, daily_limit: { cents: 1_000 })
       model = 0
       random = Random.new(seed)
