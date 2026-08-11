@@ -164,12 +164,20 @@ pub async fn save_snapshot<C: GenericClient>(client: &C, ordinal: i64, seed: &se
 // rust/host never PROVISIONS this schema — no CREATE TABLE, no era
 // mint, no RLS policy. That's Ruby's LineageManager's job alone (it
 // needs the bluebook parser and translation-rule DSL this crate
-// deliberately doesn't have — ADR 0007). `era_exists` below is a
+// deliberately doesn't have — ADR 0007). `current_era` below is a
 // boot-time READ, refusing cleanly if Ruby hasn't provisioned the
-// configured domain/era yet, and a write for a stale era refuses
-// through Postgres's own RLS row policy (`hecks_current_era`,
-// postgres/lineage/mint_transaction.rb) — not a second, Rust-side
-// staleness check duplicating that logic.
+// configured domain yet OR if this checkout's own era has since been
+// superseded by a later mint — a real, Rust-side staleness check, but
+// one that only ever needs to run ONCE per process lifetime, at boot.
+// A write for a stale era ALSO refuses through Postgres's own RLS row
+// policy (`hecks_current_era`, postgres/lineage/mint_transaction.rb) —
+// that's not redundant with the boot check, it's the second layer that
+// still matters for a process that was current when it booted and got
+// stranded mid-lifetime by a mint that happened after (a live Lambda
+// execution environment can outlive the deploy that supersedes it).
+// Neither layer duplicates the other's actual logic: the boot check
+// reads `hecks_eras` once and compares an ordinal; the RLS policy is a
+// row-level Postgres CHECK this crate never evaluates itself.
 
 /// Which domain journal and era this deployed binary writes as —
 /// operational facts, like Ruby's own `settings[:domain]`/`settings[:era]`,
@@ -265,19 +273,34 @@ fn head_snapshot_table(qualified_aggregate: &str, era: i32) -> String {
     format!("{}_head_snapshot_{}", storage_name(qualified_aggregate), era)
 }
 
-/// The boot-time gate: does Ruby's own `hecks_eras` already hold a row
-/// for this exact domain/era? If not, this binary was deployed against
-/// a domain/era Ruby's LineageManager hasn't provisioned yet (or the
-/// era ordinal is simply wrong) — `main.rs` refuses to start rather
-/// than write into tables that may not exist.
-pub async fn era_exists(client: &Client, domain: &str, era: i32) -> anyhow::Result<bool> {
+/// The boot-time gate — but "does this ordinal have a row" was never
+/// the real question, and used to be all this asked. `hecks_eras` is
+/// append-only (a superseded era's row never gets deleted — era history
+/// is a fact, same as everything else this system holds), so a bare
+/// existence check would happily pass a STALE checkout: HECKS_ERA
+/// pointing at an ordinal that once was current but has since been
+/// superseded by a later mint. That stale checkout would go on writing
+/// into `hecks_lambda_journal` (this file's own top header: flat,
+/// domain-wide, NO era column at all) completely unrefused for any
+/// command that doesn't happen to touch a lineage-capable aggregate —
+/// Ruby's own RLS fence (`hecks_current_era`, mint_transaction.rb) only
+/// guards the era-partitioned lineage tables below, not this one. This
+/// answers the question Ruby's own `EraStore#current_era` answers
+/// instead (postgres/lineage/era_store.rb: `held.last[:ordinal]`, eras
+/// read ordinal-ascending) — ordinals are minted strictly increasing
+/// (`minter.rb`: `ordinal = latest[:ordinal] + 1`, never reused, never
+/// decremented), so the highest one on file for a domain IS the live
+/// one, and `MAX`/`ORDER BY ... LIMIT 1` is exactly that fact, not an
+/// approximation of it. `None` means `hecks_eras` has never heard of
+/// this domain at all — nothing minted yet.
+pub async fn current_era(client: &Client, domain: &str) -> anyhow::Result<Option<i32>> {
     let rows = client
         .query(
-            "SELECT 1 FROM hecks_eras WHERE domain = $1 AND ordinal = $2",
-            &[&domain, &era],
+            "SELECT ordinal FROM hecks_eras WHERE domain = $1 ORDER BY ordinal DESC LIMIT 1",
+            &[&domain],
         )
         .await?;
-    Ok(!rows.is_empty())
+    Ok(rows.first().map(|row| row.get(0)))
 }
 
 /// One `MutationRecord` (kernel/mod.rs) as the kernel's own JSON
@@ -410,6 +433,70 @@ mod lineage_tests {
         assert!(
             message.contains("row-level security") || message.contains("row level security"),
             "the refusal should be Postgres's RLS policy specifically, not some other error: {message}"
+        );
+    }
+
+    // THE BOOT-GATE CASE THE TEST ABOVE DOESN'T COVER: this crate's OWN
+    // read, before any write is even attempted. `current_era` has to
+    // tell a genuinely-unminted domain apart from a MINTED-BUT-STALE
+    // one (an ordinal that once was current and still has a row, but
+    // has since been superseded) — a bare existence check (what this
+    // function replaced) can't distinguish those, and main.rs's boot
+    // gate needs to: one case means "mint this domain", the other means
+    // "redeploy with a newer HECKS_ERA". No Ruby/RLS involved here on
+    // purpose — this is a plain SQL fact this crate reads for itself,
+    // proven against a minimal fixture table, same as
+    // dispatch::tests::provision_lineage's own reasoning for why that's
+    // legitimate (current_era's query only ever reads domain/ordinal).
+    #[tokio::test]
+    async fn current_era_tells_unminted_apart_from_stale_and_finds_the_live_ordinal() {
+        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+            .await
+            .expect("connect to postgres");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        client
+            .batch_execute("CREATE TABLE IF NOT EXISTS hecks_eras (domain text, ordinal int)")
+            .await
+            .unwrap();
+        client
+            .batch_execute("DELETE FROM hecks_eras WHERE domain = 'CurrentEraFixture'")
+            .await
+            .unwrap();
+
+        // A domain hecks_eras has never heard of at all.
+        let unminted = current_era(&client, "CurrentEraFixture").await.unwrap();
+        assert_eq!(unminted, None, "a domain with no hecks_eras rows at all has no current era");
+
+        // Era 1 minted, then era 2 supersedes it — both rows stay on
+        // file (hecks_eras is append-only, never deletes a superseded
+        // row), exactly the shape a stale checkout would see.
+        client
+            .execute(
+                "INSERT INTO hecks_eras (domain, ordinal) VALUES ($1, 1)",
+                &[&"CurrentEraFixture"],
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            current_era(&client, "CurrentEraFixture").await.unwrap(),
+            Some(1),
+            "with only era 1 on file, era 1 is current"
+        );
+
+        client
+            .execute(
+                "INSERT INTO hecks_eras (domain, ordinal) VALUES ($1, 2)",
+                &[&"CurrentEraFixture"],
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            current_era(&client, "CurrentEraFixture").await.unwrap(),
+            Some(2),
+            "era 1's row is still on file, but era 2 is now the live one -- \
+             a bare existence check on era 1 would have missed that it's stale"
         );
     }
 }
