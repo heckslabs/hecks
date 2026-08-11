@@ -41,6 +41,23 @@ Hecks.bluebook "Banking", version: "v1" do
     use_index :account_index
   end
 
+  # A THIRD SHAPE — ROOTLESS. Neither CustomerPortfolio nor
+  # ComplianceDashboard has a use for this: both center on one real
+  # record. A branch manager's own question is different — every
+  # account the bank holds, at once, sorted into what kind it is, then
+  # by its own number within that — and there is no single record to
+  # anchor that view to. No `reference_to`, no id argument at dispatch:
+  # `group_by` nests Account's own whole table by its own fields, which
+  # is also what makes this rootless shape legitimate to declare at all
+  # (see group_by's own reference doc for why the two go together).
+  # Two fields, not one — proves the NESTING actually nests (a single-
+  # field group_by can't tell "one level" from "flattened by accident").
+  report "AccountsByKind" do
+    description "Every account the bank holds, sorted into what kind it is, then by its own number."
+    include Account
+    group_by :kind, :number
+  end
+
   aggregate "Customer" do
     description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
 

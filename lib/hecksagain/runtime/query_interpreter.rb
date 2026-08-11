@@ -36,7 +36,14 @@ module Hecksagain
         repository = @registry.repository(domain, aggregate)
         if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate }))
           records = native
-          return records.map { |record| { id: record.id }.merge(record.state) }
+          # `record.state.merge(id: record.id)` — id LAST, not first. See
+          # Instance#to_h's own comment: an aggregate free to declare its
+          # own attribute literally named `id` has that attribute's own
+          # wrapped value sitting in `record.state[:id]` already; merging
+          # it OVER a `{id:}.merge(state)` used to let it silently
+          # clobber the correct bare identity this row is supposed to
+          # carry.
+          return records.map { |record| record.state.merge(id: record.id) }
         end
 
         interpret(repository.all, declared, args)
@@ -80,7 +87,9 @@ module Hecksagain
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
-        capped.map { |r| { id: r.id }.merge(r.state) }
+        # id LAST — see the native-path comment above; same clobbering
+        # risk for the in-memory reference interpreter's own rows.
+        capped.map { |r| r.state.merge(id: r.id) }
       end
 
       # `interpret`'s own twin, for reference_call alone — same
@@ -94,7 +103,8 @@ module Hecksagain
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
 
-        capped.map { |r| { id: r.id }.merge(r.state) }
+        # id LAST — same reasoning, same fix, as interpret's own rows.
+        capped.map { |r| r.state.merge(id: r.id) }
       end
 
       # THE NAIVE READING OF A HOP: not a fold, not an id set — for

@@ -11,17 +11,36 @@ module Hecksagain
       class ReadModel < QuerySpecification::ReadModel::Specification
         include Construct
 
-        attr_reader :name, :description, :reference_name, :reference_target, :aggregate_heads
+        attr_reader :name, :description, :reference_name, :reference_target, :aggregate_heads, :group_by
 
-        def initialize(name:, description: nil, reference_name:, reference_target:, aggregate_heads: [], **options)
+        # `reference_name:`/`reference_target:` are nil for a ROOTLESS read
+        # model (no `reference_to` declared) — `&.` throughout, rather than
+        # the `.to_s`/`.to_sym` this used to require unconditionally, so
+        # `reference_target.nil?` stays a real, checkable fact for the
+        # interpreter instead of silently becoming `""`.
+        def initialize(name:, description: nil, reference_name: nil, reference_target: nil, aggregate_heads: [],
+                       group_by: [], **options)
           super(joins: aggregate_heads, **options)
           @name             = name.to_s
           @hecks_name       = @name
           @description      = description
-          @reference_name   = reference_name.to_sym
-          @reference_target = reference_target.to_s
+          @reference_name   = reference_name&.to_sym
+          @reference_target = reference_target&.to_s
           @aggregate_heads  = aggregate_heads
+          # Hash rows (`{field: :agg}`), same shape as `aggregate_heads` —
+          # `group_by_fields` is the convenience reader everything but
+          # `to_h`/the Judge's own generic walk actually wants.
+          @group_by         = group_by
         end
+
+        # `.to_sym` regardless of source — the DIRECT builder path stores
+        # symbols, but `Reconstruction::Shapes#group_by_field` (the
+        # replayed-from-the-meta-domain path every REAL boot actually
+        # goes through) reads the field back as a String, the same way
+        # `aggregate_heads`' own `:as` does. Row hash KEYS built by
+        # `Value.materialize_unwrapped` are symbols (`attr.name`), so
+        # this has to be too, or `row[field]` in `nest` silently misses.
+        def group_by_fields = @group_by.map { |row| row[:field].to_sym }
 
         def query_name = Naming.snake(@name)
 
@@ -32,7 +51,7 @@ module Hecksagain
         # interpreter can ask this directly rather than re-deriving or
         # re-checking it.
         def filtered_head_name
-          return nil unless wheres.any? || order_by || limit || offset || authorization&.tenant
+          return nil unless wheres.any? || order_by || limit || offset || authorization&.tenant || @group_by.any?
 
           @aggregate_heads.find { |head| head[:many] }&.fetch(:as)
         end
@@ -41,6 +60,7 @@ module Hecksagain
           { name: @name, description: @description, reference_name: @reference_name,
             reference_target: @reference_target, query_name: query_name }
             .merge(aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) })
+            .merge(group_by: @group_by.map { |row| row.merge(field: row[:field].to_s) })
             .merge(extra_options_to_h)
         end
       end

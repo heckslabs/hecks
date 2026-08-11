@@ -93,7 +93,12 @@ module Hecksagain
                breadcrumbs: [[chapter.name, "/"], [aggregate.hecks_name, nil]])
         else
           instances = @registry.repository(chapter.name, aggregate).all
-          json(200, instances.map { |i| { id: i.id }.merge(i.state) })
+          # id LAST — see Instance#to_h's own comment: an aggregate free
+          # to declare its own attribute literally named `id` has that
+          # attribute's own wrapped value sitting in `i.state[:id]`
+          # already, which used to silently clobber the correct bare
+          # identity when merged first.
+          json(200, instances.map { |i| i.state.merge(id: i.id) })
         end
       end
 
@@ -150,7 +155,9 @@ module Hecksagain
         fields = FormRenderer.fields_for(aggregate, command)
         args = Params.extract(fields, raw)
         result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **args)
-        json(201, { id: result.id }.merge(result.state))
+        # id LAST — same reasoning as the other JSON-serializing call
+        # sites in this file (see aggregate_route's own comment).
+        json(201, result.state.merge(id: result.id))
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
         status = e.is_a?(Runtime::NotFound) ? 404 : 422
         json(status, { error: e.class.name.split("::").last, message: e.message })
@@ -184,7 +191,9 @@ module Hecksagain
         results, error = run_query(domain, aggregate, query, fields, asked)
         return json(422, { error: error.class.name.split("::").last, message: error.message }) if error
 
-        json(200, results.map { |i| { id: i.id }.merge(i.state) })
+        # id LAST — same reasoning as the other JSON-serializing call
+        # sites in this file (see aggregate_route's own comment).
+        json(200, results.map { |i| i.state.merge(id: i.id) })
       end
 
       # `Dispatcher#query` answers an array of plain hashes
@@ -206,7 +215,9 @@ module Hecksagain
 
         instance = @registry.repository(domain, aggregate).find(id)
         return not_found(aggregate, id, format) unless instance
-        return json(200, { id: instance.id }.merge(instance.state)) if format != "html"
+        # id LAST — same reasoning as the other JSON-serializing call
+        # sites in this file (see aggregate_route's own comment).
+        return json(200, instance.state.merge(id: instance.id)) if format != "html"
 
         html("#{domain}::#{aggregate.hecks_name} #{id}", RecordRenderer.show(registry: @registry, domain: domain, aggregate: aggregate, id: id),
              breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [id, nil]])

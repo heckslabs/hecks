@@ -476,6 +476,9 @@
         "max_age": "60",
         "mode": "bounded"
       },
+      "group_by": [
+
+      ],
       "index_hints": [
         {
           "name": "condition_index"
