@@ -50,5 +50,12 @@
     "id": "Pizzas::OnPizzaPaymentReceived",
     "generated": true,
     "routed": true
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Pizzas::Order",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"order\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/project.rb's own header)"
   }
 ]

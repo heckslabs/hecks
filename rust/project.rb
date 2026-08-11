@@ -155,29 +155,55 @@
 #     `event.correlation` stamp) — only the first (current event's own
 #     payload) and third (`Naming.reference_key`) tiers are ported.
 #   - Cross-domain policies (`across` a domain this single-domain `Store`
-#     never generated) — omitted from the generated table entirely, a
-#     real match for Ruby's own behavior when that domain isn't loaded
-#     either, not a narrowing (0013's own Consequences).
-#   - Era/lineage support — investigated (0021's own follow-up), and
-#     confirmed to be a DIFFERENT KIND of gap than everything else on
-#     this list: not a parity bug in what THIS generator's current,
-#     single-era output produces (every item above is exactly that), but
-#     an entire missing SUBSYSTEM. Ruby's own era support (`runtime/
-#     era_check.rb`, `era_guard.rb`, `era_tamper.rb`, `ports/persistence/
-#     lineage.rb`, the Postgres adapter's own `lineage_manager/`) is a
-#     boot-time, ADAPTER-CAPABILITY-gated mechanism — "an era is a fact
-#     about STORED DATA some adapter can carry across a shape change,"
-#     co-located with that adapter's own rows, never hashed or checked
-#     for an adapter that can't translate at all. This kernel has exactly
-#     one adapter, `InMemoryRepository` — no Postgres binding, no
-#     lineage/shape-diff/tamper-detection concept, nothing "lineage_
-#     capable?" could ever answer true for. Porting era support here
-#     would mean building a Rust Postgres adapter FIRST, then the whole
-#     lineage/shape-diff system on top of it — a materially different,
-#     larger project than anything this generator does today, not a
-#     command/attribute-shaped gap to close. `read_model` generation
-#     (never attempted at all, §8's own original scope) is the same kind
-#     of thing: a missing subsystem, not a parity gap.
+#     used to leave ungenerated) — NO LONGER TRUE, since `reactions.rb`'s
+#     own `emit_cross_domain_policy_table` (`CrossDomainPolicyRule`,
+#     `kernel::orchestrate`'s own header): every declared policy,
+#     cross-domain or not, gets a real manifest entry now
+#     (`domain_generator.rb`), matched and carried out as a
+#     `PendingCrossDomainReaction` for `rust/host`'s own `lambda_client.rs`
+#     to deliver. Left here only as a "this used to be true" marker —
+#     `bin/rust_coverage`'s own header has the fuller account of exactly
+#     what is and isn't proven about the live-delivery half.
+#
+# ERA/LINEAGE SUPPORT — investigated (0021's own follow-up) and split
+# into two genuinely different questions once `rust/host` (the deployed
+# Lambda binary, hand-written, alongside but separate from THIS
+# generator's own WASM-kernel target) grew a real Postgres binding of
+# its own:
+#   - Can a lineage-capable aggregate's CURRENT, already-translated state
+#     be READ, and a new mutation WRITTEN, from Rust? YES, as of the
+#     generalization below — `journal::read_lineage_head_all/_by_id`
+#     (read) and `journal::append_lineage_mutation` (write, already
+#     generic before this) both work for ANY aggregate `ir.json`'s own
+#     `lineage.capable_aggregates` names (`Projector::Exporter.lineage`),
+#     not just the one hand-written special case (`Embryonaut::Member`,
+#     auth.rs) that proved the shape out first. `bin/rust_coverage`'s own
+#     `lineage_aggregate` findings report this per domain, generated
+#     unconditionally — the mechanism is host-level and generic, not
+#     per-domain generated code, so there is no per-instance gap to check
+#     the way a command/query has.
+#   - Can THIS generator's own WASM kernel (`rust/src/kernel`,
+#     `InMemoryRepository`-only, still true) MINT an era, DETECT shape
+#     drift, or COMPILE a translation rule to SQL? NO, and this part of
+#     the original finding still stands, by architecture rather than by
+#     gap: `Runtime::EraGuard`/`EraTamper`/the Postgres adapter's own
+#     `lineage_manager/*` all parse bluebook/translation-rule DSL source
+#     at runtime, which ADR 0007 ("Rust generates code, not Ruby source")
+#     rules out for any Rust target, kernel or host, permanently — not
+#     something a future slice closes, the same way `IR::Bind`/adapter
+#     resolution itself never becomes a Rust concern. What makes reading
+#     THROUGH that machinery possible without reimplementing any of it:
+#     Ruby's own `HeadCompiler` already compiles every rename/move/
+#     convert/drop/compute rule into the `<storage>_head` VIEW's own SQL
+#     (`hecks_tr_*` helpers) at mint time — by the time any Rust code
+#     runs a plain `SELECT` against it, translation has already happened.
+#     A lineage-capable aggregate's commands are, exactly like Ruby's own
+#     `CommandInterpreter` already treats them, dispatched OUTSIDE this
+#     kernel's `InMemoryRepository`/flat-journal-replay path entirely —
+#     never blended into it (see journal.rs's own header on why
+#     overlaying a translated head state into a COLD REPLAY's starting
+#     seed would create a new "AlreadyExists" false refusal, not fix
+#     anything).
 #
 # FOURTEENTH SLICE — a NAMED/declared bluebook `query "X" do ... end` block
 # now generates too, for the subset expressible as one or more field-

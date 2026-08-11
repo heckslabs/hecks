@@ -217,16 +217,25 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
 // real, live "google_unlinked" for an ALREADY-linked chris@embryonaut.ai
 // caught this: `resolve_identity` correctly found his real identity_id,
 // but scanning `instances` for his Member record could never find it.
+//
+// THIN WRAPPERS, now — `journal::read_lineage_head_by_id`/`_all` are
+// the SAME two queries, generalized over `storage_name` instead of
+// hard-typed to `"member_head"`, so Member is no longer the only
+// aggregate this crate can read this way (see journal.rs's own header
+// on the generic pair, and ir.rs's `lineage_capable_aggregates` for how
+// a caller learns which OTHER aggregates qualify). Kept as named,
+// Member-specific functions here rather than inlined at each call site
+// below — every call site still reads "the Member row," not "a lineage
+// row for whichever storage name," which is the real shape of what
+// auth.rs is doing.
 async fn member_row_by_email(client: &Mutex<Client>, email: &str) -> anyhow::Result<Option<Value>> {
     let guard = client.lock().await;
-    let row = guard.query_opt("SELECT state FROM member_head WHERE id = $1", &[&email]).await?;
-    Ok(row.map(|r| r.get::<_, Value>(0)))
+    journal::read_lineage_head_by_id(&*guard, "member", email).await
 }
 
 async fn member_rows(client: &Mutex<Client>) -> anyhow::Result<Vec<(String, Value)>> {
     let guard = client.lock().await;
-    let rows = guard.query("SELECT id, state FROM member_head", &[]).await?;
-    Ok(rows.into_iter().map(|r| (r.get(0), r.get(1))).collect())
+    journal::read_lineage_head_all(&*guard, "member").await
 }
 
 // `Adapters::Postgres#append`, ported verbatim (postgres.rb:141-166) --

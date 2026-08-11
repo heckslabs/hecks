@@ -20,26 +20,16 @@ use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
+use crate::ir::ir;
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use tokio_postgres::Client;
 
 const UNGATED_PATHS: &[&str] = &["/login", "/logout", "/auth/google", "/auth/google/callback"];
-
-fn ir() -> Option<&'static Value> {
-    static IR: OnceLock<Option<Value>> = OnceLock::new();
-    IR.get_or_init(|| {
-        let path = std::env::var("HECKS_IR_PATH").ok()?;
-        let text = std::fs::read_to_string(path).ok()?;
-        serde_json::from_str(&text).ok()
-    })
-    .as_ref()
-}
 
 #[allow(clippy::too_many_arguments)]
 pub async fn render(
