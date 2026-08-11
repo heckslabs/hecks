@@ -143,7 +143,7 @@ module Hecksagain
         # already uses. Requires EXACTLY one field on the value object, for
         # the identical reason `resolve_identity_field!` does — refused,
         # naming every candidate, rather than guessing.
-        def resolve_identity_type!(type, as, value_objects, context_name)
+        def resolve_identity_type!(type, as, insert_at, value_objects, context_name)
           target = Naming.demodulise(type)
           vo = value_objects.find { |v| v.hecks_name.to_s == target }
           raise Malformed, "#{context_name}.identified_by names #{target}, which is not a declared value object" unless vo
@@ -158,6 +158,18 @@ module Hecksagain
 
           field = (as || Naming.snake(target)).to_sym
           attribute(field, target)
+          # MOVED to `insert_at` — the attribute count AT THE MOMENT
+          # `identified_by` was actually called, captured by the caller —
+          # not left where `attribute` just appended it. Resolution happens
+          # at BUILD time, after every other attribute in the block has
+          # already run, so appending would put the identity field LAST
+          # regardless of where `identified_by` was actually written.
+          # Most real bluebooks write it first (insert_at 0); one (a
+          # ScheduledPayment corpus member) writes it after a reference_to
+          # and an attribute — this matches either, and whatever a person
+          # hand-writing `attribute field, Type` at that exact point,
+          # the way this used to be required, would have produced.
+          attributes.insert(insert_at, attributes.pop)
           ["#{field}.#{vo.attributes.first.name}"]
         end
       end

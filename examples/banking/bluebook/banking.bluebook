@@ -44,9 +44,8 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "Customer" do
     description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
 
-    identified_by { reference.value }
+    identified_by CustomerNumber, as: :reference
 
-    attribute :reference, CustomerNumber
     attribute :name,      PersonName
     attribute :email,     EmailAddress
     attribute :standing,  CustomerStanding
@@ -157,11 +156,10 @@ Hecks.bluebook "Banking", version: "v1" do
     description "A balance belonging to one customer, and the ledger that explains how it got there."
     provenance from: { source: "HecksCanonical", source_id: "aggregate:account", source_version: "1.0" }
 
-    identified_by { number.value }
-
     reference_to Customer
 
-    attribute :number,       AccountNumber
+    identified_by AccountNumber, as: :number
+
     attribute :balance,      Money
     attribute :kind,         AccountKind
     attribute :daily_limit,  DailyLimit
@@ -227,9 +225,8 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "LedgerEntry" do
       description "One movement across the account, in the order it was posted."
 
-      identified_by { sequence.value }
+      identified_by LedgerSequence, as: :sequence
 
-      attribute :sequence,  LedgerSequence
       attribute :amount,    Money
       attribute :narrative, Narrative
       attribute :direction, LedgerDirection
@@ -463,11 +460,10 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "ATMCard" do
     description "A card issued against an account, and the cash taken with it."
 
-    identified_by { serial.value }
-
     reference_to Account
 
-    attribute :serial,      CardSerial
+    identified_by CardSerial, as: :serial
+
     attribute :nickname,    CardNickname
     attribute :daily_fee,   DailyFee
     attribute :withdrawals, list_of(Withdrawal)
@@ -505,9 +501,8 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "Withdrawal" do
       description "One handful of cash, in the order it was taken."
 
-      identified_by { sequence.value }
+      identified_by WithdrawalSequence, as: :sequence
 
-      attribute :sequence,  WithdrawalSequence
       attribute :cents,     WithdrawalAmount
       attribute :narrative, Narrative
 
@@ -608,12 +603,11 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "Transfer" do
     description "Money leaving one account for another. Two movements that must both happen, or neither."
 
-    identified_by { reference.value }
-
     reference_to Account, as: :source
     reference_to Account, as: :destination
 
-    attribute :reference, TransferReference
+    identified_by TransferReference, as: :reference
+
     attribute :amount,    TransferMoney
 
     value_object "TransferReference" do
@@ -717,11 +711,9 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "CardPayment" do
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
-    identified_by { authorisation.value }
-
     reference_to Account
     reference_to Customer, as: :disputed_by
-    attribute :authorisation, AuthorisationCode
+    identified_by AuthorisationCode, as: :authorisation
     attribute :amount,   PaymentAmount
 
     value_object "AuthorisationCode" do
@@ -844,10 +836,8 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "ExternalTransfer" do
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 
-    identified_by { end_to_end.value }
-
     reference_to Account
-    attribute :end_to_end,  EndToEndReference
+    identified_by EndToEndReference, as: :end_to_end
     attribute :amount,      ExternalAmount
     attribute :beneficiary, BeneficiaryName
     # WHICH WAY THE MONEY MOVED ON THE ACCOUNT — and the bank already has a set
@@ -924,9 +914,8 @@ Hecks.bluebook "Banking", version: "v1" do
 
     reference_to Account
     attribute :amount,    ScheduledAmount
-    identified_by { instruction.value }
+    identified_by InstructionReference, as: :instruction
 
-    attribute :instruction, InstructionReference
     attribute :recipient, PaymentRecipient
     attribute :due_on,    PaymentDueDate
     attribute :attempts,     RetryCount
@@ -1156,9 +1145,7 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "KeyIssuance" do
       description "One key cut for the box, held by whoever last signed for it."
 
-      identified_by { serial.value }
-
-      attribute :serial, KeySerial
+      identified_by KeySerial, as: :serial
 
       lifecycle :status, default: "issued" do
         transition "Return" => "returned", from: "issued"
@@ -1253,8 +1240,6 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "OnboardingCase" do
     description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
 
-    identified_by { reference.value }
-
     # THE FIRST `belongs_to` IN THE CORPUS — sugar over `reference_to` that
     # mints `customer` rather than `customer_id` (AggregateBuilder's own
     # comment gives the naming split : no `_id` suffix, matching Hecks' own
@@ -1262,7 +1247,8 @@ Hecks.bluebook "Banking", version: "v1" do
     # is : a case belongs to exactly one customer, one at a time.
     belongs_to Customer
 
-    attribute :reference,      OnboardingReference
+    identified_by OnboardingReference, as: :reference
+
     attribute :account_number, AccountNumber
 
     value_object "OnboardingReference" do

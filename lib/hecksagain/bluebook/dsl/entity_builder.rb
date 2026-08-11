@@ -39,7 +39,7 @@ module Hecksagain
             # way the rest of the language already does (PascalCase type,
             # snake_case field).
             if target.to_s[0] =~ /[A-Z]/
-              @identity_type_pending = [target, as]
+              @identity_type_pending = [target, as, attributes.size]
             else
               raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
 
@@ -91,8 +91,8 @@ module Hecksagain
 
         def resolve_pending_identity!
           if @identity_type_pending
-            type, as = @identity_type_pending
-            @identity_paths = resolve_identity_type!(type, as, @owner_value_objects, @name)
+            type, as, insert_at = @identity_type_pending
+            @identity_paths = resolve_identity_type!(type, as, insert_at, @owner_value_objects, @name)
           elsif @identity_field_pending
             @identity_paths = resolve_identity_field!(@identity_field_pending, @owner_value_objects, @name)
           end
