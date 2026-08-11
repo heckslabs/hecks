@@ -1,4 +1,5 @@
 require "spec_helper"
+require "tempfile"
 
 RSpec.describe Hecksagain::Facade::Handle do
   BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
@@ -85,5 +86,74 @@ RSpec.describe Hecksagain::Facade::Handle do
     # hash, so a stray `nil` key had nowhere to hide.
     box.surrender
     expect(box.status).to eq("vacant")
+  end
+
+  # `to_h` used to be `{ id: @id }.merge(@state)` — `@state` merged LAST,
+  # so an aggregate free to declare its own attribute literally named `id`
+  # (real corpus now: BurningManPrep's `Item`, `attribute :id, ItemId`,
+  # `identified_by { id.value }`) got that attribute's own WRAPPED value
+  # object silently clobbering the correctly-unwrapped bare `@id`. The
+  # JSON door's own `/api/:coll` listing is the caller that actually hit
+  # this: every record's own `id` key came back `{value: "..."}` instead
+  # of a bare string, which collapsed an entire collection's own client-
+  # side id-keyed cache down to one entry (every wrapped-hash key stringifies
+  # the same way).
+  it "keeps a declared attribute literally named id from clobbering the bare identity in to_h" do
+    registry = Hecksagain::Runtime::Registry.new
+    source = <<~BLUEBOOK
+      Hecks.bluebook "Thingy" do
+        aggregate "Thing" do
+          identified_by { id.value }
+
+          value_object "ThingId" do
+            attribute :value, String
+          end
+
+          value_object "ThingName" do
+            attribute :value, String
+          end
+
+          attribute :id,   ThingId
+          attribute :name, ThingName
+
+          command "Mint" do
+            attribute :id,   ThingId
+            attribute :name, ThingName
+            emits "Minted"
+          end
+        end
+      end
+    BLUEBOOK
+    file = Tempfile.new(["thing-", ".bluebook"])
+    file.write(source)
+    file.flush
+
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.eval(source, TOPLEVEL_BINDING, file.path, 1)
+
+      Hecks.hecksagon("Thingy") do
+        ::Thingy::Thing.persisted_by("Memory")
+      end
+    end
+
+    registry.verify!
+    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+
+    thing = Thingy::Thing.mint(id: { value: "t1" }, name: { value: "goggles" })
+
+    expect(thing.id).to eq("t1")
+    expect(thing.to_h[:id]).to eq("t1")
+
+    # Scope check: this fix is about `:id` specifically clobbering itself,
+    # not a general re-unwrap of every field — an ordinary declared
+    # attribute stays exactly what it always was, a `Runtime::Value`.
+    expect(thing.to_h[:name]).to be_a(Hecksagain::Runtime::Value)
+    expect(thing.to_h[:name].to_h).to eq({ value: "goggles" })
+  ensure
+    file&.close!
   end
 end

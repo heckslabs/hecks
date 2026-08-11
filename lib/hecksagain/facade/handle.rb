@@ -29,7 +29,19 @@ module Hecksagain
       end
 
       def [](key) = @state[key.to_sym]
-      def to_h    = { id: @id }.merge(@state)
+
+      # `id: @id` LAST, not first — an aggregate is free to declare its own
+      # attribute literally named `id` (BurningManPrep's `Item`, `attribute
+      # :id, ItemId`, is real corpus now: `identified_by { id.value }` reads
+      # THAT attribute for identity). When it does, `@state[:id]` holds the
+      # full wrapped value object, not the bare identity string — merging
+      # `@state` on top of `{ id: @id }` let that wrapped VO silently
+      # clobber the correct bare `@id`, so every caller of `to_h` (the JSON
+      # door's own `/api/:coll` listing, in particular) got an object where
+      # a plain identity string belonged. `@id` merged LAST always wins,
+      # so `to_h[:id]` is always the true bare identity, regardless of
+      # whether the aggregate also happens to declare a same-named field.
+      def to_h = @state.merge(id: @id)
 
       def fqn = "#{@domain}::#{@ir.hecks_name}"
 
