@@ -55,7 +55,14 @@ module Hecksagain
         # `number` to exist — the same reason `balance >= amount` works in a given.
         # The canonical form collapses the block's newlines to single spaces, so
         # the paths arrive here already separated and in the order written.
-        def identified_by(&path)
+        def identified_by(field = nil, &path)
+          if field
+            raise Malformed, "#{@name}.identified_by takes a field name or a block, not both" if path
+
+            @identity_field_pending = field
+            return
+          end
+
           raise Malformed, "#{@name}.identified_by names no field" unless path
 
           paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
@@ -105,7 +112,11 @@ module Hecksagain
           # `IR::Aggregate#initialize`, once the aggregate exists. Its own
           # commands were given the piece as their owner when it was declared,
           # so the chain closes as chapter -> aggregate -> entity -> command.
-          @entities << EntityBuilder.build(name, &block)
+          # `owner_value_objects:` lets a PIECE's own `identified_by :field`
+          # (see AttributeCollector#resolve_identity_field!) derive from a
+          # value object this AGGREGATE declared — a piece has none of its
+          # own — so the same bare-field form works at both levels.
+          @entities << EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets, &block)
         end
 
         def query(name, &block)
@@ -131,6 +142,7 @@ module Hecksagain
         end
 
         def build
+          resolve_pending_identity!
           seal_mutation_targets
           seal_query_targets
           seal_defaults
@@ -164,6 +176,12 @@ module Hecksagain
         end
 
         private
+
+        def resolve_pending_identity!
+          return unless @identity_field_pending
+
+          @identity_paths = resolve_identity_field!(@identity_field_pending, @value_objects + closed_sets, @name)
+        end
 
         # Every reference is told which IR::Aggregate declares it, so it can
         # find the chapter and resolve its target.

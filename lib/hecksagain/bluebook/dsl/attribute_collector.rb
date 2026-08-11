@@ -92,6 +92,46 @@ module Hecksagain
           )
           type
         end
+
+        # `identified_by :reference` — the bare-field form, DERIVING the path
+        # instead of spelling it: `field`'s own already-declared attribute
+        # names a value object, and when that value object holds EXACTLY one
+        # field there is only one thing `identified_by { field.value }` could
+        # ever have meant. More than one field is genuinely ambiguous (which
+        # one names the record?) — refused, naming every candidate, rather
+        # than guessing `.value`-if-present the way an earlier draft of this
+        # did (silently wrong the moment a second field, `pad`, arrives on
+        # what used to be single-field). Shared by AggregateBuilder and
+        # EntityBuilder (both include this module) — each resolves it at its
+        # own BUILD time, not at `identified_by`'s own call time, since every
+        # real bluebook declares identified_by BEFORE the attribute it
+        # names, so the attribute (and its own value-object type) don't
+        # exist to look up yet at that point.
+        def resolve_identity_field!(field, value_objects, context_name)
+          attr = attributes.find { |a| a.name == field }
+          raise Malformed, "#{context_name}.identified_by :#{field} names no attribute #{context_name} declares" unless attr
+
+          if attr.reference?
+            raise Malformed,
+                  "#{context_name}.identified_by :#{field} names a reference — " \
+                  "write identified_by { #{field}.value }, naming the field explicitly"
+          end
+
+          vo = value_objects.find { |v| v.hecks_name.to_s == attr.type.to_s }
+          return [field.to_s] unless vo # a bare primitive type — already itself scalar
+
+          case vo.attributes.size
+          when 1
+            ["#{field}.#{vo.attributes.first.name}"]
+          else
+            raise Malformed,
+                  "#{context_name}.identified_by :#{field} names #{attr.type}, which has " \
+                  "#{vo.attributes.size} fields (#{vo.attributes.map(&:name).join(', ')}) — " \
+                  "a bare field name only derives a path when its own value object has " \
+                  "exactly one field; write identified_by { #{field}.<field> } naming the " \
+                  "specific one"
+          end
+        end
       end
     end
   end

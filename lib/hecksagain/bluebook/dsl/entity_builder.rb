@@ -4,10 +4,11 @@ module Hecksagain
       class EntityBuilder
         include AttributeCollector
 
-        def initialize(name)
+        def initialize(name, owner_value_objects: [])
           @name     = name
           @commands = []
           @queries  = []
+          @owner_value_objects = owner_value_objects
         end
 
         def description(value) = @description = value
@@ -29,7 +30,14 @@ module Hecksagain
         # port an aggregate's is, so the two constructs cannot drift apart in
         # how they spell an identity — INCLUDING the several-path form, which a
         # piece may say for the same reason a head may.
-        def identified_by(&path)
+        def identified_by(field = nil, &path)
+          if field
+            raise Malformed, "#{@name}.identified_by takes a field name or a block, not both" if path
+
+            @identity_field_pending = field
+            return
+          end
+
           raise Malformed, "#{@name}.identified_by names no field" unless path
 
           paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
@@ -51,6 +59,7 @@ module Hecksagain
         end
 
         def build
+          resolve_pending_identity!
           IR::Entity.declare(
             name:          @name,
             description:   @description,
@@ -62,10 +71,18 @@ module Hecksagain
           )
         end
 
-        def self.build(name, &block)
-          builder = new(name)
+        def self.build(name, owner_value_objects: [], &block)
+          builder = new(name, owner_value_objects: owner_value_objects)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        def resolve_pending_identity!
+          return unless @identity_field_pending
+
+          @identity_paths = resolve_identity_field!(@identity_field_pending, @owner_value_objects, @name)
         end
       end
     end

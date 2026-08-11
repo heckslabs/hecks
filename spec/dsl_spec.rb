@@ -999,6 +999,83 @@ RSpec.describe "the DSL surface" do
       expect(undeclared.identified_by).to be_nil
     end
 
+    describe "identified_by :field — deriving the path from a single-field value object" do
+      it "derives the same path { field.value } would have written by hand" do
+        identified = build_aggregate("Community") do
+          identified_by :id
+          value_object("CommunityId") { attribute :value, String }
+          attribute :id, CommunityId
+        end
+
+        expect(identified.identity_paths).to eq(["id.value"])
+        expect(identified.identified_by).to eq(:id)
+      end
+
+      it "refuses a value object with more than one field, naming every candidate" do
+        expect do
+          build_aggregate("Thing") do
+            identified_by :ref
+            value_object("ThingRef") do
+              attribute :value, String
+              attribute :pad, Integer
+            end
+            attribute :ref, ThingRef
+          end
+        end.to raise_error(Malformed, /identified_by :ref names ThingRef, which has 2 fields \(value, pad\)/)
+      end
+
+      it "refuses a field the aggregate never declares" do
+        expect do
+          build_aggregate("Thing") { identified_by :nonexistent }
+        end.to raise_error(Malformed, /identified_by :nonexistent names no attribute Thing declares/)
+      end
+
+      it "refuses a reference — a reference has no single field to derive" do
+        expect do
+          build_bluebook("Refs") do
+            aggregate "Team" do
+              identified_by { name.value }
+              value_object("Name") { attribute :value, String }
+              attribute :name, Name
+            end
+
+            aggregate "Board" do
+              identified_by :owner
+              reference_to Team, as: :owner
+            end
+          end
+        end.to raise_error(Malformed, /identified_by :owner names a reference/)
+      end
+
+      it "refuses giving both a field name and a block" do
+        expect do
+          Hecksagain::Bluebook::DSL::AggregateBuilder.build("Both") do
+            identified_by(:id) { id.value }
+          end
+        end.to raise_error(Malformed, /identified_by takes a field name or a block, not both/)
+      end
+
+      it "works the same way on an entity, deriving from the OWNING AGGREGATE's own value object" do
+        bluebook = build_bluebook("Games") do
+          aggregate "Bracket" do
+            identified_by { bracket_id.value }
+            attribute :bracket_id, BracketId
+            value_object("BracketId") { attribute :value, String }
+            value_object("GameId")    { attribute :value, String }
+
+            entity "Game" do
+              identified_by :game_id
+              attribute :game_id, GameId
+            end
+          end
+        end
+
+        game = bluebook.aggregate("Bracket").entities.first
+        expect(game.identity_paths).to eq(["game_id.value"])
+        expect(game.identified_by).to eq(:game_id)
+      end
+    end
+
     it "lifecycle records a state machine on a field" do
       machine = build_aggregate("Machined") do
         lifecycle :status, default: "pending" do
