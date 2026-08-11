@@ -186,6 +186,14 @@ impl crate::kernel::AggregateScan for Store {}
 // alike (`bin/project_rust`'s own merged-registry step).
 pub const QUERIES: &[crate::kernel::QueryDef] = &[];
 
+// HAND-PATCHED, NOT GENERATED — same reason and fate as `QUERIES`
+// immediately above, now that a `read_model` construct has a real
+// generated code path too (registry.rs's own matching note in this same
+// directory has the full argument). An EMPTY table is the honest
+// stand-in until this domain's next real regeneration gives it a real
+// one, possibly non-empty across Embryonaut/Governance/Identity alike.
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[];
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,

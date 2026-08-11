@@ -37,5 +37,6 @@ pub mod json;
 pub mod mutations;
 pub mod queries;
 pub mod reactions;
+pub mod read_models;
 pub mod registry;
 pub mod types;

@@ -658,3 +658,19 @@ crate::kernel::QueryDef {
     ],
 },
 ];
+
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
+crate::kernel::read_model::ReadModelDef {
+    verb: "Banking.CustomerPortfolio",
+    reference_name: "customer",
+    heads: &[
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Customer", as_name: "customer", many: false, is_root: true, reference_fields: &[] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Account", as_name: "accounts", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "customer_id" }] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::ATMCard", as_name: "atm_cards", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account_id" }] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::Transfer", as_name: "transfers", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "source" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "destination" }] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::CardPayment", as_name: "card_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account_id" }, crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Customer", field: "disputed_by" }] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::ExternalTransfer", as_name: "external_transfers", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account_id" }] },
+        crate::kernel::read_model::ReadModelHead { aggregate: "Banking::ScheduledPayment", as_name: "scheduled_payments", many: true, is_root: false, reference_fields: &[crate::kernel::read_model::ReferenceField { target_aggregate: "Banking::Account", field: "account_id" }] },
+    ],
+},
+];

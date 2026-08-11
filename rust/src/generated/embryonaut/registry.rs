@@ -159,6 +159,19 @@ impl crate::kernel::AggregateScan for Store {}
 // regeneration gives it a real, possibly non-empty, generated table.
 pub const QUERIES: &[crate::kernel::QueryDef] = &[];
 
+// HAND-PATCHED, NOT GENERATED — same reason and same fate as `QUERIES`
+// immediately above, now that a `read_model` construct (`report "X" do
+// ... end`) has a real generated code path too (`rust/project/
+// read_models.rb`/`kernel/read_model.rs`): this domain's own bluebook
+// source isn't available in this repository, so that generator never ran
+// against it to decide which of Embryonaut's own declared read models
+// (if any) belong in this table. An EMPTY table is the honest stand-in —
+// `kernel/cli.rs`'s STRING-form "query" step turns a miss here into the
+// same clean refusal an unrouted command already gets, never a silent
+// wrong answer. Delete this block the day this domain's next real
+// regeneration gives it a real, possibly non-empty, generated table.
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[];
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,

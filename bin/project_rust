@@ -75,10 +75,47 @@ FileUtils.rm_rf(File.join(out_root, "active"))
 
 target_mod_name = File.basename(domain)
 FileUtils.rm_rf(File.join(out_root, target_mod_name))
-RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
+meta_result = RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
+
+# META'S OWN merged.rs — meta has always gotten full codegen (aggregates,
+# commands, queries, and now read models), but until this line nothing
+# ever gave it the ONE FILE that makes a generated module SELECTABLE as
+# its own compiled artifact (`domains`/Cargo feature detection, below,
+# both key off "does this directory have its own merged.rs" — the exact
+# same test `bin/rust_coverage`'s own header already documents for what
+# makes a directory "an independently selectable domain rather than a
+# shared framework chapter"). Meta attaches no OTHER chapter of its own
+# (`uses_framework` is a business-domain concept; the self-hosted
+# language declares nothing of the kind), so its own merged registry is
+# just its single-chapter one, restated under the same "merged.rs"
+# filename every other domain already writes — real, not a special case:
+# without this, `Bluebook::WholeBluebook` (the language's own read model)
+# could be codegen'd but never actually RUN through kernel::cli's real
+# stdin/stdout contract, which is exactly what proving it byte-for-byte
+# against Ruby (spec/rust_conformance_meta_spec.rb) needs.
+meta_merged_path = File.join(out_root, "meta", "merged.rs")
+File.open(meta_merged_path, "w") do |f|
+  f.puts RustProjection::Projector.emit_registry(meta_result[:aggregates])
+  f.puts
+  f.puts RustProjection::Projector.emit_policy_table(meta_ir[:name], meta_ir[:policies])
+  f.puts
+  f.puts RustProjection::Projector.emit_cross_domain_policy_table(meta_ir[:name], meta_ir[:policies])
+  f.puts
+  f.puts RustProjection::Projector.emit_process_manager_table(meta_ir[:process_managers])
+  f.puts
+  f.puts RustProjection::Projector.emit_reference_key_table([[meta_ir[:name], meta_result[:aggregates].map { |a| a[:name] }]])
+  f.puts
+  f.puts RustProjection::Projector.emit_query_table(meta_result[:queries])
+  f.puts
+  f.puts RustProjection::Projector.emit_read_model_table(meta_result[:read_models])
+end
+puts "wrote #{meta_merged_path}"
+File.open(File.join(out_root, "meta", "mod.rs"), "a") { |f| f.puts "pub mod merged;" }
+
 target_result = RustProjection::DomainGenerator.call(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
 target_aggregates = target_result[:aggregates]
 target_queries = target_result[:queries]
+target_read_models = target_result[:read_models]
 
 # EVERY OTHER BLUEBOOK NOW IN THE REGISTRY — the target domain's own
 # uses_framework calls (fired by loading its .hecksagon, above) pulled
@@ -98,6 +135,7 @@ target_queries = target_result[:queries]
 chapter_mod_names = { target_mod_name => target_domain_name }
 framework_aggregates = []
 framework_queries = []
+framework_read_models = []
 (target_registry.bluebooks.keys - [target_domain_name]).each do |chapter_name|
   chapter_mod_name = chapter_name.downcase
   chapter_mod_names[chapter_mod_name] = chapter_name
@@ -106,6 +144,7 @@ framework_queries = []
   chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})", File.join(out_root, chapter_mod_name), chapter_mod_name)
   framework_aggregates.concat(chapter_result[:aggregates])
   framework_queries.concat(chapter_result[:queries])
+  framework_read_models.concat(chapter_result[:read_models])
 end
 
 # ONE MERGED Store/dispatch_by_name, spanning the target domain AND
@@ -128,6 +167,7 @@ end
 # by DomainGenerator.call for this domain; appended to, not replaced.
 merged_aggregates = target_aggregates + framework_aggregates
 merged_queries = target_queries + framework_queries
+merged_read_models = target_read_models + framework_read_models
 merged_path = File.join(out_root, target_mod_name, "merged.rs")
 File.open(merged_path, "w") do |f|
   f.puts RustProjection::Projector.emit_registry(merged_aggregates)
@@ -145,6 +185,8 @@ File.open(merged_path, "w") do |f|
   )
   f.puts
   f.puts RustProjection::Projector.emit_query_table(merged_queries)
+  f.puts
+  f.puts RustProjection::Projector.emit_read_model_table(merged_read_models)
 end
 puts "wrote #{merged_path}"
 File.open(File.join(out_root, target_mod_name, "mod.rs"), "a") { |f| f.puts "pub mod merged;" }
