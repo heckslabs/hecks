@@ -13,8 +13,21 @@ require "hecksagain"
 require "hecksagain/bluebook/meta_validator"
 require_relative "../rust/project"
 require "fileutils"
+require "json"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
+
+# EVERY IR HANDED TO THE GENERATOR GOES THROUGH REAL JSON FIRST — never
+# the live Hash `Exporter.call` returns. That Hash carries real Ruby
+# Symbols (`IR::Attribute#to_h`'s `name:`, `IR::Mutation#to_h`'s
+# `op:`/`target:`); the `ir.json` sidecar the generator writes alongside
+# its .rs files — and which a Rust-side parser is being built to produce
+# directly, without booting Ruby at all — can only carry Strings. Passing
+# the live Hash straight through would let rust/project/*.rb quietly
+# depend on the Symbol spelling, and that dependency would only surface
+# the day the producer changed. This is the seam: the generator is only
+# ever exercised against the shape its future input actually has.
+def json_shaped(ir) = JSON.parse(JSON.generate(ir), symbolize_names: true)
 
 target_registry = Hecksagain::Runtime::Registry.new
 Hecksagain.with_registry(target_registry) do
@@ -43,7 +56,7 @@ end
 # insertion order (Ruby Hash's own guarantee) already puts it first
 # regardless of how many framework chapters get pulled in after it.
 target_domain_name = target_registry.bluebooks.keys.first
-target_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(target_domain_name)
+target_ir = json_shaped(Hecksagain::Projector::Exporter.call(target_registry).fetch(target_domain_name))
 
 # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecksagain/language/bluebook/`
 # declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,
@@ -55,7 +68,7 @@ target_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(target_d
 # then judged through its own fixpoint) — reused here rather than
 # re-derived, so this can never silently drift from what MetaValidator
 # itself actually loads.
-meta_ir = Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
+meta_ir = json_shaped(Hecksagain::Projector::Exporter.call(Hecksagain::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook"))
 
 out_root = File.expand_path("../rust/src/generated", __dir__)
 FileUtils.mkdir_p(out_root)
@@ -94,7 +107,7 @@ chapter_mod_names = { target_mod_name => target_domain_name }
 framework_aggregates = (target_registry.bluebooks.keys - [target_domain_name]).flat_map do |chapter_name|
   chapter_mod_name = chapter_name.downcase
   chapter_mod_names[chapter_mod_name] = chapter_name
-  chapter_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(chapter_name)
+  chapter_ir = json_shaped(Hecksagain::Projector::Exporter.call(target_registry).fetch(chapter_name))
   FileUtils.rm_rf(File.join(out_root, chapter_mod_name))
   RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})", File.join(out_root, chapter_mod_name), chapter_mod_name)
 end

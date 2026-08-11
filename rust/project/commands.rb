@@ -3,14 +3,14 @@ module RustProjection
     module_function
 
     def command_skip_reason(command, aggregate, value_objects_by_name)
-      unsupported_ops = command[:mutations].reject { |m| %i[append set increment decrement].include?(m[:op]) }.map { |m| m[:op] }.uniq
+      unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
       return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
 
       append_problems = append_field_problems(command, aggregate, value_objects_by_name)
       return "then_set append field(s): #{append_problems.join('; ')}" if append_problems.any?
 
-      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
-      target_type_for = ->(target) { target == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name] == target }&.dig(:type) }
+      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
+      target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
 
       # A `:set` mutation's literal source is EITHER a bare scalar (`to:
       # "sold"`) or a raw Ruby Hash (`to: { value: "good" }` —
@@ -23,7 +23,7 @@ module RustProjection
       # just "is it a Hash") so nothing NEW and unexpected can crash the run
       # instead of being skipped.
       literal_set_targets = command[:mutations].select do |m|
-        next false unless m[:op] == :set && m[:source][:kind] == "literal"
+        next false unless m[:op].to_s == "set" && m[:source][:kind] == "literal"
 
         !literal_set_bridgeable?(m[:source][:value], target_type_for.call(m[:target]), value_objects_by_name)
       end.map { |m| m[:target] }
@@ -39,7 +39,7 @@ module RustProjection
       # and target genuinely agree — checked here so a real mismatch is a named
       # skip, not a `cargo build` error with no Ruby-side explanation.
       mismatched_sets = command[:mutations].select do |m|
-        next false unless m[:op] == :set && m[:source][:kind] == "argument"
+        next false unless m[:op].to_s == "set" && m[:source][:kind] == "argument"
 
         target_type = target_type_for.call(m[:target])
         source_type = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }&.dig(:type)
@@ -55,7 +55,7 @@ module RustProjection
       # integer expression — `arithmetic_amount_expr`, above, is the same
       # "can we generate this" / "here's how" pairing `bridgeable_value_types?`/
       # `value_rhs` already use for `:set`.
-      arithmetic_targets = command[:mutations].select { |m| %i[increment decrement].include?(m[:op]) }
+      arithmetic_targets = command[:mutations].select { |m| %w[increment decrement].include?(m[:op].to_s) }
       unsupported_arithmetic = arithmetic_targets.reject do |m|
         target = arithmetic_target_field(m, aggregate, value_objects_by_name)
         target && arithmetic_amount_expr(m[:source], command, value_objects_by_name, target[1])
@@ -92,7 +92,7 @@ module RustProjection
     # something this domain's OWN declarations never asked for" — skipped,
     # loudly, the same as every other ungenerable shape above.
     def optional_source_mismatches(command, aggregate, value_objects_by_name)
-      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_sym
+      lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       problems = []
 
       # `identified_by` (creating commands only — `identity_components`,
@@ -113,19 +113,19 @@ module RustProjection
       end
 
       command[:mutations].each do |m|
-        case m[:op]
-        when :set
+        case m[:op].to_s
+        when "set"
           next unless m[:source][:kind] == "argument"
 
           source_attr = command[:attributes].find { |a| a[:name].to_s == m[:source][:name].to_s }
           next unless source_attr && source_attr[:optional]
 
-          if m[:target] == lifecycle_field
+          if m[:target].to_s == lifecycle_field
             problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]} into the lifecycle field"
             next
           end
 
-          target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
+          target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
           # A LIST target is exempt — a record's own list field is
           # EITHER plain `Vec<T>` (`emit_record`'s default rule, resolved
           # cleanly via `.unwrap_or_default()`) OR `Option<Vec<T>>`
@@ -136,8 +136,8 @@ module RustProjection
           next if target_attr && target_attr[:list]
 
           problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
-        when :append
-          target_attr = aggregate[:attributes].find { |a| a[:name] == m[:target] }
+        when "append"
+          target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
           element = target_attr && append_element(aggregate, target_attr[:type], value_objects_by_name)
           next unless element
 
@@ -349,7 +349,7 @@ module RustProjection
     # a real, separate, still-open gap flagged loudly, not silently worked
     # around by the delegation below.
     def entity_command_skip_reason(command, entity, value_objects_by_name)
-      return "then_set append: on an entity's own command not generated yet (nested list)" if command[:mutations].any? { |m| m[:op] == :append }
+      return "then_set append: on an entity's own command not generated yet (nested list)" if command[:mutations].any? { |m| m[:op].to_s == "append" }
 
       command_skip_reason(command, entity, value_objects_by_name)
     end

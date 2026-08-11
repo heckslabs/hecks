@@ -97,7 +97,7 @@ module RustProjection
       if vo[:closed_set]
         vo[:members].any? { |member| member.all? { |field, value| [hash[field.to_sym], hash[field.to_s]].include?(value) } }
       else
-        vo[:attributes].all? { |attr| hash.key?(attr[:name]) || hash.key?(attr[:name].to_s) }
+        vo[:attributes].all? { |attr| hash.key?(attr[:name].to_sym) || hash.key?(attr[:name].to_s) }
       end
     end
 
@@ -112,7 +112,7 @@ module RustProjection
         "#{rust_ident(target_type)}::#{closed_set_variant(row)}"
       else
         fields = vo[:attributes].map do |attr|
-          key = [attr[:name], attr[:name].to_s].find { |k| hash.key?(k) }
+          key = [attr[:name].to_sym, attr[:name].to_s].find { |k| hash.key?(k) }
           raise "literal #{hash.inspect} missing field #{attr[:name]} for #{target_type} — literal_hash_bridgeable? should have caught this" unless key
 
           "#{rust_ident_field(attr[:name])}: #{literal_rhs(hash[key])}"
@@ -133,7 +133,7 @@ module RustProjection
     # arithmetic actually touches. `nil` when the target isn't a plain
     # (non-list) value-object attribute with exactly one such field.
     def arithmetic_target_field(mutation, aggregate, value_objects_by_name)
-      target_attr = aggregate[:attributes].find { |a| a[:name] == mutation[:target] }
+      target_attr = aggregate[:attributes].find { |a| a[:name].to_s == mutation[:target].to_s }
       return nil unless target_attr && !target_attr[:list]
 
       field = integer_field_of(value_objects_by_name[target_attr[:type]])
@@ -158,7 +158,7 @@ module RustProjection
         return literal_rhs(value) if value.is_a?(Integer)
         return nil unless value.is_a?(Hash)
 
-        key = [target_integer_field, target_integer_field.to_s].find { |k| value.key?(k) }
+        key = [target_integer_field.to_sym, target_integer_field.to_s].find { |k| value.key?(k) }
         key && value[key].is_a?(Integer) ? literal_rhs(value[key]) : nil
       elsif source[:kind] == "argument"
         arg_attr = command[:attributes].find { |a| a[:name].to_s == source[:name] }
