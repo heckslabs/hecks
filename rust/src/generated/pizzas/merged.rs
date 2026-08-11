@@ -130,6 +130,10 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
     crate::kernel::PolicyRule { event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase" },
 ];
 
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
+
+];
+
 
 
 pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
@@ -142,3 +146,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         _ => None,
     }
 }
+
+pub const QUERIES: &[crate::kernel::QueryDef] = &[
+
+];

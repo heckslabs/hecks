@@ -87,19 +87,22 @@ RSpec.describe "Rust conformance (native binary)" do
     end
   end
 
-  # THE OTHER "query" STEP SHAPE'S OWN BOUNDARY — a NAMED/declared bluebook
-  # ask (the STRING form: `{"query": "Banking::Account.Open"}`), which Ruby
-  # answers for real (`Fuzzing::Replay` dispatches it through `runtime.
-  # query`) but this compiled binary still, deliberately, does not
-  # (kernel/cli.rs's own header on the two "query" step shapes). NOT a
+  # THE OTHER "query" STEP SHAPE'S OWN REMAINING BOUNDARY — a NAMED/declared
+  # bluebook ask (the STRING form) whose OWN shape this generator's query
+  # codegen doesn't cover (`Banking::Account.Open` declares `order_by`,
+  # `rust/project/queries.rb`'s own eligibility gate — see query_filters.json
+  # above for the queries that DO now execute for real). Ruby answers this
+  # one for real (`Fuzzing::Replay` dispatches it through `runtime.query`)
+  # but this compiled binary still, deliberately, does not. NOT a
   # byte-for-byte parity check against Ruby — there is nothing to be "in
   # conformance" with here, Ruby doesn't refuse this at all — this instead
   # proves the boundary itself is HONEST: a clean `Refusal::TypeMismatch`,
   # valid JSON, exit 0, never a panic or a wrong-but-silent answer, even
-  # though the ad hoc single-comparator filter shape (query_filters.json,
-  # above) now genuinely executes right alongside it in the very same
+  # though a real named query (query_filters.json's own CardPayment.Pending/
+  # Disputed/Flagged, ExternalTransfer.Sent, Governance's/Identity's — see
+  # that fixture) now genuinely executes right alongside it in the very same
   # binary.
-  it "a named/declared query step still refuses cleanly (not a byte-for-byte comparison — Ruby answers this one for real)" do
+  it "a named/declared query step whose shape this generator doesn't cover still refuses cleanly (not a byte-for-byte comparison — Ruby answers this one for real)" do
     binary = build_rust_for("banking")
     skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
@@ -107,11 +110,9 @@ RSpec.describe "Rust conformance (native binary)" do
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
     rust_output = JSON.parse(stdout)
-    expect(rust_output["refusals"]).to eq(
-      [{ "verb" => "Banking::Account.Open",
-         "error" => "named/declared query steps are not generated yet — only the ad hoc single-comparator " \
-                     "filter shape ({\"aggregate\",\"field\",\"op\",\"value\"}) executes" }]
-    )
+    expect(rust_output["refusals"].size).to eq(1)
+    expect(rust_output["refusals"][0]["verb"]).to eq("Banking::Account.Open")
+    expect(rust_output["refusals"][0]["error"]).to include("Banking::Account.Open").and include("is not generated for this domain")
     expect(rust_output["queries"]).to eq([])
   end
 end

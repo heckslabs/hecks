@@ -178,6 +178,14 @@ if let Some(id) = key.strip_prefix("Identity::ExternalIdentifier#") {
 // per-aggregate `scan` body.
 impl crate::kernel::AggregateScan for Store {}
 
+// HAND-PATCHED, NOT GENERATED — same reason and fate as the
+// `AggregateScan` impl immediately above (registry.rs's own matching note
+// in this same directory has the full argument): an EMPTY table is the
+// honest stand-in until this domain's next real regeneration gives it a
+// real one, possibly non-empty across Embryonaut/Governance/Identity
+// alike (`bin/project_rust`'s own merged-registry step).
+pub const QUERIES: &[crate::kernel::QueryDef] = &[];
+
 pub fn dispatch_by_name(
     store: &mut Store,
     verb: &str,
@@ -564,6 +572,10 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
+
+];
+
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
 
 ];
 

@@ -156,9 +156,20 @@
 #     would mean building a Rust Postgres adapter FIRST, then the whole
 #     lineage/shape-diff system on top of it — a materially different,
 #     larger project than anything this generator does today, not a
-#     command/attribute-shaped gap to close. Query/read-model generation
+#     command/attribute-shaped gap to close. `read_model` generation
 #     (never attempted at all, §8's own original scope) is the same kind
 #     of thing: a missing subsystem, not a parity gap.
+#
+# TWELFTH SLICE — a NAMED/declared bluebook `query "X" do ... end` block
+# now generates too, for the subset expressible as one or more field-
+# comparator conditions against a single aggregate's OWN attributes
+# (`rust/project/queries.rb`'s own header has the full eligibility
+# argument). `read_model` (a cross-aggregate ask, `IR::ReadModel`) is
+# still the missing-subsystem gap the paragraph above describes — this
+# slice doesn't touch it, and a query that itself needs order_by/limit/
+# a reference hop/a type-unrecoverable literal comparator still has no
+# generated row either, refused the same clean way an unrouted command
+# already is.
 #
 # ONE CONCERN PER FILE, all reopening the SAME two module_function
 # modules (`ExprEmitter`, `Projector`) — mirrors this codebase's own
@@ -179,4 +190,5 @@ require_relative "project/commands"
 require_relative "project/ports"
 require_relative "project/registry"
 require_relative "project/reactions"
+require_relative "project/queries"
 require_relative "project/domain_generator"

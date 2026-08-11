@@ -593,6 +593,13 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[
     crate::kernel::PolicyRule { event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.Freeze" },
 ];
 
+pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnFreeze", event_name: "AccountFrozen", event_qualifier: Some("Account"), target_domain: "Compliance", target_verb: "Compliance.OpenReview" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "NotifyOnClosure", event_name: "AccountClosed", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications.Send" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "ReviewOnBoxSurrender", event_name: "BoxSurrendered", event_qualifier: None, target_domain: "Compliance", target_verb: "Compliance.OpenReview" },
+    crate::kernel::CrossDomainPolicyRule { policy_name: "FlagKeyReturn", event_name: "KeyReturnDue", event_qualifier: None, target_domain: "Notifications", target_verb: "Notifications.Send" },
+];
+
 fn pm_literal_0() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer out".to_string()))]) }
 fn pm_literal_1() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer in".to_string()))]) }
 fn pm_literal_2() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("text".to_string(), crate::kernel::Json::Str("transfer reversed".to_string()))]) }
@@ -620,3 +627,34 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         _ => None,
     }
 }
+
+pub const QUERIES: &[crate::kernel::QueryDef] = &[
+crate::kernel::QueryDef {
+    verb: "Banking::CardPayment.Pending",
+    aggregate: "Banking::CardPayment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("authorized") },
+    ],
+},
+crate::kernel::QueryDef {
+    verb: "Banking::CardPayment.Disputed",
+    aggregate: "Banking::CardPayment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("disputed") },
+    ],
+},
+crate::kernel::QueryDef {
+    verb: "Banking::CardPayment.Flagged",
+    aggregate: "Banking::CardPayment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "tags", comparator: crate::kernel::query_comparators::QueryComparator::Contains, value: crate::kernel::QueryConditionValue::Literal("high_risk") },
+    ],
+},
+crate::kernel::QueryDef {
+    verb: "Banking::ExternalTransfer.Sent",
+    aggregate: "Banking::ExternalTransfer",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("sent") },
+    ],
+},
+];

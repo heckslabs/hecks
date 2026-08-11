@@ -114,6 +114,14 @@ module RustProjection
       # about; written to `manifest.json` at the end of this method,
       # alongside the `ir.json` sidecar this method already writes.
       manifest = []
+      # ONE ENTRY PER GENERATED NAMED QUERY — `queries.rb`'s own
+      # `query_conditions` output, accumulated the same way
+      # `registry_aggregates` is: written into THIS chapter's own
+      # `registry.rs` below, and RETURNED so a multi-chapter caller
+      # (`bin/project_rust`'s merged registry) can union it with every
+      # OTHER chapter's own query_defs the same way it already unions
+      # `registry_aggregates`.
+      query_defs = []
       aggregates_by_name = ir[:aggregates].to_h { |a| [a[:name], a] }
       unsupported_names = ir[:aggregates].select do |a|
         vo_by_name = a[:value_objects].to_h { |vo| [vo[:name], vo] }
@@ -122,6 +130,13 @@ module RustProjection
 
       ir[:aggregates].each do |aggregate|
         value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+        # BEFORE anything below reads a single `attr[:optional]` off an
+        # entity/value-object field — every one of those reads (the
+        # struct-field wrap two loops down, `command_skip_reason`'s own
+        # optional-source check) needs to see the derived fact, not just
+        # whatever the domain author wrote by hand (mutations.rb's own
+        # header on why this is safe to run unconditionally, every time).
+        Projector.mark_append_optional_fields!(aggregate, value_objects_by_name)
 
         unsupported = Projector.unsupported_attribute_types(aggregate, value_objects_by_name)
         if unsupported.any?
@@ -329,25 +344,32 @@ module RustProjection
 
             # A CREATING command's identity comes from its own typed args
             # (build_identity_expr, already inside emit_command's output) —
-            # routable regardless of extract_id, UNLESS that expression
-            # itself needs an EXTRA function parameter (identity_components'
-            # third shape — mutations.rb's own `owner_id` example: an
-            # addressing key that is neither a dotted path nor a declared
-            # command attribute). The generated `dispatch_*` signature then
-            # takes that as a bare `&str` no JSON step shape supplies, so
-            # the router can't call it either — skipped the same "loudly,
-            # by name and reason" way an ungenerable command already is.
+            # routable regardless of extract_id, INCLUDING when that
+            # expression needs an EXTRA function parameter
+            # (identity_components' third shape — mutations.rb's own
+            # `owner_id` example: an addressing key that is neither a
+            # dotted path nor a declared command attribute). That
+            # parameter's own JSON key is `head:` (mutations.rb, same
+            # file) — a bare top-level field in `args_json` exactly the
+            # way `id:`/a reference key already are for an ACTING
+            # command's own `extract_id`, never part of the strongly-typed
+            # `XArgs` struct (it was deliberately excluded from
+            # `command[:attributes]`, per `refuse_unknown_arguments`'s own
+            # allowlist) — so `registry.rb`'s router reads it off the SAME
+            # raw JSON every other addressing key already comes from,
+            # rather than needing a JSON step shape of its own.
             # An ACTING command's `id` comes from extract_id instead, so
             # it's routable only when THAT is (json_codec.rb's own gap).
             creates = command[:references].nil?
-            if creates && Projector.identity_components(aggregate, command).any? { |c| c[:param] }
-              extra_param_reason = "identity needs an extra caller-supplied parameter no JSON step shape carries"
-              puts "skipping #{command_verb}'s JSON router entry: #{extra_param_reason}"
-              manifest << manifest_entry(kind: "command", id: command_verb, generated: true, routed: false,
-                                          gap_class: "per_instance",
-                                          reason: "generated as a real Rust function, but not JSON-dispatchable — #{extra_param_reason}")
-              next
-            end
+            # `identity_components` is a CREATING command's own concern
+            # only (mutations.rb's own header on `identity_components`:
+            # "never called for an acting command") — an acting command's
+            # `aggregate[:identified_by]` describes the SAME head's
+            # identity, but that command reaches an EXISTING record via
+            # `extract_id`/`id_line` below, not via minting one, so asking
+            # for its own extra params here would name a JSON field
+            # (`owner_id`) this command never actually needs supplied.
+            identity_extra_params = creates ? Projector.identity_components(aggregate, command).filter_map { |c| c[:head] } : []
 
             unless creates || can_route
               # PREVIOUSLY SILENT: this branch used to fall through to the
@@ -373,6 +395,7 @@ module RustProjection
               fn: Projector.dispatch_fn_name(Projector.rust_ident(command[:name])),
               args_struct: args_struct,
               creates: creates,
+              identity_extra_params: identity_extra_params,
               reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
               role: command[:role],
             }
@@ -443,32 +466,41 @@ module RustProjection
         }
       end
 
-      # ── QUERIES AND READ MODELS — an ENTIRE CONSTRUCT KIND this
-      # generator has no code path for at all, for any domain, ever
-      # (`grep -rn "read_model\|:queries" rust/project/*.rb` finds
-      # nothing — no emitter, no skip-check, nothing). This is the
-      # "whole_kind" half of the two-kinds-of-gap distinction
-      # `manifest_entry`'s header names: not a per-instance failure any
-      # individual query/read_model could have avoided by being shaped
-      # differently, but the entire capability being unbuilt. `query`
-      # matches `kernel/cli.rs`'s own explicit refusal wording
-      # ("query steps are not generated yet") — this just makes that
-      # same fact walkable per-domain instead of only readable from one
-      # hand-written string. `read_model` is a DIFFERENT construct
-      # (`IR::ReadModel`, a cross-aggregate ask — see its own class
-      # comment) that happens to share the same fate for the same
-      # underlying reason (no generated code path), not because it's
-      # secretly the same gap as `query`.
+      # ── QUERIES — a declared `query "X" do ... end` block now generates
+      # for real, for the subset `queries.rb`'s own `query_skip_reason`
+      # admits (one or more field-comparator conditions, ANDed, against a
+      # single aggregate's OWN attributes — no order_by/limit/hop/type-
+      # unrecoverable literal). A "per_instance" gap now, not "whole_kind"
+      # — the CONSTRUCT KIND has a real code path; a specific declared
+      # query still lacking a row is a per-instance shape this generator
+      # doesn't cover, the same distinction every OTHER per-instance skip
+      # in this file already draws.
       ir[:aggregates].each do |aggregate|
+        value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+
         aggregate[:queries].each do |query|
-          manifest << manifest_entry(
-            kind: "query", id: "#{domain_name}::#{aggregate[:name]}.#{query[:name]}", generated: false,
-            gap_class: "whole_kind",
-            reason: 'the "query" construct has no generated code path at all — matches kernel/cli.rs\'s own ' \
-                    'refusal for a "query" step ("query steps are not generated yet")'
-          )
+          query_verb = "#{domain_name}::#{aggregate[:name]}.#{query[:name]}"
+          reason = Projector.query_skip_reason(query, aggregate, value_objects_by_name)
+          if reason
+            puts "skipping query #{query_verb}: #{reason}"
+            manifest << manifest_entry(kind: "query", id: query_verb, generated: false, gap_class: "per_instance", reason: reason)
+            next
+          end
+
+          manifest << manifest_entry(kind: "query", id: query_verb, generated: true)
+          query_defs << {
+            verb: query_verb,
+            aggregate: "#{domain_name}::#{aggregate[:name]}",
+            conditions: Projector.query_conditions(query),
+          }
         end
       end
+
+      # ── READ MODELS — still an ENTIRE CONSTRUCT KIND this generator
+      # has no code path for at all, for any domain, ever (a
+      # cross-aggregate ask, `IR::ReadModel` — genuinely `read_model`
+      # territory, not the field-comparator subset the query codegen
+      # above covers). "whole_kind" stays exactly the gap it always was.
 
       ir[:read_models].each do |read_model|
         manifest << manifest_entry(
@@ -478,26 +510,26 @@ module RustProjection
         )
       end
 
-      # ── POLICIES — generated in general (`emit_policy_table`, called
-      # below), EXCEPT a policy whose `across:` names a domain this same
-      # `bin/project_rust` run didn't also compile into this one `Store`
-      # — reactions.rb's own documented header on `emit_policy_table`
-      # calls this "a real, separate, still-open gap, not attempted
-      # here." A PER-INSTANCE gap in a kind that mostly works, so
-      # `gap_class: "per_instance"`, not `"whole_kind"` — most policies
-      # in a real domain route fine; this is the one shape that doesn't.
+      # ── POLICIES — a same-domain policy generates into `POLICIES`
+      # (`local_policy_rows`) and dispatches locally; a cross-domain
+      # policy (`across:` naming a domain this `bin/project_rust` run
+      # didn't also compile into this one `Store`) generates into the
+      # SEPARATE `CROSS_DOMAIN_POLICIES` table (`emit_cross_domain_policy_
+      # table`) instead — matched by `kernel::orchestrate` the identical
+      # way, recorded as a `PendingCrossDomainReaction` in `kernel::cli::
+      # run`'s own JSON output, and delivered by rust/host's
+      # `lambda_client.rs` (a port of `Adapters::Lambda::Client`) rather
+      # than a local `dispatch_by_name` call. Both are genuinely
+      # generated and reachable through kernel/cli.rs's JSON router now —
+      # what this manifest entry CANNOT attest to is whether the target
+      # Lambda a live cross-domain reaction names actually exists and
+      # accepts the call; that's an operational fact about a real
+      # deploy, not a codegen fact this generator could ever check.
+      # `rust/host/src/lambda_client.rs`'s own header states plainly what
+      # is unit/mock-tested here versus what remains structurally-argued
+      # pending live AWS infrastructure.
       ir[:policies].each do |policy|
-        target_domain = policy[:target_domain] || domain_name
-        if target_domain == domain_name
-          manifest << manifest_entry(kind: "policy", id: "#{domain_name}::#{policy[:name]}", generated: true, routed: true)
-        else
-          manifest << manifest_entry(
-            kind: "policy", id: "#{domain_name}::#{policy[:name]}", generated: false, gap_class: "per_instance",
-            reason: "cross-domain policy (target #{target_domain.inspect}) — this domain compile doesn't also " \
-                    "include that target, so no Store exists for emit_policy_table to route into " \
-                    "(reactions.rb's own documented, still-open gap)"
-          )
-        end
+        manifest << manifest_entry(kind: "policy", id: "#{domain_name}::#{policy[:name]}", generated: true, routed: true)
       end
 
       # ── PROCESS MANAGERS / SAGAS — `emit_process_manager_table`
@@ -553,9 +585,13 @@ module RustProjection
         f.puts
         f.puts Projector.emit_policy_table(domain_name, ir[:policies])
         f.puts
+        f.puts Projector.emit_cross_domain_policy_table(domain_name, ir[:policies])
+        f.puts
         f.puts Projector.emit_process_manager_table(ir[:process_managers])
         f.puts
         f.puts Projector.emit_reference_key_table([[domain_name, generated_aggregates.map { |a| a[:name] }]])
+        f.puts
+        f.puts Projector.emit_query_table(query_defs)
       end
       puts "wrote #{registry_path}"
 
@@ -568,14 +604,18 @@ module RustProjection
       end
       puts "wrote #{mod_path}"
 
-      # RETURNED, not just written — bin/project_rust concatenates this
-      # across every chapter a domain attaches (`uses_framework`) to emit
-      # ONE merged Store/dispatch_by_name spanning all of them (a real,
-      # separate step; see bin/project_rust's own comment). Each entry
-      # already carries its own `chapter_mod:` (set above), so the merged
-      # emitter can qualify cross-chapter paths correctly with no further
-      # tagging needed here.
-      registry_aggregates
+      # RETURNED, not just written — bin/project_rust concatenates
+      # `:aggregates` across every chapter a domain attaches
+      # (`uses_framework`) to emit ONE merged Store/dispatch_by_name
+      # spanning all of them (a real, separate step; see bin/project_rust's
+      # own comment), and `:queries` the same way, for the merged QUERIES
+      # table alongside it. Each aggregate entry already carries its own
+      # `chapter_mod:` (set above), so the merged registry emitter can
+      # qualify cross-chapter paths correctly with no further tagging
+      # needed here; a query_def carries no chapter tag at all because it
+      # never needs one — `verb`/`aggregate` are already fully
+      # domain-qualified strings, exactly like a command's own `verb`.
+      { aggregates: registry_aggregates, queries: query_defs }
     end
   end
 end

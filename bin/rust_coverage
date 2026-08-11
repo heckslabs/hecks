@@ -8,14 +8,17 @@
 # output byte-for-byte. That is exactly the right tool for "did these two
 # things agree?" — but it is structurally blind to a whole CLASS of gap:
 # a construct the generator never emits anything for at all has no case in
-# the corpus to disagree about, so it never shows up as a mismatch. Query
-# steps are the standing example — `rust/src/kernel/cli.rs` refuses every
-# one it sees with `Refusal::TypeMismatch("query steps are not generated
-# yet")`, which means a corpus script containing a query step either never
-# gets written in the first place, or gets written and both sides just...
-# agree to refuse it. Either way, conformance stays green. The gap is
-# real; the equivalence harness simply cannot see it, by design, because
-# there is nothing on the Rust side to compare Ruby's answer against.
+# the corpus to disagree about, so it never shows up as a mismatch. A
+# NAMED/declared query outside `rust/project/queries.rb`'s own generated
+# subset is the standing example TODAY (a real, non-empty subset now
+# genuinely does execute — spec/corpus/rust_conformance/named_queries.json
+# proves it byte-for-byte) — `rust/src/kernel/cli.rs` still refuses
+# anything that subset doesn't cover, which means a corpus script
+# containing one of THOSE query steps either never gets written in the
+# first place, or gets written and both sides just... agree to refuse it.
+# Either way, conformance stays green. The gap is real; the equivalence
+# harness simply cannot see it, by design, because there is nothing on
+# the Rust side to compare Ruby's answer against.
 #
 # This tool asks the other question: for a domain's canonical Bluebook IR
 # (the same JSON `bin/ir <domain>` prints), walk EVERY construct it
@@ -270,30 +273,97 @@ end
 ALLOWLIST = [
   {
     kind: "query",
-    reason_match: nil, # every declared query, every domain — the whole construct kind
-    doc: "rust/src/kernel/cli.rs (own refusal on the STRING \"query\" step shape — a named/declared bluebook ask)",
-    note: 'Confirmed true independently of this run: a declared `query "X" do ... end` block (this manifest\'s own ' \
-          '`kind: "query"` entries) still has no generated Rust representation of its own — `grep -rn "read_model\|' \
-          ':queries" rust/project/*.rb` (this generator\'s own Ruby source) still finds no emitter, no skip-check — ' \
-          'nothing — for either construct, and `rust/src/kernel/cli.rs` still refuses that shape outright. A REAL, ' \
-          'narrower query capability now exists alongside it (the OBJECT-shaped ad hoc single-comparator "query" ' \
-          'step — kernel/query_comparators.rs\'s own header has the full story) — that shape has no bluebook `query`' \
-          ' declaration behind it at all, so it does not close, or even touch, any of the findings this allowlist ' \
-          'entry covers; every one of them is still exactly the gap it was.',
+    # NARROWED, not the whole construct kind any more — a declared
+    # `query "X" do ... end` block now DOES have a real generated Rust
+    # representation, for the subset `rust/project/queries.rb`'s own
+    # `query_skip_reason` admits (one or more field-comparator conditions
+    # against a single aggregate's OWN attributes, via the exact
+    # `filter_entries`/`AggregateScan` machinery the OBJECT-shaped ad hoc
+    # filter already used — kernel/named_query.rs). This entry now
+    # matches only the RESIDUAL shape that generator still doesn't cover:
+    # every reason `query_skip_reason`/`query_where_skip_reason` produce
+    # starts with exactly one of these two prefixes ("declares ..." for a
+    # top-level option this generator doesn't implement — order_by/limit/
+    # offset/cursor/consistency/freshness/authorization/null_semantics/
+    # inspection/index_hints/no wheres at all; "where clause on ..." for
+    # a single clause that hops through a reference, isn't a recognized
+    # own attribute, or carries a literal comparator value whose true
+    # JSON type can't be recovered from the exported IR) — a fifth or
+    # sixth reason added later in that same style is covered by the same
+    # rule, the same "name the general shape, not today's instances"
+    # principle the cross-domain policy entry below already follows.
+    reason_match: /\A(declares |where clause on )/,
+    doc: "rust/project/queries.rb (own header — the full eligibility argument for the field-comparator query subset)",
+    note: 'Confirmed against a real run, not assumed: `bin/rust_coverage banking`/`pizzas`/`governance`/`identity`/' \
+          '`meta` all show real `[query]` entries in IMPLEMENTED now (Banking::CardPayment.Pending/Disputed/Flagged, ' \
+          'Banking::ExternalTransfer.Sent, Governance::RoleAssignment.AssignmentsForActor, Governance::' \
+          'RoleTransition.Allowed, Identity::ExternalIdentifier.ResolvedBy, Bluebook::Bluebook.Called — proven ' \
+          'byte-for-byte against Ruby\'s own QueryInterpreter, spec/corpus/rust_conformance/named_queries.json) — ' \
+          'the OLD claim that "no declared query has any generated Rust representation at all" is no longer true. ' \
+          'Every query STILL deferred here declares order_by (every real corpus query that sorts also declares one) ' \
+          'or some other top-level option this generator\'s minimal query engine has no sort/limit/pagination/' \
+          'authorization capability for at all, or a where clause outside the single-aggregate field-comparator ' \
+          'subset — read `rust/project/queries.rb`\'s own header for the full, itemized argument for each.',
   },
   {
-    kind: "policy",
-    reason_match: /cross-domain policy/,
-    doc: "docs/decisions/0013-rust-generates-entities-policies-sagas.md (Consequences)",
-    note: '0013\'s own Consequences section: "Cross-domain policies (`across` a domain this single-domain `Store` ' \
-          'never generated) are omitted from the generated table entirely, not represented-and-refused — verified ' \
-          "this matches Ruby's own observable behavior for this corpus specifically (no `Compliance`/" \
-          '`Notifications` bluebook exists anywhere in the repo, so Ruby\'s own `PolicyInterpreter#deliver` already ' \
-          'refuses these the same way)." A per-instance gap in a kind that otherwise works — most policies in a ' \
-          "real domain route fine; only a policy whose target domain wasn't ALSO compiled into this same Store " \
-          "doesn't.",
+    kind: "query",
+    # EMBRYONAUT'S OWN STALE MANIFEST, a real but DIFFERENT residual case
+    # than the entry above — not a shape this generator declines to
+    # cover, but a domain whose checked-in rust/src/generated/embryonaut/
+    # manifest.json predates rust/project/queries.rb entirely and cannot
+    # be refreshed from this checkout (its bluebook source lives in a
+    # separate, private repository — bin/rust_coverage's own "Fallback
+    # mode" header, and this domain's own registry.rs/merged.rs, already
+    # say so for the exact same reason `AggregateScan` needed a matching
+    # note when THAT capability landed). `registry.rs`/`merged.rs` are
+    # already hand-patched with an honest, empty `QUERIES` table rather
+    # than a fabricated one — this is that same acknowledgment reaching
+    # the coverage side, matched by the OLD, now-generically-stale
+    # whole_kind reason text still sitting in that one domain's own
+    # on-disk manifest.json (every OTHER domain's manifest was
+    # regenerated by this change and no longer says this).
+    reason_match: /no generated code path at all — matches kernel\/cli\.rs's own refusal/,
+    doc: "rust/src/generated/embryonaut/registry.rs and merged.rs (own HAND-PATCHED notes, both files, right above their empty QUERIES const)",
+    note: "Embryonaut's own bluebook source isn't available in this repository, so bin/project_rust can't be " \
+          "re-run against it here to give it a fresh manifest.json the way banking/pizzas/governance/identity/meta " \
+          "all just got. Its registry.rs/merged.rs already carry a HAND-PATCHED, honestly-empty `QUERIES` const " \
+          "for the identical reason `AggregateScan`'s own hand-patched empty impl already sits right above each — " \
+          "this entry is the same fact, read from the coverage side instead of the source side. Delete both the " \
+          "day this domain's next real regeneration replaces every one of them with the genuine article.",
   },
 ]
+# REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry
+# that used to live here (matching `reason_match: /cross-domain policy/`,
+# 0013's own Consequences: "omitted from the generated table entirely").
+# `rust/project/reactions.rb`'s `emit_cross_domain_policy_table` now
+# represents these instead of dropping them (`CrossDomainPolicyRule`,
+# `kernel::orchestrate`'s own header) — `domain_generator.rb`'s manifest
+# entry for EVERY policy, cross-domain or not, is `generated: true,
+# routed: true` now, so no finding this rule used to match can be
+# produced anymore; leaving a dead rule in place would silently stop
+# testing anything the day it's removed for real, which is worse than
+# just removing it now with this note explaining why.
+#
+# WHAT THIS TOOL CAN AND CANNOT ATTEST TO, PRECISELY: "generated and
+# reachable through kernel/cli.rs's JSON router" (this file's own header)
+# is now true for a cross-domain policy — `kernel::orchestrate` matches
+# it exactly like a same-domain one and `kernel::cli::run` carries the
+# match out as a `PendingCrossDomainReaction` in its own JSON output
+# ("cross_domain_reactions"). What this tool CANNOT attest to, and never
+# could — it is a codegen-coverage tool, not a live-infrastructure
+# prober — is whether a REAL cross-Lambda delivery attempt (rust/host's
+# `lambda_client.rs`, invoked from `dispatch::handle` after this) actually
+# reaches a live target Lambda: that needs two real domains' Lambdas
+# deployed and invocable, which no environment this tool runs in has.
+# `rust/host/src/lambda_client.rs`'s own header states exactly what IS
+# proven here (function-name computation, request-payload shape, refusal-
+# vs-fault classification, all via `cargo test` against a mock
+# `LambdaInvoker`) versus what remains structurally-argued-but-
+# unverified-without-live-AWS (`AwsLambdaInvoker` itself). That caveat
+# belongs there, not as a permanent allowlist entry here — this tool's
+# own IMPLEMENTED bucket was never a claim of live-infrastructure proof
+# for ANY finding in it (a generated Postgres write path isn't re-proven
+# against a live database by this tool either).
 # NOT ON THIS LIST, ON PURPOSE, THOUGH IT IS DOCUMENTED — era/lineage-bound
 # aggregate support. docs/HECKS_IMPLEMENTATION_PLAN.md's §8 "What's still
 # real and unbuilt" section investigates this by name and calls it out as

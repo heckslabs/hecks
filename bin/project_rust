@@ -76,7 +76,9 @@ FileUtils.rm_rf(File.join(out_root, "active"))
 target_mod_name = File.basename(domain)
 FileUtils.rm_rf(File.join(out_root, target_mod_name))
 RustProjection::DomainGenerator.call(meta_ir, "the self-hosted language (lib/hecksagain/language/bluebook)", File.join(out_root, "meta"), "meta")
-target_aggregates = RustProjection::DomainGenerator.call(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
+target_result = RustProjection::DomainGenerator.call(target_ir, domain, File.join(out_root, target_mod_name), target_mod_name)
+target_aggregates = target_result[:aggregates]
+target_queries = target_result[:queries]
 
 # EVERY OTHER BLUEBOOK NOW IN THE REGISTRY — the target domain's own
 # uses_framework calls (fired by loading its .hecksagon, above) pulled
@@ -89,14 +91,21 @@ target_aggregates = RustProjection::DomainGenerator.call(target_ir, domain, File
 # Embryonaut both use Governance/Identity) and their content is a pure
 # function of the framework bluebook alone, not of who's attaching it —
 # so clearing and regenerating one here is safe and idempotent
-# regardless of which OTHER domain last touched it.
+# regardless of which OTHER domain last touched it. `framework_queries`
+# rides alongside `framework_aggregates` for the exact same reason —
+# Governance's `AssignmentsForActor`/Identity's `ResolvedBy` need to
+# reach the MERGED query table below, not just their own chapter's.
 chapter_mod_names = { target_mod_name => target_domain_name }
-framework_aggregates = (target_registry.bluebooks.keys - [target_domain_name]).flat_map do |chapter_name|
+framework_aggregates = []
+framework_queries = []
+(target_registry.bluebooks.keys - [target_domain_name]).each do |chapter_name|
   chapter_mod_name = chapter_name.downcase
   chapter_mod_names[chapter_mod_name] = chapter_name
   chapter_ir = Hecksagain::Projector::Exporter.call(target_registry).fetch(chapter_name)
   FileUtils.rm_rf(File.join(out_root, chapter_mod_name))
-  RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})", File.join(out_root, chapter_mod_name), chapter_mod_name)
+  chapter_result = RustProjection::DomainGenerator.call(chapter_ir, "#{domain} (uses_framework #{chapter_name.inspect})", File.join(out_root, chapter_mod_name), chapter_mod_name)
+  framework_aggregates.concat(chapter_result[:aggregates])
+  framework_queries.concat(chapter_result[:queries])
 end
 
 # ONE MERGED Store/dispatch_by_name, spanning the target domain AND
@@ -118,11 +127,14 @@ end
 # own output, written above) already do. `mod.rs` was already written
 # by DomainGenerator.call for this domain; appended to, not replaced.
 merged_aggregates = target_aggregates + framework_aggregates
+merged_queries = target_queries + framework_queries
 merged_path = File.join(out_root, target_mod_name, "merged.rs")
 File.open(merged_path, "w") do |f|
   f.puts RustProjection::Projector.emit_registry(merged_aggregates)
   f.puts
   f.puts RustProjection::Projector.emit_policy_table(target_domain_name, target_ir[:policies])
+  f.puts
+  f.puts RustProjection::Projector.emit_cross_domain_policy_table(target_domain_name, target_ir[:policies])
   f.puts
   f.puts RustProjection::Projector.emit_process_manager_table(target_ir[:process_managers])
   f.puts
@@ -131,6 +143,8 @@ File.open(merged_path, "w") do |f|
       [chapter_name, (mod_name == target_mod_name ? target_aggregates : framework_aggregates.select { |a| a[:chapter_mod] == mod_name }).map { |a| a[:name] }]
     }
   )
+  f.puts
+  f.puts RustProjection::Projector.emit_query_table(merged_queries)
 end
 puts "wrote #{merged_path}"
 File.open(File.join(out_root, target_mod_name, "mod.rs"), "a") { |f| f.puts "pub mod merged;" }

@@ -35,6 +35,7 @@ pub mod constraints;
 pub mod fielded;
 pub mod json;
 pub mod mutations;
+pub mod queries;
 pub mod reactions;
 pub mod registry;
 pub mod types;

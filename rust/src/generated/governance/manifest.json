@@ -36,15 +36,11 @@
   {
     "kind": "query",
     "id": "Governance::RoleAssignment.AssignmentsForActor",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Governance::RoleTransition.Allowed",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+    "generated": true
   }
 ]

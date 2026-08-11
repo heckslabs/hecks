@@ -12,6 +12,15 @@ pub mod dispatch;
 pub mod expr;
 pub mod expression_operators;
 pub mod json;
+// `named_query` — a NAMED/declared bluebook `query "X" do ... end` block,
+// for the subset of that construct real generated Rust now answers for
+// real. See that module's own header for the full scope argument; the
+// short version is `query_comparators.rs`'s own header on what the ad hoc
+// OBJECT-shaped "query" step covers, one level up: same eight comparators,
+// same `filter_entries`/`AggregateScan` machinery, now with a DECLARED
+// query's own conditions baked in by a generator instead of supplied ad
+// hoc over the wire.
+pub mod named_query;
 pub mod orchestrate;
 pub mod pattern;
 // `QueryComparator` — closed, and now dispatched for real, for exactly
@@ -28,8 +37,10 @@ pub mod repository;
 pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
 pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
 pub use json::Json;
+pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
-    orchestrate, DispatchSpec, Handler, PolicyRule, ProcessManagerDef, SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
+    orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
+    SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
 pub use repository::{check_reference, check_role, filter_entries, AggregateScan, InMemoryRepository, Repository};
 

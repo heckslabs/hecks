@@ -39,16 +39,20 @@
 //
 // WHAT DISPATCHES HERE, TODAY: `kernel/cli.rs`'s ad hoc, single-clause
 // "query" step — the OBJECT form, `{"aggregate", "field", "op", "value"}`
-// — via `repository.rs`'s `filter_entries`. WHAT DOES NOT: a NAMED/
-// declared bluebook `query "X" do ... end` ask — the STRING form of the
-// same "query" step. That's a separate, much bigger gap
-// (`rust/project/domain_generator.rb`'s own "whole_kind" `query`/
-// `read_model` tracking, `bin/rust_coverage`'s own header) this file's
-// dispatch does not close, on purpose: a declared query's own
-// `wheres`/`order_by`/`limit`/`offset` live in the bluebook's IR with no
-// generated Rust representation at all yet, and building one — codegen
-// for the DECLARATION, not just the comparator vocabulary a declaration
-// would eventually use — is real, separately-scoped work.
+// — via `repository.rs`'s `filter_entries`. ALSO, as of `rust/project/
+// queries.rb`/`kernel/named_query.rs`: a NAMED/declared bluebook
+// `query "X" do ... end` ask — the STRING form of the same "query" step —
+// for the subset expressible as one or more field-comparator conditions
+// against a single aggregate's OWN attributes, via the exact same
+// `QueryComparator`/`filter_entries` this file and repository.rs already
+// implement, just with the query's own conditions baked in by a generator
+// instead of supplied ad hoc over the wire. `IR::ReadModel` (a
+// cross-aggregate ask — `rust/project/domain_generator.rb`'s own
+// "whole_kind" `read_model` tracking, `bin/rust_coverage`'s own header)
+// and a declared query that itself needs `order_by`/`limit`/a reference
+// hop/a type-unrecoverable literal comparator are the REMAINING gap —
+// `rust/project/queries.rb`'s own header has the full argument for why
+// each of those specifically stays ungenerated rather than forced.
 
 use super::Json;
 
