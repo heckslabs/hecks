@@ -154,6 +154,33 @@ module Hecksagain
           "none?" => :none
         }.freeze
 
+        # `receiver.start_with?("prefix")` / `receiver.end_with?("suffix")`
+        # -- vendored addition, not (yet) upstream hecksagain (migration
+        # plan task 9), the sibling gap the `Split`/`Last`/`BlockPredicate`
+        # pass above flagged and deliberately left unfixed --
+        # `Query::Query.Run`/`Dispatch::Dispatch.Route`/`CommandBus::
+        # CommandBus.Route`'s shared `Params` value object validates its
+        # JSON-object shape with `value.start_with?("{") && value.
+        # end_with?("}")` (dispatch/query/command_bus.bluebook, all three
+        # storehouse-kernel files, byte-identical text) -- `.start_with?(`/
+        # `.end_with?(` matched none of this grammar's known suffixes, so
+        # both fell through to the `Lookup` catch-all and crashed with the
+        # identical `TypeError: no implicit conversion of Symbol into
+        # Integer` shape `.split`/`.all?` used to, confirmed live via a
+        # real dispatch (not validate), not inferred. Two separate node
+        # types rather than one `mode:`-keyed struct (the `BlockPredicate`/
+        # `SignTest` precedent) -- `start_with?`/`end_with?` aren't two
+        # spellings of the same test the way `all?`/`any?`/`none?` are (one
+        # Array-aggregation family) or `positive?`/`negative?`/`zero?` are
+        # (one comparison-against-0 family) ; they check different ends of
+        # the same string and share nothing but their
+        # receiver-plus-literal-argument shape. `substring` is taken
+        # literally between the quotes, same "no sub-grammar to recurse
+        # into" precedent `Split`'s `separator`/`MatchesRegex`'s `pattern`
+        # already set.
+        StartsWith = Struct.new(:receiver, :substring, keyword_init: true)
+        EndsWith   = Struct.new(:receiver, :substring, keyword_init: true)
+
         module_function
 
         def resolve(expr, state, attrs)
@@ -200,6 +227,14 @@ module Hecksagain
           end
 
           return Last.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.last\z/
+
+          if expr =~ /\A(.+)\.start_with\?\("([^"]*)"\)\z/
+            return StartsWith.new(receiver: parse(Regexp.last_match(1)), substring: Regexp.last_match(2))
+          end
+
+          if expr =~ /\A(.+)\.end_with\?\("([^"]*)"\)\z/
+            return EndsWith.new(receiver: parse(Regexp.last_match(1)), substring: Regexp.last_match(2))
+          end
 
           block_predicate = parse_block_predicate(expr)
           return block_predicate if block_predicate
@@ -266,6 +301,10 @@ module Hecksagain
             split_value(interpret(node.receiver, state, attrs), node.separator)
           when Last
             last_of(interpret(node.receiver, state, attrs))
+          when StartsWith
+            starts_with?(interpret(node.receiver, state, attrs), node.substring)
+          when EndsWith
+            ends_with?(interpret(node.receiver, state, attrs), node.substring)
           when BlockPredicate
             evaluate_block_predicate(node, interpret(node.receiver, state, attrs), state, attrs)
           when Lookup
@@ -394,6 +433,26 @@ module Hecksagain
           return value.last if value.respond_to?(:last)
 
           raise EvaluationError, "last expects a list, got #{describe(value)}"
+        end
+
+        # `.start_with?("prefix")` -- vendored addition, see the
+        # `StartsWith` struct's own comment above. String-only, same
+        # reasoning as `.split` above -- every corpus usage found this
+        # pass (`Params`'s own JSON-object-shape invariant) receives a
+        # plain String field.
+        def starts_with?(value, substring)
+          raise EvaluationError, "start_with? expects a string, got #{describe(value)}" unless value.is_a?(String)
+
+          value.start_with?(substring)
+        end
+
+        # `.end_with?("suffix")` -- vendored addition, see the `EndsWith`
+        # struct's own comment above. Same String-only reasoning as
+        # `start_with?` immediately above.
+        def ends_with?(value, substring)
+          raise EvaluationError, "end_with? expects a string, got #{describe(value)}" unless value.is_a?(String)
+
+          value.end_with?(substring)
         end
 
         # `.all?`/`.any?`/`.none?` -- vendored addition, see the
