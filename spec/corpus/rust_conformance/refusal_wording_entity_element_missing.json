@@ -1,0 +1,9 @@
+{
+  "domain": "examples/banking",
+  "note": "NotFound/entity_element_missing, SafeDepositBox's composite-identified Visit entity — verified genuinely broken before this fixture existed: unmodified Rust said 'Visit.Annotate references an element of Banking::SafeDepositBox that doesn't exist', Ruby says 'no Visit with date.value, sequence.value 2026-01-01, 1 on SafeDepositBox \"DTN:12\"' — the entity's own bare name, its declared identity reading, the caller-OFFERED scalar values (not names, joined \", \"), the PARENT aggregate's bare name, and the parent's own composite id (branch_code:box_number, .inspect-quoted). Rent a box, then Annotate a visit that was never logged.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::SafeDepositBox.Rent", "args": {"customer_id": "cust-1", "branch_code": {"value": "DTN"}, "box_number": {"value": 12}, "size": {"value": "small"}}},
+    {"verb": "Banking::SafeDepositBox.Visit.Annotate", "args": {"branch_code": {"value": "DTN"}, "box_number": {"value": 12}, "date": {"value": "2026-01-01"}, "sequence": {"value": 1}, "note": {"text": "hi"}}}
+  ]
+}

@@ -615,42 +615,47 @@ pub fn dispatch_by_name(
           "Banking::Account.LedgerEntry.Amend" => {
               let parent_id = crate::generated::banking::account::Account::extract_id(args_json)?;
               let element_id = crate::generated::banking::account::LedgerEntry::extract_id(args_json)?;
+              let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(args_json);
               let args = crate::generated::banking::account::LedgerEntryAmendArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Back office"), "Amend", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::account::dispatch_entity_ledgerentry_amend(&mut store.account, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_entity_ledgerentry_amend(&mut store.account, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.LedgerEntry.Reverse" => {
               let parent_id = crate::generated::banking::account::Account::extract_id(args_json)?;
               let element_id = crate::generated::banking::account::LedgerEntry::extract_id(args_json)?;
+              let element_wants = crate::generated::banking::account::LedgerEntry::extract_wants(args_json);
               let args = crate::generated::banking::account::LedgerEntryReverseArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Back office"), "Reverse", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::account::dispatch_entity_ledgerentry_reverse(&mut store.account, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_entity_ledgerentry_reverse(&mut store.account, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ATMCard.Withdrawal.Dispute" => {
               let parent_id = crate::generated::banking::atmcard::ATMCard::extract_id(args_json)?;
               let element_id = crate::generated::banking::atmcard::Withdrawal::extract_id(args_json)?;
+              let element_wants = crate::generated::banking::atmcard::Withdrawal::extract_wants(args_json);
               let args = crate::generated::banking::atmcard::WithdrawalDisputeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Dispute", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::atmcard::dispatch_entity_withdrawal_dispute(&mut store.atmcard, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::atmcard::dispatch_entity_withdrawal_dispute(&mut store.atmcard, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.Visit.Annotate" => {
               let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let element_id = crate::generated::banking::safedepositbox::Visit::extract_id(args_json)?;
+              let element_wants = crate::generated::banking::safedepositbox::Visit::extract_wants(args_json);
               let args = crate::generated::banking::safedepositbox::VisitAnnotateArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Vault officer"), "Annotate", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::safedepositbox::dispatch_entity_visit_annotate(&mut store.safedepositbox, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::safedepositbox::dispatch_entity_visit_annotate(&mut store.safedepositbox, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::SafeDepositBox.KeyIssuance.Return" => {
               let parent_id = crate::generated::banking::safedepositbox::SafeDepositBox::extract_id(args_json)?;
               let element_id = crate::generated::banking::safedepositbox::KeyIssuance::extract_id(args_json)?;
+              let element_wants = crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(args_json);
               let args = crate::generated::banking::safedepositbox::KeyIssuanceReturnArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Vault officer"), "Return", caller_role)?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::safedepositbox::dispatch_entity_keyissuance_return(&mut store.safedepositbox, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::safedepositbox::dispatch_entity_keyissuance_return(&mut store.safedepositbox, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }

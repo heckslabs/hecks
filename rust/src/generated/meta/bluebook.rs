@@ -121,7 +121,16 @@ impl BluebookName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("BluebookName violates its invariant: a chapter is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "BluebookName"),
+            ("description", "a chapter is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -166,7 +175,16 @@ impl Vision {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Vision violates its invariant: a vision says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Vision"),
+            ("description", "a vision says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -211,7 +229,16 @@ impl Classification {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("core".to_string())) }), Box::new(Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("supporting".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::ToS(Box::new(Expr::Lookup("value")))), right: Box::new(Expr::Str("generic".to_string())) })))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Classification violates its invariant: a chapter is core, supporting, or generic".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Classification"),
+            ("description", "a chapter is core, supporting, or generic"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -256,7 +283,16 @@ impl Version {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Version violates its invariant: a version says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Version"),
+            ("description", "a version says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -392,6 +428,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
         &args,
         &[
 
@@ -478,6 +516,8 @@ pub fn dispatch_normalise(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Normalise",
         "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
         &args,
         &[
 

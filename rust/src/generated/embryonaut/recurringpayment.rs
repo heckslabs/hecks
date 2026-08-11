@@ -301,6 +301,8 @@ pub fn dispatch_start(
     },
         "Start",
         "Embryonaut::RecurringPayment",
+        "RecurringPayment",
+        "reference.value",
         &args,
         &[
 
@@ -382,6 +384,8 @@ pub fn dispatch_advance_cycle(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "AdvanceCycle",
         "Embryonaut::RecurringPayment",
+        "RecurringPayment",
+        "reference.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "only an active recurring payment advances", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) } },
@@ -449,6 +453,8 @@ pub fn dispatch_pause(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Pause",
         "Embryonaut::RecurringPayment",
+        "RecurringPayment",
+        "reference.value",
         &args,
         &[
 
@@ -516,6 +522,8 @@ pub fn dispatch_resume(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Resume",
         "Embryonaut::RecurringPayment",
+        "RecurringPayment",
+        "reference.value",
         &args,
         &[
 
@@ -583,6 +591,8 @@ pub fn dispatch_cancel(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Cancel",
         "Embryonaut::RecurringPayment",
+        "RecurringPayment",
+        "reference.value",
         &args,
         &[
 

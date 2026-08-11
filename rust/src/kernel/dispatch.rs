@@ -18,6 +18,7 @@
 // with access to every OTHER aggregate's repo, not just this command's own.
 
 use super::expr::{interpret, EvalContext, Expr, Field, Fielded, Value, WithOld};
+use super::refusal_wording::RefusalSite;
 use super::{Event, Json, MutationRecord, Refusal, Repository, ToJson};
 
 pub struct GivenSpec {
@@ -84,6 +85,23 @@ pub fn dispatch<'a, T, R>(
     hydrate: Hydrate<'a, T>,
     command_name: &'static str,
     aggregate_qualified_name: &'static str,
+    // `aggregate_name`/`identity_reading` — codegen-time-static text a
+    // refusal message quotes, kept SEPARATE from `aggregate_qualified_name`
+    // above on purpose: that field is `{domain}::{aggregate}` (what an
+    // `Event`/`MutationRecord` names itself), but `CommandInterpreter#
+    // hydrate`'s own refusal wording (`command_interpreter.rb`, read
+    // directly) quotes the aggregate's bare `hecks_name` — "Account", never
+    // "Banking::Account" — and its declared `identified_by` reading
+    // (`Identity.reading`, `identity.rb`), the SAME `target[:identified_by]
+    // .map { |p| p.split(".").first }.join(", ")`-shaped computation
+    // `reference_checks` (domain_generator.rb) already does for
+    // `reference_target_missing`'s own `heads`. Verified against the real
+    // interpreter, not assumed: `Banking::Account.Credit` against a number
+    // that was never opened reads "no Account with number.value
+    // \"acct-x\"" — bare aggregate name, dotted identity path, nothing
+    // domain-qualified.
+    aggregate_name: &'static str,
+    identity_reading: &'static str,
     args: &'a dyn Fielded,
     givens: &[GivenSpec],
     transition: Option<TransitionCheck>,
@@ -109,17 +127,31 @@ where
     let (id, mut record) = match hydrate {
         Hydrate::Create { id, build } => {
             if repo.find(&id).is_some() {
-                return Err(Refusal::AlreadyExists(format!(
-                    "{command_name} creates a {aggregate_qualified_name} that already exists — {id:?}"
-                )));
+                // `AlreadyExists`/`creating_duplicate` — `CommandInterpreter
+                // #hydrate`'s own second guard, read directly: "a second
+                // creation is not a fresh one."
+                return Err(Refusal::AlreadyExists(RefusalSite::AlreadyExistsCreatingDuplicate.render(&[
+                    ("command", command_name),
+                    ("aggregate", aggregate_name),
+                    ("identity", identity_reading),
+                    ("offered", &format!("{id:?}")),
+                ])));
             }
             (id, build())
         }
         Hydrate::Act { id } => {
+            // `NotFound`/`record_missing` — `CommandInterpreter#hydrate`'s
+            // own acting-command lookup failure, read directly. Shared
+            // with `dispatch_entity`'s own parent lookup below: Ruby's
+            // `EntityInterpreter#parent` raises this exact same site for
+            // its own failed `repository.find`, not a distinct entity-
+            // specific one.
             let record = repo.find(&id).ok_or_else(|| {
-                Refusal::NotFound(format!(
-                    "{command_name} references a {aggregate_qualified_name} that was never created — {id:?}"
-                ))
+                Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
+                    ("aggregate", aggregate_name),
+                    ("identity", identity_reading),
+                    ("offered", &format!("{id:?}")),
+                ]))
             })?;
             (id, record)
         }
@@ -139,10 +171,23 @@ where
         match record.field(check.field) {
             Some(Field::Value(Value::Str(current))) => {
                 if !check.from_states.contains(&current.as_str()) {
-                    return Err(Refusal::LifecycleRefused(format!(
-                        "{command_name} cannot run from {current:?} — admits {:?}",
-                        check.from_states
-                    )));
+                    // `LifecycleRefused`/`transition_blocked` —
+                    // `admissible_transition` (command_rules/admissibility.rb),
+                    // read directly. `allowed` there is `candidates.flat_map
+                    // { |t| Array(t.from) }.uniq` restricted to THIS
+                    // command's own transitions — exactly what `from_states`
+                    // already is here (`lifecycle_transition_for`,
+                    // mutations.rb: `rows.map { |r| r[:from_state] }.uniq`
+                    // over rows already filtered to this command). Each
+                    // state is `.inspect`-quoted and joined with " or ",
+                    // never Rust's own `{:?}` slice-debug rendering.
+                    let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
+                    return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
+                        ("command", command_name),
+                        ("field", check.field),
+                        ("current", &format!("{current:?}")),
+                        ("allowed", &allowed),
+                    ])));
                 }
             }
             // Not a codegen-emitted mismatch a real dispatch should ever hit —
@@ -150,7 +195,10 @@ where
             // record. Surfaced as TypeMismatch, the same way an expression
             // evaluation bug is (see expr.rs's own `eval_error`), because
             // reaching this means the GENERATOR is wrong, not that the
-            // command was refused for a real business reason.
+            // command was refused for a real business reason. Deliberately
+            // NOT one of `RefusalSite`'s templates — Ruby has no equivalent
+            // message to match because Ruby's own dynamically-typed record
+            // can never reach this branch at all.
             _ => {
                 return Err(Refusal::TypeMismatch(format!(
                     "{command_name}: lifecycle field {:?} missing or not a string — a codegen bug",
@@ -230,6 +278,28 @@ pub fn dispatch_entity<'a, T, E, R>(
     matches: impl Fn(&E) -> bool,
     command_name: &'static str,
     aggregate_qualified_name: &'static str,
+    // `aggregate_name`/`parent_identity_reading` — the SAME split `dispatch`
+    // above makes, for the SAME reason: the parent lookup below raises the
+    // identical `record_missing` site `EntityInterpreter#parent`
+    // (entity_interpreter.rb) raises for its own failed `repository.find`,
+    // quoting the PARENT aggregate's bare name and its own declared
+    // identity reading, never the domain-qualified form.
+    aggregate_name: &'static str,
+    parent_identity_reading: &'static str,
+    // `entity_name`/`entity_identity_reading` — `entity_element_missing`'s
+    // own `{entity}`/`{identity}`, codegen-time-static off the ENTITY's
+    // own `identified_by` (`element_of`, entity_interpreter.rb: `entity.
+    // hecks_name`/`Identity.reading(entity)`), distinct from the parent
+    // aggregate's above.
+    entity_name: &'static str,
+    entity_identity_reading: &'static str,
+    // `wants` — the one genuinely RUNTIME piece: `element_of`'s own
+    // `wants.map { |_h, path, want| Identity.scalar(path, want) }.join(",
+    // ")`, the caller-OFFERED scalar identity VALUES (not names), built by
+    // the generated registry call site alongside `element_id` and handed
+    // in already-joined — see `rust/project/registry.rb`'s entity-command
+    // arm and `json_codec.rb`'s `emit_extract_wants` for how.
+    wants: &str,
     args: &'a dyn Fielded,
     givens: &[GivenSpec],
     transition: Option<TransitionCheck>,
@@ -244,14 +314,33 @@ where
     E: Fielded + Clone,
     R: Repository<T>,
 {
+    // `NotFound`/`record_missing` — the parent half of `EntityInterpreter
+    // #parent`, read directly: the SAME site/wording `dispatch`'s own
+    // `Hydrate::Act` arm raises above, because Ruby raises it from the
+    // identical `RefusalWording.render("NotFound", "record_missing", ...)`
+    // call, just against the entity's OWNING aggregate instead of the
+    // aggregate acting on itself.
     let mut record = repo.find(parent_id).ok_or_else(|| {
-        Refusal::NotFound(format!(
-            "{command_name} references a {aggregate_qualified_name} that was never created — {parent_id:?}"
-        ))
+        Refusal::NotFound(RefusalSite::NotFoundRecordMissing.render(&[
+            ("aggregate", aggregate_name),
+            ("identity", parent_identity_reading),
+            ("offered", &format!("{parent_id:?}")),
+        ]))
     })?;
 
+    // `NotFound`/`entity_element_missing` — `element_of`'s own final guard
+    // (entity_interpreter.rb), read directly: `parent_id` reuses the
+    // ALREADY-quoted `{parent_id:?}` form Ruby's own `instance.id.inspect`
+    // produces (both a plain `.inspect` on a String), and `wants` arrives
+    // pre-joined by the caller exactly the way `identity`/`aggregate` do.
     let position = get_list(&record).iter().position(|el| matches(el)).ok_or_else(|| {
-        Refusal::NotFound(format!("{command_name} references an element of {aggregate_qualified_name} that doesn't exist"))
+        Refusal::NotFound(RefusalSite::NotFoundEntityElementMissing.render(&[
+            ("entity", entity_name),
+            ("identity", entity_identity_reading),
+            ("wants", wants),
+            ("aggregate", aggregate_name),
+            ("parent_id", &format!("{parent_id:?}")),
+        ]))
     })?;
 
     // COPY-ON-WRITE, same guarantee `element_of`'s own comment names: never
@@ -275,10 +364,18 @@ where
         match element.field(check.field) {
             Some(Field::Value(Value::Str(current))) => {
                 if !check.from_states.contains(&current.as_str()) {
-                    return Err(Refusal::LifecycleRefused(format!(
-                        "{command_name} cannot run from {current:?} — admits {:?}",
-                        check.from_states
-                    )));
+                    // Same site/wording as `dispatch`'s own transition
+                    // check above — the entity's OWN lifecycle field, per
+                    // `admissible_transition(declaring, ...)` taking either
+                    // an aggregate OR an entity as `declaring` (read
+                    // directly, command_rules/admissibility.rb).
+                    let allowed = check.from_states.iter().map(|s| format!("{s:?}")).collect::<Vec<_>>().join(" or ");
+                    return Err(Refusal::LifecycleRefused(RefusalSite::LifecycleRefusedTransitionBlocked.render(&[
+                        ("command", command_name),
+                        ("field", check.field),
+                        ("current", &format!("{current:?}")),
+                        ("allowed", &allowed),
+                    ])));
                 }
             }
             _ => {

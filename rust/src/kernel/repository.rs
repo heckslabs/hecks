@@ -82,7 +82,20 @@ pub fn check_reference<T: Clone>(
     if value.is_empty() || repo.find(value).is_some() {
         return Ok(());
     }
-    Err(super::Refusal::NotFound(format!("no {target} with {heads} {value:?}")))
+    // `NotFound`/`reference_target_missing` — `resolve_references`
+    // (command_rules/references.rb), read directly. Already textually
+    // correct before this migration (`heads` was already the same
+    // codegen-time-joined string `domain_generator.rb`'s own
+    // `reference_checks` computes, `value:?` was already the same
+    // `.inspect`-equivalent Debug quoting) — routed through `RefusalSite`
+    // anyway, for drift-proofing: a future hand-edit here can no longer
+    // silently diverge from Ruby's own table the way a bare `format!`
+    // could.
+    Err(super::Refusal::NotFound(super::RefusalSite::NotFoundReferenceTargetMissing.render(&[
+        ("target", target),
+        ("heads", heads),
+        ("key", &format!("{value:?}")),
+    ])))
 }
 
 /// Every generated domain's own `Store` gets this — `kernel/cli.rs`'s ad
@@ -198,5 +211,13 @@ pub fn check_role(command_role: Option<&str>, command_name: &str, caller_role: O
     if caller == role {
         return Ok(());
     }
-    Err(super::Refusal::Unauthorized(format!("{command_name} refused — role: {role}, and the caller stated {caller}")))
+    // `Unauthorized`/`role_mismatch` — `refuse_role_mismatch`
+    // (command_rules/authorization.rb), read directly. Already textually
+    // correct before this migration; routed through `RefusalSite` for the
+    // same drift-proofing reason `check_reference` above now is.
+    Err(super::Refusal::Unauthorized(super::RefusalSite::UnauthorizedRoleMismatch.render(&[
+        ("command", command_name),
+        ("role", role),
+        ("caller_role", caller),
+    ])))
 }

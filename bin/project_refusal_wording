@@ -1,0 +1,217 @@
+#!/usr/bin/env ruby
+
+# Generates rust/src/kernel/refusal_wording.rs from `Hecksagain::Runtime::
+# RefusalWording::TEMPLATES` (lib/hecksagain/runtime/refusal_wording.rb) —
+# the LANGUAGE-LEVEL refusal wording table, not domain-specific IR. Sits
+# beside bin/project_kernel_capabilities (which generates the attribute-
+# shape/expression-operator enums the hand-written kernel is matched
+# against) for the same reason: this is grammar/language ground truth, not
+# something bin/project_rust's per-domain IR walk produces.
+#
+# NOT an extension of bin/project_kernel_capabilities, on purpose. That
+# script pairs an enum with a `pub mod <name>;` roster of PER-VARIANT
+# HAND-WRITTEN interpretation files (rust/src/kernel/attribute_shapes/
+# <name>.rs) — the enum is generated, the behaviour behind each variant
+# is not. There is no such split here: a refusal template's own TEXT *is*
+# its entire behaviour, and the text is exactly what Ruby's table already
+# holds, so the interpretation is as mechanical as the roster and belongs
+# in the same generated file — one flat `match` returning a `&'static
+# str`, the same shape `query_comparators.rs`'s own `QueryComparator`
+# would have been if `parse`/`matches` were themselves table-driven
+# instead of hand-written dispatch logic.
+#
+# GROUND TRUTH, read directly, never re-typed by hand: `Hecksagain::
+# Runtime::RefusalWording::TEMPLATES`. That table is ALREADY held equal —
+# both directions, template text included — to `Vocabulary::
+# RefusalTemplate` (language/bluebook/vocabulary.bluebook) by
+# spec/refusal_wording_conformance_spec.rb, so reading TEMPLATES here is
+# reading the SAME fact the language itself already commits to, not a
+# third copy that could drift on its own.
+#
+# EVERY entry, not just the ones a real Rust call site raises today.
+# `rust/project.rb`'s own header used to name a handful of these as
+# "still differ from Ruby's own templates" — LifecycleRefused's
+# `transition_blocked`, the general VO-invariant message, `one_of`
+# closed-set membership, entity-element-missing — found by running the
+# full corpus through the differential harness. Generating only THOSE
+# would re-litigate which entries are "the broken ones" every time this
+# script runs; generating the WHOLE table, uniformly, means the day a
+# new refusal site is wired up in Rust it reaches for an already-correct
+# variant instead of another hand-typed string that can drift a second
+# time. `AttributeShape`/`OperatorCategory` (bin/project_kernel_
+# capabilities) hold themselves to the identical discipline — no
+# wildcard arm anywhere a match walks this enum, so a NEW entry Ruby's
+# table gains shows up here as a compile-time-exhaustiveness nudge, not
+# a silent gap.
+#
+#   bin/project_refusal_wording
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain/runtime/refusal_wording"
+require "fileutils"
+require "tempfile"
+
+ROOT = File.expand_path("..", __dir__)
+TARGET = File.join(ROOT, "rust/src/kernel/refusal_wording.rs")
+
+def write_atomically(target, content)
+  FileUtils.mkdir_p(File.dirname(target))
+  Tempfile.create(File.basename(target), File.dirname(target)) do |tmp|
+    tmp.write(content)
+    tmp.flush
+    File.rename(tmp.path, target)
+  end
+  puts "wrote #{target}"
+end
+
+# snake_case Ruby site name -> PascalCase Rust variant name segment. Same
+# splitter bin/project_kernel_capabilities already uses — every name this
+# ever sees (a refusal CLASS like "NotFound", already PascalCase, or a
+# SITE like "creating_no_identity") is a plain ASCII token, nothing richer.
+def pascal(name)
+  name.to_s.split("_").map { |part| part[0].upcase + part[1..] }.join
+end
+
+# A Rust string literal, byte-for-byte: Ruby's own `String#inspect` escapes
+# exactly the characters Rust's `"..."` syntax also needs escaped for the
+# shapes every real template uses (`"`, `\`, newlines) — no template in
+# this table contains anything stranger.
+def rust_lit(text) = text.inspect
+
+entries = Hecksagain::Runtime::RefusalWording::TEMPLATES.map do |(refusal_class, site), template|
+  { variant: "#{pascal(refusal_class)}#{pascal(site)}", template: template }
+end
+
+# A refusal class/site pair colliding on the SAME variant name would be a
+# silent table corruption (two entries answering one `match` arm) — this
+# generator would rather fail loudly at generation time than hand `cargo`
+# a `match` with a duplicate arm and let the compiler's own error stand in
+# for what should have been caught here, against the real ground truth.
+duplicates = entries.group_by { |e| e[:variant] }.select { |_, v| v.size > 1 }
+raise "duplicate RefusalSite variant name(s): #{duplicates.keys.join(', ')}" if duplicates.any?
+
+variant_lines  = entries.map { |e| "    #{e[:variant]}," }.join("\n")
+template_arms  = entries.map { |e| "            RefusalSite::#{e[:variant]} => #{rust_lit(e[:template])}," }.join("\n")
+all_entries    = entries.map { |e| "RefusalSite::#{e[:variant]}" }.join(", ")
+
+content = <<~RUST
+  // GENERATED by bin/project_refusal_wording from Hecksagain::Runtime::
+  // RefusalWording::TEMPLATES (lib/hecksagain/runtime/refusal_wording.rb).
+  // Do not hand-edit — re-run bin/project_refusal_wording instead.
+  //
+  // ONE VARIANT PER (refusal class, site) PAIR — #{entries.size} entries, every
+  // one Ruby's own table declares, not a subset picked for whichever Rust
+  // call site happens to exist today. See bin/project_refusal_wording's
+  // own header for the full argument (ground truth, why the whole table,
+  // why this isn't an extension of bin/project_kernel_capabilities); the
+  // short version is that a refusal template's text IS its behaviour, so
+  // there is no hand-written interpretation file for a generator to pair
+  // this roster with the way attribute_shapes/expression_operators need.
+  //
+  // `render` is `RefusalWording.render` (refusal_wording.rb:103-109),
+  // ported directly: a plain left-to-right `{key}` replace-fold over the
+  // template text, never expression syntax — a template is READ, not
+  // evaluated. Every real Ruby call site already pre-stringifies whatever
+  // isn't already a plain scalar (a joined list, `.inspect`, a rendered
+  // identity reading) before calling `.render`, so `&[(&str, &str)]` is
+  // sufficient here too — nothing generated ever needs to hand this a
+  // richer value and let it stringify internally.
+  //
+  // `Refusal::X(...)` CLASS selection and `RefusalSite` TEMPLATE selection
+  // stay two independent decisions at every call site, exactly mirroring
+  // Ruby's own `raise(Class, RefusalWording.render(...))` — two separate
+  // words, chosen separately, never fused into one Rust-only enum that
+  // would invent a coupling neither the language nor the runtime commits
+  // to.
+  #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+  pub enum RefusalSite {
+  #{variant_lines}
+  }
+
+  impl RefusalSite {
+      /// The template TEXT, read directly off Ruby's own table — see this
+      /// file's own header for the ground-truth citation. Exhaustive, no
+      /// wildcard arm, the same discipline `AttributeShape`/
+      /// `OperatorCategory` (rust/src/kernel/{attribute_shapes,
+      /// expression_operators}/mod.rs) already hold themselves to: a new
+      /// entry Ruby's table gains and this generator hasn't re-run for
+      /// yet is a compile error somewhere else in the crate, never a
+      /// silently-wrong string.
+      pub fn template(&self) -> &'static str {
+          match self {
+  #{template_arms}
+          }
+      }
+
+      /// `RefusalWording.render`, read directly: `values.reduce(template)
+      /// { |text, (key, value)| text.gsub("{\#{key}}", value.to_s) }`.
+      /// `String::replace` matches `gsub` here — both replace EVERY
+      /// occurrence of the marker, not just the first — and folding over
+      /// `values` in the caller-supplied order matches Ruby's own
+      /// insertion-ordered `**values` Hash iteration. A caller passes
+      /// only the placeholders ITS OWN template actually names; an unused
+      /// pair is harmless (its `{key}` marker simply never appears to
+      /// replace), the same as Ruby's version.
+      pub fn render(&self, values: &[(&str, &str)]) -> String {
+          let mut text = self.template().to_string();
+          for (key, value) in values {
+              text = text.replace(&format!("{{{key}}}"), value);
+          }
+          text
+      }
+
+      /// A verification sweep — every real generated call site names one
+      /// exact variant directly, so nothing in this crate iterates `ALL`
+      /// for dispatch; it exists for the `#[cfg(test)]` block below (and
+      /// any future one) to walk the whole table generically.
+      pub const ALL: &'static [RefusalSite] = &[#{all_entries}];
+  }
+
+  #[cfg(test)]
+  mod tests {
+      use super::*;
+
+      // Every template renders clean — no leftover `{...}` marker — when
+      // handed a dummy value for each placeholder ITS OWN text names.
+      // Placeholders are discovered by scanning the template text itself
+      // (never a second, hand-maintained placeholder list that could
+      // drift from the templates above), so this stays a true
+      // whole-table sweep no matter how the table above is edited by a
+      // future regeneration.
+      #[test]
+      fn every_site_renders_with_no_leftover_placeholder() {
+          for site in RefusalSite::ALL {
+              let template = site.template();
+              let mut keys: Vec<String> = Vec::new();
+              let mut inside = false;
+              let mut current = String::new();
+              for ch in template.chars() {
+                  match ch {
+                      '{' => {
+                          inside = true;
+                          current.clear();
+                      }
+                      '}' if inside => {
+                          inside = false;
+                          keys.push(current.clone());
+                      }
+                      _ if inside => current.push(ch),
+                      _ => {}
+                  }
+              }
+
+              let dummies: Vec<(String, String)> = keys.iter().map(|k| (k.clone(), format!("<{k}>"))).collect();
+              let pairs: Vec<(&str, &str)> = dummies.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+              let rendered = site.render(&pairs);
+
+              assert!(
+                  !rendered.contains('{') && !rendered.contains('}'),
+                  "{site:?} left an unrendered placeholder behind: {rendered:?}"
+              );
+          }
+      }
+  }
+RUST
+
+write_atomically(TARGET, content)

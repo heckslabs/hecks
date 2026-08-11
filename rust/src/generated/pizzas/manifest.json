@@ -31,23 +31,19 @@
   {
     "kind": "query",
     "id": "Pizzas::Order.Available",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Pizzas::Order.CostingLessThan",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "generated": true
   },
   {
     "kind": "query",
     "id": "Pizzas::Order.Expensive",
     "generated": false,
     "gap_class": "per_instance",
-    "reason": "declares order_by, which this generator's query codegen doesn't implement — sorting is out of scope for the field-comparator subset it covers (see rust/project/queries.rb's own header)"
+    "reason": "where clause on \"pizza.price_cents.cents\" uses op \"gt\" against a LITERAL value — gt/gte/lt/lte need real Json::Num-vs-Json::Str fidelity this generator can't recover from the exported IR (WhereClause#to_h renders every literal through QuerySpecification.render_value's own .to_s)"
   },
   {
     "kind": "policy",

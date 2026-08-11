@@ -182,10 +182,19 @@ module RustProjection
         a[:entity_commands].map do |c|
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
-          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))"
+          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))"
 
+          # `element_wants` — `entity_element_missing`'s one genuinely
+          # RUNTIME piece (`kernel::dispatch_entity`'s own header): the
+          # caller-OFFERED scalar identity VALUES, read straight off the
+          # same raw JSON `element_id` already digs, just joined with ", "
+          # instead of ":" (`emit_extract_wants`, json_codec.rb). Computed
+          # unconditionally, alongside `element_id`, never only on the
+          # refusal path — it's a plain infallible dig, not worth gating
+          # behind whether the dispatch actually fails.
           body = ["let parent_id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;",
                   "let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(args_json)?;",
+                  "let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(args_json);",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;",
                   role_line, *reference_lines,
                   "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",

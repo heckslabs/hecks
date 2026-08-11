@@ -65,7 +65,16 @@ impl ValueObjectName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ValueObjectName violates its invariant: a value object is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ValueObjectName"),
+            ("description", "a value object is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -391,6 +400,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::ValueObject",
+        "ValueObject",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -481,6 +492,8 @@ pub fn dispatch_field(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Field",
         "Bluebook::ValueObject",
+        "ValueObject",
+        "aggregate_id, name.value",
         &args,
         &[
 
@@ -561,6 +574,8 @@ pub fn dispatch_close(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Close",
         "Bluebook::ValueObject",
+        "ValueObject",
+        "aggregate_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a closed set admits a member", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, left: Box::new(Expr::Lookup("rows.value")), right: Box::new(Expr::Int(0)) } },
@@ -632,6 +647,8 @@ pub fn dispatch_assert(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Assert",
         "Bluebook::ValueObject",
+        "ValueObject",
+        "aggregate_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },

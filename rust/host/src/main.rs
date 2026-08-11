@@ -17,6 +17,7 @@
 
 mod auth;
 mod dispatch;
+mod field_hints;
 mod journal;
 mod lambda_client;
 mod wasm_runner;
@@ -219,8 +220,29 @@ async fn main() -> Result<(), Error> {
                 .get("args")
                 .cloned()
                 .unwrap_or_else(|| serde_json::json!({}));
+            // `"role"` -- OPTIONAL, mirroring `args` immediately above:
+            // `Adapters::Lambda::Client#dispatch` (Ruby) only puts this
+            // key on the wire when a caller is actually bound
+            // (`payload["role"] = role if role`), so an absent key here
+            // means exactly what it always has -- no caller asserted a
+            // role, and `dispatch::handle`'s own `check_role` stays on
+            // its unchecked path, unchanged. THIS is the fix for a real
+            // wiring gap, not new behavior: `check_role`
+            // (kernel/repository.rs) and `cli.rs`'s own
+            // `step.get("role")` were both already correct and already
+            // exercised (the cross-Lambda-policy-dispatch work reused
+            // this same mechanism successfully) -- but nothing on this
+            // side of the wire ever read an incoming event's `"role"`
+            // field at all, so every real Lambda invocation reached
+            // `check_role` with `caller_role: None` regardless of what
+            // Ruby's client actually sent, and role-based authorization
+            // was silently unreachable in production.
+            let role = body
+                .get("role")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
 
-            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, &lineage_config, invoker.as_ref()).await?;
+            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, role.as_deref(), &lineage_config, invoker.as_ref()).await?;
             Ok::<serde_json::Value, Error>(outcome.result)
         }
     }))

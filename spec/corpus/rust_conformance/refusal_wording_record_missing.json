@@ -1,0 +1,8 @@
+{
+  "domain": "examples/banking",
+  "note": "NotFound/record_missing, via CommandInterpreter#hydrate's ACTING branch (Hydrate::Act in kernel/dispatch.rs) — verified genuinely broken before this fixture existed: unmodified Rust said 'Credit references a Banking::Account that was never created — \"nonexistent-acct\"', Ruby says 'no Account with number.value \"nonexistent-acct\"'. Crediting a number nothing ever opened.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Credit", "args": {"number": {"value": "nonexistent-acct"}, "amount": {"cents": 1, "currency": "USD"}, "narrative": {"text": "x"}}}
+  ]
+}

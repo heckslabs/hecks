@@ -25,7 +25,16 @@ impl ReadModelName {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ReadModelName violates its invariant: a read model is named".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ReadModelName"),
+            ("description", "a read model is named"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -110,7 +119,16 @@ impl ProjectionPurpose {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("ProjectionPurpose violates its invariant: a description says something".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ProjectionPurpose"),
+            ("description", "a description says something"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -415,6 +433,8 @@ pub fn dispatch_declare(
     },
         "Declare",
         "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
         &args,
         &[
 
@@ -501,6 +521,8 @@ pub fn dispatch_gather(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Gather",
         "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "a read model gathers heads only after its reference", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("reference_target.value"))))))) },
@@ -582,6 +604,8 @@ pub fn dispatch_option(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Option",
         "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
         &args,
         &[
             crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },

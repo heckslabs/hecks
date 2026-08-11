@@ -148,7 +148,24 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
 }
 
 pub const QUERIES: &[crate::kernel::QueryDef] = &[
-
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.Available",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("available") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "name", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Pizzas::Order.CostingLessThan",
+    aggregate: "Pizzas::Order",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "pizza.price_cents.cents", comparator: crate::kernel::query_comparators::QueryComparator::Lt, value: crate::kernel::QueryConditionValue::Arg("ceiling") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "name", descending: false }),
+    limit: None,
+},
 ];
 
 pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[

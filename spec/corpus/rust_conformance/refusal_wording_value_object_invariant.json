@@ -1,0 +1,7 @@
+{
+  "domain": "examples/banking",
+  "note": "InvariantViolation/value_object_invariant — the general VO-invariant message, promoted into RefusalWording::TEMPLATES/Vocabulary::RefusalTemplate as part of this same migration (it wasn't in the 37-entry table before). Verified genuinely broken before this fixture existed: unmodified Rust said 'CustomerNumber violates its invariant: a customer reference is present' (no offered-fields dump at all), Ruby says 'CustomerNumber invariant violated — a customer reference is present (given {\"value\":\"\"})'. Registering a customer with a blank reference — CustomerNumber's own `!value.to_s.empty?` invariant fails.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": ""}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}}
+  ]
+}

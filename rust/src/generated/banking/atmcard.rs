@@ -25,7 +25,16 @@ impl CardSerial {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("CardSerial violates its invariant: a card serial is present".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "CardSerial"),
+            ("description", "a card serial is present"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -110,7 +119,16 @@ impl DailyFee {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("amount")), right: Box::new(Expr::Int(0)) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("DailyFee violates its invariant: a daily fee is non-negative".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "DailyFee"),
+            ("description", "a daily fee is non-negative"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -155,7 +173,16 @@ impl WithdrawalSequence {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("value")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("WithdrawalSequence violates its invariant: a withdrawal sequence is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "WithdrawalSequence"),
+            ("description", "a withdrawal sequence is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -200,7 +227,16 @@ impl WithdrawalAmount {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Lookup("cents")) }, &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("WithdrawalAmount violates its invariant: a withdrawal amount is positive".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "WithdrawalAmount"),
+            ("description", "a withdrawal amount is positive"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -245,7 +281,16 @@ impl Narrative {
 {
     let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
     if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("text"))))))), &ctx)?.truthy() {
-        return Err(crate::kernel::Refusal::InvariantViolation("Narrative violates its invariant: a withdrawal explains itself".to_string()));
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Narrative"),
+            ("description", "a withdrawal explains itself"),
+            ("offered", offered.as_str()),
+        ])));
     }
 }
         Ok(())
@@ -328,6 +373,16 @@ impl Withdrawal {
 }
 
 impl Withdrawal {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            let c0 = v.dig("sequence.value")?.to_id_component().ok()?;
+            Some(c0)
+        })()
+        .unwrap_or_default()
+    }
+}
+
+impl Withdrawal {
     pub fn identity(&self) -> String {
         self.sequence.value.to_string()
     }
@@ -369,7 +424,7 @@ impl WithdrawalDisputeArgs {
 
 
 pub fn dispatch_entity_withdrawal_dispute(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, parent_id: &str, element_id: &str, args: WithdrawalDisputeArgs,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, parent_id: &str, element_id: &str, element_wants: &str, args: WithdrawalDisputeArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.narrative.check_invariants()?;
@@ -382,6 +437,11 @@ pub fn dispatch_entity_withdrawal_dispute(
         |el: &Withdrawal| el.identity() == element_id,
         "Withdrawal.Dispute",
         "Banking::ATMCard",
+        "ATMCard",
+        "serial.value",
+        "Withdrawal",
+        "sequence.value",
+        element_wants,
         &args,
         &[
 
@@ -515,6 +575,8 @@ pub fn dispatch_issue(
     },
         "Issue",
         "Banking::ATMCard",
+        "ATMCard",
+        "serial.value",
         &args,
         &[
 
@@ -588,6 +650,8 @@ pub fn dispatch_rename(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Rename",
         "Banking::ATMCard",
+        "ATMCard",
+        "serial.value",
         &args,
         &[
 
@@ -659,6 +723,8 @@ pub fn dispatch_withdraw(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Withdraw",
         "Banking::ATMCard",
+        "ATMCard",
+        "serial.value",
         &args,
         &[
 
@@ -728,6 +794,8 @@ pub fn dispatch_activate(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Activate",
         "Banking::ATMCard",
+        "ATMCard",
+        "serial.value",
         &args,
         &[
 
@@ -795,6 +863,8 @@ pub fn dispatch_retire(
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Retire",
         "Banking::ATMCard",
+        "ATMCard",
+        "serial.value",
         &args,
         &[
 
