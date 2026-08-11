@@ -8,11 +8,11 @@
 # cross-linker — install once with `pip3 install cargo-lambda` or
 # `brew install cargo-lambda`.
 
-HOST_DIR := /private/tmp/hecksagain-ssm-retry-v2/rust/host
+HOST_DIR := /private/tmp/hecksagain-framework-move/rust/host
 # `domain_name`, matching bin/project_wasm's own target_mod_name
 # (a Rust-build-pipeline naming convention, not AWS resource
 # identity — see HECKS_WASM_PATH's own comment above).
-WASM     := /private/tmp/hecksagain-ssm-retry-v2/rust/dist/embryonautfoundersapp.wasm
+WASM     := /private/tmp/hecksagain-framework-move/rust/dist/embryonautfoundersapp.wasm
 
 build-EmbryonautFunction:
 	@command -v cargo-lambda >/dev/null 2>&1 || { \
@@ -27,7 +27,7 @@ build-EmbryonautFunction:
 # field). `bin/project_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd /private/tmp/hecksagain-ssm-retry-v2 && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
+	cd /private/tmp/hecksagain-framework-move && bin/project_wasm /Users/christopheryoung/Projects/embryonautfoundersapp
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # bin/project_wasm's own Makefile-equivalent line holds itself to: a
@@ -75,7 +75,7 @@ restore-EmbryonautFunction-build:
 # as its own sibling stack, uses it for one Ruby boot over an SSM
 # tunnel, then deletes it — nothing from this target is left running
 # afterward.
-ROOT      := /private/tmp/hecksagain-ssm-retry-v2
+ROOT      := /private/tmp/hecksagain-framework-move
 DOMAIN    := /Users/christopheryoung/Projects/embryonautfoundersapp
 STACK     := hecksagain-embryonaut
 BASTION_STACK := hecksagain-embryonaut-bastion
@@ -193,6 +193,173 @@ mint-era:
 	echo "$(BASTION_STACK) deleted. Era 1 should now be held if BOOT_STATUS was 0 — verify with bin/console or a Postgres query against hecks_eras."; \
 	exit $$BOOT_STATUS
 
+# `make scaffold-translation` — run this when a deploy's own
+# pre-flight boot check (or `make mint-era` directly) refuses with
+# "the shape changed (era N) and no translation edge covers it".
+# Diffs the held era against the current bluebook over the same
+# bastion tunnel mint-era uses and WRITES a translations/*.bluebook
+# edge file into this domain's own repo — confident rules inline,
+# genuine ambiguities as `unresolved` lines a human has to resolve by
+# hand (a rename, a drop, a compute — never guessed). Review the
+# written file, then `make translation-audit`.
+scaffold-translation:
+	@echo "Looking up $(STACK)'s VPC/security group..."
+	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
+	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
+	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
+	$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
+	$(eval FN_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text))
+	$(eval PRIVATE_SUBNET_A_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text))
+	$(eval PRIVATE_SUBNET_B_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text))
+	$(eval PUBLIC_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text))
+	$(eval BASTION_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue" --output text))
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) PublicSubnetId=$(PUBLIC_SUBNET_ID) BastionSubnetId=$(BASTION_SUBNET_ID) \
+		--capabilities CAPABILITY_IAM
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+	for i in $$(seq 1 30); do \
+		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+		if [ "$$STATUS" = "Online" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	RUN_STATUS=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 and running scaffold-translation (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" HECKS_SCHEMA="embryonautfoundersapp" ruby -Ilib bin/scaffold_translation $(DOMAIN) && { RUN_STATUS=0; break; }; \
+		RUN_STATUS=$$?; \
+		echo "scaffold-translation attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
+	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted."; \
+	exit $$RUN_STATUS
+
+# `make translation-audit` — verifies a written (or still-pending)
+# translation edge over the same tunnel: every translated state
+# against the new era's own types/invariants/lifecycle, the compiled
+# SQL against the port's own reference transform, and a before/after
+# sample of real records printed for human review. Re-run
+# `make deploy` (or `make mint-era`) once this passes — that's what
+# actually applies the edge; this only checks it.
+translation-audit:
+	@echo "Looking up $(STACK)'s VPC/security group..."
+	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
+	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
+	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
+	$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
+	$(eval FN_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text))
+	$(eval PRIVATE_SUBNET_A_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text))
+	$(eval PRIVATE_SUBNET_B_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text))
+	$(eval PUBLIC_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text))
+	$(eval BASTION_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue" --output text))
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) PublicSubnetId=$(PUBLIC_SUBNET_ID) BastionSubnetId=$(BASTION_SUBNET_ID) \
+		--capabilities CAPABILITY_IAM
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+	for i in $$(seq 1 30); do \
+		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+		if [ "$$STATUS" = "Online" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	RUN_STATUS=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 and running translation-audit (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		cd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" HECKS_SCHEMA="embryonautfoundersapp" ruby -Ilib bin/translation_audit $(DOMAIN) && { RUN_STATUS=0; break; }; \
+		RUN_STATUS=$$?; \
+		echo "translation-audit attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
+	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted."; \
+	exit $$RUN_STATUS
+
+# `make migrate-console-settings` — runs this domain's own
+# bin/migrate_console_settings (if it has one) over the same bastion
+# tunnel every other Postgres-touching target here uses, against the
+# real deployed database instead of local dev. A one-time data
+# migration, not a repeatable ops procedure like mint-era/scaffold-
+# translation — generated the same way regardless, per this
+# project's own standing rule against hand-run ops steps.
+migrate-console-settings:
+	@echo "Looking up $(STACK)'s VPC/security group..."
+	$(eval VPC_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue" --output text))
+	$(eval DB_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DbSecurityGroupId'].OutputValue" --output text))
+	$(eval DB_HOST := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" --output text))
+	$(eval DB_SECRET_ARN := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" --output text))
+	$(eval FN_SG_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='FunctionSecurityGroupId'].OutputValue" --output text))
+	$(eval PRIVATE_SUBNET_A_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetAId'].OutputValue" --output text))
+	$(eval PRIVATE_SUBNET_B_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetBId'].OutputValue" --output text))
+	$(eval PUBLIC_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetId'].OutputValue" --output text))
+	$(eval BASTION_SUBNET_ID := $(shell aws cloudformation describe-stacks --stack-name $(STACK) --query "Stacks[0].Outputs[?OutputKey=='BastionSubnetId'].OutputValue" --output text))
+	@echo "Deploying the temporary bastion stack $(BASTION_STACK)..."
+	aws cloudformation deploy --template-file bastion.yaml --stack-name $(BASTION_STACK) \
+		--parameter-overrides VpcId=$(VPC_ID) RdsSecurityGroupId=$(DB_SG_ID) PublicSubnetId=$(PUBLIC_SUBNET_ID) BastionSubnetId=$(BASTION_SUBNET_ID) \
+		--capabilities CAPABILITY_IAM
+	@INSTANCE_ID=$$(aws cloudformation describe-stacks --stack-name $(BASTION_STACK) --query "Stacks[0].Outputs[?OutputKey=='InstanceId'].OutputValue" --output text); \
+	echo "Waiting for $$INSTANCE_ID to register with SSM..."; \
+	for i in $$(seq 1 30); do \
+		STATUS=$$(aws ssm describe-instance-information --filters "Key=InstanceIds,Values=$$INSTANCE_ID" --query "InstanceInformationList[0].PingStatus" --output text 2>/dev/null); \
+		if [ "$$STATUS" = "Online" ]; then break; fi; \
+		sleep 5; \
+	done; \
+	DB_PASS=$$(aws secretsmanager get-secret-value --secret-id $(DB_SECRET_ARN) --query SecretString --output text | ruby -rjson -e 'print JSON.parse(STDIN.read)["password"]'); \
+	RUN_STATUS=1; \
+	for attempt in 1 2 3 4 5; do \
+		kill $$TUNNEL_PID 2>/dev/null; \
+		echo "Opening an SSM tunnel to $(DB_HOST):5432 and running migrate-console-settings (attempt $$attempt/5)..."; \
+		aws ssm start-session --target $$INSTANCE_ID \
+			--document-name AWS-StartPortForwardingSessionToRemoteHost \
+			--parameters "{\"host\":[\"$(DB_HOST)\"],\"portNumber\":[\"5432\"],\"localPortNumber\":[\"15432\"]}" \
+			>/tmp/$(BASTION_STACK)-tunnel-$$attempt.log 2>&1 & \
+		TUNNEL_PID=$$!; \
+		for i in $$(seq 1 15); do \
+			nc -z localhost 15432 2>/dev/null && break; \
+			sleep 1; \
+		done; \
+		cd $(DOMAIN) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/embryonaut" HECKS_SCHEMA="embryonautfoundersapp" bundle exec ruby bin/migrate_console_settings && { RUN_STATUS=0; break; }; \
+		RUN_STATUS=$$?; \
+		echo "migrate-console-settings attempt $$attempt/5 failed (exit $$RUN_STATUS) -- restarting the tunnel and retrying in 3s..."; \
+		sleep 3; \
+	done; \
+	kill $$TUNNEL_PID 2>/dev/null; \
+	echo "Tearing down the temporary bastion stack..."; \
+	aws cloudformation delete-stack --stack-name $(BASTION_STACK); \
+	aws cloudformation wait stack-delete-complete --stack-name $(BASTION_STACK); \
+	echo "$(BASTION_STACK) deleted."; \
+	exit $$RUN_STATUS
+
 # `make rename-schema OLD=<old> NEW=<new>` — a native `ALTER SCHEMA
 # ... RENAME TO ...` over the same bastion tunnel mint-era uses,
 # for when this domain's own declared identity changes
@@ -298,7 +465,7 @@ rename-schema:
 # execution image — sidesteps the AL2 package conflict between
 # `openssl-libs` and the build image's own pre-installed
 # `openssl-snapsafe-libs` entirely, rather than fighting it.
-PG_NATIVE_DIR := /private/tmp/hecksagain-ssm-retry-v2/tmp/pg-native-arm64-ruby3.2
+PG_NATIVE_DIR := /private/tmp/hecksagain-framework-move/tmp/pg-native-arm64-ruby3.2
 
 $(PG_NATIVE_DIR)/pg_ext.so:
 	@mkdir -p $(PG_NATIVE_DIR)
