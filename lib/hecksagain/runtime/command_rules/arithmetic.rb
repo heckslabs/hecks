@@ -27,7 +27,16 @@ module Hecksagain
           # set/append, they do no add-or-subtract arithmetic (multiply
           # scales, clamp bounds). See #multiply/#clamp below.
           MutationOp.new(name: "multiply",  sign: nil),
-          MutationOp.new(name: "clamp",     sign: nil)
+          MutationOp.new(name: "clamp",     sign: nil),
+          # Vendored addition, not (yet) upstream hecksagain (migration
+          # plan task 4): remove -- carries no sign, like set/append; it
+          # matches a list element by value rather than doing arithmetic.
+          # Declared here so this table stays exactly what
+          # Vocabulary::MutationOp declares (spec/vocabulary_conformance_spec
+          # holds the two equal) -- MutationApplier's own `when :remove`
+          # branch (mutation_applier.rb) never calls #sign_of, so this was
+          # a declared-vocabulary gap, not a behaviour gap.
+          MutationOp.new(name: "remove",    sign: nil)
         ].freeze
 
         # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
