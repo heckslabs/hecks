@@ -271,13 +271,15 @@ ALLOWLIST = [
   {
     kind: "query",
     reason_match: nil, # every declared query, every domain — the whole construct kind
-    doc: "rust/src/kernel/cli.rs (own refusal: \"query steps are not generated yet\")",
-    note: 'Confirmed true independently of this run: `grep -rn "query" rust/src/kernel/cli.rs` shows the CLI ' \
-          'explicitly refusing any `"query"` step with `Refusal::TypeMismatch`, and `grep -rn "read_model\|:queries" ' \
-          'rust/project/*.rb` (this generator\'s own Ruby source) finds no emitter, no skip-check — nothing — for ' \
-          'either construct. docs/HECKS_IMPLEMENTATION_PLAN.md\'s §8 "What\'s still real and unbuilt" list doesn\'t ' \
-          'separately name it, but the kernel\'s own self-documenting refusal is the more authoritative source here ' \
-          'regardless — it is the actual behavior, not a roadmap note that could drift from it.',
+    doc: "rust/src/kernel/cli.rs (own refusal on the STRING \"query\" step shape — a named/declared bluebook ask)",
+    note: 'Confirmed true independently of this run: a declared `query "X" do ... end` block (this manifest\'s own ' \
+          '`kind: "query"` entries) still has no generated Rust representation of its own — `grep -rn "read_model\|' \
+          ':queries" rust/project/*.rb` (this generator\'s own Ruby source) still finds no emitter, no skip-check — ' \
+          'nothing — for either construct, and `rust/src/kernel/cli.rs` still refuses that shape outright. A REAL, ' \
+          'narrower query capability now exists alongside it (the OBJECT-shaped ad hoc single-comparator "query" ' \
+          'step — kernel/query_comparators.rs\'s own header has the full story) — that shape has no bluebook `query`' \
+          ' declaration behind it at all, so it does not close, or even touch, any of the findings this allowlist ' \
+          'entry covers; every one of them is still exactly the gap it was.',
   },
   {
     kind: "policy",

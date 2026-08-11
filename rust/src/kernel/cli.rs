@@ -4,7 +4,9 @@
 // docs/decisions/0012-wasm-via-wasi-stdio.md). Reads the exact
 // `{"steps": [...]}` shape `bin/rust_conformance` already feeds Ruby's
 // `Fuzzing::Replay.call`, and writes the exact `{"instances", "events",
-// "refusals"}` shape it already prints from Ruby — SAME contract, now
+// "refusals", "queries"}` shape `Fuzzing::Replay.call`'s own return hash
+// already carries (`"queries"` is new — see this file's own header,
+// below, on `run`'s two "query" step shapes) — SAME contract, now
 // answerable by this compiled artifact too, not only a pre-existing file
 // (`bin/rust_conformance`'s own header comment: "this tool does not invoke
 // Rust itself... until then, 'give me a JSON file to compare against' is
@@ -17,7 +19,7 @@
 // alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{orchestrate, Event, Json, MutationRecord, Refusal, SagaInstance};
+use super::{orchestrate, query_comparators, repository, AggregateScan, Event, Json, MutationRecord, Refusal, SagaInstance};
 use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, POLICIES, PROCESS_MANAGERS};
 use std::collections::HashMap;
 
@@ -61,17 +63,62 @@ pub fn run(input: &str) -> String {
     // so a caller replaying prior history plus exactly one new step can
     // read `mutations.last()` for just the new step's own effect.
     let mut mutations_per_step: Vec<Vec<MutationRecord>> = Vec::new();
+    // One entry per successfully-answered "query" step, in step order —
+    // Fuzzing::Replay's own `queries` array (lib/hecksagain/fuzzing/
+    // replay.rb), read directly: a REFUSED query step (either shape)
+    // reports through `refusals` above instead, exactly like a refused
+    // command does, and contributes nothing here — matching Ruby, which
+    // never pushes a `rows:`-bearing entry for a question that raised.
+    let mut query_results: Vec<Json> = Vec::new();
 
     for step in steps {
         // A `"query"` step (Fuzzing::Replay's other real shape,
         // `step["query"]` instead of `step["verb"]` — a query step carries
-        // no verb at all) has no Rust-side counterpart yet — no
-        // query/read-model codegen exists (§8's own "what actually got
-        // built" list). Refused the same way an unrouted command name is,
-        // not silently ignored — checked BEFORE requiring "verb" below,
-        // since a query step legitimately has none.
-        if let Some(question) = step.get("query").and_then(Json::as_str) {
-            refusals.push((question.to_string(), Refusal::TypeMismatch("query steps are not generated yet".to_string())));
+        // no verb at all) has TWO shapes on the wire, checked BEFORE
+        // requiring "verb" below since a query step legitimately has none:
+        //
+        //   STRING  — a NAMED/declared bluebook ask ("Banking::Account.
+        //   Open"), Fuzzing::Replay's original, only shape. Still refused,
+        //   unconditionally: a declared query's own wheres/order_by/limit
+        //   live in the bluebook's IR with no generated Rust representation
+        //   at all (rust/project/domain_generator.rb's own "whole_kind"
+        //   query/read_model tracking, bin/rust_coverage's own header) —
+        //   real, separately-scoped work this change does not attempt.
+        //
+        //   OBJECT  — an AD HOC, single-comparator filter ({"aggregate",
+        //   "field", "op", "value"}), new as of this change. Executes for
+        //   real: `run_filter` (below) resolves the named aggregate
+        //   against THIS compiled domain's own `Store` (`AggregateScan`,
+        //   kernel/repository.rs), validates `op` against the eight real
+        //   `QueryComparator` variants (query_comparators.rs), and
+        //   filters that one aggregate's own stored instances. Anything
+        //   this shape doesn't cover — an unrecognized comparator, an
+        //   aggregate this compiled domain doesn't recognize (including,
+        //   honestly, a domain never regenerated with scan support at
+        //   all — AggregateScan's own default) — refuses cleanly, the
+        //   same `Refusal::TypeMismatch` an unrouted verb already gets,
+        //   never a wrong (empty-but-silent) answer and never a panic.
+        if let Some(query) = step.get("query") {
+            match query {
+                Json::Str(question) => {
+                    refusals.push((
+                        question.clone(),
+                        Refusal::TypeMismatch(
+                            "named/declared query steps are not generated yet — only the ad hoc single-comparator \
+                             filter shape ({\"aggregate\",\"field\",\"op\",\"value\"}) executes"
+                                .to_string(),
+                        ),
+                    ));
+                }
+                Json::Object(_) => match run_filter(&store, query) {
+                    Ok(rows) => query_results.push(Json::obj(vec![("query", query.clone()), ("rows", Json::Array(rows))])),
+                    Err(refusal) => refusals.push((filter_label(query), refusal)),
+                },
+                _ => refusals.push((
+                    "query".to_string(),
+                    Refusal::TypeMismatch("a \"query\" step must be a string (named ask) or an object (ad hoc filter)".to_string()),
+                )),
+            }
             mutations_per_step.push(Vec::new());
             continue;
         }
@@ -132,8 +179,70 @@ pub fn run(input: &str) -> String {
         ("events".to_string(), events_json),
         ("refusals".to_string(), refusals_json),
         ("mutations".to_string(), mutations_json),
+        ("queries".to_string(), Json::Array(query_results)),
     ])
     .to_json_string()
+}
+
+/// THE AD HOC FILTER'S OWN DISPATCH — `{"aggregate", "field", "op",
+/// "value"}`, every key required (a missing one refuses via `Json::
+/// require`, the same message shape every generated `from_json` already
+/// uses). `aggregate` is looked up through `AggregateScan::scan`
+/// (kernel/repository.rs), generated per compiled domain; `op` through
+/// `QueryComparator::parse` (query_comparators.rs) — either miss refuses
+/// with a clear, specific reason, never falls through to an empty-but-
+/// silent result. `value`'s own JSON type rides straight through
+/// unchanged (a caller means whatever type they wrote — a bare JSON
+/// number for a numeric comparator, a string, `null` for a genuine nil
+/// check) all the way into `repository::filter_entries`, which is the
+/// one place it's actually interpreted.
+fn run_filter(store: &Store, filter: &Json) -> Result<Vec<Json>, Refusal> {
+    let aggregate = required_str(filter, "aggregate")?;
+    let field = required_str(filter, "field")?;
+    let op = required_str(filter, "op")?;
+    let value = filter.require("value", "query filter")?;
+
+    let comparator = query_comparators::QueryComparator::parse(op)
+        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown query comparator {op:?}")))?;
+    let entries = store
+        .scan(aggregate)
+        .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {aggregate:?}")))?;
+
+    let matched = repository::filter_entries(entries, field, comparator, value);
+    Ok(matched.into_iter().map(|(id, record)| row_json(id, record)).collect())
+}
+
+fn required_str<'a>(filter: &'a Json, key: &str) -> Result<&'a str, Refusal> {
+    filter
+        .require(key, "query filter")?
+        .as_str()
+        .ok_or_else(|| Refusal::TypeMismatch(format!("query filter {key:?} must be a string")))
+}
+
+/// One matched record, as a ROW — the field named `"id"` prepended to
+/// whatever `to_json()` already produced, matching Ruby's own row shape
+/// exactly (`QueryInterpreter#call`'s `{ id: record.id }.merge(record.
+/// state)`): a query's answer names its own id inline, distinct from
+/// `instances()`'s own "Domain::Aggregate#id" -> state MAP shape, which
+/// carries id only in the key, never inside the value.
+fn row_json(id: String, record: Json) -> Json {
+    let Json::Object(mut fields) = record else { return record };
+    fields.insert(0, ("id".to_string(), Json::Str(id)));
+    Json::Object(fields)
+}
+
+/// The `refusals` entry's own "verb" column, for a REFUSED ad hoc filter
+/// — there is no real verb to report (a filter step carries no verb at
+/// all), so this builds the same descriptive label Fuzzing::Replay's own
+/// mirror-image Ruby code builds from the same three raw fields, tolerant
+/// of any of them being absent or the wrong shape (a malformed filter is
+/// exactly the case this label most needs to describe without itself
+/// panicking) — `Json::as_str` on a missing/non-string field reads as
+/// `None`, folded to `""` here the same way Ruby's own string
+/// interpolation folds a missing/nil hash value.
+fn filter_label(filter: &Json) -> String {
+    let field = |key: &str| filter.get(key).and_then(Json::as_str).unwrap_or("");
+    format!("filter {}.{} {}", field("aggregate"), field("field"), field("op"))
 }
 
 fn mutation_to_json(mutation: &MutationRecord) -> Json {

@@ -12,16 +12,19 @@ require "hecksagain/fuzzing"
 # (`.github/workflows/ci.yml`), the same "provision it for real, don't
 # skip" discipline that workflow already holds Postgres/SQLite to.
 #
-# Compares `instances`, `events`, AND full refusal wording (`verb` +
-# `error`, not just `verb`) — the two gaps that used to make exact
-# `events`/wording comparison the wrong bar here are both closed now
-# (0021): `Event.payload` used to be the router's raw, unfiltered args
+# Compares `instances`, `events`, `queries`, AND full refusal wording
+# (`verb` + `error`, not just `verb`) — the two gaps that used to make
+# exact `events`/wording comparison the wrong bar here are both closed
+# now (0021): `Event.payload` used to be the router's raw, unfiltered args
 # (0013's own `stamp_payload`) with no post-coercion default-fill —
 # `Json::overlay` (json.rs) now merges the raw args with the typed args
 # struct's OWN `to_json()`, matching Ruby's own coerced-hash payload; and
 # `GivenNotMet`/`EnsuresNotMet` refusal wording now carries the same
 # `"{command} refused — {description}"` prefix Ruby's own
-# `CommandRules::Admissibility` raises with. Both fixtures below are
+# `CommandRules::Admissibility` raises with. Fixtures with no "query" step
+# at all (every fixture below except query_filters.json) trivially pass
+# the `queries` comparison — both engines report an empty array — so
+# adding it here costs those fixtures nothing. Fixtures below are
 # picked/maintained specifically to stay clear of the OTHER refusal-
 # wording templates this generator still doesn't match byte-for-byte
 # (LifecycleRefused's `transition_blocked`, the general VO-`invariant`
@@ -70,6 +73,7 @@ RSpec.describe "Rust conformance (native binary)" do
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }
       ruby_events = JSON.parse(JSON.generate(ruby_result[:events]))
       ruby_refusals = ruby_result[:refusals].map { |r| { "verb" => r[:verb].to_s, "error" => r[:error] } }
+      ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries]))
 
       stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
       expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
@@ -79,6 +83,35 @@ RSpec.describe "Rust conformance (native binary)" do
       expect(rust_output["instances"]).to eq(ruby_instances)
       expect(rust_output["events"]).to eq(ruby_events)
       expect(rust_output["refusals"]).to eq(ruby_refusals)
+      expect(rust_output["queries"]).to eq(ruby_queries)
     end
+  end
+
+  # THE OTHER "query" STEP SHAPE'S OWN BOUNDARY — a NAMED/declared bluebook
+  # ask (the STRING form: `{"query": "Banking::Account.Open"}`), which Ruby
+  # answers for real (`Fuzzing::Replay` dispatches it through `runtime.
+  # query`) but this compiled binary still, deliberately, does not
+  # (kernel/cli.rs's own header on the two "query" step shapes). NOT a
+  # byte-for-byte parity check against Ruby — there is nothing to be "in
+  # conformance" with here, Ruby doesn't refuse this at all — this instead
+  # proves the boundary itself is HONEST: a clean `Refusal::TypeMismatch`,
+  # valid JSON, exit 0, never a panic or a wrong-but-silent answer, even
+  # though the ad hoc single-comparator filter shape (query_filters.json,
+  # above) now genuinely executes right alongside it in the very same
+  # binary.
+  it "a named/declared query step still refuses cleanly (not a byte-for-byte comparison — Ruby answers this one for real)" do
+    binary = build_rust_for("banking")
+    skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
+
+    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.Open" }] }))
+    expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
+
+    rust_output = JSON.parse(stdout)
+    expect(rust_output["refusals"]).to eq(
+      [{ "verb" => "Banking::Account.Open",
+         "error" => "named/declared query steps are not generated yet — only the ad hoc single-comparator " \
+                     "filter shape ({\"aggregate\",\"field\",\"op\",\"value\"}) executes" }]
+    )
+    expect(rust_output["queries"]).to eq([])
   end
 end
