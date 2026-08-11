@@ -139,13 +139,20 @@ RSpec.describe "the language's own rules" do
     end
   end
 
-  it "refuses a read model gathering heads before its reference" do
+  # WAS "refuses a read model gathering heads before its reference" —
+  # reference_target is fixed forever at Declare time, so that rule was
+  # really "every read model must have SOME reference, ever," which
+  # stopped being true the moment `reference_to` became optional (a
+  # ROOTLESS read model — bulk, no root, `group_by`'s own real use —
+  # never has one, permanently, on purpose). Gathering with an empty
+  # reference_target is now the legitimate rootless case, not a defect.
+  it "allows a rootless read model (no reference_target at all) to gather heads" do
     read_model_id = id_of("Bluebook::ReadModel.Declare", bluebook_id: @bluebook_id, name: v("P"),
                           description: v("a projection"), query_name: v("p"),
                           reference_name: v(""), reference_target: v(""))
 
     expect { @runtime.dispatch("Bluebook::ReadModel.Gather", id: read_model_id, aggregate: v("A"), as: v("a"), many: v("false")) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /gathers heads only after its reference/)
+      .not_to raise_error
   end
 
   # A PIECE MUST SAY WHAT IT IS KNOWN BY. Not invented for the rule's own sake:

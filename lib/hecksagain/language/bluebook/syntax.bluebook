@@ -388,6 +388,7 @@ Hecks.bluebook "Bluebook" do
         member word: "description",     context: "ReadModel", body: "none", inner: "", opens: "", fills: "description"
         member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target"
         member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
+        member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
         # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
         # three words, same builder module, different landing — `ReadModel#to_h`
         # omits wheres/order_by/limit, so they have

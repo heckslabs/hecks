@@ -635,13 +635,22 @@ RSpec.describe "the DSL surface" do
     end
 
     it "validates read-model reference ordering, uniqueness, and descriptions" do
-      # an include with no reference at all still refuses — but for the real
-      # reason, not for the order it was written in
+      # An include with no reference at all is now a ROOTLESS read model —
+      # a bulk view of its own included head(s), no root record required —
+      # and succeeds rather than refusing.
       expect {
         build_bluebook("BadModel") do
           read_model("Portfolio") { include Customer }
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs an aggregate-head reference/)
+      }.not_to raise_error
+
+      # A read model naming NEITHER a reference NOR any include has nothing
+      # to describe at all — the one case that still refuses.
+      expect {
+        build_bluebook("BadModel") do
+          read_model("Portfolio") { description "nothing to gather" }
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs an aggregate-head reference or at least one include/)
 
       # a reference, so `needs an aggregate-head reference` does not fire first
       # and mask the description rule this case is about

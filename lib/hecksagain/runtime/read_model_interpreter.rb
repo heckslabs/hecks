@@ -18,22 +18,33 @@ module Hecksagain
 
       def project(domain, model, args)
         bluebook = @registry.bluebook(domain)
+        rootless = model.reference_target.nil?
         # BEFORE the adapter early-return below, so the SQLite path inherits it.
         # Without this a stale caller passing a wrapped reference gets a
         # path-dependent answer — an adapter could quietly open the wrapped
         # reference while the in-process path reads it whole and finds nothing.
-        # Refused up front, identically on every path.
-        refuse_object_reference(model, args)
-        reference_id = reference(args.fetch(model.reference_name))
+        # Refused up front, identically on every path. Nothing to refuse for
+        # a rootless model — there's no reference argument to have offered
+        # wrong at all.
+        refuse_object_reference(model, args) unless rootless
+        reference_id = reference(args.fetch(model.reference_name)) unless rootless
         # Computed off the ORIGINAL model, before TenantScope wraps it — the
         # "which head do options apply to" question is about what the
         # bluebook author declared, not about the synthetic tenant clause
         # the wrapper adds underneath.
         eligible = model.filtered_head_name
         model = TenantScope.apply(model, args)
-        repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
-        if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
-          return repository.query_read_model(domain, model, args, bluebook)
+        # A ROOTLESS or `group_by`-declared model skips the SQLite native
+        # escape hatch entirely (there is no root aggregate to look up a
+        # repository FOR when rootless, and `query_read_model` knows
+        # nothing about grouping) — always runs the in-process loop below
+        # instead. Correct everywhere ; not SQL-pushed-down for a SQLite-
+        # backed aggregate yet, a real, named limit, not a silent one.
+        unless rootless || model.group_by.any?
+          repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
+          if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
+            return repository.query_read_model(domain, model, args, bluebook)
+          end
         end
 
         # ROOT FIRST, ALWAYS — regardless of `include` order in the
@@ -58,6 +69,13 @@ module Hecksagain
         (root_heads + other_heads).each do |head|
           rows = if head[:aggregate] == model.reference_target
                    [fetch(bluebook, domain, head[:aggregate], reference_id)]
+                 elsif rootless
+                   # No root to FK-match against — a rootless model reads
+                   # each of its own heads WHOLE, independently. (Multiple
+                   # heads on one rootless model aren't cross-joined
+                   # against each other either — each is its own bulk
+                   # read. A real, deliberate scope limit for now.)
+                   records(bluebook, domain, head[:aggregate])
                  else
                    matching(records(bluebook, domain, head[:aggregate])) do |record|
                      projected.any? do |source|
@@ -75,7 +93,58 @@ module Hecksagain
         # computation above needed reordering, not what a caller sees
         # back.
         heads = model.aggregate_heads.each_with_object({}) { |head, report| report[head[:as]] = rows_by_as[head[:as]] }
-        [heads.transform_values { |value| value.is_a?(Array) ? value.map { |record| Value.materialize(row(record)) } : Value.materialize(row(value)) }]
+        grouped_head = group_by_target(model, bluebook)
+        [heads.each_with_object({}) do |(as, value), out|
+          out[as] = if grouped_head && as == grouped_head[:as]
+                      nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, model.group_by_fields)
+                    elsif value.is_a?(Array)
+                      value.map { |record| Value.materialize(row(record)) }
+                    else
+                      Value.materialize(row(value))
+                    end
+        end]
+      end
+
+      # `group_by`'s own declared fields, checked against the ONE
+      # many-side head they apply to (`seal_group_by` already refuses
+      # zero or several) — resolved here, once, rather than re-derived
+      # per row. Raises loudly on a typo'd field name rather than
+      # silently grouping every row into one bucket keyed `nil`.
+      def group_by_target(model, bluebook)
+        return nil unless model.group_by.any?
+
+        target = model.aggregate_heads.find { |head| head[:many] }
+        aggregate = bluebook.aggregate(target[:aggregate])
+        model.group_by_fields.each do |field|
+          next if aggregate.attribute(field)
+
+          raise ArgumentError,
+                "#{model.name}'s group_by names #{field.inspect}, but #{target[:aggregate]} " \
+                "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(', ')})"
+        end
+        target
+      end
+
+      # One level of nesting per field, in `group_by`'s own declared
+      # order — the leaf is the row with every grouped field removed
+      # (already spent, as the keys that reached it). ASSUMES the full
+      # `group_by` path uniquely identifies one row (true for grouping by
+      # an aggregate's own full identity, ConsoleSettings' own real use)
+      # — `leaves.first` silently keeps only the first row when several
+      # share the same full key path. A real, deliberate scope limit:
+      # true multi-row-per-leaf grouping would change the leaf shape
+      # from "one row" to "an array of rows", which no caller needs yet.
+      def nest(rows, fields)
+        field, *rest = fields
+        rows.group_by { |row| row[field] }.transform_values do |group|
+          # Strip ONLY the field just grouped by, not the whole remaining
+          # list — `rest`'s own fields have to survive into the recursive
+          # call below, or the NEXT level groups by a key that's already
+          # gone (found by trying it: a two-field group_by's own second
+          # level came back keyed `nil` for every group, every time).
+          stripped = group.map { |row| row.reject { |key, _| key == field } }
+          rest.empty? ? stripped.first : nest(stripped, rest)
+        end
       end
 
       def fetch(bluebook, domain, aggregate_name, id)
