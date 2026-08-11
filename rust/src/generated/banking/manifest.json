@@ -1,0 +1,620 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Banking::Customer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Suspend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Reinstate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Customer.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Account",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::Account.LedgerEntry",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Account.LedgerEntry.Amend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::Account.LedgerEntry.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Credit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Debit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Freeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.Unfreeze",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CloseAccount",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.ApplyFee",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CorrectFee",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.AccrueInterest",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Account.CorrectInterest",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ATMCard",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::ATMCard.Withdrawal",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::ATMCard.Withdrawal.Dispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Issue",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Rename",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Withdraw",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Activate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ATMCard.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Transfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Debited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Settle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Credited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reject",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::CardPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Authorize",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Capture",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Void",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Refund",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Dispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.Chargeback",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::CardPayment.RejectDispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ExternalTransfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Recall",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ExternalTransfer.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::ScheduledPayment",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Execute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Cancel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Fail",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Retry",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::ScheduledPayment.Abandon",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::SafeDepositBox",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.Visit",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.Visit.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.KeyIssuance",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.KeyIssuance.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Rent",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Surrender",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.LogVisit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.IssueKey",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::OnboardingCase",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Decline",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Statement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Statement.Generate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.InGoodStanding",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.Suspended",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Customer.NotGoodStanding",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Open",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Overdrawn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.HighBalance",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.StrictlyAbove",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.AtMost",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.Reachable",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.OpenForSuspendedCustomers",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.Active",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ATMCard.ByFee",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Transfer.InFlight",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Pending",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Disputed",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::CardPayment.Flagged",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ExternalTransfer.Sent",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ScheduledPayment.Due",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::SafeDepositBox.Rented",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::OnboardingCase.Screening",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::CustomerPortfolio",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"read_model\" construct has no generated code path at all — a distinct construct from \"query\" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate"
+  },
+  {
+    "kind": "read_model",
+    "id": "Banking::ComplianceDashboard",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"read_model\" construct has no generated code path at all — a distinct construct from \"query\" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate"
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::ReviewOnFreeze",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "cross-domain policy (target \"Compliance\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::RetryOnPaymentFailure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::FreezeAccountsOnSuspension",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::NotifyOnClosure",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "cross-domain policy (target \"Notifications\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::ReviewOnBoxSurrender",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "cross-domain policy (target \"Compliance\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+  },
+  {
+    "kind": "policy",
+    "id": "Banking::FlagKeyReturn",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "cross-domain policy (target \"Notifications\") — this domain compile doesn't also include that target, so no Store exists for emit_policy_table to route into (reactions.rb's own documented, still-open gap)"
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::Settlement",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::ExternalSettlement",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Banking::Onboarding",
+    "generated": true,
+    "routed": true
+  }
+]

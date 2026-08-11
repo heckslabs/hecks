@@ -1,0 +1,58 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Pizzas::Order",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Pizzas::Order.CreatePizza",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Pizzas::Order.AddTopping",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Pizzas::Order.Purchase",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "port_operation",
+    "id": "Pizzas::Order.PaymentGateway.Receive",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.Available",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.CostingLessThan",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Pizzas::Order.Expensive",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "policy",
+    "id": "Pizzas::OnPizzaPaymentReceived",
+    "generated": true,
+    "routed": true
+  }
+]

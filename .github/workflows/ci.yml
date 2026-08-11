@@ -97,3 +97,68 @@ jobs:
       # meta chapters.
       - name: model check
         run: bin/model_check
+
+      # THE COVERAGE CHECKER, PER DOMAIN — a different question than the
+      # "Build the Rust conformance binary" and "rspec" steps above ask.
+      # Those check "did Ruby and Rust agree on this script"; this checks
+      # "did bin/project_rust generate SOMETHING for every construct
+      # this domain's own IR declares, at all" — a gap class equivalence
+      # checking is structurally blind to (see bin/rust_coverage's own
+      # header). Reads each domain's already-committed rust/src/
+      # generated/<domain>/manifest.json + ir.json — no build needed
+      # first. Exits non-zero on any un-allowlisted GAP finding; that
+      # exit code IS the gate, nothing here massages it.
+      - name: "rust coverage: pizzas"
+        run: bin/rust_coverage pizzas
+
+      - name: "rust coverage: embryonaut"
+        run: bin/rust_coverage embryonaut
+
+      - name: "rust coverage: governance"
+        run: bin/rust_coverage governance
+
+      - name: "rust coverage: identity"
+        run: bin/rust_coverage identity
+
+      # KNOWN RED, ON PURPOSE. Banking declares two `read_model`
+      # constructs (ComplianceDashboard, CustomerPortfolio) and
+      # `read_model` is an entire construct kind bin/project_rust has no
+      # code path for at all (rust/project/domain_generator.rb's own
+      # "QUERIES AND READ MODELS" comment; docs/HECKS_IMPLEMENTATION_PLAN.md
+      # §8 and docs/decisions/0013 both already name this class of gap).
+      # This step is deliberately left un-excepted rather than swallowed
+      # or `continue-on-error`'d: the gap is real and not fixed here —
+      # closing this red means either a real Rust read_model
+      # implementation, or an entry added to bin/rust_coverage's own
+      # ALLOWLIST citing where read_model is already documented as a
+      # deliberate deferral. Not a change to this file.
+      - name: "rust coverage: banking"
+        run: bin/rust_coverage banking
+
+      # ALSO KNOWN RED — discovered wiring this step in, not previously
+      # documented anywhere. Bluebook (the language's own self-hosting
+      # meta chapter) fails this same check for two reasons: its own
+      # `WholeBluebook` read_model (the same whole-kind gap as banking's,
+      # above), plus 19 per-instance gaps with no existing doc citation
+      # — mostly "optional argument feeds a non-optional target" on
+      # `then_set append` shapes, plus two commands whose identity needs
+      # an extra caller-supplied parameter no JSON step shape carries.
+      # Unlike banking's read_model gap, bin/rust_coverage's own
+      # ALLOWLIST correctly refuses to swallow these (its header
+      # requires a doc citation, not an invented one) — left red and
+      # unallowlisted here for the same reason, not investigated or
+      # fixed as part of wiring this CI step.
+      - name: "rust coverage: meta"
+        run: bin/rust_coverage meta
+
+      # THE KERNEL HALF of the same guarantee. bin/project_kernel_
+      # capabilities' own enums (AttributeShape/OperatorCategory) already
+      # make an exhaustive match over them a compile error the moment the
+      # grammar admits a new capability — enforced for free by "Build the
+      # exemplar module" above, since kernel code isn't behind a domain
+      # feature flag. What THIS step catches is the other half: a
+      # capability whose enum variant compiles clean but has no
+      # rust/src/kernel/<category>/<name>.rs file behind it at all — see
+      # bin/rust_kernel_coverage's own header.
+      - name: rust kernel coverage
+        run: bin/rust_kernel_coverage

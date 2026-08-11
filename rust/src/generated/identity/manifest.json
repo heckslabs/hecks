@@ -1,0 +1,31 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Identity::Identity",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Identity::Identity.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Identity::ExternalIdentifier",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Identity::ExternalIdentifier.Link",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Identity::ExternalIdentifier.ResolvedBy",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  }
+]

@@ -1,0 +1,448 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Bluebook",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Bluebook.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Bluebook.Normalise",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append normalisations.position sources optional argument position — not generated yet"
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Aggregate",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Identify",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Attribute",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Reference",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Holds",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Lifecycle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Transition",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append transitions.from_state sources optional argument from_state — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Seal",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Value",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Command",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Declare",
+    "generated": true,
+    "routed": false,
+    "gap_class": "per_instance",
+    "reason": "generated as a real Rust function, but not JSON-dispatchable — identity needs an extra caller-supplied parameter no JSON step shape carries"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Argument",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Reference",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Rule",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append givens.description sources optional argument description — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Ensure",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append ensures.description sources optional argument description — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Change",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.ActsOn",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Command.Announce",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Query",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Declare",
+    "generated": true,
+    "routed": false,
+    "gap_class": "per_instance",
+    "reason": "generated as a real Rust function, but not JSON-dispatchable — identity needs an extra caller-supplied parameter no JSON step shape carries"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Filter",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Option",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append options.value sources optional argument value; then_set append options.at sources optional argument at — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Query.Argument",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::ValueObject",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Field",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ValueObject.Assert",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append invariants.description sources optional argument description — not generated yet"
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Member",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Member.Declare",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: identified_by :position.value sources optional argument position — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Member.Pair",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Entity",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Identify",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Seal",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Attribute",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append attributes.default sources optional argument default — not generated yet"
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Lifecycle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Transition",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append transitions.from_state sources optional argument from_state — not generated yet"
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Policy",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Policy.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::ProcessManager",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ProcessManager.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ProcessManager.State",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Handler",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Handler.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Dispatch",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Dispatch.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Dispatch.Bind",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Vocabulary",
+    "generated": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::Syntax",
+    "generated": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Bluebook::ReadModel",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Gather",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Option",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "optional argument feeds a non-optional target: then_set append options.value sources optional argument value; then_set append options.at sources optional argument at — not generated yet"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Bluebook.Called",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Aggregate.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Command.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Query.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::ValueObject.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Member.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Entity.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Policy.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::ProcessManager.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Handler.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::Dispatch.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "query",
+    "id": "Bluebook::ReadModel.DeclaredIn",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"query\" construct has no generated code path at all — matches kernel/cli.rs's own refusal for a \"query\" step (\"query steps are not generated yet\")"
+  },
+  {
+    "kind": "read_model",
+    "id": "Bluebook::WholeBluebook",
+    "generated": false,
+    "gap_class": "whole_kind",
+    "reason": "the \"read_model\" construct has no generated code path at all — a distinct construct from \"query\" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate"
+  }
+]

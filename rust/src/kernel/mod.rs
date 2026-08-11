@@ -6,9 +6,11 @@
 // docs/guides/commands.md, not guessed or half-remembered from a prior
 // read of the Ruby source.
 
+pub mod attribute_shapes;
 pub mod cli;
 pub mod dispatch;
 pub mod expr;
+pub mod expression_operators;
 pub mod json;
 pub mod orchestrate;
 pub mod pattern;
