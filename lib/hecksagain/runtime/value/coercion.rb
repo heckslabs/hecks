@@ -103,8 +103,9 @@ module Hecksagain
             next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
 
             raise InvariantViolation,
-                  "#{value_object.hecks_name} invariant violated — #{invariant.description} " \
-                  "(given #{canonical_fields(fields)})"
+                  RefusalWording.render("InvariantViolation", "value_object_invariant",
+                                        name: value_object.hecks_name, description: invariant.description,
+                                        offered: canonical_fields(fields))
           end
           new(value_object, fields)
         end
