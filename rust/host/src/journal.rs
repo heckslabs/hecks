@@ -47,6 +47,62 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
+    // A CROSS-DOMAIN DELIVERY THAT NEVER GOT THROUGH, durably — see
+    // `record_dead_letter`'s own header for the full argument (this
+    // table exists so that fact survives past the one Lambda invocation
+    // that hit it, not just this crate's own stdout/CloudWatch log
+    // line). Flat and domain-agnostic, same reasoning as `hecks_lambda_
+    // journal` above: one table for whatever this deployment's own
+    // schema (HECKS_SCHEMA, main.rs) isolates, not one per source
+    // domain — there is only ever one source domain per deployed
+    // Lambda anyway.
+    client
+        .batch_execute(
+            "CREATE TABLE IF NOT EXISTS hecks_cross_domain_dead_letters (
+                id            BIGSERIAL PRIMARY KEY,
+                policy        TEXT NOT NULL,
+                target_domain TEXT NOT NULL,
+                target_verb   TEXT NOT NULL,
+                payload       JSONB NOT NULL,
+                error         TEXT NOT NULL,
+                attempts      INT NOT NULL,
+                recorded_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+            )",
+        )
+        .await?;
+    Ok(())
+}
+
+/// A cross-domain reaction that exhausted every retry `lambda_client::
+/// deliver_with_retry` attempted and still never reached its target —
+/// recorded durably, in the SAME Postgres this crate already depends on
+/// regardless of deploy target (not an AWS-native SQS/DLQ — the retry/
+/// dead-letter mechanism this function is half of lives entirely above
+/// the `LambdaInvoker` trait boundary, so it applies the same way to any
+/// implementer, Amazon or otherwise; see `lambda_client.rs`'s own
+/// header). Written OUTSIDE the main command's own transaction —
+/// `dispatch::handle` only ever reaches this AFTER that transaction has
+/// already committed (the same "best-effort, after the fact, never
+/// rolls back the local write" rule cross-domain delivery already holds
+/// itself to) — so a dead letter failing to record is its own concern,
+/// never a reason to undo an already-durable local command.
+pub async fn record_dead_letter<C: GenericClient>(
+    client: &C,
+    policy: &str,
+    target_domain: &str,
+    target_verb: &str,
+    payload: &serde_json::Value,
+    error: &str,
+    attempts: i32,
+) -> anyhow::Result<()> {
+    client
+        .execute(
+            "INSERT INTO hecks_cross_domain_dead_letters \
+             (policy, target_domain, target_verb, payload, error, attempts) \
+             VALUES ($1, $2, $3, $4, $5, $6)",
+            &[&policy, &target_domain, &target_verb, payload, &error, &attempts],
+        )
+        .await?;
     Ok(())
 }
 
@@ -638,5 +694,51 @@ mod lineage_tests {
                 ("widget-2".to_string(), serde_json::json!({ "name": "Gizmo" })),
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn record_dead_letter_writes_a_real_durable_row() {
+        let (client, connection) = tokio_postgres::connect("host=localhost dbname=postgres", NoTls)
+            .await
+            .expect("connect to postgres");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+        ensure_schema(&client).await.unwrap();
+        client.batch_execute("DELETE FROM hecks_cross_domain_dead_letters").await.unwrap();
+
+        record_dead_letter(
+            &client,
+            "ReviewOnFreeze",
+            "Compliance",
+            "Compliance::AccountFreezeReview.Open",
+            &serde_json::json!({ "number": { "value": "acct-1" } }),
+            "ResourceNotFoundException: function not found",
+            3,
+        )
+        .await
+        .unwrap();
+
+        let rows = client
+            .query(
+                "SELECT policy, target_domain, target_verb, payload, error, attempts FROM hecks_cross_domain_dead_letters",
+                &[],
+            )
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1, "should have written exactly one row");
+        let row = &rows[0];
+        let policy: String = row.get(0);
+        let target_domain: String = row.get(1);
+        let target_verb: String = row.get(2);
+        let payload: serde_json::Value = row.get(3);
+        let error: String = row.get(4);
+        let attempts: i32 = row.get(5);
+        assert_eq!(policy, "ReviewOnFreeze");
+        assert_eq!(target_domain, "Compliance");
+        assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
+        assert_eq!(payload, serde_json::json!({ "number": { "value": "acct-1" } }));
+        assert_eq!(error, "ResourceNotFoundException: function not found");
+        assert_eq!(attempts, 3);
     }
 }

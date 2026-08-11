@@ -219,15 +219,37 @@ pub async fn handle(
     // best-effort reaction to that fact, not a precondition of it
     // (mirrors `Runtime::PolicyInterpreter#deliver`'s own "not fatal to
     // the command that emitted the event," extended one step further:
-    // also not fatal to that command's own local WRITE). A hard invoke
-    // fault (`lambda_client::deliver`'s own `Err` path — see its header)
-    // still propagates out of this whole call via `?`, so it's a real,
-    // visible failure of THIS Lambda invocation's overall response —
-    // just never one that unwinds an already-committed transaction.
+    // also not fatal to that command's own local WRITE). `deliver_with_
+    // retry` (lambda_client.rs's own header) rides out a transient fault
+    // on its own, a few short attempts, before this ever has to decide
+    // anything — a hard fault that SURVIVES every retry still propagates
+    // out of this whole call via `?`, a real, visible failure of THIS
+    // Lambda invocation's overall response, just never one that unwinds
+    // an already-committed transaction. The one new thing that happens
+    // FIRST, though: `journal::record_dead_letter` writes the exhausted
+    // attempt down durably — `guard` (the same connection `txn` above
+    // borrowed from) is free again the moment `txn.commit()` consumed
+    // it, so this reuses it directly rather than opening a second
+    // connection for one INSERT.
     let mut cross_domain_deliveries = Vec::new();
     for reaction in &pending_cross_domain {
-        let record = lambda_client::deliver(invoker, reaction).await?;
-        cross_domain_deliveries.push(record.to_json());
+        match lambda_client::deliver_with_retry(invoker, reaction).await {
+            Ok(record) => cross_domain_deliveries.push(record.to_json()),
+            Err(failure) => {
+                let error_text = format!("{:#}", failure.error);
+                journal::record_dead_letter(
+                    &*guard,
+                    &failure.policy,
+                    &failure.target_domain,
+                    &failure.target_verb,
+                    &failure.payload,
+                    &error_text,
+                    failure.attempts as i32,
+                )
+                .await?;
+                return Err(failure.error);
+            }
+        }
     }
     if let Some(response) = result.as_object_mut() {
         response.insert("cross_domain_deliveries".to_string(), serde_json::Value::Array(cross_domain_deliveries));
@@ -789,5 +811,94 @@ mod tests {
         // every other refusal in this file is held to.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "only the correctly-authorized registration should be persisted");
+    }
+
+    /// Always fails with a hard invoke fault, the same shape a genuinely
+    /// unreachable target Lambda has (`RecordingInvoker`'s own sibling —
+    /// that one proves the happy path, this one proves the exhausted-
+    /// retry/dead-letter path).
+    struct AlwaysFailingInvoker {
+        calls: std::sync::Mutex<u32>,
+    }
+
+    impl AlwaysFailingInvoker {
+        fn new() -> Self {
+            Self { calls: std::sync::Mutex::new(0) }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LambdaInvoker for AlwaysFailingInvoker {
+        async fn invoke(&self, _function_name: &str, _payload: &str) -> anyhow::Result<lambda_client::InvokeOutcome> {
+            *self.calls.lock().unwrap() += 1;
+            anyhow::bail!("ResourceNotFoundException: function not found")
+        }
+    }
+
+    #[tokio::test]
+    async fn a_cross_domain_delivery_that_exhausts_every_retry_dead_letters_and_still_fails_the_invocation() {
+        let client = scratch_db("rust_host_dispatch_test_8").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        let config = test_config("Banking", 1);
+        let invoker = AlwaysFailingInvoker::new();
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0011"), None, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("registration should succeed");
+
+        let open_args = serde_json::json!({
+            "number": { "value": "acct-freeze-dead-letter" },
+            "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 },
+            "customer_id": "CUST-0011",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_args, None, &config, &invoker)
+            .await
+            .unwrap()
+            .accepted
+            .then_some(())
+            .expect("account open should succeed");
+
+        // `ReviewOnFreeze` fires here — every attempt against
+        // `AlwaysFailingInvoker` fails, so `deliver_with_retry` exhausts
+        // `MAX_DELIVERY_ATTEMPTS` before `handle` ever sees a result.
+        let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-dead-letter" } });
+        let outcome = handle(&client, &wasm_path(), "Banking::Account.Freeze", freeze_args, None, &config, &invoker).await;
+
+        assert!(
+            outcome.is_err(),
+            "a cross-domain delivery that exhausts every retry should still fail THIS invocation \
+             visibly — the local Freeze already committed regardless (checked below), this is only \
+             about what the CALLER sees"
+        );
+        assert_eq!(
+            *invoker.calls.lock().unwrap(),
+            lambda_client::MAX_DELIVERY_ATTEMPTS,
+            "should have retried exactly MAX_DELIVERY_ATTEMPTS times before giving up"
+        );
+
+        // THE LOCAL COMMAND STILL COMMITTED, AND THE REACTION FIRED —
+        // cross-domain delivery runs strictly AFTER commit (this file's
+        // own header on `handle`), so a delivery failure, retried out or
+        // not, never unwinds it; the dead letter below existing AT ALL
+        // is itself the proof ReviewOnFreeze's own match already ran
+        // against a genuinely-committed AccountFrozen event.
+        let guard = client.lock().await;
+        let dead_letters = guard
+            .query("SELECT policy, target_domain, target_verb, attempts FROM hecks_cross_domain_dead_letters", &[])
+            .await
+            .unwrap();
+        assert_eq!(dead_letters.len(), 1, "exactly one exhausted delivery should have been dead-lettered: {dead_letters:?}");
+        let policy: String = dead_letters[0].get(0);
+        let target_domain: String = dead_letters[0].get(1);
+        let target_verb: String = dead_letters[0].get(2);
+        let attempts: i32 = dead_letters[0].get(3);
+        assert_eq!(policy, "ReviewOnFreeze");
+        assert_eq!(target_domain, "Compliance");
+        assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
+        assert_eq!(attempts, lambda_client::MAX_DELIVERY_ATTEMPTS as i32);
     }
 }

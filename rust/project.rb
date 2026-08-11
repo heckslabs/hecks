@@ -219,15 +219,31 @@
 #     header documents this precisely, filtered out of that comparison
 #     using Rust's own `cross_domain_reactions` output as the ground
 #     truth for which policy names it declined to log.
-#   - No delivery RETRY/backoff/dead-letter story exists at all — a hard
-#     invoke fault propagates out of `dispatch::handle`'s own call
-#     (rust/host/src/dispatch.rs) as a visible failure of that Lambda
-#     invocation, the same "not fatal to the already-succeeded local
-#     command, but not silently swallowed either" rule a same-domain
-#     reaction's OWN crash gets (this file's own reaction_log section,
-#     above) — but nothing re-attempts a failed cross-domain delivery.
-#     Not attempted here; a real, separate, future slice if it's ever
-#     needed.
+#   - Delivery RETRY/backoff/dead-letter — NO LONGER TRUE (a real gap the
+#     day this section was first written; closed since). `lambda_client
+#     ::deliver_with_retry` sits above the `LambdaInvoker` trait boundary
+#     `deliver` itself already respects, so it retries whatever invoker
+#     is plugged in — `AwsLambdaInvoker` today, any future non-Amazon
+#     implementer of the same trait — identically: `MAX_DELIVERY_
+#     ATTEMPTS` short, doubling-backoff attempts, ONLY on a genuine
+#     invoke fault (never on a clean `Ok(delivered: false)` domain-side
+#     refusal — retrying a real business decision would not change it,
+#     only waste the attempt). Exhausting every attempt still propagates
+#     a visible failure of the Lambda invocation exactly as before — that
+#     part of the design was correct and stays — but FIRST writes a
+#     durable row (`journal::record_dead_letter`, a plain Postgres table
+#     this crate already depends on regardless of deploy target, not an
+#     AWS-native SQS/DLQ/EventBridge construct) so the exhausted attempt
+#     survives past the one Lambda invocation that hit it. Proven end to
+#     end against a real compiled `banking.wasm` (`dispatch.rs`'s own
+#     `a_cross_domain_delivery_that_exhausts_every_retry_dead_letters_
+#     and_still_fails_the_invocation`): the local Freeze commits, the
+#     dead letter lands, and the invocation still fails visibly, all
+#     three at once. What's still NOT proven, unchanged from above: an
+#     actual reconciliation/replay tool reading `hecks_cross_domain_
+#     dead_letters` back out — the table exists and is written to for
+#     real; nothing yet consumes it. A real, separate, smaller future
+#     slice if it's ever needed.
 #
 # ERA/LINEAGE SUPPORT — investigated (0021's own follow-up) and split
 # into two genuinely different questions once `rust/host` (the deployed

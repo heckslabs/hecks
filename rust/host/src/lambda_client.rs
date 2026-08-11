@@ -92,6 +92,7 @@ pub fn function_name_for(domain: &str) -> String {
 /// outcome — success, target-side refusal, or (via `deliver`'s `Err`
 /// path, below) a hard invoke fault — has to be reported explicitly or
 /// nobody would ever know it happened at all.
+#[derive(Debug)]
 pub struct CrossDomainDeliveryRecord {
     pub policy: String,
     pub target_domain: String,
@@ -185,6 +186,90 @@ pub async fn deliver<L: LambdaInvoker + ?Sized>(invoker: &L, reaction: &Value) -
         target_verb,
         delivered: false,
         reason: refusal.get("error").and_then(Value::as_str).map(String::from),
+    })
+}
+
+/// The MAXIMUM number of `deliver` attempts `deliver_with_retry` makes
+/// before giving up — small on purpose. This runs inside the SAME
+/// Lambda invocation that already dispatched the LOCAL command
+/// (`dispatch::handle`'s own "delivered after commit" comment), which
+/// has its own tight execution budget (Banking's own `deployed_to
+/// ("AwsLambda")` declares a 10-second `timeout` — see deploy/banking/
+/// template.yaml) shared across everything this invocation still has
+/// left to do. A long retry loop would eat directly into that budget
+/// for every OTHER cross-domain reaction still queued behind it, not
+/// just this one.
+pub const MAX_DELIVERY_ATTEMPTS: u32 = 3;
+
+/// One exhausted `deliver_with_retry` call — everything `journal::
+/// record_dead_letter` needs to write a durable row, carried back to
+/// the caller (`dispatch.rs`) rather than written here: this file stays
+/// free of Postgres entirely (its own header: "one Lambda invoke, one
+/// JSON round trip, nothing domain-specific"), the same reasoning that
+/// already keeps `deliver` itself ignorant of where its `reaction`
+/// argument came from.
+#[derive(Debug)]
+pub struct DeliveryFailure {
+    pub policy: String,
+    pub target_domain: String,
+    pub target_verb: String,
+    pub payload: Value,
+    pub error: anyhow::Error,
+    pub attempts: u32,
+}
+
+/// `deliver`, retried — ONLY on the `Err` path (a genuine invoke fault:
+/// network, throttling, the function doesn't exist, `AccessDenied`),
+/// NEVER on an `Ok` result, whether that's a successful delivery OR a
+/// target-side domain refusal (`delivered: false`, `Ok(...)` — a
+/// legitimate business outcome `deliver`'s own header already
+/// distinguishes from a fault; retrying it would not change what the
+/// target domain decided, only waste the attempt). Short, fixed
+/// exponential backoff between attempts (100ms, 200ms, ... — doubling,
+/// capped by `MAX_DELIVERY_ATTEMPTS` staying small) — enough to ride
+/// out a brief throttle or network blip without meaningfully eating
+/// into this invocation's own execution budget.
+///
+/// AMAZON-AGNOSTIC, DELIBERATELY — this sits entirely above the
+/// `LambdaInvoker` trait boundary `deliver` itself already respects, so
+/// it retries whatever invoker is plugged in (`AwsLambdaInvoker` today,
+/// any future implementer of the same trait) exactly the same way; the
+/// retry loop and the eventual dead-letter record (`journal::
+/// record_dead_letter`, written by the caller off this struct's own
+/// fields) are both plain application code and a Postgres table this
+/// crate already depends on regardless of deploy target — nothing here
+/// is an AWS-native SQS/DLQ/EventBridge construct.
+pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
+    invoker: &L,
+    reaction: &Value,
+) -> Result<CrossDomainDeliveryRecord, DeliveryFailure> {
+    let mut last_error = None;
+
+    for attempt in 1..=MAX_DELIVERY_ATTEMPTS {
+        match deliver(invoker, reaction).await {
+            Ok(record) => return Ok(record),
+            Err(error) => {
+                last_error = Some(error);
+                if attempt < MAX_DELIVERY_ATTEMPTS {
+                    let backoff_ms = 100u64 * (1 << (attempt - 1));
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                }
+            }
+        }
+    }
+
+    Err(DeliveryFailure {
+        policy: reaction.get("policy").and_then(Value::as_str).unwrap_or_default().to_string(),
+        target_domain: reaction.get("target_domain").and_then(Value::as_str).unwrap_or_default().to_string(),
+        target_verb: reaction.get("target_verb").and_then(Value::as_str).unwrap_or_default().to_string(),
+        payload: reaction.get("payload").cloned().unwrap_or_else(|| serde_json::json!({})),
+        // `.unwrap()` — this branch is only reachable after the loop
+        // above ran MAX_DELIVERY_ATTEMPTS (>= 1) times, every one of
+        // which sets `last_error` on its own `Err` arm before falling
+        // through here; there is no path that reaches this line with
+        // `last_error` still `None`.
+        error: last_error.unwrap(),
+        attempts: MAX_DELIVERY_ATTEMPTS,
     })
 }
 
@@ -396,5 +481,83 @@ mod tests {
         let outcome = deliver(&invoker, &reaction("Notifications", "Notifications.Send")).await;
 
         assert!(outcome.is_err());
+    }
+
+    /// Fails its first `fail_count` calls with a hard invoke fault, then
+    /// answers cleanly — the shape a real transient throttle/network
+    /// blip has: gone by the time a RETRY reaches the target, not a
+    /// permanent condition `deliver_with_retry` should ever paper over
+    /// for a genuine, persistent fault (that's `MockLambdaInvoker::
+    /// failing`'s own job, unchanged, in the exhaustion test below).
+    struct FlakyLambdaInvoker {
+        fail_count: std::sync::atomic::AtomicU32,
+        calls: Mutex<Vec<String>>,
+    }
+
+    impl FlakyLambdaInvoker {
+        fn failing_then_succeeding(fail_count: u32) -> Self {
+            Self { fail_count: std::sync::atomic::AtomicU32::new(fail_count), calls: Mutex::new(Vec::new()) }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LambdaInvoker for FlakyLambdaInvoker {
+        async fn invoke(&self, function_name: &str, _payload: &str) -> anyhow::Result<InvokeOutcome> {
+            self.calls.lock().unwrap().push(function_name.to_string());
+            let remaining = self.fail_count.load(std::sync::atomic::Ordering::SeqCst);
+            if remaining > 0 {
+                self.fail_count.store(remaining - 1, std::sync::atomic::Ordering::SeqCst);
+                anyhow::bail!("ThrottlingException: rate exceeded");
+            }
+            Ok(InvokeOutcome { body: serde_json::json!({ "refusals": [] }), function_error: false })
+        }
+    }
+
+    #[tokio::test]
+    async fn deliver_with_retry_rides_out_a_transient_fault_that_clears_before_attempts_run_out() {
+        let invoker = FlakyLambdaInvoker::failing_then_succeeding(MAX_DELIVERY_ATTEMPTS - 1);
+
+        let record = deliver_with_retry(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open"))
+            .await
+            .expect("should succeed once the fault clears, within MAX_DELIVERY_ATTEMPTS");
+
+        assert!(record.delivered);
+        assert_eq!(invoker.calls.lock().unwrap().len(), MAX_DELIVERY_ATTEMPTS as usize, "should have retried exactly up to the successful attempt");
+    }
+
+    #[tokio::test]
+    async fn deliver_with_retry_never_retries_a_clean_domain_side_refusal() {
+        // `Ok(delivered: false)` — a real business decision, not a fault
+        // (`deliver`'s own header). Retrying it would not change what
+        // the target domain decided, only waste attempts a genuine fault
+        // might actually need.
+        let invoker = MockLambdaInvoker::answering(
+            serde_json::json!({ "refusals": [ { "verb": "Compliance::AccountFreezeReview.Open", "error": "already under review" } ] }),
+            false,
+        );
+
+        let record = deliver_with_retry(&invoker, &reaction("Compliance", "Compliance::AccountFreezeReview.Open"))
+            .await
+            .expect("a domain-side refusal is Ok, not a DeliveryFailure");
+
+        assert!(!record.delivered);
+        assert_eq!(invoker.calls.lock().unwrap().len(), 1, "a clean refusal should never be retried");
+    }
+
+    #[tokio::test]
+    async fn deliver_with_retry_gives_up_after_max_attempts_and_carries_everything_a_dead_letter_needs() {
+        let invoker = MockLambdaInvoker::failing("ResourceNotFoundException: function not found");
+
+        let failure = deliver_with_retry(&invoker, &reaction("Notifications", "Notifications.Send"))
+            .await
+            .expect_err("a persistent fault should exhaust every attempt and fail");
+
+        assert_eq!(failure.policy, "ReviewOnFreeze");
+        assert_eq!(failure.target_domain, "Notifications");
+        assert_eq!(failure.target_verb, "Notifications.Send");
+        assert_eq!(failure.payload, serde_json::json!({ "number": { "value": "acct-1" } }));
+        assert_eq!(failure.attempts, MAX_DELIVERY_ATTEMPTS);
+        assert!(format!("{:#}", failure.error).contains("ResourceNotFoundException"));
+        assert_eq!(invoker.calls.lock().unwrap().len(), MAX_DELIVERY_ATTEMPTS as usize);
     }
 }
