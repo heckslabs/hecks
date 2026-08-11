@@ -177,3 +177,7 @@ crate::kernel::QueryDef {
     ],
 },
 ];
+
+pub const READ_MODELS: &[crate::kernel::read_model::ReadModelDef] = &[
+
+];

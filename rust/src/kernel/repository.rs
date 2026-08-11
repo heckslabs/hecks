@@ -149,6 +149,26 @@ pub fn filter_entries(
     matched
 }
 
+/// One matched record, as a ROW — the field named `"id"` prepended to
+/// whatever `to_json()` already produced, matching Ruby's own row shape
+/// exactly (`QueryInterpreter#call`'s `{ id: record.id }.merge(record.
+/// state)`, and — for a read model — `ReadModelInterpreter#row`'s own
+/// plain `record.to_h`, which for a live Ruby aggregate record already
+/// carries `id` alongside every other attribute, unlike this kernel's own
+/// generated `to_json()`): an answer names its own id inline, distinct
+/// from `instances()`'s own "Domain::Aggregate#id" -> state MAP shape,
+/// which carries id only in the key, never inside the value. Shared here,
+/// not left private to `cli.rs`, because a read model's own output nests
+/// this same wrapping at EVERY level (the root row AND every reference-
+/// matched sibling row, `kernel/read_model.rs`'s own `run`) — not just
+/// the single top-level row an ad hoc filter or a named query ever
+/// produces.
+pub fn row_json(id: String, record: super::Json) -> super::Json {
+    let super::Json::Object(mut fields) = record else { return record };
+    fields.insert(0, ("id".to_string(), super::Json::Str(id)));
+    super::Json::Object(fields)
+}
+
 /// `refuse_role_mismatch` — `CommandRules::Authorization`
 /// (`lib/hecksagain/runtime/command_rules/authorization.rb`), read
 /// directly:

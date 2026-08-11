@@ -418,8 +418,6 @@
   {
     "kind": "read_model",
     "id": "Bluebook::WholeBluebook",
-    "generated": false,
-    "gap_class": "whole_kind",
-    "reason": "the \"read_model\" construct has no generated code path at all — a distinct construct from \"query\" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate"
+    "generated": true
   }
 ]

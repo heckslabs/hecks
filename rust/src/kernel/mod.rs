@@ -23,6 +23,13 @@ pub mod json;
 pub mod named_query;
 pub mod orchestrate;
 pub mod pattern;
+// `read_model` — a declared bluebook `report "X" do ... end` block
+// (`IR::ReadModel`), for the subset real generated Rust now answers for
+// real: a root aggregate fetched by reference id, plus reference-matched
+// sibling heads. See that module's own header for the full scope
+// argument, including why `where`/`order_by`/`limit` specifically stay
+// structurally out of reach (not merely unported) for any read model.
+pub mod read_model;
 // `QueryComparator` — closed, and now dispatched for real, for exactly
 // ONE slice of the query engine: `cli.rs`'s ad hoc, single-comparator
 // "query" step (the OBJECT form). See query_comparators.rs's own header
@@ -42,7 +49,7 @@ pub use orchestrate::{
     orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
     SagaInstance, WithValue, MAX_REACTION_DEPTH, REFUSED,
 };
-pub use repository::{check_reference, check_role, filter_entries, AggregateScan, InMemoryRepository, Repository};
+pub use repository::{check_reference, check_role, filter_entries, row_json, AggregateScan, InMemoryRepository, Repository};
 
 #[derive(Debug, Clone)]
 pub struct Event {

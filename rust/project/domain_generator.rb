@@ -496,18 +496,31 @@ module RustProjection
         end
       end
 
-      # ── READ MODELS — still an ENTIRE CONSTRUCT KIND this generator
-      # has no code path for at all, for any domain, ever (a
-      # cross-aggregate ask, `IR::ReadModel` — genuinely `read_model`
-      # territory, not the field-comparator subset the query codegen
-      # above covers). "whole_kind" stays exactly the gap it always was.
-
+      # ── READ MODELS — a declared `report "X" do ... end` block
+      # (`IR::ReadModel`, the `read_model` construct) now generates for
+      # real, for the subset `read_models.rb`'s own `read_model_skip_
+      # reason` admits (a root aggregate fetched by reference id, plus
+      # reference-matched sibling heads — no where/order_by/limit/etc,
+      # see that file's own header for the full argument, including why
+      # where/order_by/limit specifically are a STRUCTURAL gap in the
+      # canonical IR this generator reads, not merely unported). A
+      # "per_instance" gap now, not "whole_kind" — the CONSTRUCT KIND has
+      # a real code path; a specific declared read model still lacking a
+      # row is a per-instance shape this generator doesn't cover, the
+      # same distinction the query codegen above already draws for
+      # itself.
+      read_model_defs = []
       ir[:read_models].each do |read_model|
-        manifest << manifest_entry(
-          kind: "read_model", id: "#{domain_name}::#{read_model[:name]}", generated: false, gap_class: "whole_kind",
-          reason: 'the "read_model" construct has no generated code path at all — a distinct construct from ' \
-                  '"query" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate'
-        )
+        read_model_id = "#{domain_name}::#{read_model[:name]}"
+        reason = Projector.read_model_skip_reason(read_model, aggregates_by_name, unsupported_names)
+        if reason
+          puts "skipping read_model #{read_model_id}: #{reason}"
+          manifest << manifest_entry(kind: "read_model", id: read_model_id, generated: false, gap_class: "per_instance", reason: reason)
+          next
+        end
+
+        manifest << manifest_entry(kind: "read_model", id: read_model_id, generated: true)
+        read_model_defs << Projector.read_model_def(domain_name, read_model, aggregates_by_name)
       end
 
       # ── POLICIES — a same-domain policy generates into `POLICIES`
@@ -592,6 +605,8 @@ module RustProjection
         f.puts Projector.emit_reference_key_table([[domain_name, generated_aggregates.map { |a| a[:name] }]])
         f.puts
         f.puts Projector.emit_query_table(query_defs)
+        f.puts
+        f.puts Projector.emit_read_model_table(read_model_defs)
       end
       puts "wrote #{registry_path}"
 
@@ -615,7 +630,10 @@ module RustProjection
       # needed here; a query_def carries no chapter tag at all because it
       # never needs one — `verb`/`aggregate` are already fully
       # domain-qualified strings, exactly like a command's own `verb`.
-      { aggregates: registry_aggregates, queries: query_defs }
+      # `read_models` rides alongside for the identical reason: a
+      # `read_model_def`'s own `verb`/`heads` are already fully
+      # domain-qualified too.
+      { aggregates: registry_aggregates, queries: query_defs, read_models: read_model_defs }
     end
   end
 end

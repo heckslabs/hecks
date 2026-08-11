@@ -19,8 +19,8 @@
 // alias `bin/project_rust` rewrites to point at whichever domain was last
 // generated.
 
-use super::{named_query, orchestrate, query_comparators, repository, AggregateScan, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance};
-use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES};
+use super::{named_query, orchestrate, query_comparators, read_model, repository, AggregateScan, Event, Json, MutationRecord, PendingCrossDomainReaction, Refusal, SagaInstance};
+use crate::generated::active::{dispatch_by_name, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES, POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS};
 use std::collections::HashMap;
 
 pub fn run(input: &str) -> String {
@@ -92,19 +92,51 @@ pub fn run(input: &str) -> String {
         // no verb at all) has TWO shapes on the wire, checked BEFORE
         // requiring "verb" below since a query step legitimately has none:
         //
-        //   STRING  — a NAMED/declared bluebook ask ("Banking::CardPayment.
-        //   Pending"), Fuzzing::Replay's original shape. Executes for real,
-        //   as of `rust/project/queries.rb`/`kernel/named_query.rs`, for
-        //   whichever declared queries this compiled domain's own `QUERIES`
-        //   table (rust/project/registry.rb's `emit_query_table`) carries a
-        //   row for — the subset expressible as one or more field-
-        //   comparator conditions against a single aggregate's OWN
-        //   attributes (queries.rb's own header has the full eligibility
-        //   argument: no order_by/limit/cursor/.../index_hints, no
-        //   reference-hopping where clause, no type-unrecoverable literal
-        //   comparator). A question this table carries no row for — either
-        //   genuinely unknown, or a real declared query whose shape this
-        //   generator doesn't cover — refuses cleanly, the same
+        //   STRING  — a NAMED/declared bluebook ask, and it has TWO real
+        //   sub-shapes of its own, told apart by whether "::" appears
+        //   before the first "." — the exact same test `Runtime::
+        //   Dispatcher#query` makes (`domain, query_name =
+        //   verb.to_s.split(".", 2); if query_name && !domain.include?
+        //   ("::")` — a bare "Domain.Name" is a read model, everything
+        //   else falls through to the aggregate-query parse):
+        //
+        //     "Banking::CardPayment.Pending" (contains "::") — a query on
+        //     ONE aggregate, Fuzzing::Replay's original shape. Executes
+        //     for real, as of `rust/project/queries.rb`/`kernel/
+        //     named_query.rs`, for whichever declared queries this
+        //     compiled domain's own `QUERIES` table (rust/project/
+        //     registry.rb's `emit_query_table`) carries a row for — the
+        //     subset expressible as one or more field-comparator
+        //     conditions against a single aggregate's OWN attributes
+        //     (queries.rb's own header has the full eligibility argument:
+        //     no order_by/limit/cursor/.../index_hints, no reference-
+        //     hopping where clause, no type-unrecoverable literal
+        //     comparator).
+        //
+        //     "Banking.CustomerPortfolio" (no "::") — a READ MODEL, a
+        //     cross-aggregate ask spined on a root fetched by reference id
+        //     (`IR::ReadModel`). Executes for real, as of `rust/project/
+        //     read_models.rb`/`kernel/read_model.rs`, for whichever
+        //     declared read models this compiled domain's own
+        //     `READ_MODELS` table carries a row for — a root aggregate
+        //     fetched by reference id plus reference-matched sibling
+        //     heads, no `where`/`order_by`/`limit`/`offset`/`cursor`/
+        //     `consistency`/`freshness`/`authorize`/`nulls`/
+        //     `inspect_query`/`use_index` (read_models.rb's own header has
+        //     the full eligibility argument, including why `where`/
+        //     `order_by`/`limit` specifically are a STRUCTURAL gap in the
+        //     canonical IR itself, not merely unported). Unlike a named
+        //     aggregate query, a read model has no reference-interpreter
+        //     twin at all (`Runtime::Dispatcher#reference_query`'s own
+        //     comment: "Read models have no reference twin"), so its own
+        //     `queries` entry carries `"reference_rows": null` always,
+        //     never a computed second answer — matching `Fuzzing::
+        //     Replay`'s own `reference = question.include?("::") ?
+        //     runtime.reference_query(...) : nil` exactly.
+        //
+        //   Either sub-shape, a question its own table carries no row for
+        //   — genuinely unknown, or a real declared query/read model whose
+        //   shape this generator doesn't cover — refuses cleanly, the same
         //   `Refusal::TypeMismatch` an unrouted verb already gets.
         //
         //   OBJECT  — an AD HOC, single-comparator filter ({"aggregate",
@@ -121,10 +153,10 @@ pub fn run(input: &str) -> String {
         //   silent) answer and never a panic.
         if let Some(query) = step.get("query") {
             match query {
-                Json::Str(question) => match named_query::find(QUERIES, question) {
+                Json::Str(question) if question.contains("::") => match named_query::find(QUERIES, question) {
                     Some(def) => match named_query::run(&store, def, args) {
                         Ok(entries) => {
-                            let rows = Json::Array(entries.into_iter().map(|(id, record)| row_json(id, record)).collect());
+                            let rows = Json::Array(entries.into_iter().map(|(id, record)| repository::row_json(id, record)).collect());
                             query_results.push(Json::obj(vec![
                                 ("query", Json::Str(question.clone())),
                                 ("args", args.clone()),
@@ -154,6 +186,39 @@ pub fn run(input: &str) -> String {
                              can't be recovered from the exported IR — rust/project/queries.rb's own header has the \
                              full argument); the wheres-only, single-aggregate field-comparator subset and the ad hoc \
                              filter shape ({{\"aggregate\",\"field\",\"op\",\"value\"}}) both execute for real"
+                        )),
+                    )),
+                },
+                Json::Str(question) => match read_model::find(READ_MODELS, question) {
+                    Some(def) => match read_model::run(&store, def, args) {
+                        Ok(row) => {
+                            query_results.push(Json::obj(vec![
+                                ("query", Json::Str(question.clone())),
+                                ("args", args.clone()),
+                                ("rows", Json::Array(vec![row])),
+                                // A read model has no reference-interpreter
+                                // twin at all — see this block's own header
+                                // — so `reference_rows` is always `null`,
+                                // never a second computed answer, matching
+                                // Fuzzing::Replay's own `reference = ...
+                                // include?("::") ? ... : nil` exactly.
+                                ("reference_rows", Json::Null),
+                            ]));
+                        }
+                        Err(refusal) => refusals.push((question.clone(), refusal)),
+                    },
+                    None => refusals.push((
+                        question.clone(),
+                        Refusal::TypeMismatch(format!(
+                            "named/declared read model {question:?} is not generated for this domain — either unknown, \
+                             or a real declared read model whose shape this generator's codegen doesn't cover yet \
+                             (anything beyond a root aggregate fetched by reference id plus reference-matched sibling \
+                             heads — where/order_by/limit/offset/cursor/consistency/freshness/authorize(TenantScope)/\
+                             nulls/inspect_query/use_index — rust/project/read_models.rb's own header has the full \
+                             argument, including why where/order_by/limit specifically can never be recovered from the \
+                             canonical IR at all); the named/declared AGGREGATE query form (\"Domain::Aggregate.Query\") \
+                             and the ad hoc filter shape ({{\"aggregate\",\"field\",\"op\",\"value\"}}) both execute for \
+                             real too"
                         )),
                     )),
                 },
@@ -278,7 +343,7 @@ fn run_filter(store: &Store, filter: &Json) -> Result<Vec<Json>, Refusal> {
         .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {aggregate:?}")))?;
 
     let matched = repository::filter_entries(entries, field, comparator, value);
-    Ok(matched.into_iter().map(|(id, record)| row_json(id, record)).collect())
+    Ok(matched.into_iter().map(|(id, record)| repository::row_json(id, record)).collect())
 }
 
 fn required_str<'a>(filter: &'a Json, key: &str) -> Result<&'a str, Refusal> {
@@ -286,18 +351,6 @@ fn required_str<'a>(filter: &'a Json, key: &str) -> Result<&'a str, Refusal> {
         .require(key, "query filter")?
         .as_str()
         .ok_or_else(|| Refusal::TypeMismatch(format!("query filter {key:?} must be a string")))
-}
-
-/// One matched record, as a ROW — the field named `"id"` prepended to
-/// whatever `to_json()` already produced, matching Ruby's own row shape
-/// exactly (`QueryInterpreter#call`'s `{ id: record.id }.merge(record.
-/// state)`): a query's answer names its own id inline, distinct from
-/// `instances()`'s own "Domain::Aggregate#id" -> state MAP shape, which
-/// carries id only in the key, never inside the value.
-fn row_json(id: String, record: Json) -> Json {
-    let Json::Object(mut fields) = record else { return record };
-    fields.insert(0, ("id".to_string(), Json::Str(id)));
-    Json::Object(fields)
 }
 
 /// The `refusals` entry's own "verb" column, for a REFUSED ad hoc filter
