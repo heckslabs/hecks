@@ -19,6 +19,7 @@
 use crate::auth;
 use crate::auth::Session;
 use crate::dispatch;
+use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
 use crate::journal::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use serde_json::{json, Value};
@@ -149,7 +150,7 @@ async fn route(
         if let Some(command) = find_command(aggregate, &verb_or_id) {
             let action = format!("/{domain_name}/{}/{}.html", agg_name(aggregate), verb_or_id);
             return command_route(
-                domain_name, aggregate, command, &action, &format, method, query, raw_body,
+                domain_ir, domain_name, aggregate, command, &action, &format, method, query, raw_body,
                 client, wasm_path, config, invoker,
             )
             .await;
@@ -357,7 +358,7 @@ fn identity_paths(aggregate: &Value) -> Vec<String> {
 // ---- field shape — IR::Attribute -> Field, mirrors ------------------
 // Hecksagain::Presentation::FieldShape / hecks_on_web's own copy of it.
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Field {
     path: String,
     label: String,
@@ -365,15 +366,35 @@ struct Field {
     optional: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum FieldKind {
-    Text,
+    Text { html_type: &'static str },
     Textarea,
     Number { step: &'static str },
     Boolean,
     Radio(Vec<String>),
     Select(Vec<String>),
     Group(Vec<Field>),
+    // A cents+currency value object (Money) — renders/collects exactly
+    // like Group (a fieldset around its two children); kept as its own
+    // variant only because a caller who wants to know "is this a money
+    // field" (a future currency-aware renderer, say) shouldn't have to
+    // pattern-match Group's children looking for the shape.
+    Money(Vec<Field>),
+    // `Reference<X>` — a bare id, per aggregates-and-value-objects.md's
+    // "a reference is a bare id — a String — not a nested object"
+    // (rust/project/naming.rb's own comment, read directly). `target`
+    // is the aggregate it points at, carried for a future renderer
+    // (a dropdown of existing records — Ruby's own `reference_options`,
+    // deliberately NOT ported here, see web.rs's own header) to use;
+    // today's render arm ignores it and renders a plain text input —
+    // `#[allow(dead_code)]` because that non-consumption is a real,
+    // deliberate scope boundary (see this file's own header), not an
+    // oversight; the tests below still assert on it directly.
+    Reference {
+        #[allow(dead_code)]
+        target: Option<String>,
+    },
     List(Box<Field>),
 }
 
@@ -403,64 +424,183 @@ fn humanize(path: &str) -> String {
 
 const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
 
-fn resolve_field(attribute: &Value, aggregate: &Value, path: &str) -> Field {
+// `Hecksagain::Presentation::FieldShape#resolve`'s own dispatch order,
+// mirrored exactly (field_shape.rb): list? -> reference? -> admits
+// truthy -> not-a-PRIMITIVE (value object) -> primitive. `domain_ir` is
+// the WHOLE chapter — needed by `admits:` resolution (a set can be
+// declared on any aggregate, not just this attribute's own) and by the
+// cross-aggregate value-object fallback below.
+fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: &str) -> Field {
     let is_list = attribute.get("list").and_then(|v| v.as_bool()).unwrap_or(false);
     let optional = attribute.get("optional").and_then(|v| v.as_bool()).unwrap_or(false);
     let ty = attribute.get("type").and_then(|v| v.as_str()).unwrap_or("String");
 
     if is_list {
-        let scalar = json!({"name": attribute.get("name"), "type": ty, "list": false, "optional": true});
-        let item = resolve_field(&scalar, aggregate, path);
+        let scalar = json!({
+            "name": attribute.get("name"), "type": ty, "list": false, "optional": true,
+            "pattern": attribute.get("pattern"), "admits": attribute.get("admits"),
+        });
+        let item = resolve_field(domain_ir, &scalar, aggregate, path);
         return Field { path: path.to_string(), label: humanize(path), kind: FieldKind::List(Box::new(item)), optional };
     }
 
-    if PRIMITIVES.contains(&ty) {
-        return primitive_field(ty, path, optional);
+    if let Some(target) = reference_target(ty) {
+        return Field { path: path.to_string(), label: humanize(path), kind: FieldKind::Reference { target: Some(target) }, optional };
     }
 
-    let Some(shape) = find_value_object(aggregate, ty) else {
-        return primitive_field("String", path, optional);
+    if let Some(admits) = attribute.get("admits").and_then(|v| v.as_str()) {
+        return admitted_field(domain_ir, aggregate, attribute, admits, ty, path, optional);
+    }
+
+    if PRIMITIVES.contains(&ty) {
+        return primitive_field(attribute, ty, path, optional);
+    }
+
+    let Some(shape) = value_object_shape(domain_ir, aggregate, ty) else {
+        return primitive_field(attribute, ty, path, optional);
     };
+    value_object_field(domain_ir, aggregate, shape, path, optional)
+}
+
+// `Reference<X>` -> `Some("X")` — the exact string-prefix convention
+// rust/project/naming.rb's own `reference_type?`/`reference_target`
+// already use for the same job in command-struct codegen (read
+// directly, matched here rather than reinvented): a bare
+// `Reference<...>` spelling is the export's pinned contract
+// (IR::Reference#to_s), never a nested object.
+fn reference_target(ty: &str) -> Option<String> {
+    ty.strip_prefix("Reference<")?.strip_suffix('>').map(String::from)
+}
+
+// A value object's own declared shape, checked on the OWNING aggregate
+// first and only then walked across the whole domain — `own_value_
+// object`'s exact fallback order (field_shape.rb).
+fn value_object_shape<'a>(domain_ir: &'a Value, aggregate: &'a Value, ty: &str) -> Option<&'a Value> {
+    find_value_object(aggregate, ty).or_else(|| cross_aggregate_value_object(domain_ir, ty))
+}
+
+// `FieldShape#cross_aggregate_value_object`, mirrored exactly despite
+// its name being scoped like a sibling search — it's a WHOLE-DOMAIN
+// walk (field_shape.rb's own comment says so plainly): a command's
+// declared value-object-typed attribute may name a shape belonging to
+// ANOTHER aggregate entirely (Transfer's own `narrative: Narrative`
+// argument, resolved with Transfer as the owning aggregate, could in
+// principle point at a Narrative declared on Account instead — this is
+// the fallback that makes that legal). THE ROOT-CAUSE FIX: without
+// this, a cross-aggregate value object falls all the way through to
+// `primitive_field`'s bare-text default, and neither `admits:`
+// resolution below nor Tier B's textarea hint ever gets a chance to
+// run against the real, UNWRAPPED inner attribute.
+fn cross_aggregate_value_object<'a>(domain_ir: &'a Value, type_name: &str) -> Option<&'a Value> {
+    domain_ir.get("aggregates")?.as_array()?.iter().find_map(|sibling| find_value_object(sibling, type_name))
+}
+
+// The discriminant field name plus its member values, factored out of
+// the native `one_of` branch below so the `admits:` branch (which
+// checks a DIFFERENT aggregate's closed set) can share the exact same
+// reading rather than a second, drifting copy of it.
+fn closed_set_members(vo: &Value) -> (String, Vec<String>) {
+    let attrs = vo.get("attributes").and_then(|v| v.as_array());
+    let discriminant = attrs.and_then(|a| a.first()).and_then(|a| a.get("name")).and_then(|v| v.as_str()).unwrap_or("value").to_string();
+    let members = vo
+        .get("members")
+        .and_then(|v| v.as_array())
+        .map(|members| {
+            members
+                .iter()
+                .filter_map(|m| {
+                    m.as_array()?.iter().find_map(|pair| {
+                        let pair = pair.as_array()?;
+                        if pair.first()?.as_str()? == discriminant {
+                            pair.get(1)?.as_str().map(String::from)
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    (discriminant, members)
+}
+
+// Radio under 4 members, Select otherwise — `FieldShape#select_or_
+// radio`'s own threshold, mirrored exactly. `path`'s own last segment
+// is the label (the OUTER path, not yet dotted down to a discriminant)
+// — callers that need the discriminant hop mutate `.path` afterward,
+// same as Ruby's `options.path = "#{common[:path]}.#{discriminant}"`
+// leaving `label` untouched.
+fn select_or_radio(path: &str, optional: bool, members: Vec<String>) -> Field {
+    let label = humanize(path);
+    let kind = if members.len() <= 4 { FieldKind::Radio(members) } else { FieldKind::Select(members) };
+    Field { path: path.to_string(), label, kind, optional }
+}
+
+// `FieldShape#admitted_field` — a closed set declared ELSEWHERE
+// (`"Account::LedgerDirection"`), resolved and rendered exactly the
+// way the native `one_of` branch renders its own SAME-attribute set,
+// via the shared `closed_set_members`/`select_or_radio` helpers above.
+fn admitted_field(domain_ir: &Value, aggregate: &Value, attribute: &Value, admits: &str, ty: &str, path: &str, optional: bool) -> Field {
+    let mut parts = admits.splitn(2, "::");
+    let set_aggregate_name = parts.next().unwrap_or("");
+    let set_name = parts.next();
+
+    let set = set_name.and_then(|name| find_aggregate(domain_ir, set_aggregate_name).and_then(|agg| find_value_object(agg, name)));
+    // Undeclared set — refuse-at-dispatch stays the backstop (Ruby's own
+    // comment on this exact fallback); render it as whatever a plain
+    // scalar of this attribute would be, using the REAL attribute so
+    // its own name/pattern still drive Tier B's hints correctly.
+    let Some(set) = set else { return primitive_field(attribute, ty, path, optional) };
+
+    let (_, members) = closed_set_members(set);
+    let mut field = select_or_radio(path, optional, members);
+
+    // The attribute's OWN type still has to land on the shape coercion
+    // expects — a value object like `MovementDirection { value }` still
+    // needs the ".value" hop even though the SET it's checked against
+    // is declared somewhere else entirely (same unwrap `value_object_
+    // field` does, kept separate because an admitted set changes the
+    // OPTIONS, not which field the hop lands on).
+    let Some(own_shape) = value_object_shape(domain_ir, aggregate, ty) else { return field };
+    let attrs = own_shape.get("attributes").and_then(|v| v.as_array());
+    let Some(attrs) = attrs.filter(|a| a.len() == 1) else { return field };
+
+    let inner_name = attrs[0].get("name").and_then(|v| v.as_str()).unwrap_or("value");
+    field.path = format!("{path}.{inner_name}");
+    field
+}
+
+// `FieldShape#value_object_field` — closed_set? -> money_shaped? ->
+// single-attribute-unwrap -> group, in that order, mirrored exactly.
+fn value_object_field(domain_ir: &Value, aggregate: &Value, shape: &Value, path: &str, optional: bool) -> Field {
     let closed_set = shape.get("closed_set").and_then(|v| v.as_bool()).unwrap_or(false);
     let attrs = shape.get("attributes").and_then(|v| v.as_array()).cloned().unwrap_or_default();
 
     if closed_set {
-        let discriminant = attrs.first().and_then(|a| a.get("name")).and_then(|v| v.as_str()).unwrap_or("value");
-        let members: Vec<String> = shape
-            .get("members")
-            .and_then(|v| v.as_array())
-            .map(|members| {
-                members
-                    .iter()
-                    .filter_map(|m| {
-                        m.as_array()?.iter().find_map(|pair| {
-                            let pair = pair.as_array()?;
-                            if pair.first()?.as_str()? == discriminant {
-                                pair.get(1)?.as_str().map(String::from)
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        let full_path = format!("{path}.{discriminant}");
-        let label = humanize(path); // outer label, not the discriminant's — same reasoning FieldShape's own single-attribute unwrap uses
-        let kind = if members.len() <= 4 { FieldKind::Radio(members) } else { FieldKind::Select(members) };
-        return Field { path: full_path, label, kind, optional };
+        let (discriminant, members) = closed_set_members(shape);
+        let mut field = select_or_radio(path, optional, members);
+        field.path = format!("{path}.{discriminant}");
+        return field;
+    }
+
+    if money_shaped(&attrs) {
+        return money_field(path, optional);
     }
 
     // Single-attribute value object (PizzaName{value}, Price{cents}) —
     // a NAME for a scalar, not a genuine group. The OUTER label wins
     // (humanize(path), not the recursively-resolved inner field's own
     // label) — "value"/"cents" is internal storage shape, never what a
-    // human reads.
+    // human reads. Recursing back through `resolve_field` (not
+    // straight to `primitive_field`) is what lets the INNER attribute's
+    // own pattern/admits drive its shape — Narrative{text}'s "text" is
+    // this inner attribute's own bare name, which is what makes Tier
+    // B's textarea hint match it.
     if attrs.len() == 1 {
         let inner = &attrs[0];
         let inner_name = inner.get("name").and_then(|v| v.as_str()).unwrap_or("value");
         let inner_path = format!("{path}.{inner_name}");
-        let mut field = resolve_field(inner, aggregate, &inner_path);
+        let mut field = resolve_field(domain_ir, inner, aggregate, &inner_path);
         field.label = humanize(path);
         field.optional = optional || field.optional;
         return field;
@@ -470,29 +610,85 @@ fn resolve_field(attribute: &Value, aggregate: &Value, path: &str) -> Field {
         .iter()
         .map(|inner| {
             let inner_name = inner.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            resolve_field(inner, aggregate, &format!("{path}.{inner_name}"))
+            resolve_field(domain_ir, inner, aggregate, &format!("{path}.{inner_name}"))
         })
         .collect();
     Field { path: path.to_string(), label: humanize(path), kind: FieldKind::Group(children), optional }
 }
 
-fn primitive_field(ty: &str, path: &str, optional: bool) -> Field {
+// `FieldShape#money_shaped?` — exactly `{cents, currency}`, sorted, and
+// nothing else.
+fn money_shaped(attrs: &[Value]) -> bool {
+    let mut names: Vec<&str> = attrs.iter().filter_map(|a| a.get("name").and_then(|v| v.as_str())).collect();
+    names.sort_unstable();
+    names == ["cents", "currency"]
+}
+
+// `FieldShape#money_field` — cents as a whole-integer Number, currency
+// as free Text, always optional (a currency code defaults to "USD"
+// whether or not the outer amount itself is required).
+fn money_field(path: &str, optional: bool) -> Field {
+    let cents = Field { path: format!("{path}.cents"), label: "Amount (cents)".to_string(), kind: FieldKind::Number { step: "1" }, optional };
+    let currency = Field { path: format!("{path}.currency"), label: "Currency".to_string(), kind: FieldKind::Text { html_type: "text" }, optional: true };
+    Field { path: path.to_string(), label: humanize(path), kind: FieldKind::Money(vec![cents, currency]), optional }
+}
+
+fn primitive_field(attribute: &Value, ty: &str, path: &str, optional: bool) -> Field {
     let label = humanize(path);
     let kind = match ty {
         "Integer" => FieldKind::Number { step: "1" },
         "Float" => FieldKind::Number { step: "any" },
         "TrueClass" | "FalseClass" => FieldKind::Boolean,
-        _ if path.rsplit('.').next().unwrap_or(path).contains("note")
-            || path.rsplit('.').next().unwrap_or(path).contains("description") =>
-        {
-            FieldKind::Textarea
-        }
-        _ => FieldKind::Text,
+        _ => return text_field(attribute, path, optional),
     };
     Field { path: path.to_string(), label, kind, optional }
 }
 
-fn command_fields(aggregate: &Value, command: &Value) -> Vec<Field> {
+// `FieldShape#text_field` — Tier B's four declared hints
+// (field_hints.rs, generated from Vocabulary::FieldHint), matched in
+// Ruby's own precedence. `attribute`'s own bare `name`/`pattern` drive
+// this, NOT any derivation off `path` — after a single-attribute
+// unwrap (`value_object_field` above), `attribute` is the INNER
+// attribute (Narrative's own "text", EmailAddress's own "address"),
+// exactly the case Tier B exists to catch.
+fn text_field(attribute: &Value, path: &str, optional: bool) -> Field {
+    let name = attribute.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    let pattern = attribute.get("pattern").and_then(|v| v.as_str()).unwrap_or("");
+    let html_type = text_html_type(name, pattern);
+    let kind = text_kind(html_type, name);
+    Field { path: path.to_string(), label: humanize(path), kind, optional }
+}
+
+// email, then url, then tel — first match wins, exactly Ruby's
+// if/elsif chain. `pattern.include?("@")` and `pattern.match?(/https?/
+// i)` are both INLINE checks in Ruby too (never promoted to their own
+// named Vocabulary::FieldHint member) — `/https?/i` case-insensitively
+// matching is exactly a case-insensitive "http" substring check, since
+// "https" already contains "http".
+fn text_html_type(name: &str, pattern: &str) -> &'static str {
+    if pattern.contains('@') || EMAIL_HINT.is_match(name) {
+        return "email";
+    }
+    if pattern.to_ascii_lowercase().contains("http") || URL_HINT.is_match(name) {
+        return "url";
+    }
+    if TEL_HINT.is_match(name) {
+        return "tel";
+    }
+    "text"
+}
+
+// Only checked once `html_type` has fallen all the way through to
+// "text" — Ruby's own `html_type == "text" && name.match?(TEXTAREA_
+// HINT)` guard, not a competing branch.
+fn text_kind(html_type: &'static str, name: &str) -> FieldKind {
+    if html_type == "text" && TEXTAREA_HINT.is_match(name) {
+        return FieldKind::Textarea;
+    }
+    FieldKind::Text { html_type }
+}
+
+fn command_fields(domain_ir: &Value, aggregate: &Value, command: &Value) -> Vec<Field> {
     let creates = command.get("references").map(|v| v.is_null()).unwrap_or(true);
     let mut fields = Vec::new();
     if !creates {
@@ -500,14 +696,14 @@ fn command_fields(aggregate: &Value, command: &Value) -> Vec<Field> {
         fields.push(Field {
             path: "id".to_string(),
             label: format!("{} ({paths})", agg_name(aggregate)),
-            kind: FieldKind::Text,
+            kind: FieldKind::Text { html_type: "text" },
             optional: false,
         });
     }
     if let Some(attrs) = command.get("attributes").and_then(|v| v.as_array()) {
         for attribute in attrs {
             let name = attribute.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            fields.push(resolve_field(attribute, aggregate, name));
+            fields.push(resolve_field(domain_ir, attribute, aggregate, name));
         }
     }
     fields
@@ -526,7 +722,10 @@ fn extract_args(fields: &[Field], raw: &HashMap<String, String>) -> Value {
 
 fn collect_field(field: &Field, raw: &HashMap<String, String>, pairs: &mut Vec<(String, Value)>) {
     match &field.kind {
-        FieldKind::Group(children) => {
+        // Money shares Group's own children-flattening — its two
+        // fields (cents/currency) collect exactly like any other
+        // fieldset's would.
+        FieldKind::Group(children) | FieldKind::Money(children) => {
             for child in children {
                 collect_field(child, raw, pairs);
             }
@@ -715,11 +914,11 @@ async fn record_show(domain_name: &str, aggregate: &Value, id: &str, format: &st
 
 #[allow(clippy::too_many_arguments)]
 async fn command_route(
-    domain_name: &str, aggregate: &Value, command: &Value, action: &str, format: &str, method: &str,
+    domain_ir: &Value, domain_name: &str, aggregate: &Value, command: &Value, action: &str, format: &str, method: &str,
     query: &HashMap<String, String>, raw_body: &str, client: &Mutex<Client>, wasm_path: &Path, config: &LineageConfig,
     invoker: &dyn LambdaInvoker,
 ) -> Value {
-    let fields = command_fields(aggregate, command);
+    let fields = command_fields(domain_ir, aggregate, command);
     let cname = command.get("name").and_then(|v| v.as_str()).unwrap_or("");
 
     if format != "html" {
@@ -836,7 +1035,10 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
     let current = values.get(&field.path).cloned().unwrap_or_default();
 
     match &field.kind {
-        FieldKind::Group(children) => {
+        // Money renders as the same fieldset a Group does — its two
+        // children (cents/currency) are just another pair of fields
+        // inside it.
+        FieldKind::Group(children) | FieldKind::Money(children) => {
             let inner: String = children.iter().map(|c| render_field(c, values)).collect();
             format!(r#"<fieldset class="mt-4 border border-slate-200 rounded-md p-4"><legend class="text-sm font-semibold text-slate-700 px-1">{}</legend>{}</fieldset>"#, esc(&field.label), inner)
         }
@@ -864,7 +1066,15 @@ fn render_field(field: &Field, values: &HashMap<String, String>) -> String {
             r#"{label}<input type="number" name="{}" value="{}" step="{step}" class="{input_class}">"#,
             esc(&field.path), esc(&current)
         ),
-        FieldKind::Text => format!(
+        FieldKind::Text { html_type } => format!(
+            r#"{label}<input type="{html_type}" name="{}" value="{}" class="{input_class}">"#,
+            esc(&field.path), esc(&current)
+        ),
+        // No `reference_options` dropdown here on purpose — see this
+        // file's own header: no candidate-fetching scaffolding exists
+        // yet, so a reference is a plain text id input, same as Ruby's
+        // own fallback for one.
+        FieldKind::Reference { .. } => format!(
             r#"{label}<input type="text" name="{}" value="{}" class="{input_class}">"#,
             esc(&field.path), esc(&current)
         ),
@@ -987,4 +1197,220 @@ fn redirect_with_cookie(location: &str, cookie: &str) -> Value {
 
 fn respond(status: u16, content_type: &str, body: &str) -> Value {
     json!({"statusCode": status, "headers": {"content-type": content_type}, "body": body, "isBase64Encoded": false})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Real corpus shapes throughout (examples/banking/bluebook/
+    // banking.bluebook, examples/pizzas/bluebook/pizzas.bluebook) — read
+    // directly, not guessed at. `domain_ir`/`aggregate` fixtures below
+    // are trimmed to only the keys `resolve_field`'s own call graph
+    // ever reads (`name`/`value_objects` on an aggregate, `aggregates`
+    // on the domain) — a real generated IR carries far more, but
+    // nothing else here is ever consulted.
+
+    #[test]
+    fn customer_email_reads_the_pattern_as_email_even_nested_inside_a_value_object() {
+        // Customer.email is EmailAddress{address}; `address`'s own
+        // `pattern:` names "@" — the same case field_shape_spec.rb
+        // tests directly off the live Ruby IR.
+        let email_address_vo = json!({
+            "name": "EmailAddress",
+            "attributes": [{"name": "address", "type": "String", "list": false, "default": null, "optional": false, "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$", "admits": null}],
+            "invariants": [], "closed_set": false, "members": []
+        });
+        let customer = json!({"name": "Customer", "value_objects": [email_address_vo]});
+        let domain_ir = json!({"aggregates": [customer.clone()]});
+        let attribute = json!({"name": "email", "type": "EmailAddress", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+
+        let field = resolve_field(&domain_ir, &attribute, &customer, "email");
+        assert_eq!(field.path, "email.address");
+        match field.kind {
+            FieldKind::Text { html_type } => assert_eq!(html_type, "email"),
+            other => panic!("expected Text{{html_type: email}}, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn account_balance_renders_as_money_with_cents_and_currency_children() {
+        let money_vo = json!({
+            "name": "Money",
+            "attributes": [
+                {"name": "cents", "type": "Integer", "list": false, "default": 0, "optional": false, "pattern": null, "admits": null},
+                {"name": "currency", "type": "String", "list": false, "default": "USD", "optional": false, "pattern": null, "admits": null}
+            ],
+            "invariants": [], "closed_set": false, "members": []
+        });
+        let account = json!({"name": "Account", "value_objects": [money_vo]});
+        let domain_ir = json!({"aggregates": [account.clone()]});
+        let attribute = json!({"name": "balance", "type": "Money", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+
+        let field = resolve_field(&domain_ir, &attribute, &account, "balance");
+        match field.kind {
+            FieldKind::Money(children) => {
+                let paths: Vec<&str> = children.iter().map(|c| c.path.as_str()).collect();
+                assert_eq!(paths, vec!["balance.cents", "balance.currency"]);
+                assert!(!children[0].optional, "cents follows the outer attribute's own optionality");
+                assert!(children[1].optional, "currency is always optional, defaulting to USD, regardless of the outer field");
+            }
+            other => panic!("expected Money, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn account_open_customer_id_renders_as_a_reference_carrying_its_target() {
+        let account = json!({"name": "Account", "value_objects": []});
+        let domain_ir = json!({"aggregates": [account.clone()]});
+        let attribute = json!({"name": "customer_id", "type": "Reference<Customer>", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+
+        let field = resolve_field(&domain_ir, &attribute, &account, "customer_id");
+        match field.kind {
+            FieldKind::Reference { target } => assert_eq!(target.as_deref(), Some("Customer")),
+            other => panic!("expected Reference, got {other:?}"),
+        }
+    }
+
+    // THE KEY REGRESSION TEST — exercises Tier A's cross-aggregate
+    // lookup and Tier B's textarea hint together, the same combination
+    // that was silently broken before this change.
+    #[test]
+    fn narrative_used_from_a_different_aggregate_renders_as_a_textarea_via_the_cross_aggregate_lookup() {
+        // Account's REAL Narrative{text} value object — declared on
+        // Account, never on CardPayment (CardPayment's own real
+        // value_objects list, confirmed by reading the live generated
+        // IR, is AuthorisationCode/PaymentAmount/MerchantName/Tag —
+        // no Narrative). The attribute itself is real too: Transfer.
+        // Request's own "narrative" argument JSON, byte-for-byte —
+        // reused here scoped against CardPayment instead of Transfer
+        // specifically to prove the fallback walks the WHOLE domain,
+        // not just the declaring aggregate's own siblings
+        // (field_shape.rb's own comment on cross_aggregate_value_
+        // object: "a WHOLE-DOMAIN walk despite its name").
+        let narrative_vo = json!({
+            "name": "Narrative",
+            "attributes": [{"name": "text", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null}],
+            "invariants": [{"description": "a movement explains itself", "canonical": "!text.to_s.empty?"}],
+            "closed_set": false, "members": []
+        });
+        let account = json!({"name": "Account", "value_objects": [narrative_vo]});
+        let card_payment = json!({
+            "name": "CardPayment",
+            "value_objects": [{"name": "AuthorisationCode", "attributes": [], "invariants": [], "closed_set": false, "members": []}]
+        });
+        let domain_ir = json!({"aggregates": [account, card_payment.clone()]});
+        let attribute = json!({"name": "narrative", "type": "Narrative", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+
+        let field = resolve_field(&domain_ir, &attribute, &card_payment, "narrative");
+        assert_eq!(field.path, "narrative.text");
+        match field.kind {
+            FieldKind::Textarea => {}
+            other => panic!("expected Textarea, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn external_transfer_direction_resolves_its_admits_declared_set_across_aggregates() {
+        // ExternalTransfer.direction: MovementDirection{value}, admits:
+        // "Account::LedgerDirection" — the real, live `admits:` example
+        // in the corpus (examples/banking/bluebook/banking.bluebook).
+        let ledger_direction_vo = json!({
+            "name": "LedgerDirection",
+            "attributes": [{"name": "value", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null}],
+            "invariants": [], "closed_set": true,
+            "members": [[["value", "credit"]], [["value", "debit"]]]
+        });
+        let account = json!({"name": "Account", "value_objects": [ledger_direction_vo]});
+        let movement_direction_vo = json!({
+            "name": "MovementDirection",
+            "attributes": [{"name": "value", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null}],
+            "invariants": [], "closed_set": false, "members": []
+        });
+        let external_transfer = json!({"name": "ExternalTransfer", "value_objects": [movement_direction_vo]});
+        let domain_ir = json!({"aggregates": [account, external_transfer.clone()]});
+        let attribute = json!({"name": "direction", "type": "MovementDirection", "list": false, "default": null, "optional": false, "pattern": null, "admits": "Account::LedgerDirection"});
+
+        let field = resolve_field(&domain_ir, &attribute, &external_transfer, "direction");
+        assert_eq!(field.path, "direction.value");
+        match field.kind {
+            FieldKind::Radio(members) => assert_eq!(members, vec!["credit".to_string(), "debit".to_string()]),
+            other => panic!("expected Radio with exactly 2 members, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_name_containing_email_matches_even_with_no_at_pattern_at_all() {
+        // No `pattern:` at all — synthetic, since every REAL email-
+        // shaped attribute in the corpus (Customer.email) also carries
+        // one; proves the OR in Ruby's own `pattern.include?("@") ||
+        // name.match?(EMAIL_HINT)` really is an OR, not pattern-gated.
+        let aggregate = json!({"name": "Whatever", "value_objects": []});
+        let domain_ir = json!({"aggregates": [aggregate.clone()]});
+        let attribute = json!({"name": "contact_email", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+
+        let field = resolve_field(&domain_ir, &attribute, &aggregate, "contact_email");
+        match field.kind {
+            FieldKind::Text { html_type } => assert_eq!(html_type, "email"),
+            other => panic!("expected Text{{html_type: email}}, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn synthetic_url_and_tel_named_attributes_resolve_their_html_type_from_the_name_alone() {
+        // No real corpus example of either shape exists (confirmed
+        // during design research) — both built minimal here, same
+        // style auth.rs's own tests use for a fixture with no real
+        // counterpart.
+        let aggregate = json!({"name": "Whatever", "value_objects": []});
+        let domain_ir = json!({"aggregates": [aggregate.clone()]});
+
+        let website = json!({"name": "website", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+        match resolve_field(&domain_ir, &website, &aggregate, "website").kind {
+            FieldKind::Text { html_type } => assert_eq!(html_type, "url"),
+            other => panic!("expected url, got {other:?}"),
+        }
+
+        let phone = json!({"name": "phone_number", "type": "String", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+        match resolve_field(&domain_ir, &phone, &aggregate, "phone_number").kind {
+            FieldKind::Text { html_type } => assert_eq!(html_type, "tel"),
+            other => panic!("expected tel, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_single_attribute_cents_only_value_object_is_not_money_shaped() {
+        // pizzas' Price{cents} — one field, no currency — must unwrap
+        // to a plain scalar (money_shaped? needs EXACTLY {cents,
+        // currency}), never :money.
+        let price_vo = json!({
+            "name": "Price",
+            "attributes": [{"name": "cents", "type": "Integer", "list": false, "default": null, "optional": false, "pattern": null, "admits": null}],
+            "invariants": [{"description": "a price is never negative", "canonical": "cents >= 0"}],
+            "closed_set": false, "members": []
+        });
+        let order = json!({"name": "Order", "value_objects": [price_vo]});
+        let domain_ir = json!({"aggregates": [order.clone()]});
+        let attribute = json!({"name": "price_cents", "type": "Price", "list": false, "default": null, "optional": false, "pattern": null, "admits": null});
+
+        match resolve_field(&domain_ir, &attribute, &order, "price_cents").kind {
+            FieldKind::Number { step } => assert_eq!(step, "1"),
+            other => panic!("expected a plain Number (unwrapped, not Money), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn field_hint_word_boundaries_reject_a_substring_that_is_not_a_whole_word() {
+        // Proves \b in the `regex` crate behaves the way these
+        // patterns need it to, rather than assuming it — "link" is a
+        // whole word in "link" but only a SUBSTRING of "blinking", and
+        // the boundary must reject the latter; same for "text" inside
+        // "context". Case-insensitivity ((?i), the Rust spelling of
+        // Ruby's trailing `/i`) checked too.
+        assert!(URL_HINT.is_match("link"));
+        assert!(!URL_HINT.is_match("blinking"));
+        assert!(TEXTAREA_HINT.is_match("text"));
+        assert!(!TEXTAREA_HINT.is_match("context"));
+        assert!(EMAIL_HINT.is_match("EMAIL"));
+    }
 }
