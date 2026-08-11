@@ -33,7 +33,7 @@
 // `QuerySpecification::Common::NullPolicy` (lib/hecksagain/ports/query/,
 // lib/hecksagain/query_specification/common/null_policy.rb) for exactly
 // what `apply_filtered_head_options` below ports — all read directly.
-use super::{query_comparators, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
+use super::{query_ordering, repository, AggregateScan, Json, QueryCondition, QueryConditionValue, Refusal};
 
 /// ONE reference attribute on a NON-ROOT head's own aggregate — "this
 /// aggregate carries a field named `field` that is `Reference<X>`, where
@@ -68,32 +68,28 @@ pub struct ReadModelHead {
 }
 
 /// A read model's own declared `order_by :field, :direction`, applying to
-/// `ReadModelDef::filtered_head` alone — the read-model analogue of a
-/// `named_query::QueryCondition`, except no existing kernel capability
-/// sorts at all (`queries.rb`'s own header: declared-AGGREGATE-query codegen
-/// refuses `order_by` outright), so this is a new, hand-written shape
-/// rather than a reused one. Ground truth: `QuerySpecification::Common::
-/// OrderBy` (lib/hecksagain/query_specification/common/order_by.rb) — `field`/
-/// `direction`, read directly; `descending` collapses Ruby's own
-/// `direction.to_s == "desc"` test to a bool once, at codegen time.
-#[derive(Debug, Clone, Copy)]
-pub struct ReadModelOrderBy {
-    pub field: &'static str,
-    pub descending: bool,
-}
+/// `ReadModelDef::filtered_head` alone — a plain alias, not a distinct
+/// shape: this used to be its own hand-written struct (`queries.rb`'s own
+/// header, at the time, said "declared-AGGREGATE-query codegen refuses
+/// `order_by` outright, so there was nothing sort-shaped to reuse" — true
+/// the day it was written), but the moment `named_query.rs` needed the
+/// identical field/direction pair for a declared AGGREGATE query's own
+/// `order_by` (2026-08-11), keeping two structurally-identical types
+/// around would only invite the SAME drift `kernel/query_ordering.rs`'s
+/// own extraction exists to prevent one level down, in the functions that
+/// consume them. Ground truth: `QuerySpecification::Common::OrderBy`
+/// (lib/hecksagain/query_specification/common/order_by.rb) — `field`/
+/// `direction`, read directly; `query_ordering::OrderBy`'s own header has
+/// the rest.
+pub type ReadModelOrderBy = query_ordering::OrderBy;
 
 /// A read model's own declared `limit N`, applying to `ReadModelDef::
-/// filtered_head` alone — either a literal count baked in at codegen time,
-/// or a caller-bound Symbol arg resolved from THIS call's own wire `args`
-/// at dispatch time, the identical Literal/Arg split `QueryConditionValue`
-/// already draws for a where clause's own value (ground truth: `Ports::
+/// filtered_head` alone — an alias for the same reason `ReadModelOrderBy`
+/// just above is one now, not a distinct shape: `query_ordering::Limit`'s
+/// own header has the full Literal/Arg argument (ground truth: `Ports::
 /// Query::InMemory.execute`'s own `resolve(declared.limit.value,
 /// args).to_i`, lib/hecksagain/ports/query/in_memory.rb).
-#[derive(Debug, Clone, Copy)]
-pub enum ReadModelLimit {
-    Literal(i64),
-    Arg(&'static str),
-}
+pub type ReadModelLimit = query_ordering::Limit;
 
 /// ONE declared `report "X" do ... end` block, compiled — the read-model
 /// analogue of `named_query::QueryDef`. `verb` is the "Domain.Name" wire
@@ -298,9 +294,17 @@ fn record_matches(record: &Json, head: &ReadModelHead, projected: &[(&'static st
 /// same as every OTHER option that generator still refuses). Where-
 /// filtering reuses `repository::filter_entries` chained per condition —
 /// exactly `named_query::run`'s own AND, never reimplemented. Order/limit
-/// are hand-written below because no existing kernel capability sorts at
-/// all (`queries.rb`'s own header: declared-AGGREGATE-query codegen refuses
-/// `order_by` outright, so there was nothing sort-shaped to reuse).
+/// are `query_ordering::apply` (kernel/query_ordering.rs) — EXTRACTED from
+/// this very function (2026-08-11), not reused from anywhere new: this
+/// module's identity-sort/declared-order/limit tail used to live here
+/// directly, until `named_query.rs` needed the identical logic for a
+/// declared AGGREGATE query's own `order_by`/`limit` and duplicating it a
+/// second time would have been exactly the drift this whole codebase's
+/// "compile shapes, interpret behavior" split exists to avoid. See that
+/// module's own header for the full ground-truth citation and the one
+/// real structural difference between this caller and `named_query::run`
+/// (a read model's `filtered_head` selection, which happens ABOVE this
+/// function, in `run`, not inside it).
 fn apply_filtered_head_options(mut rows: Vec<(String, Json)>, def: &ReadModelDef, args: &Json) -> Vec<(String, Json)> {
     for condition in def.conditions {
         let want = match condition.value {
@@ -310,92 +314,5 @@ fn apply_filtered_head_options(mut rows: Vec<(String, Json)>, def: &ReadModelDef
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
     }
 
-    // TIER 1 — IDENTITY. `Ports::Query::Ordering.apply`'s own header: "the
-    // identity tier is what makes an ask total" — every answer is sorted by
-    // id ascending FIRST, order_by declared or not, so a tie in the
-    // declared order (or the total absence of one) still has a total,
-    // deterministic answer rather than leaking whatever order the store
-    // happened to hold. `repository::filter_entries`'s own chaining (above)
-    // already re-sorts by id on every condition, so this is a no-op
-    // whenever `conditions` is non-empty; kept unconditional so a read
-    // model declaring ONLY `order_by`/`limit` (no `where` at all) still
-    // gets the same identity base Ruby's own two-tier scheme guarantees
-    // every path, not just this one.
-    rows.sort_by(|a, b| a.0.cmp(&b.0));
-
-    if let Some(order_by) = &def.order_by {
-        rows = apply_declared_order(rows, order_by);
-    }
-
-    if let Some(limit) = &def.limit {
-        rows.truncate(resolve_limit(limit, args));
-    }
-
-    rows
-}
-
-/// TIER 2 — the declared order, layered on top of the identity base `rows`
-/// already carries in. `QuerySpecification::Common::NullPolicy.order`,
-/// ported directly: partition into null/valued by the declared field's own
-/// `comparable`-reduced value; sort the valued partition by that value
-/// (Rust's `Vec::sort_by` is STABLE — unlike Ruby's `Array#sort_by` — so the
-/// identity order the caller already established survives ties for free,
-/// with no index tie-break to carry along by hand the way Ruby's own
-/// `NullPolicy.order` has to); reverse BOTH partitions for `desc`; then
-/// combine under the DEFAULT ("native") null policy — the only one this
-/// generator admits (`read_models.rb`'s own eligibility gate refuses a
-/// declared `nulls` policy beyond it) — which is `NullPolicy.order`'s own
-/// `else` arm: nulls sort FIRST for ascending, LAST for descending.
-fn apply_declared_order(rows: Vec<(String, Json)>, order_by: &ReadModelOrderBy) -> Vec<(String, Json)> {
-    let (mut null_rows, mut valued_rows): (Vec<(String, Json)>, Vec<(String, Json)>) =
-        rows.into_iter().partition(|(_, record)| order_key(record, order_by.field) == Json::Null);
-
-    valued_rows.sort_by(|(_, a), (_, b)| compare_comparable(&order_key(a, order_by.field), &order_key(b, order_by.field)));
-
-    if !order_by.descending {
-        return null_rows.into_iter().chain(valued_rows).collect();
-    }
-    valued_rows.reverse();
-    null_rows.reverse();
-    valued_rows.into_iter().chain(null_rows).collect()
-}
-
-/// A row's own declared-field value, `comparable`-reduced exactly like a
-/// where clause's held value already is (`query_comparators::comparable`,
-/// reused rather than reimplemented) — a missing field digs to `Json::Null`,
-/// matching `FieldPath.dig`'s own miss-is-nil reading.
-fn order_key(record: &Json, field: &str) -> Json {
-    query_comparators::comparable(&record.dig(field).cloned().unwrap_or(Json::Null))
-}
-
-/// `Array#<=>`'s own definition, narrowed to the two kinds `read_models.rb`'s
-/// own eligibility gate (`query_field_kind`) ever lets a declared order_by
-/// field resolve to — a JSON number or a JSON string, always homogeneous
-/// within one read model's own declared field (the same aggregate's same
-/// attribute on every row): codegen refuses anything else (a hop, a
-/// `list_of` field, a multi-member non-numeric value object) before this can
-/// ever run, so the two exhaustive arms below are the only ones a real
-/// generated `ReadModelDef` can ever actually reach.
-fn compare_comparable(a: &Json, b: &Json) -> std::cmp::Ordering {
-    match (a, b) {
-        (Json::Num(x), Json::Num(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
-        (Json::Str(x), Json::Str(y)) => x.cmp(y),
-        _ => std::cmp::Ordering::Equal,
-    }
-}
-
-/// `Ports::Query::InMemory.execute`'s own `resolve(declared.limit.value,
-/// args).to_i`, ported: a literal count rides straight through; a Symbol arg
-/// resolves from THIS call's own wire `args`, missing or non-numeric reading
-/// as `0` (Ruby's own `nil.to_i` — a missing/wrong-shaped arg is `0`, never
-/// a panic or a refusal, matching `QueryConditionValue::Arg`'s own
-/// `unwrap_or(Json::Null)` miss-is-null reading one step further down to a
-/// count). Negative floors to `0` — `Vec::truncate` has no negative case,
-/// and neither does a real limit.
-fn resolve_limit(limit: &ReadModelLimit, args: &Json) -> usize {
-    let raw = match limit {
-        ReadModelLimit::Literal(n) => *n,
-        ReadModelLimit::Arg(name) => args.get(name).and_then(Json::as_i64).unwrap_or(0),
-    };
-    raw.max(0) as usize
+    query_ordering::apply(rows, def.order_by.as_ref(), def.limit.as_ref(), args)
 }

@@ -23,6 +23,15 @@ pub mod json;
 pub mod named_query;
 pub mod orchestrate;
 pub mod pattern;
+// `query_ordering` — the identity-sort/declared-order/limit TAIL shared by
+// a declared AGGREGATE query's own `order_by`/`limit` (`named_query.rs`)
+// and a read model's eligible-head `order_by`/`limit` (`read_model.rs`).
+// Extracted from `read_model.rs` (2026-08-11) the moment a second caller
+// needed the identical logic — see that module's own header for the full
+// ground-truth citation and ONE genuine structural difference between the
+// two callers (a read model's `filtered_head` selection, which happens
+// above this module, never inside it).
+pub mod query_ordering;
 // `read_model` — a declared bluebook `report "X" do ... end` block
 // (`IR::ReadModel`), for the subset real generated Rust now answers for
 // real: a root aggregate fetched by reference id, plus reference-matched
