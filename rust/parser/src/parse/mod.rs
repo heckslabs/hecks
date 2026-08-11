@@ -84,6 +84,25 @@ pub fn word_gate<'a>(
 /// (`identified_by :name`, `identified_by PizzaName, as: :name`) in the
 /// same context, and only the body that actually follows disambiguates
 /// which was written.
+///
+/// A `do ... end` OPENER IS ALSO `source`-COMPATIBLE — Ruby itself treats
+/// `{ ... }` and `do ... end` as the SAME block syntax, and
+/// `identified_by`'s own multi-path form (governance.bluebook's
+/// `RoleAssignment`/`RoleTransition`, console_settings.bluebook's
+/// `StateStyle`: `identified_by do actor_id.value; role_name.value; end`)
+/// is written with `do ... end`, never `{ }` — but `syntax.bluebook`
+/// declares only ONE `source` row per `(word, context)`, not a second one
+/// per spelling. Safe to admit unconditionally here (not just for
+/// `identified_by`) because no `(word, context)` pair in the CURRENT table
+/// declares BOTH a `source` row and a `keywords`/`rows` row — confirmed by
+/// reading every `body: "source"` row directly (`identified_by`/
+/// Aggregate+Entity, `given`/Command, `invariant`/ValueObject, `ensures`/
+/// Command): each has at most a sibling `none` row, never a
+/// `keywords`/`rows` one, so widening `DoBlock`'s own compatibility here
+/// can never make an ALREADY-ambiguous word gate on which body a
+/// `do ... end` opener means. If a future word ever declares both, THIS
+/// widening (not the KeywordRow order) becomes the tie-break — worth
+/// revisiting then, not guessed at now.
 pub fn body_gate<'a>(
     file: &str,
     candidates: &[&'a KeywordRow],
@@ -93,7 +112,7 @@ pub fn body_gate<'a>(
 ) -> ParseResult<&'a KeywordRow> {
     let compatible: fn(&str) -> bool = match opener {
         Opener::None => |body| body == "none",
-        Opener::DoBlock { .. } => |body| body == "keywords" || body == "rows",
+        Opener::DoBlock { .. } => |body| body == "keywords" || body == "rows" || body == "source",
         Opener::BraceBlock { .. } => |body| body == "source",
     };
 
@@ -289,7 +308,23 @@ pub fn argument_gate(
 
     for (idx, text) in positionals.iter().enumerate() {
         let at = (idx + 1).to_string();
-        let candidates: Vec<&&ArgumentRow> = rows.iter().filter(|r| r.at == at).collect();
+        let mut candidates: Vec<&&ArgumentRow> = rows.iter().filter(|r| r.at == at).collect();
+        if candidates.is_empty() {
+            // A VARIADIC positional row (`group_by`'s own `*fields` —
+            // syntax.bluebook's own `Argument.variadic` column comment)
+            // repeats for every position beyond its own declared `at`,
+            // the same "one row spells the kind of many" shape that
+            // column documents for `one_of`'s Type-context row too
+            // (which never reaches this gate at all — its own repetition
+            // is hand-parsed inside a nested Type-position expression,
+            // `resolve_type_expression`). `group_by`'s repetition has to
+            // survive THIS gate directly, since it's an ordinary
+            // top-level call, hence the explicit `variadic: "true"` flag
+            // rather than an inferred one.
+            if let Some(row) = rows.iter().find(|r| r.variadic == "true") {
+                candidates.push(row);
+            }
+        }
         if candidates.is_empty() {
             return Err(Diagnostic::new(
                 file,
@@ -734,17 +769,45 @@ pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
 /// declared rows). Position 2 (the type) defaults to `String` when
 /// absent, matching `attribute(name, type = String, ...)`'s own Ruby
 /// default.
-pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &ArgumentGateResult) -> ParseResult<ir::Attribute> {
+///
+/// Returns the attribute alongside an OPTIONAL synthesized closed-set
+/// value object (`Some` only when the type position was an inline
+/// `one_of(...)`) — see `resolve_type_expression`'s own header for why
+/// this is always RETURNED but only sometimes KEPT: only
+/// `parse::aggregate`'s own caller folds it into the owning aggregate's
+/// `value_objects`; every other caller (`parse::command`/`parse::query`/
+/// `parse::value_object`/`parse::domain_port`) discards it, mirroring
+/// `AttributeCollector#synthesise_closed_set`'s own callers exactly
+/// (`build/closed_sets.rs`'s own header names each one by name).
+/// The RAW text of a `source`-shaped body, regardless of which of the two
+/// legal spellings wrote it — `{ ... }` (`Opener::BraceBlock`, already
+/// captured by the lexer at classify-time) or `do ... end`
+/// (`Opener::DoBlock`, needing `lex::capture_do_block_body` to consume
+/// the raw lines up to the matching `end` — `body_gate`'s own comment
+/// explains why BOTH are legal for the same declared `source` row).
+/// Shared by every `source`-shaped word this parser builds real IR for —
+/// `identified_by`'s block form (`parse::aggregate`), `given`
+/// (`parse::command`), `invariant` (`parse::value_object`) — so a future
+/// one (`ensures`) gets the identical two-spelling handling for free.
+pub(crate) fn source_body_text(file: &str, lines: &[SourceLine], pos: &mut usize, opener: &Opener) -> ParseResult<String> {
+    match opener {
+        Opener::BraceBlock { body } => Ok(body.clone()),
+        Opener::DoBlock { .. } => lex::capture_do_block_body(file, lines, pos),
+        Opener::None => unreachable!("body_gate only ever admits BraceBlock/DoBlock for a `source`-bodied row"),
+    }
+}
+
+pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &ArgumentGateResult) -> ParseResult<(ir::Attribute, Option<ir::ValueObject>)> {
     let name = positional_symbol(file, line, word, args, 1)?;
-    let (type_name, list) = match args.positional.iter().find(|(idx, _)| *idx == 2) {
-        None => ("String".to_string(), false),
-        Some((_, text)) => resolve_type_expression(file, line, word, text)?,
+    let (type_name, list, closed_set) = match args.positional.iter().find(|(idx, _)| *idx == 2) {
+        None => ("String".to_string(), false, None),
+        Some((_, text)) => resolve_type_expression(file, line, word, &name, text)?,
     };
     let default = named_raw(args, "default").map(ruby_value::read);
     let optional = named_flag(args, "optional");
     let pattern = named_text(args, "pattern");
     let admits = named_text(args, "admits");
-    Ok(ir::Attribute { name, type_name, list, default, optional, pattern, admits })
+    Ok((ir::Attribute { name, type_name, list, default, optional, pattern, admits }, closed_set))
 }
 
 /// An attribute's own TYPE POSITION — almost always a bare constant
@@ -753,12 +816,19 @@ pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &Argume
 /// that reads as a CALL, not a bareword. `type_context_call_word` already
 /// widened `classify_lexical_kind` to accept this at the argument-gate
 /// level; this is where the call actually gets unwrapped into
-/// `(inner_type, list: true)`. `one_of(...)` is the type-position's other
-/// live word (same `Type` context) but is not exercised anywhere in
-/// pizzas.bluebook (its one closed set, `Size`, is a hand-written sibling
-/// `value_object`, not this inline shorthand) — left to fail closed with
-/// a named not-yet-implemented diagnostic rather than guessed at.
-fn resolve_type_expression(file: &str, line: usize, word: &str, text: &str) -> ParseResult<(String, bool)> {
+/// `(inner_type, list: true)`.
+///
+/// `one_of(...)` is the type-position's other live word (same `Type`
+/// context) — STAGE 3: real, confirmed by console_settings.bluebook's
+/// own `StateStyle.tone`/`Collection.identity_strategy`
+/// (`attribute :tone, one_of("good", "warn", "danger", "muted",
+/// "accent"), optional: true`). Desugars exactly like
+/// `AttributeCollector#synthesise_closed_set`: the field's own name
+/// (`field_name`) becomes the synthesized value object's Pascal-cased
+/// name (`build/closed_sets.rs`), and the attribute's own type is that
+/// name — the VALUE OBJECT itself is handed back to the caller, which
+/// decides whether to keep it (see `build_attribute`'s own header).
+fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str, text: &str) -> ParseResult<(String, bool, Option<ir::ValueObject>)> {
     let trimmed = text.trim();
     match type_context_call_word(trimmed) {
         Some("list_of") => {
@@ -767,10 +837,27 @@ fn resolve_type_expression(file: &str, line: usize, word: &str, text: &str) -> P
             if classify_lexical_kind(inner) != "constant" {
                 return Err(Diagnostic::new(file, line, format!("'{word}'s list_of(...) must hold a constant type name, got '{inner}'")));
             }
-            Ok((inner.to_string(), true))
+            Ok((inner.to_string(), true, None))
+        }
+        Some("one_of") => {
+            let open = trimmed.find('(').expect("type_context_call_word already confirmed a '('");
+            let inner = &trimmed[open + 1..trimmed.len() - 1];
+            let values: Vec<String> = ruby_value::split_items(inner)
+                .into_iter()
+                .map(|segment| match ruby_value::read(segment.trim()) {
+                    ruby_value::Value::Str(s) => s,
+                    other => ruby_value::to_s(&other),
+                })
+                .collect();
+            if values.is_empty() {
+                return Err(Diagnostic::new(file, line, format!("'{word}'s inline one_of(...) names no values")));
+            }
+            let vo = crate::build::closed_sets::synthesize(field_name, &values);
+            let type_name = vo.name.clone();
+            Ok((type_name, false, Some(vo)))
         }
         Some(other) => Err(Diagnostic::not_yet_implemented(file, line, format!("{word}'s inline {other}(...) type"))),
-        None => Ok((trimmed.to_string(), false)),
+        None => Ok((trimmed.to_string(), false, None)),
     }
 }
 

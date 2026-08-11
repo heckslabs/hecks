@@ -14,7 +14,7 @@
 //! pizzas.bluebook (one file) and is refused outright here rather than
 //! silently merged wrong.
 
-use super::{aggregate, policy};
+use super::{aggregate, policy, read_model};
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, SourceLine};
@@ -88,9 +88,11 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 
 /// Parses a `Hecks.bluebook "Name" do ... end` body — `vision`/
 /// `core`/`supporting`/`generic`/`aggregate`/`policy`, the words
-/// pizzas.bluebook actually uses at chapter scope. `formerly_known_as`,
-/// `report`/`read_model`, and `process_manager` are declared but not
-/// exercised — still fall through to `not_built_yet`.
+/// pizzas.bluebook actually uses at chapter scope, plus `report`/
+/// `read_model` (STAGE 3 — console_settings.bluebook's own `Styles`/
+/// `Curated`). `formerly_known_as` and `process_manager` are declared but
+/// not exercised by any of the three framework bluebooks — still fall
+/// through to `not_built_yet`.
 fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::Bluebook> {
     let mut bluebook = ir::Bluebook { name: name.to_string(), ..Default::default() };
 
@@ -112,6 +114,10 @@ fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> 
             "policy" => {
                 let pol_name = super::positional_text(file, line, "policy", &gated.args, 1)?;
                 bluebook.policies.push(policy::parse_body(file, lines, pos, &pol_name)?);
+            }
+            "report" => {
+                let rm_name = super::positional_text(file, line, "report", &gated.args, 1)?;
+                bluebook.read_models.push(read_model::parse_body(file, lines, pos, &rm_name)?);
             }
             _ => return Err(super::not_built_yet("Bluebook", gated.row, file, line, &gated.call.word)),
         }

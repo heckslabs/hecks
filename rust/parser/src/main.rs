@@ -158,15 +158,24 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// `spec/parser_coverage_spec.rb` to compare against `syntax.bluebook`'s
 /// own declared set (minus a shrinking, itemized allowlist).
 ///
-/// STAGE 2: every pair listed here is a word this parser genuinely turns
-/// into real `ir::*` fields for pizzas.bluebook's own real usage of it —
+/// Every pair listed here is a word this parser genuinely turns into real
+/// `ir::*` fields for some real corpus member's own real usage of it —
 /// confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparison
-/// against Ruby's own `ir.json` for `Pizzas`, not just "the word gates
-/// cleanly." A word this crate merely GATES but doesn't build real IR
-/// for (e.g. `identified_by`'s bare-field form, `entity`, `report`) stays
-/// off this list — reporting it here would be exactly the kind of claim
-/// this whole plan exists to make impossible. Grouped by construct, in
-/// the same order `parse::mod::dispatch_stub` maps contexts.
+/// against Ruby's own `ir.json`, not just "the word gates cleanly." A
+/// word this crate merely GATES but doesn't build real IR for (e.g.
+/// `identified_by`'s bare-field form, `entity`) stays off this list —
+/// reporting it here would be exactly the kind of claim this whole plan
+/// exists to make impossible. Grouped by construct, in the same order
+/// `parse::mod::dispatch_stub` maps contexts.
+///
+/// STAGE 2 built the first block (pizzas.bluebook). STAGE 3 adds the
+/// entries marked below — the framework trio's own multi-path
+/// `identified_by` (no NEW word; still just `("identified_by",
+/// "Aggregate")`, now covering its SOURCE form too, not only the
+/// bare-TYPE form), inline `one_of(...)` attribute types (also no new
+/// word — `one_of`'s Type-context row was already declared, just not
+/// exercised), `description`/`report`/`include`/`group_by` for
+/// `ReadModel`, and `description` for `Query`.
 const COVERED_PAIRS: &[(&str, &str)] = &[
     ("bluebook", "File"),
     ("hecksagon", "File"),
@@ -183,6 +192,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("lifecycle", "Aggregate"),
     ("query", "Aggregate"),
     ("command", "Aggregate"),
+    ("reference_to", "Aggregate"), // STAGE 3
     ("role", "Command"),
     ("goal", "Command"),
     ("reference_to", "Command"),
@@ -195,6 +205,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("invariant", "ValueObject"),
     ("member", "OneOf"),
     ("transition", "Lifecycle"),
+    ("description", "Query"), // STAGE 3
     ("attribute", "Query"),
     ("where", "Query"),
     ("order_by", "Query"),
@@ -205,6 +216,10 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
     ("emits", "PortOperation"),
+    ("report", "Bluebook"),       // STAGE 3
+    ("description", "ReadModel"), // STAGE 3
+    ("include", "ReadModel"),     // STAGE 3
+    ("group_by", "ReadModel"),    // STAGE 3
 ];
 
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {

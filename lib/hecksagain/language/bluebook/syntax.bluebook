@@ -545,6 +545,21 @@ Hecks.bluebook "Bluebook" do
       attribute :pair_value_fills, String
       attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
       attribute :status,   String, default: "admitted", admits: "Syntax::Status"
+      # A REPEATABLE POSITIONAL — the one row spells the kind of MANY,
+      # the same shape `one_of`'s own Type-context row already documents
+      # ("`one_of("small", "large")` takes any number of literals. The
+      # row below spells the kind of one.") in a comment alone, since
+      # that word's own repetition is hand-parsed inside a nested
+      # Type-position expression and never reaches the generic argument
+      # gate at all. `group_by`'s own `*fields` (ReadModelBuilder#
+      # group_by) is a DIFFERENT case — a normal top-level call, so its
+      # repetition has to survive the SAME gate `at: "1"`/`at: "2"`
+      # fixed-position rows already enforce for everything else — which
+      # is what this column is for: `"true"` on a SINGLE `at: "1"` row
+      # means every positional from 1 onward is checked against that
+      # one row's own `kind`, not just the first. Empty (not variadic)
+      # for every other argument, which is every one of them but this.
+      attribute :variadic,  String
 
       one_of do
         member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
@@ -761,6 +776,17 @@ Hecks.bluebook "Bluebook" do
         member keyword: "reference_to",    context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "reference_name"
         member keyword: "include",         context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "aggregate"
         member keyword: "include",         context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "as"
+        # VARIADIC — `group_by :agg, :state` (ReadModelBuilder#group_by,
+        # `def group_by(*fields)`) names any number of bare symbol
+        # fields, not just one. `variadic: "true"` is this table's own
+        # column for exactly that shape (see `Argument`'s own comment on
+        # it, above) — confirmed real, not hypothetical:
+        # console_settings.bluebook's `Styles` report groups by TWO
+        # fields (`:agg, :state`), `Curated` by one (`:agg`), and
+        # banking.bluebook's own `Account` report groups by two more
+        # (`:kind, :number`) — a fixed `at: "1"`/`at: "2"` pair would
+        # have papered over the real cardinality rather than declaring it.
+        member keyword: "group_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "group_by", variadic: "true"
         member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
         member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
         member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"

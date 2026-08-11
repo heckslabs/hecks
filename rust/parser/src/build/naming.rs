@@ -70,9 +70,40 @@ pub fn pascal(text: &str) -> String {
         .collect()
 }
 
+/// `Hecksagain::Naming.plural` — the name a COLLECTION of something
+/// takes, e.g. a read model's own many-side `include` head
+/// (`ReadModelBuilder#add_aggregate_head`, `build/read_model.rs`) when no
+/// `as:` is given: `"state_style" -> "state_styles"`, `"collection" ->
+/// "collections"`. Three suffix rules, tried in order — `snake(target)`
+/// is already applied by the caller before this runs, matching Ruby's own
+/// `plural(snake(target))` call shape.
+pub fn plural(text: &str) -> String {
+    if text.len() > 1 {
+        let last = &text[text.len() - 1..];
+        let before_last = text.chars().rev().nth(1);
+        if last == "y" && !matches!(before_last, Some('a' | 'e' | 'i' | 'o' | 'u')) {
+            return format!("{}ies", &text[..text.len() - 1]);
+        }
+    }
+    for suffix in ["s", "x", "z", "ch", "sh"] {
+        if text.ends_with(suffix) {
+            return format!("{text}es");
+        }
+    }
+    format!("{text}s")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pluralizes_a_read_model_head_name() {
+        assert_eq!(plural("state_style"), "state_styles");
+        assert_eq!(plural("collection"), "collections");
+        assert_eq!(plural("company"), "companies");
+        assert_eq!(plural("box"), "boxes");
+    }
 
     #[test]
     fn snakes_a_pascal_type_name() {

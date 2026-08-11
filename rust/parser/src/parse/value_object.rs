@@ -3,14 +3,15 @@
 //! `ValueObjectBuilder` answers both in Ruby (`one_of` `instance_eval`s
 //! its block on the builder itself, so the two contexts are one Ruby
 //! object; see `spec/syntax_conformance_spec.rb`'s own `BUILDER` table).
-//! Stage 2+ work: `invariant` source-body capture, and `member` rows
-//! (`build/closed_sets.rs`) — an open map of pairs, captured verbatim per
-//! `PairsShape::verbatim`.
+//! `invariant` admits BOTH `source` spellings (`{ ... }` and
+//! `do ... end` — `parse::mod::source_body_text`'s own header explains
+//! why), and `member` rows (`build/closed_sets.rs`) — an open map of
+//! pairs, captured verbatim per `PairsShape::verbatim`.
 
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
-use crate::lex::{Opener, SourceLine};
+use crate::lex::SourceLine;
 use crate::ruby_value;
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
@@ -27,13 +28,16 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
         };
 
         match gated.row.word {
-            "attribute" => vo.attributes.push(super::build_attribute(file, gated.line.number, "attribute", &gated.args)?),
+            // A synthesized inline `one_of(...)` closed set is discarded
+            // here on purpose — see `build/closed_sets.rs`'s own header;
+            // `ValueObjectBuilder#build` never reads `closed_sets` either
+            // (nor could it hold one: `IR::ValueObject.declare` has no
+            // nested-value-objects field at all).
+            "attribute" => vo.attributes.push(super::build_attribute(file, gated.line.number, "attribute", &gated.args)?.0),
             "invariant" => {
                 let description = super::positional_text(file, gated.line.number, "invariant", &gated.args, 1)?;
-                let Opener::BraceBlock { body } = &gated.call.opener else {
-                    return Err(Diagnostic::new(file, gated.line.number, "'invariant' requires a { ... } predicate body"));
-                };
-                vo.invariants.push(ir::Given { description: Some(description), canonical: canonical::apply(body) });
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                vo.invariants.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
             }
             "one_of" => {
                 vo.closed_set = true;

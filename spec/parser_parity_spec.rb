@@ -9,18 +9,21 @@ require "open3"
 # example/grammar-chapter/framework member is covered here automatically.
 #
 # STAGE 1 left every real corpus member PENDING — the parser built no IR
-# at all yet. STAGE 2 shrinks PENDING_MEMBERS by exactly one
+# at all yet. STAGE 2 shrunk PENDING_MEMBERS by exactly one
 # (`pizzas.bluebook` + its `.hecksagon`, ~60% of the language surface in
-# one small file — the plan's own deliberately-first target) and adds a
+# one small file — the plan's own deliberately-first target) and added a
 # REAL byte-exact assertion for it in REAL_PARITY_MEMBERS below: shell out
 # to `hecks-parse chapter --chapter Pizzas <bluebook> <hecksagon>` and
 # compare the stdout JSON, byte for byte, against Ruby's own
 # `JSON.pretty_generate(Exporter.call(...))` for the SAME two files loaded
 # the same order `bin/project_rust` itself loads them (`.bluebook` first,
 # registering every aggregate; `.hecksagon` second, mutating those
-# already-registered aggregates' own `ports`). Every other corpus member
-# stays pending, untouched, for a later stage. By Stage 6 both tables are
-# empty.
+# already-registered aggregates' own `ports`). STAGE 3 does the identical
+# thing for the framework trio — `identity.bluebook`/`governance.bluebook`/
+# `console_settings.bluebook`, each standing alone (no `.hecksagon` of its
+# own — see REAL_PARITY_MEMBERS' own comment on why). Every other corpus
+# member stays pending, untouched, for a later stage. By Stage 6 both
+# tables are empty.
 #
 # A parse error for anything OUTSIDE the pending list — or a PENDING
 # member that no longer fails the way its own reason says it should, or a
@@ -76,41 +79,40 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   ).reject { |_stem, path| path.nil? }.freeze
 
   # EVERY MEMBER WAS PENDING AT STAGE 1, each with the SAME honest reason.
-  # STAGE 2 removes "pizzas" — it now has a REAL byte-match assertion
-  # instead (REAL_PARITY_MEMBERS below) — named per-member (not one
-  # blanket comment) so a future stage's own shrinkage is a visible diff:
-  # Stage 3 removes the framework trio next, and so on, ending empty at
-  # Stage 6.
-  PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) - %w[pizzas])
+  # STAGE 2 removed "pizzas" — it got a REAL byte-match assertion instead
+  # (REAL_PARITY_MEMBERS below). STAGE 3 removes the framework trio
+  # ("identity", "governance", "console_settings") the SAME way — named
+  # per-member (not one blanket comment) so a future stage's own
+  # shrinkage is a visible diff: Stage 4 removes "banking" next, and so
+  # on, ending empty at Stage 6.
+  #
+  # "expression" and "translation" ALSO come out here, a genuine bonus
+  # this stage did not set out to build: they're `PARITY_GRAMMAR_CHAPTERS`
+  # members (Stage 5's own named target), but Stage 3's own REQUIRED
+  # shared-gate fixes — `given`/`invariant` admitting a `do ... end`
+  # spelling (not just `{ }`, `parse::mod::source_body_text`), and an
+  # AGGREGATE-level `reference_to` (identity.bluebook's own
+  # `ExternalIdentifier`) — happened to be exactly what both grammar
+  # chapters were ALSO waiting on, and nothing else. Confirmed byte-exact
+  # against Ruby's own `ir.json` before being moved here, the identical
+  # discipline every other REAL_PARITY_MEMBERS entry gets — leaving them
+  # marked "pending: not yet implemented" once they demonstrably are
+  # would be exactly the kind of false claim this whole harness exists to
+  # make impossible, so they're promoted rather than left stale.
+  PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) - %w[pizzas identity governance console_settings expression translation])
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
-  # A PENDING member's own expected diagnostic — "not yet implemented"
-  # for every member EXCEPT the two named below, which now surface a
-  # DIFFERENT, genuinely earlier gate failure than Stage 1 ever reached.
-  # This is a real finding, not a Stage 2 regression: pizzas.bluebook's
-  # own real fixes to the SHARED gates (`word_gate`'s `was:` alias —
-  # `then_set`/`sets` — and `kind_matches`'s "literal accepts pairs/list
-  # too" widening, both required for pizzas.bluebook itself, and both
-  # correct independent of which file uses them) let `governance.
-  # bluebook`/`console_settings.bluebook`'s own walks get FURTHER than
-  # Stage 1 ever did, past whatever used to stop them first — and they
-  # now stop instead at `identified_by do ... end`, the MULTI-PATH
-  # block form (`identified_by do actor_id.value; role_name.value; end`,
-  # governance.bluebook:14) written with `do...end` rather than `{ }`.
-  # `syntax.bluebook` only ever declared ONE `source`-shaped row for
-  # `identified_by`, and `lex.rs`'s own `Opener`-to-`body` mapping only
-  # ever treats a `{ ... }` opener as `source`-compatible — never a
-  # `do...end` one, even though Ruby itself accepts either spelling for
-  # a block. That's real, confirmed Stage 3 territory (the plan's own
-  # "multi-path identified_by" line), not pizzas.bluebook's — pizzas
-  # never writes `identified_by` as a block at all (it uses the bare-TYPE
-  # form, `identified_by PizzaName, as: :name`), so fixing this doesn't
-  # belong in this stage's own scope. Named here rather than silently
-  # left to fail the generic assertion below.
-  PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").merge(
-    "governance" => "'identified_by' was written with a `do ... end` block",
-    "console_settings" => "'identified_by' was written with a `do ... end` block"
-  ).freeze
+  # Every remaining PENDING member's own expected diagnostic — plain
+  # "not yet implemented" for every one of them, now that Stage 3 moved
+  # the two members that used to surface a DIFFERENT, earlier gate
+  # failure (`identified_by do ... end`'s multi-path block form — real,
+  # confirmed Stage 3 territory, not a Stage 2 regression) into
+  # REAL_PARITY_MEMBERS below with `parse::aggregate`/`lex.rs` now
+  # actually building it. Kept as a `Hash.new` default (rather than
+  # deleted outright) so a FUTURE stage that finds another member
+  # stopping at a different, real, earlier gate than "not yet
+  # implemented" has the same place to name it Stage 2 already did.
+  PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").freeze
 
   # stem -> [chapter name, files...] — the files fed to `hecks-parse
   # chapter`, IN THE SAME ORDER `bin/project_rust` itself loads them: the
@@ -121,12 +123,40 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   # Derived the SAME way PARITY_CORPUS_MEMBERS itself is (`bluebook_in`/
   # `hecksagon_in`/`chapter_name_of`), not hand-listed, so this stays
   # honest if pizzas.bluebook's own file ever moves.
-  REAL_PARITY_MEMBERS = %w[pizzas].to_h do |stem|
+  REAL_PARITY_MEMBERS = %w[pizzas].to_h { |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
     bluebook = bluebook_in(domain) or raise "#{domain} has no .bluebook"
     chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
     [stem, [chapter_name, [bluebook, hecksagon_in(domain)].compact]]
-  end.freeze
+  }.merge(
+    # THE FRAMEWORK TRIO — STAGE 3. A framework bluebook has no
+    # `.hecksagon` of its own (confirmed by reading
+    # lib/hecksagain/framework/bluebook/ directly — three `.bluebook`
+    # files, zero `.hecksagon` siblings): the comparison target is
+    # `hecks-parse chapter --chapter <Name> <bluebook>` standing alone,
+    # no `uses_framework`/`resolve` multi-file step needed (that
+    # mechanism only matters for a CONSUMING app's own `.hecksagon`,
+    # e.g. banking.hecksagon's real `uses_framework "Governance"` —
+    # Stage 4 territory, confirmed by grepping the whole corpus: pizzas
+    # never uses it, banking does).
+    %w[identity governance console_settings].to_h { |stem|
+      bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
+        raise "no lib/hecksagain/framework/bluebook/#{stem}.bluebook"
+      chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+      [stem, [chapter_name, [bluebook]]]
+    }
+  ).merge(
+    # THE BONUS — "expression"/"translation", see PENDING_MEMBERS' own
+    # comment on why these two `PARITY_GRAMMAR_CHAPTERS` members (Stage
+    # 5's own named target) are here already. Same standalone shape as
+    # the framework trio: a grammar chapter has no `.hecksagon` either.
+    %w[expression translation].to_h { |stem|
+      bluebook = PARITY_GRAMMAR_CHAPTERS.find { |path| File.basename(path, ".bluebook") == stem } or
+        raise "no lib/hecksagain/grammar/#{stem}.bluebook"
+      chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+      [stem, [chapter_name, [bluebook]]]
+    }
+  ).freeze
 
   def self.run_chapter(chapter_name, *paths)
     Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, *paths)

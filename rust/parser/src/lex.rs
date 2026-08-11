@@ -425,6 +425,62 @@ pub fn strip_aggregate_receiver(text: &str) -> Option<(&str, &str)> {
     Some((&text[..i], rest))
 }
 
+/// Captures a `do ... end` block's own RAW body text — the SAME
+/// `source`-shaped meaning `Opener::BraceBlock`'s own captured `body`
+/// already carries for a `{ ... }` spelling of the IDENTICAL semantic
+/// block (`identified_by`'s two spellings both declare exactly the same
+/// `source` row in syntax.bluebook, `body_gate` above admits both openers
+/// for it — see that function's own comment). Starts at `*pos` (already
+/// past the opening `do` line, which the caller's own `next_line`/
+/// `argument_gate` already consumed and gated), reads raw physical lines
+/// — already comment-stripped and per-line-trimmed by `lines()` — up to
+/// and including the matching `end`, joining every line but that final
+/// `end` with a single space. NEVER gated against `KEYWORDS`, NEVER
+/// interpreted — exactly the same "captured as raw text and
+/// canonicalized, never interpreted" discipline `given`/`invariant`/a
+/// brace-spelled `identified_by { }` already get via `canonical::apply`
+/// (the caller's own job, not this function's). Tracks nesting depth
+/// TEXTUALLY (a stray `do ... end` written INSIDE the body — not real
+/// syntax anywhere in this codebase today — doesn't stop early at its own
+/// inner `end`), the same defensive discipline `find_top_level_brace`/
+/// `matching_brace_body` already apply to a brace-spelled body.
+pub fn capture_do_block_body<'a>(file: &str, lines: &[SourceLine<'a>], pos: &mut usize) -> Result<String, Diagnostic> {
+    let mut depth: i32 = 0;
+    let mut parts: Vec<&'a str> = Vec::new();
+
+    loop {
+        let line = *lines.get(*pos).ok_or_else(|| {
+            let last = lines.last().map(|l| l.number).unwrap_or(0);
+            Diagnostic::new(file, last, "unexpected end of file — still inside a `do ... end` block".to_string())
+        })?;
+        *pos += 1;
+
+        if line.text == "end" {
+            if depth == 0 {
+                return Ok(parts.join(" "));
+            }
+            depth -= 1;
+            parts.push(line.text);
+            continue;
+        }
+        if opens_a_do_block(line.text) {
+            depth += 1;
+        }
+        parts.push(line.text);
+    }
+}
+
+/// A purely TEXTUAL "does this line open a `do` block" check — deliberately
+/// NOT `classify`/`split_opener` (those enforce the closed word-call shape
+/// this captured body is explicitly exempt from; raw source text inside a
+/// `source`-shaped body can be anything). Mirrors `trailing_do`'s own three
+/// shapes (`... do`, bare `do`, `... do |params|`) against a WHOLE line
+/// rather than a call's own already-word-stripped `rest`.
+fn opens_a_do_block(text: &str) -> bool {
+    let trimmed = text.trim_end();
+    trimmed == "do" || trimmed.ends_with(" do") || (trimmed.ends_with('|') && trimmed.contains(" do "))
+}
+
 fn strip_balanced_parens(text: &str) -> &str {
     if text.starts_with('(') && text.ends_with(')') && text.len() >= 2 {
         let inner = &text[1..text.len() - 1];
@@ -578,6 +634,22 @@ mod tests {
                 opener: Opener::BraceBlock { body: "name.value".to_string() }
             })
         );
+    }
+
+    #[test]
+    fn captures_a_multi_line_do_block_body_as_raw_text() {
+        // governance.bluebook's own `RoleAssignment` — multi-path
+        // `identified_by do ... end`.
+        let source = "identified_by do\n  actor_id.value\n  role_name.value\n  starts_at.value\nend\nattribute :actor_id, IdentityId\n";
+        let got = lines(source);
+        // got[0] is the `identified_by do` line itself — the caller
+        // consumes that via `next_line`/`argument_gate` before calling
+        // `capture_do_block_body`, so this test starts at index 1.
+        let mut pos = 1usize;
+        let body = capture_do_block_body("f.bluebook", &got, &mut pos).unwrap();
+        assert_eq!(body, "actor_id.value role_name.value starts_at.value");
+        // `*pos` landed past the `end` line, at the next real line.
+        assert_eq!(got[pos].text, "attribute :actor_id, IdentityId");
     }
 
     #[test]

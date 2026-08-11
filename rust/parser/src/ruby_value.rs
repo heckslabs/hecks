@@ -207,9 +207,22 @@ fn read_array(raw: &str) -> Value {
 }
 
 /// Split on the commas that are actually SEPARATORS — never one inside a
-/// quoted string or a nested brace/bracket. The exact algorithm
-/// `Hecksagain::Literal.split_items` uses, character-scanned rather than a
-/// naive `split(",")` that would tear a quoted `"a, b"` in half.
+/// quoted string or a nested brace/bracket/paren. The same algorithm
+/// `Hecksagain::Literal.split_items` uses for Hash/Array LITERAL bodies
+/// (character-scanned rather than a naive `split(",")` that would tear a
+/// quoted `"a, b"` in half), WIDENED here to also track `(`/`)` depth —
+/// `Literal.split_items` itself never needs to, since Ruby parses its own
+/// real call arguments natively and only ever hands that method an
+/// already-known Hash/Array literal's inner text. This crate reuses the
+/// same function for a SECOND job Ruby never needs a hand-rolled splitter
+/// for at all: splitting a whole CALL's raw argument-list text
+/// (`argument_gate`'s own `segments`), which can itself contain a nested
+/// call (`attribute :tone, one_of("good", "warn", "danger", "muted",
+/// "accent"), optional: true` — confirmed real,
+/// console_settings.bluebook's own `StateStyle.tone`). Without paren
+/// tracking, `one_of(...)`'s own internal commas would be mistaken for
+/// top-level separators of the OUTER `attribute` call and tear it into
+/// seven segments instead of three.
 pub fn split_items(body: &str) -> Vec<String> {
     let mut items = Vec::new();
     let mut current = String::new();
@@ -234,10 +247,10 @@ pub fn split_items(body: &str) -> Vec<String> {
         if quoting {
             continue;
         }
-        if ch == '{' || ch == '[' {
+        if ch == '{' || ch == '[' || ch == '(' {
             depth += 1;
         }
-        if ch == '}' || ch == ']' {
+        if ch == '}' || ch == ']' || ch == ')' {
             depth -= 1;
         }
         if ch == ',' && depth == 0 {
@@ -295,5 +308,21 @@ mod tests {
     fn splits_only_top_level_commas() {
         assert_eq!(split_items("\"a, b\", 1"), vec!["\"a, b\"".to_string(), "1".to_string()]);
         assert_eq!(split_items("{a: 1, b: 2}, 3"), vec!["{a: 1, b: 2}".to_string(), "3".to_string()]);
+    }
+
+    #[test]
+    fn does_not_split_commas_nested_inside_a_call_s_own_parens() {
+        // `attribute :tone, one_of("good", "warn", "danger", "muted",
+        // "accent"), optional: true` — confirmed real,
+        // console_settings.bluebook's own StateStyle.tone. Without paren
+        // tracking this would split into seven segments, not three.
+        assert_eq!(
+            split_items(":tone, one_of(\"good\", \"warn\", \"danger\", \"muted\", \"accent\"), optional: true"),
+            vec![
+                ":tone".to_string(),
+                "one_of(\"good\", \"warn\", \"danger\", \"muted\", \"accent\")".to_string(),
+                "optional: true".to_string(),
+            ]
+        );
     }
 }

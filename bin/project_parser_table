@@ -43,7 +43,7 @@ module ParserTableProjection
 
   KEYWORD_FIELDS  = %i[word context body inner opens fills status was].freeze
   ARGUMENT_FIELDS = %i[keyword context at named kind required fills selects
-                       pair_key_fills pair_value_fills pairs_shape status].freeze
+                       pair_key_fills pair_value_fills pairs_shape status variadic].freeze
 
   # A Rust string literal for one field's value — every field here is
   # plain ASCII (a word, a context name, a digit, "true"/"false"), so this
@@ -107,6 +107,7 @@ module ParserTableProjection
           pub pair_value_fills: &'static str,
           pub pairs_shape: &'static str,
           pub status: &'static str,
+          pub variadic: &'static str,
       }
 
       impl KeywordRow {

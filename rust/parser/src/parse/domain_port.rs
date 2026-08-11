@@ -58,7 +58,10 @@ fn parse_operation_body(file: &str, lines: &[SourceLine], pos: &mut usize, name:
         let line = gated.line.number;
 
         match gated.row.word {
-            "attribute" => operation.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?),
+            // A synthesized inline `one_of(...)` closed set is discarded
+            // here on purpose — see `build/closed_sets.rs`'s own header;
+            // `DomainPortBuilder#build` never reads `closed_sets` either.
+            "attribute" => operation.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
             "emits" => operation.emits.push(super::positional_text(file, line, "emits", &gated.args, 1)?),
             "reference_to" => {
                 let target_raw = super::positional_constant(file, line, "reference_to", &gated.args, 1)?;

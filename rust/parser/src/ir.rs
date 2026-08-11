@@ -179,6 +179,20 @@ pub struct ValueObject {
     pub members: Vec<Vec<(String, String)>>, // each member: ordered (field, text-value) pairs
 }
 
+/// `ReadModelBuilder#add_aggregate_head`'s own row shape
+/// (`{aggregate:, as:, many:}`, Ruby Hash insertion order) — `many` is a
+/// real Boolean on the wire (`IR::ReadModel#to_h`'s own `head.merge(as:
+/// head[:as].to_s)` re-stringifies only `as`, never `many`), so this is a
+/// typed struct rather than the generic `BTreeMap<String, String>` an
+/// all-string open map would need to fake a bare JSON `true`/`false`
+/// through.
+#[derive(Debug, Clone)]
+pub struct AggregateHead {
+    pub aggregate: String,
+    pub as_name: String,
+    pub many: bool,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ReadModel {
     pub name: String,
@@ -186,8 +200,12 @@ pub struct ReadModel {
     pub reference_name: Option<String>,
     pub reference_target: Option<String>,
     pub query_name: String,
-    pub aggregate_heads: Vec<BTreeMap<String, String>>,
-    pub group_by: Vec<BTreeMap<String, String>>,
+    pub aggregate_heads: Vec<AggregateHead>,
+    // `ReadModelBuilder#group_by`'s own `{field: field.to_sym}` rows have
+    // exactly one key — a bare `Vec<String>` of field names carries the
+    // same information with no loss, and `read_model_json` re-wraps each
+    // one into its own `{"field": ...}` object at emit time.
+    pub group_by: Vec<String>,
     pub extra_options: BTreeMap<String, String>,
 }
 

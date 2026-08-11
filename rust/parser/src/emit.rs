@@ -315,11 +315,14 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
     ])
 }
 
-/// `IR::ReadModel#to_h` (lib/hecksagain/bluebook/ir/read_model.rb). NOT
-/// exercised — pizzas.bluebook declares no `report`/`read_model` (see
-/// `parse::read_model`'s own still-stubbed header) — `bb.read_models` is
-/// always empty for this stage, same "unreachable but must type-check"
-/// basis as `entity_json` above.
+/// `IR::ReadModel#to_h` (lib/hecksagain/bluebook/ir/read_model.rb). STAGE
+/// 3: `report`/`read_model` (`console_settings.bluebook`'s own `Styles`/
+/// `Curated`) — `wheres`/`order_by`/`limit` stay hardcoded to their
+/// always-empty/nil shape since no read model this parser builds yet
+/// declares any (`parse::read_model` refuses `reference_to`/`where`/
+/// `order_by`/... as not-yet-implemented) — real for `include`/
+/// `group_by`/`description`, which both of console_settings.bluebook's
+/// reports actually exercise.
 fn read_model_json(r: &ir::ReadModel) -> JsonValue {
     let mut pairs = vec![
         ("name".to_string(), JsonValue::str(r.name.clone())),
@@ -332,11 +335,22 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
         ("limit".to_string(), JsonValue::Null),
         (
             "aggregate_heads".to_string(),
-            JsonValue::Array(r.aggregate_heads.iter().map(|head| JsonValue::Object(head.iter().map(|(k, v)| (k.clone(), JsonValue::str(v.clone()))).collect())).collect()),
+            JsonValue::Array(
+                r.aggregate_heads
+                    .iter()
+                    .map(|head| {
+                        JsonValue::Object(vec![
+                            ("aggregate".to_string(), JsonValue::str(head.aggregate.clone())),
+                            ("as".to_string(), JsonValue::str(head.as_name.clone())),
+                            ("many".to_string(), JsonValue::Bool(head.many)),
+                        ])
+                    })
+                    .collect(),
+            ),
         ),
         (
             "group_by".to_string(),
-            JsonValue::Array(r.group_by.iter().map(|row| JsonValue::Object(row.iter().map(|(k, v)| (k.clone(), JsonValue::str(v.clone()))).collect())).collect()),
+            JsonValue::Array(r.group_by.iter().map(|field| JsonValue::Object(vec![("field".to_string(), JsonValue::str(field.clone()))])).collect()),
         ),
     ];
     for (key, value) in &r.extra_options {

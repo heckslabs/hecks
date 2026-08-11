@@ -28,14 +28,17 @@ fn run(args: &[&str]) -> Output {
 fn still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct() {
     // STILL genuinely not built: `aggregate.bluebook` exercises
     // `identified_by`'s bare-FIELD form specifically (`identified_by
-    // :name`, not the bare-TYPE form pizzas.bluebook uses and
-    // `build/identity.rs` now resolves), and `entity`/`report`
-    // (ReadModel)/`process_manager` have no `parse::*::parse_body` of
-    // their own yet at all.
+    // :name`, not the bare-TYPE form pizzas.bluebook uses, nor the
+    // SOURCE/block form governance.bluebook/console_settings.bluebook use
+    // and `build/identity.rs`/`parse::aggregate` now resolve), and
+    // `entity`/`process_manager` have no `parse::*::parse_body` of their
+    // own yet at all. `report`/ReadModel moved to
+    // `now_implemented_fixtures_parse_for_real` below — STAGE 3 taught
+    // `parse::read_model` to build real IR for `description`/`include`/
+    // `group_by`.
     let cases: &[(&str, &str, &str)] = &[
         ("aggregate.bluebook", "FixtureAggregate", "Aggregate"),
         ("entity.bluebook", "FixtureEntity", "Entity"),
-        ("read_model.bluebook", "FixtureReadModel", "ReadModel"),
         ("process_manager.bluebook", "FixtureProcessManager", "ProcessManager"),
     ];
 
@@ -58,11 +61,19 @@ fn still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct() {
 #[test]
 fn now_implemented_fixtures_parse_for_real() {
     // Stage 2 taught `parse::command`/`parse::query`/`parse::value_object`/
-    // `parse::policy`/`parse::lifecycle` to build real IR — these five
-    // fixtures (unlike the ones above) now succeed outright: exit 0, and
-    // stdout is real, non-empty `ir.json`, not a diagnostic.
-    let cases: &[(&str, &str)] =
-        &[("command.bluebook", "FixtureCommand"), ("query.bluebook", "FixtureQuery"), ("value_object.bluebook", "FixtureValueObject"), ("policy.bluebook", "FixturePolicy"), ("lifecycle.bluebook", "FixtureLifecycle")];
+    // `parse::policy`/`parse::lifecycle` to build real IR; STAGE 3 adds
+    // `parse::read_model` (`report`'s own `description`/`include`/
+    // `group_by`) — all six fixtures (unlike the ones above) now succeed
+    // outright: exit 0, and stdout is real, non-empty `ir.json`, not a
+    // diagnostic.
+    let cases: &[(&str, &str)] = &[
+        ("command.bluebook", "FixtureCommand"),
+        ("query.bluebook", "FixtureQuery"),
+        ("value_object.bluebook", "FixtureValueObject"),
+        ("policy.bluebook", "FixturePolicy"),
+        ("lifecycle.bluebook", "FixtureLifecycle"),
+        ("read_model.bluebook", "FixtureReadModel"),
+    ];
 
     for (file, chapter) in cases {
         let path = fixture(file);
@@ -137,8 +148,13 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
     assert!(stdout.contains("[\"sets\", \"Command\"]"), "expected sets/Command covered (the canonical spelling, not 'then_set'), got: {stdout}");
     assert!(stdout.contains("[\"where\", \"Query\"]"), "expected where/Query covered, got: {stdout}");
     assert!(stdout.contains("[\"port\", \"Hecksagon\"]"), "expected port/Hecksagon covered, got: {stdout}");
-    // STILL not covered — entity/report/process_manager have no
-    // parse_body of their own yet.
+    // STAGE 3: `report`/ReadModel now has a real `parse::read_model` of
+    // its own (console_settings.bluebook's own `Styles`/`Curated`).
+    assert!(stdout.contains("[\"report\", \"Bluebook\"]"), "expected report/Bluebook covered, got: {stdout}");
+    assert!(stdout.contains("[\"include\", \"ReadModel\"]"), "expected include/ReadModel covered, got: {stdout}");
+    assert!(stdout.contains("[\"group_by\", \"ReadModel\"]"), "expected group_by/ReadModel covered, got: {stdout}");
+    // STILL not covered — entity/process_manager have no parse_body of
+    // their own yet.
     assert!(!stdout.contains("\"Entity\""), "Entity is still Stage 1 — coverage must not overclaim it: {stdout}");
 }
 

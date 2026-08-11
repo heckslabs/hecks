@@ -63,7 +63,11 @@ full `ComplianceDashboard` example.
 ## group_by
 
 <!-- generated:begin word=group_by -->
-`group_by` — fills `group_by`
+`group_by group_by` — fills `group_by`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | group_by |
 <!-- generated:end -->
 
 Nests the eligible collection's own rows into a Hash keyed by one or

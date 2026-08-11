@@ -1,15 +1,18 @@
 //! The `Command` construct (`lib/hecksagain/bluebook/ir/command.rb`) — a
-//! verb declared on an aggregate or entity. Stage 2+ work: `given`/
-//! `ensures` source-body capture through canonical.rs, `sets`' four named
-//! forms (`to`/`append`/`increment`/`decrement`, the op-selection column
-//! `Argument#selects` names), and `emits` list capture.
+//! verb declared on an aggregate or entity. `given` source-body capture
+//! through canonical.rs (BOTH spellings — `{ ... }` and `do ... end`, see
+//! `parse::mod::source_body_text`'s own header), `sets`' four named forms
+//! (`to`/`append`/`increment`/`decrement`, the op-selection column
+//! `Argument#selects` names), and `emits` list capture. `ensures` (the
+//! postcondition sibling of `given`) is declared but not exercised by any
+//! real corpus member yet — still falls through to `not_built_yet`.
 
 use crate::build::naming;
 use crate::build::references;
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
-use crate::lex::{Opener, SourceLine};
+use crate::lex::SourceLine;
 use crate::ruby_value;
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
@@ -35,15 +38,19 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
         match gated.row.word {
             "role" => command.role = Some(super::positional_text(file, line, "role", &gated.args, 1)?),
             "goal" => command.goal = Some(super::positional_text(file, line, "goal", &gated.args, 1)?),
-            "attribute" => command.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?),
+            // A synthesized inline `one_of(...)` closed set is discarded
+            // here on purpose — `CommandBuilder#build` never reads
+            // `AttributeCollector#closed_sets`, confirmed by reading it
+            // directly (`build/closed_sets.rs`'s own header names this
+            // caller specifically). The attribute's own `type_name` is
+            // already the right Pascal-cased name either way.
+            "attribute" => command.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
             "emits" => command.emits.push(super::positional_text(file, line, "emits", &gated.args, 1)?),
             "reference_to" => apply_reference_to(file, line, &gated.args, owner, &mut command)?,
             "given" => {
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;
-                let Opener::BraceBlock { body } = &gated.call.opener else {
-                    return Err(Diagnostic::new(file, line, "'given' requires a { ... } predicate body"));
-                };
-                command.givens.push(ir::Given { description: Some(description), canonical: canonical::apply(body) });
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                command.givens.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
             }
             "sets" => command.mutations.push(build_mutation(file, line, &gated.args)?),
             _ => return Err(super::not_built_yet("Command", gated.row, file, line, &gated.call.word)),
