@@ -61,10 +61,16 @@ pub struct GeneratedDomain {
     pub registry_rs: String,
     pub mod_rs: String,
     /// Returned for a multi-chapter caller the same way
-    /// `domain_generator.rb#call`'s own return value is — not used by
-    /// this crate's own CLI yet (single-chapter only), kept for parity
-    /// with the Ruby shape and any future multi-chapter driver.
+    /// `domain_generator.rb#call`'s own return value is — used by
+    /// `main.rs::run_full` (STAGE 8) to build a TARGET domain's own
+    /// `merged.rs`, unioning this chapter's own aggregates/queries/read
+    /// models with every attached framework chapter's own, exactly the
+    /// way `bin/project_rust`'s Ruby orchestration already does with
+    /// `RustProjection::DomainGenerator.call`'s own return Hash
+    /// (`:aggregates`/`:queries`/`:read_models`).
     pub registry_aggregates: Vec<AggregateEntry>,
+    pub query_defs: Vec<crate::queries::QueryDef>,
+    pub read_model_defs: Vec<crate::read_models::ReadModelDef>,
 }
 
 fn reference_checks(command: &Json, aggregates_by_name: &HashMap<String, &Json>, unsupported_names: &[String]) -> Vec<ReferenceCheck> {
@@ -350,5 +356,5 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
         puts_str(&mut mod_rs, &format!("pub mod {};", a.name.to_lowercase()));
     }
 
-    GeneratedDomain { aggregate_files, registry_rs, mod_rs, registry_aggregates }
+    GeneratedDomain { aggregate_files, registry_rs, mod_rs, registry_aggregates, query_defs, read_model_defs }
 }

@@ -90,19 +90,47 @@ fn now_implemented_fixtures_parse_for_real() {
     }
 }
 
+// STAGE 8: `hecks-parse resolve --chapter <Name> <file.hecksagon>` is
+// now REAL (`parse::chapter::resolve_uses_framework`, built for
+// `bin/project_rust`'s own opt-in Rust orchestration path) — these two
+// fixtures used to be genuine `not yet implemented` cases (resolve was
+// a Stage 1 stub that always failed, regardless of input) and are now
+// genuine SUCCESS cases instead, the same shift
+// `now_implemented_fixtures_parse_for_real` above already documents for
+// `chapter`. Also confirms the CLI contract change itself: `resolve`
+// now REQUIRES `--chapter` (a deliberate departure from the plan's own
+// original one-argument sketch — `main.rs::run_resolve`'s own header
+// has the full reasoning), so a missing `--chapter` is a USAGE error
+// (exit 2), not a parse error (exit 1).
 #[test]
-fn hecksagon_fixtures_also_fail_closed() {
-    let cases: &[(&str, &str)] = &[("hecksagon.hecksagon", "Hecksagon"), ("domain_port.hecksagon", "DomainPort")];
+fn hecksagon_fixtures_resolve_for_real() {
+    let path = fixture("hecksagon.hecksagon");
+    let output = run(&["resolve", "--chapter", "FixtureHecksagon", path.to_str().unwrap()]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
-    for (file, expected_construct) in cases {
-        let path = fixture(file);
-        let output = run(&["resolve", path.to_str().unwrap()]);
-        let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "hecksagon.hecksagon: expected a clean resolve now that resolve is built. stderr={stderr}");
+    assert!(stdout.contains("\"domain\": \"FixtureHecksagon\""), "hecksagon.hecksagon: expected the chapter's own name, got: {stdout}");
+    assert!(stdout.contains("\"Governance\""), "hecksagon.hecksagon: expected its own uses_framework \"Governance\" to be reported, got: {stdout}");
 
-        assert_eq!(output.status.code(), Some(1), "{file}: expected exit 1. stderr={stderr}");
-        assert!(stderr.contains("not yet implemented"), "{file}: expected a not-yet-implemented diagnostic, got: {stderr}");
-        assert!(stderr.contains(expected_construct), "{file}: expected the diagnostic to name {expected_construct}, got: {stderr}");
-    }
+    let path = fixture("domain_port.hecksagon");
+    let output = run(&["resolve", "--chapter", "FixtureDomainPort", path.to_str().unwrap()]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(output.status.success(), "domain_port.hecksagon: expected a clean resolve now that resolve is built. stderr={stderr}");
+    assert!(stdout.contains("\"domain\": \"FixtureDomainPort\""), "domain_port.hecksagon: expected the chapter's own name, got: {stdout}");
+    assert!(!stdout.contains("Governance") && !stdout.contains("Identity"), "domain_port.hecksagon: declares no uses_framework at all, got: {stdout}");
+}
+
+#[test]
+fn resolve_without_chapter_is_a_usage_error_not_a_parse_error() {
+    let path = fixture("hecksagon.hecksagon");
+    let output = run(&["resolve", path.to_str().unwrap()]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert_eq!(output.status.code(), Some(2), "expected exit 2 (usage error) for a missing --chapter. stderr={stderr}");
+    assert!(stderr.contains("--chapter"), "expected the usage message to name --chapter, got: {stderr}");
 }
 
 #[test]

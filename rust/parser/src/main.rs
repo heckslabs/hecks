@@ -118,40 +118,48 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse resolve <file.hecksagon>` — `{"domain":...,
-/// "uses_framework":[...]}`. Stage 1: reads the header for real (File
-/// context, word `hecksagon`), then falls into the same
-/// `not_yet_implemented` honesty as `chapter` — nothing here builds a
-/// resolved framework-member list yet.
+/// `hecks-parse resolve --chapter <Name> <file.hecksagon>` — `{"domain":
+/// "<Name>", "uses_framework": [...]}`. STAGE 8: real, not a stub —
+/// `parse::chapter::resolve_uses_framework` walks every top-level
+/// `Hecks.hecksagon "..." do ... end` block in the file (fail-closed
+/// gated, exactly like `chapter`'s own `.hecksagon` handling), applies
+/// only the block whose own declared name matches `--chapter`, and
+/// returns every `uses_framework "X"` argument it names, in file order.
+///
+/// `--chapter` is REQUIRED, a deliberate departure from the plan's own
+/// original `hecks-parse resolve <file.hecksagon>` sketch (no chapter
+/// argument at all): a single `.hecksagon` file can declare MORE THAN
+/// ONE `Hecks.hecksagon` block (banking.hecksagon's own shape — a
+/// `"Banking"` block plus sibling `"Governance"`/`"Identity"` blocks,
+/// see `parse::chapter`'s own header), so "the domain" isn't something
+/// this file can safely infer on its own — the caller (`bin/project_
+/// rust`'s opt-in orchestration) already knows the target chapter's own
+/// declared name (read off its `.bluebook` file's header, the same way
+/// `hecks-parse chapter --chapter <Name> ...` already requires it
+/// upfront) and passes it through rather than have this command guess.
 fn run_resolve(args: &[String]) -> Result<(), RunError> {
-    let path = args
-        .first()
-        .ok_or_else(|| RunError::Usage("hecks-parse resolve <file.hecksagon>".to_string()))?;
+    let mut chapter_name: Option<String> = None;
+    let mut path: Option<&String> = None;
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        if arg == "--chapter" {
+            chapter_name = iter.next().cloned();
+        } else {
+            path = Some(arg);
+        }
+    }
+    let chapter_name = chapter_name.ok_or_else(|| RunError::Usage("hecks-parse resolve --chapter <Name> <file.hecksagon>".to_string()))?;
+    let path = path.ok_or_else(|| RunError::Usage("hecks-parse resolve --chapter <Name> <file.hecksagon>".to_string()))?;
+
     let source = fs::read_to_string(path).map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+    let names = parse::chapter::resolve_uses_framework(&chapter_name, path, &source)?;
 
-    let joined = lex::join_continuations(&source);
-    let lines = lex::lines(&joined);
-    let mut pos = 0usize;
-    let (row, call, header_line) = parse::file::parse_header(path, &lines, &mut pos)?;
-
-    if call.word != "hecksagon" {
-        return Err(diag::Diagnostic::new(
-            path,
-            header_line,
-            format!("hecks-parse resolve reads .hecksagon files (word 'hecksagon'); got '{}'", call.word),
-        )
-        .into());
-    }
-    if row.inner != "Hecksagon" {
-        return Err(diag::Diagnostic::new(path, header_line, format!("'{}' opened '{}', not Hecksagon", call.word, row.inner)).into());
-    }
-
-    // Real, same as `chapter`: the WHOLE body gates for real (every
-    // nested `port`/`operation`/... line, at any depth) before this
-    // admits nothing is built yet.
-    parse::walk_body(path, &lines, &mut pos, "Hecksagon")?;
-
-    Err(parse::hecksagon::not_implemented(path, header_line, "resolve (build/*.rs and ir.rs are Stage 1 stubs)").into())
+    let value = emit::JsonValue::Object(vec![
+        ("domain".to_string(), emit::JsonValue::String(chapter_name)),
+        ("uses_framework".to_string(), emit::JsonValue::Array(names.into_iter().map(emit::JsonValue::String).collect())),
+    ]);
+    println!("{}", emit::write(&value));
+    Ok(())
 }
 
 /// `hecks-parse coverage` — prints the `(word, context)` pairs ACTUALLY

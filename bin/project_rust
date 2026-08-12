@@ -27,6 +27,35 @@ require "hecksagain/adapters/driven/postgres"
 
 domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 
+# STAGE 8 OPT-IN — `HECKS_PARSER=rust HECKS_CODEGEN=rust bin/project_rust
+# <domain>` runs the ENTIRE pipeline (parse AND codegen) through
+# `rust/parser`'s `hecks-parse`/`rust/codegen`'s `hecks-codegen`
+# instead, with ZERO `Kernel.load` of any domain bluebook — see
+# `rust/project_rust_pipeline.rb`'s own header for the full contract
+# and its one deliberately-named gap (the `lineage` sidecar key).
+#
+# PAIRED, not independently toggleable: `HECKS_PARSER=rust` alone would
+# mean "parse in Rust, then hand a Rust-shaped ir.json to the STILL-Ruby
+# `RustProjection::DomainGenerator` below" — that already works today
+# (`domain_generator.rb`'s own `json_shaped` seam exists for exactly
+# this), but it is a DIFFERENT, narrower experiment than "compile
+# entirely in Rust" and isn't what this stage is verifying end-to-end.
+# `HECKS_CODEGEN=rust` alone (Ruby parses, Rust generates) has no
+# real use today either: `hecks-codegen` only reads the `ir.json` SHAPE,
+# never Ruby's own live IR objects, so there's no seam for Ruby-parsed
+# input to skip. Requiring BOTH keeps the opt-in meaning exactly one
+# thing — the plan's own "no Ruby involved at build time" — rather than
+# a matrix of half-Rust configurations nothing exercises or verifies.
+#
+# THE DEFAULT (no env vars, or only one of the two set) is the
+# ORIGINAL body below, UNCHANGED — every other concurrent session in
+# this repo calling `bin/project_rust` for unrelated work keeps getting
+# exactly what it always has.
+if ENV["HECKS_PARSER"] == "rust" && ENV["HECKS_CODEGEN"] == "rust"
+  require_relative "../rust/project_rust_pipeline"
+  RustProjectPipeline.call(domain)
+else
+
 # EVERY IR HANDED TO THE GENERATOR GOES THROUGH REAL JSON FIRST — never
 # the live Hash `Exporter.call` returns. That Hash carries real Ruby
 # Symbols (`IR::Attribute#to_h`'s `name:`, `IR::Mutation#to_h`'s
@@ -297,3 +326,5 @@ end
 cargo_toml = cargo_toml.sub(/^default\s*=.*$/, "default = [#{target_mod_name.inspect}]")
 File.write(cargo_toml_path, cargo_toml)
 puts "wrote #{cargo_toml_path} (default feature: #{target_mod_name})"
+
+end

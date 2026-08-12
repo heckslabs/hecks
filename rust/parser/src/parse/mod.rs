@@ -688,9 +688,14 @@ pub(crate) fn not_built_yet(context: &str, row: &KeywordRow, file: &str, line: u
 /// caller (a `parse::<construct>::parse_body` function) decides whether
 /// it implements that nested construct and, if so, recurses itself. This
 /// is the Stage 2 REPLACEMENT for `handle_call` above for constructs this
-/// crate now actually builds IR for — `handle_call`/`walk_body` stay
-/// exactly as Stage 1 built them (still used by `main.rs::run_resolve`
-/// and `tests/gates.rs`'s own still-pending Hecksagon fixtures).
+/// crate now actually builds IR for. STAGE 8: `handle_call`/`walk_body`
+/// are no longer called by anything — `main.rs::run_resolve` (their
+/// last real caller) now builds real IR too
+/// (`parse::chapter::resolve_uses_framework`), and every fixture
+/// `tests/gates.rs` still exercises through the generic gate goes
+/// through `not_built_yet`/`next_line` above instead. Left in place
+/// (genuinely dead, `#[warn(dead_code)]`-flagged) rather than deleted —
+/// a pure cleanup with no behavior change, out of this stage's own scope.
 pub(crate) struct GatedLine<'src> {
     pub line: SourceLine<'src>,
     pub call: Call,

@@ -34,7 +34,42 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// Everything else (`persisted_by`, `projected_by`, `subscribe`, any
 /// other adapter-bind verb) is the plan's own named open-vocabulary
 /// escape: shape-matched, never interpreted, its content dropped.
-pub fn apply(file: &str, lines: &[SourceLine], pos: &mut usize, bluebook: &mut ir::Bluebook) -> ParseResult<()> {
+///
+/// `uses_framework_names` — STAGE 8 addition: every `uses_framework
+/// "X"` argument encountered, pushed in file order, so `hecks-parse
+/// resolve` (parse::chapter::resolve_uses_framework, the ONLY other
+/// caller that cares) can report them back to `bin/project_rust`'s
+/// opt-in Rust orchestration path without a second pass over the file.
+/// `parse_chapter`'s own call sites (both the matching AND the
+/// discarded-sibling-block cases) pass a throwaway `&mut Vec::new()` —
+/// `ir.json` itself still carries no `uses_framework` key at all (this
+/// module's own header, finding #5), so `chapter`'s own callers have no
+/// use for the collected names.
+///
+/// `require_matching_aggregate` — STAGE 8 addition: `parse_chapter`
+/// passes `true` (the original, only behavior before this stage) —
+/// `bluebook` there is either the REAL accumulator (already carrying
+/// every aggregate the sibling `.bluebook` file just registered) or a
+/// same-shape discarded one for a sibling chapter's own block, so an
+/// aggregate-scoped `port` line naming an aggregate that doesn't exist
+/// is a genuine error either way. `resolve_uses_framework` passes
+/// `false`: it never sees a `.bluebook` file at all (by design — see
+/// `main.rs::run_resolve`'s own header on why `hecks-parse resolve`
+/// takes only the `.hecksagon` path), so its `ir::Bluebook::default()`
+/// accumulator NEVER carries real aggregates — a real `port` line
+/// (pizzas.hecksagon's own `Pizzas::Order.port "PaymentGateway"`) would
+/// otherwise fail this exact lookup on every single resolve call, for a
+/// construct resolve doesn't even report. The body still gates fully
+/// either way (fail-closed holds); only the "attach onto a real
+/// aggregate" step is skipped when `false`.
+pub fn apply(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    bluebook: &mut ir::Bluebook,
+    uses_framework_names: &mut Vec<String>,
+    require_matching_aggregate: bool,
+) -> ParseResult<()> {
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
             let last = lines.last().map(|l| l.number).unwrap_or(0);
@@ -48,7 +83,7 @@ pub fn apply(file: &str, lines: &[SourceLine], pos: &mut usize, bluebook: &mut i
 
         if let Some((receiver, rest)) = lex::strip_aggregate_receiver(line.text) {
             *pos += 1;
-            apply_aggregate_qualified(file, lines, pos, line.number, receiver, rest, bluebook)?;
+            apply_aggregate_qualified(file, lines, pos, line.number, receiver, rest, bluebook, require_matching_aggregate)?;
             continue;
         }
 
@@ -82,7 +117,10 @@ pub fn apply(file: &str, lines: &[SourceLine], pos: &mut usize, bluebook: &mut i
                 // `persisted_by`/`projected_by`. Confirmed real:
                 // banking.hecksagon's own `uses_framework "Governance"`/
                 // `"Identity"`.
-                "uses_framework" | "subscribe" => {}
+                "uses_framework" => {
+                    uses_framework_names.push(super::positional_text(file, gated.line.number, "uses_framework", &gated.args, 1)?);
+                }
+                "subscribe" => {}
                 _ => return Err(super::not_built_yet("Hecksagon", gated.row, file, gated.line.number, &gated.call.word)),
             },
         }
@@ -103,6 +141,7 @@ fn apply_aggregate_qualified(
     receiver: &str,
     rest: &str,
     bluebook: &mut ir::Bluebook,
+    require_matching_aggregate: bool,
 ) -> ParseResult<()> {
     let synthetic = SourceLine { number: line_number, text: rest };
     let shape = lex::classify(file, &synthetic)?;
@@ -126,10 +165,19 @@ fn apply_aggregate_qualified(
     let aggregate_name = receiver.rsplit("::").next().unwrap_or(receiver);
     let built = domain_port::parse_body(file, lines, pos, &port_name, Some(aggregate_name))?;
 
-    let aggregate = bluebook.aggregates.iter_mut().find(|a| a.name == aggregate_name).ok_or_else(|| {
-        Diagnostic::new(file, line_number, format!("{receiver} declares no such aggregate — a port needs one to belong to"))
-    })?;
-    aggregate.ports.push(built);
+    let found = bluebook.aggregates.iter_mut().find(|a| a.name == aggregate_name);
+    match found {
+        Some(aggregate) => aggregate.ports.push(built),
+        None if require_matching_aggregate => {
+            return Err(Diagnostic::new(file, line_number, format!("{receiver} declares no such aggregate — a port needs one to belong to")));
+        }
+        // `resolve_uses_framework`'s own accumulator never carries real
+        // aggregates (this function's own header) — the body above
+        // still gated fully for real; there is simply nothing to attach
+        // the result to, which is fine, since resolve never reports
+        // ports at all.
+        None => {}
+    }
     Ok(())
 }
 
