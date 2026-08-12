@@ -85,6 +85,27 @@ module Hecksagain
           # supply an object rather than a scalar.
           return value.to_h if value.is_a?(self)
 
+          # Vendored addition, not (yet) upstream hecksagain (migration
+          # plan task 5): a bare scalar auto-wraps into a single-field
+          # value object's sole attribute -- the SAME shape
+          # #from_identifier already establishes for identity coercion
+          # (`build(value_object, { fields.first.name => identifier }) if
+          # fields.size == 1`), made consistent here for MUTATION
+          # coercion too. Real, corpus-wide gap: a synthesised single-
+          # field wrapper (Part 3a's bare-primitive auto-synthesis, the
+          # norm for a VO-typed aggregate field) is exactly the shape
+          # #rewrap_arithmetic_result hands back a raw scalar RESULT to
+          # -- without this, every phantom-field increment/multiply on a
+          # single-field-wrapped attribute refused with "pass its fields
+          # as an object, not <scalar>" the instant it tried to re-wrap
+          # its own correctly-computed result. Multi-field VOs still
+          # refuse below, unchanged -- only the genuinely unambiguous
+          # single-field case auto-wraps, matching from_identifier's own
+          # precedent exactly.
+          if value_object.attributes.size == 1
+            return { value_object.attributes.first.name => value }
+          end
+
           raise TypeMismatch,
                 RefusalWording.render("TypeMismatch", "value_object_shape",
                                       name: name, type: value_object.hecks_name,

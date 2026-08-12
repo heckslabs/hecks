@@ -562,7 +562,15 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /current or savings/)
     end
 
-    it "refuses a scalar for every value object" do
+    # NOT for every value object any more. `Value::Coercion#fields_for` was
+    # deliberately widened (migration plan task 5, this split's own item 17)
+    # to auto-wrap a bare scalar into a SINGLE-field value object's sole
+    # attribute — `Kind` here has exactly one field, so `kind: "current"`
+    # now auto-wraps to `{ name: "current" }` rather than refusing. The
+    # refusal survives only for a genuinely MULTI-field value object, where
+    # the scalar cannot say which field it means — `Amount` (cents +
+    # currency) is that case here.
+    it "refuses a scalar for every multi-field value object" do
       registry = account_domain
       runtime  = Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry.tap(&:verify!))
@@ -570,7 +578,7 @@ RSpec.describe "the DSL surface" do
 
       expect {
         runtime.dispatch("Coerced::Holding.Open", id: "h3",
-                         kind: "current", amount: { cents: 100, currency: "GBP" })
+                         kind: { name: "current" }, amount: "a lot")
       }
         .to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
     end

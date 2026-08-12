@@ -35,13 +35,22 @@ RSpec.describe "the rules a command obeys" do
   def narrative = { text: "Corrected" }
 
   describe "Integer-or-nothing arithmetic" do
+    # `till.bluebook`'s Money is a SINGLE-field value object (`cents` alone),
+    # so a bare scalar amount is exactly the unambiguous case
+    # `Value::Coercion#fields_for` deliberately widened to auto-wrap
+    # (migration plan task 5, this split's own item 17) — the same
+    # precedent `#from_identifier` already set. It no longer refuses at the
+    # "give me an object, not a scalar" gate; it auto-wraps to
+    # `{ cents: "a lot" }` and refuses one step later, at
+    # `check_numeric_fields`, with a message that names the actual
+    # field and type rather than a generic shape complaint.
     it "refuses a non-Integer amount on a RECORD, in so many words" do
       runtime = boot_till
       runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" })
 
       expect do
         runtime.dispatch("TillRoom::Till.TakeIn", number: { value: "till-1" }, amount: "a lot")
-      end.to raise_error(Hecksagain::Runtime::TypeMismatch, /pass its fields as an object/)
+      end.to raise_error(Hecksagain::Runtime::TypeMismatch, 'Money.cents expects Integer, got "a lot"')
     end
 
     it "refuses a non-Integer amount on an ELEMENT, in the same words" do
