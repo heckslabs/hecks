@@ -23,26 +23,25 @@ require "json"
 # session to trip over — no other spec in this repo calls
 # `bin/project_rust` for real, so this is the first that needs to.
 #
-# TWO NAMED, DELIBERATE EXCEPTIONS to "byte-identical" — both explained
-# in full in `rust/project_rust_pipeline.rb`'s own header:
+# ONE NAMED, DELIBERATE EXCEPTION to "byte-identical" — explained in
+# full in `rust/project_rust_pipeline.rb`'s own header: `manifest.json`
+# is not written by the opt-in path at all — coverage bookkeeping only
+# (`hecks-codegen full`'s own header in `rust/codegen/src/main.rs`), no
+# bearing on whether the generated `.rs` source is correct.
 #
-#   - `manifest.json` is not written by the opt-in path at all —
-#     coverage bookkeeping only (`hecks-codegen full`'s own header in
-#     `rust/codegen/src/main.rs`), no bearing on whether the generated
-#     `.rs` source is correct.
-#   - `ir.json`/`metadata.rs` differ ONLY in whether a top-level
-#     `lineage` key is present. Computing it for real needs the
-#     domain's own `.hecksagon` PERSISTENCE BINDS actually interpreted
-#     (`Runtime::EraCheck.adapter_for`) — and `persisted_by`/
-#     `projected_by` are the plan's own named, PERMANENT open-vocabulary
-#     escape (ADR 0023): shape-matched, contents dropped, never
-#     interpreted, everywhere in `rust/parser`. Squarely inside this
-#     plan's own "Era-aware/translation-rule codegen" non-goal, not a
-#     gap this stage's scope covers.
+# The `lineage` key (a former second exception) is CLOSED —
+# `rust/project_rust_pipeline.rb::derive_lineage` computes it from a
+# narrow, targeted text scan of the domain's own `.hecksagon`
+# `persisted_by` binds (never the full open adapter-bind vocabulary,
+# never `Kernel.load`), verified byte-exact against the default path's
+# own `Exporter.lineage` for both pizzas (a real capable aggregate,
+# Postgres) and banking (real binds, zero capable — Heki/Memory, neither
+# lineage-capable) before this spec's own exception was removed.
 #
 # Every OTHER generated file — every aggregate `.rs`, `registry.rs`,
-# `mod.rs`, `merged.rs`, for the target chapter, every attached
-# framework chapter, AND `meta` — must be genuinely byte-identical.
+# `mod.rs`, `merged.rs`, `ir.json`, `metadata.rs`, for the target
+# chapter, every attached framework chapter, AND `meta` — must be
+# genuinely byte-identical.
 RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
   ROOT = InMemoryDomain::ROOT
   GENERATED_ROOT = File.join(ROOT, "rust/src/generated")
@@ -60,7 +59,6 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
   }.freeze
 
   IGNORED_BASENAMES = %w[manifest.json].freeze
-  LINEAGE_ONLY_BASENAMES = %w[ir.json metadata.rs].freeze
 
   before(:context) do
     @generated_backup = Dir.mktmpdir("project-rust-pipeline-spec-backup")
@@ -85,35 +83,8 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
     Dir.glob(File.join(dir, "*")).select { |path| File.file?(path) }.map { |path| File.basename(path) }.sort
   end
 
-  # `ir.json`'s own text, or `metadata.rs`'s EMBEDDED `IR_JSON` constant
-  # decoded back out — `String#inspect` (what `rust/project_rust_
-  # pipeline.rb::write_sidecars!` and `domain_generator.rb` both use to
-  # build that constant) produces valid Ruby string-literal source by
-  # definition, so `eval`-ing the captured literal is the exact inverse
-  # of the encoding step, on LOCALLY-GENERATED, trusted text (never
-  # anything resembling untrusted input) — not a general-purpose parser
-  # this spec would otherwise have to hand-write.
-  def embedded_ir_json(basename, text)
-    return text if basename == "ir.json"
-
-    match = text.match(/pub const IR_JSON: &str = (".*");\n\z/m)
-    raise "no 'pub const IR_JSON: &str = ...;' found in metadata.rs" unless match
-
-    eval(match[1]) # rubocop:disable Security/Eval
-  end
-
-  # Both sides, stripped of the one key this stage's own opt-in path
-  # deliberately doesn't compute yet (this file's own header explains
-  # why) — compared as PARSED JSON, not raw bytes, so this assertion
-  # doesn't also depend on `JSON.pretty_generate` formatting being
-  # reproduced exactly by the `eval` round-trip above (it already is,
-  # but the structural comparison is the actually load-bearing claim).
-  def without_lineage(json_text)
-    JSON.parse(json_text).tap { |hash| hash.delete("lineage") }
-  end
-
   PARITY_DOMAINS.each do |domain, dirs|
-    it "#{domain}: the opt-in Rust path's generated output matches the default Ruby path's, file for file (modulo the named manifest.json/lineage gaps)" do
+    it "#{domain}: the opt-in Rust path's generated output matches the default Ruby path's, file for file (modulo the named manifest.json gap)" do
       run_project_rust!(domain, {})
 
       ruby_snapshot = Dir.mktmpdir("project-rust-pipeline-spec-ruby")
@@ -135,12 +106,7 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
           ruby_text = File.read(File.join(ruby_dir, basename))
           rust_text = File.read(File.join(rust_dir, basename))
 
-          if LINEAGE_ONLY_BASENAMES.include?(basename)
-            expect(without_lineage(embedded_ir_json(basename, rust_text))).to eq(without_lineage(embedded_ir_json(basename, ruby_text))),
-              "#{dir}/#{basename}: differs beyond the documented `lineage` gap"
-          else
-            expect(rust_text).to eq(ruby_text), "#{dir}/#{basename}: the opt-in Rust path's output does not byte-match the default Ruby path's"
-          end
+          expect(rust_text).to eq(ruby_text), "#{dir}/#{basename}: the opt-in Rust path's output does not byte-match the default Ruby path's"
         end
       end
     ensure

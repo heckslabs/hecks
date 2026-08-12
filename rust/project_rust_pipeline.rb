@@ -32,31 +32,33 @@ require "tmpdir"
 # execute a `.bluebook`/`.hecksagon` file's own DSL body — that only
 # ever happens inside `hecks-parse`, a separate OS process, in Rust.
 #
-# A NAMED, DELIBERATE GAP — the `lineage` key: the DEFAULT path's own
-# `ir.json` sidecar carries a `lineage.capable_aggregates` list
-# (`bin/project_rust`'s own `target_ir[:lineage] = ... Exporter.lineage
-# (target_registry, target_domain_name)`), used ONLY by
+# THE `lineage` KEY, closed (was a named, deliberate gap; fixed below).
+# The DEFAULT path's own `ir.json` sidecar carries a
+# `lineage.capable_aggregates` list (`bin/project_rust`'s own
+# `target_ir[:lineage] = ... Exporter.lineage(target_registry,
+# target_domain_name)`), used ONLY by
 # `rust/host/src/ir.rs::lineage_capable_aggregates` at RUNTIME (which
 # aggregates get read/written through the era-partitioned lineage
-# journal instead of the plain in-memory Store). Computing it for real
-# means resolving each aggregate's ACTUAL bound adapter
-# (`Runtime::EraCheck.adapter_for`), which requires the domain's own
-# `.hecksagon` PERSISTENCE BINDS to have been interpreted, not just
-# shape-matched — and `persisted_by`/`projected_by` are exactly the
-# plan's own named, PERMANENT open-vocabulary escape (ADR 0023, `parse::
-# hecksagon`'s own header): shape-matched, contents dropped, never
-# interpreted, by design, everywhere in this parser. Reconstructing
-# adapter bindings from `.hecksagon` text without that interpretation
-# would mean re-deriving `Runtime::EraCheck`'s own era/lineage
-# capability logic a SECOND time — squarely inside this plan's own
-# "Era-aware/translation-rule codegen" non-goal, not a gap this stage's
-# scope covers. So: `ir.json`/`metadata.rs` written by THIS pipeline
-# carry NO `lineage` key at all — confirmed the ONLY field that differs
-# from the default path's own sidecars for pizzas/banking (both
-# verified end-to-end; see this stage's own report). A domain that
-# needs `rust/host`'s lineage-aware journal path for a REAL deployment
-# still needs the DEFAULT (Ruby) path until this is closed — named here,
-# not silently dropped.
+# journal instead of the plain in-memory Store). `Exporter.lineage`
+# itself (read it) needs exactly ONE fact per aggregate: which adapter
+# NAME its sole authoritative `persisted_by` bind names
+# (`Ports::Persistence::BindingPolicy.resolve`) — not the FULL open
+# adapter-bind vocabulary (`deployed_to`, `uses_framework`, `role:`
+# variants, `projected_by`, settings blocks). `derive_lineage`, below,
+# gets that one fact the SAME way `header_chapter_name` already gets a
+# chapter name — PLAIN TEXT SCANNING for one specific, narrow shape
+# (`<Ns>::<Aggregate>.persisted_by("Adapter")`, no `role:`), never
+# `Kernel.load`ing or interpreting the `.hecksagon` DSL as a whole. This
+# does NOT reopen ADR 0023's own permanent open-vocabulary escape for
+# `.hecksagon` adapter binds in the PARSER (`parse::hecksagon` still
+# shape-matches and drops everything, unchanged) — it's a second, small,
+# independent text scan living in THIS orchestration layer, the same
+# tier `derive_append_optionals` already occupies, feeding one narrow,
+# specific fact into a sidecar that needs it. Which adapters actually
+# ARE lineage-capable is read the same way, off
+# `lib/hecksagain/adapters/driven/*.rb`'s own `lineage_capable?`
+# declarations — never hand-listed, so a second capable adapter needs no
+# change here.
 #
 # ALSO NOT WRITTEN — `manifest.json` (the coverage manifest
 # `bin/rust_coverage` reads): bookkeeping ABOUT `domain_generator.rb`'s
@@ -98,6 +100,11 @@ module RustProjectPipeline
 
     target_files = [bluebook_path, hecksagon_path].compact
     target_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", target_chapter_name, *target_files))
+    # ONLY the target — the DEFAULT path's own `target_ir[:lineage] = ...`
+    # (bin/project_rust) never sets this on a framework chapter's own
+    # sidecar either; confirmed no lineage difference on identity/
+    # governance's own ir.json when this pipeline was first verified.
+    target_ir_text = derive_lineage(target_ir_text, hecksagon_path)
 
     # EVERY OTHER CHAPTER `uses_framework` NAMES — same real chapters
     # `bin/project_rust`'s own default path pulls in via
@@ -164,8 +171,7 @@ module RustProjectPipeline
 
     warn "bin/project_rust (Rust path): manifest.json NOT written for any directory above — " \
          "coverage bookkeeping only, no bearing on whether the generated .rs source is correct " \
-         "(rust/codegen/src/main.rs's own `run_full` header has the full reasoning); " \
-         "ir.json/metadata.rs above also carry NO `lineage` key (this file's own header explains why)."
+         "(rust/codegen/src/main.rs's own `run_full` header has the full reasoning)."
 
     sync_mod_and_cargo!(out_root, target_mod_name)
   end
@@ -201,6 +207,72 @@ module RustProjectPipeline
       RustProjection::Projector.mark_append_optional_fields!(aggregate, value_objects_by_name)
     end
     JSON.pretty_generate(ir)
+  end
+
+  # `Exporter.lineage`'s own Rust-path equivalent — same output shape
+  # (`{capable_aggregates: [{name:, storage_name:}]}`), same underlying
+  # question (`Runtime::EraCheck.adapter_for` + `.lineage_capable?`), but
+  # answered from TEXT rather than a live `Runtime::Registry` boot: which
+  # adapter each aggregate's own sole `persisted_by` bind names, checked
+  # against which adapters actually declare `lineage_capable? = true`.
+  # `nil` hecksagon (no `.hecksagon` file at all) means every aggregate is
+  # unbound — `BindingPolicy.default_binding`'s own "Memory" answer, never
+  # lineage-capable, so `capable_aggregates` is simply empty; matches the
+  # DEFAULT path's own behavior for a hecksagon-less domain without this
+  # file needing to special-case it.
+  def derive_lineage(ir_text, hecksagon_path)
+    ir = JSON.parse(ir_text, symbolize_names: true)
+    binds = hecksagon_path ? persistence_binds(hecksagon_path) : {}
+    capable_adapters = lineage_capable_adapter_names
+
+    capable = ir[:aggregates].select do |aggregate|
+      adapter_name = binds.fetch(aggregate[:name], "Memory")
+      capable_adapters.include?(adapter_name)
+    end
+
+    ir[:lineage] = {
+      capable_aggregates: capable.map { |aggregate| { name: aggregate[:name], storage_name: Hecksagain::Naming.snake(aggregate[:name]) } }
+    }
+    JSON.pretty_generate(ir)
+  end
+
+  # PLAIN TEXT SCANNING — the same technique `header_chapter_name` already
+  # uses, narrowed to ONE specific shape: `<Ns>::<Aggregate>.persisted_by
+  # ("Adapter")`, the ONLY bind `BindingPolicy.resolve` treats as
+  # AUTHORITATIVE (`bind.role.nil? || bind.role.empty?` — `binding_proxy.rb`'s
+  # own `method_missing` is what actually builds a `role:` bind, and every
+  # real corpus `persisted_by` call is role-less, so excluding any line
+  # that also carries `role:` is enough to stay faithful to "sole
+  # authoritative bind" without a real Ruby parse). `Naming.demodulise`'s
+  # own job (`Bind#aggregate_name`, `hexagon.rb`) — stripping everything
+  # up to the LAST `::` — is exactly what this regex's own `(\w+)` right
+  # before `.persisted_by` already captures, so no separate demodulise
+  # step is needed here.
+  def persistence_binds(hecksagon_path)
+    text = File.read(hecksagon_path)
+    binds = {}
+    text.each_line do |line|
+      next if line =~ /\brole:/
+      next unless line =~ /(?:\w+(?:::\w+)*::)?(\w+)\.persisted_by\(\s*"([^"]+)"/
+
+      binds[Regexp.last_match(1)] = Regexp.last_match(2)
+    end
+    binds
+  end
+
+  # Which adapters actually carry eras — read off their own source, the
+  # same "structural fact about a file, not domain DSL execution"
+  # precedent `header_chapter_name`/`Hecksagain::Framework.members`
+  # already establish, so a second lineage-capable adapter arriving needs
+  # no change here (matches `EraCheck.lineage_capable?`'s own "the
+  # capability is asked of the adapter, never of its name" design).
+  def lineage_capable_adapter_names
+    Dir[File.join(ROOT, "lib/hecksagain/adapters/driven/*.rb")].filter_map do |path|
+      text = File.read(path)
+      next unless text.match?(/lineage_capable\?\s*=\s*true/)
+
+      text[/^\s*class\s+(\w+)/, 1]
+    end.compact
   end
 
   # The declared chapter name off a `.bluebook` file's own header line —
