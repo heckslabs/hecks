@@ -12,6 +12,12 @@ module Hecksagain
       # notices it — see ProcessManager::REFUSED.
       REFUSED = Bluebook::ProcessManager::REFUSED
 
+      # A crash gets this many extra attempts before the procedure gives up
+      # and treats it as something to compensate for — see
+      # `deliver_saga_dispatch`'s own comment for why a crash isn't unwound
+      # on the first failure the way a domain refusal is.
+      MAX_DEFECT_RETRIES = 3
+
       attr_reader :registry
 
       def initialize(registry, door:)
@@ -82,11 +88,23 @@ module Hecksagain
         record = { process_manager: pm.name, instance: correlation, dispatch: spec.command_name }
 
         if @door.reaction_depth_reached?
+          # THE CEILING IS NOT A DOMAIN DECISION EITHER — same reasoning as a
+          # crash, below — but unlike a crash there is nothing ambiguous
+          # about it: the leg unambiguously did not run, so it unwinds
+          # exactly like a refusal instead of stranding the instance for a
+          # human to notice. `unwind`'s own state guard (it moves to its
+          # `to_state` before its dispatches run) is what keeps this from
+          # looping if the ceiling is still in effect when the compensating
+          # leg tries to dispatch — that leg's own attempt hits this same
+          # branch, calls `unwind` again, and finds the instance already
+          # past `from_state`.
           @registry.saga_log << record.merge(delivered: false,
                                              reason: "reaction depth #{@door.max_reaction_depth} reached")
+          unwind(pm, event, instance, correlation, domain)
           return
         end
 
+        attempt = 0
         begin
           @door.reenter(qualified(spec.command_name, domain),
                         saga_correlation: { pm.correlation_head.to_s => correlation }, **args)
@@ -104,30 +122,42 @@ module Hecksagain
           # comment for the full reasoning: the same DOMAIN_REFUSALS split,
           # and the same "the triggering command already succeeded and
           # persisted by the time this runs" fact that makes catching it
-          # here safe rather than reckless. Recorded distinguishably
-          # (`defect: true`, plus the error's own class) and warned to
-          # STDERR rather than left to blow up the ORIGINAL dispatch that
-          # started this saga leg.
+          # here safe rather than reckless.
           #
-          # DELIBERATELY DOES NOT `unwind`, unlike the branch above — that
-          # is this method's one asymmetry with the policy interpreter's.
-          # `unwind` runs the domain's OWN `on :refused` compensation, which
-          # exists to undo a leg the domain itself declined. A crash is not
-          # a decision the domain made ; running the compensating dispatch
-          # for it would misrepresent what happened (there was no refusal
-          # to compensate for) and could dispatch a real command against
-          # state nobody actually decided to change. The instance is left
-          # exactly where it landed, for a human to find via the warning
-          # and the log.
+          # UNLIKE a refusal, a crash is not a decision the domain made, so
+          # it does not unwind on the first failure — MAX_DEFECT_RETRIES
+          # gives a transient failure (a DB timeout, a race, a cold start)
+          # a chance to clear on its own, retrying the identical dispatch,
+          # before this is treated as something to compensate for. Every
+          # attempt is recorded distinguishably (`defect: true`, the
+          # error's own class); only once retries are exhausted is it
+          # warned to STDERR and unwound — tagged `defect_compensated:
+          # true` rather than folded into an ordinary refusal's shape, so
+          # the log never misrepresents a crash as a decision the domain
+          # made. Compensating a genuinely stuck leg beats leaving it for a
+          # human to find; misrepresenting *why* it compensated is what the
+          # tag is for.
+          attempt += 1
+          if attempt <= MAX_DEFECT_RETRIES
+            @registry.saga_log << record.merge(delivered: false, reason: error.message,
+                                               defect: true, error_class: error.class.name,
+                                               attempt: attempt, retrying: true)
+            retry
+          end
+
           warn "[hecksagain] defect in saga #{pm.name} — instance #{correlation.inspect} " \
-               "dispatching #{spec.command_name}: #{error.class}: #{error.message}"
-          @registry.saga_log << record.merge(delivered: false, reason: error.message,
-                                             defect: true, error_class: error.class.name)
+               "dispatching #{spec.command_name} after #{attempt} attempts: #{error.class}: #{error.message}"
+          @registry.saga_log << record.merge(delivered: false, reason: error.message, defect: true,
+                                             error_class: error.class.name, defect_compensated: true)
+          unwind(pm, event, instance, correlation, domain)
         end
       end
 
       # A refused leg UNWINDS — the procedure runs the leg declared `on :refused`,
-      # which is where the compensation lives.
+      # which is where the compensation lives. So does a leg that hit the
+      # reaction-depth ceiling, and so does a leg that crashed and stayed
+      # crashing through MAX_DEFECT_RETRIES — see `deliver_saga_dispatch`'s own
+      # comments for why each of those is safe to route here.
       #
       # Until this existed a refusal was RECORDED and nothing else happened. The
       # wire's thousand was taken from the source, refused by the destination, and

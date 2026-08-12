@@ -527,6 +527,46 @@ event it was told to end on — a distinction worth knowing before you
 assume every saga that reaches a natural stopping point also stops
 being tracked.
 
+## When a leg can't be delivered at all
+
+Everything above unwinds because the DOMAIN refused a leg — `given` said no,
+a lifecycle move wasn't admitted, `Credit` declined. Two other ways a leg
+can fail to run are not domain decisions at all, and this saga's own
+runtime treats them differently from each other.
+
+Hitting `Dispatcher::MAX_REACTION_DEPTH` (the reaction depth limit,
+above) mid-saga isn't a decision either, but there's nothing ambiguous
+about it — the leg unambiguously did not run — so it unwinds on the spot,
+the same `on :refused` leg a real refusal triggers, no retry involved:
+
+```ruby skip
+cascade = runtime.sagas.select { |s| s[:instance] == "tr9" }
+cascade.find { |s| s[:reason] == "reaction depth 5 reached" }
+# => { process_manager: "Settlement", instance: "tr9", dispatch: "Banking::Account.Credit",
+#      delivered: false, reason: "reaction depth 5 reached" }
+```
+
+A genuine crash — a `NoMethodError`, a `NameError` from a typo in a
+`dispatch`'s argument mapping — is the one case that's actually ambiguous:
+it might be a real bug (retrying changes nothing) or it might be
+transient (a DB timeout, a race, a cold start — retrying clears it). So it
+gets `SagaInterpreter::MAX_DEFECT_RETRIES` attempts at the identical
+dispatch before the saga treats it as something to compensate for. Every
+attempt is logged (`defect: true`, `retrying: true`); only the last one,
+once retries are exhausted, unwinds — and it's tagged
+`defect_compensated: true` rather than folded into an ordinary refusal's
+shape, so the log never claims the domain decided something it didn't:
+
+```ruby skip
+cascade.select { |s| s[:defect] }.map { |s| s.values_at(:attempt, :retrying, :defect_compensated) }
+# => [[1, true, nil], [2, true, nil], [3, true, nil], [4, nil, true]]
+```
+
+Both paths still leave the ORIGINAL triggering command's own success
+standing — same as an ordinary defect always has — the only thing new is
+that the saga no longer just logs a defect and waits for a human to find
+it; it puts back what it can and moves on.
+
 ## What `bin/model_check` still catches here
 
 Every policy and every process manager here is data, the same data the

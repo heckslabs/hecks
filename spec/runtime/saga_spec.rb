@@ -92,11 +92,19 @@ RSpec.describe "a process manager" do
   # mocking framework — same technique, and same reasoning, as
   # `spec/runtime/policy_spec.rb`'s equivalent test: only the one verb this
   # test means to break is intercepted, everything else runs unmodified.
-  it "keeps the triggering command's own success, and skips unwind, when a saga leg is a defect not a refusal" do
+  #
+  # This leg is the FIRST one — nothing was ever taken — so once retries are
+  # exhausted there is genuinely nothing for the compensating leg to put
+  # back. The next test crashes the SECOND leg instead, where there is.
+  it "retries a crashing leg MAX_DEFECT_RETRIES times, then gives up cleanly with nothing to undo" do
     runtime = funded
     real_reenter = runtime.method(:reenter)
+    attempts = 0
     runtime.define_singleton_method(:reenter) do |verb, **args|
-      raise NoMethodError, "undefined method `boom' for nil" if verb == "Wire::Drawer.Take"
+      if verb == "Wire::Drawer.Take"
+        attempts += 1
+        raise NoMethodError, "undefined method `boom' for nil"
+      end
 
       real_reenter.call(verb, **args)
     end
@@ -106,24 +114,99 @@ RSpec.describe "a process manager" do
       result = runtime.dispatch("Wire::Wire.Ask",
                                 reference: { value: "wire-defect" }, amount: { cents: 500 },
                                 source: "left", destination: "right")
-    }.to output(/Carry.*wire-defect.*Wire::Drawer\.Take.*boom/m).to_stderr
+    }.to output(/Carry.*wire-defect.*Wire::Drawer\.Take.*after 4 attempts.*boom/m).to_stderr
 
     expect(result.events.map(&:name)).to eq(["WireAsked"])
     expect(Wire::Wire.find("wire-defect").status).to eq("asked")
 
-    # The money never left — the leg that would have taken it is exactly
-    # the one that crashed instead of running.
+    # Every attempt actually ran — bounded retry, not a single shot before
+    # giving up.
+    expect(attempts).to eq(Hecksagain::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
+
+    # The money never left — the leg that would have taken it crashed on
+    # every attempt.
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
 
+    take_log = runtime.sagas.select { |s| s[:dispatch] == "Wire::Drawer.Take" }
+    expect(take_log.count { |s| s[:retrying] }).to eq(3)
+    expect(take_log.last).to include(delivered: false, defect: true, defect_compensated: true,
+                                     error_class: "NoMethodError")
+
+    # Compensation is ATTEMPTED now — the defect path always unwinds once
+    # retries are exhausted — but this leg is the first one: the instance is
+    # still in "asked", the compensating leg is declared from "carrying",
+    # and the mismatch means it finds nothing to put back rather than
+    # putting back something that was never taken.
     expect(runtime.sagas).to include(
-      hash_including(process_manager: "Carry", instance: "wire-defect", dispatch: "Wire::Drawer.Take",
-                     delivered: false, defect: true, error_class: "NoMethodError")
+      hash_including(on: "refused", advanced: false, reason: 'in "asked", not "carrying"')
+    )
+    expect(runtime.registry.saga_instances["Carry"]["wire-defect"][:state]).to eq("asked")
+  end
+
+  # The crash lands on the SECOND leg instead — `Take` already ran for real,
+  # so there is real money out of "left" by the time the credit leg starts
+  # failing. Once MAX_DEFECT_RETRIES is exhausted, `unwind` runs the exact
+  # same compensating leg a domain refusal would trigger, and the money
+  # comes back with nobody dispatching anything by hand.
+  it "retries a crashing leg, then compensates for real once retries are exhausted" do
+    runtime = funded
+    real_reenter = runtime.method(:reenter)
+    attempts = 0
+    runtime.define_singleton_method(:reenter) do |verb, **args|
+      if verb == "Wire::Drawer.Put" && args[:number] == "right"
+        attempts += 1
+        raise NoMethodError, "undefined method `boom' for nil"
+      end
+
+      real_reenter.call(verb, **args)
+    end
+
+    expect {
+      runtime.dispatch("Wire::Wire.Ask",
+                       reference: { value: "wire-crash" }, amount: { cents: 1_000 },
+                       source: "left", destination: "right")
+    }.to output(/Carry.*wire-crash.*Wire::Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
+
+    expect(attempts).to eq(Hecksagain::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
+
+    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
+    expect(Wire::Wire.find("wire-crash").status).to eq("returned")
+    expect(runtime.registry.saga_instances["Carry"]["wire-crash"][:state]).to eq("returned")
+
+    expect(runtime.sagas).to include(
+      hash_including(process_manager: "Carry", instance: "wire-crash", dispatch: "Wire::Drawer.Put",
+                     delivered: false, defect: true, defect_compensated: true, error_class: "NoMethodError")
+    )
+  end
+
+  # The reaction-depth ceiling isn't a domain decision either, but unlike a
+  # crash there's nothing ambiguous about it — the leg unambiguously did not
+  # run — so it unwinds on the FIRST hit, no retry involved. Stubbed rather
+  # than actually built five deep : the THIRD `reaction_depth_reached?` check
+  # in this chain is the credit leg's own (1: Take, 2: Wire.Moved, 3:
+  # Drawer.Put into "right"), so tripping only that one leaves Take free to
+  # actually run — real money to put back — and leaves the compensating
+  # leg's own two dispatches free to run too, proving this produces a REAL
+  # compensation, not just a logged, inert refusal-shaped record.
+  it "unwinds when the reaction-depth ceiling is hit, not just when the domain refuses" do
+    runtime = funded
+    checks = 0
+    runtime.define_singleton_method(:reaction_depth_reached?) do
+      checks += 1
+      checks == 3
+    end
+
+    runtime.dispatch("Wire::Wire.Ask",
+                     reference: { value: "wire-ceiling" }, amount: { cents: 1_000 },
+                     source: "left", destination: "right")
+
+    expect(runtime.sagas).to include(
+      hash_including(process_manager: "Carry", instance: "wire-ceiling", dispatch: "Wire::Drawer.Put",
+                     delivered: false, reason: "reaction depth 5 reached")
     )
 
-    # NO unwind : `on :refused` never fires for a defect, so the instance
-    # stays exactly where it landed rather than moving to "returned".
-    expect(runtime.sagas).not_to include(hash_including(on: "refused"))
-    expect(runtime.registry.saga_instances["Carry"]["wire-defect"][:state]).to eq("asked")
+    expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
+    expect(Wire::Wire.find("wire-ceiling").status).to eq("returned")
   end
 
   it "records an event that arrives in the wrong phase, and does not advance" do
