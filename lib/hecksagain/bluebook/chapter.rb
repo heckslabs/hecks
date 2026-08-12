@@ -52,20 +52,7 @@ module Hecksagain
       @read_models = read_models
       @classification = classification&.to_s
       @formerly_known_as = formerly_known_as&.to_s
-      # A port with NO owning aggregate — declared bare at a hecksagon's
-      # root, belonging to the chapter as a whole rather than one record.
-      # Attached the same way an aggregate-scoped one is, after the fact,
-      # from HecksagonBuilder — see Aggregate#add_port's own comment.
-      @ports = []
-      @ports_by_name = {}
-
-      # THE CHAPTER STAMPS ITS OWN CHILDREN, exactly as an aggregate does.
-      # An aggregate's owner is the chapter above it — the way up a
-      # Reference#resolve walks — and a read model's is the chapter too,
-      # since no single head declares one. A split chapter re-mints its
-      # Bluebook per file over the SAME aggregate objects, so the last
-      # build's stamping wins — the behaviour the constant tree used to give.
-      (@aggregates + @read_models).each { |child| child.hecks_owner = self }
+      settle
     end
 
   end
