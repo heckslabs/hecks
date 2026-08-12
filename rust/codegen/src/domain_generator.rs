@@ -147,7 +147,18 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
                 let name = crate::naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
                 puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &name, attrs, false, &[], None));
                 puts_blank(&mut out);
-                puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, None, None));
+                // `Some(&[])` — mirrors the Ruby generator's own fix
+                // (rust/project/domain_generator.rb): a value object gets
+                // the same unknown-key refusal an aggregate command's own
+                // args struct already gets below, just with no extra
+                // allowed keys beyond its own declared attributes. Without
+                // this, a mistyped nested VO field (e.g. `{"value": N}`
+                // for a VO that declares `count`) silently fell through to
+                // any `default:` the real field carries, with zero
+                // refusal — found live dispatching a real command through
+                // the compiled binary.
+                let empty_allowlist: [String; 0] = [];
+                puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, Some(&empty_allowlist), None));
             }
             puts_blank(&mut out);
         }
