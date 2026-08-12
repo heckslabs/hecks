@@ -1,0 +1,39 @@
+[package]
+name = "hecks_build"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate — same reasoning rust/parser's and rust/codegen's
+# own Cargo.toml already give for themselves: makes THIS crate its own
+# workspace root (own target/, own Cargo.lock) instead of Cargo walking
+# up and folding it into whatever workspace `rust` (the kernel crate) or
+# either of its build-tooling siblings might belong to.
+#
+# NOT under rust/src/ (same reasoning as rust/parser and rust/codegen):
+# rust/src/lib.rs compiles into three shipped artifacts (native,
+# wasm32-wasip1, and rust/web's cdylib) — this crate is a build-time-only
+# ORCHESTRATOR (it never contributes a line of generated domain code
+# itself) and would inflate all three for nothing were it folded in.
+#
+# NOT a library dependency of rust/parser or rust/codegen either — this
+# is the plan's own explicit architecture decision (see this crate's own
+# main.rs header): it calls both of them as SUBPROCESSES, exactly the
+# way rust/project_rust_pipeline.rb (the Ruby orchestrator this crate
+# replaces) already does via Open3.capture3/system, so both of those
+# proven, byte-exact-verified crates stay untouched and provably
+# unmodified by this work.
+[workspace]
+
+[[bin]]
+name = "hecks-build"
+path = "src/main.rs"
+
+# NO DEPENDENCIES beyond std — same discipline rust/parser's and
+# rust/codegen's own Cargo.toml already hold themselves to: this crate
+# shells out to two already-built binaries and to `cargo` itself
+# (std::process::Command), reads/writes JSON text by hand (see
+# src/json.rs, a hand-rolled reader+writer matching rust/parser/src/
+# emit.rs's own pretty-printer byte-for-byte), and never ships in a
+# deployed artifact — no runtime-size argument for a dependency here
+# either, only build-time compile cost to avoid.
+[dependencies]
