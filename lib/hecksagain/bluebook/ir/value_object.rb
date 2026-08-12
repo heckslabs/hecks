@@ -18,6 +18,18 @@ module Hecksagain
       # EXPORT.
       class ValueObject
         extend Construct
+        # EXTENDED, not included — this construct is a class, so its
+        # emission is a class method. See Hecksagain::IR's own note on
+        # the two shapes.
+        extend Hecksagain::IR
+
+        emits_ir(
+          name:       :hecks_name,
+          attributes: many(:attributes),
+          invariants: -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+          closed_set: :closed_set?,
+          members:    -> { members.map { |member| member.map { |field, value| [field.to_s, value.to_s] } } }
+        )
 
         class << self
           attr_reader :attributes, :invariants, :members
@@ -61,15 +73,6 @@ module Hecksagain
             attributes.first if attributes.size == 1
           end
 
-          def to_h
-            {
-              name:       hecks_name,
-              attributes: attributes.map(&:to_h),
-              invariants: invariants.map { |rule| { description: rule.description, canonical: rule.canonical } },
-              closed_set: closed_set?,
-              members:    members.map { |member| member.map { |field, value| [field.to_s, value.to_s] } }
-            }
-          end
         end
       end
     end

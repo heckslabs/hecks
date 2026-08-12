@@ -2,6 +2,18 @@ module Hecksagain
   module Bluebook
     module IR
       class Attribute
+        include Hecksagain::IR
+
+        emits_ir(
+          name:     :name,
+          type:     -> { @type.to_s },
+          list:     :list?,
+          default:  :default,
+          optional: :optional?,
+          pattern:  :pattern,
+          admits:   :admits
+        )
+
         attr_reader :name, :type, :default, :pattern, :admits
 
         # A Reference is kept AS ITSELF. Every other type is still a name, and
@@ -61,10 +73,6 @@ module Hecksagain
 
         # `type` is spelled, never handed over. A Reference renders as
         # "Reference<Customer>" here because that is the export's pinned spelling.
-        def to_h
-          { name: @name, type: @type.to_s, list: @list, default: @default, optional: @optional,
-            pattern: @pattern, admits: @admits }
-        end
       end
     end
   end

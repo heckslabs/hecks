@@ -24,6 +24,17 @@ module Hecksagain
       # method to tell a piece from a head.
       class Entity
         extend Construct
+        extend Hecksagain::IR
+
+        emits_ir(
+          name:          :hecks_name,
+          description:   :description,
+          identified_by: :identity_paths,
+          attributes:    many(:attributes),
+          commands:      many(:commands),
+          queries:       many(:queries),
+          lifecycle:     one(:lifecycle)
+        )
 
         class << self
           attr_reader :description, :identified_by, :identity_paths, :identity_heads,
@@ -69,17 +80,6 @@ module Hecksagain
           def command(named)   = @commands_by_name[named.to_s]
           def query(named)     = @queries_by_name[named.to_s]
 
-          def to_h
-            {
-              name:          hecks_name,
-              description:   description,
-              identified_by: identity_paths,
-              attributes:    attributes.map(&:to_h),
-              commands:      commands.map(&:to_h),
-              queries:       queries.map(&:to_h),
-              lifecycle:     lifecycle&.to_h
-            }
-          end
         end
       end
     end

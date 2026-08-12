@@ -2,6 +2,14 @@ module Hecksagain
   module Bluebook
     module IR
       class Policy
+        include Hecksagain::IR
+
+        emits_ir(
+          name:            :name,
+          on_event:        :on_event,
+          trigger_command: :trigger_command,
+          target_domain:   :target_domain
+        )
 
         # The BLUEBOOK's name for this construct, asked the same way of a class
         # that has crossed over and of an IR object that has not. Collapses into
@@ -31,14 +39,6 @@ module Hecksagain
 
         def event_name = Naming.unqualified(@on_event)
 
-        def to_h
-          {
-            name:            @name,
-            on_event:        @on_event,
-            trigger_command: @trigger_command,
-            target_domain:   @target_domain
-          }
-        end
       end
     end
   end

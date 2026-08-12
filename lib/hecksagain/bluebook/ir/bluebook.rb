@@ -8,6 +8,7 @@ module Hecksagain
       # `hecks_fqn` refusing for every construct that is merely unstamped.
       class Bluebook
         include Construct
+        include Hecksagain::IR
 
         # THE SCHEMA'S OWN VERSION — not a domain's `version:` (Banking's
         # "v1", a business fact the AUTHOR chose), but the shape `to_h`
@@ -18,6 +19,19 @@ module Hecksagain
         # shape changes in a way a consumer would need to know about —
         # not when a domain's own declarations change.
         IR_VERSION = 1
+
+        emits_ir(
+          ir_version:       -> { IR_VERSION },
+          name:             :name,
+          version:          :version,
+          vision:           :vision,
+          classification:   :classification,
+          aggregates:       many(:aggregates),
+          read_models:      many(:read_models),
+          policies:         many(:policies),
+          process_managers: many(:process_managers),
+          canonical_form:   -> { Expression::CanonicalForm.table }
+        )
 
         attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
                     :classification, :read_models, :ports, :formerly_known_as
@@ -66,20 +80,6 @@ module Hecksagain
           end
         end
 
-        def to_h
-          {
-            ir_version:       IR_VERSION,
-            name:             @name,
-            version:          @version,
-            vision:           @vision,
-            classification:   @classification,
-            aggregates:       @aggregates.map(&:to_h),
-            read_models:      @read_models.map(&:to_h),
-            policies:         @policies.map(&:to_h),
-            process_managers: @process_managers.map(&:to_h),
-            canonical_form:   Expression::CanonicalForm.table
-          }
-        end
       end
     end
   end

@@ -46,6 +46,20 @@ module Hecksagain
       # per-boot projection ; no verb method is defined here.
       class Command
         extend Construct
+        extend Hecksagain::IR
+
+        emits_ir(
+          name:       :hecks_name,
+          role:       :role,
+          goal:       :goal,
+          references: :references,
+          attributes: many(:attributes),
+          givens:     -> { givens.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+          ensures:    -> { ensures.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+          mutations:  many(:mutations),
+          emits:      :emits,
+          provenance: :provenance
+        )
 
         class << self
           attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references,
@@ -98,20 +112,6 @@ module Hecksagain
 
           def attribute(named) = @attributes_by_name[named.to_sym]
 
-          def to_h
-            {
-              name:       hecks_name,
-              role:       role,
-              goal:       goal,
-              references: references,
-              attributes: attributes.map(&:to_h),
-              givens:     givens.map { |rule| { description: rule.description, canonical: rule.canonical } },
-              ensures:    ensures.map { |rule| { description: rule.description, canonical: rule.canonical } },
-              mutations:  mutations.map(&:to_h),
-              emits:      emits,
-              provenance: provenance
-            }
-          end
         end
       end
     end

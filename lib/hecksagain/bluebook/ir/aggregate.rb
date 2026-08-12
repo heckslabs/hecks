@@ -8,6 +8,26 @@ module Hecksagain
         # reference resolution and hecks_fqn both walk it, and neither needs a
         # Ruby class to exist.
         include Construct
+        include Hecksagain::IR
+
+        emits_ir(
+          name:          :name,
+          description:   :description,
+          identified_by: :identity_paths,
+          attributes:    many(:attributes),
+          value_objects: many(:value_objects),
+          commands:      many(:commands),
+          lifecycle:     one(:lifecycle),
+          entities:      many(:entities),
+          queries:       many(:queries),
+          # ADDITIVE — every domain that declares no port emits `ports: []`,
+          # the same "regenerate deliberately" wire-format change
+          # ir_golden_spec.rb's own header describes; no existing key
+          # moves. See docs/decisions (rust/project/ports.rb) for the
+          # first reader of this.
+          ports:         many(:ports),
+          provenance:    :provenance
+        )
 
         attr_reader :name, :description, :attributes, :value_objects, :commands,
                     :identified_by, :identity_paths, :identity_heads, :lifecycle,
@@ -95,26 +115,6 @@ module Hecksagain
 
         def storage_name = Naming.snake(@name)
 
-        def to_h
-          {
-            name:          @name,
-            description:   @description,
-            identified_by: @identity_paths,
-            attributes:    @attributes.map(&:to_h),
-            value_objects: @value_objects.map(&:to_h),
-            commands:      @commands.map(&:to_h),
-            lifecycle:     @lifecycle&.to_h,
-            entities:      @entities.map(&:to_h),
-            queries:       @queries.map(&:to_h),
-            # ADDITIVE — every domain that declares no port emits `ports: []`,
-            # the same "regenerate deliberately" wire-format change
-            # ir_golden_spec.rb's own header describes; no existing key
-            # moves. See docs/decisions (rust/project/ports.rb) for the
-            # first reader of this.
-            ports:         @ports.map(&:to_h),
-            provenance:    @provenance
-          }
-        end
       end
     end
   end
