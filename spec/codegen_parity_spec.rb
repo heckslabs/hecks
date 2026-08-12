@@ -12,43 +12,67 @@ require_relative "support/ruby_codegen_prelude"
 # honestly-shrinking PENDING_MEMBERS table with a REASON per entry) and on
 # spec/rust_conformance_spec.rb's own cargo-build-inside-rspec convention.
 #
-# WHAT THIS COMPARES, AND WHY IT'S A "PRELUDE" NOT A WHOLE FILE: Stage 7's
-# own prompt asks for byte-identical GENERATED `.rs` FILES. `rust/project/
-# *.rb` turned out to be ~4700 lines across 16 files (domain_generator,
-# types, fielded, json_codec, commands, mutations, queries, read_models,
-# reactions, ports, constraints, registry, naming, expr_emitter, bridging,
-# exemplar) — substantially more than the plan's own ~13-file estimate.
-# This stage ports the value-object/entity/record/JSON-codec/closed-set/
-# invariant/identity-extraction slice (types.rb, fielded.rb, json_codec.rb,
+# TWO SLICES, TWO CHECKS. The first Stage 7 slice ported the value-object/
+# entity/record/JSON-codec/closed-set/invariant/identity-extraction half
+# of `rust/project/*.rb` (types.rb, fielded.rb, json_codec.rb,
 # constraints.rb, naming.rb, exemplar.rb, plus a Rust port of Evaluator/
-# Resolver's PARSE step for expr_emitter.rb) — real, substantial, and
-# independently verifiable — but NOT commands.rb/mutations.rb/queries.rb/
-# read_models.rb/reactions.rb/ports.rb/registry.rb/bridging.rb (command
-# dispatch codegen; a separate, similarly-sized body of work named as
-# follow-up in the stage report). `domain_generator.rb#call` INTERLEAVES
-# those two slices into ONE `.rs` file per aggregate (VOs/entities/record,
-# then commands, then port operations), so a whole-file comparison isn't
-# reachable without porting everything — but the PRELUDE (everything
-# `domain_generator.rb` writes for one aggregate BEFORE its commands loop)
-# is a real, contiguous PREFIX of that same file, and `rust/codegen/src/
-# prelude.rs` assembles it by replicating `domain_generator.rb`'s own
-# `f.puts` sequence exactly. `spec/support/ruby_codegen_prelude.rb` does
-# the identical replication on the Ruby side, calling the SAME real
-# `RustProjection::Projector` functions `bin/project_rust` itself calls —
-# neither side reimplements a codegen algorithm a second time; both
-# reproduce ORCHESTRATION over the one real implementation Ruby already
-# has. The two are compared as real `.rs` files on disk, byte for byte.
+# Resolver's PARSE step for expr_emitter.rb) — real and independently
+# verifiable, but not a WHOLE generated `.rs` file, because
+# `domain_generator.rb#call` interleaves that slice with commands/ports
+# into one file per aggregate. That gap is what this continuation closes:
+# `rust/codegen/src/{commands,mutations,bridging,queries,read_models,
+# reactions,ports,registry,domain_generator,literal}.rs` port the
+# command-dispatch half (argument gating, role checking, given/ensures
+# wiring, mutation application, JSON routing), and `hecks-codegen domain`
+# (a new CLI subcommand alongside `prelude`, backed by
+# `rust/codegen/src/domain_generator.rs`, a from-scratch port of
+# `DomainGenerator.call` — NOT built by reusing `prelude.rs`, which
+# omits entity commands entirely; see that file's own header) generates
+# the FULL per-chapter output: every aggregate `.rs` file, `registry.rs`,
+# `mod.rs`.
 #
-# `mark_append_optional_fields!` (mutations.rb, NOT ported to Rust this
-# stage) turned out NOT to be the gap it first looked like: `banking` and
-# the self-hosted grammar chapter both exercise it for real (an `append`
-# mutation fed by a caller-omittable command argument) and BOTH still
-# byte-match, because every real corpus field that pass would touch
-# already declares `optional: true` directly in its own bluebook source —
-# the mutating pass is a no-op everywhere this corpus actually reaches it.
+# `WHOLE_FILE_MEMBERS` names which `CODEGEN_CORPUS_MEMBERS` get the
+# STRONGER, whole-file check below instead of the older prelude-only one
+# — every member not listed there stays on prelude-only, unchanged and
+# un-weakened (regression-safe, per the stage's own instructions). As of
+# this continuation, ALL SIX real corpus members reach full whole-file
+# byte-exactness on the first genuine attempt — including `banking`
+# (entity commands on SafeDepositBox/ATMCard, arithmetic mutations,
+# process managers, cross-domain policies) and `bluebook_language` (the
+# self-hosted grammar's own nine-file chapter) — leaving the prelude-only
+# loop with nothing left to run except `embryonaut`'s own always-pending
+# entry (a structural gap: no local `.bluebook` source to load, unrelated
+# to anything ported here).
+#
+# NOT covered even for a `WHOLE_FILE_MEMBERS` entry: `metadata.rs` (embeds
+# `ir.json` as a Rust string constant via Ruby's own `JSON.pretty_generate
+# (ir).inspect` — this crate has no JSON pretty-printer, only a reader,
+# see `json.rs`'s own header), `ir.json` itself (the same reason), and
+# `manifest.json` (bookkeeping about what got generated, not the
+# generated source itself) — all three are real, named, deliberately
+# out-of-scope gaps in `rust/codegen/src/domain_generator.rs`'s own
+# header, not silently dropped. `mod.rs` IS covered (cheap, deterministic,
+# no JSON pretty-printer needed) but compared against Ruby's OWN
+# `DomainGenerator.call` output directly (this spec's own whole-file `it`
+# block, below) — NOT against the checked-in `rust/src/generated/
+# <member>/mod.rs`, which `bin/project_rust` itself (not
+# `DomainGenerator.call`) appends a `pub mod merged;` line to as a
+# separate, later post-processing step (`bin/project_rust`'s own
+# multi-chapter merge, out of this generator's own scope per the plan) —
+# comparing against the checked-in file would be comparing against the
+# wrong artifact.
+#
+# `mark_append_optional_fields!` (mutations.rb) is STILL NOT PORTED —
+# `Json` (this crate's own IR value type) has no mutation API (see
+# `json.rs`'s own header), and every real corpus field that pass would
+# touch already declares `optional: true` directly in its own bluebook
+# source, so the mutating pass is a no-op everywhere this corpus actually
+# reaches it (confirmed true for `banking`/`bluebook_language`, the two
+# members that exercise an `append` fed by a caller-omittable argument).
 # Left named here as a real, confirmed-currently-harmless gap, not
-# silently dropped from consideration.
-RSpec.describe "Rust codegen parity (hecks-codegen) — Stage 7 prelude slice" do
+# silently dropped — see `mutations.rs`'s own header for the full
+# argument.
+RSpec.describe "Rust codegen parity (hecks-codegen)" do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   CODEGEN_BINARY = File.join(CODEGEN_DIR, "target", "debug", "hecks-codegen")
 
@@ -116,11 +140,78 @@ RSpec.describe "Rust codegen parity (hecks-codegen) — Stage 7 prelude slice" d
                      "not a shape/algorithm gap in rust/codegen itself.",
   }.freeze
 
+  # Corpus members that reach FULL whole-file byte-exactness — every
+  # generated `.rs` file `DomainGenerator.call` writes for the chapter
+  # (aggregate files + registry.rs + mod.rs), not just the prelude prefix.
+  # These get the STRONGER check below instead of the prelude-only one;
+  # every other `CODEGEN_CORPUS_MEMBERS` entry stays on prelude-only.
+  #
+  # ALL SIX real corpus members reach it — including `banking` (entity
+  # commands on SafeDepositBox/ATMCard, arithmetic mutations, process
+  # managers, cross-domain policies) and `bluebook_language` (the
+  # self-hosted grammar's own nine-file chapter) — leaving only
+  # `embryonaut` on `PENDING_MEMBERS` (a structural gap: no local
+  # `.bluebook` source to load, unrelated to anything ported this stage).
+  WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language].freeze
+
   it "finds at least one real corpus member" do
     expect(CODEGEN_CORPUS_MEMBERS).not_to be_empty
   end
 
-  CODEGEN_CORPUS_MEMBERS.each do |name, ir_loader|
+  CODEGEN_CORPUS_MEMBERS.select { |name, _| WHOLE_FILE_MEMBERS.include?(name) }.each do |name, ir_loader|
+    it "#{name}: Rust hecks-codegen's FULL domain .rs output (every aggregate file + registry.rs + mod.rs) is byte-identical to Ruby's" do
+      ir = ir_loader.call
+
+      Dir.mktmpdir do |tmp|
+        ruby_dir = File.join(tmp, "ruby")
+        rust_dir = File.join(tmp, "rust")
+
+        # Ruby's own `DomainGenerator.call` — the SAME real function
+        # `bin/project_rust` calls, not a reimplementation. Also writes
+        # metadata.rs/ir.json/manifest.json into `ruby_dir` (this method's
+        # own contract) — deliberately not compared (see this file's own
+        # header on why those three are out of scope for this crate).
+        RustProjection::DomainGenerator.call(ir, name, ruby_dir, name)
+
+        ir_json_path = File.join(tmp, "ir.json")
+        File.write(ir_json_path, JSON.pretty_generate(ir))
+        stdout, status = Open3.capture2(CODEGEN_BINARY, "domain", ir_json_path, name, name, rust_dir)
+        expect(status.success?).to be(true), "hecks-codegen domain failed for #{name}:\n#{stdout}"
+
+        # Compare exactly the files THIS crate claims to generate
+        # (aggregate `.rs` files, `registry.rs`, `mod.rs`) — never
+        # metadata.rs/ir.json/manifest.json, which aren't ported (see
+        # this file's own header).
+        compared_names = generated_aggregate_basenames(ir) + ["registry.rs", "mod.rs"]
+
+        compared_names.each do |basename|
+          ruby_path = File.join(ruby_dir, basename)
+          rust_path = File.join(rust_dir, basename)
+          expect(File.exist?(ruby_path)).to be(true), "#{name}/#{basename}: Ruby's own DomainGenerator.call didn't write this file — compared_names is stale"
+          expect(File.exist?(rust_path)).to be(true), "#{name}/#{basename}: hecks-codegen domain didn't write this file"
+
+          ruby_text = File.read(ruby_path)
+          rust_text = File.read(rust_path)
+          expect(rust_text).to eq(ruby_text), "#{name}/#{basename}: Rust codegen's FULL domain output does not byte-match Ruby's"
+        end
+      end
+    end
+  end
+
+  # Every aggregate NAME the real `DomainGenerator.call` would generate a
+  # file for — mirrors that method's own `unsupported_attribute_types`
+  # skip check exactly (rather than hand-listing basenames), so this can
+  # never silently drift from which aggregates a real run actually emits.
+  def generated_aggregate_basenames(ir)
+    ir[:aggregates].filter_map do |aggregate|
+      vo_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+      next nil if RustProjection::Projector.unsupported_attribute_types(aggregate, vo_by_name).any?
+
+      "#{aggregate[:name].downcase}.rs"
+    end
+  end
+
+  CODEGEN_CORPUS_MEMBERS.reject { |name, _| WHOLE_FILE_MEMBERS.include?(name) }.each do |name, ir_loader|
     it "#{name}: Rust hecks-codegen's prelude .rs output is byte-identical to Ruby's, per aggregate" do
       ir = ir_loader.call
 

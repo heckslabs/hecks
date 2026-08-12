@@ -1,8 +1,19 @@
-//! Port of the one `lib/hecksagain/naming.rb` function `json_codec.rs`
-//! actually needs — `Naming.snake`, used by `emit_extract_id`'s own
-//! `reference_key` (`Hecksagain::Naming.snake(aggregate[:name])`). Not the
-//! whole file: nothing else in this crate's ported scope calls into
-//! `Hecksagain::Naming`.
+//! Port of the `lib/hecksagain/naming.rb` functions this crate's ported
+//! scope actually needs — `Naming.snake` (used by `emit_extract_id`'s own
+//! `reference_key`), plus `Naming.demodulise`/`Naming.reference_key`
+//! (needed by `json_codec.rb#command_argument_allowlist`, Stage 7's
+//! command-codegen slice). Not the whole file: nothing else in this
+//! crate's ported scope calls into `Hecksagain::Naming`.
+
+/// `type.to_s.split("::").last.to_s`
+pub fn demodulise(type_name: &str) -> String {
+    type_name.rsplit("::").next().unwrap_or(type_name).to_string()
+}
+
+/// `snake(demodulise(type)).to_sym`
+pub fn reference_key(type_name: &str) -> String {
+    snake(&demodulise(type_name))
+}
 
 /// `text.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/,
 /// '\1_\2').downcase` — the two sequential gsubs collapse to one combined

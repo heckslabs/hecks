@@ -63,9 +63,52 @@ pub fn scalar_to_json_expr(scalar_type: &str, rust_expr: &str) -> String {
     }
 }
 
+/// `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`'s own
+/// allowlist — declared attributes plus every OTHER name a caller is
+/// legitimately allowed to address a command by or smuggle a saga's
+/// correlation through. Only ever passed for an AGGREGATE-level command's
+/// own `from_json` — entity commands run no such check at all.
+pub fn command_argument_allowlist(aggregate: &Json, command: &Json, process_managers: &[Json]) -> Vec<String> {
+    let references = command.get("references").map(Json::to_s).unwrap_or_default();
+    let reference_key = if references.is_empty() { None } else { Some(crate::hecksagain_naming::reference_key(&references)) };
+
+    let identity_heads: Vec<String> = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]).iter().map(|p| p.to_s().split('.').next().unwrap_or("").to_string()).collect();
+
+    let correlation_keys: Vec<String> =
+        process_managers.iter().filter_map(|pm| pm.get("correlates_by").map(Json::to_s)).filter_map(|c| c.split('.').next().map(|s| s.to_string())).collect();
+
+    let mut out: Vec<String> = vec!["id".to_string()];
+    if let Some(rk) = reference_key {
+        out.push(rk);
+    }
+    out.extend(identity_heads);
+    out.extend(correlation_keys);
+    let mut seen = Vec::new();
+    out.retain(|k| {
+        if seen.contains(k) {
+            false
+        } else {
+            seen.push(k.clone());
+            true
+        }
+    });
+    out
+}
+
+/// Mirrors `json_codec.rb#emit_unknown_argument_check`'s own `<<~RUST`
+/// squiggly heredoc EXACTLY, including its own dedent margin — the
+/// marker this splices into (`from_json_flat`'s own `let
+/// _tmpl_unknown_check_placeholder = ();`) sits at COLUMN 0 in the
+/// exemplar template, so this block's own first line lands there too,
+/// with every following line indented relative to that. Found live,
+/// byte-diffing a real generated aggregate command's `from_json` for the
+/// first time — this path was never exercised during the prior stage's
+/// prelude-only scope (an aggregate command's own `unknown_argument_
+/// allowlist` is never passed there), so an earlier draft's guessed
+/// indentation was a real, confirmed mismatch.
 fn emit_unknown_argument_check(command_name: &str, known_keys: &[String], declared_names: &[String]) -> String {
     format!(
-        "            let unknown = v.unknown_keys(&[{}]);\n            if !unknown.is_empty() {{\n                return Err(crate::kernel::Refusal::UnknownArgument(format!(\n                    \"{command_name} does not declare {{}} — it takes {}\",\n                    unknown.join(\", \")\n                )));\n            }}\n",
+        "let unknown = v.unknown_keys(&[{}]);\nif !unknown.is_empty() {{\n    return Err(crate::kernel::Refusal::UnknownArgument(format!(\n        \"{command_name} does not declare {{}} — it takes {}\",\n        unknown.join(\", \")\n    )));\n}}\n",
         known_keys.iter().map(|k| naming::ruby_inspect_string(k)).collect::<Vec<_>>().join(", "),
         declared_names.join(", "),
     )

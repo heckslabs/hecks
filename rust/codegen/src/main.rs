@@ -22,7 +22,10 @@
 #![allow(dead_code)]
 
 mod attr;
+mod bridging;
+mod commands;
 mod constraints;
+mod domain_generator;
 mod exemplar;
 mod expr;
 mod expr_emitter;
@@ -30,8 +33,15 @@ mod fielded;
 mod hecksagain_naming;
 mod json;
 mod json_codec;
+mod literal;
+mod mutations;
 mod naming;
+mod ports;
 mod prelude;
+mod queries;
+mod reactions;
+mod read_models;
+mod registry;
 mod shared;
 mod types;
 
@@ -52,7 +62,8 @@ fn main() -> ExitCode {
 fn run(args: &[String]) -> Result<(), String> {
     match args.first().map(String::as_str) {
         Some("prelude") => run_prelude(&args[1..]),
-        _ => Err("usage: hecks-codegen prelude <ir.json> <source_label> <out_dir>".to_string()),
+        Some("domain") => run_domain(&args[1..]),
+        _ => Err("usage: hecks-codegen <prelude|domain> <ir.json> <source_label> [mod_name] <out_dir>".to_string()),
     }
 }
 
@@ -82,6 +93,43 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
             }
         }
     }
+
+    Ok(())
+}
+
+/// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` —
+/// the FULL per-chapter walk (`domain_generator::generate`, a port of
+/// `DomainGenerator.call`): one `<aggregate>.rs` per generated aggregate,
+/// `registry.rs`, and `mod.rs`. NOT written: `metadata.rs`/`ir.json`
+/// (needs a JSON pretty-printer this crate doesn't have — see
+/// `domain_generator.rs`'s own header) and `manifest.json` (bookkeeping
+/// only) — named gaps, not silently dropped.
+fn run_domain(args: &[String]) -> Result<(), String> {
+    let [ir_path, source_label, mod_name, out_dir] = args else {
+        return Err("usage: hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>".to_string());
+    };
+
+    let text = std::fs::read_to_string(ir_path).map_err(|e| format!("reading {ir_path}: {e}"))?;
+    let ir = Json::parse(&text).map_err(|e| format!("parsing {ir_path}: {e}"))?;
+
+    std::fs::create_dir_all(out_dir).map_err(|e| format!("creating {out_dir}: {e}"))?;
+
+    let ex = exemplar::Exemplar::load();
+    let generated = domain_generator::generate(&ex, &ir, source_label, mod_name);
+
+    for file in &generated.aggregate_files {
+        let path = format!("{out_dir}/{}", file.name);
+        std::fs::write(&path, &file.content).map_err(|e| format!("writing {path}: {e}"))?;
+        println!("wrote {path}");
+    }
+
+    let registry_path = format!("{out_dir}/registry.rs");
+    std::fs::write(&registry_path, &generated.registry_rs).map_err(|e| format!("writing {registry_path}: {e}"))?;
+    println!("wrote {registry_path}");
+
+    let mod_path = format!("{out_dir}/mod.rs");
+    std::fs::write(&mod_path, &generated.mod_rs).map_err(|e| format!("writing {mod_path}: {e}"))?;
+    println!("wrote {mod_path}");
 
     Ok(())
 }

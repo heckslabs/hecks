@@ -1,0 +1,254 @@
+//! Port of `rust/project/registry.rb` — the JSON command router. Read
+//! that file's own header comments in full; this mirrors its algorithm
+//! directly, function for function. The plain data shapes below
+//! (`ReferenceCheck`/`CommandEntry`/`EntityCommandEntry`/`PortEntry`/
+//! `AggregateEntry`) mirror the Hash shapes `domain_generator.rb` itself
+//! accumulates while walking the IR (that file's own header spells out
+//! the exact keys).
+
+use crate::exemplar::Exemplar;
+use crate::naming;
+
+#[derive(Clone)]
+pub struct ReferenceCheck {
+    pub field: String,
+    pub optional: bool,
+    pub target_mod: String,
+    pub target_name: String,
+    pub heads: String,
+}
+
+pub struct CommandEntry {
+    pub verb: String,
+    pub name: String,
+    pub fn_name: String,
+    pub args_struct: String,
+    pub creates: bool,
+    pub identity_extra_params: Vec<String>,
+    pub reference_checks: Vec<ReferenceCheck>,
+    pub role: Option<String>,
+}
+
+pub struct EntityCommandEntry {
+    pub verb: String,
+    pub name: String,
+    pub entity_record: String,
+    pub fn_name: String,
+    pub args_struct: String,
+    pub reference_checks: Vec<ReferenceCheck>,
+    pub role: Option<String>,
+    /// `entity_name:`/`entity_identity_reading:` — carried in
+    /// `domain_generator.rb`'s own `entity_commands` hash (its own
+    /// comment: for `entity_element_missing`'s `{entity}`/`{identity}`
+    /// wording, codegen-time-static) but NOT actually read anywhere in
+    /// `registry.rb`'s own `emit_registry` — `commands.rb#emit_entity_
+    /// command` already computes the identical reading itself, inline,
+    /// off the `entity` node it's handed directly. Kept here for shape
+    /// parity with Ruby's own hash, not because anything in this crate's
+    /// ported scope consumes them.
+    pub entity_name: String,
+    pub entity_identity_reading: String,
+}
+
+pub struct PortEntry {
+    pub verb: String,
+    pub name: String,
+    pub fn_name: String,
+    pub args_struct: String,
+    pub reference_checks: Vec<ReferenceCheck>,
+}
+
+pub struct AggregateEntry {
+    pub name: String,
+    pub module_name: String,
+    pub record: String,
+    pub commands: Vec<CommandEntry>,
+    pub entity_commands: Vec<EntityCommandEntry>,
+    pub ports: Vec<PortEntry>,
+    pub chapter_mod: String,
+    pub domain_name: String,
+}
+
+pub fn emit_role_check(exemplar: &Exemplar, role: Option<&str>, command_name: &str) -> Option<String> {
+    let role = role?;
+    Some(exemplar.render("role_check", &[("\"TmplRole\"", naming::ruby_inspect_string(role)), ("\"TmplCommandName\"", naming::ruby_inspect_string(command_name))]))
+}
+
+pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {
+    let ident = naming::rust_ident_field(&check.field);
+    if check.optional {
+        exemplar.render(
+            "reference_check_optional",
+            &[
+                ("\"TmplTarget\"", naming::ruby_inspect_string(&check.target_name)),
+                ("\"tmpl_heads\"", naming::ruby_inspect_string(&check.heads)),
+                ("tmpl_target_mod", check.target_mod.clone()),
+                ("tmpl_optional_field", ident),
+            ],
+        )
+    } else {
+        exemplar.render(
+            "reference_check_required",
+            &[
+                ("\"TmplTarget\"", naming::ruby_inspect_string(&check.target_name)),
+                ("\"tmpl_heads\"", naming::ruby_inspect_string(&check.heads)),
+                ("tmpl_target_mod", check.target_mod.clone()),
+                ("tmpl_field", ident),
+            ],
+        )
+    }
+}
+
+fn chapter_path(a: &AggregateEntry) -> String {
+    format!("crate::generated::{}::{}", a.chapter_mod, a.module_name)
+}
+
+pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
+    let store_fields: Vec<String> = aggregates.iter().map(|a| format!("    pub {}: crate::kernel::InMemoryRepository<{}::{}>,", a.module_name, chapter_path(a), a.record)).collect();
+    let store_inits: Vec<String> = aggregates.iter().map(|a| format!("            {}: crate::kernel::InMemoryRepository::new(),", a.module_name)).collect();
+
+    let dump_arms: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            let prefix = format!("{}::{}#", a.domain_name, a.name);
+            format!(
+                "for (id, record) in self.{}.entries() {{\n    instances.push((format!(\"{{}}{{}}\", {}, id), record.to_json()));\n}}",
+                a.module_name,
+                naming::ruby_inspect_string(&prefix)
+            )
+        })
+        .collect();
+
+    let seed_arms: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            let mod_path = chapter_path(a);
+            let prefix = format!("{}::{}#", a.domain_name, a.name);
+            format!(
+                "if let Some(id) = key.strip_prefix({}) {{\n    store.{}.save(id, {mod_path}::{}::from_json(value)?);\n    continue;\n}}",
+                naming::ruby_inspect_string(&prefix),
+                a.module_name,
+                a.record
+            )
+        })
+        .collect();
+
+    let query_arms: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            let prefix = format!("{}::{}", a.domain_name, a.name);
+            format!(
+                "if aggregate == {} {{\n    return Some(self.{}.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());\n}}",
+                naming::ruby_inspect_string(&prefix),
+                a.module_name
+            )
+        })
+        .collect();
+
+    let mut aggregate_arms: Vec<String> = Vec::new();
+    for a in aggregates {
+        let mod_path = chapter_path(a);
+        for c in &a.commands {
+            let extra_names = &c.identity_extra_params;
+            let extra_idents: Vec<String> = extra_names.iter().map(|n| naming::rust_ident_field(n)).collect();
+            let extra_lines: Vec<String> = extra_names
+                .iter()
+                .zip(extra_idents.iter())
+                .map(|(name, ident)| {
+                    let msg = format!("{} creates a {} — pass {name}", c.verb, a.record);
+                    format!(
+                        "let {ident} = args_json.dig({}).ok_or_else(|| crate::kernel::Refusal::NotFound({}.to_string()))?.to_id_component()?;",
+                        naming::ruby_inspect_string(name),
+                        naming::ruby_inspect_string(&msg)
+                    )
+                })
+                .collect();
+            let extra_pass: String = extra_idents.iter().map(|ident| format!("&{ident}, ")).collect();
+
+            let dispatch_call = format!("{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations)", c.fn_name, a.module_name, if c.creates { extra_pass } else { "&id, ".to_string() });
+            let id_line = if c.creates { String::new() } else { format!("let id = {mod_path}::{}::extract_id(args_json)?;", a.record) };
+            let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
+            let reference_lines: Vec<String> = c.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
+
+            let mut body: Vec<String> = Vec::new();
+            if !id_line.is_empty() {
+                body.push(id_line);
+            }
+            body.extend(extra_lines);
+            body.push(format!("let args = {mod_path}::{}::from_json(args_json)?;", c.args_struct));
+            if let Some(rl) = role_line {
+                if !rl.is_empty() {
+                    body.push(rl);
+                }
+            }
+            body.extend(reference_lines.into_iter().filter(|l| !l.is_empty()));
+            body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
+            body.push(format!("{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"));
+
+            aggregate_arms.push(format!("          {} => {{\n{}\n          }}", naming::ruby_inspect_string(&c.verb), body.iter().map(|l| format!("              {l}")).collect::<Vec<_>>().join("\n")));
+        }
+    }
+
+    let mut entity_arms: Vec<String> = Vec::new();
+    for a in aggregates {
+        let mod_path = chapter_path(a);
+        for c in &a.entity_commands {
+            let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
+            let reference_lines: Vec<String> = c.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
+            let dispatch_call =
+                format!("{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))", c.fn_name, a.module_name);
+
+            let mut body: Vec<String> = vec![
+                format!("let parent_id = {mod_path}::{}::extract_id(args_json)?;", a.record),
+                format!("let element_id = {mod_path}::{}::extract_id(args_json)?;", c.entity_record),
+                format!("let element_wants = {mod_path}::{}::extract_wants(args_json);", c.entity_record),
+                format!("let args = {mod_path}::{}::from_json(args_json)?;", c.args_struct),
+            ];
+            if let Some(rl) = role_line {
+                body.push(rl);
+            }
+            body.extend(reference_lines);
+            body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
+            body.push(dispatch_call);
+
+            entity_arms.push(format!("          {} => {{\n{}\n          }}", naming::ruby_inspect_string(&c.verb), body.iter().map(|l| format!("              {l}")).collect::<Vec<_>>().join("\n")));
+        }
+    }
+
+    let mut port_arms: Vec<String> = Vec::new();
+    for a in aggregates {
+        let mod_path = chapter_path(a);
+        for p in &a.ports {
+            let reference_lines: Vec<String> = p.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
+            let dispatch_call = format!("{mod_path}::dispatch_operation_{}(args).map(|events| stamp_payload(events, &payload))", p.fn_name);
+
+            let mut body: Vec<String> = vec![format!("let args = {mod_path}::{}::from_json(args_json)?;", p.args_struct)];
+            body.extend(reference_lines);
+            body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
+            body.push(dispatch_call);
+
+            port_arms.push(format!("          {} => {{\n{}\n          }}", naming::ruby_inspect_string(&p.verb), body.iter().map(|l| format!("              {l}")).collect::<Vec<_>>().join("\n")));
+        }
+    }
+
+    let mut dispatch_arms = aggregate_arms;
+    dispatch_arms.extend(entity_arms);
+    dispatch_arms.extend(port_arms);
+
+    let header = "// GENERATED by bin/project_rust — the JSON command router\n// `kernel::cli` dispatches every step through. Do not hand-edit —\n// re-run bin/project_rust instead.\n#![allow(dead_code, unused_variables)]\n\n// `Repository::save` (from_seed, below) is a TRAIT method —\n// `InMemoryRepository`'s own inherent methods (entries(), used\n// by instances()) need no import, but save() does.\nuse crate::kernel::Repository;\n\n";
+
+    let body = exemplar.render(
+        "registry_file",
+        &[
+            ("TmplStore2", "Store".to_string()),
+            ("    pub tmpl_field: crate::kernel::InMemoryRepository<i64>,", store_fields.join("\n")),
+            ("            tmpl_field: tmpl_store_fields_placeholder(),", store_inits.join("\n")),
+            ("tmpl_dump_arm_placeholder();", dump_arms.join("\n")),
+            ("tmpl_seed_arm_placeholder();", seed_arms.join("\n")),
+            ("tmpl_query_arm_placeholder();", query_arms.join("\n")),
+            ("\"tmpl_verb\" => { tmpl_dispatch_arm_placeholder() }", dispatch_arms.join("\n")),
+        ],
+    );
+
+    format!("{header}{body}")
+}
