@@ -18,7 +18,7 @@ module Hecksagain
     # produce.
     module Vocabulary
       extend Projector::Target
-      projects_as :vocabulary
+      projects_as :vocabulary, declares: "Vocabulary"
 
       HEADER = <<~RUBY.freeze
         # GENERATED — projected from the language's own Vocabulary aggregate
@@ -48,10 +48,7 @@ module Hecksagain
       # duplicated error names — well-formed and meaningless. So rows are
       # carried whole, and the terms are derived from them.
       def tables(bluebook)
-        aggregate = bluebook.aggregates.find { |a| a.name == "Vocabulary" } or
-          raise Projector::WrongConstruct, "#{bluebook.name} declares no Vocabulary aggregate"
-
-        aggregate.value_objects.to_h do |vo|
+        bluebook.aggregate("Vocabulary").value_objects.to_h do |vo|
           [vo.hecks_name, vo.members.map { |row| row.to_h.transform_keys(&:to_s).transform_values(&:to_s) }]
         end
       end

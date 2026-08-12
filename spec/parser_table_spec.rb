@@ -5,7 +5,7 @@ require "spec_helper"
 # it — `Kernel.load` is the one Ruby primitive that loads a plain path
 # regardless of extension, and it's what the script's own
 # `$PROGRAM_NAME == __FILE__` guard exists for: loaded (not run) here, its
-# file-writing side effect never fires, only `ParserTableProjection` gets
+# file-writing side effect never fires, only `Projections::ParserTable` gets
 # defined.
 Kernel.load(File.expand_path("../bin/project_parser_table", __dir__))
 
@@ -24,14 +24,28 @@ RSpec.describe "the generated parser table" do
     expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run bin/project_parser_table"
 
     committed  = File.read(committed_path)
-    regenerated = ParserTableProjection.render
+    regenerated = Hecksagain::Projector.call(
+      :parser_table,
+      bluebook: Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    )
 
     expect(committed).to eq(regenerated),
                          "rust/parser/src/keywords.rs is stale — run bin/project_parser_table and commit the result"
   end
 
   it "declares at least one row (a real, non-empty grammar table)" do
-    expect(ParserTableProjection.rows("Keyword")).not_to be_empty
-    expect(ParserTableProjection.rows("Argument")).not_to be_empty
+    chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+
+    expect(Hecksagain::Projections::ParserTable.rows(chapter, "Keyword")).not_to be_empty
+    expect(Hecksagain::Projections::ParserTable.rows(chapter, "Argument")).not_to be_empty
+  end
+
+  # `declares: "Syntax"` is stated at registration, so the REGISTRY
+  # refuses before the projection runs. It used to be a `raise` inside
+  # the projection's own body — a requirement written as behaviour
+  # instead of declared.
+  it "refuses a chapter with no Syntax aggregate" do
+    expect { Hecksagain::Projector.call(:parser_table, bluebook: boot_in_memory.registry.bluebook("Pizzas")) }
+      .to raise_error(Hecksagain::Projector::WrongConstruct, /needs a chapter declaring Syntax/)
   end
 end

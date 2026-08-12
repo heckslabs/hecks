@@ -51,8 +51,18 @@ module Hecksagain
       # loudly (no `aggregates` method), but `:shape` returned
       # `{"name" => "Order", "aggregates" => []}` — well-formed,
       # confident, and wrong.
-      def projects_as(key, requires: nil)
+      # `declares:` NAMES AN AGGREGATE THE CHAPTER MUST HAVE.
+      #
+      # A capability says what a construct can DO; this says what it must
+      # CARRY. `:vocabulary` needs a chapter declaring a Vocabulary
+      # aggregate, `:parser_table` one declaring Syntax — and both used
+      # to state that as a `raise` in their own body, which is a
+      # requirement written as behaviour instead of declared. Stated
+      # here, the registry refuses before the projection runs and the
+      # projection stops carrying a guard about its own admission.
+      def projects_as(key, requires: nil, declares: nil)
         @projection_key      = key.to_sym
+        @projection_declares = Array(declares)
         @projection_requires = Array(requires)
         Projector.register(@projection_key, self)
         @projection_key
@@ -63,6 +73,8 @@ module Hecksagain
       # Empty means "a chapter" — resolved HERE rather than as a default
       # argument, because Behaviour::Chapter is not loaded yet when this
       # file is.
+      def projection_declares = @projection_declares || []
+
       def projection_requires
         req = @projection_requires
         req.nil? || req.empty? ? [Bluebook::Behaviour::Chapter] : req

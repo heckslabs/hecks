@@ -379,7 +379,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/project_deploy` | The AWS DEPLOYMENT projector — docs/decisions/0018-rehydrate-replay-lambda-host.md. Generates the SAM template and build Makefile for rus... |
 | `bin/project_field_hints` | Generates rust/host/src/field_hints.rs — the four regex hints Hecksagain::Presentation::FieldShape#text_field (lib/hecksagain/ presentati... |
 | `bin/project_kernel_capabilities` | Generates the two capability enums the hand-written Rust kernel (rust/src/kernel/attribute_shapes/*.rs, rust/src/kernel/ expression_opera... |
-| `bin/project_parser_table` | Generates rust/parser/src/keywords.rs FROM syntax.bluebook — the direct mechanism for "the parser's own grammar knowledge is DERIVED from... |
+| `bin/project_parser_table` | Projects the chapter's own Syntax aggregate into the Rust parser's keyword table — the parser's grammar knowledge DERIVED from hecksagain... |
 | `bin/project_refusal_wording` | Generates rust/src/kernel/refusal_wording.rs from `Hecksagain::Runtime:: RefusalWording::TEMPLATES` (lib/hecksagain/runtime/refusal_wordi... |
 | `bin/project_rust` | Generates Rust source for one domain into rust/src/generated/ — the driver for `RustProjection` (rust/project.rb, alongside the Rust crat... |
 | `bin/project_vocabulary` | Projects the language's own closed sets into lib/hecksagain/vocabulary.rb. A one-line wrapper over the projector registry, deliberately —... |
