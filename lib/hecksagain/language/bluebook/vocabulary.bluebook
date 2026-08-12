@@ -140,6 +140,17 @@ Hecks.bluebook "Bluebook" do
         member name: "append",    sign: ""
         member name: "increment", sign: "1"
         member name: "decrement", sign: "-1"
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4, i106 in-DSL math — CommandRules::Arithmetic#multiply/
+        # #clamp): multiply scales (`current * amount`), clamp bounds
+        # (`current.clamp(min, max)`) — neither is an add/subtract, so
+        # neither carries a sign, same reading as set/append above.
+        member name: "multiply",  sign: ""
+        member name: "clamp",     sign: ""
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4): remove — the list-removal counterpart to append,
+        # matching an element by value. No sign, same reading as append.
+        member name: "remove",    sign: ""
       end
     end
 
@@ -159,6 +170,13 @@ Hecks.bluebook "Bluebook" do
         member name: "lte"
         member name: "in"
         member name: "contains"
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4) — see query_specification/common/comparators.rb's own
+        # comment on none_in_state. Both closed sets (the Ruby COMPARATORS
+        # constant and this self-hosted grammar entry) must agree, the
+        # same two-places-must-agree discipline MutationOp/multiply/clamp
+        # already required earlier this pass.
+        member name: "none_in_state"
       end
     end
 

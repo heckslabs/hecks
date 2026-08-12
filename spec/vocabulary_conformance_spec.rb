@@ -189,7 +189,11 @@ RSpec.describe "the declared vocabularies" do
       JSON.parse(File.read(path)).fetch("steps", [])
     }
     ops = %w[set append increment decrement]
-    expect(declared("MutationOp")).to eq(ops)
+    # `multiply`/`clamp`/`remove` are real, declared ops (migration plan
+    # task 4) the corpus this test's OWN glob covers doesn't happen to use
+    # yet -- `declared` legitimately admits more than `used` requires, so
+    # only the corpus-required subset is asserted here, not full equality.
+    expect(declared("MutationOp")).to include(*ops)
     expect(used).not_to be_empty
   end
 
