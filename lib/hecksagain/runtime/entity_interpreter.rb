@@ -24,11 +24,7 @@ module Hecksagain
       # entity inherits its aggregate's own gate) and no
       # assign_creation_attributes (an entity is never created through this
       # path).
-      DISPATCH_ORDER = %i[
-        normalize_args refuse_role_mismatch resolve_references hydrate_parent
-        locate_element enforce_givens admissible_transition apply_mutations
-        advance_lifecycle enforce_ensures save emit
-      ].freeze
+      DISPATCH_ORDER = Hecksagain::Vocabulary.symbols("EntityDispatchOrder")
 
       # `instance` is the PARENT aggregate record (what gets saved and
       # returned) ; `element`/`view` are the entity piece itself — `view`

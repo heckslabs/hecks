@@ -56,7 +56,7 @@ module Hecksagain
       # here beside the thing it triggers rather than in the runtime that
       # notices it. Declared in the language's Trigger vocabulary, which
       # spec/vocabulary_conformance_spec holds to this constant.
-      REFUSED = "refused".freeze
+      REFUSED = Hecksagain::Vocabulary.fetch("Trigger").first
 
       include Hecksagain::IR
       include Behaviour::ProcessManager

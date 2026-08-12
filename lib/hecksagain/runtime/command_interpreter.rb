@@ -26,12 +26,7 @@ module Hecksagain
       # in that file is (RefusalWording::TEMPLATES, CommandRules::MUTATION_OPS,
       # ...) rather than read live off the meta-domain at every dispatch —
       # Runtime::RefusalWording's own doc comment gives the same reason.
-      DISPATCH_ORDER = %i[
-        refuse_unknown_arguments refuse_absent_arguments normalize_args
-        refuse_role_mismatch resolve_references hydrate enforce_givens
-        admissible_transition assign_creation_attributes apply_mutations
-        advance_lifecycle enforce_ensures save emit
-      ].freeze
+      DISPATCH_ORDER = Hecksagain::Vocabulary.symbols("AggregateDispatchOrder")
 
       # EVERY CROSS-STEP LOCAL `call` used to thread through its own literal
       # sequence, held in one place now that the sequence is data-driven —

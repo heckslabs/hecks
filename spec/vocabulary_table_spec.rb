@@ -37,6 +37,34 @@ RSpec.describe "the generated vocabulary table" do
       end
     end
 
+    # THE FOUR THAT LOOKED LIKE THEY COULD NOT BE DERIVED, and could.
+    #
+    # Each had a reason that did not survive being written down:
+    # DOMAIN_REFUSALS "maps to classes rather than names" (one const_get),
+    # REFUSED "is a single constant, not a set" (Trigger declares exactly
+    # it), and the two DISPATCH_ORDERs "name methods" — which is true, and
+    # is why a SEPARATE gate already checks every declared step resolves to
+    # a real handler. Naming them here and resolving them there are
+    # different jobs.
+    it "DomainRefusal resolves to the exception classes the module defines" do
+      expect(Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last })
+        .to eq(Hecksagain::Vocabulary.fetch("DomainRefusal"))
+    end
+
+    it "Trigger is the language's own word for a refusal" do
+      expect(Hecksagain::Bluebook::ProcessManager::REFUSED)
+        .to eq(Hecksagain::Vocabulary.fetch("Trigger").first)
+    end
+
+    {
+      "AggregateDispatchOrder" => -> { Hecksagain::Runtime::CommandInterpreter::DISPATCH_ORDER },
+      "EntityDispatchOrder"    => -> { Hecksagain::Runtime::EntityInterpreter::DISPATCH_ORDER }
+    }.each do |vocabulary, live|
+      it "#{vocabulary} is the declared order, as symbols" do
+        expect(live.call).to eq(Hecksagain::Vocabulary.symbols(vocabulary))
+      end
+    end
+
     # Symbols are a mapped copy rather than the same object, so this one
     # is held by value — the mapping is what the constant exists for.
     it "QueryComparator is the table's list, as symbols" do

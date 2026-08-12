@@ -67,9 +67,12 @@ module Hecksagain
     # invariant is declined, not crashed. Found by spec/domain_refusal_spec on
     # its first run : every corpus refusal must be a class named here, and 23
     # of banking's were InvariantViolation.
-    DOMAIN_REFUSALS = [
-      AbsentArgument, AlreadyExists, EnsuresNotMet, GivenNotMet, InvariantViolation, LifecycleRefused, NotFound,
-      RemoteRefusal, TypeMismatch, Unauthorized, UnknownArgument, UnknownVerb
-    ].freeze
+    # THE NAMES COME FROM THE LANGUAGE, the classes from this module.
+    # `DomainRefusal` declares WHICH refusals are the domain's own —
+    # a rule the caller broke — as against a runtime fault. Resolving
+    # each name here means a refusal declared but never defined fails
+    # at load with a NameError, rather than being quietly absent from
+    # a list nothing re-checks.
+    DOMAIN_REFUSALS = Hecksagain::Vocabulary.fetch("DomainRefusal").map { |name| const_get(name) }.freeze
   end
 end
