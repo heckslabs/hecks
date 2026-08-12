@@ -30,6 +30,8 @@ module Hecksagain
   # — rather than as another bin/ script that would collide with it.
   module Projector
     class UnknownProjector < StandardError; end
+    # A chapter-scoped projector was handed something that is not a chapter.
+    class WrongConstruct < StandardError; end
 
     module_function
 
@@ -43,10 +45,31 @@ module Hecksagain
       registry[name.to_sym] = projector
     end
 
+    # `bluebook:` is kept as the keyword because it is the shipped
+    # spelling and every existing caller uses it — but what it accepts is
+    # any construct that emits IR, and `admits!` is what decides whether
+    # THIS target can actually take the one handed over.
     def call(name, bluebook:, options: {})
-      registry.fetch(name.to_sym) {
+      projector = registry.fetch(name.to_sym) {
         raise UnknownProjector, "no projector registered for #{name.inspect} — registered: #{registered.sort.inspect}"
-      }.call(bluebook: bluebook, options: options)
+      }
+      admits!(name, projector, bluebook)
+      projector.call(bluebook: bluebook, options: options)
+    end
+
+    # A chapter-scoped projector walks `.aggregates`; anything else is
+    # refused HERE rather than left to produce whatever it produces. The
+    # check is duck-typed on purpose — `Bluebook::IR` is not the only
+    # thing that could ever answer for a chapter, and a class check would
+    # make a test double impossible to pass in.
+    def admits!(name, projector, construct)
+      scope = projector.respond_to?(:projection_scope) ? projector.projection_scope : :chapter
+      return if scope == :any || construct.respond_to?(:aggregates)
+
+      raise WrongConstruct,
+            "#{name.inspect} projects a whole chapter, but was handed #{construct.class} " \
+            "(#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect}). " \
+            "Pass an IR::Bluebook, or use a projector declared `from: :any`."
     end
 
     def registered?(name) = registry.key?(name.to_sym)

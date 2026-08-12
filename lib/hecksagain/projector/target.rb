@@ -27,13 +27,34 @@ module Hecksagain
       # Registering at declaration time means `require`ing a target is
       # the whole of installing it — there is no separate manifest that
       # can silently disagree about which targets exist.
-      def projects_as(key)
-        @projection_key = key.to_sym
+      #
+      # `from:` IS THE FIX FOR A REAL FAIL-QUIET. Every construct emits
+      # its own IR now (see Hecksagain::IR), so handing a projector an
+      # AGGREGATE instead of a chapter is the natural thing to try — and
+      # `bluebook:` was only ever a PARAMETER NAME, never a contract, so
+      # nothing checked. `:oidc` failed loudly (no `aggregates` method),
+      # but `:shape` returned `{"name" => "Order", "aggregates" => []}`:
+      # well-formed, confident, and wrong, because
+      # `StorageShape.project`'s own `domain["aggregates"] || []` reads a
+      # key an aggregate's IR does not carry. A silently empty answer is
+      # worse than a crash.
+      #
+      #   from: :chapter   needs a whole IR::Bluebook (walks .aggregates)
+      #   from: :any       works on any construct that emits IR
+      def projects_as(key, from: :chapter)
+        @projection_key   = key.to_sym
+        @projection_scope = from
         Projector.register(@projection_key, self)
         @projection_key
       end
 
       def projection_key = @projection_key
+
+      # Defaults to :chapter rather than :any — a target written before
+      # this existed takes a whole bluebook, and guessing the permissive
+      # answer for it would preserve exactly the silent-empty-answer bug
+      # this is here to close.
+      def projection_scope = @projection_scope || :chapter
     end
   end
 end

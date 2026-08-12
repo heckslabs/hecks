@@ -84,6 +84,57 @@ RSpec.describe "Domain.project" do
     expect(domain).not_to respond_to(:to_ir)
   end
 
+  # PER-CONSTRUCT PROJECTION, and the fail-quiet it closed.
+  #
+  # Every construct emits its own IR (Hecksagain::IR), so an aggregate is
+  # a legitimate thing to project. But `bluebook:` was only ever a
+  # parameter NAME — nothing checked what arrived — and a chapter-scoped
+  # projector handed an aggregate did not crash: `StorageShape.project`
+  # reads `domain["aggregates"] || []`, a key an aggregate's IR does not
+  # carry, and answered `{"name" => "Order", "aggregates" => []}`.
+  # Well-formed, confident, wrong.
+  describe "an aggregate door" do
+    let(:order) { runtime; Object.const_get("Pizzas::Order") }
+
+    it "projects its OWN IR, not its chapter's" do
+      expect(order.project(Hecksagain::Projections::IR)).to eq(order.ir.to_h)
+      expect(order.project(Hecksagain::Projections::IR)).not_to eq(domain.project(Hecksagain::Projections::IR))
+    end
+
+    it "refuses a chapter-scoped target loudly instead of answering emptily" do
+      expect { order.project(Hecksagain::Projections::Shape) }
+        .to raise_error(Hecksagain::Projector::WrongConstruct, /projects a whole chapter/)
+    end
+
+    it "names the construct it was actually handed, so the refusal is actionable" do
+      expect { order.project(Hecksagain::Projections::OIDC) }
+        .to raise_error(Hecksagain::Projector::WrongConstruct, /Order/)
+    end
+  end
+
+  describe "scope declarations" do
+    it "lets a from: :any target run on any construct that emits IR" do
+      expect(Hecksagain::Projections::IR.projection_scope).to eq(:any)
+    end
+
+    # Defaulting to :chapter is what makes the fix safe for a target
+    # written before `from:` existed — guessing :any would preserve the
+    # bug rather than close it.
+    it "defaults an undeclared target to :chapter rather than the permissive answer" do
+      legacy = Module.new do
+        extend Hecksagain::Projector::Target
+        def self.call(bluebook:, options: {}) = :ran
+      end
+      legacy.projects_as :legacy_scope_stub
+
+      expect(legacy.projection_scope).to eq(:chapter)
+      expect { Hecksagain::Projector.call(:legacy_scope_stub, bluebook: Object.const_get("Pizzas::Order").ir) }
+        .to raise_error(Hecksagain::Projector::WrongConstruct)
+    ensure
+      Hecksagain::Projector.registry.delete(:legacy_scope_stub)
+    end
+  end
+
   # The registry-first path stays available and is what anything
   # order-sensitive should use — Facade::Namespace.install warns and
   # KEEPS a pre-existing constant rather than clobbering it, so a domain

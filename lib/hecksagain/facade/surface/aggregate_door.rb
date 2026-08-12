@@ -34,6 +34,21 @@ module Hecksagain
 
           door.define_singleton_method(:fqn)        { fqn }
           door.define_singleton_method(:ir)         { ir }
+
+          # THE SAME VERB THE CHAPTER ANSWERS, one level down. Every
+          # construct emits its own IR (Hecksagain::IR), so an aggregate
+          # is a legitimate thing to project — `Pizzas::Order.project(
+          # Projections::IR)` is this aggregate's IR, not the chapter's.
+          #
+          # A chapter-scoped target refuses here rather than inventing an
+          # answer: `Projector.admits!` is what tells `Projections::IR`
+          # (`from: :any`) apart from `Projections::Shape`
+          # (`from: :chapter`), which used to return a confidently empty
+          # `{"aggregates" => []}` for an aggregate.
+          door.define_singleton_method(:project) do |target, out: nil, **options|
+            artifact = Projector.call(Projector.key_for(target), bluebook: ir, options: options)
+            out ? Projector.write(artifact, out) : artifact
+          end
           door.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
           door.define_singleton_method(:commands)   { ir.commands.map { |c| Naming.snake(c.hecks_name) }.sort }
           door.define_singleton_method(:count)      { dispatcher.registry.repository(domain, ir).count }

@@ -11,6 +11,6 @@ module Hecksagain
     IR = Projector::IRProjector
 
     IR.extend(Projector::Target)
-    IR.projects_as :ir
+    IR.projects_as :ir, from: :any
   end
 end
