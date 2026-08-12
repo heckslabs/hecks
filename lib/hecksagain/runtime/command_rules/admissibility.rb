@@ -2,6 +2,7 @@ require_relative "../../bluebook/expression/evaluator"
 require_relative "../../rendering"
 require_relative "../errors"
 require_relative "../refusal_wording"
+require_relative "../value"
 
 module Hecksagain
   module Runtime
@@ -71,7 +72,29 @@ module Hecksagain
           candidates = lifecycle.transitions_for(command.hecks_name)
           return nil if candidates.empty?
 
-          current  = subject[lifecycle.field].to_s
+          # `Value.scalar` unwrap -- vendored addition, not (yet)
+          # upstream hecksagain (migration plan task 9): a VO-typed
+          # lifecycle field (the norm, not the exception, per this
+          # corpus's own no-primitive-envy convention) holds a real
+          # `Runtime::Value` here, and a bare `.to_s` on that hit Ruby's
+          # default `Object#to_s` instead of unwrapping the inner
+          # scalar first -- `current` came back as a raw object-pointer
+          # string (`"#<Hecksagain::Runtime::Value:0x...>"`) that could
+          # never match any declared `from` state, so EVERY transition
+          # on a VO-typed lifecycle field refused unconditionally, and
+          # when it refused the message leaked the pointer too.
+          # Confirmed live via `Plan::Task.Complete` (status defaults to
+          # `TaskStatus`, a single-field VO), not inferred. Reuses
+          # `Value.scalar` -- this file's own third candidate for "how
+          # to unwrap a Value/Hash-shaped field," already built and
+          # already documented for exactly this job ("rendering a value
+          # object into a column or a message, where there is no path
+          # to consult," `value/coercion.rb`'s own comment) -- rather
+          # than inventing a second unwrap helper beside `Resolver#
+          # unwrap_scalar`'s bare-comparison one. Duck-typed the same
+          # way : a bare, non-VO lifecycle field passes through
+          # unchanged (`Value.scalar` only opens a `Value` instance).
+          current  = Value.scalar(subject[lifecycle.field]).to_s
           admitted = candidates.find { |t| !t.constrained? || Array(t.from).include?(current) }
           return admitted if admitted
 
