@@ -55,11 +55,16 @@ module Hecksagain
             return arithmetic_value_object(current, amount, target, sign, op)
           end
 
-          unless amount.is_a?(Integer)
+          # Widened from Integer to Numeric (migration plan task 4, i106):
+          # miette's organ math increments a Float (`increment: 0.02`) --
+          # the raw, non-value-object path only ever mattered for Integer
+          # counters before this corpus existed. Integer stays the common
+          # case; Float is now accepted the same way.
+          unless amount.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
                                                        op: op, target: target, offered: Rendering.describe(amount))
           end
-          unless current.is_a?(Integer)
+          unless current.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
                                                        op: op, target: target, offered: Rendering.describe(current))
           end
@@ -70,8 +75,14 @@ module Hecksagain
         def arithmetic_value_object(current, amount, target, sign, op)
           current_fields = current.to_h
           amount_fields  = amount.to_h
+          # Widened from Integer to Numeric -- see #arithmetic's own
+          # comment. A synthesised value-object wrapper around a bare
+          # Float attribute (miette's Synapse#strength, auto-wrapped per
+          # Part 3a's "bare primitives forbidden" finding) lands here as
+          # a one-Float-field Value exactly the way a one-Integer-field
+          # Value already did.
           shared_numeric = current_fields.keys.select do |field|
-            current_fields[field].is_a?(Integer) && amount_fields[field].is_a?(Integer)
+            current_fields[field].is_a?(Numeric) && amount_fields[field].is_a?(Numeric)
           end
           unless shared_numeric.size == 1
             raise TypeMismatch,
