@@ -1,0 +1,32 @@
+[package]
+name = "hecks_codegen"
+version = "0.1.0"
+edition = "2021"
+
+# Empty table, deliberate — same reasoning rust/parser/Cargo.toml already
+# gives for itself: makes THIS crate its own workspace root (own target/,
+# own Cargo.lock) instead of Cargo walking up and folding it into whatever
+# workspace `rust` (the kernel crate, a separate sibling directory) or
+# `rust/parser` might belong to.
+#
+# NOT under rust/src/ (same reasoning as rust/parser): rust/src/lib.rs
+# compiles into three shipped artifacts (native, wasm32-wasip1, and
+# rust/web's cdylib) — codegen is a build-time-only tool and would inflate
+# all three for nothing. NOT folded into rust/parser/ either, even though
+# both are build-time Bluebook tooling: parsing (bytes -> ir.json) and
+# codegen (ir.json -> .rs source) are genuinely separable stages of the
+# Stage-8 pipeline (`hecks-parse chapter | hecks-codegen generate`), and
+# keeping them separate binaries mirrors that seam directly rather than
+# blurring it into one do-everything crate.
+[workspace]
+
+[[bin]]
+name = "hecks-codegen"
+path = "src/main.rs"
+
+# NO DEPENDENCIES beyond std — same discipline as rust/parser/Cargo.toml:
+# this crate reads ir.json text and writes Rust source text by hand (see
+# src/json.rs), never ships in a deployed artifact, so there's no
+# runtime-size argument for a dependency, only build-time compile cost to
+# avoid.
+[dependencies]
