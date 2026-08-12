@@ -49,10 +49,12 @@ module Hecksagain
           # it OVER a `{id:}.merge(state)` used to let it silently
           # clobber the correct bare identity this row is supposed to
           # carry.
-          return records.map { |record| record.state.merge(id: record.id) }
+          # A QUERY ROW IS AN ANSWER, NOT A HANDLE. Mutating one edits
+          # nobody's state and silently disagrees with the store.
+          return Freezer.deep(records.map { |record| record.state.merge(id: record.id) })
         end
 
-        interpret(repository.all, declared, args, domain: domain)
+        Freezer.deep(interpret(repository.all, declared, args, domain: domain))
       end
 
       # The REFERENCE answer — this interpreter's own evaluation, never an

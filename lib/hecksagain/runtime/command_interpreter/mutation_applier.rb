@@ -96,7 +96,11 @@ module Hecksagain
           end
           element      = value_object ? Value.build(value_object, fields) : entity_element(aggregate, element_type, instance[mutation.target], fields)
 
-          Array(instance[mutation.target]) + [element]
+          # FROZEN, like every other value the domain hands back. An
+          # appended list used to come back mutable, so a caller could
+          # push straight into an aggregate's own state after the
+          # dispatch had finished.
+          Freezer.deep(Array(instance[mutation.target]) + [element])
         end
 
         # Vendored addition, not (yet) upstream hecksagain (migration plan

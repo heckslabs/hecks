@@ -139,6 +139,8 @@ module Hecksagain
           end
         end
 
+        # Frozen through: a list read back out of the store is an answer,
+        # not a handle on what is stored.
         def hydrate_entity_list(aggregate, attribute, value)
           entity = aggregate.entities.find { |candidate| candidate.hecks_name == attribute.type.to_s }
           return value unless entity
@@ -152,6 +154,7 @@ module Hecksagain
               hydrated[key] = field ? for_attribute(aggregate, field, field_value) : field_value
             end
           end
+            .then { |hydrated| Freezer.deep(hydrated) }
         end
 
         # `Value.identifier` used to live here: hand it a one-field value object
