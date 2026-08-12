@@ -6,25 +6,27 @@
 //! the way the Ruby original shells out to the same two binaries, runs
 //! this crate's own `optional_pass::run` (the Rust port of
 //! `mark_append_optional_fields!`) on each chapter's freshly-parsed
-//! `ir.json` before handing it to codegen, writes the same sidecars, and
-//! syncs `rust/Cargo.toml`. See each helper module's own header for the
-//! piece it owns; this file is the sequencing, matching
+//! `ir.json` before handing it to codegen, runs `lineage_pass::run` on
+//! the TARGET chapter's own `ir.json` only (matching the default Ruby
+//! path's own `target_ir[:lineage] = ...` — never set on a framework
+//! chapter or on `meta`), writes the same sidecars, and syncs
+//! `rust/Cargo.toml`. See each helper module's own header for the piece
+//! it owns; this file is the sequencing, matching
 //! `RustProjectPipeline.call`'s own body step for step.
 //!
-//! THE SAME NAMED, DELIBERATE GAPS as the Ruby opt-in pipeline — no
-//! `lineage` key (computing it for real needs `.hecksagon` PERSISTENCE
-//! BINDS actually interpreted, `persisted_by`/`projected_by` being the
-//! plan's own permanent open-vocabulary escape, ADR 0023) and no
-//! `manifest.json` (coverage bookkeeping only, no bearing on whether the
-//! generated `.rs` source is correct) — see
-//! `rust/project_rust_pipeline.rb`'s own header for the full reasoning,
-//! which this crate inherits unchanged rather than re-deriving.
+//! ONE NAMED, DELIBERATE GAP remains — `manifest.json` (coverage
+//! bookkeeping only, no bearing on whether the generated `.rs` source is
+//! correct). The `lineage` key gap is CLOSED (`lineage_pass`'s own
+//! header has the full reasoning) — see
+//! `rust/project_rust_pipeline.rb`'s own header for that fix's own
+//! Ruby-side account, which this crate mirrors rather than re-deriving.
 
 use std::path::{Path, PathBuf};
 
 use crate::build_artifact;
 use crate::cargo_sync;
 use crate::json::Json;
+use crate::lineage_pass;
 use crate::optional_pass;
 use crate::resolve;
 use crate::sidecars;
@@ -74,6 +76,16 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         target_files.push(p.clone());
     }
     let target_ir_text = parse_chapter_with_optionals(&parser_bin, &target_chapter_name, &target_files)?;
+    // ONLY the target — see this file's own header on why a framework
+    // chapter or `meta` never gets a `lineage` key either. A second,
+    // independent parse/mutate/re-emit pass over the already-derived
+    // text, mirroring `derive_lineage(target_ir_text, hecksagon_path)`
+    // (Ruby) taking a STRING and re-`JSON.parse`ing it rather than
+    // chaining a live object through both passes — the same structure,
+    // not an accident of this port.
+    let mut target_ir = Json::parse(&target_ir_text).map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
+    lineage_pass::run(&mut target_ir, hecksagon_path.as_deref(), root)?;
+    let target_ir_text = crate::json::write(&target_ir);
 
     // EVERY OTHER CHAPTER `uses_framework` NAMES — resolved through the
     // SAME `Hecksagain::Framework.members`-equivalent directory listing
@@ -158,8 +170,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     eprintln!(
         "hecks-build: manifest.json NOT written for any directory above — coverage bookkeeping only, \
          no bearing on whether the generated .rs source is correct (rust/codegen/src/main.rs's own \
-         `run_full` header has the full reasoning); ir.json/metadata.rs above also carry NO `lineage` \
-         key (this crate's pipeline.rs own header explains why)."
+         `run_full` header has the full reasoning)."
     );
 
     let cargo_toml_path = root.join("rust/Cargo.toml");

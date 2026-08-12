@@ -61,6 +61,7 @@
 mod build_artifact;
 mod cargo_sync;
 mod json;
+mod lineage_pass;
 mod optional_pass;
 mod pipeline;
 mod resolve;

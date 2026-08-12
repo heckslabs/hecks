@@ -28,15 +28,16 @@ require "json"
 # inside `rust/` (the `from_json_round_trip.rs` integration tests)
 # passing against `hecks-build`'s own generated banking tree.
 #
-# NO `lineage`-only EXCEPTION NEEDED HERE (unlike
-# `spec/project_rust_pipeline_spec.rb`, which compares against the
-# DEFAULT path and has to strip that key before comparing): both
-# `hecks-build` and the opt-in Ruby pipeline it's compared against here
-# share the exact same named, deliberate gap (no `lineage` key, no
-# `manifest.json` — see `rust/build/src/pipeline.rs`'s own header and
-# `rust/project_rust_pipeline.rb`'s own header for the full reasoning),
-# so `ir.json`/`metadata.rs` are expected to be PLAIN BYTE-IDENTICAL
-# too, same as every other generated file.
+# NO `lineage`-only EXCEPTION NEEDED HERE: both `hecks-build`
+# (`lineage_pass.rs`) and the opt-in Ruby pipeline it's compared against
+# here (`rust/project_rust_pipeline.rb::derive_lineage`) compute the
+# `lineage` key for real now, from the same narrow `.hecksagon`
+# `persisted_by`-bind text scan, ported line for line — so
+# `ir.json`/`metadata.rs` are expected to be PLAIN BYTE-IDENTICAL too,
+# same as every other generated file. `manifest.json` stays the one
+# remaining named, deliberate gap (coverage bookkeeping only) — neither
+# side writes it, so the file-list comparison below never sees it on
+# either side and needs no exclusion list.
 RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
   # PREFIXED (HB_*), not the bare names `spec/project_rust_pipeline_spec.rb`
   # already uses (ROOT/GENERATED_ROOT/CARGO_TOML/PROJECT_RUST/

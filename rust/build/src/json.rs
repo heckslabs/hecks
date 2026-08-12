@@ -144,6 +144,25 @@ impl Json {
             pairs.push((key.to_string(), Json::Bool(value)));
         }
     }
+
+    /// `ir[:lineage] = {...}` — the generic sibling `set_bool` doesn't
+    /// cover: overwrites an existing pair in place (never reached
+    /// against real corpus `ir.json` — `lineage` is never already
+    /// present, `hecks-parse` never emits it), otherwise APPENDS,
+    /// matching Ruby Hash's own "a new key lands last" insertion-order
+    /// guarantee — the same guarantee `set_bool`'s own fallback already
+    /// relies on, and the reason `lineage` lands as `ir.json`'s own
+    /// LAST top-level key, after `canonical_form`, exactly where the
+    /// default Ruby path's own `target_ir[:lineage] = ...` puts it.
+    pub fn set(&mut self, key: &str, value: Json) {
+        if let Json::Object(pairs) = self {
+            if let Some((_, existing)) = pairs.iter_mut().find(|(k, _)| k == key) {
+                *existing = value;
+                return;
+            }
+            pairs.push((key.to_string(), value));
+        }
+    }
 }
 
 struct Parser<'a> {
