@@ -18,7 +18,7 @@ module Hecksagain
     # produce.
     module Vocabulary
       extend Projector::Target
-      projects_as :vocabulary, from: :chapter
+      projects_as :vocabulary
 
       HEADER = <<~RUBY.freeze
         # GENERATED — projected from the language's own Vocabulary aggregate

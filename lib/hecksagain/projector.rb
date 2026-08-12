@@ -57,20 +57,27 @@ module Hecksagain
       projector.call(bluebook: bluebook, options: options)
     end
 
-    # A chapter-scoped projector walks `.aggregates`; anything else is
-    # refused HERE rather than left to produce whatever it produces. The
-    # check is duck-typed on purpose — `Hecksagain::Bluebook` is not the only
-    # thing that could ever answer for a chapter, and a class check would
-    # make a test double impossible to pass in.
+    # A projection names the CAPABILITIES it needs; this refuses a
+    # construct that lacks one, before the projector runs.
+    #
+    # ONE CHECK COVERS BOTH SHAPES. An ordinary construct INCLUDES its
+    # capabilities and a class-shaped one — Command, Entity, ValueObject
+    # — EXTENDS them, and `is_a?` consults the singleton chain, so it
+    # answers for an extended module as readily as an included one. This
+    # started as two checks on the assumption it would not; a spec
+    # asserting the assumption failed, which is the only reason the
+    # redundant half was noticed.
     def admits!(name, projector, construct)
-      scope = projector.respond_to?(:projection_scope) ? projector.projection_scope : :chapter
-      return if scope == :any || construct.respond_to?(:aggregates)
+      needed = projector.respond_to?(:projection_requires) ? projector.projection_requires : []
+      missing = needed.reject { |capability| capable?(construct, capability) }
+      return if missing.empty?
 
       raise WrongConstruct,
-            "#{name.inspect} projects a whole chapter, but was handed #{construct.class} " \
-            "(#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect}). " \
-            "Pass a Hecksagain::Bluebook, or use a projector declared `from: :any`."
+            "#{name.inspect} needs #{missing.map(&:name).join(' and ')}, and was handed " \
+            "#{construct.class} (#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect})."
     end
+
+    def capable?(construct, capability) = construct.is_a?(capability)
 
     def registered?(name) = registry.key?(name.to_sym)
     def registered = registry.keys

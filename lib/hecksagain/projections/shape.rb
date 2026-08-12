@@ -19,7 +19,7 @@ module Hecksagain
     # much less on its own).
     module Shape
       extend Projector::Target
-      projects_as :shape, from: :chapter
+      projects_as :shape
 
       module_function
 

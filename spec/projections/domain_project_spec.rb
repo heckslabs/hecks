@@ -101,9 +101,9 @@ RSpec.describe "Domain.project" do
       expect(order.project(Hecksagain::Projections::IR)).not_to eq(domain.project(Hecksagain::Projections::IR))
     end
 
-    it "refuses a chapter-scoped target loudly instead of answering emptily" do
+    it "refuses a target whose capability it lacks, instead of answering emptily" do
       expect { order.project(Hecksagain::Projections::Shape) }
-        .to raise_error(Hecksagain::Projector::WrongConstruct, /projects a whole chapter/)
+        .to raise_error(Hecksagain::Projector::WrongConstruct, /Behaviour::Chapter/)
     end
 
     it "names the construct it was actually handed, so the refusal is actionable" do
@@ -112,26 +112,43 @@ RSpec.describe "Domain.project" do
     end
   end
 
-  describe "scope declarations" do
-    it "lets a from: :any target run on any construct that emits IR" do
-      expect(Hecksagain::Projections::IR.projection_scope).to eq(:any)
+  describe "capabilities" do
+    # `requires:` names a MODULE, not a shape word. The capabilities were
+    # already real — Hecksagain::IR is the ability to emit IR, and
+    # Behaviour::Chapter the ability to answer as a chapter — so a
+    # projection names what it needs rather than a symbol standing in
+    # for it.
+    it "lets a target requiring only the IR capability run on any construct that emits" do
+      expect(Hecksagain::Projections::IR.projection_requires).to eq([Hecksagain::IR])
+      expect { Object.const_get("Pizzas::Order").project(Hecksagain::Projections::IR) }.not_to raise_error
     end
 
-    # Defaulting to :chapter is what makes the fix safe for a target
-    # written before `from:` existed — guessing :any would preserve the
-    # bug rather than close it.
-    it "defaults an undeclared target to :chapter rather than the permissive answer" do
+    # A class-shaped construct EXTENDS its capabilities rather than
+    # including them. `is_a?` consults the singleton chain, so one check
+    # covers both shapes — asserting otherwise is what showed the second
+    # check was dead.
+    it "sees a capability a class-shaped construct extends" do
+      command = bluebook.aggregate("Order").commands.first
+
+      expect(command).to be_a(Class)
+      expect(Hecksagain::Projector.capable?(command, Hecksagain::IR)).to be true
+    end
+
+    # Defaulting to the chapter capability is what makes the check safe
+    # for a target written before `requires:` existed — guessing the
+    # permissive answer would preserve the fail-quiet it closes.
+    it "defaults an undeclared target to the chapter capability" do
       legacy = Module.new do
         extend Hecksagain::Projector::Target
         def self.call(bluebook:, options: {}) = :ran
       end
-      legacy.projects_as :legacy_scope_stub
+      legacy.projects_as :legacy_capability_stub
 
-      expect(legacy.projection_scope).to eq(:chapter)
-      expect { Hecksagain::Projector.call(:legacy_scope_stub, bluebook: Object.const_get("Pizzas::Order").ir) }
+      expect(legacy.projection_requires).to eq([Hecksagain::Bluebook::Behaviour::Chapter])
+      expect { Hecksagain::Projector.call(:legacy_capability_stub, bluebook: Object.const_get("Pizzas::Order").ir) }
         .to raise_error(Hecksagain::Projector::WrongConstruct)
     ensure
-      Hecksagain::Projector.registry.delete(:legacy_scope_stub)
+      Hecksagain::Projector.registry.delete(:legacy_capability_stub)
     end
   end
 
