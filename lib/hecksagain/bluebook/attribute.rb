@@ -56,7 +56,7 @@ module Hecksagain
       # Held because a declared vocabulary pins it — spec/vocabulary_conformance
       # holds `Primitive`'s members to this list. The `primitive?` predicate that
       # used to read it had no caller anywhere and is gone.
-      PRIMITIVES = %w[String Integer Float TrueClass FalseClass].freeze
+      PRIMITIVES = Hecksagain::Vocabulary.fetch("Primitive")
 
       # `type` is spelled, never handed over. A Reference renders as
       # "Reference<Customer>" here because that is the export's pinned spelling.

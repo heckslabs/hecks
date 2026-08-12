@@ -6,7 +6,7 @@ module Hecksagain
       module CanonicalForm
         Rule = Struct.new(:strategy, :source_token, :replacement, :boundary, :position, keyword_init: true)
 
-        STRATEGIES = %w[collapse_whitespace replace].freeze
+        STRATEGIES = Hecksagain::Vocabulary.fetch("NormalisationStrategy")
 
         # READ, NOT RESTATED — the admitted normalisation rules, projected
         # from the grammar chapter by bin/expression_projection exactly as

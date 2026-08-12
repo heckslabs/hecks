@@ -12,7 +12,7 @@ module Hecksagain
       # a real, deliberate, pre-existing feature (WhereOp::NoneInState in
       # the old Rust runtime), not invented here -- see Runtime::
       # QueryInterpreter#holds?'s own comment for the evaluation side.
-      COMPARATORS = %i[eq ne gt gte lt lte in contains none_in_state].freeze
+      COMPARATORS = Hecksagain::Vocabulary.symbols("QueryComparator")
     end
 
     # The specification structs' own name for the one wire spelling — see

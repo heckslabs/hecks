@@ -1,5 +1,9 @@
 
 require_relative "hecksagain/version"
+# The closed sets the runtime computes with, generated from
+# vocabulary.bluebook. Plain data, required first, because some of
+# them are read while a bluebook is still being parsed.
+require_relative "hecksagain/vocabulary"
 require_relative "hecksagain/rendering"
 require_relative "hecksagain/naming"
 require_relative "hecksagain/fqn"
@@ -18,6 +22,7 @@ require_relative "hecksagain/router"
 require_relative "hecksagain/runtime"
 require_relative "hecksagain/translation"
 require_relative "hecksagain/adapters"
+require_relative "hecksagain/vocabulary_table"
 require_relative "hecksagain/projector"
 # AFTER the projector registry and its `Target` mixin are both real —
 # every target registers itself as it loads, so this require IS the

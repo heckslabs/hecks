@@ -7,7 +7,7 @@ module Hecksagain
       class EvaluationError < StandardError; end
 
       module Resolver
-        SIGN_TESTS = %w[positive? negative? zero?].freeze
+        SIGN_TESTS = Hecksagain::Vocabulary.fetch("SignTest")
 
         # Which Comparison operator each sign test is sugar for, against the
         # literal 0 — declared the same way in Vocabulary::SignTest's
@@ -395,7 +395,7 @@ module Hecksagain
         # (language/bluebook/vocabulary.bluebook) — spec/vocabulary_conformance_spec
         # holds this equal to the language. Shared by .size and .empty?,
         # which admit the same set for the same reason.
-        SIZED_TYPES = %w[Array String Hash].freeze
+        SIZED_TYPES = Hecksagain::Vocabulary.fetch("SizedType")
 
         def size_of(value)
           return value.size if value.is_a?(Array) || value.is_a?(String) || value.is_a?(Hash)
@@ -490,7 +490,7 @@ module Hecksagain
         # Declared the same way in Vocabulary::ToStringType
         # (language/bluebook/vocabulary.bluebook) — spec/vocabulary_conformance_spec
         # holds this equal to the language.
-        TO_STRING_TYPES = %w[String Integer Float TrueClass FalseClass NilClass].freeze
+        TO_STRING_TYPES = Hecksagain::Vocabulary.fetch("ToStringType")
 
         def string_of(value)
           case value
