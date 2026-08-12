@@ -9,7 +9,7 @@ require_relative "support/ruby_codegen_prelude"
 # THE DIFFERENTIAL HARNESS FOR STAGE 7 (codegen) — modeled directly on
 # spec/parser_parity_spec.rb's own proven pattern (cargo-build-then-
 # subprocess, byte-exact comparison, a real corpus enumeration, an
-# honestly-shrinking PENDING_MEMBERS table with a REASON per entry) and on
+# honestly-shrinking CODEGEN_PENDING_MEMBERS table with a REASON per entry) and on
 # spec/rust_conformance_spec.rb's own cargo-build-inside-rspec convention.
 #
 # TWO SLICES, TWO CHECKS. The first Stage 7 slice ported the value-object/
@@ -119,7 +119,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)" do
   # enumerated by hand for now (not yet `Dir.glob`-derived the way
   # spec/parser_parity_spec.rb's own PARITY_CORPUS_MEMBERS is — Stage 7's
   # own scope is narrower than "every corpus member parses", see
-  # PENDING_MEMBERS below for what's genuinely still open and why).
+  # CODEGEN_PENDING_MEMBERS below for what's genuinely still open and why).
   CODEGEN_CORPUS_MEMBERS = [
     ["pizzas", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
     ["identity", -> { domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"), "Identity") }],
@@ -132,7 +132,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)" do
   # A REAL, per-member reason — never a placeholder. See this file's own
   # header on why Stage 7 doesn't reach "empty" here (the plan explicitly
   # doesn't require it to, unlike Stage 6's parsing-side table).
-  PENDING_MEMBERS = {
+  CODEGEN_PENDING_MEMBERS = {
     "embryonaut" => "Its own bluebook source lives in a separate, sibling repository (embryonaut_console) not " \
                      "checked out here — only rust/src/generated/embryonaut's own already-compiled output exists " \
                      "in THIS repo, with no `.bluebook` this spec's own Kernel.load-based domain_ir helper can " \
@@ -150,7 +150,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)" do
   # commands on SafeDepositBox/ATMCard, arithmetic mutations, process
   # managers, cross-domain policies) and `bluebook_language` (the
   # self-hosted grammar's own nine-file chapter) — leaving only
-  # `embryonaut` on `PENDING_MEMBERS` (a structural gap: no local
+  # `embryonaut` on `CODEGEN_PENDING_MEMBERS` (a structural gap: no local
   # `.bluebook` source to load, unrelated to anything ported this stage).
   WHOLE_FILE_MEMBERS = %w[pizzas identity governance compliance banking bluebook_language].freeze
 
@@ -242,7 +242,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)" do
     end
   end
 
-  PENDING_MEMBERS.each do |name, reason|
+  CODEGEN_PENDING_MEMBERS.each do |name, reason|
     it "#{name}: still pending — #{reason[0, 60]}..." do
       expect(reason).to be_a(String).and(satisfy("be non-empty") { |r| !r.strip.empty? })
     end
