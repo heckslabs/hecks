@@ -206,9 +206,49 @@ module Hecksagain
           return identifier unless value_object
 
           fields = value_object.attributes
-          return build(value_object, { fields.first.name => identifier }) if fields.size == 1
+          if fields.size == 1
+            field = fields.first
+            return build(value_object, { field.name => coerce_identifier(field, identifier) })
+          end
 
           raise TypeMismatch, RefusalWording.render("TypeMismatch", "composite_identity", type: value_object.hecks_name)
+        end
+
+        # Vendored fix, not (yet) upstream hecksagain (migration plan
+        # task 9): `identifier` here is always the DERIVED IDENTITY
+        # STRING -- `Identity.of`/`Identity.from` intentionally return
+        # one (correct for naming a repository key), and
+        # `Runtime::Instance#materialize_identity!` calls `from_identifier`
+        # with exactly that string on every fresh hydration -- but when
+        # the identity field's OWN declared type is Integer/Float (not
+        # the overwhelmingly common String), seeding it straight from
+        # that string round-trips a correctly-derived identity back in
+        # as the WRONG Ruby type -- and #build's own
+        # `check_numeric_fields` (added specifically to catch a genuine
+        # CALLER mismatch) then refused the runtime's OWN internal
+        # identity seed instead, on every dispatch, valid input or not.
+        #
+        # Reuses THIS SAME FILE's own `NUMERIC` table (declared-type ->
+        # expected-Ruby-class, already read by `check_numeric_fields`)
+        # to decide WHICH declared types need converting, and
+        # Kernel#Integer/#Float to do the converting. A genuinely
+        # malformed identifier (should never happen, since an identity
+        # is always derived FROM a correctly-typed field in the first
+        # place, but this stays defensive rather than assume it) passes
+        # back unconverted, and `check_numeric_fields` refuses it
+        # exactly as it always has -- preserving its real job of
+        # catching a genuine caller mismatch, not just this migration's
+        # own runtime-internal one.
+        private def coerce_identifier(field, identifier)
+          return identifier unless identifier.is_a?(String) && NUMERIC.key?(field.type.to_s)
+
+          case field.type.to_s
+          when "Integer" then Integer(identifier)
+          when "Float"   then Float(identifier)
+          else identifier
+          end
+        rescue ArgumentError
+          identifier
         end
 
         def canonical_fields(fields)
