@@ -21,7 +21,12 @@ module Hecksagain
           MutationOp.new(name: "set",       sign: nil),
           MutationOp.new(name: "append",    sign: nil),
           MutationOp.new(name: "increment", sign: 1),
-          MutationOp.new(name: "decrement", sign: -1)
+          MutationOp.new(name: "decrement", sign: -1),
+          # Vendored addition, not (yet) upstream hecksagain (migration
+          # plan task 4, i106): multiply carries no sign -- like
+          # set/append, it does no add-or-subtract arithmetic (multiply
+          # scales). See #multiply below.
+          MutationOp.new(name: "multiply",  sign: nil)
         ].freeze
 
         # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
@@ -94,6 +99,46 @@ module Hecksagain
         end
 
         def sign_of(op) = MUTATION_OPS.find { |candidate| candidate.name == op.to_s }&.sign || -1
+
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4, i106): `current * amount` -- the scaling counterpart to
+        # increment/decrement's add/subtract. Same raw-vs-value-object
+        # branch shape as #arithmetic/#arithmetic_value_object, reused
+        # rather than duplicated verb-for-verb (a `Proc` picks the actual
+        # arithmetic; everything else -- the Value unwrap/rewrap, the
+        # TypeMismatch refusals -- is identical to the additive pair).
+        def multiply(current, amount, target)
+          current ||= 0
+
+          if current.is_a?(Value) && amount.is_a?(Value)
+            return combine_value_object(current, amount, target, "multiply") { |c, a| c * a }
+          end
+
+          unless amount.is_a?(Numeric) && current.is_a?(Numeric)
+            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
+                                                       op: "multiply", target: target,
+                                                       offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
+          end
+
+          current * amount
+        end
+
+        private
+
+        def combine_value_object(current, amount, target, op)
+          current_fields = current.to_h
+          amount_fields  = amount.to_h
+          shared_numeric = current_fields.keys.select do |field|
+            current_fields[field].is_a?(Numeric) && amount_fields[field].is_a?(Numeric)
+          end
+          unless shared_numeric.size == 1
+            raise TypeMismatch,
+                  RefusalWording.render("TypeMismatch", "arithmetic_shared_field", op: op, target: target)
+          end
+
+          field = shared_numeric.first
+          current.with(field, yield(current[field], amount[field]))
+        end
       end
     end
   end

@@ -42,6 +42,18 @@ module Hecksagain
           # never be lost").
           when :remove
             instance[mutation.target] = removed(instance, aggregate, mutation, args)
+          # Vendored addition, not (yet) upstream hecksagain (migration
+          # plan task 4, i106): multiply -- the scale counterpart to
+          # increment/decrement's add/subtract -- see
+          # CommandRules::Arithmetic#multiply's own comment. Same
+          # amount-wrapping shape increment/decrement already use above
+          # (the shared Value-wrap asymmetry across all three is item 17's
+          # own fix, not repeated here).
+          when :multiply
+            amount = @rules.resolve_source(mutation.source, args)
+            attribute = aggregate.attribute(mutation.target)
+            amount = Value.for_attribute(aggregate, attribute, amount) if attribute
+            instance[mutation.target] = @rules.multiply(instance[mutation.target], amount, mutation.target)
           end
         end
 
