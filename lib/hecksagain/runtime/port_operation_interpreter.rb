@@ -75,7 +75,7 @@ module Hecksagain
             payload:     ctx.args,
             occurred_at: Time.now.utc.iso8601
           )
-          @registry.event_log << event
+          @registry.event_log << event.emit!
           event
         end
       end

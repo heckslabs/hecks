@@ -87,16 +87,19 @@ module Hecksagain
             command = aggregate.command(command_name) ||
                       raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
                                                                 aggregate: aggregate_name, command: command_name.inspect))
-            @commands.call(domain, aggregate, command, args)
+            @commands.call(domain, aggregate, command, args, saga_correlation)
           end
 
-        # STAMPED BEFORE reactions and sagas see these events, not after —
-        # `SagaInterpreter#advance` runs on THIS domain's `announced` events
-        # within this very call, and a step further down the same saga has to
-        # find the stamp already there. See `Event#correlation`'s own comment.
-        if saga_correlation
-          announced.each { |event| (event.correlation ||= {}).merge!(saga_correlation) }
-        end
+        # Correlation is SET AT CONSTRUCTION now, not merged on here —
+        # it is part of the transaction, known from this method's own
+        # argument before a single event exists. It used to be stamped
+        # onto already-emitted events, which is what kept an event
+        # mutable after it had happened.
+        #
+        # The ordering this note used to guard still holds, and more
+        # simply: `SagaInterpreter#advance` runs on THIS domain's
+        # `announced` events within this very call, and finds the
+        # correlation already there because it was never absent.
 
         announced.each { |event| @policies.react(event, domain) }
 

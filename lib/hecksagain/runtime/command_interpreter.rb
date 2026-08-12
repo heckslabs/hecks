@@ -32,15 +32,17 @@ module Hecksagain
       # sequence, held in one place now that the sequence is data-driven —
       # `result` and `transition`/`old_state` default to nil until the step
       # that sets them runs, same as they were unset locals before that point.
-      Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state, :result)
+      Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
+                           :result, :correlation)
 
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
       end
 
-      def call(domain, aggregate, command, args)
+      def call(domain, aggregate, command, args, correlation = nil)
         ctx = Context.new(domain, aggregate, command, args)
+        ctx.correlation = correlation
         run_dispatch_order(DISPATCH_ORDER, ctx)
         [ctx.instance, ctx.result]
       end
@@ -110,7 +112,7 @@ module Hecksagain
       end
 
       def step_emit(ctx)
-        ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository) }
+        ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository, ctx.correlation) }
       end
 
       def hydrate(repository, aggregate, command, args)

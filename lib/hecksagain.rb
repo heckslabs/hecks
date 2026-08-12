@@ -7,6 +7,7 @@ require_relative "hecksagain/vocabulary"
 require_relative "hecksagain/rendering"
 require_relative "hecksagain/naming"
 require_relative "hecksagain/fqn"
+require_relative "hecksagain/freezer"
 require_relative "hecksagain/construct"
 # Before `bluebook` — every construct under `Bluebook` includes or
 # extends this to declare what it emits.

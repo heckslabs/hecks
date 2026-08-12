@@ -17,10 +17,26 @@ module Hecksagain
 
       attr_reader :value_object
 
+      # FROZEN THROUGH, not just on top.
+      #
+      # `@fields.freeze` alone stops a key being added or removed and
+      # nothing else: the String, Array or Hash a field HOLDS stays
+      # mutable, so `vo[:value] << "!"` edits a value object in place —
+      # demonstrated on a real dispatch before this was written, not
+      # supposed. Same shape as the three freezing bugs already fixed
+      # (list attributes, the event log, query rows), where the container
+      # was frozen and the contents were not.
+      #
+      # A value object is the one thing in the domain that has no
+      # identity to change over — `with` already answers a NEW one rather
+      # than mutating — so freezing it through is what it always claimed
+      # to be.
       def initialize(value_object, fields)
         @value_object = value_object
-        @fields       = fields.transform_keys(&:to_sym).freeze
+        @fields       = Freezer.deep(fields.transform_keys(&:to_sym))
+        freeze
       end
+
 
       def type_name = @value_object.hecks_name
       def [](field) = @fields[field.to_sym]
