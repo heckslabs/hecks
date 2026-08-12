@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Assembly
       # ONE TABLE, WHERE THERE WERE FIVE HAND-WRITTEN MIRRORS OF IT.
       #
@@ -36,7 +36,7 @@ module Hecksagain
 
       CONTRACTS = {
         "Bluebook" => Contract.new(
-          holder: Bluebook, make: :new,
+          holder: Chapter, make: :new,
           fields: {
             name:           [:name,           :plain],
             version:        [:version,        :plain],

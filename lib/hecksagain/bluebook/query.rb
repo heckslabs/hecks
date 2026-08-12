@@ -1,7 +1,7 @@
 require_relative "behaviour/query"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     def self.render_value(value) = Literal.render(value)
 
     # A query — an ASK, declared on an aggregate or on one of its entities.

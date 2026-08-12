@@ -57,7 +57,7 @@ RSpec.describe Hecksagain::Projector do
       projected = described_class.call(:ir, bluebook: pizzas)
 
       expect(projected.keys.first).to eq(:ir_version)
-      expect(projected[:ir_version]).to eq(Hecksagain::Bluebook::IR_VERSION)
+      expect(projected[:ir_version]).to eq(Hecksagain::Bluebook::Chapter::IR_VERSION)
     end
 
     # Determinism, proven against the SAME golden fixture

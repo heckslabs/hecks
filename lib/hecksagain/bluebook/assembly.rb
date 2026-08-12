@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # A GRAPH BUILT FROM DECLARATIONS, rather than from DSL calls.
     #
     # This is the half that lets the language orchestrate. `Reconstruction` reads a

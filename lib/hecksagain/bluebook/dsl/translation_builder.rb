@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module DSL
       class TranslationAggregateBuilder
         def initialize(name, was: nil)

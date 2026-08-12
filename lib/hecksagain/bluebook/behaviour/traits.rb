@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # THE BEHAVIOUR MORE THAN ONE CONSTRUCT SHARES.
       #

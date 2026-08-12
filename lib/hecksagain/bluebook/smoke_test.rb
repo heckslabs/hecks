@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # BOOTS A REAL BLUEBOOK AND ACTUALLY DISPATCHES AGAINST IT — the
     # sibling `bin/model_check` never had: that tool proves a bluebook
     # is STRUCTURALLY sound (no dead states, no unreachable transitions)

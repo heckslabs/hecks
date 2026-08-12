@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module MetaValidator
       # The parts of a bluebook the walk cannot read by name alone.
       #

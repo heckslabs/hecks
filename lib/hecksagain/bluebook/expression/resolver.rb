@@ -2,7 +2,7 @@ require "json"
 require_relative "../../rendering"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Expression
       class EvaluationError < StandardError; end
 

@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module DSL
       class ProcessManagerBuilder
         class InvalidProcessManager < StandardError; end

@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # One field crossing a value-object boundary: a scalar becoming a VO
     # member, a VO member becoming a scalar, or a rename across the move.
     # Paths are dotted ("price.cents") for a VO member, bare otherwise.

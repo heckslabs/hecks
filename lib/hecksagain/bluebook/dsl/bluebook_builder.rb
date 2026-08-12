@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module DSL
       class BluebookBuilder
         attr_reader :classification
@@ -67,7 +67,7 @@ module Hecksagain
           # to it. No constants are installed at load time : the public door is
           # a per-boot projection, installed by `Loader.bind_runtime` once a
           # dispatcher exists to close over (facade/surface.rb).
-          bluebook = Bluebook.new(name: @name, version: @version, vision: @vision,
+          bluebook = Bluebook::Chapter.new(name: @name, version: @version, vision: @vision,
                                       aggregates: @aggregates,
                                       read_models: @read_models,
                                       policies: policies,

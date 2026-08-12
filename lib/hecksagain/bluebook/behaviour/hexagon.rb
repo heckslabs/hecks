@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A HECKSAGON DOES — the lookups over its declared binds.
       module Hecksagon

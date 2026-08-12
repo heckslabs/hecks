@@ -1,7 +1,7 @@
 require_relative "traits"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT AN AGGREGATE DOES, as opposed to what it holds.
       #

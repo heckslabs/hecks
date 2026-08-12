@@ -1,7 +1,7 @@
 require_relative "behaviour/command"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     Given = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
     Mutation = Struct.new(:target, :op, :source, keyword_init: true) do

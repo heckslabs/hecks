@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module DSL
       class SettingsCollector
         def initialize = @values = {}

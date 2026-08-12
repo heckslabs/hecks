@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module MetaValidator
       # Offers every declaration in a built bluebook to the meta-domain.
       #

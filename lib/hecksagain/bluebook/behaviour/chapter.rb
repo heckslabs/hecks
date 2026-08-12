@@ -1,7 +1,7 @@
 require_relative "traits"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A CHAPTER DOES. The declared half is the roll-call of what a
       # bluebook holds; these are the finders over it, plus `verbs` — the

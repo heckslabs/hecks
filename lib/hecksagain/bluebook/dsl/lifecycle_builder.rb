@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module DSL
       class LifecycleBuilder
         def initialize(field, default:)

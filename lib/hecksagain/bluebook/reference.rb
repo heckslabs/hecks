@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # An attribute that points at another aggregate's head.
     #
     # This used to be the STRING `"Reference<Customer>"`, minted by

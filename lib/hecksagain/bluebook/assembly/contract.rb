@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Assembly
       # WHAT A CONSTRUCT NEEDS THAT THE LANGUAGE CANNOT SAY, and how a claim that a
       # field needs no assembling is CHECKED.

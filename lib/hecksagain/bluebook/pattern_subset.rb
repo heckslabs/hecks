@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # WHICH REGEXES A BLUEBOOK MAY SAY.
     #
     # A `pattern:` is a fact about a value, carried in a bluebook — declared

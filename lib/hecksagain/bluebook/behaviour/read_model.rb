@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A READ MODEL DOES. Its declared half is the gathered heads
       # and the query shape; these are readings taken off them.

@@ -1,7 +1,7 @@
 require_relative "traits"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A COMMAND DOES. EXTENDED, not included — a command is a
       # CLASS, one per declared verb.

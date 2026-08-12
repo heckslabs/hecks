@@ -1,7 +1,7 @@
 require_relative "behaviour/process_manager"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     DispatchSpec = Struct.new(:command_name, :with_spec, keyword_init: true) do
       # A Struct already answers to_h; including the mixin puts the
       # DECLARED emission ahead of Struct's own in the ancestry, which

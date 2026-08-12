@@ -1,7 +1,7 @@
 require_relative "behaviour/aggregate"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # A construct like every other: the aggregate carries its own identity
     # and sits in the owner chain between its chapter (a Bluebook) and
     # everything declared on it. The chain is model objects end to end —

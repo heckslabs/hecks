@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Assembly
       # THE FIRST SPECIALIZER — a projection of `contracts.rb`'s `fields:` table,
       # derived from the language's own description of a category instead of

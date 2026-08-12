@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # ONE SYNTHESIZED ARGUMENT PER DECLARED ATTRIBUTE — never a random
     # guess. Reads only real `IR` (`Aggregate`, `Command`,
     # `Attribute`, `ValueObject`), so it works against ANY

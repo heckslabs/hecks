@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module DSL
       class ReadModelBuilder
         include QuerySpecification::Common::DSL

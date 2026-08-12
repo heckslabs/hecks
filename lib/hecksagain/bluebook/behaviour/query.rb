@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A QUERY DOES beyond holding its declared shape.
       module Query

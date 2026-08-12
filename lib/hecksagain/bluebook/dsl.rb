@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # The authoring surface — one builder per declaration kind, collecting
     # what a .bluebook file says into the IR. Builders call the
     # meta-validator at build time, not at load time, so their require

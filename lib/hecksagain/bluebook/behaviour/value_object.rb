@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A VALUE OBJECT DOES. EXTENDED, not included — a value object
       # is a CLASS (`Class.new(self)`, one per declared shape), so its

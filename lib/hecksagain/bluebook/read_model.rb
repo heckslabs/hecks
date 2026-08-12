@@ -1,7 +1,7 @@
 require_relative "behaviour/read_model"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # A read model — an ask that gathers heads from more than one aggregate.
     #
     # Like a query it crosses over as an INSTANCE, and for the same reason: its

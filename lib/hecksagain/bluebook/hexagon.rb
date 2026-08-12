@@ -1,7 +1,7 @@
 require_relative "behaviour/hexagon"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     Port = Struct.new(:name, :verb, :signal, keyword_init: true) do
       def reply?  = signal == :reply
       def effect? = signal == :effect

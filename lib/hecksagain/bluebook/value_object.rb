@@ -1,7 +1,7 @@
 require_relative "behaviour/value_object"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     Invariant = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
     # A value object — a DECLARATION HOLDER, never instantiated.

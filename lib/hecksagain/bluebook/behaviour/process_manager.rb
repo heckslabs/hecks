@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A PROCESS MANAGER DOES. Its declared half is the trigger,
       # the states and the handlers; the compensation half — `saga` — is

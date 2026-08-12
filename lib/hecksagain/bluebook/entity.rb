@@ -1,7 +1,7 @@
 require_relative "behaviour/entity"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # An entity, as a RUBY CLASS — a piece of an aggregate that has an identity
     # of its own.
     #

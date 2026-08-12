@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Assembly
       # The leaf shapes an assembly reads, and the encodings it undoes.
       #

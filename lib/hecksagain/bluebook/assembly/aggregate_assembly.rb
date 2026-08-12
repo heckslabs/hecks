@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Assembly
       # One head, built from its declaration.
       #

@@ -1,7 +1,7 @@
 require_relative "behaviour/domain_port"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # THE PRIMARY/DRIVING HALF OF HEXAGONAL ARCHITECTURE (Cockburn) — called
     # BY an adapter living outside the bluebook entirely, never by the
     # domain calling out. That is already `Hecks.port` (persistence,

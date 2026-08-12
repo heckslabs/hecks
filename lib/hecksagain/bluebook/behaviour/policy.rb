@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A POLICY DOES. Its declared half is four plain fields; these
       # are the readings taken off them.

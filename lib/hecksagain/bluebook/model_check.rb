@@ -1,7 +1,7 @@
 require "set"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # Lightweight formal methods over the IR — the same family as TLA+/
     # Alloy/P: every lifecycle is a declared finite state machine and
     # every process manager a declared protocol, and BOTH are already

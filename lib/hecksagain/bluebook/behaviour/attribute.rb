@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT AN ATTRIBUTE DOES. The declared half — name, type, list,
       # default, optional, pattern, admits — is what the language states

@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Assembly
       # ONE WAY TO BUILD A CONSTRUCT, for every construct.
       #

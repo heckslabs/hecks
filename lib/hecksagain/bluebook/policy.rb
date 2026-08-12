@@ -1,7 +1,7 @@
 require_relative "behaviour/policy"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Policy
       include Hecksagain::IR
       include Behaviour::Policy

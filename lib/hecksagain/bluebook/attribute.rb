@@ -1,7 +1,7 @@
 require_relative "behaviour/attribute"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class Attribute
       include Hecksagain::IR
       include Behaviour::Attribute

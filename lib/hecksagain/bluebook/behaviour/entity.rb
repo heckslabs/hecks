@@ -1,7 +1,7 @@
 require_relative "traits"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT AN ENTITY DOES. EXTENDED, not included — an entity is a
       # CLASS, so this is singleton behaviour.

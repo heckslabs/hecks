@@ -1,7 +1,7 @@
 require_relative "behaviour/lifecycle"
 
 module Hecksagain
-  class Bluebook
+  module Bluebook
     class StateTransition
       attr_reader :target, :from
 

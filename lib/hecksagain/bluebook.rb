@@ -17,7 +17,7 @@ module Hecksagain
   # chapter (bluebook/chapter.rb carries its body). Everything a chapter
   # declares nests under it, as do the ways to build one (`DSL`) and to
   # judge one (`MetaValidator`). Reopening this anywhere must say `class`.
-  class Bluebook
+  module Bluebook
   end
 end
 

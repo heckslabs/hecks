@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     # The callable catalogue for a discovered project. It knows how Bluebook
     # declarations become public FQNs, but never searches or boots folders.
     class ProjectRegister

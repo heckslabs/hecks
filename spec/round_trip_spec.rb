@@ -130,7 +130,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as aggregates read_models policies process_managers])
-    expect(Hecksagain::Bluebook.instance_method(:to_h).owner).to be_truthy
+    expect(Hecksagain::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
   end
 
   it "carries a chapter's version, which banking pins for real" do

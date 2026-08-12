@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module MetaValidator
       # Offers a built .world to the language that describes worlds.
       #

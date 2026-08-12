@@ -1,5 +1,5 @@
 module Hecksagain
-  class Bluebook
+  module Bluebook
     module Behaviour
       # WHAT A LIFECYCLE DOES. Its declared half is a field, a starting
       # state and a transition list. Everything here READS that — which
