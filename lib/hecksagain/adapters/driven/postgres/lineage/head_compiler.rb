@@ -35,7 +35,22 @@ module Hecksagain
             # journal scan twice). Re-checked under the lock: the fast
             # path above skips locking entirely once any boot has already
             # finished this once, which is every boot after the first.
-            @db.transaction do
+            #
+            # NESTABLE — this runs both standalone (adapter boot, its own
+            # transaction) and from `compile_head!` while `mint_era!` is
+            # already mid-transaction (its manual `BEGIN`, held open for
+            # the era row, every aggregate's matview, and the advisory
+            # lock advance_era! relies on). `@db.transaction` is a bare
+            # BEGIN/COMMIT with no savepoint nesting (see H2 in
+            # docs/audits/2026-08-10-main-bug-audit.md) — called while
+            # already inside a transaction, its COMMIT would end THAT
+            # transaction early, releasing mint's advisory lock and
+            # letting a later step run uncommitted. `nested_transaction`
+            # tells the two cases apart and uses a SAVEPOINT for the
+            # second, so the surrounding mint stays one real transaction
+            # from BEGIN to its own COMMIT regardless of how deep this is
+            # called from.
+            nested_transaction("hecks_head_snapshot") do
               @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
               next if table_exists?(name)
 
@@ -67,6 +82,30 @@ module Hecksagain
 
           def table_exists?(name)
             @db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name]).getvalue(0, 0) == "t"
+          end
+
+          # A transaction wrapper safe to call from inside an already-open
+          # transaction, unlike `PG::Connection#transaction` (bare
+          # BEGIN/COMMIT, no savepoint nesting — see H2). Standalone
+          # (`PQTRANS_IDLE`), this is `@db.transaction` itself: a real
+          # transaction, committed or rolled back on the way out. Nested
+          # (anything else — `PQTRANS_INTRANS` from a manual `BEGIN` like
+          # mint_era!'s, or the gem's own `#transaction`), it's a SAVEPOINT
+          # instead: released on success, rolled back to (then the error
+          # re-raised) on failure, and either way the surrounding
+          # transaction is never touched — no early COMMIT, no early
+          # release of whatever advisory lock it holds.
+          def nested_transaction(name)
+            return @db.transaction { yield } if @db.transaction_status == PG::PQTRANS_IDLE
+
+            @db.exec("SAVEPOINT #{name}")
+            begin
+              yield
+              @db.exec("RELEASE SAVEPOINT #{name}")
+            rescue StandardError
+              @db.exec("ROLLBACK TO SAVEPOINT #{name}")
+              raise
+            end
           end
 
           # Era 1: the head is the snapshot table itself, verbatim — no
