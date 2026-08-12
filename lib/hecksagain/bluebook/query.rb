@@ -1,3 +1,5 @@
+require_relative "behaviour/query"
+
 module Hecksagain
   class Bluebook
     def self.render_value(value) = Literal.render(value)
@@ -21,6 +23,7 @@ module Hecksagain
       include Construct
 
       include Hecksagain::IR
+      include Behaviour::Query
 
       emits_ir(
         name:        :name,
@@ -47,7 +50,6 @@ module Hecksagain
         @attributes  = attributes
       end
 
-      def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
 
       # A query's shape is NOT fixed — `extra_options_to_h` carries
       # whatever options the specification layer grew (count, median,

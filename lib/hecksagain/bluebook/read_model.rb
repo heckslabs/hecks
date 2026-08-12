@@ -1,3 +1,5 @@
+require_relative "behaviour/read_model"
+
 module Hecksagain
   class Bluebook
     # A read model — an ask that gathers heads from more than one aggregate.
@@ -11,6 +13,7 @@ module Hecksagain
       include Construct
 
       include Hecksagain::IR
+      include Behaviour::ReadModel
 
       emits_ir(
         name:             :name,
@@ -52,21 +55,6 @@ module Hecksagain
       # `aggregate_heads`' own `:as` does. Row hash KEYS built by
       # `Value.materialize_unwrapped` are symbols (`attr.name`), so
       # this has to be too, or `row[field]` in `nest` silently misses.
-      def group_by_fields = @group_by.map { |row| row[:field].to_sym }
-
-      def query_name = Naming.snake(@name)
-
-      # The one many-side head where/order_by/limit/offset/authorize's
-      # tenant apply to, or nil if none are declared —
-      # ReadModelBuilder#seal_query_options already refuses ambiguity
-      # (zero or several many-heads with options declared), so any
-      # interpreter can ask this directly rather than re-deriving or
-      # re-checking it.
-      def filtered_head_name
-        return nil unless wheres.any? || order_by || limit || offset || authorization&.tenant || @group_by.any?
-
-        @aggregate_heads.find { |head| head[:many] }&.fetch(:as)
-      end
 
       # `wheres`/`order_by`/`limit` are spelled explicitly here, the SAME
       # mechanism `Query#to_h` already uses (query.rb, read directly

@@ -1,3 +1,5 @@
+require_relative "behaviour/domain_port"
+
 module Hecksagain
   class Bluebook
     # THE PRIMARY/DRIVING HALF OF HEXAGONAL ARCHITECTURE (Cockburn) — called
@@ -13,6 +15,7 @@ module Hecksagain
     # event an operation emits.
     class PortOperation
       include Hecksagain::IR
+      include Behaviour::PortOperation
 
       emits_ir(name: :hecks_name, attributes: many(:attributes), emits: :emits)
 
@@ -30,18 +33,6 @@ module Hecksagain
       # the record its emitted event belongs to. Kept only so
       # CommandInterpreter::ArgumentGate's `reference_key` can ask for it
       # without learning this isn't a command.
-      def references = nil
-
-      def attribute(named) = @attributes_by_name[named.to_sym]
-
-      # THE ATTRIBUTE THAT SAYS WHICH RECORD THIS OPERATION IS ABOUT — a
-      # reference attribute targeting the aggregate that owns this port.
-      # Required at build time (PortOperationBuilder#build) precisely so
-      # this never comes back nil at dispatch: an operation with no such
-      # attribute could emit an event naming no record at all.
-      def identity_attribute(owner_name)
-        @attributes.find { |attribute| attribute.reference? && attribute.type.target_name == owner_name.to_s }
-      end
 
     end
 
@@ -52,6 +43,7 @@ module Hecksagain
     # and this is additive.
     class DomainPort
       include Hecksagain::IR
+      include Behaviour::DomainPort
 
       emits_ir(name: :name, operations: many(:operations))
 
@@ -62,7 +54,6 @@ module Hecksagain
         @operations = operations
       end
 
-      def operation(named) = @operations.find { |op| op.hecks_name == named.to_s }
 
     end
   end

@@ -1,9 +1,12 @@
+require_relative "behaviour/command"
+
 module Hecksagain
   class Bluebook
     Given = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
     Mutation = Struct.new(:target, :op, :source, keyword_init: true) do
       include Hecksagain::IR
+      include Behaviour::Mutation
 
       emits_ir(target: :target, op: :op)
 
@@ -18,19 +21,6 @@ module Hecksagain
         super.merge(source: classified_source)
       end
 
-      # An APPEND binds several fields at once, each from either a command
-      # ARGUMENT (a Symbol) or a LITERAL. It used to spell the Symbol bare
-      # and inspect the rest, which is the opposite of what a where-clause
-      # did with the same two kinds — see Hecksagain::Literal.
-      def appended_fields = source.transform_values { |value| Literal.render(value) }
-
-      def classified_source
-        if source.is_a?(Symbol)
-          { kind: "argument", name: source.to_s }
-        else
-          { kind: "literal", value: source }
-        end
-      end
     end
 
     # A command, as a RUBY CLASS.
@@ -54,6 +44,7 @@ module Hecksagain
     class Command
       extend Construct
       extend Hecksagain::IR
+      extend Behaviour::Command
 
       emits_ir(
         name:       :hecks_name,
@@ -93,31 +84,9 @@ module Hecksagain
           @emits      = emits
           @references = references
           @provenance = provenance
-          # Indexed once — attributes are final once absorbed, and every
-          # dispatch asks this finder by name.
-          @attributes_by_name = attributes.to_h { |held| [held.name, held] }
+          settle
         end
 
-        # The construct this verb acts upon — the construct itself, not its name.
-        #
-        # A verb declared on an ENTITY always acts on that piece. It never
-        # self-references, because an element is addressed THROUGH its parent —
-        # which means `creates?` answers true for every one of them, and reading
-        # `acts_on` off `creates?` alone would report that `LedgerEntry.Amend`
-        # brings a ledger entry into being. Three of banking's commands were
-        # about to say exactly that, and nothing would have contradicted them.
-        #
-        # On an aggregate, a creating command acts on no existing root, so nil is
-        # the truth: there is nothing there yet.
-        def acts_on
-          return hecks_owner if hecks_owner.is_a?(Class) && hecks_owner < Entity
-
-          creates? ? nil : hecks_owner
-        end
-
-        def creates? = @references.nil?
-
-        def attribute(named) = @attributes_by_name[named.to_sym]
 
       end
     end

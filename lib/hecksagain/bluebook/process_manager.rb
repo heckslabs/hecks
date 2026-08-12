@@ -1,3 +1,5 @@
+require_relative "behaviour/process_manager"
+
 module Hecksagain
   class Bluebook
     DispatchSpec = Struct.new(:command_name, :with_spec, keyword_init: true) do
@@ -49,7 +51,6 @@ module Hecksagain
       # The BLUEBOOK's name for this construct, asked the same way of a class
       # that has crossed over and of an IR object that has not. Collapses into
       # Construct when this one crosses.
-      def hecks_name = @name
       # The trigger of a compensating leg. Not an event name — no aggregate
       # announces that a leg the procedure dispatched was declined — so it lives
       # here beside the thing it triggers rather than in the runtime that
@@ -58,6 +59,7 @@ module Hecksagain
       REFUSED = "refused".freeze
 
       include Hecksagain::IR
+      include Behaviour::ProcessManager
 
       emits_ir(
         name:          :name,
@@ -80,45 +82,7 @@ module Hecksagain
         @handlers      = handlers
       end
 
-      def handler_for(event) = @handlers.find { |h| h.event_type == event.to_s }
 
-      # THE HEAD OF THE DOTTED PATH, and a different question from
-      # `correlates_by` itself. `correlates_by` says which SCALAR a fresh
-      # event correlates on — the dotted path a value object has to be dug
-      # through to reach. This says what a DOWNSTREAM DISPATCH is allowed to
-      # call the already-resolved scalar it carries forward (an argument
-      # name legal on any command in the domain, and the symbol a `with:`
-      # value has to spell to receive the correlation) — a plain identifier
-      # a value object was never involved in, so it never needed the dot.
-      def correlation_head = @correlates_by.to_s.split(".").first.to_sym
-
-      # A PROCEDURE coordinates: legs, states, who goes next. It is a SAGA when
-      # it also knows how to undo itself.
-      #
-      # The two are different things and the industry slurs them together. A
-      # hiring pipeline is a procedure with no saga in it — you cannot
-      # un-interview somebody. A choreographed refund is a saga with no
-      # procedure — each party knows its own undo and nobody is in charge.
-      # Banking's settlement is both.
-      #
-      # NAMED here and nowhere an author can type it. `saga` is not a word a
-      # bank says, so it never appears in a .bluebook — the author declares a
-      # compensating leg and the saga follows. Derived, so it cannot drift from
-      # the thing it describes, and deliberately NOT in to_h : the IR export
-      # spells the SOURCE, and a derived fact is not a fact
-      # about the source.
-      #
-      # nil for a procedure with no answer to a refusal, which is a legitimate
-      # thing to be — a hiring pipeline cannot un-interview anybody.
-      def saga
-        leg = handler_for(REFUSED)
-        return nil unless leg
-
-        Saga.new(trigger: REFUSED, from_state: leg.from_state,
-                 to_state: leg.to_state, reversals: leg.dispatches)
-      end
-
-      def saga? = !saga.nil?
 
     end
   end

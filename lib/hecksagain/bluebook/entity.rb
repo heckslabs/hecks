@@ -1,3 +1,5 @@
+require_relative "behaviour/entity"
+
 module Hecksagain
   class Bluebook
     # An entity, as a RUBY CLASS — a piece of an aggregate that has an identity
@@ -24,6 +26,7 @@ module Hecksagain
     class Entity
       extend Construct
       extend Hecksagain::IR
+      extend Behaviour::Entity
 
       emits_ir(
         name:          :hecks_name,
@@ -46,38 +49,24 @@ module Hecksagain
           piece.absorb(description: description, identified_by: identified_by,
                        attributes: attributes, commands: commands,
                        queries: queries, lifecycle: lifecycle)
-          # A piece owns the verbs declared on it, so they can state an identity.
-          commands.each { |verb| verb.hecks_owner = piece }
-          queries.each  { |ask|  ask.hecks_owner  = piece }
+          piece.stamp_children
           piece
         end
 
+        # Assigns what the language declares, then hands off to the
+        # behaviour's own `settle` — derived identity and the name
+        # indexes, neither of which the declaration states.
         def absorb(description:, identified_by:, attributes:, commands:, queries:, lifecycle:)
           @description   = description
-          # Split exactly as an aggregate splits it, several paths included. The
-          # PATH "sequence.value" says which field carries the identity ;
-          # `identity_heads` are the attributes those paths start at, because
-          # every reader that looks up or coerces an attribute — the element
-          # finder, the sort key, the identity an appended piece is given —
-          # wants the attribute, not the path. `identified_by` is the single
-          # head, offered only when there is one path to have a head of.
-          @identity_paths = Array(identified_by).map { |path| path.to_s }.reject(&:empty?)
-          @identity_heads = @identity_paths.map { |path| path.split(".").first.to_sym }
-          @identified_by  = @identity_heads.size == 1 ? @identity_heads.first : nil
+          @identified_by = identified_by
           @attributes    = attributes
           @commands      = commands
           @queries       = queries
           @lifecycle     = lifecycle
-          # Indexed once — attributes/commands/queries are final once absorbed,
-          # and every dispatch asks these finders by name.
-          @attributes_by_name = attributes.to_h { |held| [held.name, held] }
-          @commands_by_name   = commands.to_h { |verb| [verb.hecks_name, verb] }
-          @queries_by_name    = queries.to_h { |ask| [ask.hecks_name, ask] }
+
+          settle
         end
 
-        def attribute(named) = @attributes_by_name[named.to_sym]
-        def command(named)   = @commands_by_name[named.to_s]
-        def query(named)     = @queries_by_name[named.to_s]
 
       end
     end

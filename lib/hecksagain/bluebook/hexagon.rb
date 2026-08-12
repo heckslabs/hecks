@@ -1,3 +1,5 @@
+require_relative "behaviour/hexagon"
+
 module Hecksagain
   class Bluebook
     Port = Struct.new(:name, :verb, :signal, keyword_init: true) do
@@ -17,6 +19,7 @@ module Hecksagain
 
     class Hecksagon
       include Hecksagain::IR
+      include Behaviour::Hecksagon
 
       emits_ir(
         domain:            :domain,
@@ -34,22 +37,12 @@ module Hecksagain
         @framework_members  = framework_members
       end
 
-      def bind_for(aggregate_name, verb)
-        @binds.find do |b|
-          b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s
-        end
-      end
-
-      def binds_for(aggregate_name, verb)
-        @binds.select do |b|
-          b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s
-        end
-      end
 
     end
 
     class World
       include Hecksagain::IR
+      include Behaviour::World
 
       emits_ir(domain: :domain, realm: :realm, latest: :latest, settings: :settings)
 
@@ -62,11 +55,6 @@ module Hecksagain
         @settings = settings
       end
 
-      def for_verb(verb) = @settings.fetch(verb.to_s, {})
-
-      def for_binding(verb, adapter)
-        @settings.fetch("#{verb}:#{adapter.to_s.downcase}", for_verb(verb))
-      end
 
     end
   end
