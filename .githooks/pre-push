@@ -12,12 +12,21 @@
 # itself never checks at dispatch time, the same reason it existed
 # alongside parity before).
 #
-# Install:  git config core.hooksPath .githooks
+# Install:  git config core.hooksPath .githooks   (relative — see below)
 # Bypass:   git push --no-verify   (say why — a red suite is a real answer)
+#
+# ROOT is resolved via `git rev-parse --show-toplevel`, NOT `dirname "$0"`.
+# core.hooksPath is repo-shared config (not per-worktree), so if it's ever
+# set to an ABSOLUTE path, every worktree's push would invoke this exact
+# same file — and `dirname "$0"` would then resolve to wherever THAT file
+# lives (one specific checkout) instead of the worktree actually doing the
+# push, silently testing the wrong tree. `git rev-parse --show-toplevel`
+# reflects the invoking worktree's own root regardless of how hooksPath is
+# configured, so this stays correct even if that drifts again.
 
 set -e
 
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+ROOT=$(git rev-parse --show-toplevel)
 
 printf '\n[pre-push] rspec (parallel)\n\n'
 
