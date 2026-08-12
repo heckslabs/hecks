@@ -35,24 +35,38 @@ module Hecksagain
               mutation.target,
               @rules.sign_of(mutation.op)
             )
+          # Vendored addition, not (yet) upstream hecksagain (migration
+          # plan task 4): remove -- the list-removal counterpart to
+          # append, matching an element by value (plan.bluebook's
+          # RemoveDependency/DeactivateSprint: "a concurrent Add can
+          # never be lost").
+          when :remove
+            instance[mutation.target] = removed(instance, aggregate, mutation, args)
           end
         end
 
-        # A symbol source names a COMMAND ARGUMENT first (append: cards,
-        # assignee_id: :assignee_id — the ordinary case), falling back to
-        # the AGGREGATE'S OWN CURRENT FIELD when it isn't one — a caller
-        # appending at the end without computing or supplying a position
-        # (`position: :next_position`, a field the command never declares
-        # as an argument at all). `args.key?`, not a truthiness check on
-        # the value — an explicitly-nil argument still counts as "the
-        # caller named it," same distinction `assign_creation_attributes`
+        # A CALLER-SUPPLIED ARG, FIRST -- an append's own field can also
+        # name something the SUBJECT ALREADY KNOWS about itself, falling
+        # back to the AGGREGATE'S OWN CURRENT FIELD when it isn't one — a
+        # caller appending at the end without computing or supplying a
+        # position (`position: :next_position`, a field the command never
+        # declares as an argument at all). `args.key?`, not a truthiness
+        # check on the value — an explicitly-nil argument still counts as
+        # "the caller named it," same distinction `assign_creation_attributes`
         # already draws.
-        def appended(instance, aggregate, mutation, args)
-          fields       = mutation.source.transform_values do |source|
-            next source unless source.is_a?(Symbol)
+        #
+        # Extracted to its own method (pure refactor, ternary -> early
+        # return, no behavior change) alongside `remove`'s own addition
+        # below, purely for readability at this point in the file.
+        def resolve_append_source(source, instance, args)
+          return source unless source.is_a?(Symbol)
+          return args[source] if args.key?(source)
 
-            args.key?(source) ? args[source] : instance[source]
-          end
+          instance[source]
+        end
+
+        def appended(instance, aggregate, mutation, args)
+          fields       = mutation.source.transform_values { |source| resolve_append_source(source, instance, args) }
           element_type = aggregate.attribute(mutation.target)&.type
           value_object = aggregate.value_object(element_type)
           if value_object
@@ -63,6 +77,22 @@ module Hecksagain
           element      = value_object ? Value.build(value_object, fields) : entity_element(aggregate, element_type, instance[mutation.target], fields)
 
           Array(instance[mutation.target]) + [element]
+        end
+
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4): the removal counterpart to #appended -- matches by
+        # VALUE EQUALITY, element-wise, no read-modify-write (plan.
+        # bluebook's own words: "so a concurrent Add can never be lost").
+        # `mutation.source` is a single field reference (`:dependency`),
+        # unlike append's field-map -- resolved and Value-coerced the
+        # SAME way increment/decrement already coerce their own amount,
+        # so the comparison is against a like-shaped Value, not a raw
+        # scalar against a wrapped one.
+        def removed(instance, aggregate, mutation, args)
+          value     = @rules.resolve_source(mutation.source, args)
+          attribute = aggregate.attribute(mutation.target)
+          value     = Value.for_attribute(aggregate, attribute, value) if attribute
+          Array(instance[mutation.target]).reject { |element| element == value }
         end
 
         def entity_element(aggregate, element_type, current, fields)
