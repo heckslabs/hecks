@@ -7,12 +7,31 @@
 //! result (`parse::hecksagon::apply`) — mirroring `bin/project_rust`'s
 //! own real load order: the domain's `.bluebook` loads and registers
 //! every aggregate FIRST, its `.hecksagon` loads SECOND and mutates
-//! those already-registered aggregates (attaching ports). A chapter
-//! split across several `.bluebook` files (`MetaValidator::GRAMMAR_FILES`,
-//! nine files sharing one chapter name — Stage 6 territory, the
-//! self-hosted language parsing its own grammar) is not exercised by
-//! pizzas.bluebook (one file) and is refused outright here rather than
-//! silently merged wrong.
+//! those already-registered aggregates (attaching ports).
+//!
+//! STAGE 6: A CHAPTER SPLIT ACROSS SEVERAL `.bluebook` FILES
+//! (`MetaValidator::GRAMMAR_FILES`, nine files sharing one chapter name —
+//! the self-hosted language parsing its own grammar) is now real,
+//! mirroring `BluebookBuilder.build`'s own accumulating-builder shape
+//! (`meta_validator.rb`'s own comment: "`BluebookBuilder.build` keeps
+//! one builder open per chapter name across calls ... so loading all
+//! nine in order accumulates one domain, not nine"). Concretely: every
+//! `Bluebook`-context file's body is parsed into the SAME `ir::Bluebook`
+//! accumulator, in file order — `aggregate`/`policy`/`report`/
+//! `process_manager` all APPEND across files exactly as they do within
+//! one file, while `vision`/`core`/`supporting`/`generic`/
+//! `formerly_known_as` (single-value fields) are SET, not reset, by a
+//! later file that doesn't mention them — matching
+//! `BluebookBuilder#vision`/`#core`/etc.'s own plain `@ivar = value`
+//! assignment, never touched by a file that has no such line. The
+//! header's own `version:` is read ONLY from the FIRST file — Ruby's own
+//! `registry.bluebook_builder(name) { new(name, version: version) }`
+//! only calls `new` (and so only reads `version:`) the FIRST time a
+//! builder for this chapter name is created; every later
+//! `Hecks.bluebook "Bluebook", ...` call fetches the SAME memoized
+//! builder and its `version:` kwarg is silently ignored — confirmed real:
+//! only `bluebook.bluebook` (loaded first, per `GRAMMAR_FILES`) carries
+//! `version: "1"`, the other eight files carry none.
 //!
 //! STAGE 4 finding: a SINGLE `.hecksagon` FILE may declare MORE THAN ONE
 //! `Hecks.hecksagon "Name" do ... end` block — banking.hecksagon's own
@@ -51,6 +70,8 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     }
 
     let mut bluebook: Option<ir::Bluebook> = None;
+    let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
+    let mut chapter_policies: Vec<ir::Policy> = Vec::new();
     let mut hecksagon_files: Vec<&(String, String)> = Vec::new();
 
     for entry @ (path, source) in files {
@@ -71,22 +92,19 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 
         match row.inner {
             "Bluebook" => {
-                if bluebook.is_some() {
-                    return Err(Diagnostic::not_yet_implemented(
-                        path,
-                        header_line,
-                        "a chapter split across several .bluebook files",
-                    ));
+                // FIRST Bluebook-context file: mints the accumulator and
+                // reads `version:` off ITS OWN header — see this module's
+                // own header on why only the first file's `version:`
+                // counts. Every later Bluebook-context file parses its
+                // body into the SAME accumulator instead of minting a
+                // fresh one — see `parse_body_into`.
+                if bluebook.is_none() {
+                    let mut built = ir::Bluebook { name: chapter_name.to_string(), ..Default::default() };
+                    built.version = super::file::header_version(&call);
+                    bluebook = Some(built);
                 }
-                let mut built = parse_body(path, &lines, &mut pos, chapter_name)?;
-                // `Hecks.bluebook "Banking", version: "v1" do` — the
-                // header's own OPTIONAL `version:` (`super::file::
-                // header_version`'s own comment) — read from the HEADER
-                // call, not `Bluebook`-context body words, since it's
-                // `bluebook`'s own File-context Argument row, not a
-                // nested one.
-                built.version = super::file::header_version(&call);
-                bluebook = Some(built);
+                let target = bluebook.as_mut().expect("just set above");
+                parse_body_into(path, &lines, &mut pos, target, &mut aggregate_policies, &mut chapter_policies)?;
             }
             "Hecksagon" => hecksagon_files.push(entry),
             "" => return Err(not_implemented(path, header_line, &call.word)),
@@ -101,6 +119,13 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     }
 
     let mut bluebook = bluebook.ok_or_else(|| Diagnostic::new("<none>", 0, format!("no .bluebook file given for chapter '{chapter_name}'")))?;
+
+    // Combined ONCE, after every Bluebook-context file has contributed —
+    // matching `BluebookBuilder#build`'s own `@aggregates.flat_map(&:policies)
+    // + @policies`, run only at the very end regardless of how many files
+    // fed the accumulator.
+    bluebook.policies = aggregate_policies;
+    bluebook.policies.extend(chapter_policies);
 
     for (path, source) in hecksagon_files {
         let joined = lex::join_continuations(source);
@@ -141,28 +166,42 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     Ok(bluebook)
 }
 
-/// Parses a `Hecks.bluebook "Name" do ... end` body — `vision`/
-/// `core`/`supporting`/`generic`/`aggregate`/`policy`/`report`/
-/// `read_model`. STAGE 4 adds `process_manager` (banking.bluebook's own
-/// three sagas). `formerly_known_as` is declared but not exercised by any
-/// real corpus member yet — still falls through to `not_built_yet`.
+/// Parses a `Hecks.bluebook "Name" do ... end` body INTO an
+/// already-existing accumulator — `vision`/`core`/`supporting`/
+/// `generic`/`aggregate`/`policy`/`report`/`read_model`. STAGE 4 added
+/// `process_manager` (banking.bluebook's own three sagas).
+/// `formerly_known_as` is declared but not exercised by any real corpus
+/// member yet — still falls through to `not_built_yet`.
+///
+/// STAGE 6: takes `bluebook`/`aggregate_policies`/`chapter_policies` BY
+/// MUTABLE REFERENCE rather than minting and returning fresh ones, so
+/// `parse_chapter` can call this once per Bluebook-context FILE while
+/// every file appends onto the SAME running totals — the shape
+/// `BluebookBuilder`'s own single, registry-memoized builder instance
+/// has across the nine `MetaValidator::GRAMMAR_FILES` calls (see this
+/// module's own header). A single-file chapter (pizzas.bluebook, ...)
+/// still gets exactly one call, so this is a strict generalization, not
+/// a behavior change for every existing REAL_PARITY_MEMBERS entry.
 ///
 /// POLICY BUBBLING ORDER: `BluebookBuilder#build`'s own `policies =
 /// @aggregates.flat_map(&:policies) + @policies` — every AGGREGATE's own
 /// nested policies, in aggregate declaration order, THEN every
 /// CHAPTER-level policy, in ITS OWN declaration order — regardless of how
-/// the two kinds interleave in the source text. Confirmed real:
-/// banking.bluebook's `Account` aggregate declares `policy
-/// "ReviewOnFreeze"` INSIDE itself, followed much later in the file by
-/// four chapter-level policies — the real `ir.json` puts
-/// `ReviewOnFreeze` FIRST regardless. Two separate accumulators, combined
-/// only at the end, are what makes that order come out right no matter
-/// where each was written.
-fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::Bluebook> {
-    let mut bluebook = ir::Bluebook { name: name.to_string(), ..Default::default() };
-    let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
-    let mut chapter_policies: Vec<ir::Policy> = Vec::new();
-
+/// the two kinds interleave in the source text, OR ACROSS HOW MANY
+/// FILES. Confirmed real (single-file case): banking.bluebook's
+/// `Account` aggregate declares `policy "ReviewOnFreeze"` INSIDE itself,
+/// followed much later in the file by four chapter-level policies — the
+/// real `ir.json` puts `ReviewOnFreeze` FIRST regardless. `parse_chapter`
+/// combines the two accumulators exactly once, after every file has
+/// contributed — see its own final `bluebook.policies = ...` lines.
+fn parse_body_into(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    bluebook: &mut ir::Bluebook,
+    aggregate_policies: &mut Vec<ir::Policy>,
+    chapter_policies: &mut Vec<ir::Policy>,
+) -> ParseResult<()> {
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? else {
             break;
@@ -196,7 +235,5 @@ fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> 
         }
     }
 
-    bluebook.policies = aggregate_policies;
-    bluebook.policies.extend(chapter_policies);
-    Ok(bluebook)
+    Ok(())
 }

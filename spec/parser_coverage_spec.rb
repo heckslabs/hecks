@@ -92,15 +92,58 @@ RSpec.describe "the Rust parser's own coverage" do
     %w[reference_to PortOperation], %w[attribute PortOperation], %w[emits PortOperation],
     %w[report Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel], # STAGE 3
     %w[reference_to ReadModel], %w[where ReadModel], %w[order_by ReadModel], # STAGE 4
-    %w[limit ReadModel], %w[freshness ReadModel], %w[use_index ReadModel] # STAGE 4
+    %w[limit ReadModel], %w[freshness ReadModel], %w[use_index ReadModel], # STAGE 4
+    %w[list_of Type], %w[one_of Type] # STAGE 6 — bookkeeping, not new dispatch work; see
+    # `rust/parser/src/main.rs::COVERED_PAIRS`'s own header on why these
+    # two were already built (Stage 2/3) but never added to either list
+    # until Stage 6's own full-corpus audit found the gap.
   ].sort.freeze
 
   # THE ALLOWLIST — every (word, context) pair the language declares,
   # MINUS what this parser now genuinely builds (COVERED_PAIRS above).
   # Named per stage rather than left as one undifferentiated blob so a
-  # future stage's own shrinkage is visible in the diff: Stage 4 removes
-  # banking.bluebook's own slice next, and so on, ending empty at Stage 6
-  # per the plan.
+  # future stage's own shrinkage is visible in the diff: Stage 4 removed
+  # banking.bluebook's own slice, Stage 6 (the self-hosted grammar
+  # itself — see `spec/parser_parity_spec.rb`'s own "bluebook_language"
+  # member) closed a bookkeeping gap (`list_of`/`one_of` `Type`, real
+  # since Stage 2/3 but never listed) and confirmed the rest is
+  # GENUINELY unreached rather than merely unlisted.
+  #
+  # STILL NOT EMPTY, honestly, unlike the plan's own optimistic framing
+  # ("PENDING_MEMBERS and the coverage allowlist are both empty at the
+  # end of this stage") — every remaining pair was individually checked
+  # against the WHOLE corpus (`grep`, not a guess) and confirmed to have
+  # NO real usage anywhere to build against and byte-match: `has_many`/
+  # `has_one` `Aggregate` (declared, sugar identical to the already-built
+  # `belongs_to`/`has_one`, but no corpus member ever calls them —
+  # `has_many` IS built anyway, see `parse::aggregate`'s own comment, but
+  # stays off COVERED_PAIRS per this table's own rule: gated ≠ covered);
+  # `reference_to` `Entity`/`Query` (a BARE, un-nested `reference_to`
+  # directly inside an `entity`/`query` body — every real usage found is
+  # nested inside a `command`, which is the `Command`-context row already
+  # covered); `provenance` `Command` (the aggregate-level `provenance
+  # from: {...}` keyword nested inside a `command` block — no corpus
+  # member does this; `provenance` `Aggregate` IS covered, banking.bluebook's
+  # own `Account`); `formerly_known_as` `Bluebook` (a domain rename IS
+  # live in production per MEMORY — Embryonaut→EmbryonautFoundersApp —
+  # but no `.bluebook` IN THIS CODEBASE'S OWN TRACKED CORPUS declares
+  # one); `cursor`/`offset`/`nulls`/`inspect_query` `Query`/`ReadModel`
+  # and `authorize`/`consistency` `ReadModel` (declared query/read-model
+  # options no tracked corpus member happens to use — `limit`/
+  # `freshness`/`use_index`/`where`/`order_by` are, and are covered);
+  # `world` `File`, `latest`/`realm` `World`, `subscribe`/
+  # `uses_framework` `Hecksagon`, `verb` `DomainPort` (the `World`/
+  # `Hecksagon` SIBLING grammar files — `language/world.bluebook`/
+  # `language/hecksagon.bluebook`, `MetaValidator::WORLD_GRAMMAR`/
+  # `HECKSAGON_GRAMMAR` — are real but explicitly OUTSIDE this stage's
+  # own scope, which named `MetaValidator::GRAMMAR_FILES`'s nine files
+  # specifically; `hecks-parse resolve` for a real `.hecksagon` is also
+  # still a Stage 1 stub, unrelated to this stage's own `chapter` work).
+  # A future stage that wires up `.world`/`.hecksagon` parsing, or finds
+  # a real corpus member exercising one of the others, is exactly what
+  # would shrink this the rest of the way — fabricating coverage here
+  # instead would be precisely the false claim this whole harness exists
+  # to make impossible (this table's own opening comment).
   PENDING_PAIRS = (DECLARED_PAIRS - COVERED_PAIRS).freeze
 
   def self.reported_coverage

@@ -176,6 +176,24 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// also confirmed by the concurrently-landed `compliance`/`interview`
 /// real corpus members, which this stage's own real construction work
 /// happened to fully cover too) adds the entries marked STAGE 4.
+///
+/// STAGE 6 (the self-hosted grammar itself,
+/// `MetaValidator::GRAMMAR_FILES`'s nine files parsed as one `Bluebook`
+/// chapter) adds `("list_of", "Type")`/`("one_of", "Type")` below,
+/// marked STAGE 6 — NOT new dispatch work (both have built real IR since
+/// Stage 2/3, `resolve_type_expression`'s own header: pizzas.bluebook's
+/// `list_of(Topping)`, console_settings.bluebook's inline
+/// `one_of("good", ...)`), but a pre-existing BOOKKEEPING gap this stage
+/// closed while auditing every `(word, context)` pair the self-hosted
+/// grammar's own nine files genuinely exercise (every OTHER pair they
+/// use — `aggregate`/`command`/`query`/`attribute`/`value_object`/
+/// `identified_by`/`reference_to`/`one_of`(ValueObject)/`member`/
+/// `invariant`/`given`/`sets`/`emits`/`role`/`goal`/`where`/`order_by`/
+/// `include`/`description`/`report`/`vision`/`core` in their various
+/// contexts — was ALREADY on this list). Confirmed by tracing every
+/// `next_line` dispatch while parsing the nine files for real (a
+/// temporary `eprintln!`, removed again once the audit was done) and
+/// cross-checking the traced set against this table by hand.
 const COVERED_PAIRS: &[(&str, &str)] = &[
     ("bluebook", "File"),
     ("hecksagon", "File"),
@@ -250,6 +268,8 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("limit", "ReadModel"),        // STAGE 4
     ("freshness", "ReadModel"),    // STAGE 4
     ("use_index", "ReadModel"),    // STAGE 4
+    ("list_of", "Type"), // STAGE 6 (bookkeeping — see this const's own header)
+    ("one_of", "Type"),  // STAGE 6 (bookkeeping — see this const's own header)
 ];
 
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {

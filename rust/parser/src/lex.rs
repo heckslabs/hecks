@@ -79,7 +79,26 @@ pub fn join_continuations(source: &str) -> String {
     let mut merge_target: Option<usize> = None;
 
     for (idx, raw_line) in raw_lines.iter().enumerate() {
-        let text = strip_comment(raw_line).trim();
+        let mut text = strip_comment(raw_line).trim().to_string();
+
+        // BACKSLASH LINE CONTINUATION — Ruby's own trailing `\` (outside
+        // any quoted string), used here for adjacent STRING LITERAL
+        // concatenation across physical lines:
+        //
+        //   template: "{name} admits {admits}, which this chapter does " \
+        //             "not declare — a closed set is named ..."
+        //
+        // real corpus syntax (vocabulary.bluebook's own `RefusalTemplate`
+        // rows — the wording is long enough several members wrap it).
+        // The `\` is stripped here so nothing downstream ever sees it;
+        // the two adjacent quoted strings that result are concatenated
+        // by `ruby_value::read` (Ruby's own adjacent-literal rule, not
+        // anything special about the backslash itself — the backslash's
+        // only job is suppressing the newline as a statement end).
+        let backslash_continues = ends_with_bare_backslash(&text);
+        if backslash_continues {
+            text = text[..text.len() - 1].trim_end().to_string();
+        }
 
         match merge_target {
             Some(target) if target != idx => {
@@ -87,23 +106,76 @@ pub fn join_continuations(source: &str) -> String {
                     if !out[target].is_empty() {
                         out[target].push(' ');
                     }
-                    out[target].push_str(text);
+                    out[target].push_str(&text);
                 }
             }
             _ => {
-                out[idx].push_str(text);
+                out[idx].push_str(&text);
                 merge_target = Some(idx);
             }
         }
 
-        depth += bracket_delta(text);
+        depth += bracket_delta(&text);
+
+        // A TRAILING, UNBRACKETED COMMA also continues the logical
+        // line — `member refusal: "X", site: "Y",` + `template: "Z"`,
+        // real corpus syntax (vocabulary.bluebook's own `RefusalTemplate`
+        // rows again): a single bare `member ...` call's own named
+        // arguments spill across two physical lines with no enclosing
+        // bracket at all for `bracket_delta` to track depth against —
+        // Ruby continues a statement across a line ending in a bare
+        // comma the same way it does one ending in an open bracket.
+        let comma_continues = depth <= 0 && ends_with_bare_comma(&text);
+
         if depth <= 0 {
             depth = 0;
-            merge_target = None;
+            if !comma_continues && !backslash_continues {
+                merge_target = None;
+            }
         }
     }
 
     out.join("\n")
+}
+
+/// Whether `text`'s scan ends OUTSIDE any quoted string — shared by
+/// `ends_with_bare_backslash`/`ends_with_bare_comma` below, the same
+/// quote/escape-aware character scan `bracket_delta` already uses for
+/// its own bracket-depth tracking, just reporting the quoting state
+/// instead of a depth delta.
+fn ends_outside_quotes(text: &str) -> bool {
+    let mut quoting = false;
+    let mut escaping = false;
+    for ch in text.chars() {
+        if escaping {
+            escaping = false;
+            continue;
+        }
+        if quoting && ch == '\\' {
+            escaping = true;
+            continue;
+        }
+        if ch == '"' {
+            quoting = !quoting;
+            continue;
+        }
+    }
+    !quoting
+}
+
+/// A lone trailing `\` outside any quoted string — Ruby's own line
+/// continuation escape. See `join_continuations`'s own header for the
+/// real corpus shape this exists for.
+fn ends_with_bare_backslash(text: &str) -> bool {
+    text.ends_with('\\') && ends_outside_quotes(text)
+}
+
+/// A lone trailing `,` outside any quoted string, once the line's own
+/// bracket depth has already returned to (or stayed at) zero — see
+/// `join_continuations`'s own header for the real corpus shape this
+/// exists for.
+fn ends_with_bare_comma(text: &str) -> bool {
+    text.ends_with(',') && ends_outside_quotes(text)
 }
 
 /// The NET change in `(){}[]` depth a line of already-comment-stripped
@@ -826,5 +898,38 @@ mod tests {
             LineShape::Call(call) => assert_eq!(call.args, "\"Pizzas\", version: \"1\""),
             _ => panic!("expected a call"),
         }
+    }
+
+    #[test]
+    fn joins_a_bare_trailing_comma_across_no_bracket_at_all() {
+        // vocabulary.bluebook's own `RefusalTemplate` rows — a `member`
+        // call's own named arguments spill across two physical lines
+        // with no enclosing bracket for bracket_delta to track.
+        let source = "member refusal: \"NotFound\", site: \"creating_no_identity\",\n       template: \"pass {identity}:\"\n";
+        let joined = join_continuations(source);
+        assert_eq!(joined, "member refusal: \"NotFound\", site: \"creating_no_identity\", template: \"pass {identity}:\"\n");
+    }
+
+    #[test]
+    fn joins_a_backslash_continued_line_and_strips_the_backslash() {
+        // vocabulary.bluebook's own long `RefusalTemplate` wording,
+        // wrapped across two physical lines Ruby's own line-continuation
+        // escape (adjacent string literals concatenate — see
+        // `ruby_value::scan_adjacent_strings`, which is what actually
+        // combines the two quoted strings this leaves behind).
+        let source = "template: \"a \" \\\n          \"b\"\n";
+        let joined = join_continuations(source);
+        assert_eq!(joined, "template: \"a \" \"b\"\n");
+    }
+
+    #[test]
+    fn a_backslash_inside_a_still_open_quoted_string_is_not_a_continuation() {
+        // The quote-aware scan must not mistake an ordinary backslash
+        // ESCAPE inside a string (`"a\\"`, an escaped backslash, string
+        // still open) for the line-continuation marker — `ends_outside_
+        // quotes` only fires when the string closed before the trailing
+        // `\`, which is not the case here (odd number of trailing
+        // backslashes inside an unterminated string).
+        assert!(!ends_with_bare_backslash("template: \"a\\"));
     }
 }

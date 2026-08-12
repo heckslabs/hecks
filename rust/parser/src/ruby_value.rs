@@ -143,6 +143,24 @@ pub fn read(text: &str) -> Value {
     if let Some(name) = raw.strip_prefix(':') {
         return Value::Symbol(name.to_string());
     }
+    // ADJACENT STRING LITERAL CONCATENATION — Ruby's own lexer rule that
+    // two string literals (double- or single-quoted, either combination)
+    // with nothing but whitespace between them concatenate into one
+    // string, exactly as C's adjacent string literals do. Checked BEFORE
+    // the single-literal `is_quoted`/`is_single_quoted` branches below
+    // because a naive "starts and ends with a quote" check would also
+    // match `"a" "b"` and slice out `a" "b` as if it were one literal's
+    // own (unescaped) contents — wrong. Real corpus syntax: a `\`
+    // line-continued `template:` value in vocabulary.bluebook, joined by
+    // `lex::join_continuations` into one logical line before this ever
+    // runs (`"...is named " "Aggregate::SetName, ..."`).
+    if raw.starts_with('"') || raw.starts_with('\'') {
+        if let Some((joined, consumed)) = scan_adjacent_strings(raw) {
+            if consumed == raw.chars().count() {
+                return Value::Str(joined);
+            }
+        }
+    }
     if is_quoted(raw) {
         return Value::Str(unquote(raw));
     }
@@ -199,7 +217,10 @@ fn is_single_quoted(raw: &str) -> bool {
 /// every OTHER backslash sequence left exactly as written (unlike
 /// `unquote`'s double-quote rules, which unescape any `\x` pair).
 fn unquote_single(raw: &str) -> String {
-    let inner = &raw[1..raw.len() - 1];
+    unescape_single_quoted_inner(&raw[1..raw.len() - 1])
+}
+
+fn unescape_single_quoted_inner(inner: &str) -> String {
     let mut out = String::with_capacity(inner.len());
     let mut chars = inner.chars().peekable();
     while let Some(ch) = chars.next() {
@@ -223,7 +244,10 @@ fn unquote_single(raw: &str) -> String {
 }
 
 fn unquote(raw: &str) -> String {
-    let inner = &raw[1..raw.len() - 1];
+    unescape_double_quoted_inner(&raw[1..raw.len() - 1])
+}
+
+fn unescape_double_quoted_inner(inner: &str) -> String {
     let mut out = String::with_capacity(inner.len());
     let mut chars = inner.chars();
     while let Some(ch) = chars.next() {
@@ -236,6 +260,76 @@ fn unquote(raw: &str) -> String {
         }
     }
     out
+}
+
+/// Scans ONE OR MORE adjacent quoted-string literals starting at index 0
+/// of `raw` (each either double- or single-quoted, matched independently
+/// — Ruby allows mixing, `"a" 'b'` concatenates same as `"a" "b"`),
+/// separated only by whitespace, and returns their UNESCAPED, CONCATENATED
+/// contents plus the character-count consumed. `None` if `raw` doesn't
+/// start with a quote or the first literal is never closed. Returns
+/// `Some` after exactly one literal too (the ordinary single-string
+/// case) — the caller checks `consumed == raw.chars().count()` to tell
+/// "this whole segment is one Ruby string expression" from "there's
+/// trailing text after".
+fn scan_adjacent_strings(raw: &str) -> Option<(String, usize)> {
+    let chars: Vec<char> = raw.chars().collect();
+    let mut i = 0usize;
+    let mut out = String::new();
+    let mut matched_any = false;
+
+    loop {
+        if matched_any {
+            let mut j = i;
+            while j < chars.len() && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j >= chars.len() || (chars[j] != '"' && chars[j] != '\'') {
+                break;
+            }
+            i = j;
+        }
+
+        // First iteration only: `raw` must itself start with a quote
+        // (the caller already checked this, but stay defensive rather
+        // than panic on an empty/odd `raw`).
+        let Some(&quote) = chars.get(i).filter(|c| **c == '"' || **c == '\'') else {
+            return None;
+        };
+
+        let start = i;
+        i += 1;
+        let mut escaping = false;
+        let mut closed = false;
+        while i < chars.len() {
+            let ch = chars[i];
+            if escaping {
+                escaping = false;
+                i += 1;
+                continue;
+            }
+            if ch == '\\' {
+                escaping = true;
+                i += 1;
+                continue;
+            }
+            if ch == quote {
+                i += 1;
+                closed = true;
+                break;
+            }
+            i += 1;
+        }
+        if !closed {
+            return None;
+        }
+
+        let inner: String = chars[start + 1..i - 1].iter().collect();
+        out.push_str(&if quote == '"' { unescape_double_quoted_inner(&inner) } else { unescape_single_quoted_inner(&inner) });
+        matched_any = true;
+    }
+
+    Some((out, i))
 }
 
 fn read_hash(raw: &str) -> Value {
@@ -373,5 +467,37 @@ mod tests {
                 "optional: true".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn concatenates_two_adjacent_double_quoted_literals() {
+        // `lex::join_continuations`'s own backslash-continuation test
+        // leaves exactly this shape behind — `"a " "b"` on one logical
+        // line, Ruby's own adjacent-literal concatenation rule (real
+        // corpus syntax: vocabulary.bluebook's own long `RefusalTemplate`
+        // wording, wrapped with a trailing `\`).
+        assert_eq!(read("\"a \" \"b\""), Value::Str("a b".to_string()));
+    }
+
+    #[test]
+    fn concatenates_three_adjacent_literals_mixing_quote_styles() {
+        assert_eq!(read("\"a\" 'b' \"c\""), Value::Str("abc".to_string()));
+    }
+
+    #[test]
+    fn a_single_quoted_literal_alone_is_still_read_as_before() {
+        // The adjacent-concatenation scan runs BEFORE the ordinary
+        // single-literal branches — must not change behavior for the
+        // ordinary (non-concatenated) case.
+        assert_eq!(read("\"credit\""), Value::Str("credit".to_string()));
+    }
+
+    #[test]
+    fn does_not_treat_a_quoted_string_followed_by_other_text_as_concatenation() {
+        // `"a" foo` is not two adjacent literals — `foo` isn't a quote at
+        // all, so `scan_adjacent_strings` must report a SHORTER consumed
+        // length than the whole input, and `read` falls through to
+        // `Value::Bare` for the full raw text exactly as it always has.
+        assert_eq!(read("\"a\" foo"), Value::Bare("\"a\" foo".to_string()));
     }
 }
