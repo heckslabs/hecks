@@ -17,17 +17,37 @@ module Hecksagain
   # every real projection target (Rust/UL/OIDC all project one domain at
   # a time), and deliberately narrower than `Exporter.call`'s own
   # multi-domain shape.
-  # ONE WORD, THREE MEANINGS — worth naming, because grepping "projection"
-  # in this codebase turns up all three and they are unrelated:
+  # THREE KINDS OF "PROJECT", TOLD APART BY WHAT THEY NEED AS INPUT.
+  # Only the first belongs in this registry.
   #
-  #   Projector (here)     canonical IR in, external artifact out
-  #   Ports::Projection    read-model catch-up, events folded into view state
+  #   A PROJECTION takes a chapter's DECLARATION and answers something
+  #   that DESCRIBES the domain: its IR, its storage shape, an OIDC scope
+  #   manifest, the parser's keyword table, the reference pages. Inert,
+  #   derived, and runnable against any chapter that carries what it
+  #   declares it needs. These are what `register` holds.
+  #
+  #   AN EXPORT takes a declaration AND its BINDINGS and answers
+  #   something that IS the domain, running elsewhere — rust/project.rb's
+  #   generated crate, the WASM artifact, the SAM template
+  #   bin/project_deploy renders. It needs the `.world`/`.hecksagon` a
+  #   projection never looks at, because a running system has to know how
+  #   it is wired. That is the whole reason bin/project_deploy cannot use
+  #   this protocol: `call(bluebook:, options:)` has no channel for it.
+  #
+  #   A STATE PROJECTION takes RECORDS — a domain after dispatch — and is
+  #   a read-model question wearing the same word.
+  #   `bin/expression_projection` is the one of these: its operators are
+  #   not declared anywhere, they are what exists after
+  #   `Grammar.expression` replays expression_operators.json's ledger of
+  #   dispatches. Converting it into this registry would be a category
+  #   error, however much its name suggests otherwise.
+  #
+  # ONE WORD, THREE OTHER MEANINGS — worth naming too, because grepping
+  # "projection" turns all of these up and none is the above:
+  #
+  #   Ports::Projection    read-model catch-up, events folded into state
+  #   bin/project          forces that catch-up by hand
   #   RustProjection       rust/project.rb's own separate toolchain
-  #
-  # `bin/project` belongs to the SECOND one (it forces read-model
-  # catch-up by hand), which is why the domain-facing verb added for this
-  # module lives on the domain itself — `Pizzas.project(Projections::OIDC)`
-  # — rather than as another bin/ script that would collide with it.
   module Projector
     class UnknownProjector < StandardError; end
     # A chapter-scoped projector was handed something that is not a chapter.
