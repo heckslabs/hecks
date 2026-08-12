@@ -87,6 +87,13 @@ module Hecksagain
 
     def capable?(construct, capability) = construct.is_a?(capability)
 
+    # What KIND of artifact a registered target emits — asked of the
+    # projection rather than inferred from what it returned.
+    def emits_for(name)
+      projector = registry.fetch(name.to_sym) { return :artifact }
+      projector.respond_to?(:projection_emits) ? projector.projection_emits : :artifact
+    end
+
     def registered?(name) = registry.key?(name.to_sym)
     def registered = registry.keys
 
@@ -110,17 +117,29 @@ module Hecksagain
     # spec/projector_spec.rb compare `:ir`'s output against a golden
     # fixture without a tmpdir. `out:` is the only thing that writes.
     #
-    # Deliberately NOT handling the file-TREE case (a Hash of path =>
-    # contents, what a Rust or docs projector would want). Sniffing one
-    # from an ordinary Hash is guesswork — `{"name" => "Pizzas"}` is
-    # indistinguishable from a one-file tree — and no registered target
-    # emits one yet. When Rust is retrofitted it should declare its
-    # output kind explicitly rather than have this method infer it.
-    def write(artifact, out)
-      contents = artifact.is_a?(String) ? artifact : "#{JSON.pretty_generate(artifact)}\n"
-      File.write(out, contents)
+    # `as:` comes from the projection's own `emits:` declaration rather
+    # than from inspecting the artifact. A Hash of path => contents and a
+    # Hash that simply happens to hold strings are the same object to
+    # Ruby; only the projection knows which it meant.
+    def write(artifact, out, as: :artifact)
+      return write_tree(artifact, out) if as == :files
+
+      File.write(out, artifact.is_a?(String) ? artifact : "#{JSON.pretty_generate(artifact)}\n")
       out
     end
+
+    # Answers the paths written, in the order given — so a caller can
+    # report what happened without re-deriving it from the tree.
+    def write_tree(files, directory)
+      require "fileutils"
+      files.map do |relative, contents|
+        path = File.join(directory, relative)
+        FileUtils.mkdir_p(File.dirname(path))
+        File.write(path, contents)
+        path
+      end
+    end
+
   end
 end
 

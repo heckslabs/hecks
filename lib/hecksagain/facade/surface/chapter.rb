@@ -35,8 +35,11 @@ module Hecksagain
           # (`audience:` for OIDC) rather than a fixed set this method
           # would have to know about.
           chapter.define_singleton_method(:project) do |target, out: nil, **options|
-            artifact = Projector.call(Projector.key_for(target), bluebook: bluebook, options: options)
-            out ? Projector.write(artifact, out) : artifact
+            key      = Projector.key_for(target)
+            artifact = Projector.call(key, bluebook: bluebook, options: options)
+            return artifact unless out
+
+            Projector.write(artifact, out, as: Projector.emits_for(key))
           end
 
           bluebook.aggregates.each do |aggregate|

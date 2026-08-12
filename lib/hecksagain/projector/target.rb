@@ -60,7 +60,18 @@ module Hecksagain
       # requirement written as behaviour instead of declared. Stated
       # here, the registry refuses before the projection runs and the
       # projection stops carrying a guard about its own admission.
-      def projects_as(key, requires: nil, declares: nil)
+      # `emits:` SAYS WHAT KIND OF ARTIFACT COMES BACK.
+      #
+      # `:artifact` (the default) is one thing — a Hash, or a String.
+      # `:files` is a TREE: a Hash of relative path => contents, which is
+      # what a reference-page or codegen projection produces.
+      #
+      # Declared rather than sniffed, deliberately. Inferring a tree from
+      # an ordinary Hash is guesswork — `{"name" => "Pizzas"}` is
+      # indistinguishable from a one-file tree — so `write` asks what the
+      # projection said rather than inspecting what it returned.
+      def projects_as(key, requires: nil, declares: nil, emits: :artifact)
+        @projection_emits    = emits
         @projection_key      = key.to_sym
         @projection_declares = Array(declares)
         @projection_requires = Array(requires)
@@ -74,6 +85,8 @@ module Hecksagain
       # argument, because Behaviour::Chapter is not loaded yet when this
       # file is.
       def projection_declares = @projection_declares || []
+
+      def projection_emits = @projection_emits || :artifact
 
       def projection_requires
         req = @projection_requires

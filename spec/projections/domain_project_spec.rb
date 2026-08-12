@@ -112,6 +112,37 @@ RSpec.describe "Domain.project" do
     end
   end
 
+  # THE TREE CASE, which the output contract was designed for and left
+  # unimplemented until a projection genuinely emitted one.
+  describe "emits: :files" do
+    it "writes a tree and answers with the paths, rather than one JSON blob" do
+      Dir.mktmpdir do |dir|
+        tree = Module.new do
+          extend Hecksagain::Projector::Target
+          projects_as :tree_stub, emits: :files
+          def self.call(bluebook:, options: {}) = { "a.txt" => "one", "nested/b.txt" => "two" }
+        end
+
+        written = Hecksagain::Projector.write(
+          Hecksagain::Projector.call(:tree_stub, bluebook: bluebook), dir, as: :files
+        )
+
+        expect(written.map { |p| p.sub("#{dir}/", "") }).to eq(["a.txt", "nested/b.txt"])
+        expect(File.read(File.join(dir, "nested/b.txt"))).to eq("two")
+        tree
+      ensure
+        Hecksagain::Projector.registry.delete(:tree_stub)
+      end
+    end
+
+    # The kind is DECLARED, never inferred: a Hash of path => contents and
+    # a Hash that merely holds strings are the same object to Ruby.
+    it "asks the projection what it emits rather than inspecting the artifact" do
+      expect(Hecksagain::Projector.emits_for(:reference)).to eq(:files)
+      expect(Hecksagain::Projector.emits_for(:vocabulary)).to eq(:artifact)
+    end
+  end
+
   describe "capabilities" do
     # `requires:` names a MODULE, not a shape word. The capabilities were
     # already real — Hecksagain::IR is the ability to emit IR, and

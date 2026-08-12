@@ -46,8 +46,11 @@ module Hecksagain
           # (`from: :chapter`), which used to return a confidently empty
           # `{"aggregates" => []}` for an aggregate.
           door.define_singleton_method(:project) do |target, out: nil, **options|
-            artifact = Projector.call(Projector.key_for(target), bluebook: ir, options: options)
-            out ? Projector.write(artifact, out) : artifact
+            key      = Projector.key_for(target)
+            artifact = Projector.call(key, bluebook: ir, options: options)
+            return artifact unless out
+
+            Projector.write(artifact, out, as: Projector.emits_for(key))
           end
           door.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
           door.define_singleton_method(:commands)   { ir.commands.map { |c| Naming.snake(c.hecks_name) }.sort }
