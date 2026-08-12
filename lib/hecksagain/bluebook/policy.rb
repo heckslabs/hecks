@@ -1,3 +1,6 @@
+# GENERATED — projected from the language's own Policy aggregate.
+# DO NOT EDIT: the holding half is rendered, and Behaviour::Policy
+# is where anything hand-written belongs.
 require_relative "behaviour/policy"
 
 module Hecksagain
@@ -15,25 +18,18 @@ module Hecksagain
 
       attr_reader :name, :on_event, :trigger_command, :target_domain
 
-      # WHICH HEAD DECLARED IT, or nil for one declared on the chapter.
-      #
-      # A policy written inside an aggregate is HOISTED onto the chapter by the
-      # builder, and that is where the runtime reads it — so nothing was ever lost
-      # at runtime. What was lost is the record of where it was written, which is
-      # a fact about the source, and the language holds facts about the source.
-      # Deliberately absent from `to_h`: the wire format is a pinned
-      # contract, and it does not carry this.
+      # AGGREGATE, DECLARED AND DELIBERATELY OFF THE WIRE
+      # the wire format is a pinned contract, and it does not carry
+      # where a policy was written before the builder hoisted it
       attr_accessor :aggregate
 
       def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil, aggregate: nil)
-        @name            = name.to_s
-        @on_event        = on_event
+        @name = name.to_s
+        @on_event = on_event
         @trigger_command = trigger_command
-        @target_domain   = target_domain
-        @aggregate       = aggregate&.to_s
+        @target_domain = target_domain
+        @aggregate = aggregate&.to_s
       end
-
-
     end
   end
 end
