@@ -75,7 +75,7 @@ A precondition, read against the record BEFORE any mutation runs. The first one 
 ## sets
 
 <!-- generated:begin word=sets -->
-`sets target, to:, append:, increment:, decrement:` — fills `mutations`, was `then_set`
+`sets target, to:, append:, increment:, decrement:, from:, multiply:, clamp:, remove:` — fills `mutations`, was `then_set`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -84,6 +84,10 @@ A precondition, read against the record BEFORE any mutation runs. The first one 
 | `append:` | literal | false | source |
 | `increment:` | literal | false | source |
 | `decrement:` | literal | false | source |
+| `from:` | literal | false | source |
+| `multiply:` | literal | false | source |
+| `clamp:` | literal | false | source |
+| `remove:` | literal | false | source |
 <!-- generated:end -->
 
 Still spelled `then_set` in every real bluebook in this codebase — `was: "then_set"` in the language's own rename table, and the old spelling keeps booting alongside the new one. One call, one op: `to:` overwrites the field, `append:` grows a list attribute by one value object built from the pairs you name, `increment:`/`decrement:` do arithmetic on a numeric field. See commands.md's "`then_set` — one op per field" for the flattening rule `append:` applies to a single-member value object.
