@@ -26,7 +26,12 @@ module Hecksagain
       # only by testing against Pizzas instead of re-testing against
       # the one simpler domain this was first built for, where every
       # value object happened to be single-field and primitive-typed.
-      PRIMITIVES = %w[String Integer Float TrueClass FalseClass].freeze
+      # THE SAME LIST `Attribute::PRIMITIVES` holds, referenced rather
+      # than repeated. It was a second, byte-identical copy — and only
+      # the Attribute one is held to `vocabulary.bluebook` by
+      # spec/vocabulary_conformance_spec, so this copy could drift from
+      # the language and nothing would say so.
+      PRIMITIVES = Attribute::PRIMITIVES
 
       module_function
 
