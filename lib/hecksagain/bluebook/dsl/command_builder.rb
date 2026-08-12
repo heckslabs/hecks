@@ -4,6 +4,21 @@ module Hecksagain
       class CommandBuilder
         include AttributeCollector
 
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4): a sentinel for "this keyword was never passed", distinct
+        # from Ruby's own nil/false. `then_set`'s ORIGINAL default (`to:
+        # nil`) could not tell "not given" apart from "given, and the
+        # value IS false" — `to || from` silently treats `to: false` the
+        # same as an absent `to:` and falls through to `from` (also
+        # absent), so `then_set :accepted, to: false` raised "names no
+        # operation" for the one value most likely to be written that way
+        # (a boolean flip). Confirmed real, live: miette's
+        # dream_interpretation.bluebook (`then_set :accepted, to: false`)
+        # and transparency.bluebook (`then_set :always, to: false`). TODO
+        # upstream via bin/evolve.
+        UNSET = Object.new.freeze
+        private_constant :UNSET
+
         def initialize(name, owner: nil)
           @name      = name
           @owner     = owner
@@ -115,16 +130,68 @@ module Hecksagain
         # bluebook was written under (Syntax::Keyword carries the rename as
         # `was:`), and it stays answered here forever — a renamed word's old
         # era keeps booting, which is the whole point of the rename column.
-        def then_set(target, to: nil, append: nil, increment: nil, decrement: nil)
+        #
+        # Vendored addition, not (yet) upstream hecksagain: `then_set
+        # :target, from: :source_field` (hecks_conception/miette, found
+        # live in body/doctor/bluebook/doctor.bluebook) -- semantically
+        # identical to `to:` (copy this argument/field into the target),
+        # different word. TODO upstream via bin/evolve (migration plan
+        # task 7): decide whether `from:` or `to:` becomes the canonical
+        # spelling.
+        #
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4, i106 in-DSL math): `multiply:`/`clamp:` -- per-tick organ
+        # math (miette's body/organs/bluebook: strength decays ×0.98,
+        # weight/strength clamp to [0, 1]) that used to be shell-side awk
+        # and moved into the bluebook itself. `multiply:` mirrors
+        # increment/decrement's shape exactly (a Numeric amount, applied
+        # by CommandRules::Arithmetic -- see that file's own comment on
+        # the matching Float-support widening this required). `clamp:`
+        # is a genuinely different shape -- its source is always a literal
+        # `[min, max]` pair, never an argument reference, and it bounds
+        # the CURRENT value rather than combining it with an amount -- so
+        # it does not reuse `arithmetic`/`arithmetic_value_object` at all;
+        # see MutationApplier#apply's own `:clamp` branch.
+        #
+        # `remove:` -- vendored addition, not (yet) upstream hecksagain
+        # (migration plan task 4): the list-removal counterpart to
+        # `append:` (plan.bluebook's own RemoveDependency/DeactivateSprint
+        # commands: "the runtime list-remove primitive (then_set remove:)
+        # drops it from the list element-wise, with no read-modify-write
+        # -- so a concurrent Add can never be lost"). Matches an element
+        # by VALUE equality against `mutation.source` (resolved and
+        # Value-coerced the same way increment/decrement/multiply already
+        # coerce their own amount -- see MutationApplier#removed).
+        #
+        # `then_set :field, true` -- vendored addition, not (yet) upstream
+        # hecksagain (migration plan task 8): a bare positional literal
+        # instead of `to:` -- 14 occurrences across hecks_nursury
+        # (oceanography.bluebook/volcanology.bluebook and others),
+        # always a boolean shorthand (`then_set :deployed, true`, never
+        # a string/number positional -- checked directly, zero non-
+        # boolean occurrences of the bare-positional-second-arg shape
+        # anywhere in the corpus). Folded into `to:` itself rather than
+        # given its own mutation op -- semantically identical, same
+        # UNSET-sentinel discipline the `to: false` fix already
+        # established (a positional `false` must read as "set to
+        # false," not "absent," same as the keyword form). Only applied
+        # when `to:` itself was NOT also given, so an explicit `to:`
+        # keyword always wins over a stray positional.
+        def then_set(target, positional_to = UNSET, to: UNSET, from: UNSET, append: UNSET,
+                     increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
           # moved to the language: given "a mutation names a target", on Verb.Change
 
-          named = { set: to, append: append, increment: increment, decrement: decrement }
-                  .reject { |_, source| source.nil? }
+          to = positional_to if to.equal?(UNSET) && !positional_to.equal?(UNSET)
+          set_source = to.equal?(UNSET) ? from : to
+
+          named = { set: set_source, append: append, increment: increment, decrement: decrement,
+                    multiply: multiply, clamp: clamp, remove: remove }
+              .reject { |_, source| source.equal?(UNSET) }
 
           if named.empty?
             raise Malformed,
                   "#{@name}'s then_set :#{target} names no operation — " \
-                  "give it to:, append:, increment:, or decrement:"
+                  "give it to:, append:, increment:, decrement:, multiply:, clamp:, or remove:"
           end
 
           if named.size > 1

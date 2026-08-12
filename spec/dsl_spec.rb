@@ -1953,6 +1953,50 @@ RSpec.describe "the DSL surface" do
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: "sold")
     end
 
+    # Real coverage for item 12e's plumbing (migration plan task 4/7/8):
+    # then_set's UNSET-sentinel rewrite -- to: false no longer reads as
+    # absent, from: is a to:-equivalent alias, and a bare positional second
+    # argument is boolean shorthand for to:. remove:/multiply:/clamp: are
+    # covered by their own items' dispatch-level specs (13/15/16); this file
+    # only proves the DSL surface itself parses and records the right op.
+    it "then_set to: false is a real mutation, not an absent to:" do
+      mutation = build_command("CmdSetToFalse") { then_set :status, to: false }.mutations.first
+
+      expect(mutation.op).to eq(:set)
+      expect(mutation.to_h[:source]).to eq(kind: "literal", value: false)
+    end
+
+    it "then_set from: is a to:-equivalent alias" do
+      mutation = build_command("CmdSetFrom") { then_set :status, from: :status }.mutations.first
+
+      expect(mutation.op).to eq(:set)
+      expect(mutation.to_h[:source]).to eq(kind: "argument", name: "status")
+    end
+
+    it "then_set :field, true reads as to: true — a bare positional boolean shorthand" do
+      mutation = build_command("CmdSetPositional") { then_set :status, true }.mutations.first
+
+      expect(mutation.op).to eq(:set)
+      expect(mutation.to_h[:source]).to eq(kind: "literal", value: true)
+    end
+
+    it "then_set :field, true defers to an explicit to: when both are given" do
+      mutation = build_command("CmdSetPositionalLoses") { then_set :status, true, to: "explicit" }.mutations.first
+
+      expect(mutation.to_h[:source]).to eq(kind: "literal", value: "explicit")
+    end
+
+    it "then_set still refuses two operations at once with the new keyword list named" do
+      expect { build_command("CmdSetTornNew") { then_set :status, to: "a", remove: :b } }
+        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /tries to set and remove/)
+    end
+
+    it "then_set still refuses no operation, naming every keyword including the new ones" do
+      expect { build_command("CmdSetNoneNew") { then_set :status } }
+        .to raise_error(Hecksagain::Bluebook::DSL::Malformed,
+                         /give it to:, append:, increment:, decrement:, multiply:, clamp:, or remove:/)
+    end
+
     it "then_set append: pushes a built value object onto a list" do
       mutation = build_command("CmdAppend") { then_set :parts, append: { size: :size } }.mutations.first
 
