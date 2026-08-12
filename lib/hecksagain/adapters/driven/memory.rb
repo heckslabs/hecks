@@ -23,7 +23,7 @@ module Hecksagain
       end
 
       def query(specification, args = {}, context: {})
-        Ports::Query::InMemory.execute(all, specification, args)
+        Ports::Query::InMemory.execute(all, specification, args, registry: context[:registry])
       end
 
       def append(entry)

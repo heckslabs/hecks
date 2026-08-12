@@ -34,7 +34,13 @@ module Hecksagain
         declared = ReferenceHop.apply(declared, args, registry: @registry, domain: domain, aggregate: aggregate)
 
         repository = @registry.repository(domain, aggregate)
-        if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate }))
+        # `registry:` is threaded through so a `none_in_state` where-clause
+        # (Runtime::QueryInterpreter#none_in_state?'s own vendored
+        # addition) can look its target aggregate up — see
+        # Ports::Query::InMemory#none_in_state?'s own comment on why an
+        # ordinary aggregate-level Memory query needs this passed
+        # explicitly rather than closing over an instance variable.
+        if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate, registry: @registry }))
           records = native
           # `record.state.merge(id: record.id)` — id LAST, not first. See
           # Instance#to_h's own comment: an aggregate free to declare its
