@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class PortOperationBuilder
         include AttributeCollector
@@ -17,13 +17,13 @@ module Hecksagain
         # even though the target happens to equal the owning aggregate.
         def reference_to(type, as: nil)
           target = Naming.demodulise(type)
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
+          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target))
         end
 
         def emits(event_name) = @emits << event_name.to_s
 
         def build
-          operation = IR::PortOperation.new(name: @name, attributes: attributes, emits: @emits)
+          operation = PortOperation.new(name: @name, attributes: attributes, emits: @emits)
 
           raise Malformed,
                 "#{@name} declares no emits — an operation with nothing to say " \

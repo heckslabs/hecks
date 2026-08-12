@@ -119,7 +119,7 @@ module Hecksagain
 
       # THE ONE PLACE A STRING BECOMES WHAT THE LANGUAGE ACTUALLY WANTS.
       #
-      # Every case here is one of `IR::Attribute::PRIMITIVES` — the
+      # Every case here is one of `Attribute::PRIMITIVES` — the
       # language's own closed list of scalar types an attribute may
       # bottom out at — not a guess about which ones an interview will
       # eventually need. Measured, not assumed: today only `Integer` is
@@ -148,8 +148,8 @@ module Hecksagain
 
       # An argument's declared TYPE names a value object ("ListFlag"),
       # declared on the SAME AGGREGATE as the command itself (a value
-      # object belongs to one aggregate — `IR::Aggregate#value_object`,
-      # never the chapter's own `IR::Bluebook`, which holds no such
+      # object belongs to one aggregate — `Aggregate#value_object`,
+      # never the chapter's own `Bluebook`, which holds no such
       # lookup at all). Its own `field` then names one of THAT value
       # object's attributes ("value"), and that attribute's own type is
       # the actual Ruby primitive (`TrueClass`) coercion needs. One hop,

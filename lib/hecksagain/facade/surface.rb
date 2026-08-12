@@ -16,7 +16,7 @@ module Hecksagain
     #
     # The hexagon-binding door rides along : `Pizzas::Pizza.persisted_by("Heki")`
     # in a `.hecksagon` file lands on the module's `method_missing`, which
-    # records an `IR::Bind` into whatever `HecksagonBuilder.collector` is open
+    # records an `Bind` into whatever `HecksagonBuilder.collector` is open
     # AT CALL TIME — so even a facade left over from a previous boot records
     # into the current builder, and a chapter with no constant at all falls
     # through to `ConstShim` → `BindingProxy`, which mints byte-identical binds.

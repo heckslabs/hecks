@@ -49,7 +49,7 @@ RSpec.describe Hecksagain::Projector do
       expect(described_class.registered?(:ir)).to be true
     end
 
-    it "needs no live runtime — a bare IR::Bluebook is enough" do
+    it "needs no live runtime — a bare Bluebook is enough" do
       expect(described_class.call(:ir, bluebook: pizzas)).to eq(pizzas.to_h)
     end
 
@@ -57,7 +57,7 @@ RSpec.describe Hecksagain::Projector do
       projected = described_class.call(:ir, bluebook: pizzas)
 
       expect(projected.keys.first).to eq(:ir_version)
-      expect(projected[:ir_version]).to eq(Hecksagain::Bluebook::IR::Bluebook::IR_VERSION)
+      expect(projected[:ir_version]).to eq(Hecksagain::Bluebook::IR_VERSION)
     end
 
     # Determinism, proven against the SAME golden fixture

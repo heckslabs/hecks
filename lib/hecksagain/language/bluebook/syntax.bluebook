@@ -666,7 +666,7 @@ Hecks.bluebook "Bluebook" do
         # entirely, the exact same reason `admits:` is written as text
         # rather than a constant path (see that column's own comment,
         # above). Renders identically to the bareword form either way —
-        # `IR::Attribute#to_h`'s own `type.to_s` doesn't care which
+        # `Attribute#to_h`'s own `type.to_s` doesn't care which
         # spelling minted it.
         member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
         member keyword: "attribute",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"

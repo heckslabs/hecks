@@ -59,7 +59,7 @@ module Hecksagain
 
     # A chapter-scoped projector walks `.aggregates`; anything else is
     # refused HERE rather than left to produce whatever it produces. The
-    # check is duck-typed on purpose — `Bluebook::IR` is not the only
+    # check is duck-typed on purpose — `Hecksagain::Bluebook` is not the only
     # thing that could ever answer for a chapter, and a class check would
     # make a test double impossible to pass in.
     def admits!(name, projector, construct)
@@ -69,7 +69,7 @@ module Hecksagain
       raise WrongConstruct,
             "#{name.inspect} projects a whole chapter, but was handed #{construct.class} " \
             "(#{construct.respond_to?(:hecks_name) ? construct.hecks_name : construct.inspect}). " \
-            "Pass an IR::Bluebook, or use a projector declared `from: :any`."
+            "Pass a Hecksagain::Bluebook, or use a projector declared `from: :any`."
     end
 
     def registered?(name) = registry.key?(name.to_sym)

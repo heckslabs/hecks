@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class QueryBuilder
         include AttributeCollector
@@ -16,18 +16,18 @@ module Hecksagain
         # A query parameter naming another aggregate's own identity
         # (Card.Active's own `Board`, filtering to one board's cards) —
         # just a plain attribute typed as a reference,
-        # AttributeCollector#attribute already handling an IR::Reference
+        # AttributeCollector#attribute already handling an Reference
         # exactly like any other. No "acts on itself" case to
         # distinguish here the way a command's own reference_to has —
         # a query has no root of its own to act on, only parameters.
         def reference_to(type, as: nil, optional: false)
           target = Naming.demodulise(type)
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target), optional: optional)
+          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target), optional: optional)
         end
 
         def build
           seal_cursor
-          IR::Query.new(
+          Query.new(
             name:        @name,
             description: @description,
             attributes:  attributes,

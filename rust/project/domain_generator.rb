@@ -511,7 +511,7 @@ module RustProjection
       end
 
       # ── READ MODELS — a declared `report "X" do ... end` block
-      # (`IR::ReadModel`, the `read_model` construct) now generates for
+      # (`ReadModel`, the `read_model` construct) now generates for
       # real, for the subset `read_models.rb`'s own `read_model_skip_
       # reason` admits (a root aggregate fetched by reference id, plus
       # reference-matched sibling heads — no where/order_by/limit/etc,

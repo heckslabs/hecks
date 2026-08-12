@@ -229,7 +229,7 @@ def derive_manifest_from_source(ir, mod_dir)
   ir.fetch(:read_models).each do |read_model|
     manifest << {
       kind: "read_model", id: "#{domain_name}::#{read_model.fetch(:name)}", generated: false, gap_class: "whole_kind",
-      reason: 'the "read_model" construct has no generated code path at all — a distinct construct from "query" (IR::ReadModel, a cross-aggregate ask) that happens to share the same fate'
+      reason: 'the "read_model" construct has no generated code path at all — a distinct construct from "query" (ReadModel, a cross-aggregate ask) that happens to share the same fate'
     }
   end
 
@@ -323,7 +323,7 @@ ALLOWLIST = [
     note: 'Confirmed against a real run, not assumed: `bin/rust_coverage banking`/`pizzas`/`governance`/`identity`/' \
           '`meta` all show real `[query]` entries in IMPLEMENTED now (Banking::CardPayment.Pending/Disputed/Flagged, ' \
           'Banking::ExternalTransfer.Sent, Governance::RoleAssignment.AssignmentsForActor, Governance::' \
-          'RoleTransition.Allowed, Identity::ExternalIdentifier.ResolvedBy, Bluebook::Bluebook.Called, PLUS (as of ' \
+          'RoleTransition.Allowed, Identity::ExternalIdentifier.ResolvedBy, Bluebook.Called, PLUS (as of ' \
           '2026-08-11) every order_by/limit-bearing declared query the field-comparator subset otherwise admits — ' \
           'Banking::ATMCard.Active/ByFee, Account.AtMost/HighBalance/Open/Reachable/StrictlyAbove, Customer.' \
           'InGoodStanding/NotGoodStanding/Suspended, OnboardingCase.Screening, ScheduledPayment.Due, ' \
@@ -369,7 +369,7 @@ ALLOWLIST = [
     # A NEW, HONEST GAP THIS MERGE ITSELF SURFACED — not present on
     # either side before `main` and `feat/rust-projection` combined.
     # `main`'s own rootless-read-model work (`report: rootless read
-    # models + group_by`) added `group_by` to `IR::ReadModel` after
+    # models + group_by`) added `group_by` to `ReadModel` after
     # `rust/project/read_models.rb` was written against a version of
     # that IR with no such concept at all (that file's own header
     # already named this exact scenario as a "future reader diffing

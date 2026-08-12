@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class CommandBuilder
         include AttributeCollector
@@ -80,7 +80,7 @@ module Hecksagain
         private
 
         def cross_reference(target, as, optional = false)
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target), optional: optional)
+          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target), optional: optional)
         end
 
         public
@@ -97,7 +97,7 @@ module Hecksagain
                   "runtime could ever evaluate it"
           end
 
-          @givens << IR::Given.new(
+          @givens << Given.new(
             description: description,
             canonical:   canonical,
             predicate:   predicate
@@ -119,7 +119,7 @@ module Hecksagain
                   "one has none"
           end
 
-          @ensures << IR::Given.new(
+          @ensures << Given.new(
             description: description,
             canonical:   canonical,
             predicate:   predicate
@@ -201,7 +201,7 @@ module Hecksagain
           end
 
           op, source = named.first
-          @mutations << IR::Mutation.new(target: target.to_sym, op: op, source: source)
+          @mutations << Mutation.new(target: target.to_sym, op: op, source: source)
         end
         alias_method :sets, :then_set
 
@@ -215,7 +215,7 @@ module Hecksagain
         end
 
         def build
-          IR::Command.declare(
+          Command.declare(
             name:       @name,
             role:       @role,
             goal:       @goal,

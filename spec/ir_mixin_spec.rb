@@ -127,7 +127,7 @@ RSpec.describe Hecksagain::IR do
   # instead of reading a method body.
   describe "the declaration is readable" do
     it "reports the emitted shape of a real construct" do
-      spec = Hecksagain::Bluebook::IR::Aggregate.ir_spec
+      spec = Hecksagain::Bluebook::Aggregate.ir_spec
 
       expect(spec.keys).to include(:name, :attributes, :commands, :lifecycle)
       expect(spec[:attributes]).to be_a(Hecksagain::IR::Many)

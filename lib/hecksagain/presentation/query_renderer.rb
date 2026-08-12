@@ -9,7 +9,7 @@ require_relative "form_renderer"
 
 module Hecksagain
   module Presentation
-    # IR::Query -> the page body for its GET view: a canonical, shareable
+    # Query -> the page body for its GET view: a canonical, shareable
     # link (queries are GETs — every one of them is already a URL, so this
     # says so up front rather than hiding that behind a form); a row of
     # ready-made links for any closed-set parameter, since a caller filtering

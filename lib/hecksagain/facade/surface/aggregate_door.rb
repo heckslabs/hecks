@@ -1,7 +1,7 @@
 require_relative "../../bluebook/dsl/hecksagon_builder"
 require_relative "../../bluebook/dsl/domain_port_builder"
 require_relative "../../bluebook/dsl/const_shim"
-require_relative "../../bluebook/ir/hexagon"
+require_relative "../../bluebook/hexagon"
 require_relative "../handle"
 require_relative "../../naming"
 
@@ -101,7 +101,7 @@ module Hecksagain
             collector = Bluebook::DSL::HecksagonBuilder.collector
             return super(verb, *args, **kwargs, &block) unless collector
 
-            collector << Bluebook::IR::Bind.new(
+            collector << Bluebook::Bind.new(
               aggregate: fqn,
               verb:      verb.to_s,
               adapter:   args.first.to_s,

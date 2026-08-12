@@ -1,7 +1,7 @@
 require "json"
 
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module Expression
       module CanonicalForm
         Rule = Struct.new(:strategy, :source_token, :replacement, :boundary, :position, keyword_init: true)

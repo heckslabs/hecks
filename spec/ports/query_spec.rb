@@ -2,7 +2,7 @@ require "spec_helper"
 
 RSpec.describe Hecksagain::Ports::Query do
   let(:specification) do
-    Hecksagain::Bluebook::IR::Query.new(name: "Accounts")
+    Hecksagain::Bluebook::Query.new(name: "Accounts")
   end
 
   it "uses an adapter's single native query hook" do
@@ -22,7 +22,7 @@ RSpec.describe Hecksagain::Ports::Query do
   end
 
   it "rejects contradictory pagination before an adapter is called" do
-    specification = Hecksagain::Bluebook::IR::Query.new(
+    specification = Hecksagain::Bluebook::Query.new(
       name: "Accounts",
       offset: Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 5),
       cursor: Hecksagain::QuerySpecification::Common::CursorSpec.new(value: "next")

@@ -66,7 +66,7 @@ module Hecksagain
 
       # The one command a POST to a bare collection URL means — "make one of
       # these". `AggregateDoor` already enforces exactly one creating
-      # command per aggregate (`IR::Command#creates?`, true exactly when the
+      # command per aggregate (`Command#creates?`, true exactly when the
       # command declares no `references`); this just names it the same
       # snake_case a Ruby caller would already ask the door for
       # (`Naming.snake`, the identical call `AggregateDoor` itself makes

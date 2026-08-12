@@ -101,7 +101,7 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     where = Hecksagain::QuerySpecification::Common::WhereClause.new(
       field: "name", op: :in, value: "Margherita,Diavola"
     )
-    declared = Hecksagain::Bluebook::IR::Query.new(name: "ByName", wheres: [where])
+    declared = Hecksagain::Bluebook::Query.new(name: "ByName", wheres: [where])
 
     expect(adapter.query(declared, {}).map(&:id)).to contain_exactly("p1", "p2")
   end
@@ -110,7 +110,7 @@ RSpec.describe Hecksagain::Adapters::Sqlite do
     adapter.save(instance("p1", name: { value: "Margherita" }))
 
     where = Hecksagain::QuerySpecification::Common::WhereClause.new(field: "name", op: :in, value: "")
-    declared = Hecksagain::Bluebook::IR::Query.new(name: "ByName", wheres: [where])
+    declared = Hecksagain::Bluebook::Query.new(name: "ByName", wheres: [where])
 
     expect(adapter.query(declared, {})).to be_empty
   end

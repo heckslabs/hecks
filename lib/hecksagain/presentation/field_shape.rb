@@ -1,4 +1,4 @@
-require_relative "../bluebook/ir/attribute"
+require_relative "../bluebook/attribute"
 require_relative "value_object_shape"
 
 module Hecksagain
@@ -48,16 +48,16 @@ module Hecksagain
       end
     end
 
-    # IR::Attribute -> Field. The one mapping every renderer in this
+    # Attribute -> Field. The one mapping every renderer in this
     # directory reads instead of re-deriving its own — see
     # docs/presentation-bluebook.md's survey of the gap this closes (the
     # prior generic-console attempt fell back to `type="text"` for anything
     # that wasn't a number or an enum; a `pattern` naming an email shape, or a
     # closed set another aggregate declares, went unread).
     module FieldShape
-      PRIMITIVES = Bluebook::IR::Attribute::PRIMITIVES
+      PRIMITIVES = Bluebook::Attribute::PRIMITIVES
 
-      # `aggregate:` is the IR::Aggregate that OWNS this attribute (a
+      # `aggregate:` is the Aggregate that OWNS this attribute (a
       # command's, a query's, or — recursively — a value object's) —
       # needed to resolve `reference_to`, `admits:`, and a same-chapter
       # value object by name. `path:` defaults to the attribute's own name;
@@ -80,7 +80,7 @@ module Hecksagain
         # The scalar shape one element of this list would take, so a
         # renderer can say what belongs on each line without a second
         # mapping table. `list:` is the only thing that differs.
-        scalar = Bluebook::IR::Attribute.new(
+        scalar = Bluebook::Attribute.new(
           name: attribute.name, type: attribute.type, list: false,
           default: nil, optional: true, pattern: attribute.pattern, admits: attribute.admits
         )

@@ -27,7 +27,7 @@ RSpec.describe Hecksagain::Fuzzing::ValueGenerator do
   describe ".primitive" do
     it "answers every declared primitive type" do
       random = Random.new(1)
-      Hecksagain::Bluebook::IR::Attribute::PRIMITIVES.each do |type_name|
+      Hecksagain::Bluebook::Attribute::PRIMITIVES.each do |type_name|
         expect { described_class.primitive(type_name, random: random) }.not_to raise_error
       end
     end

@@ -21,7 +21,7 @@ module RustProjection
     # rb`'s own `reference_checks` helper) — `CommandRules::References
     # #resolve_references`'s per-attribute walk, done at codegen time
     # instead of dispatch time. `role:` is the command's own declared
-    # role string, or `nil` (most commands declare none) — `IR::Command
+    # role string, or `nil` (most commands declare none) — `Command
     # #role`, exported verbatim.
     #
     # Both emitted HERE, in the router, rather than inside each command's

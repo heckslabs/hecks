@@ -47,7 +47,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   # workaround rather than a design.
   #
   # It held one: `Dispatch.with_spec` was spelled `with` on the wire, and only
-  # there — the language, `IR::Dispatch` and
+  # there — the language, `Dispatch` and
   # `contracts.rb`'s own field map all said `with_spec`, and `to_h` renamed it on
   # the way out. The wire was the outlier, so the wire moved.
   WIRE_SPELLING = {}.freeze

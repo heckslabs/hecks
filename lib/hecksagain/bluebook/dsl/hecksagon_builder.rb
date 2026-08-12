@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class HecksagonBuilder
         class << self
@@ -54,17 +54,17 @@ module Hecksagain
           built = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, &block) }
 
           # See BindingProxy#port's own comment on the same branch — a
-          # `verb`-shaped port is a plain `IR::Port`, registered the same
+          # `verb`-shaped port is a plain `Port`, registered the same
           # way `Hecks.port`'s top-level method already does, not attached
           # to this bluebook's own IR the way an operations-shaped
-          # `IR::DomainPort` is.
-          return Hecksagain.current_registry.add_port(built) if built.is_a?(IR::Port)
+          # `DomainPort` is.
+          return Hecksagain.current_registry.add_port(built) if built.is_a?(Port)
 
           bluebook_ir.add_port(built)
         end
 
         def build
-          IR::Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
+          Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                              framework_members: @framework_members)
         end
 

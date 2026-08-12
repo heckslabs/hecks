@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class ValueObjectBuilder
         include AttributeCollector
@@ -39,7 +39,7 @@ module Hecksagain
                   "extraction — it would be a rule the IR cannot carry"
           end
 
-          @invariants << IR::Invariant.new(
+          @invariants << Invariant.new(
             description: description,
             canonical:   canonical,
             predicate:   predicate
@@ -47,7 +47,7 @@ module Hecksagain
         end
 
         def build
-          IR::ValueObject.declare(
+          ValueObject.declare(
             name: @name, attributes: attributes,
             invariants: @invariants, members: @members,
             closed_set: @closed_set || !@members.empty?

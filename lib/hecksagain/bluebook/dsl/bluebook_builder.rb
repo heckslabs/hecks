@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class BluebookBuilder
         attr_reader :classification
@@ -61,13 +61,13 @@ module Hecksagain
           validate_no_bidirectional_references!
           policies = @aggregates.flat_map(&:policies) + @policies
 
-          # The chapter is the top of the construct chain — `IR::Bluebook` is a
+          # The chapter is the top of the construct chain — `Bluebook` is a
           # ROOT, and its constructor stamps every aggregate and read model with
           # itself as owner, so every `hecks_fqn` below resolves by walking up
           # to it. No constants are installed at load time : the public door is
           # a per-boot projection, installed by `Loader.bind_runtime` once a
           # dispatcher exists to close over (facade/surface.rb).
-          bluebook = IR::Bluebook.new(name: @name, version: @version, vision: @vision,
+          bluebook = Bluebook.new(name: @name, version: @version, vision: @vision,
                                       aggregates: @aggregates,
                                       read_models: @read_models,
                                       policies: policies,
@@ -79,7 +79,7 @@ module Hecksagain
           # deferred gets checked for real here — the earliest point a
           # hop CAN be checked, for exactly the reason
           # validate_no_bidirectional_references! above already gives:
-          # `IR::Bluebook.new` just stamped `hecks_owner` on every
+          # `Bluebook.new` just stamped `hecks_owner` on every
           # aggregate, so `Reference#resolve` finally has a chapter to
           # walk. Before this line every target in the file (including
           # ones declared ABOVE the aggregate doing the asking) would
@@ -329,7 +329,7 @@ module Hecksagain
         def reacted_events(pm)
           ([pm.starts_on, pm.ends_on] + pm.handlers.map(&:event_type))
             .compact
-            .reject { |event| event == IR::ProcessManager::REFUSED }
+            .reject { |event| event == ProcessManager::REFUSED }
             .map { |event| event.to_s.split("::").last }
             .uniq
         end
@@ -358,13 +358,13 @@ module Hecksagain
         # reaching a scalar.
         def walk_scalar(owner, type_name, segments)
           if segments.empty?
-            return nil if IR::Attribute::PRIMITIVES.include?(type_name)
+            return nil if Attribute::PRIMITIVES.include?(type_name)
 
             return "#{type_name} is a value object, not a scalar — name one of its own fields, " \
                    "e.g. #{type_name.downcase}.value"
           end
 
-          if IR::Attribute::PRIMITIVES.include?(type_name)
+          if Attribute::PRIMITIVES.include?(type_name)
             return "#{type_name} is already a scalar — #{segments.join('.')} has nothing left to reach"
           end
 
@@ -390,7 +390,7 @@ module Hecksagain
         # for a name creates it, every later file for the same name reuses the
         # same instance, so `@aggregates`/`@read_models` accumulate. `#build` is
         # safe to call once per file on the same builder — it constructs a fresh
-        # `IR::Bluebook` from whatever is currently held and re-`Namespace.install`s
+        # `Bluebook` from whatever is currently held and re-`Namespace.install`s
         # over the previous one, so the LAST file's call leaves every aggregate
         # seen so far reachable, and each call's IR is a strict superset of the
         # one before. `Registry#add_bluebook` still simply stores by name — with
@@ -400,8 +400,8 @@ module Hecksagain
           builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
           # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
           # not a reference to something Ruby has heard of. `const_missing` hands
-          # over the symbol, and that is the whole answer: `IR::Attribute` spells it
-          # with `to_s`, so the `IR::TypeName` wrapper this used to build existed
+          # over the symbol, and that is the whole answer: `Attribute` spells it
+          # with `to_s`, so the `TypeName` wrapper this used to build existed
           # only long enough to be stringified. The concept still has a home — the
           # language declares `value_object "TypeName"` — it just needed no Ruby
           # class of its own.

@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class BindingProxy
         def self.namespace(domain, collector)
@@ -20,7 +20,7 @@ module Hecksagain
         # already reaches, because a port belongs to exactly one aggregate
         # the same way a bind does. A REAL method, not method_missing : its
         # shape (a name and a block building operations) has nothing to do
-        # with `IR::Bind`, so it does not belong in that generic verb path.
+        # with `Bind`, so it does not belong in that generic verb path.
         def port(name, &block)
           domain, aggregate_name = @fqn.split("::")
           aggregate_ir = Hecksagain.current_registry.bluebook(domain)&.aggregate(aggregate_name) or
@@ -33,13 +33,13 @@ module Hecksagain
           # `reference_to Pizza` into another BindingProxy instead of a name.
           built = ConstShim.with(->(const) { const }) { DomainPortBuilder.build(name, owner: aggregate_name, &block) }
 
-          # A `verb`-shaped port is a plain `IR::Port` — the exact struct
+          # A `verb`-shaped port is a plain `Port` — the exact struct
           # `Hecks.port`'s own top-level method registers, so it goes
           # through the same `add_port` the registry already answers for
           # that call. It belongs to no aggregate IR the way an
-          # operations-shaped `IR::DomainPort` does; the aggregate above
+          # operations-shaped `DomainPort` does; the aggregate above
           # was only needed to resolve `owner` for the operations branch.
-          if built.is_a?(IR::Port)
+          if built.is_a?(Port)
             Hecksagain.current_registry.add_port(built)
             return self
           end
@@ -52,7 +52,7 @@ module Hecksagain
         end
 
         def method_missing(verb, *args, **kwargs, &block)
-          @collector << IR::Bind.new(
+          @collector << Bind.new(
             aggregate: @fqn,
             verb:      verb.to_s,
             adapter:   args.first.to_s,

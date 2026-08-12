@@ -6,7 +6,7 @@ require_relative "params"
 
 module Hecksagain
   module Presentation
-    # IR::Command -> the page body for its HTML form. Every command in every
+    # Command -> the page body for its HTML form. Every command in every
     # loaded, exposed bluebook renders through here — nothing here is
     # per-command code; see docs/presentation-bluebook.md for the 1:1 rule
     # this deliberately holds to for now.

@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class TranslationAggregateBuilder
         def initialize(name, was: nil)
@@ -27,7 +27,7 @@ module Hecksagain
           raise Malformed, "a move needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a move needs a source path" if old_path.to_s.empty?
 
-          @moves << IR::TranslationMove.new(old_path.to_s, to.to_s)
+          @moves << TranslationMove.new(old_path.to_s, to.to_s)
         end
 
         # A value with nothing structural in common with its replacement
@@ -39,7 +39,7 @@ module Hecksagain
           raise Malformed, "a convert needs a source path" if old_path.to_s.empty?
           raise Malformed, "a convert needs a values: table" if values.nil? || values.empty?
 
-          @converts << IR::TranslationConvert.new(old_path.to_s, to.to_s, values)
+          @converts << TranslationConvert.new(old_path.to_s, to.to_s, values)
         end
 
         # A declared, deliberate acknowledgment that an attribute's data
@@ -59,7 +59,7 @@ module Hecksagain
           raise Malformed, "a retype needs a source type name" if old_type.to_s.empty?
           raise Malformed, "a retype needs a destination type name (to:)" if to.to_s.empty?
 
-          @retypes << IR::TranslationRetype.new(old_type.to_s, to.to_s)
+          @retypes << TranslationRetype.new(old_type.to_s, to.to_s)
         end
 
         # A computed transform whose only implementation is the SQL
@@ -71,7 +71,7 @@ module Hecksagain
           raise Malformed, "a compute needs a source path" if old_path.to_s.empty?
           raise Malformed, "a compute needs its sql: expression" if sql.to_s.empty?
 
-          @computes << IR::TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
+          @computes << TranslationCompute.new(old_path.to_s, to.to_s, sql.to_s)
         end
 
         # THE AGGREGATE'S OWN IDENTITY, changing what it's computed from —
@@ -85,7 +85,7 @@ module Hecksagain
         def rekey(sql:)
           raise Malformed, "a rekey needs its sql: expression" if sql.to_s.empty?
 
-          @rekeys << IR::TranslationRekey.new(sql.to_s)
+          @rekeys << TranslationRekey.new(sql.to_s)
         end
 
         # The scaffold writes this where it cannot decide; a file carrying
@@ -103,7 +103,7 @@ module Hecksagain
         private def respond_to_missing?(_name, _include_private = false) = true
 
         def build
-          IR::TranslationAggregate.new(
+          TranslationAggregate.new(
             name: @name, was: @was, renames: @renames, moves: @moves, converts: @converts,
             drops: @drops, retypes: @retypes, computes: @computes, rekeys: @rekeys
           )
@@ -173,7 +173,7 @@ module Hecksagain
 
         private def respond_to_missing?(_name, _include_private = false) = true
 
-        def build = IR::Translation.new(domain: @domain, from: @from, to: @to, aggregates: @aggregates, retired: @retired)
+        def build = Translation.new(domain: @domain, from: @from, to: @to, aggregates: @aggregates, retired: @retired)
 
         def self.build(domain, from:, to:, &block)
           builder = new(domain, from: from, to: to)

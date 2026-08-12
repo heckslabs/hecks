@@ -22,7 +22,7 @@ RSpec.describe Hecksagain::Projections::OIDC do
     expect(described_class.projection_key).to eq(:oidc)
   end
 
-  it "needs no live runtime — a bare IR::Bluebook is enough" do
+  it "needs no live runtime — a bare Bluebook is enough" do
     expect { described_class.call(bluebook: pizzas) }.not_to raise_error
   end
 

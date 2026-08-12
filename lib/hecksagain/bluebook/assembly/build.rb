@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     class Assembly
       # ONE WAY TO BUILD A CONSTRUCT, for every construct.
       #
@@ -11,7 +11,7 @@ module Hecksagain
       #
       # `make` is the only branch, and it is a real one: a construct that became a
       # class is `.declare`d, an instance is `.new`ed. That is the boundary
-      # `IR::Query` sits on, and it is a fact about Ruby rather than about the
+      # `Query` sits on, and it is a fact about Ruby rather than about the
       # domain.
       module Build
         module_function

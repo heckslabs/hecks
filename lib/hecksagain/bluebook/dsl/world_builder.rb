@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class SettingsCollector
         def initialize = @values = {}
@@ -39,7 +39,7 @@ module Hecksagain
 
         def build
           MetaValidator.call_world(
-            IR::World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings)
+            World.new(domain: @domain, realm: @realm, latest: @latest, settings: @settings)
           )
         end
 

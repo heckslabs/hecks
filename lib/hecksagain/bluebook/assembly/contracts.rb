@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     class Assembly
       # ONE TABLE, WHERE THERE WERE FIVE HAND-WRITTEN MIRRORS OF IT.
       #
@@ -10,7 +10,7 @@ module Hecksagain
       #
       #   holder    which class holds it
       #   make      :declare for a construct that became a class, :new for an
-      #             instance — the boundary `IR::Query` sits on, since its body is
+      #             instance — the boundary `Query` sits on, since its body is
       #             inherited instance methods
       #   fields    each keyword the constructor takes, as
       #             keyword => [key in the declaration, how to read it]
@@ -36,7 +36,7 @@ module Hecksagain
 
       CONTRACTS = {
         "Bluebook" => Contract.new(
-          holder: IR::Bluebook, make: :new,
+          holder: Bluebook, make: :new,
           fields: {
             name:           [:name,           :plain],
             version:        [:version,        :plain],
@@ -49,7 +49,7 @@ module Hecksagain
         ),
 
         "Aggregate" => Contract.new(
-          holder: IR::Aggregate, make: :new,
+          holder: Aggregate, make: :new,
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
@@ -69,7 +69,7 @@ module Hecksagain
         ),
 
         "Command" => Contract.new(
-          holder: IR::Command, make: :declare,
+          holder: Command, make: :declare,
           fields: {
             name:       [:name,       :plain],
             role:       [:role,       :plain],
@@ -89,7 +89,7 @@ module Hecksagain
         ),
 
         "ValueObject" => Contract.new(
-          holder: IR::ValueObject, make: :declare,
+          holder: ValueObject, make: :declare,
           fields: {
             name:       [:name,       :plain],
             attributes: [:attributes, [:each, :shape_field]],
@@ -104,7 +104,7 @@ module Hecksagain
         ),
 
         "Query" => Contract.new(
-          holder: IR::Query, make: :new,
+          holder: Query, make: :new,
           fields: {
             name:        [:name,        :plain],
             description: [:description, :plain],
@@ -136,7 +136,7 @@ module Hecksagain
         ),
 
         "Entity" => Contract.new(
-          holder: IR::Entity, make: :declare,
+          holder: Entity, make: :declare,
           fields: {
             name:          [:name,          :plain],
             description:   [:description,   :plain],
@@ -162,7 +162,7 @@ module Hecksagain
         ),
 
         "Policy" => Contract.new(
-          holder: IR::Policy, make: :new,
+          holder: Policy, make: :new,
           fields: {
             name:            [:name,            :plain],
             aggregate:       [:aggregate,       :plain],
@@ -174,7 +174,7 @@ module Hecksagain
         ),
 
         "ProcessManager" => Contract.new(
-          holder: IR::ProcessManager, make: :new,
+          holder: ProcessManager, make: :new,
           fields: {
             name:          [:name,          :plain],
             # A SYMBOL. `SagaInterpreter` does `event.payload[pm.correlates_by]` — a
@@ -192,7 +192,7 @@ module Hecksagain
         ),
 
         "Handler" => Contract.new(
-          holder: IR::ProcessManagerHandler, make: :new,
+          holder: ProcessManagerHandler, make: :new,
           fields: {
             event_type: [:event_type, :plain],
             from_state: [:from_state, :plain],
@@ -202,7 +202,7 @@ module Hecksagain
         ),
 
         "Dispatch" => Contract.new(
-          holder: IR::DispatchSpec, make: :new,
+          holder: DispatchSpec, make: :new,
           fields: {
             command_name: [:command_name, :plain],
             with_spec:    [:with_spec,    :bindings]
@@ -213,7 +213,7 @@ module Hecksagain
         ),
 
         "ReadModel" => Contract.new(
-          holder: IR::ReadModel, make: :new,
+          holder: ReadModel, make: :new,
           fields: {
             name:             [:name,             :plain],
             description:      [:description,      :plain],
@@ -245,7 +245,7 @@ module Hecksagain
           # `options_of(row)`'s merge in `read_model` below (dispatched as
           # generic Option rows, `read_model_option_rows`/`filter_options` — not
           # as dedicated where-clause rows), which overrides this default. Until
-          # `IR::ReadModel#to_h` spelled `wheres`/`order_by`/`limit`
+          # `ReadModel#to_h` spelled `wheres`/`order_by`/`limit`
           # unconditionally, `round_trip_spec`'s own "SOURCE KEYS ONLY" +compare
           # never asked about this key at all, so the `nil`-vs-`[]` gap between
           # this contract's default and `to_h`'s own `[]` default went unnoticed.

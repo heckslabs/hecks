@@ -1,7 +1,7 @@
 require "set"
 
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # Lightweight formal methods over the IR — the same family as TLA+/
     # Alloy/P: every lifecycle is a declared finite state machine and
     # every process manager a declared protocol, and BOTH are already
@@ -173,10 +173,10 @@ module Hecksagain
 
         pm.handlers.each do |handler|
           # The compensating leg answers REFUSED, a synthetic trigger no
-          # command ever emits by name (IR::ProcessManager::REFUSED) — not
+          # command ever emits by name (ProcessManager::REFUSED) — not
           # a deaf handler, the one handler this domain's own events can
           # never satisfy on purpose.
-          if handler.event_type != IR::ProcessManager::REFUSED && !emitted.include?(bare(handler.event_type))
+          if handler.event_type != ProcessManager::REFUSED && !emitted.include?(bare(handler.event_type))
             findings << Finding.new(kind: :deaf_handler, severity: :error, subject: pm.name,
                                      message: "a handler answers #{handler.event_type.inspect}, which no command " \
                                               "in this domain emits")
@@ -216,7 +216,7 @@ module Hecksagain
         loop do
           grown = false
           pm.handlers.each do |handler|
-            next unless handler.event_type == IR::ProcessManager::REFUSED || emitted.include?(bare(handler.event_type))
+            next unless handler.event_type == ProcessManager::REFUSED || emitted.include?(bare(handler.event_type))
             next unless reached.include?(handler.from_state)
             next if reached.include?(handler.to_state)
 

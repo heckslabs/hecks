@@ -119,8 +119,8 @@
 # bin/project_rust round-trips every IR through `JSON.parse(JSON.generate(ir),
 # symbolize_names: true)` before handing it here (see its own `json_shaped`
 # header for why). So `mutation[:op]`/`mutation[:target]`/`attribute[:name]`
-# arrive as Strings, not the Symbols `IR::Attribute#to_h` and
-# `IR::Mutation#to_h` actually build. Everything below compares them in
+# arrive as Strings, not the Symbols `Attribute#to_h` and
+# `Mutation#to_h` actually build. Everything below compares them in
 # their String form (`m[:op].to_s == "set"`) — correct either way, and the
 # only spelling a Rust-produced `ir.json` could ever hand this generator.
 #
@@ -270,7 +270,7 @@
 #     `lineage_manager/*` all parse bluebook/translation-rule DSL source
 #     at runtime, which ADR 0007 ("Rust generates code, not Ruby source")
 #     rules out for any Rust target, kernel or host, permanently — not
-#     something a future slice closes, the same way `IR::Bind`/adapter
+#     something a future slice closes, the same way `Bind`/adapter
 #     resolution itself never becomes a Rust concern. What makes reading
 #     THROUGH that machinery possible without reimplementing any of it:
 #     Ruby's own `HeadCompiler` already compiles every rename/move/
@@ -289,7 +289,7 @@
 # now generates too, for the subset expressible as one or more field-
 # comparator conditions against a single aggregate's OWN attributes
 # (`rust/project/queries.rb`'s own header has the full eligibility
-# argument). `read_model` (a cross-aggregate ask, `IR::ReadModel`) is
+# argument). `read_model` (a cross-aggregate ask, `ReadModel`) is
 # still the missing-subsystem gap the paragraph above describes — this
 # slice doesn't touch it, and a query that itself needs order_by/limit/
 # a reference hop/a type-unrecoverable literal comparator still has no

@@ -1,7 +1,7 @@
 require "find"
 
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # Finds domain declaration folders without loading or executing them.
     class ProjectDiscovery
       SKIPPED_DIRECTORIES = %w[.git .bundle data node_modules target tmp vendor generated coverage].freeze

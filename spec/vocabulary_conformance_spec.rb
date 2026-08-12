@@ -64,11 +64,11 @@ RSpec.describe "the declared vocabularies" do
     "IncludeHaystack"       => -> { Hecksagain::Bluebook::Expression::Evaluator::INCLUDE_HAYSTACKS },
     "ToStringType"          => -> { Hecksagain::Bluebook::Expression::Resolver::TO_STRING_TYPES },
     "SizedType"             => -> { Hecksagain::Bluebook::Expression::Resolver::SIZED_TYPES },
-    "Primitive"             => -> { Hecksagain::Bluebook::IR::Attribute::PRIMITIVES },
+    "Primitive"             => -> { Hecksagain::Bluebook::Attribute::PRIMITIVES },
     "NormalisationStrategy" => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
     "LoadOrder"             => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
     "DomainRefusal"         => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
-    "Trigger"               => -> { [Hecksagain::Bluebook::IR::ProcessManager::REFUSED] },
+    "Trigger"               => -> { [Hecksagain::Bluebook::ProcessManager::REFUSED] },
     # AGGREGATE/ENTITY DISPATCH ORDER, THE SAME SPLIT AS EVERY VOCABULARY
     # ABOVE — CommandInterpreter/EntityInterpreter#DISPATCH_ORDER is a
     # hand-typed live table now (call is driven BY it), not read live off the

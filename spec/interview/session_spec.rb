@@ -124,7 +124,7 @@ RSpec.describe Hecksagain::Interview::Session do
   end
 
   describe "#assembled" do
-    it "produces a real IR::Bluebook readable mid-interview, before anything is sealed" do
+    it "produces a real Bluebook readable mid-interview, before anything is sealed" do
       s = session
       s.offer("Bluebook::Aggregate.Declare", bluebook_id: "Loyalty", name: { value: "Member" })
 

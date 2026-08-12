@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     class Assembly
       # WHAT A CONSTRUCT NEEDS THAT THE LANGUAGE CANNOT SAY, and how a claim that a
       # field needs no assembling is CHECKED.
@@ -63,7 +63,7 @@ module Hecksagain
         # COMPUTED means worked out, not merely answerable.
         #
         # Asking only whether the holder responds was too weak, and measurably so:
-        # `[:computed, :version]` passed, because `IR::Bluebook` does answer to
+        # `[:computed, :version]` passed, because `Bluebook` does answer to
         # `version` — it just answers with what the constructor was handed. A field
         # the constructor TAKES is stored, and calling it computed is how a chapter's
         # version would have gone missing while the gate said yes.
@@ -99,7 +99,7 @@ module Hecksagain
       #   normalisations   the canonical-form table belongs to the expression grammar.
       #                    A chapter's rules are canonicalised on the way in, so the
       #                    language models the table — but no chapter STORES one, and
-      #                    `IR::Bluebook#to_h` splices it in from Expression.
+      #                    `Bluebook#to_h` splices it in from Expression.
       ELSEWHERE = {
         Bluebook: %i[normalisations]
       }.freeze

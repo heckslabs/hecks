@@ -1,8 +1,8 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # ONE SYNTHESIZED ARGUMENT PER DECLARED ATTRIBUTE — never a random
-    # guess. Reads only real `IR` (`IR::Aggregate`, `IR::Command`,
-    # `IR::Attribute`, `IR::ValueObject`), so it works against ANY
+    # guess. Reads only real `IR` (`Aggregate`, `Command`,
+    # `Attribute`, `ValueObject`), so it works against ANY
     # loaded bluebook, not one particular domain: a String becomes a
     # fixed marker; an Integer becomes 0; a closed set uses ITS OWN
     # first admitted member (never a value a real `one_of` would
@@ -30,7 +30,7 @@ module Hecksagain
 
       module_function
 
-      # `chapter`/`aggregate` are the real `IR::Bluebook`/`IR::Aggregate`
+      # `chapter`/`aggregate` are the real `Bluebook`/`Aggregate`
       # the command belongs to — needed to resolve a value object type
       # name back to its own declared shape. `created` maps an
       # aggregate NAME to a real id already minted for it earlier in

@@ -133,7 +133,7 @@ Hecks.bluebook "Bluebook" do
 
       reference_to Aggregate
       # DECLARED ON AN AGGREGATE, or on one of its ENTITIES. The IR uses the same
-      # Command for both — an entity's commands are IR::Command objects — so the
+      # Command for both — an entity's commands are Command objects — so the
       # language uses the same Command, and says which piece declared it when a piece
       # did. Absent for an aggregate's own commands, and ABSENT is not EMPTY.
       reference_to Entity, as: :entity_id, optional: true

@@ -17,7 +17,7 @@ module Hecksagain
     # This is that catalogue, and the two are checked against each other
     # rather than merely coexisting: `verb` here is spelled exactly as
     # `Runtime::Dispatcher#dispatch` takes it and exactly as
-    # `IR::Bluebook#verbs` lists it, so a scope can never name a command
+    # `Bluebook#verbs` lists it, so a scope can never name a command
     # the domain does not have (spec/projections/oidc_projection_spec.rb
     # holds the two lists equal), and `role` is the same string
     # `Ports::Authorization.holds_role?` compares against a real
@@ -25,7 +25,7 @@ module Hecksagain
     #
     # ROLES COME FROM THE COMMANDS, NOT FROM GOVERNANCE. A command's own
     # `role "Compliance officer"` is in the bluebook IR
-    # (`IR::Command#role`), whereas `uses_framework "Governance"` is
+    # (`Command#role`), whereas `uses_framework "Governance"` is
     # declared in the `.hecksagon` — which `call(bluebook:, options:)`
     # cannot see at all. Reading the commands is both the only thing
     # available here AND the more accurate source: it says what each

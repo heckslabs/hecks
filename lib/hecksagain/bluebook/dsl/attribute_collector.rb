@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       module AttributeCollector
         ListOf = Struct.new(:type)
@@ -39,7 +39,7 @@ module Hecksagain
 
           type = synthesise_closed_set(name, type) if type.is_a?(OneOf)
           list = type.is_a?(ListOf)
-          attributes << IR::Attribute.new(
+          attributes << Attribute.new(
             name:     name,
             type:     list ? type.type : type,
             list:     list,
@@ -84,9 +84,9 @@ module Hecksagain
 
         def synthesise_closed_set(name, one_of)
           type = Naming.pascal(name)
-          closed_sets << IR::ValueObject.declare(
+          closed_sets << ValueObject.declare(
             name:       type,
-            attributes: [IR::Attribute.new(name: :value, type: "String")],
+            attributes: [Attribute.new(name: :value, type: "String")],
             members:    one_of.values.map { |value| { value: value.to_s } },
             closed_set: true
           )

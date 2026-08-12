@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # The authoring surface — one builder per declaration kind, collecting
     # what a .bluebook file says into the IR. Builders call the
     # meta-validator at build time, not at load time, so their require
@@ -14,7 +14,10 @@ end
 # file says it for them. The builders also build IR, at build time.
 require_relative "../construct"
 require_relative "../query_specification"
-require_relative "ir"
+# The model the builders construct — `bluebook.rb` requires the whole
+# set; this names the one file that declares the chapter class itself,
+# which every builder returns into.
+require_relative "chapter"
 
 require_relative "dsl/malformed"
 require_relative "dsl/const_shim"

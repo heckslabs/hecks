@@ -82,7 +82,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
       # contract spells comes back identically — a field the language stops holding
       # still shows up here as a source key with nothing behind it, and a field
       # REMOVED from the contract is what spec/golden/ir is for. A read model's
-      # filters are held AND on the wire now (`IR::ReadModel#to_h`, 2026-08-11);
+      # filters are held AND on the wire now (`ReadModel#to_h`, 2026-08-11);
       # which head declared a policy is held but still not on the wire.
       source.keys.flat_map { |key| differences(source[key], back[key], "#{path}.#{key}") }
     elsif source.is_a?(Array) && back.is_a?(Array) && source.size == back.size
@@ -92,7 +92,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  # `ports` (IR::Aggregate#to_h) is the ONE field this test's own header
+  # `ports` (Aggregate#to_h) is the ONE field this test's own header
   # says is allowed to fail this way and doesn't, yet: hecksagon-level
   # `port`/`operation` declarations have no self-hosted grammar
   # representation at all (no meta-domain aggregate, no `Reconstruction`
@@ -130,7 +130,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as aggregates read_models policies process_managers])
-    expect(Hecksagain::Bluebook::IR::Bluebook.instance_method(:to_h).owner).to be_truthy
+    expect(Hecksagain::Bluebook.instance_method(:to_h).owner).to be_truthy
   end
 
   it "carries a chapter's version, which banking pins for real" do

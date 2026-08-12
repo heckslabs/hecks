@@ -137,7 +137,7 @@ module Hecksagain
           # KNOWN GAP, not silently risked: this compares raw
           # `aggregate_id` values, with no notion of "these two different
           # ids are the same entity, rekeyed." If a domain's history
-          # includes a rekey (see IR::TranslationRekey) and is LATER
+          # includes a rekey (see TranslationRekey) and is LATER
           # merged here, a record's pre-rekey and post-rekey rows will
           # never intersect — they just silently survive as two separate,
           # unrelated-looking heads (a duplicate, not corruption: nothing

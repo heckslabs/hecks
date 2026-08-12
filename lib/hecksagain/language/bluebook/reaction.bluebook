@@ -167,7 +167,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # No `saga` field. It named the old word for a process manager, held nothing —
-    # IR::ProcessManagerHandler has no such reader, so every Handler record's saga
+    # ProcessManagerHandler has no such reader, so every Handler record's saga
     # was empty — and repeated the parent that `process_manager_id` already
     # carries. A field that names the wrong thing, holds nothing, and duplicates
     # the reference beside it.

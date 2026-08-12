@@ -4,14 +4,14 @@ require "stringio"
 
 # A CONSTRUCT IS A RECORD WITH AN OWNER CHAIN, AND WHAT POINTS AT ONE IS AN EDGE.
 #
-# The chain is IR objects end to end : the chapter (IR::Bluebook) owns its
+# The chain is IR objects end to end : the chapter (Bluebook) owns its
 # aggregates, an aggregate owns its commands, value objects, entities and asks,
 # and `hecks_fqn` is COMPUTED by walking owners — the same spelling
 # `MetaValidator::Judge#identify` mints, so a construct and the language's
 # record OF that construct need no translation between them.
 #
-# `reference_to Customer` is an `IR::Reference`, which RESOLVES to the target's
-# IR::Aggregate through the chapter's own declared heads — scoped by
+# `reference_to Customer` is an `Reference`, which RESOLVES to the target's
+# Aggregate through the chapter's own declared heads — scoped by
 # construction, lazy on purpose (the target may be declared lower in the file).
 #
 # Three aggregates in banking each declare their own `Narrative`; the owner
@@ -115,7 +115,7 @@ RSpec.describe "a construct's identity" do
       found.each do |owner, attribute|
         resolved = attribute.type.resolve
 
-        expect(resolved).to be_a(Hecksagain::Bluebook::IR::Aggregate),
+        expect(resolved).to be_a(Hecksagain::Bluebook::Aggregate),
                             "#{owner}##{attribute.name} resolved to #{resolved.inspect}"
         expect(resolved.hecks_name).to eq(attribute.type.target_name)
         expect(resolved.hecks_owner.hecks_name).to eq("Banking")
@@ -137,7 +137,7 @@ RSpec.describe "a construct's identity" do
     it "refuses to resolve at all when it cannot say who declares it" do
       # A reference the stamping walk missed must go RED, not nil — nil is
       # indistinguishable from a legitimate cross-domain target.
-      orphan = Hecksagain::Bluebook::IR::Reference.new("Customer")
+      orphan = Hecksagain::Bluebook::Reference.new("Customer")
 
       expect { orphan.resolve }
         .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /cannot say which aggregate declares it/)
@@ -147,7 +147,7 @@ RSpec.describe "a construct's identity" do
       account = banking.registry.bluebook("Banking").aggregate("Account")
       customer_id = account.attribute(:customer_id)
 
-      expect(customer_id.type).to be_a(Hecksagain::Bluebook::IR::Reference)
+      expect(customer_id.type).to be_a(Hecksagain::Bluebook::Reference)
       expect(customer_id.to_h[:type]).to eq("Reference<Customer>")
     end
   end
@@ -199,7 +199,7 @@ RSpec.describe "a construct's identity" do
       # every command. But a construct built by hand, or one a future builder
       # forgets to stamp, must go RED rather than answer a bare name that looks
       # right.
-      orphan = Hecksagain::Bluebook::IR::Command.declare(name: "Unstamped")
+      orphan = Hecksagain::Bluebook::Command.declare(name: "Unstamped")
 
       expect(orphan.hecks_owner).to be_nil
       expect { orphan.hecks_fqn }

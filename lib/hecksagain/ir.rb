@@ -13,9 +13,9 @@ module Hecksagain
   #
   # So emitting IR is a CAPABILITY a construct has, and this is that
   # capability: `include Hecksagain::IR` and declare the shape once.
-  # (The model still lives under `Bluebook::IR::*`, named after this one
-  # output of it. Correcting that is a mechanical rename, deliberately
-  # left as its own change so this one stays reviewable.)
+  # The model it emits FROM is `Hecksagain::Bluebook` — a chapter class
+  # nesting everything a chapter declares. It is deliberately not named
+  # after this, its own output.
   #
   # Before this, eighteen constructs each hand-wrote a `to_h` that said
   # the same four things in the same order — read a field, recurse into a

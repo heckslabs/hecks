@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     class Assembly
       # The leaf shapes an assembly reads, and the encodings it undoes.
       #
@@ -15,16 +15,16 @@ module Hecksagain
       module Marks
         module_function
 
-        # `IR::Attribute#to_h` spells a type with `to_s`, so a reference arrives as
+        # `Attribute#to_h` spells a type with `to_s`, so a reference arrives as
         # "Reference<Customer>" and has to become an edge again. Everything else is
         # a name and stays one.
         def attribute(field)
           type = field[:type].to_s
           target = type[/\AReference<(.+)>\z/, 1]
 
-          IR::Attribute.new(
+          Attribute.new(
             name:     field[:name],
-            type:     target ? IR::Reference.new(target) : type,
+            type:     target ? Reference.new(target) : type,
             list:     field[:list] ? true : false,
             default:  field[:default],
             # The LAST place optionality can be dropped, and the one that was
@@ -99,11 +99,11 @@ module Hecksagain
         def bindings(with) = Array(with).to_h { |key, value| [key.to_sym, read(value)] }
 
         def invariant(rule)
-          IR::Invariant.new(description: rule[:description], canonical: rule[:canonical])
+          Invariant.new(description: rule[:description], canonical: rule[:canonical])
         end
 
         def given(rule)
-          IR::Given.new(description: rule[:description], canonical: rule[:canonical])
+          Given.new(description: rule[:description], canonical: rule[:canonical])
         end
 
         # `Mutation#to_h` branches on the operation, so this does too.
@@ -116,9 +116,9 @@ module Hecksagain
           target = change[:target].to_sym
           op     = change[:op].to_sym
 
-          return IR::Mutation.new(target: target, op: op, source: appended(change[:fields])) if op == :append
+          return Mutation.new(target: target, op: op, source: appended(change[:fields])) if op == :append
 
-          IR::Mutation.new(target: target, op: op, source: classified(change[:source]))
+          Mutation.new(target: target, op: op, source: classified(change[:source]))
         end
 
         def appended(fields)

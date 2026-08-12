@@ -2,7 +2,7 @@ require "digest"
 require "json"
 
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # Judges a bluebook by DISPATCHING it into the language declared in itself.
     #
     # `lib/hecksagain/language/bluebook/` declares what a bluebook IS —

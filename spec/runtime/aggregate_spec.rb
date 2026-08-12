@@ -18,7 +18,7 @@ RSpec.describe "a constructed aggregate" do
   it "is a door over the runtime, not a minted class" do
     expect(Order).to be_a(Module)
     expect(Order).not_to be_a(Class)
-    expect(Order.ir).to be_a(Hecksagain::Bluebook::IR::Aggregate)
+    expect(Order.ir).to be_a(Hecksagain::Bluebook::Aggregate)
     expect(Order.fqn).to eq("Pizzas::Order")
   end
 

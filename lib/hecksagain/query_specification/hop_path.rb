@@ -20,7 +20,7 @@ module Hecksagain
     # `attribute(name, type = String, ...)` is the DSL's attribute-
     # DECLARING method — calling it as a finder would silently mint a
     # new String attribute instead of looking one up. A sealed
-    # `IR::Aggregate` (tier-2 seal, and every runtime target) has a
+    # `Aggregate` (tier-2 seal, and every runtime target) has a
     # real `attribute(name)` finder, but taking the array either way
     # sidesteps the mismatch instead of asking every caller to know
     # which kind of object it holds.

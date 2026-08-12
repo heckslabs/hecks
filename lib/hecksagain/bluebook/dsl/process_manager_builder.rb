@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class ProcessManagerBuilder
         class InvalidProcessManager < StandardError; end
@@ -20,7 +20,7 @@ module Hecksagain
           handler  = HandlerBuilder.new
           handler.instance_eval(&block) if block
 
-          @handlers << IR::ProcessManagerHandler.new(
+          @handlers << ProcessManagerHandler.new(
             event_type: event_type.to_s,
             from_state: from,
             to_state:   to,
@@ -31,7 +31,7 @@ module Hecksagain
         def build
           validate!
 
-          IR::ProcessManager.new(
+          ProcessManager.new(
             name:          @name,
             correlates_by: @correlates_by,
             starts_on:     @starts_on,
@@ -102,7 +102,7 @@ module Hecksagain
           def initialize = @dispatches = []
 
           def dispatch(command_name, with: nil)
-            @dispatches << IR::DispatchSpec.new(
+            @dispatches << DispatchSpec.new(
               command_name: command_name,
               with_spec:    (with || {}).to_a
             )

@@ -2,9 +2,9 @@ module RustProjection
   module Projector
     module_function
 
-    # `IR::Policy#event_qualifier`/`#event_name` (`Naming.qualifier`/
+    # `Policy#event_qualifier`/`#event_name` (`Naming.qualifier`/
     # `Naming.unqualified`, read directly) — NOT separate wire fields
-    # (`IR::Policy#to_h` only carries `on_event` whole); the exported
+    # (`Policy#to_h` only carries `on_event` whole); the exported
     # canonical IR gives this generator the same raw `on_event` string
     # Ruby's own runtime re-derives these from, so it re-derives them the
     # identical way rather than exporting a fourth field the wire contract

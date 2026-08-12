@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class EntityBuilder
         include AttributeCollector
@@ -20,7 +20,7 @@ module Hecksagain
         # anywhere in this language to resolve one against.
         def reference_to(type, as: nil)
           target = Naming.demodulise(type)
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target))
+          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target))
         end
 
         # A PIECE is known by a field, not by a whole value object.
@@ -70,7 +70,7 @@ module Hecksagain
 
         def build
           resolve_pending_identity!
-          IR::Entity.declare(
+          Entity.declare(
             name:          @name,
             description:   @description,
             identified_by: @identity_paths,

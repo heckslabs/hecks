@@ -17,7 +17,7 @@ module Hecksagain
     #   leaf_attribute / numeric? — DECLARATION side: walk the declared
     #                               shape to the attribute a path lands on.
     #                               Callers supply value-object lookup as a
-    #                               block, because an IR::Aggregate and a
+    #                               block, because an Aggregate and a
     #                               mid-build AggregateBuilder hold their
     #                               shapes differently but walk the same.
     module FieldPath

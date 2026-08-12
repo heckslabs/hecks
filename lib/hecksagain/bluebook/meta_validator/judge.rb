@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module MetaValidator
       # Offers every declaration in a built bluebook to the meta-domain.
       #
@@ -31,7 +31,7 @@ module Hecksagain
         EAGER_CHILDREN = { "Aggregate" => %w[Entity ValueObject] }.freeze
 
         # Categories an ENTITY declares as well as an aggregate. The IR reuses
-        # IR::Command and IR::Query for a piece's own commands and queries, so the
+        # Command and Query for a piece's own commands and queries, so the
         # language reuses Command and Query — and the plan cannot express a second
         # parent, because a category's parent is derived from the one `*_id` argument
         # its creating command carries. This says the other edge out loud.

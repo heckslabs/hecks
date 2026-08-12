@@ -1,4 +1,4 @@
-require_relative "../../bluebook/ir/hexagon"
+require_relative "../../bluebook/hexagon"
 require_relative "../../runtime/registry"
 
 module Hecksagain
@@ -25,7 +25,7 @@ module Hecksagain
         end
 
         def default_binding(aggregate)
-          Bluebook::IR::Bind.new(aggregate: aggregate.hecks_name, verb: VERB, adapter: DEFAULT_ADAPTER)
+          Bluebook::Bind.new(aggregate: aggregate.hecks_name, verb: VERB, adapter: DEFAULT_ADAPTER)
         end
 
         def missing_binding(domain, aggregate)

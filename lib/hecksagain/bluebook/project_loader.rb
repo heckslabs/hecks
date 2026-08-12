@@ -2,7 +2,7 @@ require_relative "project_discovery"
 require_relative "project_register"
 
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # Boots each discovered directory and feeds its declarations into the
     # deterministic project register. Discovery and FQN registration live in
     # their own objects so either can be used without executing domains.

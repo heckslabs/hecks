@@ -403,7 +403,7 @@ RSpec.describe "a rootless read model's own group_by" do
     registry = runtime.registry
     bluebook = registry.bluebook("Banking")
     model = bluebook.read_model("AccountsByKind")
-    bad = Hecksagain::Bluebook::IR::ReadModel.new(
+    bad = Hecksagain::Bluebook::ReadModel.new(
       name: model.name, reference_name: nil, reference_target: nil,
       aggregate_heads: model.aggregate_heads, group_by: [{ field: :no_such_field }]
     )

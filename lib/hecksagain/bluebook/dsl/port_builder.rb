@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class PortBuilder
         def initialize(name)
@@ -11,7 +11,7 @@ module Hecksagain
         def signal(value) = @signal = value.to_sym
 
         def build
-          IR::Port.new(name: @name, verb: @verb, signal: @signal)
+          Port.new(name: @name, verb: @verb, signal: @signal)
         end
 
         def self.build(name, &block)

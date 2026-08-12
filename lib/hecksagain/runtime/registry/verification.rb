@@ -1,4 +1,4 @@
-require_relative "../../bluebook/ir/hexagon"
+require_relative "../../bluebook/hexagon"
 
 module Hecksagain
   module Runtime
@@ -30,7 +30,7 @@ module Hecksagain
           name = Ports::Persistence::DEFAULT_ADAPTER
 
           check_verb(
-            Bluebook::IR::Bind.new(
+            Bluebook::Bind.new(
               aggregate: "(default)",
               verb:      Ports::Persistence::VERB,
               adapter:   name

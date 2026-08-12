@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class AggregateBuilder
         include AttributeCollector
@@ -98,7 +98,7 @@ module Hecksagain
         def reference_to(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
-          attribute(as || :"#{Naming.snake(target)}_id", IR::Reference.new(target), optional: optional)
+          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target), optional: optional)
         end
 
         # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
@@ -133,7 +133,7 @@ module Hecksagain
 
         def entity(name, &block)
           # A piece is declared IN this aggregate — its owner is stamped by
-          # `IR::Aggregate#initialize`, once the aggregate exists. Its own
+          # `Aggregate#initialize`, once the aggregate exists. Its own
           # commands were given the piece as their owner when it was declared,
           # so the chain closes as chapter -> aggregate -> entity -> command.
           # `owner_value_objects:` lets a PIECE's own `identified_by :field`
@@ -159,7 +159,7 @@ module Hecksagain
 
         def command(name, &block)
           # The verb is declared ON this aggregate — the owner `acts_on` answers
-          # with — stamped by `IR::Aggregate#initialize` once the aggregate
+          # with — stamped by `Aggregate#initialize` once the aggregate
           # exists. An ENTITY's commands take the entity as their owner instead,
           # at the entity's own declaration.
           @commands << CommandBuilder.build(name, owner: @name, &block)
@@ -171,7 +171,7 @@ module Hecksagain
           seal_query_targets
           seal_defaults
 
-          ir = IR::Aggregate.new(
+          ir = Aggregate.new(
             name:          @name,
             description:   @description,
             attributes:    attributes,
@@ -210,7 +210,7 @@ module Hecksagain
           end
         end
 
-        # Every reference is told which IR::Aggregate declares it, so it can
+        # Every reference is told which Aggregate declares it, so it can
         # find the chapter and resolve its target.
         #
         # Stamped HERE, at build, rather than at `reference_to`, because a command
@@ -365,7 +365,7 @@ module Hecksagain
             # now — a Reference knows its own target_name at
             # declaration. What it points AT is not: stamp_references
             # has already run by this point, but the chapter
-            # (IR::Bluebook, and the owning aggregate's OWN place in
+            # (Bluebook, and the owning aggregate's OWN place in
             # it) does not exist yet, so Reference#resolve would
             # answer nil for every target in the file, including ones
             # declared above this one. The tail, and whether the

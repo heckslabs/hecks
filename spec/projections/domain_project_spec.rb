@@ -4,7 +4,7 @@ require "tmpdir"
 
 # THE DOMAIN-FACING VERB. `Projector.call(name, bluebook:, options:)` has
 # existed since §30 but nothing could reach it from a booted domain — the
-# chapter module closed over the one IR::Bluebook every projector wants
+# chapter module closed over the one Bluebook every projector wants
 # and never handed it out, so each bin/ projector rebuilt a Registry and
 # reloaded the files to recover what was already in scope.
 #

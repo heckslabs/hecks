@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class PolicyBuilder
         def initialize(name)
@@ -13,7 +13,7 @@ module Hecksagain
         def across(domain_name) = @target_domain = domain_name.to_s
 
         def build
-          IR::Policy.new(
+          Policy.new(
             name:            @name,
             on_event:        @on_event,
             trigger_command: @trigger_command,

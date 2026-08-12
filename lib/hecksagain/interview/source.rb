@@ -90,7 +90,7 @@ module Hecksagain
       def construct_body(construct, entities:, value_objects:, policies:)
         lines = []
         lines << "description #{construct[:description].inspect}" if construct[:description]
-        # AGGREGATE-ONLY — an `IR::Entity#to_h` carries no `:provenance`
+        # AGGREGATE-ONLY — an `Entity#to_h` carries no `:provenance`
         # key at all, so `construct[:provenance]` reads nil for one and
         # this line is skipped without needing a separate entity path.
         lines << "provenance from: #{ruby_literal(construct[:provenance])}" if construct[:provenance]
@@ -124,7 +124,7 @@ module Hecksagain
         ["identified_by do"] + indent(paths, 1) + ["end"]
       end
 
-      # A LIST OF `IR::Attribute`-SHAPED HASHES, MIXING TWO REAL SHAPES —
+      # A LIST OF `Attribute`-SHAPED HASHES, MIXING TWO REAL SHAPES —
       # used for an aggregate's/entity's own attributes AND a
       # command's/query's own arguments alike, because both mix the same
       # two things: an ordinary value-object-typed field, and a

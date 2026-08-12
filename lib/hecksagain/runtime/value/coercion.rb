@@ -15,7 +15,7 @@ module Hecksagain
         # `for_attribute` immediately below is the one place that actually
         # branches on all four, and nowhere else in the language collects
         # them into a single closed list. `Attribute#list?`/`#optional?`
-        # are real predicates on the IR node itself (bluebook/ir/attribute.rb);
+        # are real predicates on the IR node itself (bluebook/attribute.rb);
         # `:scalar` and `:composite` are not named predicates there — they
         # fall out of whether `aggregate.value_object(attribute.type)`
         # resolves to something, read directly in the `coerced =` line

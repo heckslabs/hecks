@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class DomainPortBuilder
         def initialize(name, owner: nil)
@@ -18,7 +18,7 @@ module Hecksagain
         # opposite direction: the domain calling OUT to a swappable adapter
         # and getting a real value back (a checkout URL, a fetched document),
         # exactly what `Hecks.port "name" do verb "x" end` already builds —
-        # this is that same `IR::Port`, reached from the same `port` call
+        # this is that same `Port`, reached from the same `port` call
         # `operation` already lives under, so a project's own resource ports
         # read next to their binding instead of in a separate file. One port,
         # one shape or the other — never both.
@@ -29,11 +29,11 @@ module Hecksagain
             raise Malformed, "#{@name} declares both a verb and operations — a port is one or the other, not both"
           end
 
-          return IR::Port.new(name: @name, verb: @verb, signal: :reply) if @verb
+          return Port.new(name: @name, verb: @verb, signal: :reply) if @verb
 
           raise Malformed, "#{@name} declares no verb and no operations" if @operations.empty?
 
-          IR::DomainPort.new(name: @name, operations: @operations)
+          DomainPort.new(name: @name, operations: @operations)
         end
 
         def self.build(name, owner: nil, &block)

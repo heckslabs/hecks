@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     class Assembly
       # One head, built from its declaration.
       #
@@ -88,7 +88,7 @@ module Hecksagain
           declared = row[:lifecycle]
           return nil unless declared
 
-          IR::Lifecycle.new(
+          Lifecycle.new(
             field:       declared[:field],
             default:     declared[:default],
             transitions: transitions(Array(declared[:transitions]))
@@ -104,7 +104,7 @@ module Hecksagain
           rows.group_by { |move| [move[:command], move[:to_state]] }
               .map do |(command, target), moves|
                 froms = moves.filter_map { |move| move[:from_state] }
-                [command.to_s, IR::StateTransition.new(target: target, from: from_of(froms))]
+                [command.to_s, StateTransition.new(target: target, from: from_of(froms))]
               end
         end
 

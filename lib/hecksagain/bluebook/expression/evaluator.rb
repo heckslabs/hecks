@@ -1,7 +1,7 @@
 require "json"
 
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module Expression
       module Evaluator
         Operator = Struct.new(:symbol, :compares_less_than, :compares_equal, :negated, keyword_init: true)

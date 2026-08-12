@@ -3,7 +3,7 @@ module RustProjection
     module_function
 
     # ── READ MODEL CODEGEN — the subset of a declared `report "X" do
-    # ... end` block (IR::ReadModel — the `read_model` construct;
+    # ... end` block (ReadModel — the `read_model` construct;
     # `report` is the language's own word for it, per syntax.bluebook's
     # `was: "read_model"`) expressible as: a ROOT aggregate fetched by
     # its own reference id, plus one or more OTHER aggregate heads found
@@ -33,15 +33,15 @@ module RustProjection
     # even though the computation above needed root-first.
     #
     # THE WIRE FORMAT USED TO STRUCTURALLY EXCLUDE where/order_by/limit —
-    # `IR::ReadModel#to_h` never serialized them at all, so there was no
+    # `ReadModel#to_h` never serialized them at all, so there was no
     # data here to bake a filter/sort/cap from no matter how this
-    # generator was written. That changed 2026-08-11: `IR::ReadModel#to_h`
+    # generator was written. That changed 2026-08-11: `ReadModel#to_h`
     # now spells `wheres`/`order_by`/`limit` explicitly, the same
-    # mechanism `IR::Query#to_h` already used (`lib/hecksagain/bluebook/
+    # mechanism `Query#to_h` already used (`lib/hecksagain/bluebook/
     # ir/read_model.rb`'s own comment has the full history) — so this
     # generator now reads real filter/sort/cap data off the canonical
     # `ir.json` for the first time, and does something with it, for the
-    # ONE eligible head `IR::ReadModel#filtered_head_name` already names
+    # ONE eligible head `ReadModel#filtered_head_name` already names
     # (`seal_query_options`'s own "options apply to a single collection"
     # rule — read directly in `lib/hecksagain/bluebook/dsl/
     # read_model_builder.rb` — means there is never ambiguity about which
@@ -97,7 +97,7 @@ module RustProjection
     #   `rootless` read models and `group_by` — features that exist on
     #   this codebase's OWN `main` branch (a later `ReadModelInterpreter`
     #   than the one this branch carries), not on `feat/rust-projection`
-    #   at all: THIS branch's `IR::ReadModel` has no `reference_target`-
+    #   at all: THIS branch's `ReadModel` has no `reference_target`-
     #   nilable/`group_by` concept for a bluebook author to even declare,
     #   so there is structurally nothing here to skip — noted for a
     #   future reader diffing this generator against a newer
@@ -113,7 +113,7 @@ module RustProjection
     #   ComplianceDashboard` declares both) for a reason that has no
     #   bearing on correctness.
     # `group_by` is IN this list — merged in from `main`'s own rootless-
-    # read-model work (see the long note above), which made `IR::
+    # read-model work (see the long note above), which made `
     # ReadModel#to_h` spell `group_by:` UNCONDITIONALLY, the same
     # "always spell the key" move `wheres`/`order_by`/`limit` already
     # went through (this file's own header, above). So `group_by`'s mere
@@ -166,7 +166,7 @@ module RustProjection
         "neither is read by the in-memory interpreter path this kernel matches"
     end
 
-    # `IR::ReadModel#filtered_head_name`, ported directly — trusts the
+    # `ReadModel#filtered_head_name`, ported directly — trusts the
     # SAME invariant it does (`ReadModelBuilder#seal_query_options`
     # already refuses ambiguity — zero or several many-side heads with
     # options declared — at bluebook declare time), so this doesn't
@@ -232,7 +232,7 @@ module RustProjection
     # Ruby's own runtime re-derives it per candidate `source` — baked in
     # ONCE per head at codegen time instead, since this compiled kernel
     # has no runtime attribute-type reflection the way a live Ruby
-    # `IR::Attribute` does. Every reference attribute is included
+    # `Attribute` does. Every reference attribute is included
     # regardless of whether its OWN target is even a head on this same
     # read model (unlike Ruby, which only ever asks about a target that
     # IS already in `projected`) — harmless: `kernel/read_model.rs`'s own

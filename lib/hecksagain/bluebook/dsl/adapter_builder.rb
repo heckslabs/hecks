@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class AdapterBuilder
         def initialize(name)
@@ -15,7 +15,7 @@ module Hecksagain
         def secret(name) = @secrets << name.to_sym
 
         def build
-          IR::Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets)
+          Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets)
         end
 
         def self.build(name, &block)

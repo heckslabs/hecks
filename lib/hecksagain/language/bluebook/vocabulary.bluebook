@@ -105,7 +105,7 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # IR::Attribute::PRIMITIVES — the scalars a value object may bottom out in
+    # Attribute::PRIMITIVES — the scalars a value object may bottom out in
     value_object "Primitive" do
       attribute :name, String
       one_of do

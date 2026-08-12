@@ -26,7 +26,7 @@ RSpec.describe "a reaction that cannot be delivered" do
   end
 
   let(:policy) do
-    Hecksagain::Bluebook::IR::Policy.new(
+    Hecksagain::Bluebook::Policy.new(
       name: "ReactToRing", on_event: "Rang", trigger_command: "Echo.Ring"
     )
   end

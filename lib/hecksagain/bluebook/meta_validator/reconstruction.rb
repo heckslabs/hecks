@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module MetaValidator
       # A bluebook rebuilt FROM the meta-domain, in the shape the builder produces.
       #

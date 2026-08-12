@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module MetaValidator
       # The parts of a bluebook the walk cannot read by name alone.
       #
@@ -48,7 +48,7 @@ module Hecksagain
         # meaning, because the identity is their join.
         def identity_rows(node) = node.identity_paths.map { |path| { value: path } }
 
-        # Through to_h, which is where IR.render_value spells a symbol argument as
+        # Through to_h, which is where Bluebook.render_value spells a symbol argument as
         # ":source". The raw with_spec lost the colon, and a binding that reads an
         # argument became indistinguishable from one carrying a literal string.
         def with_spec_rows(node) = pair_rows(node.to_h[:with_spec])
@@ -158,7 +158,7 @@ module Hecksagain
             next set_row(mutation) unless mutation.op == :append
 
             mutation.source.map do |field, argument|
-              # Spelled the way IR::Mutation#appended_fields spells it, because
+              # Spelled the way Mutation#appended_fields spells it, because
               # Assembly::Marks reads this row back through the same reader it
               # reads that field with. `then_set :marks, append: { direction:
               # "out" }` binds a LITERAL, and storing it raw made it

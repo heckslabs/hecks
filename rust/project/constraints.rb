@@ -3,7 +3,7 @@ module RustProjection
     module_function
 
     # `admits:`/`pattern:` (`attribute_collector.rb`'s own keyword args) sit
-    # on the SAME `IR::Attribute` shape wherever `attribute()` is called —
+    # on the SAME `Attribute` shape wherever `attribute()` is called —
     # a value object's own field (`EmailAddress.address, pattern: ...`) or
     # an aggregate/command's own usage-level attribute (`ExternalTransfer`'s
     # `direction, MovementDirection, admits: "Account::LedgerDirection"`).

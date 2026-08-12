@@ -1,7 +1,7 @@
 module Hecksagain
   # The invisible field a built construct carries.
   #
-  # A construct is a RECORD WITH AN OWNER CHAIN — the chapter (IR::Bluebook)
+  # A construct is a RECORD WITH AN OWNER CHAIN — the chapter (Bluebook)
   # owns its aggregates, an aggregate owns everything declared on it — and the
   # bluebook identity is carried in its own field, under a `hecks_` prefix that
   # no domain attribute can collide with. Invisible means exactly that: not an
@@ -22,9 +22,9 @@ module Hecksagain
   #
   # Usage:
   #
-  #     price = Class.new(IR::ValueObject)   # a declaration holder
+  #     price = Class.new(ValueObject)   # a declaration holder
   #     price.hecks_name  = "Price"
-  #     price.hecks_owner = pizza_ir         # the IR::Aggregate that declares it
+  #     price.hecks_owner = pizza_ir         # the Aggregate that declares it
   #     price.hecks_fqn                      # => "Pizzas::Pizza.Price"
   module Construct
     # A construct asked for an identity it cannot compute.

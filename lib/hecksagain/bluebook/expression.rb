@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     # The expression language a bluebook's predicates are written in —
     # canonicalised (canonical_form), resolved against a chapter's names
     # (resolver), and evaluated (evaluator).

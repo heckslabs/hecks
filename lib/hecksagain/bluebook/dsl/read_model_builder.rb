@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module DSL
       class ReadModelBuilder
         include QuerySpecification::Common::DSL
@@ -71,7 +71,7 @@ module Hecksagain
           seal_query_options
           seal_group_by
           seal_cursor
-          IR::ReadModel.new(name: @name, description: @description, reference_name: @reference_name,
+          ReadModel.new(name: @name, description: @description, reference_name: @reference_name,
                             reference_target: @reference_target, aggregate_heads: @aggregate_heads || [],
                             wheres: @wheres || [], order_by: @order_by, limit: @limit, offset: @offset,
                             cursor: @cursor, consistency: @consistency, freshness: @freshness,

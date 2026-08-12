@@ -16,7 +16,7 @@ module Hecksagain
           # THE DOMAIN'S OWN IR, PROJECTED. `Projector` has taken
           # `call(name, bluebook:, options:)` since §30, but nothing could
           # reach it from a booted domain — this module already closes
-          # over the one `IR::Bluebook` every projector wants and simply
+          # over the one `Bluebook` every projector wants and simply
           # never handed it out, so every bin/ projector rebuilt a
           # Registry and reloaded the files to recover what was already
           # sitting here.

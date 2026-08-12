@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module MetaValidator
       # What the language says about ITSELF, read back as something walkable.
       #

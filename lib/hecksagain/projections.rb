@@ -10,7 +10,8 @@ module Hecksagain
   # carry its own documentation and defaults.
   #
   # Namespaced rather than top-level because `IR` is already taken —
-  # `Bluebook::IR` is the IR OBJECT MODEL (`IR::Command`, `IR::Bluebook`).
+  # `Hecksagain::Bluebook` is the MODEL (`Bluebook::Command`, and the
+  # chapter class itself).
   # `Projections::IR` is the projection OF that model, a different thing
   # that would be genuinely confusing under the same bare name.
   #

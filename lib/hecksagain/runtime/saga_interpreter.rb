@@ -1,5 +1,5 @@
 require_relative "saga_interpreter/correlation"
-require_relative "../bluebook/ir/process_manager"
+require_relative "../bluebook/process_manager"
 require_relative "errors"
 require_relative "value"
 
@@ -9,8 +9,8 @@ module Hecksagain
       include Correlation
 
       # The trigger lives on the declaration it triggers, not on the runtime that
-      # notices it — see IR::ProcessManager::REFUSED.
-      REFUSED = Bluebook::IR::ProcessManager::REFUSED
+      # notices it — see ProcessManager::REFUSED.
+      REFUSED = Bluebook::ProcessManager::REFUSED
 
       attr_reader :registry
 

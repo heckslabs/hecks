@@ -15,7 +15,7 @@
 # (merge_tail, reattest_era, backfill_era_projections, scaffold_translation,
 # translation_audit, and this one). Worth extracting on its own terms;
 # deliberately not folded into the projector framework, which takes an
-# IR::Bluebook and has no business knowing how one was obtained.
+# Bluebook and has no business knowing how one was obtained.
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 

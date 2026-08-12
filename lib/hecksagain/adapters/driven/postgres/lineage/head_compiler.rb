@@ -370,7 +370,7 @@ module Hecksagain
           # THE REKEY'S OWN SQL — reading `state` directly, not the
           # progressively-built `expression` chain `compile_compute` reads
           # from. A rekey doesn't consume or move any field the way a move
-          # or compute does (see `IR::TranslationRekey`'s own comment), so
+          # or compute does (see `TranslationRekey`'s own comment), so
           # there is no same-edge rename/move ordering it needs to see
           # first — it reads the record's stored fields exactly as they
           # already are, the same `__s` convention `compile_compute`

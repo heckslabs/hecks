@@ -58,7 +58,7 @@ else
 
 # EVERY IR HANDED TO THE GENERATOR GOES THROUGH REAL JSON FIRST — never
 # the live Hash `Exporter.call` returns. That Hash carries real Ruby
-# Symbols (`IR::Attribute#to_h`'s `name:`, `IR::Mutation#to_h`'s
+# Symbols (`Attribute#to_h`'s `name:`, `Mutation#to_h`'s
 # `op:`/`target:`); the `ir.json` sidecar the generator writes alongside
 # its .rs files — and which a Rust-side parser is being built to produce
 # directly, without booting Ruby at all — can only carry Strings. Passing
@@ -75,7 +75,7 @@ Hecksagain.with_registry(target_registry) do
   Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/memory.adapter", __dir__))
   Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/prism.adapter", __dir__))
   # The DSL declaration (name + fields), NOT the Ruby class required
-  # above — `registry.adapters["Postgres"]` (an IR::Adapter, from THIS
+  # above — `registry.adapters["Postgres"]` (an Adapter, from THIS
   # load) and `registry.adapter_class("Postgres")` (the Ruby class, from
   # the `require` above) are two separate lookups `EraCheck.lineage_
   # capable?` checks in sequence; both have to be present or it silently

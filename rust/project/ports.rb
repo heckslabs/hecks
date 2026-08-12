@@ -2,7 +2,7 @@ module RustProjection
   module Projector
     module_function
 
-    # `IR::PortOperation` has no `references`/`givens`/`mutations`/`ensures`
+    # `PortOperation` has no `references`/`givens`/`mutations`/`ensures`
     # at all (its own header: "a port is the anti-corruption boundary that
     # turns an external call into a fact... not a second place business
     # rules live") — so `command_skip_reason`'s own long list of ungenerable

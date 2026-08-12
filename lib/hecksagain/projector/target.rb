@@ -39,7 +39,7 @@ module Hecksagain
       # key an aggregate's IR does not carry. A silently empty answer is
       # worse than a crash.
       #
-      #   from: :chapter   needs a whole IR::Bluebook (walks .aggregates)
+      #   from: :chapter   needs a whole Bluebook (walks .aggregates)
       #   from: :any       works on any construct that emits IR
       def projects_as(key, from: :chapter)
         @projection_key   = key.to_sym

@@ -58,7 +58,7 @@ Hecks.bluebook "ConsoleSettings" do
     #     a bareword like `Flag`, which has no such constant and so DOES
     #     reach it) — the meta-validator has no separate case for the
     #     literal class objects, so it goes looking for a declared value
-    #     object named "TrueClass" and fails. `IR::Attribute::PRIMITIVES`
+    #     object named "TrueClass" and fails. `Attribute::PRIMITIVES`
     #     lists them, but no real bluebook in this codebase spells one.
     #   - A bare primitive (`String`, `Integer`) directly on an
     #     AGGREGATE or COMMAND attribute fails the identical way — every

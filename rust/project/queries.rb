@@ -228,7 +228,7 @@ module RustProjection
       declared_limit_skip_reason(query[:limit])
     end
 
-    # `IR::Query`'s own `order_by`/`limit` content check — MOVED here from
+    # `Query`'s own `order_by`/`limit` content check — MOVED here from
     # `read_models.rb` (2026-08-11, was `read_model_order_by_skip_reason`/
     # `read_model_limit_skip_reason`), not duplicated: neither check ever
     # depended on being a read model in the first place — both take "some

@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     class Assembly
       # THE FIRST SPECIALIZER — a projection of `contracts.rb`'s `fields:` table,
       # derived from the language's own description of a category instead of
@@ -24,7 +24,7 @@ module Hecksagain
         # `position` IS THE FIRST FOLD THIS RUNS INTO, and it is a universal
         # one : every category declares `attribute :position, Position` — for
         # the JUDGE's own walk, `order_by :position` on its `DeclaredIn` ask —
-        # but no `IR::*` constructor takes it as an argument. `contracts.rb`
+        # but no `*` constructor takes it as an argument. `contracts.rb`
         # already says so, in the language every other derived field speaks :
         # `derived: { position: :walk }`. The language says a category HAS a
         # position ; it does not say a category's OWN constructor is handed

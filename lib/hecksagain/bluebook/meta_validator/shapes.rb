@@ -1,5 +1,5 @@
 module Hecksagain
-  module Bluebook
+  class Bluebook
     module MetaValidator
       # The leaf shapes of a reconstructed bluebook, and the encodings that go with
       # them.

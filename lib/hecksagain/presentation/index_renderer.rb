@@ -4,7 +4,7 @@ module Hecksagain
   module Presentation
     # The home page: every exposed chapter, every aggregate on it — the
     # entry point into what would otherwise be a URL you'd have to already
-    # know. `chapters` is `{domain_name => IR::Bluebook}`, in `expose` order
+    # know. `chapters` is `{domain_name => Bluebook}`, in `expose` order
     # (see config.rb).
     module IndexRenderer
       def self.render(chapters)

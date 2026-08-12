@@ -1727,7 +1727,7 @@ RSpec.describe "the DSL surface" do
       expect(command.creates?).to be true
       # The GRAPH holds the edge and the EXPORT holds the spelling. Both of these
       # assertions passed unchanged through the reference crossing, because
-      # `IR::Reference` carried an `==` that compared equal to the string it
+      # `Reference` carried an `==` that compared equal to the string it
       # replaced — so they went on affirming the pre-crossing truth for a whole
       # commit. The shim is gone ; they say what is actually there.
       expect(command.attribute(:customer_id).type.target_name).to eq("Customer")
