@@ -29,6 +29,14 @@ module Hecksagain
         FloatLiteral   = Struct.new(:value, keyword_init: true)
         StringLiteral  = Struct.new(:value, keyword_init: true)
         BoolLiteral    = Struct.new(:value, keyword_init: true)
+        # `["active", "suspended"]` — a literal set, the haystack half of
+        # an `.include?`. Vocabulary::IncludeHaystack has always ADMITTED
+        # Array (and Evaluator#includes? has always had a `when Array`
+        # arm), but nothing could produce one: there was no array-literal
+        # node, so `["a", "b"].include?(x)` fell through to Lookup and
+        # refused with `cannot resolve "[\"a\", \"b\"]"`. A declared
+        # capability with no way to spell it.
+        ArrayLiteral   = Struct.new(:elements, keyword_init: true)
         # A plain class, not `Struct.new(keyword_init: true)` — every
         # sibling leaf node here carries at least one field, but this
         # one carries none by nature (a nil literal has no data to
@@ -198,6 +206,8 @@ module Hecksagain
           return BoolLiteral.new(value: true)                 if expr == "true"
           return BoolLiteral.new(value: false)                if expr == "false"
           return NilLiteral.new                                if expr == "nil"
+          elements = array_elements(expr)
+          return ArrayLiteral.new(elements: elements.map { |element| parse(element) }) if elements
 
           arithmetic = split_addition(expr)
           return Addition.new(left: parse(arithmetic[0]), right: parse(arithmetic[1])) if arithmetic
@@ -279,6 +289,7 @@ module Hecksagain
         def interpret(node, state, attrs)
           case node
           when IntegerLiteral, FloatLiteral, StringLiteral, BoolLiteral then node.value
+          when ArrayLiteral then node.elements.map { |element| interpret(element, state, attrs) }
           when NilLiteral then nil
           when Addition
             add(interpret(node.left, state, attrs), interpret(node.right, state, attrs))
@@ -358,6 +369,42 @@ module Hecksagain
           options |= Regexp::EXTENDED   if flags.include?("x")
 
           Regexp.new(pattern, options).match?(text)
+        end
+
+        # The elements of a bracketed literal, or nil if this isn't one.
+        # Splits on TOP-LEVEL commas only — quote-aware and depth-aware,
+        # the same discipline `split_addition` already applies, so a
+        # nested array or a comma inside a string element stays whole.
+        def array_elements(expr)
+          return nil unless expr.start_with?("[") && expr.end_with?("]")
+
+          inner = expr[1..-2].strip
+          return [] if inner.empty?
+
+          elements = []
+          depth = 0
+          quote = nil
+          current = +""
+          inner.each_char do |char|
+            if quote
+              quote = nil if char == quote
+              current << char
+              next
+            end
+            case char
+            when '"', "'" then quote = char
+            when "[", "(" then depth += 1
+            when "]", ")" then depth -= 1
+            end
+            if char == "," && depth.zero?
+              elements << current.strip
+              current = +""
+            else
+              current << char
+            end
+          end
+          elements << current.strip
+          elements.reject(&:empty?)
         end
 
         def split_addition(expr)

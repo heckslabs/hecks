@@ -2,6 +2,20 @@ module RustProjection
   module Projector
     module_function
 
+    # The `transition:` argument `dispatch`/`dispatch_entity` take.
+    # `None` covers two different "no check" cases on purpose: no
+    # transition row at all, and an UNCONSTRAINED row (`from: nil` —
+    # admits from any state). The kernel refuses whatever `from_states`
+    # does not contain, so an unconstrained transition emitted as an
+    # EMPTY slice would refuse every state instead of admitting every
+    # state — the exact inversion of what the declaration says.
+    def transition_check_arg(transition)
+      return "None" if transition.nil? || transition[:unconstrained]
+
+      "Some(crate::kernel::TransitionCheck { field: #{transition[:field].inspect}, " \
+        "from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
+    end
+
     def command_skip_reason(command, aggregate, value_objects_by_name)
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
       return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
@@ -268,11 +282,7 @@ module RustProjection
 
       transition = lifecycle_transition_for(command, aggregate)
       transition_arg =
-        if transition
-          "Some(crate::kernel::TransitionCheck { field: #{transition[:field].inspect}, from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
-        else
-          "None"
-        end
+        transition_check_arg(transition)
 
       mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, aggregate, command, value_objects_by_name) }
       # advance_lifecycle: unconditional once a transition applies at all —
@@ -432,11 +442,7 @@ module RustProjection
       # needs to know about.
       transition = lifecycle_transition_for(command, entity)
       transition_arg =
-        if transition
-          "Some(crate::kernel::TransitionCheck { field: #{transition[:field].inspect}, from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
-        else
-          "None"
-        end
+        transition_check_arg(transition)
 
       mutation_lines = command[:mutations].map { |m| emit_mutation_line(m, entity, command, value_objects_by_name, optional: false) }
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition

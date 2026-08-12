@@ -136,7 +136,26 @@ module RustProjection
       rows = aggregate[:lifecycle][:transitions].select { |t| t[:command] == command[:name] }
       return nil if rows.empty?
 
-      { field: aggregate[:lifecycle][:field], to_state: rows.first[:to_state], from_states: rows.map { |r| r[:from_state] }.uniq }
+      # `from: nil` — an UNCONSTRAINED transition, admitting from any
+      # state (a creating command has no prior state to come from).
+      # Ruby reads it as `!t.constrained? || Array(t.from).include?(...)`
+      # (IR::Lifecycle#constrained? is `!@from.nil?`), so one such row
+      # admits everything and the whole check is skipped. Left in,
+      # `nil.inspect` renders as the literal Rust token `nil`, which is
+      # not a Rust value: the generated crate does not compile.
+      #
+      # Carried BESIDE the compacted list rather than returning nil for
+      # the row, because the caller reads this hash for TWO things — the
+      # TransitionCheck guard AND the advance_lifecycle assignment of
+      # to_state. Dropping the row would compile and silently stop
+      # advancing the lifecycle: a wrong answer traded for a build error.
+      froms = rows.map { |r| r[:from_state] }
+      {
+        field: aggregate[:lifecycle][:field],
+        to_state: rows.first[:to_state],
+        from_states: froms.compact.uniq,
+        unconstrained: froms.any?(&:nil?)
+      }
     end
 
     # Ruby's real `apply`, for `:set`, does `Value.for(aggregate,
