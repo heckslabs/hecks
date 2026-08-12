@@ -426,6 +426,51 @@ RSpec.describe "lineage in the Postgres adapter",
     db.close
   end
 
+  # H2, docs/audits/2026-08-10-main-bug-audit.md: every realistic mint-time
+  # refusal in this corpus turns out to be caught by the PRE-mint audit
+  # (CoverageCheck#audit! — "before anything is minted, so a refusal
+  # leaves no half-born era", per its own comment), which runs before
+  # mint_era! is even called — so a DSL-level scenario like the one above
+  # can prove the audit gate works, but can't reach the transaction bug
+  # H2 actually names. This targets the mechanism directly: does
+  # `ensure_head_snapshot!` survive being called from inside an
+  # already-open transaction the way `mint_era!` actually calls it?
+  #
+  # `PG::Connection#transaction` is a bare BEGIN/COMMIT with no savepoint
+  # nesting. Called while already mid-transaction, its COMMIT used to end
+  # THAT transaction the instant this one call returned — so a later
+  # ROLLBACK in the same logical unit of work (mint_era!'s own rescue, on
+  # whatever raises after this point) had nothing left to roll back.
+  it "ensure_head_snapshot! does not end an already-open transaction — a later rollback still undoes it" do
+    check!(V1_SOURCE)
+    registry = load_registry(V1_SOURCE)
+    acct = registry.bluebooks.values.first.aggregate("Acct")
+
+    db = PG.connect(dbname: LINEAGE_DB)
+    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+
+    db.exec("BEGIN")
+    db.exec_params(
+      "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, canon_form) " \
+      "VALUES ('Ledger', 99, 'placeholder-hash', 'xxxxxx', 'placeholder', 1, 'placeholder-digest', 1)"
+    )
+    # The call under test — exactly what compile_head! does for each
+    # aggregate mid-mint, on the SAME connection, INSIDE the transaction
+    # just opened above.
+    lineage.ensure_head_snapshot!(acct.storage_name, 99)
+    # Simulates mint_era!'s own rescue clause: a LATER step in the same
+    # logical mint fails, so the whole thing rolls back. If the call
+    # above already ended the transaction, this ROLLBACK has nothing to
+    # undo, and everything above survives it.
+    db.exec("ROLLBACK")
+    db.close
+
+    fresh = PG.connect(dbname: LINEAGE_DB)
+    expect(fresh.exec("SELECT count(*) FROM hecks_eras WHERE domain = 'Ledger' AND ordinal = 99")[0]["count"]).to eq("0")
+    expect(fresh.exec("SELECT to_regclass('acct_head_snapshot_99') IS NULL AS gone")[0]["gone"]).to eq("t")
+    fresh.close
+  end
+
   # ADVERSARIAL, not incidental: found by deliberately constructing a
   # move destination that collides with an existing scalar (most
   # realistically, a has_one/belongs_to reference — a bare id, never an
