@@ -1,3 +1,5 @@
+require_relative "behaviour/chapter"
+
 module Hecksagain
   # THE CHAPTER ITSELF. `Hecksagain::Bluebook` is a CLASS, and this is
   # its body — what used to be `Bluebook`, which named the
@@ -8,6 +10,7 @@ module Hecksagain
   # `Net::HTTP::Get`: a class is a perfectly good namespace.
   class Bluebook
     include Construct
+    include Behaviour::Chapter
     include Hecksagain::IR
 
     # THE SCHEMA'S OWN VERSION — not a domain's `version:` (Banking's
@@ -65,19 +68,5 @@ module Hecksagain
       (@aggregates + @read_models).each { |child| child.hecks_owner = self }
     end
 
-    def aggregate(named) = @aggregates.find { |a| a.name == named.to_s }
-    def read_model(named) = @read_models.find { |model| model.name == named.to_s || model.query_name == named.to_s }
-    def port(named)      = @ports_by_name[named.to_s]
-
-    def add_port(port)
-      @ports << port
-      @ports_by_name[port.name] = port
-    end
-
-    def verbs
-      @aggregates.flat_map do |agg|
-        agg.commands.map { |cmd| "#{@name}::#{agg.hecks_name}.#{cmd.hecks_name}" }
-      end
-    end
   end
 end

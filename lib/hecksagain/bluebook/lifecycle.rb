@@ -1,3 +1,5 @@
+require_relative "behaviour/lifecycle"
+
 module Hecksagain
   class Bluebook
     class StateTransition
@@ -17,6 +19,7 @@ module Hecksagain
 
     class Lifecycle
       include Hecksagain::IR
+      include Behaviour::Lifecycle
 
       emits_ir(
         field:       -> { field.to_s },
@@ -35,41 +38,6 @@ module Hecksagain
         @transitions = transitions
       end
 
-      def states
-        ([default] + transitions.map { |_command, t| t.target }).uniq
-      end
-
-      def transitions_for(command)
-        transitions.select { |name, _| name == command.to_s }.map { |_, t| t }
-      end
-
-      def target_for(command, current_state = nil)
-        match_transition(command, current_state)&.target
-      end
-
-      private
-
-      def expand(command, transition)
-        sources = transition.from.nil? ? [nil] : Array(transition.from)
-
-        sources.map do |source|
-          { command: command, to_state: transition.target, from_state: source }
-        end
-      end
-
-      def match_transition(command, current_state)
-        matches = transitions_for(command)
-        return nil if matches.empty?
-        return matches.first unless current_state
-
-        matches.find { |t| applies_from?(t, current_state) } || matches.first
-      end
-
-      def applies_from?(transition, current)
-        return true unless transition.from
-
-        Array(transition.from).map(&:to_s).include?(current.to_s)
-      end
     end
   end
 end
