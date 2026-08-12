@@ -54,6 +54,14 @@ module Hecksagain
             attribute = aggregate.attribute(mutation.target)
             amount = Value.for_attribute(aggregate, attribute, amount) if attribute
             instance[mutation.target] = @rules.multiply(instance[mutation.target], amount, mutation.target)
+          # Vendored addition, not (yet) upstream hecksagain (migration
+          # plan task 4, i106): clamp -- bounds the current value into
+          # [min, max]. mutation.source is always a literal [min, max]
+          # pair, never an argument reference -- resolve_source would be
+          # a no-op for an Array (it only special-cases Symbol), so it's
+          # read straight.
+          when :clamp
+            instance[mutation.target] = @rules.clamp(instance[mutation.target], mutation.source, mutation.target)
           end
         end
 

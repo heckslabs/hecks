@@ -23,10 +23,11 @@ module Hecksagain
           MutationOp.new(name: "increment", sign: 1),
           MutationOp.new(name: "decrement", sign: -1),
           # Vendored addition, not (yet) upstream hecksagain (migration
-          # plan task 4, i106): multiply carries no sign -- like
-          # set/append, it does no add-or-subtract arithmetic (multiply
-          # scales). See #multiply below.
-          MutationOp.new(name: "multiply",  sign: nil)
+          # plan task 4, i106): multiply/clamp carry no sign -- like
+          # set/append, they do no add-or-subtract arithmetic (multiply
+          # scales, clamp bounds). See #multiply/#clamp below.
+          MutationOp.new(name: "multiply",  sign: nil),
+          MutationOp.new(name: "clamp",     sign: nil)
         ].freeze
 
         # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and
@@ -121,6 +122,31 @@ module Hecksagain
           end
 
           current * amount
+        end
+
+        # Vendored addition, not (yet) upstream hecksagain (migration plan
+        # task 4, i106): bound the CURRENT value into `[min, max]` -- no
+        # "amount" to combine, so it does not go through
+        # #arithmetic/#multiply's shared-numeric-field matching at all;
+        # it clamps whichever single numeric field the wrapping value
+        # object carries (a synthesised wrapper always carries exactly
+        # one, per Part 3a's auto-synthesis).
+        def clamp(current, bounds, target)
+          min, max = bounds
+          if current.is_a?(Value)
+            fields = current.to_h
+            field  = fields.keys.find { |f| fields[f].is_a?(Numeric) } or
+              raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
+                                                         op: "clamp", target: target, offered: Rendering.describe(current))
+            return current.with(field, fields[field].clamp(min, max))
+          end
+
+          unless current.is_a?(Numeric)
+            raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
+                                                       op: "clamp", target: target, offered: Rendering.describe(current))
+          end
+
+          current.clamp(min, max)
         end
 
         private
