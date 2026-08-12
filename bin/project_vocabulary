@@ -1,23 +1,12 @@
 #!/usr/bin/env ruby
 
-# Generates lib/hecksagain/vocabulary.rb FROM vocabulary.bluebook — the
-# closed sets the runtime computes with, taken from the language that
-# already declares them instead of hand-typed a second time.
+# Projects the language's own closed sets into lib/hecksagain/vocabulary.rb.
 #
-# THE SAME SHAPE bin/project_parser_table already uses for the Rust
-# parser's keyword table: read the language's own judged IR, write a
-# checked-in artifact, and let spec/vocabulary_table_spec.rb regenerate
-# it in memory and refuse a diff. Generation is a BUILD step, never a
-# load step — which matters here more than it does for the parser table,
-# because several of these sets are read BY the loader itself
-# (`Attribute::PRIMITIVES` while a bluebook is being parsed). A table
-# built at boot would need itself to boot.
-#
-# Before this, thirteen Ruby constants said what vocabulary.bluebook
-# already said, and spec/vocabulary_conformance_spec held each pair
-# equal. A gate proves two things agree ; it cannot prove there are only
-# two — `PRIMITIVES` had a third, ungated copy in synthesizer.rb, and
-# every gate stayed green.
+# A one-line wrapper over the projector registry, deliberately — the four
+# tools that came before this one (bin/project_parser_table, bin/reference,
+# bin/expression_projection, and this script's own first draft) each
+# invented their own call shape for "canonical IR in, artifact out". This
+# one asks the registry.
 #
 #   bin/project_vocabulary
 
@@ -25,8 +14,9 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
 
-root = File.expand_path("..", __dir__)
-path = File.join(root, "lib/hecksagain/vocabulary.rb")
+chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+out     = File.expand_path("../lib/hecksagain/vocabulary.rb", __dir__)
 
-File.write(path, Hecksagain::VocabularyTable.render)
-puts "wrote #{path}"
+puts "wrote #{Hecksagain::Projector.write(
+  Hecksagain::Projector.call(:vocabulary, bluebook: chapter), out
+)}"

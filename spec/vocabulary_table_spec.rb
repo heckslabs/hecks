@@ -15,7 +15,12 @@ RSpec.describe "the generated vocabulary table" do
   it "is exactly what bin/project_vocabulary would regenerate right now" do
     committed = File.read(File.join(InMemoryDomain::ROOT, "lib/hecksagain/vocabulary.rb"))
 
-    expect(Hecksagain::VocabularyTable.render).to eq(committed),
+    projected = Hecksagain::Projector.call(
+      :vocabulary,
+      bluebook: Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    )
+
+    expect(projected).to eq(committed),
       "lib/hecksagain/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
   end
 

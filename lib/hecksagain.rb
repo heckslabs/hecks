@@ -22,7 +22,6 @@ require_relative "hecksagain/router"
 require_relative "hecksagain/runtime"
 require_relative "hecksagain/translation"
 require_relative "hecksagain/adapters"
-require_relative "hecksagain/vocabulary_table"
 require_relative "hecksagain/projector"
 # AFTER the projector registry and its `Target` mixin are both real —
 # every target registers itself as it loads, so this require IS the

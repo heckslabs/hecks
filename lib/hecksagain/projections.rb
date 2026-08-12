@@ -24,3 +24,4 @@ end
 require_relative "projections/ir"
 require_relative "projections/shape"
 require_relative "projections/oidc"
+require_relative "projections/vocabulary"
