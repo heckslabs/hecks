@@ -11,6 +11,19 @@ module Hecksagain
       class ReadModel < QuerySpecification::ReadModel::Specification
         include Construct
 
+        include Hecksagain::IR
+
+        emits_ir(
+          name:             :name,
+          description:      :description,
+          reference_name:   :reference_name,
+          reference_target: :reference_target,
+          query_name:       :query_name,
+          wheres:           many(:wheres),
+          order_by:         one(:order_by),
+          limit:            one(:limit)
+        )
+
         attr_reader :name, :description, :reference_name, :reference_target, :aggregate_heads, :group_by
 
         # `reference_name:`/`reference_target:` are nil for a ROOTLESS read
@@ -68,10 +81,12 @@ module Hecksagain
         # `ReadModel` `where`/`order_by`/`limit` member rows for the history
         # of why this WAS narrower, and 2026-08-11's read-model where/
         # order_by/limit task for why it stopped being.
+        # Same dynamic tail as a Query's, plus two collections whose
+        # ROWS are plain hashes rather than constructs — they are
+        # normalised here rather than by `many`, which recurses through
+        # `to_h` and would have nothing to call.
         def to_h
-          { name: @name, description: @description, reference_name: @reference_name,
-            reference_target: @reference_target, query_name: query_name,
-            wheres: wheres.map(&:to_h), order_by: order_by&.to_h, limit: limit&.to_h }
+          super
             .merge(aggregate_heads: @aggregate_heads.map { |head| head.merge(as: head[:as].to_s) })
             .merge(group_by: @group_by.map { |row| row.merge(field: row[:field].to_s) })
             .merge(extra_options_to_h)

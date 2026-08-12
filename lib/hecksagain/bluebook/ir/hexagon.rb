@@ -17,6 +17,15 @@ module Hecksagain
       end
 
       class Hecksagon
+        include Hecksagain::IR
+
+        emits_ir(
+          domain:            :domain,
+          binds:             many(:binds),
+          subscriptions:     -> { subscriptions.map(&:to_s) },
+          framework_members: -> { framework_members.map(&:to_s) }
+        )
+
         attr_reader :domain, :binds, :subscriptions, :framework_members
 
         def initialize(domain:, binds: [], subscriptions: [], framework_members: [])
@@ -38,13 +47,13 @@ module Hecksagain
           end
         end
 
-        def to_h
-          { domain: @domain, binds: @binds.map(&:to_h), subscriptions: @subscriptions.map(&:to_s),
-            framework_members: @framework_members.map(&:to_s) }
-        end
       end
 
       class World
+        include Hecksagain::IR
+
+        emits_ir(domain: :domain, realm: :realm, latest: :latest, settings: :settings)
+
         attr_reader :domain, :realm, :latest, :settings
 
         def initialize(domain:, realm: nil, latest: nil, settings: {})
@@ -60,7 +69,6 @@ module Hecksagain
           @settings.fetch("#{verb}:#{adapter.to_s.downcase}", for_verb(verb))
         end
 
-        def to_h = { domain: @domain, realm: @realm, latest: @latest, settings: @settings }
       end
     end
   end

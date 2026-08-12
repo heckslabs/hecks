@@ -13,6 +13,10 @@ module Hecksagain
       # Those stay on whatever command a `policy` triggers in reaction to the
       # event an operation emits.
       class PortOperation
+        include Hecksagain::IR
+
+        emits_ir(name: :hecks_name, attributes: many(:attributes), emits: :emits)
+
         attr_reader :hecks_name, :attributes, :emits
 
         def initialize(name:, attributes: [], emits: [])
@@ -40,9 +44,6 @@ module Hecksagain
           @attributes.find { |attribute| attribute.reference? && attribute.type.target_name == owner_name.to_s }
         end
 
-        def to_h
-          { name: @hecks_name, attributes: @attributes.map(&:to_h), emits: @emits }
-        end
       end
 
       # A named group of operations an aggregate (or, later, a chapter)
@@ -51,6 +52,10 @@ module Hecksagain
       # Superseding those is the goal ; for now they keep working untouched,
       # and this is additive.
       class DomainPort
+        include Hecksagain::IR
+
+        emits_ir(name: :name, operations: many(:operations))
+
         attr_reader :name, :operations
 
         def initialize(name:, operations: [])
@@ -60,9 +65,6 @@ module Hecksagain
 
         def operation(named) = @operations.find { |op| op.hecks_name == named.to_s }
 
-        def to_h
-          { name: @name, operations: @operations.map(&:to_h) }
-        end
       end
     end
   end

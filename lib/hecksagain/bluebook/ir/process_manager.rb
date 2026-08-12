@@ -2,24 +2,27 @@ module Hecksagain
   module Bluebook
     module IR
       DispatchSpec = Struct.new(:command_name, :with_spec, keyword_init: true) do
-        def to_h
-          {
-            command_name: command_name.to_s,
-            with_spec:    with_spec.map { |key, value| [key.to_s, IR.render_value(value)] }
-          }
-        end
+        # A Struct already answers to_h; including the mixin puts the
+        # DECLARED emission ahead of Struct's own in the ancestry, which
+        # is what makes the shape data rather than a method body.
+        include Hecksagain::IR
+
+        emits_ir(
+          command_name: -> { command_name.to_s },
+          with_spec:    -> { with_spec.map { |key, value| [key.to_s, IR.render_value(value)] } }
+        )
       end
 
       ProcessManagerHandler = Struct.new(:event_type, :from_state, :to_state,
                                          :dispatches, keyword_init: true) do
-        def to_h
-          {
-            event_type: event_type.to_s,
-            from_state: from_state.to_s,
-            to_state:   to_state.to_s,
-            dispatches: dispatches.map(&:to_h)
-          }
-        end
+        include Hecksagain::IR
+
+        emits_ir(
+          event_type: -> { event_type.to_s },
+          from_state: -> { from_state.to_s },
+          to_state:   -> { to_state.to_s },
+          dispatches: many(:dispatches)
+        )
       end
 
       # The compensation half of a procedure, as its own thing.
@@ -54,6 +57,17 @@ module Hecksagain
         # notices it. Declared in the language's Trigger vocabulary, which
         # spec/vocabulary_conformance_spec holds to this constant.
         REFUSED = "refused".freeze
+
+        include Hecksagain::IR
+
+        emits_ir(
+          name:          :name,
+          correlates_by: -> { correlates_by.to_s },
+          starts_on:     :starts_on,
+          ends_on:       :ends_on,
+          states:        :states,
+          handlers:      many(:handlers)
+        )
 
         attr_reader :name, :correlates_by, :starts_on, :ends_on, :states, :handlers
 
@@ -107,16 +121,6 @@ module Hecksagain
 
         def saga? = !saga.nil?
 
-        def to_h
-          {
-            name:          @name,
-            correlates_by: @correlates_by.to_s,
-            starts_on:     @starts_on,
-            ends_on:       @ends_on,
-            states:        @states,
-            handlers:      @handlers.map(&:to_h)
-          }
-        end
       end
     end
   end

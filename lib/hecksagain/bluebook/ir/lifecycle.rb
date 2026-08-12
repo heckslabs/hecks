@@ -17,6 +17,17 @@ module Hecksagain
       end
 
       class Lifecycle
+        include Hecksagain::IR
+
+        emits_ir(
+          field:       -> { field.to_s },
+          default:     :default,
+          # `expand` is private; a Proc runs in the construct's own
+          # context, so declared emission reaches it exactly as the
+          # hand-written to_h did.
+          transitions: -> { transitions.flat_map { |command, t| expand(command, t) } }
+        )
+
         attr_reader :field, :default, :transitions
 
         def initialize(field:, default:, transitions: [])
@@ -35,14 +46,6 @@ module Hecksagain
 
         def target_for(command, current_state = nil)
           match_transition(command, current_state)&.target
-        end
-
-        def to_h
-          {
-            field:       field.to_s,
-            default:     default,
-            transitions: transitions.flat_map { |command, t| expand(command, t) }
-          }
         end
 
         private

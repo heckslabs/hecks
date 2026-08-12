@@ -21,6 +21,17 @@ module Hecksagain
       class Query < QuerySpecification::Common::Options
         include Construct
 
+        include Hecksagain::IR
+
+        emits_ir(
+          name:        :name,
+          description: :description,
+          attributes:  many(:attributes),
+          wheres:      many(:wheres),
+          order_by:    one(:order_by),
+          limit:       one(:limit)
+        )
+
         attr_reader :name, :description, :attributes
 
         def initialize(name:, description: nil, attributes: [], wheres: [],
@@ -39,16 +50,12 @@ module Hecksagain
 
         def attribute(named) = @attributes.find { |a| a.name == named.to_sym }
 
-        def to_h
-          {
-            name:        @name,
-            description: @description,
-            attributes:  @attributes.map(&:to_h),
-            wheres:      @wheres.map(&:to_h),
-            order_by:    @order_by&.to_h,
-            limit:       @limit&.to_h
-          }.merge(extra_options_to_h)
-        end
+        # A query's shape is NOT fixed — `extra_options_to_h` carries
+        # whatever options the specification layer grew (count, median,
+        # group_by, scope_to). Declared emission covers the settled part
+        # and `super` hands it over; the tail stays dynamic, which is the
+        # honest description of it.
+        def to_h = super.merge(extra_options_to_h)
       end
     end
   end

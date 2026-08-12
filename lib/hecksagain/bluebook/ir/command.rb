@@ -4,11 +4,19 @@ module Hecksagain
       Given = Struct.new(:description, :canonical, :predicate, keyword_init: true)
 
       Mutation = Struct.new(:target, :op, :source, keyword_init: true) do
-        def to_h
-          base = { target: target, op: op }
-          return base.merge(fields: appended_fields) if op == :append
+        include Hecksagain::IR
 
-          base.merge(source: classified_source)
+        emits_ir(target: :target, op: :op)
+
+        # THE ONE GENUINELY BRANCHING EMISSION in the model: an append
+        # binds several fields at once and carries `fields:`, everything
+        # else carries a single `source:`. Declared emission covers the
+        # fixed head; `super` supplies it and this adds the tail, which
+        # is why a construct with a variable shape needs no new mixin API.
+        def to_h
+          return super.merge(fields: appended_fields) if op == :append
+
+          super.merge(source: classified_source)
         end
 
         # An APPEND binds several fields at once, each from either a command

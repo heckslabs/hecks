@@ -69,7 +69,17 @@ RSpec.describe Hecksagain::IR do
   end
 
   describe "many/one" do
-    let(:child) { Class.new { include Hecksagain::IR; emits_ir(n: :n); attr_reader :n; def initialize(n) = @n = n } }
+    let(:child) do
+      Class.new do
+        include Hecksagain::IR
+
+        emits_ir(n: :n)
+
+        attr_reader :n
+
+        def initialize(n) = @n = n
+      end
+    end
 
     it "recurses into a list with many" do
       parent = Class.new do
