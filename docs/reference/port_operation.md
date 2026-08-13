@@ -1,6 +1,6 @@
 # PortOperation
 
-Words available inside `operation do ... end`.
+Words available inside `operation do ... end` / `tells do ... end` / `asks do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
@@ -56,4 +56,47 @@ The event this operation announces once called. `reference_to`,
 operation may declare — no `given`, no `then_set`; it translates an
 external fact into the domain's own event vocabulary and stops there
 (see wiring.md).
+
+## answers
+
+<!-- generated:begin word=answers -->
+`answers answers` — fills `answers`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | answers |
+<!-- generated:end -->
+
+The event an `asks` becomes when the adapter came back — carrying whatever
+it returned under `answered`, alongside the arguments the ask was made with.
+
+Singular, where `emits` is a list: an ask has exactly one success. A call
+that could succeed two different ways is two calls.
+
+Refused on a `tells`, which has no channel back to its caller.
+
+## refuses
+
+<!-- generated:begin word=refuses -->
+`refuses refuses` — fills `refuses`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | refuses |
+<!-- generated:end -->
+
+The event an `asks` becomes when the outside said no — carrying what it said
+under `refusal`.
+
+EVERY failure lands here, deliberately: a timeout, a bad credential, a
+missing adapter, a nil where a number was wanted. A raise from the far side
+of a boundary is not an exception in this domain's terms, it is the outside
+refusing, and the chapter has already named the word for that. So an ask
+never propagates — the command that triggered it stands, and a `policy`
+reacting to this event is where a retry or a give-up lives (see banking's
+`ScheduledPayment`, whose `attempts` counter and `Retry` command are the
+worked example of exactly that shape).
+
+Required on every `asks`. An ask that cannot fail is a call into a system
+you do not control, pretending otherwise.
 

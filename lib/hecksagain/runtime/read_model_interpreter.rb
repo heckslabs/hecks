@@ -117,6 +117,17 @@ module Hecksagain
         aggregate = bluebook.aggregate(target[:aggregate])
         model.group_by_fields.each do |field|
           next if aggregate.attribute(field)
+          # THE LIFECYCLE FIELD IS A FIELD, and refusing it here was a drift
+          # between two halves of the same language: `where(status: "logged")`
+          # has always been legal on the same aggregate, because a lifecycle
+          # state is stored on the record like anything else — it is simply
+          # declared by `lifecycle :status` rather than by `attribute`.
+          #
+          # It is also the grouping anybody actually wants. "How are we doing"
+          # over a bug ledger IS the count per status, and a report that could
+          # group by every field EXCEPT that one could not answer the question
+          # reports exist for.
+          next if aggregate.lifecycle && aggregate.lifecycle.field.to_sym == field.to_sym
 
           raise ArgumentError,
                 "#{model.name}'s group_by names #{field.inspect}, but #{target[:aggregate]} " \

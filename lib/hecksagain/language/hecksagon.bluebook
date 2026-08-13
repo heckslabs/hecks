@@ -131,6 +131,20 @@ Hecks.bluebook "Hecksagon" do
     attribute :attributes, list_of(PortOperationField)
     attribute :emits,      list_of(EmittedEvent)
 
+    # THE TWO ENDINGS OF AN `asks`, held by the language about itself.
+    #
+    # `emits` above is what an inbound `tells` says once the fact is in.
+    # These two are the outbound half: what the adapter came back with, and
+    # what it said instead. Singular where `emits` is a list, because an ask
+    # has exactly one of each — a call that could answer two different ways
+    # is two calls.
+    #
+    # Empty on every `tells`, which is why neither carries an invariant
+    # demanding a value; `PortOperationBuilder` refuses the wrong word for
+    # the direction long before a record gets here.
+    attribute :answers,    AnsweringEvent
+    attribute :refuses,    RefusingEvent
+
     value_object "OperationName" do
       attribute :value, String
       invariant("an operation is named") { !value.to_s.empty? }
@@ -144,6 +158,14 @@ Hecks.bluebook "Hecksagon" do
     value_object "EmittedEvent" do
       attribute :value, String
       invariant("an emitted event is named") { !value.to_s.empty? }
+    end
+
+    value_object "AnsweringEvent" do
+      attribute :value, String
+    end
+
+    value_object "RefusingEvent" do
+      attribute :value, String
     end
   end
 end

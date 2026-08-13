@@ -514,6 +514,24 @@
           "optional": false,
           "pattern": null,
           "type": "EmittedEvent"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "answers",
+          "optional": false,
+          "pattern": null,
+          "type": "AnsweringEvent"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "refuses",
+          "optional": false,
+          "pattern": null,
+          "type": "RefusingEvent"
         }
       ],
       "commands": [
@@ -613,6 +631,48 @@
 
           ],
           "name": "EmittedEvent"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "AnsweringEvent"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RefusingEvent"
         }
       ]
     }

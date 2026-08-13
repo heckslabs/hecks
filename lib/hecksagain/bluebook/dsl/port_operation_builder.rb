@@ -4,10 +4,11 @@ module Hecksagain
       class PortOperationBuilder
         include AttributeCollector
 
-        def initialize(name, owner: nil)
-          @name  = name
-          @owner = owner
-          @emits = []
+        def initialize(name, owner: nil, direction: :inbound)
+          @name      = name
+          @owner     = owner
+          @direction = direction
+          @emits     = []
         end
 
         # ALWAYS an attribute, never the self-reference `CommandBuilder`
@@ -22,12 +23,31 @@ module Hecksagain
 
         def emits(event_name) = @emits << event_name.to_s
 
-        def build
-          operation = PortOperation.new(name: @name, attributes: attributes, emits: @emits)
+        # THE TWO HALVES OF AN `asks`. An outbound call has exactly two
+        # endings and the chapter names both — `answers` for what came back,
+        # `refuses` for what the outside said instead. They are separate words
+        # rather than two `emits` because a reader has to be able to tell them
+        # apart without reading the adapter: one is the thing you wanted, the
+        # other is the thing you have to handle.
+        def answers(event_name) = @answers = event_name.to_s
 
+        def refuses(event_name) = @refuses = event_name.to_s
+
+        def build
+          outbound = @direction == :outbound
+          refuse_wrong_words!(outbound)
+
+          operation = PortOperation.new(
+            name: @name, attributes: attributes, emits: @emits,
+            direction: @direction, answers: @answers, refuses: @refuses
+          )
+
+          # AN INBOUND OPERATION STILL HAS TO SAY SOMETHING. Only inbound: an
+          # `asks` says it with `answers`/`refuses` instead, and
+          # `refuse_wrong_words!` above has already insisted on both.
           raise Malformed,
                 "#{@name} declares no emits — an operation with nothing to say " \
-                "afterward is a call into nothing" if @emits.empty?
+                "afterward is a call into nothing" if !outbound && @emits.empty?
 
           # Only enforced when this operation belongs to ONE aggregate — a
           # port declared bare at a hecksagon's root has no single owner for
@@ -41,8 +61,29 @@ module Hecksagain
           operation
         end
 
-        def self.build(name, owner: nil, &block)
-          builder = new(name, owner: owner)
+        private
+
+        # EACH DIRECTION REFUSES THE OTHER'S WORDS. `emits` on an `asks` looks
+        # right and is not: it would name one ending and leave the other
+        # nowhere. `answers` on a `tells` is worse — there is no channel back
+        # to an inbound caller at all, so it would read as a promise the
+        # runtime cannot keep.
+        def refuse_wrong_words!(outbound)
+          if outbound
+            raise Malformed, "#{@name} is an asks and declares emits — name its two endings with " \
+                             "answers and refuses instead" unless @emits.empty?
+            raise Malformed, "#{@name} declares no answers — an ask with no word for what came " \
+                             "back cannot be reacted to" unless @answers
+            raise Malformed, "#{@name} declares no refuses — an ask that cannot fail is a call " \
+                             "into a system you do not control, pretending otherwise" unless @refuses
+          else
+            raise Malformed, "#{@name} is a tells and declares #{@answers ? 'answers' : 'refuses'} — " \
+                             "an inbound fact has no channel back to whoever sent it" if @answers || @refuses
+          end
+        end
+
+        def self.build(name, owner: nil, direction: :inbound, &block)
+          builder = new(name, owner: owner, direction: direction)
           builder.instance_eval(&block) if block
           builder.build
         end

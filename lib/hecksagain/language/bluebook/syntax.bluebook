@@ -486,6 +486,12 @@ Hecks.bluebook "Bluebook" do
         # could enumerate against an open aggregate name).
         member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
         member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+        # THE TWO DIRECTIONS THROUGH ONE DOOR. `tells` is `operation` under
+        # the name that says which way it points — an external fact arriving.
+        # `asks` is the direction this language did not have until now: the
+        # domain wanting something from outside, and naming both endings.
+        member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+        member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
         # THE DRIVEN HALF OF THE SAME `port` call — a swappable resource
         # port (`registry.add_port`, the same target `Hecks.port`'s own
         # top-level word reaches) rather than an operation translating an
@@ -495,6 +501,12 @@ Hecks.bluebook "Bluebook" do
         member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
         member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
         member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
+        # AN ASK NAMES BOTH ENDINGS. Separate words rather than two `emits`
+        # because a reader has to tell them apart without opening the
+        # adapter: one is the thing you wanted, the other is the thing you
+        # have to handle.
+        member word: "answers",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "answers"
+        member word: "refuses",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "refuses"
 
         # THE TWO FIXED WORDS .world'S BODY HAS, beyond the same open
         # verb-settings form (`posted_by("Carrier") { office "EC1" }`) named
@@ -885,6 +897,8 @@ Hecks.bluebook "Bluebook" do
         member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
         member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
         member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+        member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+        member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
         member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
         member keyword: "reference_to",    context: "PortOperation", at: "1", named: "",     kind: "constant", required: "true",  fills: "type"
         member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
@@ -897,6 +911,8 @@ Hecks.bluebook "Bluebook" do
         member keyword: "attribute",       context: "PortOperation", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
         member keyword: "attribute",       context: "PortOperation", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
         member keyword: "emits",           context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits"
+        member keyword: "answers",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "answers"
+        member keyword: "refuses",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses"
         member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
         member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
       end
