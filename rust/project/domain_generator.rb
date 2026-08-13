@@ -211,10 +211,26 @@ module RustProjection
               # fresh one (emit_closed_set_table_codec's own header).
               f.puts Projector.emit_closed_set_table_codec(vo)
             else
+              # `unknown_argument_allowlist: []` — a value object gets the
+              # SAME unknown-key refusal an aggregate command's own args
+              # struct already gets (`emit_from_json_flat`'s own header),
+              # just with no extra allowed keys beyond its own declared
+              # attributes (a VO never has an `id`/reference/correlation
+              # key the way a command does). Without this, a caller who
+              # mistypes a nested VO field name (e.g. `{"value": 100000}`
+              # for `Units`, which declares `count`) gets no refusal at
+              # all whenever the REAL field carries a `default:` — the
+              # generated `from_json` just falls through to that default,
+              # silently discarding the caller's actual input. Found live
+              # dispatching `EmbryonautFoundersApp::Member.Admit` through
+              # this exact generated code: `units: {"value": 100000}`
+              # saved as `{"count": 0}`, with `refusals` empty — a real,
+              # silent-wrong-data class of bug, not a caller mistake this
+              # generator should tolerate.
               name = Projector.rust_ident(vo[:name])
               f.puts Projector.emit_to_json_flat(name, vo[:attributes], value_objects_by_name)
               f.puts
-              f.puts Projector.emit_from_json_flat(name, vo[:attributes], value_objects_by_name)
+              f.puts Projector.emit_from_json_flat(name, vo[:attributes], value_objects_by_name, unknown_argument_allowlist: [])
             end
             f.puts
           end
