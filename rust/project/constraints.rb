@@ -28,6 +28,40 @@ module RustProjection
       "#{value_expr}.#{rust_ident_field(vo[:attributes].first[:name])}"
     end
 
+    # An OPTIONAL attribute is `Option<T>` in the struct, not `T` — the two
+    # callers below used to hand `scalar_field_expr` the bare field
+    # (`self.description`) whether or not `attr[:optional]` held, which
+    # compiled fine for every attribute nobody had yet paired `optional:`
+    # with `admits:`/`pattern:` and broke the moment one was (a plain
+    # `Option<String>` where `pattern::matches`'s own signature wants
+    # `&str`). Ruby's own two doors (`admission.rb#admit_declared_set`,
+    # `coercion.rb#check_patterns`) both skip the check outright on `nil`
+    # — so this resolves a SCALAR EXPRESSION TO CHECK, only when the
+    # attribute is required, or a REBINDING TARGET (the source `Option`
+    # expression the caller must `if let Some(...)` around) when it's
+    # not — never both, and the caller (`wrap_if_optional`, below) is
+    # what actually decides which shape came back.
+    def optional_scalar_expr(value_expr, attr, value_objects_by_name)
+      return [scalar_field_expr(value_expr, attr[:type], value_objects_by_name), nil] unless attr[:optional]
+
+      [scalar_field_expr(OPTIONAL_BINDING, attr[:type], value_objects_by_name), value_expr]
+    end
+
+    # `Some(OPTIONAL_BINDING) = &optional_source` — match ergonomics binds
+    # OPTIONAL_BINDING as a reference into the Option's own contents
+    # (`&String`/`&SomeVO`), exactly the shape `scalar_field_expr` already
+    # produces unwrapped field access against (`.field` on a VO reference
+    # derefs the same way `self.field` already did). A `None` optional
+    # field skips the check entirely, matching Ruby exactly rather than
+    # treating "not present" as "present and empty."
+    OPTIONAL_BINDING = "__optional_value"
+
+    def wrap_if_optional(check, optional_source)
+      return check unless optional_source
+
+      "if let Some(#{OPTIONAL_BINDING}) = &#{optional_source} { #{check} }"
+    end
+
     # `admitted_members`/`chapter_of`, read directly (`admission.rb`):
     # `"Aggregate::SetName"` resolved against the FULL domain — a closed
     # set may be declared anywhere in the same chapter, not just the
@@ -64,17 +98,18 @@ module RustProjection
       members = admitted_set_members(attr[:admits], aggregates_by_name)
       return nil unless members
 
-      scalar = scalar_field_expr(value_expr, attr[:type], value_objects_by_name)
+      scalar, optional_source = optional_scalar_expr(value_expr, attr, value_objects_by_name)
       return nil unless scalar
 
       members_array = "[#{members.map(&:inspect).join(', ')}]"
       prefix = "#{attr[:name]} admits #{attr[:admits]} — #{members.map(&:inspect).join(', ')} — got "
-      Exemplar.render(
+      check = Exemplar.render(
         "admits_check",
         '["tmpl_member_a", "tmpl_member_b"]' => members_array,
         "tmpl_scalar" => scalar,
         '"tmpl_prefix_text"' => prefix.inspect
       )
+      wrap_if_optional(check, optional_source)
     end
 
     # `TypeMismatch`/`pattern_mismatch` — `refusal_wording.rb`:
@@ -85,16 +120,17 @@ module RustProjection
     def emit_pattern_check(value_expr, attr, owner_type_name, value_objects_by_name)
       return nil unless attr[:pattern]
 
-      scalar = scalar_field_expr(value_expr, attr[:type], value_objects_by_name)
+      scalar, optional_source = optional_scalar_expr(value_expr, attr, value_objects_by_name)
       return nil unless scalar
 
       prefix = "#{owner_type_name}.#{attr[:name]} must match #{attr[:pattern]}, got "
-      Exemplar.render(
+      check = Exemplar.render(
         "pattern_check",
         '"tmpl_pattern_text"' => attr[:pattern].inspect,
         "tmpl_scalar" => scalar,
         '"tmpl_prefix_text"' => prefix.inspect
       )
+      wrap_if_optional(check, optional_source)
     end
   end
 end
