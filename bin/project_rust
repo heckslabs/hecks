@@ -32,7 +32,12 @@ domain = ARGV.shift or abort "usage: bin/project_rust <domain>"
 # `rust/parser`'s `hecks-parse`/`rust/codegen`'s `hecks-codegen`
 # instead, with ZERO `Kernel.load` of any domain bluebook — see
 # `rust/project_rust_pipeline.rb`'s own header for the full contract
-# and its one deliberately-named gap (the `lineage` sidecar key).
+# and its one deliberately-named gap (`manifest.json`, coverage
+# bookkeeping only). The `lineage` sidecar key this comment used to name
+# as that gap is CLOSED — `derive_lineage` computes it there for real,
+# proven byte-exact against this default path's own `Exporter.lineage`
+# by `spec/project_rust_pipeline_spec.rb` for both pizzas (a real
+# capable aggregate) and banking (real binds, zero capable).
 #
 # PAIRED, not independently toggleable: `HECKS_PARSER=rust` alone would
 # mean "parse in Rust, then hand a Rust-shaped ir.json to the STILL-Ruby
