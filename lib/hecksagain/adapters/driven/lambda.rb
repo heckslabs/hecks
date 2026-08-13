@@ -1,5 +1,6 @@
 require_relative "lambda/client"
 require_relative "../../ports/query/in_memory"
+require_relative "../../ports/persistence/remote_runtime"
 require_relative "in_memory_ordering"
 require_relative "../../runtime/instance"
 
@@ -24,6 +25,8 @@ module Hecksagain
     # incomplete local view). A loud failure here is the correct
     # outcome, not a bug to route around.
     class Lambda
+      include Ports::Persistence::RemoteRuntime
+
       attr_reader :aggregate
 
       def initialize(aggregate:, settings: {}, root: nil)
@@ -81,23 +84,12 @@ module Hecksagain
 
       # `entries`/`append`/`project` — the append-only contract
       # `Ports::Persistence::AppendOnly` requires of every adapter
-      # (raises at construction if any are missing). `entries` is `[]`
-      # unconditionally: Lambda's own Postgres is already the durable
-      # store (rust/host's rehydrate-and-replay journal, Phase 1) —
-      # there is no local write-ahead log for `recover!` to replay.
-      def entries = []
-
-      def append(entry)
-        raise Runtime::WiringError,
-              "Lambda-backed repositories are read-only — dispatch #{entry.id.inspect}'s command through " \
-              "Runtime::RemoteDispatcher instead of writing through the repository directly"
-      end
-
-      def project(entry)
-        raise Runtime::WiringError,
-              "Lambda-backed repositories are read-only — dispatch #{entry.id.inspect}'s command through " \
-              "Runtime::RemoteDispatcher instead of writing through the repository directly"
-      end
+      # (raises at construction if any are missing). Answered by
+      # `Ports::Persistence::RemoteRuntime`, included above: `entries` is
+      # `[]` unconditionally (Lambda's own Postgres is already the
+      # durable store — rust/host's rehydrate-and-replay journal, Phase
+      # 1 — there is no local write-ahead log for `recover!` to replay),
+      # `append`/`project` raise rather than silently no-op.
 
       private
 

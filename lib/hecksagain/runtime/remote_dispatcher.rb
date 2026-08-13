@@ -5,6 +5,7 @@ require_relative "errors"
 require_relative "../naming"
 require_relative "../adapters/driven/lambda/client"
 require_relative "../ports/persistence/binding_policy"
+require_relative "../ports/persistence/remote_runtime"
 
 module Hecksagain
   module Runtime
@@ -68,12 +69,17 @@ module Hecksagain
         # which can only ever run against Postgres, permanently. Its
         # OWN `.hecksagon` bind stays "Postgres" even when
         # `dispatched_by("Lambda")` is on for everything else — checked
-        # here the SAME way EraCheck itself checks it
-        # (`BindingPolicy.resolve(...).adapter`), so a command against
-        # such an aggregate falls through to the real local Dispatcher
-        # instead of being forwarded to a Lambda that has no way to
-        # represent its lineage history at all.
-        unless Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter == "Lambda"
+        # here by real CAPABILITY (`Ports::Persistence::RemoteRuntime`,
+        # §1), not by comparing the adapter's own name to the string
+        # "Lambda" — a bind resolves to whatever adapter CLASS actually
+        # backs it, and only a class shaped like "the real interpreter
+        # lives behind a call boundary" forwards here; anything else
+        # (Postgres, Memory, any future local adapter) falls through to
+        # the real local Dispatcher instead of being forwarded to a
+        # Lambda that has no way to represent its lineage history at
+        # all.
+        adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
+        unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
           return @local.dispatch(verb, saga_correlation: saga_correlation, **args)
         end
 
