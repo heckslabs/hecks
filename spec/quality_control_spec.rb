@@ -148,15 +148,7 @@ describe "the clock" do
   # THE FRICTION THIS REMOVED. Every claim used to want
   # `now.value=$(date +%s) window.value=900` typed in front of it, which is a
   # shell incantation an agent gets wrong by pasting a stale number.
-  # PENDING: exercises Hecksagain::Facade::CliRunner, which projects a
-  # domain's command line off Projector::CliProjector — part of this
-  # branch's own independent projections/CLI refactor, deliberately left
-  # behind by this extraction because it structurally conflicts with
-  # main's own already-shipped Projection arc (commit 34c2001). The ledger
-  # itself needs no CLI layer to work — every other example in this file
-  # dispatches straight through `runtime`. Re-enable once a CLI projection
-  # exists on main (or this ledger gets its own bespoke `bin/qc`).
-  xit "fills now from the clock when the caller leaves it out" do
+  it "fills now from the clock when the caller leaves it out" do
     target
     text, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
 
@@ -166,10 +158,7 @@ describe "the clock" do
 
   # SO A SPEC OR A CALLER REPRODUCING A MOMENT IS BELIEVED. The door supplies
   # only what was omitted.
-  #
-  # PENDING: see the note above — CliRunner is out of scope for this
-  # extraction.
-  xit "believes an explicit time over the clock" do
+  it "believes an explicit time over the clock" do
     target
     text, = cli("target.claim", "id=banking", "held_by.value=agent-one", "now.value=55")
 
@@ -179,10 +168,7 @@ describe "the clock" do
   # THE HOLE THIS CLOSED. `window` was an argument, so any agent could take a
   # live claim from any other by asking with a window of one second — the
   # guard read a number the CALLER supplied and dutifully agreed.
-  #
-  # PENDING: see the note above — CliRunner is out of scope for this
-  # extraction.
-  xit "will not let a claimer name the window it is judged against" do
+  it "will not let a claimer name the window it is judged against" do
     target
     _, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
     expect(code).to eq(0)
@@ -247,9 +233,7 @@ end
     # REACHABLE FROM THE ONLY DOOR THERE IS. The dispatcher has always
     # answered a report; the projected CLI never listed one, so a caller with
     # no Ruby could not ask for the one reading that counts.
-    # PENDING: exercises Hecksagain::Facade::CliRunner — see the note above
-    # "the clock" describe block. Out of scope for this extraction.
-    xit "is a question the command line offers" do
+    it "is a question the command line offers" do
       a_logged_bug("BUG#1")
 
       text, code = Hecksagain::Facade::CliRunner.call(

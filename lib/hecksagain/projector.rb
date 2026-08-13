@@ -168,8 +168,14 @@ require "json"
 require_relative "projector/exporter"
 require_relative "projector/ir_projector"
 require_relative "projector/target"
+# Neither of these requires this file back — they need `Naming` and nothing
+# else — so unlike a target they are safe to pull in from here.
+require_relative "projector/docs_projector"
+require_relative "projector/cli_projector"
 
 Hecksagain::Projector.register(:ir, Hecksagain::Projector::IRProjector)
+Hecksagain::Projector.register(:docs, Hecksagain::Projector::DocsProjector)
+Hecksagain::Projector.register(:cli, Hecksagain::Projector::CliProjector)
 
 # The TARGETS are required from lib/hecksagain.rb, immediately after this
 # file — deliberately not from here. A target requires this file (it

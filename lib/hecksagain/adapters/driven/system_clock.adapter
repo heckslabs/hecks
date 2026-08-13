@@ -1,0 +1,3 @@
+Hecks.adapter "SystemClock" do
+  port "clock"
+end

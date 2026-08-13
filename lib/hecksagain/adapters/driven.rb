@@ -18,6 +18,7 @@ require_relative "driven/folder"
 require_relative "driven/d1"
 require_relative "driven/mock_stripe_adapter"
 require_relative "driven/secure_random_identity"
+require_relative "driven/system_clock"
 # `SequentialIdentity` — the deterministic identity_generation test
 # double — is NOT required here on purpose. It lives at
 # spec/fixtures/sequential_identity.{adapter,rb}, loaded explicitly by
