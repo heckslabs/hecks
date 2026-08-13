@@ -5,17 +5,95 @@
 # The corpus scripts under spec/corpus/ are exactly this format.
 #
 #   bin/run <domain> <script.json>
+#   bin/run <domain> -            # the same script, on stdin
+#   bin/run <domain> '{"steps":[…]}'
+#
+# THE LAST TWO ARE FOR A CALLER WITH ONE VERB TO ISSUE. A corpus member is a
+# file because it is kept; an agent dispatching a single command should not
+# have to leave a file behind to do it, and a temp file is exactly the friction
+# that sends somebody back to editing the store by hand. `bin/docs <domain>`
+# prints what each verb wants — its arguments, the states it may be issued
+# from, and every way it can refuse.
+#
+#   bin/run qa '{"steps":[{"query":"QualityControl::Bug.Unfixed"}]}'
+#
+#   bin/run qa - <<'JSON'
+#   {"steps":[
+#     {"verb":"QualityControl::Session.Start",
+#      "args":{"reference":{"value":"QA-1"},"engineer":{"value":"Claude QA"}}}
+#   ]}
+#   JSON
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 require "hecksagain"
 require "json"
 
-domain = ARGV.shift or abort "usage: bin/run <domain> <script.json>"
-script = ARGV.shift or abort "usage: bin/run <domain> <script.json>"
+USAGE = "usage: bin/run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>".freeze
+
+# ── the command-line form ───────────────────────────────────────────────
+#
+# `bin/run bug.discover reference=BUG#1 severity=high …` — no JSON anywhere.
+# The verb tree, every argument, its declared type and every way the verb can
+# refuse are projected out of the bluebook (`Projector::CliProjector`), so this
+# script knows nothing about any domain and the help cannot go stale.
+#
+# Tried FIRST, and falls through to the JSON form when the first argument does
+# not name a projected verb — which is what keeps `bin/run <domain> <script>`
+# working exactly as it did.
+def cli_form(domain, argv)
+  runtime = Hecks.boot(domain, install_facade: false)
+  # NO FALL-THROUGH. This is only reached when the argument is not
+  # script-shaped — not `-`, not inline JSON, not a file that exists — so
+  # there is nothing else it could have meant, and a near miss deserves the
+  # runner's "did you mean" rather than the step-list form's "no such script".
+  text, status = Hecksagain::Facade::CliRunner.call(runtime: runtime, argv: argv, program: "bin/run")
+  status.zero? ? puts(text) : abort(text)
+  exit 0
+end
+
+# STANDING IN A DOMAIN IS ENOUGH — `Adapters::Folder#domain_root` walks up for
+# the nearest `.hecksagon`, so inside `examples/banking` the path can be left
+# off. The first argument is the SCRIPT when it obviously is one: stdin, inline
+# JSON, or a file that exists. Otherwise it names the domain.
+script_shaped = ->(arg) { arg == "-" || arg.match?(/\A\s*\{/) || File.file?(arg) }
+
+# THE FIRST ARGUMENT IS A DOMAIN ONLY WHEN IT IS A DIRECTORY. Everything else
+# — a verb, a script path, inline JSON — belongs to the domain you are standing
+# in, found by walking up for a `.hecksagon`.
+here = Hecksagain::Adapters::Folder.new.domain_root
+argv = ARGV.dup
+domain = argv.first && File.directory?(argv.first) ? argv.shift : here
+
+abort "no bluebook here — #{Dir.pwd} is not inside a domain. #{USAGE}" unless domain
+
+# The command-line form answers unless the first argument names no projected
+# verb, in which case this returns and the step-list form takes over.
+cli_form(domain, argv) unless argv.first && script_shaped[argv.first]
+
+script = argv.first or abort USAGE
+
+# A PATH, STDIN, OR THE JSON ITSELF — decided by looking, because a script
+# beginning with `{` is not a filename anybody meant.
+source =
+  case script
+  when "-"      then $stdin.read
+  when /\A\s*\{/ then script
+  else
+    File.exist?(script) ? File.read(script) : abort("no such script: #{script}")
+  end
+
+# PARSED BEFORE THE BOOT. Booting opens a real store — Postgres for some
+# domains — and a typo in the JSON should cost a sentence, not a connection.
+begin
+  document = JSON.parse(source)
+rescue JSON::ParserError => e
+  abort "that is not JSON: #{e.message.lines.first.strip}"
+end
+
+steps = document["steps"] or abort %(the script has no "steps" — #{USAGE})
 
 runtime   = Hecks.boot(domain)
-steps     = JSON.parse(File.read(script)).fetch("steps")
 refusals  = []
 
 queries = []
@@ -69,7 +147,7 @@ puts JSON.pretty_generate(
   sagas: sagas, queries: queries
 )
 
-expectations = JSON.parse(File.read(script))["expectations"] || {}
+expectations = document["expectations"] || {}
 unmet = []
 
 missing_events = Array(expectations["event_names"]) - events.map { |event| event[:name] }

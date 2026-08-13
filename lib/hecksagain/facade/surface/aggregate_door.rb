@@ -54,6 +54,14 @@ module Hecksagain
           end
           door.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
           door.define_singleton_method(:commands)   { ir.commands.map { |c| Naming.snake(c.hecks_name) }.sort }
+          # ONE AGGREGATE'S USAGE DOCUMENT — the same projection the chapter
+          # answers with, narrowed to this head. `commands` above already
+          # answers "what can I call"; this answers "and what does each one
+          # want, refuse, and guarantee", which is the rest of the question.
+          door.define_singleton_method(:docs) do |**options|
+            Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
+                                  options: options.merge(aggregate: ir.hecks_name))
+          end
           door.define_singleton_method(:count)      { dispatcher.registry.repository(domain, ir).count }
           door.define_singleton_method(:events)     { dispatcher.events.select { |event| event.aggregate == fqn } }
 

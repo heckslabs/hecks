@@ -28,6 +28,10 @@ require_relative "hecksagain/projector"
 # every target registers itself as it loads, so this require IS the
 # installation of them.
 require_relative "hecksagain/projections"
+# AFTER `Projector` (dispatches against the `:cli` projection) and
+# `Ports::Clock` (fills a staleness rule's `now` at the door) both exist.
+require_relative "hecksagain/facade/cli_door"
+require_relative "hecksagain/facade/cli_runner"
 require_relative "hecksagain/framework"
 
 module Hecksagain

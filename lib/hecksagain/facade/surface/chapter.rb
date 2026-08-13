@@ -13,6 +13,21 @@ module Hecksagain
           chapter.define_singleton_method(:vision)     { bluebook.vision }
           chapter.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
 
+          # THE CHAPTER, EXPLAINING ITSELF. `Projector::DocsProjector` reads
+          # nothing but this bluebook's own IR, so the document cannot drift
+          # from the domain — the same guarantee `bin/reference` gives the DSL
+          # reference by generating it from the Syntax chapter.
+          #
+          # A METHOD RATHER THAN ONLY A SCRIPT because that is what gets it
+          # read: `QualityControl.docs` in a console, beside `vision` and
+          # `aggregates`, at the moment somebody is wondering what a verb
+          # wants. Projected on each call rather than memoised — it is a pure
+          # read of the IR, and a stale document is the entire thing this
+          # exists to prevent.
+          chapter.define_singleton_method(:docs) do |**options|
+            Projector.call(:docs, bluebook: bluebook, options: options)
+          end
+
           # THE DOMAIN'S OWN IR, PROJECTED. `Projector` has taken
           # `call(name, bluebook:, options:)` since §30, but nothing could
           # reach it from a booted domain — this module already closes
