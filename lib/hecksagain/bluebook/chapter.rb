@@ -1,4 +1,5 @@
 require_relative "behaviour/chapter"
+require_relative "../ir"
 
 module Hecksagain
   module Bluebook

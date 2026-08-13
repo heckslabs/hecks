@@ -1,4 +1,5 @@
 require "json"
+require_relative "../../vocabulary"
 
 module Hecksagain
   module Bluebook

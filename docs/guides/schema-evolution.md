@@ -278,9 +278,9 @@ round-trip — `Hecksagain::Ports::Persistence::Lineage` is the exact
 code every mint runs internally, and it answers directly:
 
 ```ruby
-Move    = Hecksagain::Bluebook::IR::TranslationMove
-Convert = Hecksagain::Bluebook::IR::TranslationConvert
-Retype  = Hecksagain::Bluebook::IR::TranslationRetype
+Move    = Hecksagain::Bluebook::TranslationMove
+Convert = Hecksagain::Bluebook::TranslationConvert
+Retype  = Hecksagain::Bluebook::TranslationRetype
 Entry   = Hecksagain::Ports::Persistence::Entry
 Lineage = Hecksagain::Ports::Persistence::Lineage
 ```

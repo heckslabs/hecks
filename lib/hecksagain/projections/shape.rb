@@ -1,4 +1,5 @@
 require_relative "../runtime/storage_shape"
+require_relative "../projector"
 
 module Hecksagain
   module Projections

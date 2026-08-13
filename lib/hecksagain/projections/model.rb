@@ -1,4 +1,5 @@
 require_relative "model/deviations"
+require_relative "../projector"
 
 module Hecksagain
   module Projections
