@@ -53,6 +53,27 @@ module Hecksagain
           @db.execute("ALTER TABLE #{quoted_entry_table} ADD COLUMN mirrors TEXT")
         end
 
+        # THE OPTIONAL saga-persistence capability's own table (§2/§4) —
+        # shared here so `D1`, which `include`s this module verbatim for
+        # its own `events`-table DDL (`d1.rb`), gets this for free too.
+        # `domain` stays an explicit column even though SQLite has no
+        # schema/namespace concept the way Postgres does — matches
+        # `hecks_saga_instances`' own Postgres shape (§3) and covers the
+        # (uncommon but real) case of a domain explicitly sharing one
+        # `database` file/D1 database with another.
+        def create_saga_table!
+          @db.execute(<<~SQL)
+            CREATE TABLE IF NOT EXISTS hecks_saga_instances (
+              domain          TEXT NOT NULL,
+              process_manager TEXT NOT NULL,
+              correlation     TEXT NOT NULL,
+              state           TEXT NOT NULL,
+              memory          TEXT NOT NULL,
+              PRIMARY KEY (domain, process_manager, correlation)
+            )
+          SQL
+        end
+
         def sql_type(attr)
           return "TEXT" if attr.list?
 

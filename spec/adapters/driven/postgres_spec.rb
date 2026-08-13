@@ -118,6 +118,47 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     expect(reopened.find("p1").status).to eq("sold")
   end
 
+  describe "the optional saga-persistence capability (§2/§3/§4)" do
+    it "saves a saga instance and reads it back through each_saga" do
+      adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
+                         state: "awaiting_credit", memory: { amount: 100 })
+
+      rows = adapter.each_saga.to_a
+      expect(rows).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }]])
+    end
+
+    it "upserts on a repeated save for the same (process_manager, correlation)" do
+      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
+      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "next", memory: { step: 2 })
+
+      rows = adapter.each_saga.to_a
+      expect(rows).to eq([["Onboarding", "c1", "next", { step: 2 }]])
+    end
+
+    it "deletes a saga instance" do
+      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
+      adapter.delete_saga(process_manager: "Onboarding", correlation: "c1")
+
+      expect(adapter.each_saga.to_a).to eq([])
+    end
+
+    it "outlives the adapter that wrote it, same as an aggregate's own state" do
+      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: { a: 1 })
+
+      reopened = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+      expect(reopened.each_saga.to_a).to eq([["Onboarding", "c1", "start", { a: 1 }]])
+    end
+
+    it "isolates sagas by domain, the same column-based isolation hecks_eras uses" do
+      other = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, domain: "OtherDomain" })
+      adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
+      other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
+
+      expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "start", {}]])
+      expect(other.each_saga.to_a).to eq([["Onboarding", "c1", "different", {}]])
+    end
+  end
+
   describe "the `schema` setting — shared-instance isolation" do
     before do
       admin = PG.connect(dbname: SPEC_DB)

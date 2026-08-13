@@ -88,6 +88,13 @@ module Hecksagain
         end
 
         @db = Connection.new(account_id: account_id, database_id: database_id, api_token: api_token)
+        # THE OPTIONAL saga-persistence capability's own scoping column
+        # (§2/§4) — D1's domain isolation is by whole-database identity
+        # (one D1 database per domain in practice), so unlike Sqlite's
+        # own per-aggregate-file default, there's no "which file does
+        # this end up in" ambiguity here: every aggregate on D1 within a
+        # domain already shares one database.
+        @domain = (settings[:domain] || settings["domain"] || aggregate.name).to_s
 
         # No PRAGMA synchronous here, unlike Sqlite — D1 is a managed
         # durable service; there is no local fsync policy for a caller to
@@ -97,6 +104,7 @@ module Hecksagain
         ensure_entry_operation_column!
         ensure_entry_mirrors_column!
         create_event_table!
+        create_saga_table!
       end
 
       def table = @aggregate.storage_name
@@ -200,6 +208,37 @@ module Hecksagain
             payload:     JSON.parse(row["payload"], symbolize_names: true),
             occurred_at: row["occurred_at"]
           )
+        end
+      end
+
+      # ── the OPTIONAL saga-persistence capability (§2) — reuses the DDL
+      # `Sqlite::SchemaBuilder` already shares with Sqlite (`d1.rb`'s own
+      # file header). Same `?`-placeholder shape every other write here
+      # already uses through `Connection#execute`.
+      def save_saga(process_manager:, correlation:, state:, memory:)
+        @db.execute(
+          "INSERT OR REPLACE INTO hecks_saga_instances (domain, process_manager, correlation, state, memory) " \
+          "VALUES (?, ?, ?, ?, ?)",
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory)]
+        )
+      end
+
+      def delete_saga(process_manager:, correlation:)
+        @db.execute(
+          "DELETE FROM hecks_saga_instances WHERE domain = ? AND process_manager = ? AND correlation = ?",
+          [@domain, process_manager.to_s, correlation.to_s]
+        )
+      end
+
+      def each_saga
+        return enum_for(:each_saga) unless block_given?
+
+        @db.execute(
+          "SELECT process_manager, correlation, state, memory FROM hecks_saga_instances WHERE domain = ?",
+          [@domain]
+        ).each do |row|
+          yield row["process_manager"], row["correlation"], row["state"],
+                JSON.parse(row["memory"], symbolize_names: true)
         end
       end
 

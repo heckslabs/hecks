@@ -117,6 +117,7 @@ module Hecksagain
         @lineage.ensure_head_snapshot!(table, @era)
         @lineage.ensure_first_head!(table) if @era == 1
         create_event_table!
+        create_saga_table!
       end
 
       def table = @aggregate.storage_name
@@ -258,6 +259,45 @@ module Hecksagain
         end
       end
 
+      # ── the OPTIONAL saga-persistence capability (Ports::Persistence's
+      # own three-method shape, §2) — one row per (domain, process_manager,
+      # correlation), `domain` kept as an explicit column even under
+      # schema isolation so two domains sharing one schema (neither
+      # declares its own `schema`) still isolate correctly, matching
+      # `hecks_eras`' own precedent (postgres/lineage/provisioning.rb).
+      # No advisory lock of its own: every call here already runs inside
+      # `SagaInterpreter`'s own mutex (§7) serializing IN-PROCESS writers,
+      # and gets the SAME cross-process safety an aggregate's own writes
+      # get from this adapter — no better, no worse.
+      def save_saga(process_manager:, correlation:, state:, memory:)
+        @db.exec_params(
+          "INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory) " \
+          "VALUES ($1, $2, $3, $4, $5) " \
+          "ON CONFLICT (domain, process_manager, correlation) DO UPDATE " \
+          "SET state = EXCLUDED.state, memory = EXCLUDED.memory, updated_at = now()",
+          [@domain, process_manager.to_s, correlation.to_s, state.to_s, JSON.generate(memory)]
+        )
+      end
+
+      def delete_saga(process_manager:, correlation:)
+        @db.exec_params(
+          "DELETE FROM hecks_saga_instances WHERE domain = $1 AND process_manager = $2 AND correlation = $3",
+          [@domain, process_manager.to_s, correlation.to_s]
+        )
+      end
+
+      def each_saga
+        return enum_for(:each_saga) unless block_given?
+
+        @db.exec_params(
+          "SELECT process_manager, correlation, state, memory FROM hecks_saga_instances WHERE domain = $1",
+          [@domain]
+        ).each do |row|
+          yield row["process_manager"], row["correlation"], row["state"],
+                JSON.parse(row["memory"], symbolize_names: true)
+        end
+      end
+
       private
 
       # ── SqlQueryBuilder's dialect hooks ─────────────────────────────
@@ -371,6 +411,20 @@ module Hecksagain
             aggregate_id text NOT NULL,
             payload      jsonb,
             occurred_at  text
+          )
+        SQL
+      end
+
+      def create_saga_table!
+        @db.exec(<<~SQL)
+          CREATE TABLE IF NOT EXISTS hecks_saga_instances (
+            domain          text NOT NULL,
+            process_manager text NOT NULL,
+            correlation     text NOT NULL,
+            state           text NOT NULL,
+            memory          jsonb NOT NULL,
+            updated_at      timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (domain, process_manager, correlation)
           )
         SQL
       end
