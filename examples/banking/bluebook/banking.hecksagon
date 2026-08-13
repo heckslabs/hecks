@@ -2,26 +2,12 @@ Hecks.hecksagon "Banking" do
   uses_framework "Governance"
   uses_framework "Identity"
 
-  Banking::Customer.persisted_by("Heki")
-  Banking::Customer.projected_by("SqliteProjection")
-  Banking::Account.persisted_by("Heki")
-  Banking::Account.projected_by("SqliteProjection")
-  Banking::Transfer.persisted_by("Heki")
-  Banking::Transfer.projected_by("SqliteProjection")
-  Banking::ATMCard.persisted_by("Heki")
-  Banking::ATMCard.projected_by("SqliteProjection")
-  Banking::CardPayment.persisted_by("Heki")
-  Banking::CardPayment.projected_by("SqliteProjection")
-  Banking::ExternalTransfer.persisted_by("Heki")
-  Banking::ExternalTransfer.projected_by("SqliteProjection")
-  Banking::ScheduledPayment.persisted_by("Heki")
-  Banking::ScheduledPayment.projected_by("SqliteProjection")
-  Banking::SafeDepositBox.persisted_by("Heki")
-  Banking::SafeDepositBox.projected_by("SqliteProjection")
-  Banking::OnboardingCase.persisted_by("Heki")
-  Banking::OnboardingCase.projected_by("SqliteProjection")
-  Banking::Statement.persisted_by("Heki")
-  Banking::Statement.projected_by("SqliteProjection")
+  # Domain-level default — every aggregate below inherits both, no
+  # per-aggregate line needed. A genuine exception (like Embryonaut's
+  # `Member`) would still declare its own `Banking::Whatever.persisted_by(...)`
+  # override here; none of Banking's own aggregates need one.
+  persisted_by "Heki"
+  projected_by "SqliteProjection"
 end
 
 # A FRAMEWORK MEMBER BRINGS ITS OWN SHAPE, NOT ITS OWN PERSISTENCE —

@@ -89,6 +89,25 @@ RSpec.describe "the DSL surface" do
       expect([bind.aggregate, bind.verb, bind.adapter]).to eq(["Hexed::Thing", "posted_by", "Carrier"])
     end
 
+    it ".hecksagon registers a domain-level default bind, applied to every aggregate that doesn't override it" do
+      registry = in_registry do
+        Hecks.hecksagon("Hexed") do
+          posted_by "Carrier"
+          Hexed::Thing.posted_by("SpecialCarrier")
+        end
+      end
+      hexagon = registry.hecksagon("Hexed")
+
+      default_bind = hexagon.binds.find { |b| b.aggregate.nil? }
+      expect([default_bind.aggregate, default_bind.verb, default_bind.adapter])
+        .to eq([nil, "posted_by", "Carrier"])
+
+      # An aggregate-specific bind still wins over the domain default.
+      expect(hexagon.bind_for("Thing", "posted_by").adapter).to eq("SpecialCarrier")
+      # An aggregate with no bind of its own falls back to the default.
+      expect(hexagon.bind_for("OtherThing", "posted_by").adapter).to eq("Carrier")
+    end
+
     it ".hecksagon registers subscriptions, taken from outside the domain's own bluebook" do
       registry = in_registry do
         Hecks.hecksagon("Hexed") do

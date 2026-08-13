@@ -15,6 +15,24 @@ module Hecksagain
 
           @hecksagons.each_value do |hexagon|
             hexagon.binds.each do |bind|
+              # A domain-level default (§0) — `persisted_by "Heki"` bare,
+              # applying to whichever aggregates don't override it — names
+              # no aggregate of its own, so there's nothing to look up in
+              # the bluebook for THIS row specifically. Still validate its
+              # own adapter/verb shape (the same reason
+              # `verify_default_adapter!` checks the framework-wide
+              # default the same way, aggregate-less). Coverage of real
+              # aggregates that only resolve THROUGH this default comes
+              # from their own dispatch-time `BindingPolicy.resolve` —
+              # deliberately not required to be exhaustive here, the same
+              # leniency this method already extended to any aggregate
+              # left out of an explicit bind list entirely (real test
+              # fixtures bind only the aggregates they exercise).
+              if bind.aggregate.nil?
+                check_verb(bind)
+                next
+              end
+
               aggregate = bluebook(hexagon.domain)&.aggregate(bind.aggregate_name)
               raise WiringError, "#{bind.aggregate} is bound but not declared in the bluebook" unless aggregate
 

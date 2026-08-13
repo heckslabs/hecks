@@ -87,6 +87,25 @@ pub fn apply(
             continue;
         }
 
+        // A DOMAIN-LEVEL DEFAULT BIND, BARE AT THE ROOT — `persisted_by
+        // "Heki"` with no aggregate receiver (`HecksagonBuilder#
+        // method_missing`, Ruby side). Same open-vocabulary treatment
+        // `apply_aggregate_qualified` already gives the aggregate-scoped
+        // form just below: any word that isn't one of Hecksagon's three
+        // CLOSED words (port/subscribe/uses_framework) is shape-matched
+        // and dropped, never run through `next_line`'s closed-vocabulary
+        // `word_gate` — that gate exists for the fixed keywords, not the
+        // open adapter-bind vocabulary layered on top of it.
+        if let LineShape::Call(call) = lex::classify(file, &line)? {
+            if !matches!(call.word.as_str(), "port" | "subscribe" | "uses_framework" | "end") {
+                *pos += 1;
+                if matches!(call.opener, Opener::DoBlock { .. }) {
+                    skip_dropped_body(file, lines, pos)?;
+                }
+                continue;
+            }
+        }
+
         match super::next_line(file, lines, pos, "Hecksagon")? {
             None => return Ok(()),
             Some(gated) => match gated.row.word {

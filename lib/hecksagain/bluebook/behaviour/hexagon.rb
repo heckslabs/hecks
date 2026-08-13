@@ -3,16 +3,29 @@ module Hecksagain
     module Behaviour
       # WHAT A HECKSAGON DOES — the lookups over its declared binds.
       module Hecksagon
+        # Aggregate-specific bind wins when one was declared; otherwise
+        # falls back to a domain-level default (`b.aggregate.nil?` — see
+        # `HecksagonBuilder#method_missing`). Checked directly rather than
+        # via `aggregate_name`/`Naming.demodulise`, which would need its own
+        # nil-handling for the default row.
         def bind_for(aggregate_name, verb)
-          @binds.find do |b|
-            b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s
-          end
+          @binds.find { |b| b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s } ||
+            @binds.find { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
         end
 
         def binds_for(aggregate_name, verb)
-          @binds.select do |b|
-            b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s
-          end
+          specific = @binds.select { |b| b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s }
+          return specific if specific.any?
+
+          @binds.select { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
+        end
+
+        # The domain-level default bind for `verb`, if one was declared —
+        # no aggregate involved at all. Used by saga-adapter resolution
+        # (`Registry#saga_persistence`), which isn't tied to any one
+        # aggregate.
+        def default_bind_for(verb)
+          @binds.find { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
         end
       end
 

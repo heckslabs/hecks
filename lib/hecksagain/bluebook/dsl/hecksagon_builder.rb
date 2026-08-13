@@ -68,6 +68,24 @@ module Hecksagain
                              framework_members: @framework_members)
         end
 
+        # DOMAIN-LEVEL DEFAULT BINDS — `persisted_by "Heki"` bare, at the top
+        # of a hecksagon block, applies to every aggregate in this domain
+        # that doesn't declare its own override. Mirrors `BindingProxy`'s own
+        # `method_missing` one level down (`aggregate:` filled in there,
+        # `nil` here) — generic over verb name, not hardcoded to
+        # `persisted_by`/`projected_by` specifically, so any future verb
+        # gets a domain-level default for free too. See `Hecksagon#bind_for`
+        # for the fallback lookup this feeds.
+        def method_missing(verb, *args, **kwargs, &block)
+          return super unless args.first
+
+          @binds << Bind.new(aggregate: nil, verb: verb.to_s, adapter: args.first.to_s, role: kwargs[:role]&.to_s)
+          block&.call
+          self
+        end
+
+        def respond_to_missing?(_name, _include_private = false) = true
+
         def self.build(domain, &block)
           builder  = new(domain)
           resolver = ->(name) { BindingProxy.namespace(name, builder.binds) }

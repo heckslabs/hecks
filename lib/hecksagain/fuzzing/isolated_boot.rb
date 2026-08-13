@@ -38,8 +38,15 @@ module Hecksagain
 
       def rebind_to_memory!(copy)
         Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
-          lines = File.readlines(path).reject { |line| line.include?("projected_by(") }
-          File.write(path, lines.join.gsub(/persisted_by\("[^"]+"\)/, 'persisted_by("Memory")'))
+          # `persisted_by`/`projected_by` can be spelled two ways now —
+          # aggregate-scoped (`Banking::Customer.persisted_by("Heki")`,
+          # always parenthesised) and, since §0's domain-level default
+          # binds, a bare call at the hecksagon's own root
+          # (`persisted_by "Heki"`, no parens, no receiver). Both must
+          # be caught here or a domain that only declares the bare form
+          # keeps its real adapter under an "isolated" fuzz boot.
+          lines = File.readlines(path).reject { |line| line.match?(/\bprojected_by\s*\(?\s*"/) }
+          File.write(path, lines.join.gsub(/persisted_by\s*\(?\s*"[^"]+"\s*\)?/, 'persisted_by("Memory")'))
         end
 
         # THE SETTINGS, NOT JUST THE BIND — `WorldBuilder#method_missing`
