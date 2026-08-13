@@ -1,3 +1,5 @@
+require_relative "../projector"
+
 module Hecksagain
   module Projections
     # THE CLOSED SETS, PROJECTED — lib/hecksagain/vocabulary.rb rendered

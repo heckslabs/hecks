@@ -1,4 +1,5 @@
 require_relative "behaviour/process_manager"
+require_relative "../ir"
 
 module Hecksagain
   module Bluebook

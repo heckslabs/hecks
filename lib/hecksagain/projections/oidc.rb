@@ -1,4 +1,5 @@
 require_relative "../naming"
+require_relative "../projector"
 
 module Hecksagain
   module Projections

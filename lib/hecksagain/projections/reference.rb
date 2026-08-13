@@ -1,4 +1,5 @@
 require_relative "../doc/reference"
+require_relative "../projector"
 
 module Hecksagain
   module Projections

@@ -1,4 +1,5 @@
 require_relative "../../literal"
+require_relative "../../vocabulary"
 
 module Hecksagain
   module QuerySpecification
