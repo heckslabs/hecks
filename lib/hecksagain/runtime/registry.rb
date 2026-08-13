@@ -1,4 +1,5 @@
 require_relative "registry/verification"
+require_relative "registry/saga_persistence"
 
 module Hecksagain
   module Runtime
@@ -6,9 +7,11 @@ module Hecksagain
 
     # The collections a boot gathers — bluebooks, hexagons, ports, adapters,
     # worlds, the logs — and how a repository is resolved from them. The
-    # wiring gate lives in registry/verification.rb.
+    # wiring gate lives in registry/verification.rb, saga persistence
+    # resolution in registry/saga_persistence.rb.
     class Registry
       include Verification
+      include SagaPersistence
 
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
                   :reaction_log, :saga_log, :saga_instances, :translations

@@ -12,6 +12,8 @@ require_relative "persistence/binding_policy"
 require_relative "persistence/lineage"
 require_relative "persistence/repository_factory"
 require_relative "persistence/append_only"
+require_relative "persistence/remote_runtime"
+require_relative "persistence/null_saga_store"
 
 module Hecksagain
   module Ports

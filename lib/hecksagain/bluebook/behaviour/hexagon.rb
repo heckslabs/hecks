@@ -19,14 +19,6 @@ module Hecksagain
 
           @binds.select { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
         end
-
-        # The domain-level default bind for `verb`, if one was declared —
-        # no aggregate involved at all. Used by saga-adapter resolution
-        # (`Registry#saga_persistence`), which isn't tied to any one
-        # aggregate.
-        def default_bind_for(verb)
-          @binds.find { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
-        end
       end
 
       # WHAT A WORLD DOES — settings lookup, with the adapter-specific
