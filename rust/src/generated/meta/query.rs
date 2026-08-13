@@ -120,7 +120,7 @@ impl crate::kernel::Fielded for Filter {
 
 impl Filter {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-        if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains"].contains(&self.op.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\" — got ", self.op))); }
+        if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&self.op.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", self.op))); }
         Ok(())
     }
 }
@@ -537,7 +537,7 @@ pub fn dispatch_filter(
     repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: FilterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.field.check_invariants()?;
-        if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\" — got ", args.op.value))); }
+        if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", args.op.value))); }
         args.op.check_invariants()?;
         args.value.check_invariants()?;
 

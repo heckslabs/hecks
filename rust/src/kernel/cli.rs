@@ -54,7 +54,28 @@ pub fn run(input: &str) -> String {
     let mut refusals: Vec<(String, Refusal)> = Vec::new();
     // Process-manager instances — domain-level, not per-aggregate, so
     // deliberately not a `Store` field (orchestrate.rs's own header).
-    let mut sagas: HashMap<(String, String), SagaInstance> = HashMap::new();
+    //
+    // `"sagas"` — optional and additive, the same contract `"seed"`
+    // above already has: an input with no `"sagas"` key behaves exactly
+    // as before (an empty map), backward compatible with every existing
+    // caller (fuzzer, conformance harness) that never sends it. Lets a
+    // HOST (rust/host) seed a domain's live in-flight saga state back
+    // in, the same way `"seed"` already seeds aggregate state — see
+    // this run's own `"saga_snapshot"` output key below for the other
+    // half.
+    let mut sagas: HashMap<(String, String), SagaInstance> = match parsed.get("sagas").and_then(Json::as_array) {
+        Some(entries) => entries
+            .iter()
+            .filter_map(|entry| {
+                let process_manager = entry.get("process_manager")?.as_str()?.to_string();
+                let correlation = entry.get("correlation")?.as_str()?.to_string();
+                let state = entry.get("state")?.as_str()?.to_string();
+                let memory = entry.get("memory").cloned().unwrap_or_else(|| Json::Object(vec![]));
+                Some(((process_manager, correlation), SagaInstance { state, memory }))
+            })
+            .collect(),
+        None => HashMap::new(),
+    };
     // One entry per step, in step order — a HOST driving this kernel
     // (rust/host, docs/decisions/0012) needs to know which records THIS
     // step's own dispatch (including everything it cascaded through
@@ -335,6 +356,16 @@ pub fn run(input: &str) -> String {
         // `cross_domain_reactions`.
         ("reactions".to_string(), Json::Array(reaction_log)),
         ("sagas".to_string(), Json::Array(saga_log)),
+        // A LIVE SNAPSHOT of `sagas` as it stands at the end of this
+        // run — deliberately a separate key from `"sagas"` above, which
+        // is the flat transition LOG (every attempted transition, even
+        // refused ones), not a snapshot of current state. Same
+        // relationship `"instances"` already has to `"events"`: one is
+        // "what happened," the other is "what's true now." A host
+        // (rust/host) persists this the same way it already persists
+        // `"instances"`, and feeds it back in as this run's own
+        // `"sagas"` INPUT key next time (see above).
+        ("saga_snapshot".to_string(), saga_snapshot_json(&sagas)),
     ])
     .to_json_string()
 }
@@ -411,6 +442,26 @@ fn cross_domain_reaction_to_json(reaction: &PendingCrossDomainReaction) -> Json 
         ("target_verb", Json::str(reaction.target_verb.clone())),
         ("payload", reaction.payload.clone()),
     ])
+}
+
+/// The live `sagas` map, dumped as a JSON array of the same shape the
+/// `"sagas"` INPUT key (above) parses — round-trippable: what this
+/// function emits is exactly what a later `run` call, given it back as
+/// `"sagas"`, would parse into an identical map.
+fn saga_snapshot_json(sagas: &HashMap<(String, String), SagaInstance>) -> Json {
+    Json::Array(
+        sagas
+            .iter()
+            .map(|((process_manager, correlation), instance)| {
+                Json::obj(vec![
+                    ("process_manager", Json::str(process_manager.clone())),
+                    ("correlation", Json::str(correlation.clone())),
+                    ("state", Json::str(instance.state.clone())),
+                    ("memory", instance.memory.clone()),
+                ])
+            })
+            .collect(),
+    )
 }
 
 fn event_to_json(event: &Event) -> Json {

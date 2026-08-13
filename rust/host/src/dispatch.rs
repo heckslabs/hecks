@@ -95,9 +95,20 @@ pub async fn handle(
     // ONCE, same as always, which then leaves behind a snapshot for
     // every invocation after it. See journal.rs's own header.
     let snapshot = journal::load_snapshot(&txn).await?;
+    // SAGA BACKFILL, ONE TIME — `sagas_backfilled` is a latch, not a
+    // live fact about whether `hecks_lambda_sagas` happens to be empty
+    // right now (see `Snapshot`'s own doc comment for why checking
+    // emptiness directly would be wrong: it's the ORDINARY state, not a
+    // signal). A domain with no snapshot yet already gets a full replay
+    // via the `None` arm below regardless — this only matters for a
+    // domain that already had real history before saga durability
+    // shipped, where the existing snapshot cache would otherwise keep
+    // taking the incremental path forever and never re-derive sagas
+    // from the journal at all.
+    let needs_saga_backfill = snapshot.as_ref().is_some_and(|s| !s.sagas_backfilled);
     let mut steps = match &snapshot {
-        Some(s) => journal::load_steps_after(&txn, s.ordinal).await?,
-        None => journal::load_steps(&txn).await?,
+        Some(s) if !needs_saga_backfill => journal::load_steps_after(&txn, s.ordinal).await?,
+        _ => journal::load_steps(&txn).await?,
     };
     // ROLE GOES ON THIS STEP ONLY -- this is the OUTERMOST dispatch, the
     // one `kernel/cli.rs`'s own comment on `role:` describes as the only
@@ -114,9 +125,37 @@ pub async fn handle(
         step["role"] = serde_json::Value::String(role.to_string());
     }
     steps.push(step);
-    let seed = snapshot.as_ref().map(|s| s.seed.clone()).unwrap_or_else(|| serde_json::json!({}));
+    // MUST MATCH `steps`' OWN CHOICE ABOVE — a full replay (whether
+    // because there's no snapshot yet, or because this is the one-time
+    // saga backfill) has to start from an EMPTY seed, the same as
+    // `steps` falling back to the full journal instead of just the
+    // tail. Using the OLD snapshot's seed here while replaying every
+    // step from scratch would feed the kernel a world that already has
+    // every record `steps` is about to try creating again — every
+    // replayed step would refuse as a false "AlreadyExists," not just
+    // the new one.
+    let seed = if needs_saga_backfill {
+        serde_json::json!({})
+    } else {
+        snapshot.as_ref().map(|s| s.seed.clone()).unwrap_or_else(|| serde_json::json!({}))
+    };
 
-    let input = serde_json::json!({ "seed": seed, "steps": steps }).to_string();
+    // LIVE SAGA STATE, read inside the same advisory-locked transaction
+    // as everything else above — the lock's whole point is covering
+    // this exact read-then-write sequence, saga state included, not
+    // just the aggregate journal/snapshot.
+    let saga_rows = journal::load_sagas(&txn).await?;
+    let sagas_seed = serde_json::json!(saga_rows
+        .iter()
+        .map(|r| serde_json::json!({
+            "process_manager": r.process_manager,
+            "correlation": r.correlation,
+            "state": r.state,
+            "memory": r.memory,
+        }))
+        .collect::<Vec<_>>());
+
+    let input = serde_json::json!({ "seed": seed, "steps": steps, "sagas": sagas_seed }).to_string();
     // wasm_runner::run is sync and, internally, wasmtime-wasi's p1 sync
     // bridge tries to spin up its own tokio runtime to drive the async
     // memory pipes — fatal if called directly from a thread already
@@ -151,6 +190,47 @@ pub async fn handle(
         // to replay at all.
         let new_seed = result.get("instances").cloned().unwrap_or_else(|| serde_json::json!({}));
         journal::save_snapshot(&txn, ordinal, &new_seed).await?;
+
+        // LIVE SAGA STATE, persisted the same way the aggregate
+        // snapshot just was — same transaction, so a saga checkpoint
+        // can never commit independently of the command that produced
+        // it (see journal.rs's own comment on `save_saga` for why that
+        // matters). `"saga_snapshot"` is the kernel's LIVE dump of its
+        // in-memory `sagas` map, deliberately distinct from the
+        // existing `"sagas"` key (the transition LOG, not a snapshot —
+        // same relationship `"instances"` already has to the event
+        // log). Reconciled against `saga_rows` (the PRE-run state, read
+        // above) rather than blindly rewritten: anything present in the
+        // post-run snapshot is upserted; anything that was present
+        // before but is absent now genuinely ended (`end_saga`'s own
+        // `sagas.remove`) and gets deleted, not just left unchanged.
+        if let Some(saga_snapshot) = result.get("saga_snapshot").and_then(|v| v.as_array()) {
+            let mut still_present: std::collections::HashSet<(String, String)> = std::collections::HashSet::new();
+            for entry in saga_snapshot {
+                let process_manager = entry
+                    .get("process_manager")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"process_manager\": {entry}"))?;
+                let correlation = entry
+                    .get("correlation")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"correlation\": {entry}"))?;
+                let state = entry
+                    .get("state")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("saga_snapshot entry missing \"state\": {entry}"))?;
+                let memory = entry.get("memory").cloned().unwrap_or_else(|| serde_json::json!({}));
+
+                journal::save_saga(&txn, process_manager, correlation, state, &memory).await?;
+                still_present.insert((process_manager.to_string(), correlation.to_string()));
+            }
+            for row in &saga_rows {
+                let key = (row.process_manager.clone(), row.correlation.clone());
+                if !still_present.contains(&key) {
+                    journal::delete_saga(&txn, &row.process_manager, &row.correlation).await?;
+                }
+            }
+        }
 
         // The kernel's new per-step "mutations" field (adf38fd) — one
         // entry per step in `steps` above, so the LAST entry is exactly
@@ -811,6 +891,145 @@ mod tests {
         // every other refusal in this file is held to.
         let steps = journal::load_steps(&*client.lock().await).await.unwrap();
         assert_eq!(steps.len(), 1, "only the correctly-authorized registration should be persisted");
+    }
+
+    #[tokio::test]
+    async fn a_mid_transaction_failure_rolls_back_any_saga_state_already_written() {
+        // Deliberately NOT provisioning "Transfer" — its own lineage
+        // mutation will fail after the saga's own begin_saga has
+        // already written into hecks_lambda_sagas earlier in this same
+        // transaction (dispatch.rs's own ordering: journal append,
+        // snapshot, THEN saga reconcile, THEN the mutations loop) —
+        // proving that write rolls back with the rest of the
+        // transaction rather than committing independently.
+        let client = scratch_db("rust_host_dispatch_test_9").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account"]).await;
+        let config = test_config("Banking", 1);
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0012"), None, &config, &lambda_client::NeverInvoker)
+            .await.unwrap().accepted.then_some(()).expect("registration should succeed");
+
+        let open_src = serde_json::json!({
+            "number": { "value": "src-rollback" }, "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0012",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_src, None, &config, &lambda_client::NeverInvoker)
+            .await.unwrap().accepted.then_some(()).expect("source account open should succeed");
+        let open_dst = serde_json::json!({
+            "number": { "value": "dst-rollback" }, "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0012",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_dst, None, &config, &lambda_client::NeverInvoker)
+            .await.unwrap().accepted.then_some(()).expect("destination account open should succeed");
+        handle(
+            &client, &wasm_path(), "Banking::Account.Credit",
+            serde_json::json!({ "number": "src-rollback", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }),
+            None, &config, &lambda_client::NeverInvoker,
+        )
+        .await.unwrap().accepted.then_some(()).expect("credit should succeed");
+
+        // Transfer.Request itself creates a Transfer record — its OWN
+        // mutation is the first one this step produces, and "Transfer"
+        // was never provisioned above, so it fails immediately, before
+        // the saga cascade even has a chance to run further.
+        let transfer_args = serde_json::json!({
+            "reference": { "value": "tr-rollback" }, "amount": { "cents": 200 },
+            "narrative": { "text": "rollback test" }, "source": "src-rollback", "destination": "dst-rollback",
+        });
+        let outcome = handle(&client, &wasm_path(), "Banking::Transfer.Request", transfer_args, None, &config, &lambda_client::NeverInvoker).await;
+        assert!(outcome.is_err(), "the unprovisioned Transfer lineage table should make this whole invocation fail");
+
+        let guard = client.lock().await;
+        let saga_rows = guard.query("SELECT process_manager, correlation FROM hecks_lambda_sagas", &[]).await.unwrap();
+        assert_eq!(
+            saga_rows.len(), 0,
+            "a saga write inside a transaction that ultimately fails must roll back with it, not commit independently: {saga_rows:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_pre_existing_snapshot_without_the_sagas_backfilled_latch_forces_one_full_replay() {
+        let client = scratch_db("rust_host_dispatch_test_10").await;
+        provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account", "Transfer"]).await;
+        let config = test_config("Banking", 1);
+        // The real cross-domain policy `ReviewOnFreeze` fires on every
+        // `Account.Freeze` in this domain (proven by this file's own
+        // `a_cross_domain_policy_delivers_through_the_real_rehydrate_
+        // replay_path` above) — `NeverInvoker` would panic on it.
+        let invoker = RecordingInvoker::new();
+
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0013"), None, &config, &invoker)
+            .await.unwrap().accepted.then_some(()).expect("registration should succeed");
+
+        let open_src = serde_json::json!({
+            "number": { "value": "src-backfill" }, "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0013",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_src, None, &config, &invoker)
+            .await.unwrap().accepted.then_some(()).expect("source account open should succeed");
+        let open_dst = serde_json::json!({
+            "number": { "value": "dst-backfill" }, "kind": { "name": "current" },
+            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0013",
+        });
+        handle(&client, &wasm_path(), "Banking::Account.Open", open_dst, None, &config, &invoker)
+            .await.unwrap().accepted.then_some(()).expect("destination account open should succeed");
+        handle(
+            &client, &wasm_path(), "Banking::Account.Credit",
+            serde_json::json!({ "number": "src-backfill", "amount": { "cents": 1000 }, "narrative": { "text": "opening balance" } }),
+            None, &config, &invoker,
+        )
+        .await.unwrap().accepted.then_some(()).expect("credit should succeed");
+
+        // Freeze the destination BEFORE requesting the transfer — the
+        // credit leg refuses, Settlement's own `on :refused` compensates
+        // (money back into the source), and the instance stays tracked
+        // in "reversed" (`ends_on "TransferSettled"` never fires for
+        // this one) — exactly the mid-flight, never-cleaned-up shape
+        // this test needs a real saga row to recover.
+        handle(&client, &wasm_path(), "Banking::Account.Freeze", serde_json::json!({ "number": { "value": "dst-backfill" } }), None, &config, &invoker)
+            .await.unwrap().accepted.then_some(()).expect("freeze should succeed");
+        let transfer_args = serde_json::json!({
+            "reference": { "value": "tr-backfill" }, "amount": { "cents": 200 },
+            "narrative": { "text": "backfill test" }, "source": "src-backfill", "destination": "dst-backfill",
+        });
+        handle(&client, &wasm_path(), "Banking::Transfer.Request", transfer_args, None, &config, &invoker)
+            .await.unwrap().accepted.then_some(()).expect("the Transfer.Request COMMAND succeeds; the saga's own credit leg is what refuses");
+
+        {
+            let guard = client.lock().await;
+            let before = guard.query("SELECT process_manager, correlation, state FROM hecks_lambda_sagas", &[]).await.unwrap();
+            assert_eq!(before.len(), 1, "the reversed Settlement instance should already be tracked before the simulated reset: {before:?}");
+        }
+
+        // SIMULATE a snapshot row written by pre-saga-durability code —
+        // the latch false, and (as if this table had never existed for
+        // this domain before) hecks_lambda_sagas empty even though a
+        // real saga is genuinely mid-flight.
+        {
+            let guard = client.lock().await;
+            guard.execute("UPDATE hecks_lambda_snapshot SET sagas_backfilled = false", &[]).await.unwrap();
+            guard.execute("DELETE FROM hecks_lambda_sagas", &[]).await.unwrap();
+        }
+
+        // One more ordinary command — should trigger a FULL replay (not
+        // the incremental "just this step" path) and, as a side effect
+        // of that replay re-running Transfer.Request's own saga
+        // cascade, correctly repopulate hecks_lambda_sagas.
+        handle(&client, &wasm_path(), "Banking::Customer.Register", register("CUST-0014"), None, &config, &invoker)
+            .await.unwrap().accepted.then_some(()).expect("second registration should succeed");
+
+        let guard = client.lock().await;
+        let saga_rows = guard.query("SELECT process_manager, correlation, state FROM hecks_lambda_sagas", &[]).await.unwrap();
+        assert_eq!(saga_rows.len(), 1, "the backfill replay should have recovered the in-flight Settlement instance: {saga_rows:?}");
+        let process_manager: String = saga_rows[0].get(0);
+        let correlation: String = saga_rows[0].get(1);
+        let state: String = saga_rows[0].get(2);
+        assert_eq!(process_manager, "Settlement");
+        assert_eq!(correlation, "tr-backfill");
+        assert_eq!(state, "reversed");
+
+        let latched: bool = guard.query_one("SELECT sagas_backfilled FROM hecks_lambda_snapshot", &[]).await.unwrap().get(0);
+        assert!(latched, "after the backfill replay, the latch should be set so this doesn't repeat every invocation");
     }
 
     /// Always fails with a hard invoke fault, the same shape a genuinely

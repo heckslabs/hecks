@@ -47,6 +47,40 @@ pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
             )",
         )
         .await?;
+    // ADDITIVE, on an existing table a live domain may already have a
+    // row in — `sagas_backfilled` is the one-time latch `load_snapshot`'s
+    // own doc comment explains; `DEFAULT false` on the ALTER means every
+    // pre-existing row (a domain with real history from before saga
+    // durability shipped) reads `false` exactly once, the correct
+    // "not backfilled yet" answer, without any separate migration step.
+    client
+        .batch_execute(
+            "ALTER TABLE hecks_lambda_snapshot ADD COLUMN IF NOT EXISTS sagas_backfilled boolean NOT NULL DEFAULT false",
+        )
+        .await?;
+    // LIVE PROCESS-MANAGER STATE — one row per in-flight saga instance,
+    // not a single-row cache like hecks_lambda_snapshot above: sagas are
+    // numerous, long-lived, and mostly independent (many concurrent,
+    // unrelated correlations), so a shared blob would force every
+    // saga-touching command to read-modify-write the entire live saga
+    // population. No `ordinal` column — this table isn't replayed like
+    // the journal or cached-against-an-ordinal like the snapshot; it's
+    // live, always-overwritten-or-deleted-in-place state, correct by
+    // virtue of always being written inside the same advisory-locked
+    // transaction as everything else in `dispatch::handle` — see
+    // dispatch.rs's own comment on why that's load-bearing, not
+    // incidental.
+    client
+        .batch_execute(
+            "CREATE TABLE IF NOT EXISTS hecks_lambda_sagas (
+                process_manager TEXT  NOT NULL,
+                correlation     TEXT  NOT NULL,
+                state           TEXT  NOT NULL,
+                memory          JSONB NOT NULL,
+                PRIMARY KEY (process_manager, correlation)
+            )",
+        )
+        .await?;
     // A CROSS-DOMAIN DELIVERY THAT NEVER GOT THROUGH, durably — see
     // `record_dead_letter`'s own header for the full argument (this
     // table exists so that fact survives past the one Lambda invocation
@@ -160,6 +194,7 @@ pub async fn load_steps_after<C: GenericClient>(client: &C, ordinal: i64) -> any
 pub struct Snapshot {
     pub ordinal: i64,
     pub seed: serde_json::Value,
+    pub sagas_backfilled: bool,
 }
 
 /// The kernel's own "instances" output as of `ordinal` — what a fresh
@@ -168,9 +203,23 @@ pub struct Snapshot {
 /// journal has ever accepted (nothing to seed from yet — `dispatch::
 /// handle` falls back to `Store::new()`/an empty seed, exactly today's
 /// behavior for a brand-new domain).
+///
+/// `sagas_backfilled` is a ONE-TIME LATCH, not a live fact — it answers
+/// "has this domain's snapshot row ever been written by code that knows
+/// about `hecks_lambda_sagas`," never "does `hecks_lambda_sagas` happen
+/// to be empty right now." That distinction matters: a saga table being
+/// empty is the ORDINARY case (most invocations have no saga in flight
+/// — `end_saga` deletes on completion), so triggering a full replay off
+/// bare emptiness would force one on every such invocation forever, not
+/// once. The latch is what makes this a genuine one-time backfill:
+/// `save_snapshot` sets it `true` on every write from now on, so the
+/// very first write after this column exists is the only one that ever
+/// finds it `false`.
 pub async fn load_snapshot<C: GenericClient>(client: &C) -> anyhow::Result<Option<Snapshot>> {
-    let rows = client.query("SELECT ordinal, seed FROM hecks_lambda_snapshot", &[]).await?;
-    Ok(rows.first().map(|row| Snapshot { ordinal: row.get(0), seed: row.get(1) }))
+    let rows = client
+        .query("SELECT ordinal, seed, sagas_backfilled FROM hecks_lambda_snapshot", &[])
+        .await?;
+    Ok(rows.first().map(|row| Snapshot { ordinal: row.get(0), seed: row.get(1), sagas_backfilled: row.get(2) }))
 }
 
 /// Returns the new row's own ordinal — `save_snapshot` needs it to
@@ -195,12 +244,95 @@ pub async fn append<C: GenericClient>(
 /// this seed, reproduces the current world). Called in the SAME
 /// transaction as the `append` whose ordinal it's given, right after a
 /// command is accepted — see dispatch.rs.
+///
+/// ALWAYS writes `sagas_backfilled = true` — unconditionally, not
+/// conditionally on whether IT was the backfilling write. Once this
+/// column exists at all, every future snapshot write was produced by
+/// saga-aware code, so every future READ of this row should find the
+/// latch already set; only a row written before this column existed
+/// (or never written at all) reads `false`.
 pub async fn save_snapshot<C: GenericClient>(client: &C, ordinal: i64, seed: &serde_json::Value) -> anyhow::Result<()> {
     client
         .execute(
-            "INSERT INTO hecks_lambda_snapshot (id, ordinal, seed) VALUES (true, $1, $2) \
-             ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, seed = EXCLUDED.seed",
+            "INSERT INTO hecks_lambda_snapshot (id, ordinal, seed, sagas_backfilled) VALUES (true, $1, $2, true) \
+             ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, seed = EXCLUDED.seed, sagas_backfilled = true",
             &[&ordinal, seed],
+        )
+        .await?;
+    Ok(())
+}
+
+/// One live saga/process-manager instance, as `hecks_lambda_sagas`
+/// holds it.
+pub struct SagaRow {
+    pub process_manager: String,
+    pub correlation: String,
+    pub state: String,
+    pub memory: serde_json::Value,
+}
+
+/// Every live saga instance for this domain — read once per invocation,
+/// before `cli::run`, and used to seed the kernel's in-memory `sagas`
+/// map. A full-table read, not windowed: only currently in-flight
+/// instances have rows at all (`end_saga` deletes on completion), so
+/// there's no meaningful "since ordinal X" the way `load_steps_after`
+/// has for the flat journal.
+pub async fn load_sagas<C: GenericClient>(client: &C) -> anyhow::Result<Vec<SagaRow>> {
+    let rows = client
+        .query(
+            "SELECT process_manager, correlation, state, memory FROM hecks_lambda_sagas",
+            &[],
+        )
+        .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| SagaRow {
+            process_manager: row.get(0),
+            correlation: row.get(1),
+            state: row.get(2),
+            memory: row.get(3),
+        })
+        .collect())
+}
+
+/// Upserts one live saga instance's current state — called once per
+/// `(process_manager, correlation)` key present in the kernel's
+/// post-run `saga_snapshot`, in the SAME transaction as `append`/
+/// `save_snapshot`. Must run against `&txn`, never a post-commit
+/// connection the way `record_dead_letter` deliberately does — a saga
+/// checkpoint that committed independently of the triggering command's
+/// own journal append would be worse than not having this table at
+/// all (see dispatch.rs's own comment on why).
+pub async fn save_saga<C: GenericClient>(
+    client: &C,
+    process_manager: &str,
+    correlation: &str,
+    state: &str,
+    memory: &serde_json::Value,
+) -> anyhow::Result<()> {
+    client
+        .execute(
+            "INSERT INTO hecks_lambda_sagas (process_manager, correlation, state, memory) \
+             VALUES ($1, $2, $3, $4) \
+             ON CONFLICT (process_manager, correlation) DO UPDATE \
+             SET state = EXCLUDED.state, memory = EXCLUDED.memory",
+            &[&process_manager, &correlation, &state, memory],
+        )
+        .await?;
+    Ok(())
+}
+
+/// Removes one saga instance that ended — mirrors `sagas.remove(&key)`
+/// in `orchestrate.rs`'s own `end_saga` exactly.
+pub async fn delete_saga<C: GenericClient>(
+    client: &C,
+    process_manager: &str,
+    correlation: &str,
+) -> anyhow::Result<()> {
+    client
+        .execute(
+            "DELETE FROM hecks_lambda_sagas WHERE process_manager = $1 AND correlation = $2",
+            &[&process_manager, &correlation],
         )
         .await?;
     Ok(())

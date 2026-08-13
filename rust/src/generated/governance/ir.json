@@ -81,7 +81,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "RoleName",
@@ -103,7 +105,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Scope",
@@ -125,7 +129,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Timestamp",
@@ -147,7 +153,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -194,9 +202,15 @@
               "admits": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "RoleAssigned"
           ],
@@ -218,8 +232,12 @@
               "admits": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "ends_at",
@@ -237,7 +255,9 @@
         }
       ],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "AssignmentsForActor",
@@ -264,7 +284,9 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -324,7 +346,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Timestamp",
@@ -346,7 +370,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -375,9 +401,15 @@
               "admits": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "RoleTransitionGranted"
           ],
@@ -399,8 +431,12 @@
               "admits": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "ends_at",
@@ -418,7 +454,9 @@
         }
       ],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Allowed",
@@ -459,13 +497,21 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
