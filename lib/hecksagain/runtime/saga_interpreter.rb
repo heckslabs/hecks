@@ -1,3 +1,4 @@
+require "json"
 require_relative "saga_interpreter/correlation"
 require_relative "../bluebook/process_manager"
 require_relative "errors"
@@ -30,15 +31,37 @@ module Hecksagain
         return unless bluebook
 
         bluebook.process_managers.each do |pm|
-          begin_saga(pm, event)
+          begin_saga(pm, event, domain)
           advance_saga(pm, event, domain)
-          end_saga(pm, event)
+          end_saga(pm, event, domain)
         end
       end
 
       private
 
-      def begin_saga(pm, event)
+      # THE CHECKPOINT WRITE, shared by every mutation site below —
+      # holds `saga_mutex` across BOTH the in-memory Hash mutation and
+      # the persistence write (§7), not just the Hash mutation alone:
+      # two threads racing the SAME (process_manager, correlation) key
+      # could otherwise interleave their writes out of order, silently
+      # reordering a saga's own transition history — worse for the
+      # adapters with no locking of their own (Heki) than for Postgres.
+      # `deep_copy` guards against the exact shape of bug PR #175 itself
+      # already found once (over-freezing a live, still-mutated Hash) —
+      # never hand a persistence adapter the SAME object `advance_saga`/
+      # `unwind` go on to mutate in place; round-tripping through JSON
+      # is also what guarantees the value is safe for every adapter that
+      # itself calls `JSON.generate` on it.
+      def checkpoint(pm, correlation, instance, domain)
+        @registry.saga_persistence(domain).save_saga(
+          process_manager: pm.name, correlation: correlation,
+          state: instance[:state], memory: deep_copy(instance[:memory])
+        )
+      end
+
+      def deep_copy(hash) = JSON.parse(JSON.generate(hash), symbolize_names: true)
+
+      def begin_saga(pm, event, domain)
         return unless event.name == pm.starts_on
 
         correlation = saga_correlation(pm, event)
@@ -47,14 +70,28 @@ module Hecksagain
                                   born: false, reason: "no #{pm.correlates_by} in the payload" }
           return
         end
-        return if @registry.saga_instances[pm.name].key?(correlation)
 
-        @registry.saga_instances[pm.name][correlation] =
-          { state: pm.states.first, memory: event.payload }
+        created = @registry.saga_mutex.synchronize do
+          next false if @registry.saga_instances[pm.name].key?(correlation)
+
+          instance = { state: pm.states.first, memory: event.payload }
+          @registry.saga_instances[pm.name][correlation] = instance
+          checkpoint(pm, correlation, instance, domain)
+          true
+        end
+        return unless created
+
         @registry.saga_log << { process_manager: pm.name, on: event.name,
                                 instance: correlation, born: true, state: pm.states.first }
       end
 
+      # THE MUTEX COVERS ONLY THE STATE-CHECK-AND-MUTATE-AND-CHECKPOINT
+      # STEP, never the dispatch cascade that follows — `deliver_saga_
+      # dispatch` calls `@door.reenter`, which can recursively re-enter
+      # THIS SAME interpreter (a saga's own leg triggering another saga,
+      # or itself again) on the SAME thread, and `Mutex` is not
+      # reentrant: holding it across that call would deadlock the
+      # thread against itself the moment any real chain did that.
       def advance_saga(pm, event, domain)
         handler = pm.handler_for(event.name)
         return unless handler
@@ -62,20 +99,27 @@ module Hecksagain
         correlation = saga_correlation(pm, event)
         return if correlation.to_s.empty?
 
-        instance = @registry.saga_instances[pm.name][correlation]
         record   = { process_manager: pm.name, on: event.name, instance: correlation }
+        instance = nil
 
-        unless instance
-          @registry.saga_log << record.merge(advanced: false, reason: "no conversation remembers #{correlation.inspect}")
-          return
-        end
-        unless instance[:state] == handler.from_state
-          @registry.saga_log << record.merge(advanced: false,
-                                             reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
-          return
-        end
+        advanced = @registry.saga_mutex.synchronize do
+          instance = @registry.saga_instances[pm.name][correlation]
+          unless instance
+            @registry.saga_log << record.merge(advanced: false, reason: "no conversation remembers #{correlation.inspect}")
+            next false
+          end
+          unless instance[:state] == handler.from_state
+            @registry.saga_log << record.merge(advanced: false,
+                                               reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+            next false
+          end
 
-        instance[:state] = handler.to_state
+          instance[:state] = handler.to_state
+          checkpoint(pm, correlation, instance, domain)
+          true
+        end
+        return unless advanced
+
         @registry.saga_log << record.merge(advanced: true, from: handler.from_state, to: handler.to_state)
 
         handler.dispatches.each do |spec|
@@ -174,13 +218,22 @@ module Hecksagain
         return unless handler && instance
 
         record = { process_manager: pm.name, on: REFUSED, instance: correlation }
-        unless instance[:state] == handler.from_state
-          @registry.saga_log << record.merge(advanced: false,
-                                             reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
-          return
-        end
 
-        instance[:state] = handler.to_state
+        # Same non-reentrancy reasoning as `advance_saga`'s own comment —
+        # the mutex covers only the check-and-mutate-and-checkpoint step.
+        advanced = @registry.saga_mutex.synchronize do
+          unless instance[:state] == handler.from_state
+            @registry.saga_log << record.merge(advanced: false,
+                                               reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+            next false
+          end
+
+          instance[:state] = handler.to_state
+          checkpoint(pm, correlation, instance, domain)
+          true
+        end
+        return unless advanced
+
         @registry.saga_log << record.merge(advanced: true, from: handler.from_state, to: handler.to_state)
 
         handler.dispatches.each do |spec|
@@ -207,12 +260,19 @@ module Hecksagain
         command_name.include?("::") ? command_name : "#{domain}::#{command_name}"
       end
 
-      def end_saga(pm, event)
+      def end_saga(pm, event, domain)
         return unless event.name == pm.ends_on
 
         correlation = saga_correlation(pm, event)
         return if correlation.to_s.empty?
-        return unless @registry.saga_instances[pm.name].delete(correlation)
+
+        ended = @registry.saga_mutex.synchronize do
+          next false unless @registry.saga_instances[pm.name].delete(correlation)
+
+          @registry.saga_persistence(domain).delete_saga(process_manager: pm.name, correlation: correlation)
+          true
+        end
+        return unless ended
 
         @registry.saga_log << { process_manager: pm.name, on: event.name,
                                 instance: correlation, ended: true }

@@ -24,6 +24,25 @@ module Hecksagain
           (@saga_persistence ||= {})[domain.to_s] ||= resolve_saga_persistence(domain.to_s)
         end
 
+        # WALKS EVERY LOADED DOMAIN, repopulating `saga_instances` from
+        # whatever `saga_persistence(domain)` resolves to — a real store
+        # for a domain whose adapter answers the capability, `each_saga`
+        # yielding real rows; `NULL_SAGA_STORE`'s own `each_saga` for
+        # everything else, which never yields at all, so this needs no
+        # `respond_to?` branch of its own — the SAME reason every other
+        # call site in this capability never needs one. Called once at
+        # boot (`Loader.boot`, between `verify!` and dispatcher
+        # construction) — a process that's been running has no reason to
+        # re-walk its own already-current `saga_instances`.
+        def rehydrate_sagas!
+          @hecksagons.each_key do |domain|
+            saga_persistence(domain).each_saga do |process_manager, correlation, state, memory|
+              @saga_instances[process_manager][correlation] = { state: state, memory: memory }
+            end
+          end
+          self
+        end
+
         private
 
         def resolve_saga_persistence(domain)

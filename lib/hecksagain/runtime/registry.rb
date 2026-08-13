@@ -14,7 +14,7 @@ module Hecksagain
       include SagaPersistence
 
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
-                  :reaction_log, :saga_log, :saga_instances, :translations
+                  :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex
 
       def initialize(root: nil)
         @root         = root
@@ -28,6 +28,17 @@ module Hecksagain
         @reaction_log = []
         @saga_log = []
         @saga_instances = Hash.new { |h, k| h[k] = {} }
+        # GUARDS `saga_instances`' OWN mutation+checkpoint sequence
+        # (`SagaInterpreter`'s 4 write points, §7) — the same shape of
+        # hazard this codebase's own prior audit already flagged for
+        # `@reaction_depth`, a thread-shared dispatcher ivar with no
+        # lock, made meaningfully easier to hit once a persistence write
+        # sits in the same critical section. Held across the in-memory
+        # mutation AND the checkpoint write together, never across a
+        # saga's own dispatch cascade — see `SagaInterpreter#advance_saga`'s
+        # own comment for why that distinction matters (non-reentrant
+        # Mutex, recursive re-entry is real).
+        @saga_mutex = Mutex.new
         @repositories = {}
         @projection_repositories = {}
         @bluebook_builders = {}

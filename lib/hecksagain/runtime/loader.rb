@@ -41,6 +41,14 @@ module Hecksagain
         # before any adapter touches data.
         EraCheck.check!(registry, directory)
         registry.verify!
+        # AFTER verify! (conservative — any wiring error surfaces first,
+        # not strictly required since resolution only needs the
+        # hecksagon binds, already loaded), BEFORE the dispatcher is
+        # built — repopulates `saga_instances` from whatever durable
+        # store each domain's own adapter answers with (§2-§4), so a
+        # process manager mid-flight at the last shutdown/crash/cold-
+        # start doesn't start this boot looking like it never began.
+        registry.rehydrate_sagas!
         dispatcher = dispatcher_for(registry)
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
