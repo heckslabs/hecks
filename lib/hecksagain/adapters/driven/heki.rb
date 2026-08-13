@@ -53,8 +53,15 @@ module Hecksagain
 
       def count = store.size
 
+      # `registry: context[:registry]` — Memory's own `query` already
+      # threads this through; Heki's own never did, which made
+      # `none_in_state?` (Ports::Query::InMemory) unconditionally
+      # return `true` (its own graceful "no registry, no way to look
+      # the target up" default) for EVERY `none_in_state` where-clause
+      # against a Heki-backed aggregate — silently excluding nothing,
+      # always, no matter the actual target state.
       def query(specification, args = {}, context: {})
-        Ports::Query::InMemory.execute(all, specification, args)
+        Ports::Query::InMemory.execute(all, specification, args, registry: context[:registry])
       end
 
       def append(entry)
