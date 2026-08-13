@@ -1,3 +1,5 @@
+require_relative "../projector"
+
 module Hecksagain
   module Projections
     # The canonical IR, as a constant. The implementation already existed

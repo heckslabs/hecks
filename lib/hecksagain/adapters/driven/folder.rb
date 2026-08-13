@@ -1,3 +1,5 @@
+require_relative "../../vocabulary"
+
 module Hecksagain
   module Adapters
     class Folder

@@ -1,4 +1,6 @@
 require_relative "behaviour/attribute"
+require_relative "../ir"
+require_relative "../vocabulary"
 
 module Hecksagain
   module Bluebook

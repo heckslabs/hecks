@@ -1,4 +1,5 @@
 require_relative "behaviour/hexagon"
+require_relative "../ir"
 
 module Hecksagain
   module Bluebook

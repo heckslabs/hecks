@@ -1,3 +1,5 @@
+require_relative "../projector"
+
 module Hecksagain
   module Projections
     # THE RUST PARSER'S KEYWORD TABLE, projected from the chapter's own
