@@ -73,8 +73,14 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses a value object that is not named" do
+    # ValueObjectName carries a `pattern:` (non-whitespace-somewhere) as well
+    # as its "a value object is named" invariant — attribute coercion runs
+    # BEFORE invariants, so an empty name is refused as a TypeMismatch, not
+    # an InvariantViolation. The invariant still guards whitespace-only names
+    # that would otherwise slip past `!value.to_s.empty?` alone, but can no
+    # longer be reached by a plain empty string.
     expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("")) }
-      .to raise_error(Hecksagain::Runtime::InvariantViolation, /a value object is named/)
+      .to raise_error(Hecksagain::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
   end
 
   context "with a command declared" do

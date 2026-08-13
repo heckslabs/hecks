@@ -22,24 +22,29 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "ValueObjectName" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a value object is named") { !value.to_s.empty? }
     end
 
     value_object "ShapeField" do
-      attribute :name,    String
-      attribute :type,    String
-      attribute :list,    String
+      attribute :name,    String, pattern: '[^ \t\n\r]'
+      attribute :type,    String, pattern: '[^ \t\n\r]'
+      attribute :list,    String, pattern: '[^ \t\n\r]'
       attribute :optional, String, optional: true
       attribute :pattern,  String, optional: true
       attribute :default, String
       # The closed set this value must belong to — see Aggregate::Field.
       attribute :admits, String, optional: true
+      invariant("a field is named") { !name.to_s.empty? }
+      invariant("a field has a type") { !type.to_s.empty? }
+      invariant("a field's list mode is specified") { !list.to_s.empty? }
     end
 
     value_object "Assertion" do
-      attribute :description, String
-      attribute :canonical,   String
+      attribute :description, String, pattern: '[^ \t\n\r]'
+      attribute :canonical,   String, pattern: '[^ \t\n\r]'
+      invariant("an assertion description is present") { !description.to_s.empty? }
+      invariant("an assertion canonical form is present") { !canonical.to_s.empty? }
     end
 
     # The way back: everything DECLARED IN the aggregate above. The parent
@@ -131,6 +136,8 @@ Hecks.bluebook "Bluebook" do
 
     value_object "ValueObjectText" do
       attribute :value, String
+      # ValueObjectText is free-form serialized text from member definitions,
+      # which can include empty strings and numeric literals — not restricted
     end
   end
 
@@ -156,11 +163,15 @@ Hecks.bluebook "Bluebook" do
 
     value_object "MemberText" do
       attribute :value, String
+      # MemberText is free-form serialized text from member definitions,
+      # which can include empty strings and numeric literals — not restricted
     end
 
     value_object "Pair" do
-      attribute :key,   String
+      attribute :key,   String, pattern: '[^ \t\n\r]'
       attribute :value, String
+      # Pair keys must be named, but values can be empty strings or numeric literals
+      invariant("a pair key is present") { !key.to_s.empty? }
     end
 
     # The way back: everything DECLARED IN the value object above. The parent

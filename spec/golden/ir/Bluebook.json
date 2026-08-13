@@ -3691,7 +3691,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -3715,7 +3715,7 @@
               "list": false,
               "name": "name",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -3724,7 +3724,7 @@
               "list": false,
               "name": "type",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -3733,7 +3733,7 @@
               "list": false,
               "name": "list",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -3775,7 +3775,18 @@
           ],
           "closed_set": false,
           "invariants": [
-
+            {
+              "canonical": "!name.to_s.empty?",
+              "description": "a field is named"
+            },
+            {
+              "canonical": "!type.to_s.empty?",
+              "description": "a field has a type"
+            },
+            {
+              "canonical": "!list.to_s.empty?",
+              "description": "a field's list mode is specified"
+            }
           ],
           "members": [
 
@@ -3790,7 +3801,7 @@
               "list": false,
               "name": "description",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -3799,13 +3810,20 @@
               "list": false,
               "name": "canonical",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
           "closed_set": false,
           "invariants": [
-
+            {
+              "canonical": "!description.to_s.empty?",
+              "description": "an assertion description is present"
+            },
+            {
+              "canonical": "!canonical.to_s.empty?",
+              "description": "an assertion canonical form is present"
+            }
           ],
           "members": [
 
@@ -4067,7 +4085,7 @@
               "list": false,
               "name": "key",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -4082,7 +4100,10 @@
           ],
           "closed_set": false,
           "invariants": [
-
+            {
+              "canonical": "!key.to_s.empty?",
+              "description": "a pair key is present"
+            }
           ],
           "members": [
 
