@@ -416,6 +416,29 @@ The split follows the dependency direction rather than the topic. The
 expression evaluator lives in the semantic core, not `projector/`, because
 the runtime evaluates every given and every invariant through it directly.
 
+Everything below is built on that core, each one a capability rather than
+a bolt-on:
+
+```ruby skip
+lib/hecksagain/
+  facade/               the door — Handle, AggregateDoor, JsonDoor, Surface.  Class-free, per boot.
+  router/               the project-wide dispatch door; installs each chapter's namespace at boot.
+  ports/                domain ports — auth, identity, persistence, query — declared like everything else.
+  query_specification/  a query's shape, held apart from any engine that answers it.
+  projections/          IR as a capability — `emits_ir`, and its consumers (OIDC, the DSL reference, the parser table).
+  presentation/         IR → HTML, and a Rack app content-negotiating it against plain JSON.
+  interview/            a live discovery session against the language's own grammar — what `bin/interview` runs.
+  fuzzing/              generated sequences, checked against declared properties — what `bin/fuzz` runs.
+  doc/                  the generated DSL reference (`bin/reference`).
+  framework/            shared, domain-agnostic bluebooks (Governance, Identity, ConsoleSettings, Interview) — referenced, not copied.
+  deploy/               the Deploy bluebook — what `deployed_to` means, judged the same way as everything else.
+```
+
+Nothing here is required by `require "hecksagain"` unless a booted domain
+actually uses it — `presentation/`, `interview/`, and `fuzzing/` each stay
+out of the core boot chain on purpose, so a project that never touches one
+never pays for it.
+
 ## A single runtime
 
 This project ran a parallel hand-written Rust implementation for a while,
