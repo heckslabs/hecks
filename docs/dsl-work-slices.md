@@ -95,7 +95,7 @@ Independent of the 0025 waves except where noted.
 
 | slice | note |
 |---|---|
-| **S14 — `Status` becomes a lifecycle** | Self-contained, small, high value: `bin/model_check` currently calls the language "clean" because it declares no states at all. Good first slice for a new agent. |
+| **S14 — `Status` becomes a lifecycle** | **Blocked on S17. Not a starting slice.** `status` lives on `value_object "Keyword"` (`syntax.bluebook:239`) and `value_object "Argument"` (`:581`), and `lifecycle` is admitted only in `context: "Aggregate"` and `context: "Entity"` (`:317`, `:340`) — `ValueObjectBuilder` defines `one_of`, `member` and `invariant` and nothing else. A value object has no identity, so it cannot transition; it is replaced wholesale. `Keyword` and `Argument` must become entities of `Syntax` first, which is S17. The value is still real — `bin/model_check` calls the language "clean" because it declares no states at all — it just cannot be had cheaply. |
 | **S15 — the `Paging` sub-language** | `limit`/`offset`/`cursor`/`nulls` leave the core grammar. Needs the attachment mechanism (a sub-language declares where it attaches) built first. Conflicts with **S4** — both own Query/ReadModel rows. Sequence after it. |
 | **S16 — the self-use gate** | Model on `spec/fuzzing/meta_domain_coverage_spec.rb`. **Will fail the day it is written** — that is the point. Run last, after S14/S15 have reduced what it reports. |
 | **S17 — `Member`/`Dispatch`/`Handler` become entities** | The largest single item in either ADR. Moves records inside their parent aggregate; the meta-domain's readings and reconstruction read them as separate aggregates today. **Do not parallelise this with anything.** |
@@ -105,6 +105,13 @@ Independent of the 0025 waves except where noted.
 - **S3 against S1/S5** — shared `attribute` rows across three contexts.
 - **S15 against S4** — both own the Query and ReadModel grammar regions.
 - **S17 against anything** — it restructures the meta-domain that every other slice's validation runs through.
+- **S14 against S17** — S14 *depends* on it, and cannot start until `Keyword` and `Argument` are entities.
+
+## A caution about this document
+
+S14 was written here as "self-contained, small, good first slice" and was none of those things: the construct it converts is a value object, and value objects cannot carry a lifecycle. The error survived because the slice was cut from the ADR's *intent* without opening `syntax.bluebook` to see what `Status` was attached to.
+
+Every slice above carries the same risk in proportion to how little of it was verified against the source. The ones stated with file paths and line numbers were checked; the ones stated in prose were reasoned from the ADRs. Before starting any slice, confirm its premise holds in the code — the cost of finding out afterwards is an agent's whole session.
 - **Anything against Wave 0** — S0a and S0b change the rules every later slice is written against.
 
 ## Open items not yet sliced
