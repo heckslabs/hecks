@@ -63,7 +63,7 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "TranslationAggregateBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationAggregateBuilder,
-      %i[rename move convert drop retype compute rekey unresolved method_missing]
+      %i[rename move convert drop retype compute rekey backfill unresolved method_missing]
     ]
   }.freeze
 

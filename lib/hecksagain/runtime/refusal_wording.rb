@@ -93,7 +93,11 @@ module Hecksagain
           "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
           "{field} this ask is scoped to",
         %w[Unauthorized role_mismatch] =>
-          "{command} refused — role: {role}, and the caller stated {caller_role}"
+          "{command} refused — role: {role}, and the caller stated {caller_role}",
+        %w[AttributeAbsent absent_read] =>
+          "{aggregate} {field} is absent on this record — declared, not optional, and " \
+          "added since it was written. Backfill it in a translation (backfill :{field}, " \
+          "default: ...), or declare it optional: true"
       }.freeze
 
       module_function

@@ -37,25 +37,35 @@ module Hecksagain
     # nothing to check this against outside the compiled head.
     TranslationRekey = Struct.new(:sql)
 
+    # A newly added, required attribute with no source in old data at
+    # all — not a rename, move, or convert, all of which need a FROM
+    # path in the old shape. `default` is the value an existing record
+    # reads until the next command against it writes a real one; unlike
+    # `compute`, this is adapter-agnostic — applied in-process by
+    # `Lineage#translate`, the same as rename/move/drop, because there is
+    # nothing to compute, only a value to declare.
+    TranslationBackfill = Struct.new(:name, :default)
+
     # One aggregate's part of a translation: which attributes were
     # renamed, moved, converted, or deliberately dropped on the way from
     # the old era to the new one. `drops` exists so data loss is a
     # declared decision, not a field that quietly stopped being
     # explained.
     class TranslationAggregate
-      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys
+      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys, :backfills
 
       def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
-                      computes: [], rekeys: [])
-        @name     = name.to_s
-        @was      = was&.to_s
-        @renames  = renames
-        @moves    = moves
-        @converts = converts
-        @drops    = drops
-        @retypes  = retypes
-        @computes = computes
-        @rekeys   = rekeys
+                      computes: [], rekeys: [], backfills: [])
+        @name      = name.to_s
+        @was       = was&.to_s
+        @renames   = renames
+        @moves     = moves
+        @converts  = converts
+        @drops     = drops
+        @retypes   = retypes
+        @computes  = computes
+        @rekeys    = rekeys
+        @backfills = backfills
       end
     end
 

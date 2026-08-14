@@ -6935,6 +6935,12 @@
             [
               [
                 "name",
+                "AttributeAbsent"
+              ]
+            ],
+            [
+              [
+                "name",
                 "EnsuresNotMet"
               ]
             ],
@@ -7574,6 +7580,20 @@
               [
                 "template",
                 "{command} refused — role: {role}, and the caller stated {caller_role}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "AttributeAbsent"
+              ],
+              [
+                "site",
+                "absent_read"
+              ],
+              [
+                "template",
+                "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"
               ]
             ]
           ],

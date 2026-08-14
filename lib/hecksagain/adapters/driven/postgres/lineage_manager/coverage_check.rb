@@ -25,6 +25,9 @@ module Hecksagain
               check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
               uncovered = Runtime::EraGuard.uncovered_attributes(aggregate, held_aggregate, rules)
               Runtime::EraGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
+
+              unsafe = Runtime::EraGuard.unsafe_additions(aggregate, held_aggregate, rules)
+              Runtime::EraGuard.refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
             end
             Runtime::EraGuard.check_vanished_aggregates!(registry, bluebook, held_bluebook)
           end

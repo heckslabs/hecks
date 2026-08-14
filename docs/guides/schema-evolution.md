@@ -268,21 +268,22 @@ FileUtils.remove_entry(GRANGE_DIR)
 true   # => true
 ```
 
-## The other six rule kinds
+## The other seven rule kinds
 
-The Grange edge above used two of the eight things a translation rule
+The Grange edge above used two of the nine things a translation rule
 can say: `was:` (an aggregate renamed) and `move` (a field crossed a
-value-object boundary). The other six matter just as much, and each
+value-object boundary). The other seven matter just as much, and each
 one's effect on a stored record can be shown without a second Postgres
 round-trip — `Hecksagain::Ports::Persistence::Lineage` is the exact
 code every mint runs internally, and it answers directly:
 
 ```ruby
-Move    = Hecksagain::Bluebook::TranslationMove
-Convert = Hecksagain::Bluebook::TranslationConvert
-Retype  = Hecksagain::Bluebook::TranslationRetype
-Entry   = Hecksagain::Ports::Persistence::Entry
-Lineage = Hecksagain::Ports::Persistence::Lineage
+Move     = Hecksagain::Bluebook::TranslationMove
+Convert  = Hecksagain::Bluebook::TranslationConvert
+Retype   = Hecksagain::Bluebook::TranslationRetype
+Backfill = Hecksagain::Bluebook::TranslationBackfill
+Entry    = Hecksagain::Ports::Persistence::Entry
+Lineage  = Hecksagain::Ports::Persistence::Lineage
 ```
 
 **`rename`** — a field keeps its shape, only its name changes:
@@ -337,6 +338,32 @@ lineage = Lineage.new({}, [], [], [], retypes: [Retype.new("Money", "Cash")])
 lineage.retype?("Money", "Cash")   # => true
 lineage.retype?("Cash", "Money")   # => false
 ```
+
+**`backfill`** is the addition-side sibling of `drop` — a newly added,
+required attribute has no `from:` at all, because old data never held
+the field in the first place. `default` is what an existing record
+reads until the next command against it writes a real value:
+
+```ruby
+lineage = Lineage.new({}, [], [], [], backfills: [Backfill.new(:tier, "standard")])
+
+entry = Entry.new(operation: "save", id: "a1", state: { name: "Acme" })
+lineage.translate(entry).state   # => { name: "Acme", tier: "standard" }
+```
+
+It never overwrites a value that is already there — only a record that
+genuinely predates the field reads the backfill:
+
+```ruby
+already_written = Entry.new(operation: "save", id: "a1", state: { name: "Acme", tier: "gold" })
+lineage.translate(already_written).state   # => { name: "Acme", tier: "gold" }
+```
+
+Adding a required attribute with no `default:`, no `list_of`, and no
+fully-defaulted value object refuses at boot until one of those, or a
+`backfill`, explains what an existing record should read there — the
+same refuse-at-declaration EraGuard already applies to a vanished or
+retyped field, read on the addition side instead.
 
 **`compute`** is the one rule with no in-process implementation at
 all — its SQL expression is its only meaning, run inside the era's own

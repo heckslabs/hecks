@@ -50,9 +50,10 @@ module Hecksagain
 
           drifted = true
           uncovered = uncovered_attributes(aggregate, held_aggregate, lineage)
-          next if uncovered.empty?
+          refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
 
-          refuse_uncovered!(bluebook, aggregate, uncovered)
+          unsafe = unsafe_additions(aggregate, held_aggregate, lineage)
+          refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
         end
 
         check_vanished_aggregates!(registry, bluebook, held_bluebook)
@@ -92,6 +93,18 @@ module Hecksagain
               "#{uncovered.map { |path| render_path(path) }.join(', ')} #{uncovered.size == 1 ? 'is' : 'are'} not " \
               "explained by any rename, move, convert, retype, or drop. Update bluebook/translations/*.bluebook, e.g. " \
               "#{suggestion(uncovered.first)}."
+      end
+
+      # The addition-side sibling of refuse_uncovered! above — same
+      # wording shape, different cause: nothing vanished or changed type,
+      # something new arrived that an existing record has no way to hold.
+      def refuse_unsafe_addition!(bluebook, aggregate, unsafe)
+        raise WiringError,
+              "cannot boot #{bluebook.name}::#{aggregate.name}: #{unsafe.map { |name| ":#{name}" }.join(', ')} " \
+              "#{unsafe.size == 1 ? 'is new and required' : 'are new and required'}, with no default: to fill " \
+              "an existing record and no translation explaining what one should read there. Give it a " \
+              "default:, make it optional: true or list_of, or declare bluebook/translations/*.bluebook, e.g. " \
+              "`backfill :#{unsafe.first}, default: ...`."
       end
 
       def render_path(path) = path.include?(".") ? path.inspect : ":#{path}"

@@ -39,6 +39,7 @@ module Hecksagain
       "DomainRefusal" => [
         {"name"=>"AbsentArgument"}.freeze,
         {"name"=>"AlreadyExists"}.freeze,
+        {"name"=>"AttributeAbsent"}.freeze,
         {"name"=>"EnsuresNotMet"}.freeze,
         {"name"=>"GivenNotMet"}.freeze,
         {"name"=>"InvariantViolation"}.freeze,
@@ -152,7 +153,8 @@ module Hecksagain
         {"refusal"=>"InvariantViolation", "site"=>"admits_declared_set", "template"=>"{name} admits {admits} — {admitted} — got {offered}"}.freeze,
         {"refusal"=>"InvariantViolation", "site"=>"undeclared_set", "template"=>"{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"}.freeze,
         {"refusal"=>"Unauthorized", "site"=>"tenant_required", "template"=>"{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to"}.freeze,
-        {"refusal"=>"Unauthorized", "site"=>"role_mismatch", "template"=>"{command} refused — role: {role}, and the caller stated {caller_role}"}.freeze
+        {"refusal"=>"Unauthorized", "site"=>"role_mismatch", "template"=>"{command} refused — role: {role}, and the caller stated {caller_role}"}.freeze,
+        {"refusal"=>"AttributeAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"}.freeze
       ].freeze,
       "SignTest" => [
         {"name"=>"positive?", "compares_via"=>">"}.freeze,

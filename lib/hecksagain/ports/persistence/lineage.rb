@@ -39,11 +39,12 @@ module Hecksagain
 
           new(declared.renames, declared.moves, declared.converts, declared.drops,
               retypes: declared.retypes, computes: declared.computes, rekeys: declared.rekeys,
+              backfills: declared.backfills,
               ancestor_name: ancestor_name, ancestor_storage_name: ancestor_storage_name)
         end
 
         def initialize(renames, moves = [], converts = [], drops = [], retypes: [], computes: [], rekeys: [],
-                       ancestor_name: nil, ancestor_storage_name: nil)
+                       backfills: [], ancestor_name: nil, ancestor_storage_name: nil)
           @renames = renames
           @moves = moves
           @converts = converts
@@ -51,6 +52,7 @@ module Hecksagain
           @retypes = retypes
           @computes = computes
           @rekeys = rekeys
+          @backfills = backfills
           @ancestor_name = ancestor_name
           @ancestor_storage_name = ancestor_storage_name
         end
@@ -93,6 +95,10 @@ module Hecksagain
           @moves.each { |move| apply_move(state, move) }
           @converts.each { |convert| apply_convert(state, convert) }
           @drops.each { |name| apply_drop(state, name) }
+          # LAST, and only where nothing already answered — a backfill
+          # fills the gap a rename/move/convert left untouched, never
+          # overwrites a value that already made it across.
+          @backfills.each { |backfill| state[backfill.name] = backfill.default unless state.key?(backfill.name) }
           Entry.new(operation: entry.operation, id: entry.id, state: state, mirrors: entry.mirrors)
         end
 
@@ -105,6 +111,12 @@ module Hecksagain
         # away together. Used to catch a field — or a value object's own
         # member — that vanished (or silently changed type) without
         # anything explaining it, even when some OTHER field is covered.
+        #
+        # `backfills` matches on the WHOLE name only, never a dotted
+        # prefix — a backfill names a top-level attribute that is new
+        # outright (nothing to be a prefix of on the held side), unlike
+        # every rule above it, which explains a path that existed and
+        # moved, converted, or vanished.
         def explains?(path)
           path = path.to_s
           top = path.split(".").first
@@ -113,7 +125,30 @@ module Hecksagain
             @moves.any? { |move| move.from == path || move.from.split(".").first == top } ||
             @converts.any? { |convert| convert.from == path || convert.from.split(".").first == top } ||
             @drops.any? { |drop| drop.to_s == path || drop.to_s.split(".").first == top } ||
-            @computes.any? { |compute| compute.from == path || compute.from.split(".").first == top }
+            @computes.any? { |compute| compute.from == path || compute.from.split(".").first == top } ||
+            @backfills.any? { |backfill| backfill.name.to_s == top }
+        end
+
+        # THE DESTINATION-SIDE TWIN of `explains?` above, which only ever
+        # asks about a rule's SOURCE. `unsafe_additions` asks a different
+        # question — not "was this vanished path accounted for" but "does
+        # an existing record end up with a value here" — and a move or
+        # convert whose `to:` lands a old field inside a BRAND-NEW
+        # top-level attribute (`weight` becoming `contents.weight` when
+        # `Contents` did not exist before) fills that attribute for an
+        # existing record exactly as a `backfill` would, even though
+        # nothing named `contents` explains any vanished path. `compute`
+        # counts on the same terms `explains?` already grants it
+        # elsewhere in this file — Postgres-only and audited, not
+        # actually applied by THIS method, the same gap the vanish side
+        # already lives with.
+        def fills?(path)
+          path = path.to_s
+
+          @moves.any? { |move| move.to.split(".").first == path } ||
+            @converts.any? { |convert| convert.to.split(".").first == path } ||
+            @computes.any? { |compute| compute.to.split(".").first == path } ||
+            @backfills.any? { |backfill| backfill.name.to_s == path }
         end
 
         # Whether a declared retype says the pair of TYPE names means the

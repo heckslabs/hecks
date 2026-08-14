@@ -201,6 +201,27 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs its sql: expression/)
     end
 
+    it ".data_translation registers a backfill with its default value" do
+      registry = in_registry do
+        Hecks.data_translation("Translated", from: "1", to: "2") do
+          aggregate("Thing") { backfill :tier, default: "standard" }
+        end
+      end
+      backfilled = registry.translations.first.for_aggregate("Thing").backfills.first
+
+      expect([backfilled.name, backfilled.default]).to eq([:tier, "standard"])
+    end
+
+    it ".data_translation refuses a backfill with no default:" do
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") do
+            aggregate("Thing") { backfill :tier, default: nil }
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /needs a default: value/)
+    end
+
     it ".data_translation refuses an unresolved placeholder and an unknown rule" do
       expect do
         in_registry do

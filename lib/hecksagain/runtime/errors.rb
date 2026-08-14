@@ -24,6 +24,18 @@ module Hecksagain
     # record it would have overwritten stands ; the dispatch that tried to
     # mint a second one over it is what refuses.
     class AlreadyExists < StandardError; end
+    # A declared, non-optional attribute a record predates — added since
+    # it was written, with no default: to fill it and no translation
+    # declaring what an old record should read there. `GuardState`
+    # (command_rules/admissibility.rb) is the one place this is raised: a
+    # `given`/`ensures`/`invariant` that reads the field would otherwise
+    # evaluate against a value nobody wrote, which is the same silent-
+    # wrong-answer class as an unpopulated projection reading "not
+    # active" (ADR 0025, "Added attributes and absence"). An OPTIONAL
+    # attribute in the same spot reads nil instead — that is what
+    # optional means, and this refusal is deliberately narrower than the
+    # nil-read it sits beside, not a replacement for it.
+    class AttributeAbsent < StandardError; end
     # A query or read model declares `authorize policy, tenant: :field` and
     # the caller did not pass that field — the one half of `authorize` this
     # runtime can enforce without a caller-identity system: the boundary

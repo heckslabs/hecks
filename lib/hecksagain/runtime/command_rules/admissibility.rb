@@ -23,14 +23,36 @@ module Hecksagain
         # entity_interpreter.rb's own callers) just degrades to today's
         # exact behavior, zero risk to a path this bug was never measured
         # against.
+        #
+        # NIL IS NOT THE ONLY OUTCOME, though. The Item.Promote fix above
+        # covered an OPTIONAL field — the honest case, where absence is
+        # exactly what optional means. It also, as a side effect, let a
+        # NON-optional field predating a record read nil the same way,
+        # which is the `ne:`/array-`in:` bug class applied to rule
+        # evaluation: a predicate silently answers against a value nobody
+        # ever wrote (ADR 0025, "Added attributes and absence"). `[]`
+        # below narrows the nil-read back to what it was built for —
+        # optional stays nil, non-optional raises a named refusal
+        # identifying the field, so a rule that reads it fails loud
+        # instead of quietly wrong.
         class GuardState
           def initialize(instance)
             @instance = instance
-            @declared = instance.respond_to?(:aggregate) ? instance.aggregate.attributes.map(&:name) : []
+            @declared = instance.respond_to?(:aggregate) ? instance.aggregate.attributes.to_h { |a| [a.name, a] } : {}
           end
 
-          def key?(name) = @declared.include?(name.to_sym) || @instance.key?(name)
-          def [](name) = @instance[name]
+          def key?(name) = @declared.key?(name.to_sym) || @instance.key?(name)
+
+          def [](name)
+            return @instance[name] if @instance.key?(name)
+
+            attribute = @declared[name.to_sym]
+            return nil if attribute.nil? || attribute.optional?
+
+            raise AttributeAbsent,
+                  RefusalWording.render("AttributeAbsent", "absent_read",
+                                        aggregate: @instance.aggregate.hecks_name, field: name)
+          end
         end
         private_constant :GuardState
 

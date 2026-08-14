@@ -26,6 +26,45 @@ module Hecksagain
           aggregate.value_object(type_name) || aggregate.entities.find { |entity| entity.name == type_name }
         end
 
+        # Attributes present now that the held shape never had — the
+        # addition side of drift, which `uncovered_attributes` above never
+        # looks at, since it only walks the HELD shape (vanish/retype).
+        # Most additions are free (ADR 0025, "Added attributes and
+        # absence"): a default:, a list_of (frozen []), or a value object
+        # whose fields all default fill an existing record automatically
+        # via `Instance.hydrate_with_defaults`. Only the fourth case — a
+        # non-optional attribute with no way to fill itself — can leave an
+        # existing record with the field genuinely absent, and that is
+        # what this reports: unfilled by a declared translation's own
+        # `backfill`, OR by a move/convert that lands an OLD field inside
+        # this brand-new attribute (`Lineage#fills?` — the destination-
+        # side question, never `explains?`'s source-side one, since a
+        # rename from Crate to Bin can introduce a top-level attribute
+        # name that never existed to have "vanished").
+        def unsafe_additions(aggregate, held_aggregate, lineage)
+          held_names = held_aggregate.attributes.map(&:name)
+
+          aggregate.attributes
+                   .reject { |attribute| held_names.include?(attribute.name) }
+                   .select { |attribute| possibly_absent?(aggregate, attribute) }
+                   .reject { |attribute| lineage&.fills?(attribute.name.to_s) }
+                   .map(&:name)
+        end
+
+        # THE FOUR-ROW TABLE, as a predicate over the fourth row only — the
+        # other three (default:, list_of, a fully-defaulted value object)
+        # all fill an existing record for free and never reach here.
+        def possibly_absent?(aggregate, attribute)
+          return false if attribute.optional?
+          return false unless attribute.default.nil?
+          return false if attribute.list?
+
+          value_object = aggregate.value_object(attribute.type)
+          return false if value_object && value_object.attributes.all? { |field| !field.default.nil? }
+
+          true
+        end
+
         # Paths the translation needs to explain: attributes that vanished
         # by name, attributes that kept their name but changed type (a
         # `convert` is what lets that be declared at all), and — recursing

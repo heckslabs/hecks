@@ -5,15 +5,16 @@ module Hecksagain
         def initialize(name, was: nil)
           raise Malformed, "an aggregate translation needs a name" if name.to_s.empty?
 
-          @name     = name
-          @was      = was
-          @renames  = {}
-          @moves    = []
-          @converts = []
-          @drops    = []
-          @retypes  = []
-          @computes = []
-          @rekeys   = []
+          @name      = name
+          @was       = was
+          @renames   = {}
+          @moves     = []
+          @converts  = []
+          @drops     = []
+          @retypes   = []
+          @computes  = []
+          @rekeys    = []
+          @backfills = []
         end
 
         def rename(old_name, to:)
@@ -88,6 +89,24 @@ module Hecksagain
           @rekeys << TranslationRekey.new(sql.to_s)
         end
 
+        # A NEWLY ADDED, required attribute — the addition-side sibling of
+        # `drop`. Nothing to rename, move, or convert FROM, since old data
+        # never held this field at all; `default` is what an existing
+        # record reads until the next command against it writes a real
+        # value. Adapter-agnostic, unlike `compute` — applied the same
+        # in-process way rename/move/drop already are
+        # (`Lineage#translate`), because there is nothing to compute here,
+        # only a value to declare. This is what
+        # `EraGuard.refuse_unsafe_addition!` asks for when a non-optional
+        # attribute with no default: could leave an existing record with
+        # the field genuinely absent.
+        def backfill(name, default:)
+          raise Malformed, "a backfill needs a name" if name.to_s.empty?
+          raise Malformed, "a backfill needs a default: value" if default.nil?
+
+          @backfills << TranslationBackfill.new(name.to_sym, default)
+        end
+
         # The scaffold writes this where it cannot decide; a file carrying
         # one can only boot into this refusal — never a guess.
         def unresolved(name, candidates: [])
@@ -96,8 +115,8 @@ module Hecksagain
 
         def method_missing(rule, *_args, **_kwargs, &_block)
           raise Malformed,
-                "a translation rule must be rename, move, convert, drop, retype, compute, rekey, or unresolved — " \
-                "got '#{rule}'"
+                "a translation rule must be rename, move, convert, drop, retype, compute, rekey, backfill, or " \
+                "unresolved — got '#{rule}'"
         end
 
         private def respond_to_missing?(_name, _include_private = false) = true
@@ -105,7 +124,7 @@ module Hecksagain
         def build
           TranslationAggregate.new(
             name: @name, was: @was, renames: @renames, moves: @moves, converts: @converts,
-            drops: @drops, retypes: @retypes, computes: @computes, rekeys: @rekeys
+            drops: @drops, retypes: @retypes, computes: @computes, rekeys: @rekeys, backfills: @backfills
           )
         end
 

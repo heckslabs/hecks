@@ -45,6 +45,25 @@ RSpec.describe "the translation language" do
       entry = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { price_cents: 100 })
       expect(lineage.translate(entry).state).to eq(price_cents: 100)
     end
+
+    it "registers a backfill with its default value, and its name counts as explained" do
+      translation = build_translation do
+        aggregate("Account") { backfill :tier, default: "standard" }
+      end
+      declared = translation.for_aggregate("Account")
+
+      expect(declared.backfills.map { |b| [b.name, b.default] }).to eq([[:tier, "standard"]])
+
+      lineage = Hecksagain::Ports::Persistence::Lineage.new({}, backfills: declared.backfills)
+      expect(lineage.explains?("tier")).to be(true)
+      expect(lineage.explains?("other")).to be(false)
+
+      filled = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { name: "Acme" })
+      expect(lineage.translate(filled).state).to eq(name: "Acme", tier: "standard")
+
+      already_there = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { name: "Acme", tier: "gold" })
+      expect(lineage.translate(already_there).state).to eq(name: "Acme", tier: "gold")
+    end
   end
 
   describe "Layer-0 refusals, pinned byte-for-byte" do
@@ -71,6 +90,8 @@ RSpec.describe "the translation language" do
         proc { aggregate("Account") { compute "price_cents", to: "", sql: "x" } } => "a compute needs a destination path (to:)",
         proc { aggregate("Account") { compute "", to: "price_dollars", sql: "x" } } => "a compute needs a source path",
         proc { aggregate("Account") { compute "price_cents", to: "price_dollars", sql: "" } } => "a compute needs its sql: expression",
+        proc { aggregate("Account") { backfill "", default: "x" } } => "a backfill needs a name",
+        proc { aggregate("Account") { backfill :tier, default: nil } } => "a backfill needs a default: value",
         proc { retired "" } => "a retired needs an aggregate name",
         proc { aggregate("") } => "an aggregate translation needs a name"
       }.each do |declaration, wanted|
@@ -92,8 +113,8 @@ RSpec.describe "the translation language" do
 
     it "refuses an unknown rule rather than skipping it" do
       expect(refusal_for { aggregate("Account") { renmae :cost, to: :amount } })
-        .to eq("a translation rule must be rename, move, convert, drop, retype, compute, rekey, or unresolved — " \
-               "got 'renmae'")
+        .to eq("a translation rule must be rename, move, convert, drop, retype, compute, rekey, backfill, or " \
+               "unresolved — got 'renmae'")
       expect(refusal_for { banana "Account" })
         .to eq("a translation does not understand 'banana' — it declares aggregate blocks and retired aggregates")
     end
@@ -270,6 +291,62 @@ RSpec.describe "the translation language" do
 
       retired = 'Hecks.data_translation("Guarded", from: "1", to: "2") { retired "Account" }'
       expect { check_era!(gone, translation_source: retired) }.not_to raise_error
+    end
+
+    GUARDED_NEW_REQUIRED_ATTRIBUTE = <<~BLUEBOOK.freeze
+      Hecks.bluebook "Guarded" do
+        aggregate "Account" do
+          identified_by { balance.cents }
+
+          attribute :balance, Money
+          attribute :tier, Tier
+
+          value_object "Money" do
+            attribute :cents, Integer
+          end
+
+          value_object "Tier" do
+            attribute :value, String
+          end
+        end
+      end
+    BLUEBOOK
+
+    it "a new required attribute with no default refuses, naming backfill among the remedies" do
+      expect { check_era!(GUARDED_NEW_REQUIRED_ATTRIBUTE) }.to raise_error(
+        Hecksagain::Runtime::WiringError,
+        /:tier is new and required.*backfill :tier, default:/
+      )
+    end
+
+    it "a declared backfill covers a new required attribute" do
+      translation = <<~RUBY
+        Hecks.data_translation("Guarded", from: "1", to: "2") do
+          aggregate("Account") { backfill :tier, default: "standard" }
+        end
+      RUBY
+      expect { check_era!(GUARDED_NEW_REQUIRED_ATTRIBUTE, translation_source: translation) }.not_to raise_error
+    end
+
+    it "a new OPTIONAL attribute needs no translation at all" do
+      optional = 'Hecks.bluebook "Guarded" do
+        aggregate "Account" do
+          identified_by { balance.cents }
+
+          attribute :balance, Money
+          attribute :tier, Tier, optional: true
+
+          value_object "Money" do
+            attribute :cents, Integer
+          end
+
+          value_object "Tier" do
+            attribute :value, String
+          end
+        end
+      end'
+
+      expect { check_era!(optional) }.not_to raise_error
     end
   end
 end
