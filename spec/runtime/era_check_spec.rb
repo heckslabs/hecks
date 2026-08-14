@@ -98,10 +98,16 @@ RSpec.describe "the era check at boot" do
       )
 
       # unloadable text is not attestable at all — held texts are
-      # bootable source
+      # bootable source. A plain Ruby syntax error, not a rule the
+      # meta-domain enforces (an empty `vision`, say) — S0a's own
+      # shadow-parse legacy grammar (docs/dsl-work-slices.md) means
+      # `shadow_parse` no longer refuses THAT, on purpose: a since-
+      # tightened meta-domain rule must not make a frozen era text that
+      # once booted fine suddenly unattestable. What still cannot load,
+      # under any grammar, is text that is not even valid Ruby.
       expect do
         Hecksagain::Translation::Reattest.shape_guard!(
-          domain: "Shaped", ordinal: 1, text: "Hecks.bluebook \"Shaped\" do\n  vision \"\"\nend\n", stored_hash: stored_hash
+          domain: "Shaped", ordinal: 1, text: "Hecks.bluebook \"Shaped\" do\n  ((((\nend\n", stored_hash: stored_hash
         )
       end.to raise_error(Hecksagain::Runtime::WiringError, /does not load as a bluebook/)
 

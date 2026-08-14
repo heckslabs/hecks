@@ -1,5 +1,6 @@
 require "fileutils"
 require_relative "era_guard/shape_diff"
+require_relative "../bluebook/meta_validator"
 require_relative "../naming"
 require_relative "../ports/loading"
 require_relative "../ports/persistence/lineage"
@@ -119,12 +120,26 @@ module Hecksagain
 
       # Parses held source into its own IR, in a scratch registry so a past
       # era's text never touches the one actually booting.
+      #
+      # `MetaValidator.while_shadow_parsing` (ADR 0025, docs/dsl-work-
+      # slices.md's S0a) is what makes this a LEGACY grammar rather than
+      # just a second copy of today's: it stops `BluebookBuilder.build`
+      # from judging this text against the grammar as it stands NOW,
+      # which is the one thing that would make a removed spelling refuse
+      # HISTORY the day it is removed from live source. The scratch
+      # registry is throwaway either way — nothing here is dispatched
+      # against or exposed to the real one — so skipping the judge/
+      # assemble round-trip changes nothing this method reads: `shape`,
+      # `uncovered_attributes`, and friends only ever ask the built IR
+      # for its own structure.
       def shadow_parse(source, path)
         scratch = Registry.new
         loading = Ports::Loading.bootstrap
-        Hecksagain.with_registry(scratch) do
-          loading.load_library
-          Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+        Hecksagain::Bluebook::MetaValidator.while_shadow_parsing do
+          Hecksagain.with_registry(scratch) do
+            loading.load_library
+            Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
+          end
         end
         scratch.bluebooks.values.first
       end

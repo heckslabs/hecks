@@ -112,6 +112,32 @@ module Hecksagain
 
       def self.disabled? = ENV["HECKSAGAIN_META_VALIDATION"] == "off"
 
+      # ADR 0025's own prerequisite (docs/dsl-work-slices.md, S0a): a word
+      # a later slice removes from the LIVE grammar must still parse
+      # FROZEN ERA TEXT — `EraGuard.shadow_parse` (runtime/era_guard.rb)
+      # is a plain `Kernel.eval` of stored source, run at boot, at mint,
+      # and during tamper detection, against whatever grammar is live
+      # TODAY, not whatever grammar was live when that text was written.
+      # Judging it again here would refuse history the day a spelling it
+      # used is removed — proved with a rule that already lives ONLY in
+      # the meta-domain, never duplicated as a builder's own `raise
+      # Malformed` (`vision`'s own comment: "moved to the language").
+      #
+      # Mirrors `defer`'s own stack-restore shape, not `disabled?`'s bare
+      # env toggle — this must never leak past the one shadow-parse call
+      # that set it, the same reason `ConstShim.with`/`.active?`
+      # (bluebook/dsl/const_shim.rb) restores in an `ensure` rather than
+      # being flipped and left.
+      def self.shadow_parsing? = @shadow_parsing
+
+      def self.while_shadow_parsing
+        previous        = @shadow_parsing
+        @shadow_parsing = true
+        yield
+      ensure
+        @shadow_parsing = previous
+      end
+
       # The same bluebook judged twice gets the same verdict, and a suite reloads
       # its fixtures constantly — banking alone is ~200 dispatches per build.
       # Keyed on the IR itself, so a CHANGED bluebook is always re-judged.
@@ -120,7 +146,7 @@ module Hecksagain
       # A world is not a bluebook, so it gets its own door. Same judge, same
       # meta-domain registry — a different artifact and a different language file.
       def self.call_world(world)
-        return world if disabled? || bootstrapping?
+        return world if disabled? || bootstrapping? || shadow_parsing?
 
         key = Digest::SHA256.hexdigest(JSON.generate([world.domain, world.realm, world.latest, world.settings]))
         refusals = verdicts[key] ||= WorldJudge.new(world).refusals
@@ -180,7 +206,7 @@ module Hecksagain
       # what `Namespace.install` and `spec/construct_spec` both expect. Caching the
       # graph would hand two boots the same classes.
       def self.call(bluebook)
-        return bluebook if disabled? || bootstrapping?
+        return bluebook if disabled? || bootstrapping? || shadow_parsing?
 
         if deferring?
           deferred_chapters << bluebook.hecks_name
