@@ -128,12 +128,23 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.value_object("Box")   { attribute :price, "Price" }
       builder.value_object("Tag")   { attribute :name, String }
       builder.value_object("Note")  { attribute :value, String }
+      # THE NULLABLE AXIS. Every field above is present on every record,
+      # so until these two existed no case here could exercise a null at
+      # all — which is how three separate null bugs reached main through
+      # this gate (`ne:` with an empty string, array `in:`, and `ne:`
+      # against a null field, where Memory returned a row every SQL
+      # engine omitted because Ruby's `nil != "x"` is true and SQL's
+      # `NULL <> 'x'` is NULL).
+      builder.value_object("Rating") { attribute :value, Integer }
+      builder.value_object("Label")  { attribute :value, String }
 
       builder.attribute :name,    "Name"
       builder.attribute :balance, "Money"
       builder.attribute :box,     "Box"
       builder.attribute :tags,    builder.list_of("Tag")
       builder.attribute :note,    "Note"
+      builder.attribute :rating,  "Rating", optional: true
+      builder.attribute :label,   "Label",  optional: true
 
       builder.query("OpenOnes")       { where(status: "open") }
       builder.query("NotClosed")      { where(status: { ne: "closed" }) }
@@ -191,6 +202,36 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       # a divergence, back when the reference interpreter read `contains`
       # as CSV-split membership and would have split this note in two.
       builder.query("NoteContainsPhrase") { where(note: { contains: "high, risk" }) }
+
+      # A NULL SATISFIES NO COMPARISON — one case per comparator, because
+      # the engines had every opportunity to disagree per-operator and
+      # `ne` is simply the one somebody happened to write in a bluebook.
+      builder.query("LabelNotBeta")    { where(:"label.value"  => { ne: "beta" }) }
+      builder.query("LabelIsAlpha")    { where(:"label.value"  => "alpha") }
+      builder.query("RatingAbove200")  { where(:"rating.value" => { gt: 200 }) }
+      builder.query("RatingBelow400")  { where(:"rating.value" => { lt: 400 }) }
+      builder.query("RatingInList")    { where(:"rating.value" => { in: "100,300" }) }
+      builder.query("LabelContainsPh") { where(:"label.value"  => { contains: "ph" }) }
+
+      # THE OTHER HALF, and the one already agreed before this: a null on
+      # the value COMPARED TO is a deliberate IS NULL / IS NOT NULL, not
+      # an unknown (NullPolicy.sql_predicate). Included so the two
+      # readings are pinned against each other — if either drifts toward
+      # the other, one of these two fails.
+      builder.query("LabelIsNull")    { where(:"label.value" => nil) }
+      builder.query("LabelIsNotNull") { where(:"label.value" => { ne: nil }) }
+
+      # ORDERING is NullPolicy's other half again, and carries the same
+      # two-implementation risk the comparators did — `order` in Ruby and
+      # `sql_order` in SQL, agreeing only by construction.
+      builder.query("ByRatingNullsFirst") do
+        order_by :"rating.value"
+        nulls :first
+      end
+      builder.query("ByRatingNullsLast") do
+        order_by :"rating.value"
+        nulls :last
+      end
     end.build
   end
 
@@ -228,12 +269,16 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # contains both words separately (a false positive the old membership
   # reading could not have produced, but a real regression test for
   # substring reading getting it right either way).
+  # `rating` and `label` are ABSENT on r2 and r4 — the nullable axis. Two
+  # nulls rather than one, and on the same two records for both fields,
+  # so a case cannot pass by accident on a single-row coincidence, and
+  # ordering has a real tie to break among the nulls.
   RECORDS = {
-    "r1" => { status: "open",   balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },   tags: [{ name: "red" }],   note: { value: "flagged: high, risk today" } },
+    "r1" => { status: "open",   balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },   tags: [{ name: "red" }],   note: { value: "flagged: high, risk today" },      rating: { value: 100 }, label: { value: "alpha" } },
     "r2" => { status: "open",   balance: { cents: 500 }, box: { price: { cents: 500 } }, name: { value: "Carol" }, tags: [{ name: "blue" }],  note: { value: "high risk, but flagged separately" } },
-    "r3" => { status: "closed", balance: { cents: 900 }, box: { price: { cents: 900 } }, name: { value: "Alice" }, tags: [{ name: "green" }], note: { value: "nothing unusual" } },
+    "r3" => { status: "closed", balance: { cents: 900 }, box: { price: { cents: 900 } }, name: { value: "Alice" }, tags: [{ name: "green" }], note: { value: "nothing unusual" },               rating: { value: 300 }, label: { value: "beta" } },
     "r4" => { status: "closed", balance: { cents: 300 }, box: { price: { cents: 300 } }, name: { value: "Dave" },  tags: [{ name: "red" }],   note: { value: "high, risk, reviewed" } },
-    "r5" => { status: "open",   balance: { cents: 700 }, box: { price: { cents: 700 } }, name: { value: "Bob" },   tags: [{ name: "blue" }],  note: { value: "low risk" } }
+    "r5" => { status: "open",   balance: { cents: 700 }, box: { price: { cents: 700 } }, name: { value: "Bob" },   tags: [{ name: "blue" }],  note: { value: "low risk" },                       rating: { value: 500 }, label: { value: "phase" } }
   }.freeze
 
   before do
@@ -309,5 +354,52 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   it "compiles contains as a real substring on a scalar field whose own content carries a comma, the same everywhere" do
     agree!("NoteContainsPhrase", expected: %w[r1 r4])
+  end
+
+  # r2 and r4 hold no rating and no label. Every case below asserts they
+  # are ABSENT from the answer — a null is unknown, and unknown satisfies
+  # no comparison. Memory used to return them for `ne` while every SQL
+  # engine omitted them.
+  it "excludes nulls from ne, the same everywhere" do
+    agree!("LabelNotBeta", expected: %w[r1 r5])
+  end
+
+  it "excludes nulls from eq, the same everywhere" do
+    agree!("LabelIsAlpha", expected: %w[r1])
+  end
+
+  it "excludes nulls from gt, the same everywhere" do
+    agree!("RatingAbove200", expected: %w[r3 r5])
+  end
+
+  it "excludes nulls from lt, the same everywhere" do
+    agree!("RatingBelow400", expected: %w[r1 r3])
+  end
+
+  it "excludes nulls from in, the same everywhere" do
+    agree!("RatingInList", expected: %w[r1 r3])
+  end
+
+  it "excludes nulls from contains, the same everywhere" do
+    agree!("LabelContainsPh", expected: %w[r1 r5])
+  end
+
+  # The deliberate null, as opposed to the unknown one: comparing TO nil
+  # is a real question about presence, and both engines already answered
+  # it the same way. Pinned here so neither reading drifts into the other.
+  it "reads a comparison to nil as IS NULL, the same everywhere" do
+    agree!("LabelIsNull", expected: %w[r2 r4])
+  end
+
+  it "reads ne nil as IS NOT NULL, the same everywhere" do
+    agree!("LabelIsNotNull", expected: %w[r1 r3 r5])
+  end
+
+  it "places nulls first when asked, the same everywhere" do
+    agree!("ByRatingNullsFirst", expected: %w[r2 r4 r1 r3 r5])
+  end
+
+  it "places nulls last when asked, the same everywhere" do
+    agree!("ByRatingNullsLast", expected: %w[r1 r3 r5 r2 r4])
   end
 end
