@@ -56,6 +56,66 @@ module Hecksagain
         aggregation_matches_recompute: %w[ReadModel#count ReadModel#median_field]
       }.freeze
 
+      # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
+      # RUNTIME'S OWN CONSTRUCTION makes the violation impossible to
+      # produce in the first place — not "untested," but unfalsifiable by
+      # a history, the same class of guarantee this codebase already
+      # states for identity ("NOTHING IS MINTED" — command_interpreter.rb's
+      # own header) and now generalises. Each entry names the ONE place in
+      # the runtime that makes it true, universally, for every domain and
+      # every adapter — never per-domain logic a future domain could
+      # accidentally route around.
+      #
+      # THE BLUEBOOK/HECKSAGON BOUNDARY IS WHY THIS WORKS: a bluebook
+      # declares SHAPE (attribute types, patterns, closed sets, VO
+      # invariants — see docs/decisions/0009), and shape is enforced by
+      # ONE coercion door every domain's every attribute passes through
+      # (`Runtime::Value.build`, via value/coercion.rb + value/admission.rb)
+      # regardless of which hecksagon later binds the aggregate to Memory,
+      # Postgres, or anything else. A value that violated its own declared
+      # pattern, invariant, or closed set could never be COERCED, so it
+      # could never be STORED, so it could never appear in a replay's own
+      # `:instances` to be caught violating it. Checking for it after the
+      # fact would be watching for something the construction path already
+      # made impossible.
+      #
+      # NOT a place to hide a real gap — a feature belongs here only once
+      # the SPECIFIC enforcing code path has been read and confirmed, the
+      # same discipline `spec/fuzzing/meta_domain_coverage_spec.rb` demands
+      # of `KNOWN_GAPS` in the other direction. `Entity#identified_by`
+      # was checked FOR this category and found NOT to qualify — the same
+      # `AlreadyExists` refusal `command_interpreter.rb` gives every
+      # CREATING aggregate command uniformly has no matching check in
+      # `entity_interpreter.rb` this session could find — so it stays a
+      # real, honestly-uncertain `KNOWN_GAPS` entry instead of a claimed
+      # guarantee, on purpose.
+      GUARANTEED_BY_CONSTRUCTION = {
+        "Aggregate#attributes" => "every field's pattern/closed-set/type passes through Value.build's one coercion door " \
+          "(value/coercion.rb#check_patterns, value/admission.rb) before it can exist — a stored value that violated " \
+          "its own declared shape was never producible to begin with",
+        "Aggregate#value_objects" => "the shape being coerced above — same door, same guarantee",
+        "Aggregate#identified_by" => "CommandInterpreter's data-driven dispatch order refuses AlreadyExists " \
+          "(command_interpreter.rb, command.creates?) for every creating command uniformly, before a duplicate id " \
+          "can ever be stored — collision is refused at the door, not produced and later caught",
+        "Command#attributes" => "command arguments are coerced through the SAME Value.build door as any other " \
+          "attribute — an accepted dispatch's own args already passed pattern/admits/invariant checks",
+        "Command#emits" => "CommandRules::Emission#emit iterates command.emits ITSELF to construct every announced " \
+          "Event (command_rules/emission.rb) — there is no other path to emit, so a command can never announce a " \
+          "name its own declaration doesn't list",
+        "Query#attributes" => "query arguments are coerced through the same Value.build door — same guarantee as " \
+          "Command#attributes",
+        "Entity#attributes" => "same coercion door, one level in — an entity's own attributes are Value-typed exactly " \
+          "the way an aggregate's are",
+        "ValueObject#attributes" => "the shape Value.build enforces IS this declaration — the guarantee and the " \
+          "feature are the same fact seen from two sides",
+        "ValueObject#invariants" => "run inside the SAME coercion call (coercion.rb, before construction returns) " \
+          "that pattern-checks a VO's fields — a VO whose invariant did not hold could not finish being built",
+        "ValueObject#rows" => "closed-set membership is checked in value/admission.rb, the second half of the same " \
+          "one construction door",
+        "Member#shape" => "one level into ValueObject#rows — same door",
+        "Member#pairs" => "one level into ValueObject#rows — same door"
+      }.freeze
+
       # Every lifecycle field a replay leaves an instance holding is one
       # of the aggregate's OWN declared states — the full set, not just
       # `Lifecycle#states`' default+targets (see ModelCheck.full_states'

@@ -37,6 +37,7 @@ require "hecksagain/fuzzing"
 RSpec.describe "the fuzzer's declared properties, against the language's own grammar" do
   META_DOMAIN_GRAMMAR = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
   META_DOMAIN_PROPERTY_COVERAGE = Hecksagain::Fuzzing::Properties::FEATURE_COVERAGE
+  META_DOMAIN_GUARANTEED_BY_CONSTRUCTION = Hecksagain::Fuzzing::Properties::GUARANTEED_BY_CONSTRUCTION
 
   # EVERY "Construct#attribute" THE LANGUAGE CAN DECLARE, read straight
   # off the meta-domain — never re-typed, so an attribute added to
@@ -70,26 +71,20 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
 
   # HONEST, ITEMIZED GAPS — a feature real enough to deserve its own
-  # invariant, that this arc did not reach. Each entry names the
-  # candidate property a future session should write, so "unclaimed"
-  # never has to mean "unnoticed."
+  # invariant, that this arc did not reach, and that construction alone
+  # does NOT already guarantee (see `Properties::GUARANTEED_BY_CONSTRUCTION`
+  # for the features that were checked FOR that category and qualified —
+  # this list is what's left once those are subtracted out). Each entry
+  # names the candidate property a future session should write, so
+  # "unclaimed" never has to mean "unnoticed."
   META_DOMAIN_KNOWN_GAPS = {
-    "Aggregate#identified_by" => "a real run's own instances never collide on identity — no property recomputes and cross-checks identity derivation yet",
-    "Aggregate#attributes" => "field-level invariants (patterns, closed sets) are exercised by the fuzzer's invalid-value generator, not checked as a replay property",
-    "Aggregate#value_objects" => "same as Aggregate#attributes — VO shape is exercised, not replay-checked",
-    "Entity#identified_by" => "same as Aggregate#identified_by, one level in",
-    "Entity#attributes" => "same as Aggregate#attributes, one level in",
-    "Command#emits" => "which events a command MAY announce is checked at build time (meta-validator); a replay property cross-checking every emitted event against its command's own declared emits does not exist yet",
+    "Entity#identified_by" => "CHECKED against GUARANTEED_BY_CONSTRUCTION and found NOT to qualify — " \
+      "command_interpreter.rb's AlreadyExists refusal is given to every CREATING AGGREGATE command " \
+      "uniformly; entity_interpreter.rb has no matching check this session could find, so an entity's own " \
+      "identity-collision handling is a genuinely open question, not a guarantee this arc could claim",
     "Command#references" => "reference-typed command arguments are exercised constantly (guard dereferencing) but have no property of their own asking whether a dangling reference was ever silently accepted",
-    "Command#attributes" => "argument shape (type/pattern/optional/admits) is exercised by the fuzzer's value generators, not checked as a replay property",
     "Command#mutations" => "then_set's own field-level mutation semantics have no independent replay recomputation the way aggregation_matches_recompute gives count/median",
-    "Query#attributes" => "query argument shape has no property of its own — same class of gap as Command#attributes",
     "Query#options" => "the open-map query options (offset/cursor/tenant/consistency/...) have no property individually",
-    "ValueObject#attributes" => "VO field shape is build-time checked; no replay property",
-    "ValueObject#invariants" => "a VO invariant firing (or not) is exercised by generated sequences but not asserted as its own replay property",
-    "ValueObject#rows" => "closed-set membership rows have no replay property of their own",
-    "Member#shape" => "same as ValueObject#rows, one level in",
-    "Member#pairs" => "same as ValueObject#rows, one level in",
     "Policy#on_event" => "which event a policy answers to is exercised by every reaction a generated sequence produces, but nothing asserts a policy NEVER fires on an event it doesn't declare",
     "Policy#trigger_command" => "a policy's own target command is exercised by dispatch itself; no property names a mismatch between declared trigger and what actually fired",
     "Policy#target_domain" => "cross-domain `across` policies have no property of their own — none of the example domains declare one yet",
@@ -104,16 +99,17 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "ReadModel#group_by" => "group_by's own nesting has no replay property — count/median are the two aggregations this arc reached"
   }.freeze
 
-  it "claims, exempts, or names a gap for every feature the language's own grammar declares" do
+  it "claims, exempts, guarantees, or names a gap for every feature the language's own grammar declares" do
     claimed = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
-    accounted = claimed | META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_KNOWN_GAPS.keys.to_set
+    accounted = claimed | META_DOMAIN_STRUCTURAL_FEATURES.to_set |
+                META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set | META_DOMAIN_KNOWN_GAPS.keys.to_set
 
     unaccounted = META_DOMAIN_ALL_FEATURES - accounted.to_a
 
     expect(unaccounted).to be_empty,
       "the language declares #{unaccounted.join(', ')} with no property claiming it, no structural " \
-      "exemption, and no named META_DOMAIN_KNOWN_GAPS entry — a construct just joined the language with nothing " \
-      "deciding, on purpose, whether a fuzzer property should exist for it"
+      "exemption, no construction guarantee, and no named META_DOMAIN_KNOWN_GAPS entry — a construct just " \
+      "joined the language with nothing deciding, on purpose, whether a fuzzer property should exist for it"
   end
 
   it "never lets a claim rot — every FEATURE_COVERAGE entry names a feature the live grammar still declares" do
@@ -124,12 +120,30 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
       "declares — a rename or removal left a property's claim pointing at nothing"
   end
 
-  it "keeps META_DOMAIN_STRUCTURAL_FEATURES and META_DOMAIN_KNOWN_GAPS from double-counting a feature some property already claims" do
+  it "never lets a construction guarantee rot either — the same drift check, aimed at GUARANTEED_BY_CONSTRUCTION" do
+    stale = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys - META_DOMAIN_ALL_FEATURES
+
+    expect(stale).to be_empty,
+      "GUARANTEED_BY_CONSTRUCTION claims #{stale.join(', ')}, which the language's own grammar no longer " \
+      "declares — a rename or removal left a guarantee pointing at nothing"
+  end
+
+  it "keeps every exemption category from double-counting a feature some property already claims" do
     claimed = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
-    overlap = (META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_KNOWN_GAPS.keys.to_set) & claimed
+    exempted = META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set |
+               META_DOMAIN_KNOWN_GAPS.keys.to_set
+    overlap = exempted & claimed
 
     expect(overlap).to be_empty,
-      "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked structural/a known gap — " \
+      "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked structural/guaranteed/a known gap — " \
       "pick one: a real property makes the exemption a lie"
+  end
+
+  it "keeps GUARANTEED_BY_CONSTRUCTION and META_DOMAIN_KNOWN_GAPS from disagreeing about the same feature" do
+    overlap = META_DOMAIN_GUARANTEED_BY_CONSTRUCTION.keys.to_set & META_DOMAIN_KNOWN_GAPS.keys.to_set
+
+    expect(overlap).to be_empty,
+      "#{overlap.to_a.join(', ')} is claimed BOTH as guaranteed-by-construction and as an open gap — " \
+      "one of the two entries is wrong; a feature is either provably true by construction or it isn't"
   end
 end
