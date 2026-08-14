@@ -59,7 +59,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -103,7 +103,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -125,7 +125,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -169,7 +169,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -518,7 +518,10 @@
       "name": "OnPizzaPaymentReceived",
       "on_event": "PizzaPaymentReceived",
       "trigger_command": "Order.Purchase",
-      "target_domain": null
+      "target_domain": null,
+      "where": null,
+      "for_each": null,
+      "with_spec": []
     }
   ],
   "process_managers": [],

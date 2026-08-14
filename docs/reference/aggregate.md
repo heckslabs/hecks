@@ -352,7 +352,7 @@ Opens a type with no identity of its own, carrying its `attribute`s and `invaria
 nothing addresses one:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").value_objects.map(&:hecks_name).first(3)  # => ["AccountNumber", "CustomerReference", "DailyLimit"]
+runtime.registry.bluebook("Banking").aggregate("Account").value_objects.map(&:hecks_name).first(3)  # => ["AccountNumber", "DailyLimit", "LedgerSequence"]
 ```
 
 ## command

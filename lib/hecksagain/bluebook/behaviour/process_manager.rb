@@ -9,6 +9,13 @@ module Hecksagain
 
         def handler_for(event) = @handlers.find { |h| h.event_type == event.to_s }
 
+        # WHETHER A STATE IS ONE THIS PROCEDURE DECLARES — asked of a value
+        # a real run left a saga instance holding (its live or rehydrated
+        # state), the way `Lifecycle#states` is asked of an aggregate's
+        # resting field. A rehydrated instance in a state no handler could
+        # have reached is corruption the durable round-trip introduced.
+        def declares_state?(state) = @states.map(&:to_s).include?(state.to_s)
+
         def correlation_head = @correlates_by.to_s.split(".").first.to_sym
 
         # The compensation half of a procedure, read off the handler that

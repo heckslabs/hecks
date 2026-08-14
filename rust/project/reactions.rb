@@ -41,16 +41,16 @@ module RustProjection
     # `PolicyRule` — a different shape, since there is no local
     # `target_verb` to dispatch, only a domain+verb pair for rust/host's
     # `lambda_client.rs` to invoke remotely) instead of dropping them.
-    def emit_policy_table(domain_name, policies)
-      rows = local_policy_rows(domain_name, policies)
+    def emit_policy_table(domain_name, policies, aggregates = [])
+      rows = local_policy_rows(domain_name, policies, aggregates)
 
       Exemplar.render(
         "policy_table",
-        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },' => rows.join("\n")
+        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[] },' => rows.join("\n")
       )
     end
 
-    def local_policy_rows(domain_name, policies)
+    def local_policy_rows(domain_name, policies, aggregates = [])
       policies.filter_map do |policy|
         target_domain = policy[:target_domain] || domain_name
         next nil unless target_domain == domain_name
@@ -68,8 +68,73 @@ module RustProjection
         # needed to name the policy that caused it"), now needed the same
         # way `CrossDomainPolicyRule` already carries it.
         "    crate::kernel::PolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
-          "event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect} },"
+          "event_qualifier: #{qualifier_expr}, target_verb: #{target_verb.inspect}, " \
+          "for_each: #{fan_out_verb_expr(domain_name, policy)}, " \
+          "for_each_key: #{fan_out_key_expr(domain_name, policy, aggregates)}, " \
+          "with_spec: #{with_spec_expr(policy)} },"
       end
+    end
+
+
+    # ── `for_each` — THE FAN-OUT'S OWN QUERY, qualified here rather than
+    # in the kernel. `Behaviour::Policy#for_each_route` resolves the bare
+    # "Aggregate.query" spelling against the policy's OWN domain, and
+    # that resolution is a fact about the source: settling it at codegen
+    # keeps the kernel's own lookup a plain table hit, the same shape
+    # `cli::run` already answers a top-level ask with.
+    def fan_out_verb_expr(domain_name, policy)
+      for_each = policy[:for_each].to_s
+      return "None" if for_each.empty?
+
+      "Some(#{(for_each.include?("::") ? for_each : "#{domain_name}::#{for_each}").inspect})"
+    end
+
+    # ── THE NAME A MATCHED ROW'S ID IS MINTED UNDER, which is the TARGET
+    # COMMAND'S question and not the aggregate's: a command declared ON
+    # the aggregate it references is addressed by that aggregate's own
+    # bare reference key, and one merely HOLDING a reference to it is
+    # addressed by the attribute that holds it. `Behaviour::Command
+    # #addressing_key_for` is the rule, and this is the same rule read
+    # off the exported IR — `spec/codegen_parity_spec.rb` holds this
+    # generator byte-identical to `rust/codegen`'s own twin, which is
+    # what keeps the two spellings of it from drifting.
+    def fan_out_key_expr(domain_name, policy, aggregates)
+      for_each = policy[:for_each].to_s
+      return "None" if for_each.empty?
+
+      path, = for_each.split(".", 2)
+      row_aggregate = path.to_s.include?("::") ? path.split("::", 2).last : path
+      command = target_command_for(policy, aggregates)
+      key = command && addressing_key_for(command, row_aggregate)
+      key ? "Some(#{key.to_s.inspect})" : "None"
+    end
+
+    def target_command_for(policy, aggregates)
+      aggregate_name, command_name = policy[:trigger_command].to_s.split(".", 2)
+      aggregate = Array(aggregates).find { |candidate| candidate[:name].to_s == aggregate_name.to_s }
+      Array(aggregate && aggregate[:commands]).find { |candidate| candidate[:name].to_s == command_name.to_s }
+    end
+
+    def addressing_key_for(command, aggregate_name)
+      return snake_case(aggregate_name) if command[:references].to_s == aggregate_name.to_s
+
+      held = Array(command[:attributes]).find { |attribute| attribute[:type].to_s == "Reference<#{aggregate_name}>" }
+      held && held[:name]
+    end
+
+    def snake_case(name)
+      name.to_s.gsub(/([a-z\d])([A-Z])/, '\\1_\\2').gsub(/([A-Z]+)([A-Z][a-z])/, '\\1_\\2').downcase
+    end
+
+    # ── `trigger ..., with:` — WHAT THE TRIGGER IS GIVEN. Each binding
+    # rides the wire already rendered (`Literal::render`, so a Symbol
+    # keeps its leading colon and stays distinguishable from a literal
+    # string of the same spelling); the kernel reads that spelling back.
+    def with_spec_expr(policy)
+      pairs = Array(policy[:with_spec])
+      return "&[]" if pairs.empty?
+
+      "&[#{pairs.map { |key, value| "(#{key.to_s.inspect}, #{value.to_s.inspect})" }.join(', ')}]"
     end
 
     # ── THE CROSS-DOMAIN POLICY TABLE — every policy `local_policy_rows`

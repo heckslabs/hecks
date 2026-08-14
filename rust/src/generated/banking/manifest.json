@@ -70,7 +70,7 @@
   },
   {
     "kind": "command",
-    "id": "Banking::Account.Freeze",
+    "id": "Banking::Account.FreezeAccount",
     "generated": true,
     "routed": true
   },
@@ -263,7 +263,7 @@
   },
   {
     "kind": "command",
-    "id": "Banking::ExternalTransfer.Send",
+    "id": "Banking::ExternalTransfer.SendTransfer",
     "generated": true,
     "routed": true
   },
@@ -458,6 +458,11 @@
     "generated": false,
     "gap_class": "per_instance",
     "reason": "where clause on \"customer.status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+  },
+  {
+    "kind": "query",
+    "id": "Banking::Account.OpenForCustomer",
+    "generated": true
   },
   {
     "kind": "query",

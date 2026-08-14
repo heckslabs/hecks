@@ -59,6 +59,8 @@
 // §8 has the fuller account of exactly what is and isn't proven about
 // the live-delivery half.
 
+use super::named_query;
+use super::repository::AggregateScan;
 use super::{Event, Json, MutationRecord, Refusal};
 use std::collections::HashMap;
 
@@ -79,6 +81,28 @@ pub struct PolicyRule {
     pub event_name: &'static str,
     pub event_qualifier: Option<&'static str>,
     pub target_verb: &'static str,
+    /// `PolicyInterpreter#deliver_for_each` — the query verb a fan-out
+    /// runs, ALREADY domain-qualified by the generator (Ruby's own
+    /// `Behaviour::Policy#for_each_route` resolves the bare
+    /// "Aggregate.query" spelling against the policy's own domain, and
+    /// the answer is a fact about the source, so it is settled at
+    /// codegen rather than re-derived here).
+    pub for_each: Option<&'static str>,
+    /// THE NAME EACH MATCHED ROW'S ID IS MINTED UNDER — resolved at
+    /// codegen by asking Ruby's own `Behaviour::Command#addressing_key_
+    /// for`, never re-derived here. Two different answers are correct
+    /// (`account` for a command self-referencing its own aggregate,
+    /// `account_id` for one merely holding a reference to it) and the
+    /// rule that tells them apart belongs to the target command, not to
+    /// the aggregate name — reimplementing that judgement in a second
+    /// language is how the two runtimes would drift.
+    pub for_each_key: Option<&'static str>,
+    /// `trigger ..., with:` — WHAT THE TRIGGER IS GIVEN. Empty forwards
+    /// the event's whole payload verbatim. Each pair is
+    /// `(argument_name, binding)`, and a binding beginning ":" names a
+    /// field on the source the way `Literal::render` spells a Symbol —
+    /// the same wire spelling `DispatchSpec::with_spec` already uses.
+    pub with_spec: &'static [(&'static str, &'static str)],
 }
 
 /// A `policy "Name" do on ... trigger ... across "OtherDomain" end` block —
@@ -273,6 +297,9 @@ pub struct Tables<'a> {
     pub cross_domain_policies: &'a [CrossDomainPolicyRule],
     pub process_managers: &'a [ProcessManagerDef],
     pub reference_key_fn: fn(&str) -> Option<&'static str>,
+    /// A FAN-OUT RUNS A DECLARED QUERY, so the reaction path needs the
+    /// same table `cli::run` already answers top-level asks from.
+    pub queries: &'a [crate::kernel::QueryDef],
 }
 
 /// The recursive reentry loop `Dispatcher#dispatch`/`#reenter` are, ported
@@ -296,7 +323,7 @@ pub struct Tables<'a> {
 /// top-level call (`kernel::cli::run`) and every policy reentry (policies
 /// never stamp); `Some(&stamp)` only from `deliver_saga_dispatch` below.
 #[allow(clippy::too_many_arguments)]
-pub fn orchestrate<S>(
+pub fn orchestrate<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
@@ -344,8 +371,51 @@ pub fn orchestrate<S>(
     Ok(())
 }
 
+/// WHAT THE TRIGGER IS GIVEN — `PolicyInterpreter#trigger_args`.
+///
+/// An empty `with_spec` forwards the event's whole payload verbatim, the
+/// behaviour every policy had before `with:` existed. Declared, each
+/// binding's value either NAMES a field on the source (spelled with a
+/// leading ":", `Literal::render`'s own Symbol spelling) or IS a literal
+/// the policy supplies itself.
+///
+/// `extra` is a fan-out's row key, merged into the SOURCE before the
+/// projection rather than onto its result — which is what lets a
+/// `for_each` trigger name the row and be given nothing else.
+fn trigger_args(policy: &PolicyRule, payload: &Json, extra: Option<(&str, String)>) -> Json {
+    let mut source: Vec<(String, Json)> = match payload {
+        Json::Object(pairs) => pairs.clone(),
+        _ => Vec::new(),
+    };
+    if let Some((key, id)) = &extra {
+        source.retain(|(name, _)| name != key);
+        source.push(((*key).to_string(), Json::str(id.clone())));
+    }
+
+    if policy.with_spec.is_empty() {
+        return Json::Object(source);
+    }
+
+    let projected = policy
+        .with_spec
+        .iter()
+        .map(|(name, binding)| {
+            let value = match binding.strip_prefix(':') {
+                Some(field) => source
+                    .iter()
+                    .find(|(held, _)| held == field)
+                    .map(|(_, held)| held.clone())
+                    .unwrap_or(Json::Null),
+                None => Json::str((*binding).to_string()),
+            };
+            ((*name).to_string(), value)
+        })
+        .collect();
+    Json::Object(projected)
+}
+
 #[allow(clippy::too_many_arguments)]
-fn react_policies<S>(
+fn react_policies<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
@@ -394,15 +464,72 @@ fn react_policies<S>(
             continue;
         }
 
-        // Forward the event's WHOLE payload verbatim as the trigger's own
-        // args — docs/guides/policies-and-process-managers.md: "not
-        // reshaped, not filtered." `caller_role: None` — `Dispatcher#
-        // reenter`'s own `Caller.without`: a policy reaction is
-        // system-triggered, never carries whatever caller the ORIGINAL
-        // step bound. `saga_correlation: None` — policies never stamp
-        // (only a saga leg's own dispatch does).
+        // A FAN-OUT DISPATCHES ONCE PER ROW its declared query answers,
+        // never once for the event — `PolicyInterpreter#deliver_for_each`.
+        // Each row's own id is merged into the SOURCE a `with:`
+        // projection reads from, not onto its result, so a trigger can
+        // name the row and be given nothing else.
+        if let Some(for_each) = policy.for_each {
+            let Some(def) = named_query::find(tables.queries, for_each) else {
+                reaction_log.push(record(vec![
+                    ("delivered", Json::Bool(false)),
+                    ("reason", Json::str(format!("no query {for_each}"))),
+                ]));
+                continue;
+            };
+            // THE QUERY READS THE EVENT, never the projection: `with:`
+            // says what the TRIGGER is given, and the fan-out is asking
+            // a different question (WHICH rows) in the event's own
+            // vocabulary.
+            let rows = match named_query::run(store, def, &event.payload) {
+                Ok(rows) => rows,
+                Err(refusal) => {
+                    reaction_log.push(record(vec![
+                        ("delivered", Json::Bool(false)),
+                        ("reason", Json::str(refusal.to_string())),
+                    ]));
+                    continue;
+                }
+            };
+            for (row_id, _row) in rows {
+                let row_record = |extra: Vec<(&str, Json)>| -> Json {
+                    let mut fields = vec![("for_row", Json::str(row_id.clone()))];
+                    fields.extend(extra.into_iter());
+                    let base = record(vec![]);
+                    match base {
+                        Json::Object(mut pairs) => {
+                            pairs.extend(fields.into_iter().map(|(k, v)| (k.to_string(), v)));
+                            Json::Object(pairs)
+                        }
+                        other => other,
+                    }
+                };
+                let args = trigger_args(policy, &event.payload, policy.for_each_key.map(|key| (key, row_id.clone())));
+                let outcome = orchestrate(
+                    store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, depth + 1,
+                    all_events, mutations, cross_domain, reaction_log, saga_log,
+                );
+                match outcome {
+                    Ok(()) => reaction_log.push(row_record(vec![("delivered", Json::Bool(true))])),
+                    Err(refusal) => reaction_log.push(row_record(vec![
+                        ("delivered", Json::Bool(false)),
+                        ("reason", Json::str(refusal.to_string())),
+                    ])),
+                }
+            }
+            continue;
+        }
+
+        // Without `with:`, the event's WHOLE payload forwards verbatim as
+        // the trigger's own args — docs/guides/policies-and-process-
+        // managers.md: "not reshaped, not filtered." `caller_role: None`
+        // — `Dispatcher#reenter`'s own `Caller.without`: a policy
+        // reaction is system-triggered, never carries whatever caller the
+        // ORIGINAL step bound. `saga_correlation: None` — policies never
+        // stamp (only a saga leg's own dispatch does).
+        let args = trigger_args(policy, &event.payload, None);
         let outcome = orchestrate(
-            store, dispatch_fn, tables, sagas, policy.target_verb, &event.payload, None, None, depth + 1,
+            store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, depth + 1,
             all_events, mutations, cross_domain, reaction_log, saga_log,
         );
         match outcome {
@@ -487,7 +614,7 @@ fn begin_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), Sag
 /// `return unless handler`) or when correlation resolves to nothing
 /// (Ruby's own `return if correlation.to_s.empty?`) — both silent.
 #[allow(clippy::too_many_arguments)]
-fn advance_saga<S>(
+fn advance_saga<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
@@ -566,7 +693,7 @@ fn advance_saga<S>(
 /// stopped this leg before it ever tried (Ruby's own early return — no
 /// refusal to compensate for, because nothing was attempted).
 #[allow(clippy::too_many_arguments)]
-fn deliver_saga_dispatch<S>(
+fn deliver_saga_dispatch<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,
@@ -658,7 +785,7 @@ fn end_saga(tables: Tables<'static>, sagas: &mut HashMap<(String, String), SagaI
 /// saga_dispatch` with `advance_saga` above, exactly like Ruby's own
 /// `unwind` calls the SAME `deliver_saga_dispatch` its sibling does.
 #[allow(clippy::too_many_arguments)]
-fn compensate<S>(
+fn compensate<S: AggregateScan>(
     store: &mut S,
     dispatch_fn: fn(&mut S, &str, &Json, Option<&str>, &mut Vec<MutationRecord>) -> Result<Vec<Event>, Refusal>,
     tables: Tables<'static>,

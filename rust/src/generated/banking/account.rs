@@ -1034,7 +1034,7 @@ if !unknown.is_empty() {
     }
 }
 
-impl crate::kernel::Fielded for FreezeArgs {
+impl crate::kernel::Fielded for FreezeAccountArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -1047,11 +1047,11 @@ impl crate::kernel::Fielded for FreezeArgs {
 
 
 #[derive(Debug, Clone)]
-pub struct FreezeArgs {
+pub struct FreezeAccountArgs {
 }
 
-pub fn dispatch_freeze(
-    repo: &mut impl crate::kernel::Repository<Account>, id: &str, args: FreezeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+pub fn dispatch_freeze_account(
+    repo: &mut impl crate::kernel::Repository<Account>, id: &str, args: FreezeAccountArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Account> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -1059,13 +1059,13 @@ pub fn dispatch_freeze(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Freeze",
+        "FreezeAccount",
         "Banking::Account",
         "Account",
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("closed".to_string())) } },
             crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
@@ -1082,7 +1082,7 @@ pub fn dispatch_freeze(
     )
 }
 
-impl FreezeArgs {
+impl FreezeAccountArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
 
@@ -1090,12 +1090,12 @@ impl FreezeArgs {
     }
 }
 
-impl FreezeArgs {
+impl FreezeAccountArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 let unknown = v.unknown_keys(&["id", "account", "number", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Freeze does not declare {} — it takes ",
+        "FreezeAccount does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

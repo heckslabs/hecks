@@ -37,6 +37,7 @@ impl PizzaName {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PizzaName.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -51,6 +52,13 @@ impl PizzaName {
 
 impl PizzaName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PizzaName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "PizzaName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PizzaName.value: expected String".to_string()))? },
         })
@@ -105,6 +113,13 @@ impl Price {
 
 impl Price {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["cents"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Price does not declare {} — it takes cents",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         cents: { let x = v.require("cents", "Price")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Price.cents expects Integer, got {}", x.inspect())))? },
         })
@@ -145,6 +160,7 @@ impl CustomerName {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "CustomerName.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -159,6 +175,13 @@ impl CustomerName {
 
 impl CustomerName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CustomerName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "CustomerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerName.value: expected String".to_string()))? },
         })
@@ -199,6 +222,7 @@ impl ToppingName {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ToppingName.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -213,6 +237,13 @@ impl ToppingName {
 
 impl ToppingName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ToppingName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ToppingName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ToppingName.value: expected String".to_string()))? },
         })
@@ -267,6 +298,13 @@ impl ToppingAmount {
 
 impl ToppingAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ToppingAmount does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ToppingAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ToppingAmount.value expects Integer, got {}", x.inspect())))? },
         })
@@ -294,7 +332,7 @@ impl crate::kernel::Fielded for Topping {
 
 impl Topping {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.name) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Topping.name must match [^ \\t\\n\\r], got ", self.name))); }
         Ok(())
     }
 }
@@ -310,6 +348,13 @@ impl Topping {
 
 impl Topping {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "amount"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Topping does not declare {} — it takes name, amount",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: { let x = v.require("name", "Topping")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Topping.name: expected String".to_string()))? },
         amount: { let x = v.require("amount", "Topping")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Topping.amount expects Integer, got {}", x.inspect())))? },
@@ -383,6 +428,13 @@ impl Pizza {
 
 impl Pizza {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["price_cents", "size"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Pizza does not declare {} — it takes price_cents, size",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         price_cents: Price::from_json(v.require("price_cents", "Pizza")?)?,
         size: Size::from_json(v.require("size", "Pizza")?)?,
@@ -478,10 +530,11 @@ pub struct CreatePizzaArgs {
 }
 
 pub fn dispatch_create_pizza(
-    repo: &mut impl crate::kernel::Repository<Order>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Order>, args: CreatePizzaArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.name.check_invariants()?;
         args.pizza.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -499,7 +552,7 @@ pub fn dispatch_create_pizza(
         "Pizzas::Order",
         "Order",
         "name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -562,10 +615,11 @@ pub struct AddToppingArgs {
 }
 
 pub fn dispatch_add_topping(
-    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: AddToppingArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: AddToppingArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.topping.check_invariants()?;
         args.amount.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -574,7 +628,7 @@ pub fn dispatch_add_topping(
         "Pizzas::Order",
         "Order",
         "name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "a sold pizza cannot be changed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) } },
             crate::kernel::GivenSpec { description: "at most 10 toppings", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))), right: Box::new(Expr::Int(10)) } },
@@ -638,10 +692,11 @@ pub struct PurchaseArgs {
 }
 
 pub fn dispatch_purchase(
-    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Order>, id: &str, args: PurchaseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Order> {
         args.customer_name.check_invariants()?;
         args.amount.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -650,7 +705,7 @@ pub fn dispatch_purchase(
         "Pizzas::Order",
         "Order",
         "name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "a pizza needs at least one topping", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, receiver: Box::new(Expr::Size(Box::new(Expr::Lookup("toppings")))) } },
             crate::kernel::GivenSpec { description: "it must still be available", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("available".to_string())) } },

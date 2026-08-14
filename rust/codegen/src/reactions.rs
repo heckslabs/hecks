@@ -24,15 +24,15 @@ pub fn policy_event_name(on_event: &str) -> String {
 }
 
 /// ── THE POLICY TABLE.
-pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json]) -> String {
-    let rows = local_policy_rows(domain_name, policies);
+pub fn emit_policy_table(exemplar: &Exemplar, domain_name: &str, policies: &[Json], aggregates: &[Json]) -> String {
+    let rows = local_policy_rows(domain_name, policies, aggregates);
     exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\" },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[] },", rows.join("\n"))],
     )
 }
 
-fn local_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String> {
+fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) -> Vec<String> {
     policies
         .iter()
         .filter_map(|policy| {
@@ -52,10 +52,13 @@ fn local_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String> {
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {} }},",
+                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, with_spec: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
-                naming::ruby_inspect_string(&target_verb)
+                naming::ruby_inspect_string(&target_verb),
+                fan_out_verb_expr(domain_name, policy),
+                fan_out_key_expr(policy, aggregates),
+                with_spec_expr(policy)
             ))
         })
         .collect()
@@ -222,4 +225,93 @@ pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<St
         .collect();
 
     exemplar.render("reference_key_table", &[("\"tmpl_qualified\" => Some(\"tmpl_key\"),", arms.join("\n"))])
+}
+
+/// `for_each` — THE FAN-OUT'S OWN QUERY, qualified here rather than in
+/// the kernel: `Behaviour::Policy#for_each_route` resolves the bare
+/// "Aggregate.query" spelling against the policy's own domain, and that
+/// resolution is a fact about the source.
+fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
+    let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
+    if for_each.is_empty() {
+        return "None".to_string();
+    }
+    let qualified = if for_each.contains("::") { for_each } else { format!("{domain_name}::{for_each}") };
+    format!("Some({})", naming::ruby_inspect_string(&qualified))
+}
+
+/// THE NAME A MATCHED ROW'S ID IS MINTED UNDER — the TARGET COMMAND'S
+/// question, not the aggregate's. `Behaviour::Command#addressing_key_for`
+/// is the rule; this is that rule read off the exported IR, and
+/// `spec/codegen_parity_spec.rb` holds it byte-identical to
+/// `rust/project/reactions.rb`'s own spelling of the same thing.
+fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
+    let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
+    if for_each.is_empty() {
+        return "None".to_string();
+    }
+    let path = for_each.split('.').next().unwrap_or_default().to_string();
+    let row_aggregate = path.rsplit("::").next().unwrap_or(&path).to_string();
+
+    let trigger = policy.get("trigger_command").map(Json::to_s).unwrap_or_default();
+    let mut parts = trigger.splitn(2, '.');
+    let target_aggregate = parts.next().unwrap_or_default().to_string();
+    let target_command = parts.next().unwrap_or_default().to_string();
+
+    let key = aggregates
+        .iter()
+        .find(|a| a.get("name").map(Json::to_s).unwrap_or_default() == target_aggregate)
+        .and_then(|a| a.get("commands"))
+        .and_then(|commands| match commands {
+            Json::Array(items) => items
+                .iter()
+                .find(|c| c.get("name").map(Json::to_s).unwrap_or_default() == target_command)
+                .cloned(),
+            _ => None,
+        })
+        .and_then(|command| addressing_key_for(&command, &row_aggregate));
+
+    match key {
+        Some(name) => format!("Some({})", naming::ruby_inspect_string(&name)),
+        None => "None".to_string(),
+    }
+}
+
+fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
+    if command.get("references").map(Json::to_s).unwrap_or_default() == aggregate_name {
+        return Some(crate::hecksagain_naming::snake(aggregate_name));
+    }
+
+    let wanted = format!("Reference<{aggregate_name}>");
+    match command.get("attributes") {
+        Some(Json::Array(items)) => items
+            .iter()
+            .find(|a| a.get("type").map(Json::to_s).unwrap_or_default() == wanted)
+            .and_then(|a| a.get("name").map(Json::to_s)),
+        _ => None,
+    }
+}
+
+/// `trigger ..., with:` — each binding already rendered on the wire
+/// (`Literal::render`, so a Symbol keeps its leading colon).
+fn with_spec_expr(policy: &Json) -> String {
+    let pairs = match policy.get("with_spec") {
+        Some(Json::Array(items)) => items.clone(),
+        _ => Vec::new(),
+    };
+    if pairs.is_empty() {
+        return "&[]".to_string();
+    }
+    let rendered: Vec<String> = pairs
+        .iter()
+        .filter_map(|pair| match pair {
+            Json::Array(kv) if kv.len() == 2 => Some(format!(
+                "({}, {})",
+                naming::ruby_inspect_string(&kv[0].to_s()),
+                naming::ruby_inspect_string(&kv[1].to_s())
+            )),
+            _ => None,
+        })
+        .collect();
+    format!("&[{}]", rendered.join(", "))
 }

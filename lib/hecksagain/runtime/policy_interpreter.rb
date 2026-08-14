@@ -122,34 +122,33 @@ module Hecksagain
       # against the triggering event's own payload (the same source
       # `deliver`'s own ordinary path forwards to `trigger` wholesale) and
       # fires `trigger` once per row, merging each row's own id into the
-      # forwarded payload under whichever name the TRIGGER addresses by —
-      # `account:` when it acts on the fanned aggregate, `account_id:`
-      # when it merely stores a reference to it. `reference_key_for`'s own
-      # comment carries the difference and why writing one of them
-      # unconditionally was wrong. A refusal is recorded per row and the
-      # fan-out continues ;
-      # a crash resolving the QUERY ITSELF (an unresolvable domain/
-      # aggregate/query, or the evaluator raising) is a single top-level
-      # defect for the policy, the same shape `deliver`'s own outer rescue
-      # already gives every other reaction.
+      # forwarded payload under whichever key THE TARGET COMMAND ITSELF
+      # expects to be addressed by (`Behaviour::Command#addressing_key_for`
+      # — never a guessed, one-size mint: `Account.Freeze`, addressed by
+      # `account` because it is declared ON Account and self-references
+      # it, refused every dispatch for as long as this hardcoded
+      # `<aggregate>_id` instead — a real bug, found wiring `for_each`
+      # into a real domain for the first time, not a hypothetical). A
+      # refusal is recorded per row and the fan-out continues ; a crash
+      # resolving the QUERY ITSELF, or the TARGET COMMAND'S OWN inability
+      # to address this aggregate at all (`addressing_key_for` answering
+      # `nil` — a domain-authoring mistake, not a data problem), is a
+      # single top-level defect for the policy, the same shape `deliver`'s
+      # own outer rescue already gives every other reaction.
       def deliver_for_each(policy, event, domain, target, record)
         return nil unless where_holds?(policy, event)
 
-        query_domain, aggregate_name, query_name = for_each_route(policy, domain)
+        query_domain, aggregate_name, query_name = policy.for_each_route(domain)
         aggregate = resolve_query_aggregate(query_domain, aggregate_name, policy.for_each)
-        # THE QUERY reads the EVENT, not the projection — `with:` says
-        # what the TRIGGER is given, and a fan-out's query is asking a
-        # different question (which rows) with the event's own vocabulary.
-        # THE QUERY reads the EVENT, never the projection — `with:` says
+        # THE QUERY READS THE EVENT, never the projection — `with:` says
         # what the TRIGGER is given, and the fan-out's query is asking a
         # different question (WHICH rows) in the event's own vocabulary.
         query_args    = event.payload.transform_keys(&:to_sym)
         rows          = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, query_args)
-        reference_key = reference_key_for("#{query_domain}::#{aggregate_name}", target)
+        reference_key = addressing_key_for(target, aggregate_name)
 
         Array(rows).map do |row|
-          args = trigger_args(policy, event, reference_key => row[:id])
-          deliver_for_each_row(target, record, args, row)
+          deliver_for_each_row(target, record, trigger_args(policy, event, reference_key => row[:id]), row)
         end
       rescue *DOMAIN_REFUSALS => error
         record.merge(delivered: false, reason: error.message)
@@ -159,75 +158,10 @@ module Hecksagain
         record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
       end
 
-      def deliver_for_each_row(target, record, args, row)
-        row_record = record.merge(for_row: row[:id])
-
-        if @door.reaction_depth_reached?
-          return row_record.merge(delivered: false,
-                                  reason: "reaction depth #{@door.max_reaction_depth} reached")
-        end
-
-        # ALREADY MERGED, by `trigger_args` — the row key has to be in the
-        # source a `with:` projection reads from, not bolted on after it,
-        # or a projection could never name the row it acts on.
-        @door.reenter(target, **args)
-        row_record.merge(delivered: true)
-      rescue *DOMAIN_REFUSALS => error
-        row_record.merge(delivered: false, reason: error.message)
-      end
-
-      # `for_each "Account.OpenForCustomer"` runs against THIS EVENT'S OWN
-      # domain by default — the same default a saga's own `dispatch`
-      # command name takes (`SagaInterpreter#qualified`) — or an explicit
-      # `"Domain::Aggregate.query_name"` names its own. Deliberately
-      # independent of `across`/`target_domain`, which name where
-      # `trigger` fires, not where the fan-out's own query runs — the two
-      # need not be the same domain.
-      def for_each_route(policy, domain)
-        path, query_name = policy.for_each.to_s.split(".", 2)
-        query_domain, aggregate_name = path.to_s.include?("::") ? path.split("::", 2) : [domain, path]
-
-        [query_domain, aggregate_name, query_name]
-      end
-
-      # THE SAME MINT `AggregateBuilder#reference_to` gives a bare
-      # `reference_to Account` (`account_id`, no `as:`) — `Naming
-      # .reference_key` plus the `_id` suffix, the same two-step
-      # `Interview::Source#default` already uses for exactly this reason —
-      # so a `for_each` iterating Account and a command written
-      # `reference_to Account` agree on the argument's name without either
-      # one having to say so twice.
-      # THE ROW'S ID, UNDER THE NAME THE TRIGGER ACTUALLY ADDRESSES BY.
-      # Two different names are correct here, and which one depends on
-      # whether the rows being fanned over ARE the records the trigger
-      # acts on :
-      #
-      #   for_each "Account.OpenForCustomer" + trigger "Account.Freeze"
-      #     -> `account:`    — Freeze ACTS ON that account. A command
-      #                        referencing its OWN aggregate is addressed
-      #                        by the bare reference key (see
-      #                        `ArgumentGate#reference_key`, which is the
-      #                        rule this now matches) and declares no
-      #                        attribute for it at all.
-      #
-      #   for_each "Account.OpenForCustomer" + trigger "Alert.Raise"
-      #     -> `account_id:` — the account is a FOREIGN reference the
-      #                        target stores as an attribute, which is
-      #                        what `reference_to` mints on an aggregate.
-      #
-      # Written `_id` unconditionally before, which is only ever right for
-      # the second shape — so the first, which is what a fan-out IS in
-      # practice (iterate one aggregate's rows, fire that same aggregate's
-      # command), was refused with `UnknownArgument` naming a key the
-      # command could not have taken. The fan-out itself was correct : the
-      # right rows, the right ids, `where` gating properly, one recorded
-      # `for_row:` each. Only the name they arrived under was wrong, so it
-      # failed as a per-row refusal in the reaction log rather than
-      # anywhere a caller would see it.
       # WHAT THE TRIGGER IS GIVEN. Undeclared, the event's whole payload
-      # forwards verbatim — the behaviour every policy had before the
-      # word existed, and still the right default for a trigger shaped
-      # like its event.
+      # forwards verbatim — the behaviour every policy had before `with:`
+      # existed, and still the right default for a trigger shaped like
+      # its event.
       #
       # Declared, it is the same reading a saga's own `dispatch ...,
       # with:` gets (`SagaInterpreter#dispatch_args`): a Symbol names a
@@ -240,10 +174,10 @@ module Hecksagain
       # projection rather than after it. That is what lets a `for_each`
       # policy name the row it is acting on — `with: { account: :account }`
       # — and therefore what lets one send the row and NOTHING ELSE. A
-      # trigger that needs only which record to act on is the ordinary
-      # case for a fan-out, and before this it could not be written: the
-      # whole event rode along, and the target had to declare every field
-      # of it whether it read them or not.
+      # trigger needing only which record to act on is the ordinary case
+      # for a fan-out, and before this it could not be written: the whole
+      # event rode along, and the target had to declare every field of it
+      # whether it read them or not.
       def trigger_args(policy, event, extra = {})
         payload = event.payload.transform_keys(&:to_sym).merge(extra)
         return payload if policy.with_spec.to_a.empty?
@@ -257,17 +191,55 @@ module Hecksagain
         end
       end
 
-      def reference_key_for(aggregate_fqn, target)
-        key = Naming.reference_key(aggregate_fqn)
-        acts_on_rows?(aggregate_fqn, target) ? key : :"#{key}_id"
+      # RESOLVES `target` ("Domain::Aggregate.Command", the same shape
+      # `deliver`'s own caller already built) back to its OWN declared
+      # command, then asks IT how it expects to be addressed by a row of
+      # `aggregate_name` — see `Behaviour::Command#addressing_key_for`'s
+      # own comment for the two shapes that answers. Raises (caught by
+      # `deliver_for_each`'s own outer `rescue StandardError`, the same
+      # "a defect, not a refusal" treatment `resolve_query_aggregate`'s
+      # own `UnknownVerb` already gets one level up) rather than
+      # silently falling back on a guess when the target command cannot
+      # be resolved, or genuinely cannot be addressed by this aggregate
+      # at all — either is a domain-authoring mistake worth surfacing
+      # loudly, not a row this fan-out simply skips.
+      def addressing_key_for(target, aggregate_name)
+        target_domain, target_aggregate_name, target_command_name = Naming.split_verb(target)
+        command = @registry.bluebook(target_domain)&.aggregate(target_aggregate_name)&.command(target_command_name)
+        raise UnknownVerb, "for_each's own trigger #{target.inspect} does not resolve to a declared command" unless command
+
+        key = command.addressing_key_for(aggregate_name)
+        return key if key
+
+        raise ArgumentError,
+              "#{target} cannot be addressed by a row of #{aggregate_name} — it declares no self-reference to " \
+              "#{aggregate_name} and no reference-typed attribute targeting it"
       end
 
-      # `target` is "Domain::Aggregate.Command", built by `deliver` — so
-      # the aggregate it acts on is everything left of the dot, compared
-      # QUALIFIED rather than by bare name : a fan-out over one domain's
-      # `Account` triggering another domain's same-named aggregate is a
-      # foreign reference, not a self one.
-      def acts_on_rows?(aggregate_fqn, target) = target.to_s.split(".").first == aggregate_fqn
+      def deliver_for_each_row(target, record, args, row)
+        row_record = record.merge(for_row: row[:id])
+
+        if @door.reaction_depth_reached?
+          return row_record.merge(delivered: false,
+                                  reason: "reaction depth #{@door.max_reaction_depth} reached")
+        end
+
+        # ALREADY MERGED, by `trigger_args` — the row key belongs in the
+        # source a `with:` projection reads FROM, not bolted onto its
+        # result, or a projection could never name the row it acts on.
+        @door.reenter(target, **args)
+        row_record.merge(delivered: true)
+      rescue *DOMAIN_REFUSALS => error
+        row_record.merge(delivered: false, reason: error.message)
+      end
+
+      # `for_each`'s own QUERY route moved onto the Policy itself
+      # (Behaviour::Policy#for_each_route) — one reading the interpreter
+      # and the fuzzer's fan-out property both call, rather than the
+      # same split spelled twice. The reference-KEY the dispatch itself
+      # uses is `addressing_key_for`, above — a property of the TARGET
+      # COMMAND, not of the policy, so it lives on `Behaviour::Command`
+      # instead.
 
       def resolve_query_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||

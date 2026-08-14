@@ -207,6 +207,49 @@ tmpl_to_json_field_block()
 }
 // TMPL:to_json_flat END
 
+struct TmplFlatType3 {
+    tmpl_ident: i64,
+}
+
+fn tmpl_to_json_field_block_sparse() -> (String, crate::kernel::Json) {
+    (String::new(), crate::kernel::Json::Null)
+}
+
+// `to_json_flat_sparse` — `to_json_flat`'s own OUTER assembly, with ONE
+// difference: a `(key, Json::Null)` entry is DROPPED rather than kept.
+// Every PER-FIELD expression stays byte-for-byte the SAME as the dense
+// form above (`json_codec.rb`'s own `emit_to_json_flat` never branches
+// its per-field logic on `sparse:` — only which of these two OUTER
+// templates wraps the result) — an `Option`-wrapped field that used to
+// serialize as `key: null` when unset now serializes as an ABSENT key
+// instead, matching Ruby's own `payload: args` (`kernel/mod.rs`'s own
+// comment on `Event::payload`, "Mirrors Ruby's payload: args"): Ruby's
+// args Hash never HAD the key at all when a caller left an optional
+// argument out, so the event it emits doesn't either.
+//
+// COMMAND ARGS STRUCTS ONLY (json_codec.rb's own two `sparse: true`
+// call sites, domain_generator.rb + commands.rb) — never aggregate/
+// entity RECORDS or value objects, which keep the dense form: a
+// persisted record legitimately HAS every declared field, `null`
+// correctly meaning "declared, not set" there. Safe specifically for
+// args because no REQUIRED (non-Option) field's own conversion ever
+// produces `Json::Null` — every scalar/VO `to_json` returns a real
+// value for a value that exists — so this filter can only ever drop an
+// entry that came from a genuinely absent optional argument, never one
+// from a required field or an explicit domain value.
+// TMPL:to_json_flat_sparse BEGIN
+impl TmplFlatType3 {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![tmpl_to_json_field_block_sparse()]
+                .into_iter()
+                .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+                .collect(),
+        )
+    }
+}
+// TMPL:to_json_flat_sparse END
+
 // The unknown-argument-check preamble is EITHER a real, multi-line,
 // already-fully-built block (`emit_unknown_argument_check`, unchanged
 // plain Ruby) OR empty — `from_json_state` (json_codec.rb) always

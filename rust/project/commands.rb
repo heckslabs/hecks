@@ -507,6 +507,10 @@ module RustProjection
       [
         emit_fielded_flat(args_struct_name, command[:attributes], value_objects_by_name),
         "#[derive(Debug, Clone)]\n#{args_struct.join("\n")}",
+        # NOT `sparse: true` — same reasoning as the aggregate-command
+        # call site (domain_generator.rb's own comment): real, tested,
+        # deliberately left unwired to avoid diverging from
+        # `hecks-codegen`'s own separate reimplementation.
         emit_to_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
         emit_from_json_flat(args_struct_name, command[:attributes], value_objects_by_name),
         entity_dispatch_fn,

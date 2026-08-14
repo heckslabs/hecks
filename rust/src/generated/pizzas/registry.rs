@@ -80,22 +80,28 @@ pub fn dispatch_by_name(
           "Pizzas::Order.CreatePizza" => {
               let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Chef"), "CreatePizza", caller_role)?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.AddTopping" => {
               let id = crate::generated::pizzas::order::Order::extract_id(args_json)?;
               let args = crate::generated::pizzas::order::AddToppingArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Chef"), "AddTopping", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_add_topping(&mut store.order, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_add_topping(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.Purchase" => {
               let id = crate::generated::pizzas::order::Order::extract_id(args_json)?;
               let args = crate::generated::pizzas::order::PurchaseArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Customer"), "Purchase", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_purchase(&mut store.order, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::pizzas::order::dispatch_purchase(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.PaymentGateway.Receive" => {
               let args = crate::generated::pizzas::order::PaymentGatewayReceiveArgs::from_json(args_json)?;
@@ -126,8 +132,21 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
     events.into_iter().map(|e| crate::kernel::Event { payload: args_json.clone(), ..e }).collect()
 }
 
+pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
+    ("Pizzas::Order", &[]),
+];
+
+impl crate::kernel::ReferenceLookup for Store {
+    fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
+if target == "Pizzas::Order" {
+    return self.order.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+        None
+    }
+}
+
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { policy_name: "OnPizzaPaymentReceived", event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase" },
+    crate::kernel::PolicyRule { policy_name: "OnPizzaPaymentReceived", event_name: "PizzaPaymentReceived", event_qualifier: None, target_verb: "Pizzas::Order.Purchase", for_each: None, for_each_key: None, with_spec: &[] },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[

@@ -172,7 +172,7 @@ File.open(meta_merged_path, "w") do |f|
   f.puts
   f.puts RustProjection::Projector.emit_reference_lookup(meta_result[:aggregates])
   f.puts
-  f.puts RustProjection::Projector.emit_policy_table(meta_ir[:name], meta_ir[:policies])
+  f.puts RustProjection::Projector.emit_policy_table(meta_ir[:name], meta_ir[:policies], meta_ir[:aggregates])
   f.puts
   f.puts RustProjection::Projector.emit_cross_domain_policy_table(meta_ir[:name], meta_ir[:policies])
   f.puts
@@ -249,7 +249,7 @@ File.open(merged_path, "w") do |f|
   f.puts
   f.puts RustProjection::Projector.emit_reference_lookup(merged_aggregates)
   f.puts
-  f.puts RustProjection::Projector.emit_policy_table(target_domain_name, target_ir[:policies])
+  f.puts RustProjection::Projector.emit_policy_table(target_domain_name, target_ir[:policies], target_ir[:aggregates])
   f.puts
   f.puts RustProjection::Projector.emit_cross_domain_policy_table(target_domain_name, target_ir[:policies])
   f.puts

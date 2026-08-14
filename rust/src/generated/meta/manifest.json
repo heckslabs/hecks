@@ -256,6 +256,12 @@
     "routed": true
   },
   {
+    "kind": "command",
+    "id": "Bluebook::Policy.Bind",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "aggregate",
     "id": "Bluebook::ProcessManager",
     "generated": true

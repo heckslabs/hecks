@@ -295,14 +295,14 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::banking::account::dispatch_debit(&mut store.account, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Banking::Account.Freeze" => {
+          "Banking::Account.FreezeAccount" => {
               let id = crate::generated::banking::account::Account::extract_id(args_json)?;
-              let args = crate::generated::banking::account::FreezeArgs::from_json(args_json)?;
-              crate::kernel::check_role(Some("Compliance officer"), "Freeze", caller_role)?;
+              let args = crate::generated::banking::account::FreezeAccountArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Compliance officer"), "FreezeAccount", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::Account", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::account::dispatch_freeze(&mut store.account, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::account::dispatch_freeze_account(&mut store.account, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::Account.Unfreeze" => {
               let id = crate::generated::banking::account::Account::extract_id(args_json)?;
@@ -528,13 +528,13 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::banking::externaltransfer::dispatch_request(&mut store.externaltransfer, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
-          "Banking::ExternalTransfer.Send" => {
+          "Banking::ExternalTransfer.SendTransfer" => {
               let id = crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(args_json)?;
-              let args = crate::generated::banking::externaltransfer::SendArgs::from_json(args_json)?;
+              let args = crate::generated::banking::externaltransfer::SendTransferArgs::from_json(args_json)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Banking::ExternalTransfer", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::banking::externaltransfer::dispatch_send(&mut store.externaltransfer, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::banking::externaltransfer::dispatch_send_transfer(&mut store.externaltransfer, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Banking::ExternalTransfer.Recall" => {
               let id = crate::generated::banking::externaltransfer::ExternalTransfer::extract_id(args_json)?;
@@ -875,8 +875,8 @@ if target == "Identity::ExternalIdentifier" {
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-    crate::kernel::PolicyRule { policy_name: "RetryOnPaymentFailure", event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry" },
-    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.Freeze" },
+    crate::kernel::PolicyRule { policy_name: "RetryOnPaymentFailure", event_name: "ScheduledPaymentFailed", event_qualifier: Some("ScheduledPayment"), target_verb: "Banking::ScheduledPayment.Retry", for_each: None, for_each_key: None, with_spec: &[] },
+    crate::kernel::PolicyRule { policy_name: "FreezeAccountsOnSuspension", event_name: "CustomerSuspended", event_qualifier: None, target_verb: "Banking::Account.FreezeAccount", for_each: Some("Banking::Account.OpenForCustomer"), for_each_key: Some("account"), with_spec: &[("account", ":account")] },
 ];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
@@ -894,7 +894,7 @@ fn pm_literal_4() -> crate::kernel::Json { crate::kernel::Json::Object(vec![("ce
 
 pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
     crate::kernel::ProcessManagerDef { name: "Settlement", correlates_by: "reference.value", starts_on: "TransferRequested", ends_on: "TransferSettled", initial_state: "requested", handlers: &[crate::kernel::Handler { event_type: "TransferRequested", from_state: "requested", to_state: "requested", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Account.Debit", with: &[("number", crate::kernel::WithValue::Ref("source")), ("amount", crate::kernel::WithValue::Ref("amount")), ("narrative", crate::kernel::WithValue::Literal(pm_literal_0)), ("reference", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "AccountDebited", from_state: "requested", to_state: "awaiting_credit", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Debited", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }, crate::kernel::DispatchSpec { command_name: "Banking::Account.Credit", with: &[("number", crate::kernel::WithValue::Ref("destination")), ("amount", crate::kernel::WithValue::Ref("amount")), ("narrative", crate::kernel::WithValue::Literal(pm_literal_1)), ("reference", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "AccountCredited", from_state: "awaiting_credit", to_state: "awaiting_credit", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Credited", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "TransferCredited", from_state: "awaiting_credit", to_state: "settled", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Settle", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }] }, crate::kernel::Handler { event_type: "refused", from_state: "awaiting_credit", to_state: "reversed", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Account.Credit", with: &[("number", crate::kernel::WithValue::Ref("source")), ("amount", crate::kernel::WithValue::Ref("amount")), ("narrative", crate::kernel::WithValue::Literal(pm_literal_2))] }, crate::kernel::DispatchSpec { command_name: "Banking::Transfer.Reverse", with: &[("transfer", crate::kernel::WithValue::Ref("reference"))] }] }] },
-    crate::kernel::ProcessManagerDef { name: "ExternalSettlement", correlates_by: "end_to_end.value", starts_on: "ExternalTransferRequested", ends_on: "ExternalTransferSent", initial_state: "requested", handlers: &[crate::kernel::Handler { event_type: "ExternalTransferRequested", from_state: "requested", to_state: "requested", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::ExternalTransfer.Send", with: &[("end_to_end", crate::kernel::WithValue::Ref("end_to_end"))] }] }, crate::kernel::Handler { event_type: "refused", from_state: "requested", to_state: "returned", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::ExternalTransfer.Return", with: &[("end_to_end", crate::kernel::WithValue::Ref("end_to_end"))] }] }] },
+    crate::kernel::ProcessManagerDef { name: "ExternalSettlement", correlates_by: "end_to_end.value", starts_on: "ExternalTransferRequested", ends_on: "ExternalTransferSent", initial_state: "requested", handlers: &[crate::kernel::Handler { event_type: "ExternalTransferRequested", from_state: "requested", to_state: "requested", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::ExternalTransfer.SendTransfer", with: &[("end_to_end", crate::kernel::WithValue::Ref("end_to_end"))] }] }, crate::kernel::Handler { event_type: "refused", from_state: "requested", to_state: "returned", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::ExternalTransfer.Return", with: &[("end_to_end", crate::kernel::WithValue::Ref("end_to_end"))] }] }] },
     crate::kernel::ProcessManagerDef { name: "Onboarding", correlates_by: "reference.value", starts_on: "OnboardingOpened", ends_on: "AccountOpened", initial_state: "screening", handlers: &[crate::kernel::Handler { event_type: "OnboardingCleared", from_state: "screening", to_state: "cleared", dispatches: &[crate::kernel::DispatchSpec { command_name: "Banking::Account.Open", with: &[("customer_id", crate::kernel::WithValue::Ref("customer")), ("number", crate::kernel::WithValue::Ref("account_number")), ("kind", crate::kernel::WithValue::Literal(pm_literal_3)), ("daily_limit", crate::kernel::WithValue::Literal(pm_literal_4))] }] }, crate::kernel::Handler { event_type: "OnboardingDeclined", from_state: "screening", to_state: "declined", dispatches: &[] }] },
 ];
 
@@ -988,6 +988,16 @@ crate::kernel::QueryDef {
     aggregate: "Banking::Account",
     conditions: &[
         crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::In, value: crate::kernel::QueryConditionValue::Literal("open,frozen") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Banking::Account.OpenForCustomer",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "customer_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("reference") },
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
     limit: None,

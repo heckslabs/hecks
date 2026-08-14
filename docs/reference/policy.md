@@ -192,7 +192,7 @@ trigger wants is what makes that unnecessary:
 # examples/banking/bluebook/banking.bluebook
 policy "FreezeAccountsOnSuspension" do
   on       "CustomerSuspended"
-  for_each "Account.OpenForCustomerReference"
+  for_each "Account.OpenForCustomer"
   trigger  "Account.FreezeAccount", with: { account: :account }
 end
 ```

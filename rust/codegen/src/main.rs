@@ -265,6 +265,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     // none today, and real cross-chapter policy routing is a separate,
     // still-open gap, not attempted here either).
     let policies: Vec<Json> = target_ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
+    let policy_aggregates: Vec<Json> = target_ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
     let process_managers: Vec<Json> = target_ir.get("process_managers").map(Json::each).unwrap_or(&[]).to_vec();
 
     let mut merged_rs = String::new();
@@ -272,7 +273,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &crate::registry::emit_reference_lookup(&merged_aggregates));
     puts_blank(&mut merged_rs);
-    puts_str(&mut merged_rs, &reactions::emit_policy_table(&ex, &target_domain_name, &policies));
+    puts_str(&mut merged_rs, &reactions::emit_policy_table(&ex, &target_domain_name, &policies, &policy_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_cross_domain_policy_table(&ex, &target_domain_name, &policies));
     puts_blank(&mut merged_rs);

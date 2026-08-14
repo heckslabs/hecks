@@ -396,7 +396,7 @@ if !unknown.is_empty() {
     }
 }
 
-impl crate::kernel::Fielded for SendArgs {
+impl crate::kernel::Fielded for SendTransferArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         
@@ -409,11 +409,11 @@ impl crate::kernel::Fielded for SendArgs {
 
 
 #[derive(Debug, Clone)]
-pub struct SendArgs {
+pub struct SendTransferArgs {
 }
 
-pub fn dispatch_send(
-    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: SendArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+pub fn dispatch_send_transfer(
+    repo: &mut impl crate::kernel::Repository<ExternalTransfer>, id: &str, args: SendTransferArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ExternalTransfer> {
 
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
@@ -421,7 +421,7 @@ pub fn dispatch_send(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
-        "Send",
+        "SendTransfer",
         "Banking::ExternalTransfer",
         "ExternalTransfer",
         "end_to_end.value",
@@ -445,7 +445,7 @@ pub fn dispatch_send(
     )
 }
 
-impl SendArgs {
+impl SendTransferArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
 
@@ -453,12 +453,12 @@ impl SendArgs {
     }
 }
 
-impl SendArgs {
+impl SendTransferArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
 let unknown = v.unknown_keys(&["id", "external_transfer", "end_to_end", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Send does not declare {} — it takes ",
+        "SendTransfer does not declare {} — it takes ",
         unknown.join(", ")
     )));
 }

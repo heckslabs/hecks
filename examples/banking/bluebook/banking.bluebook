@@ -219,18 +219,6 @@ Hecks.bluebook "Banking", version: "v1" do
       invariant("an account number is present") { !value.to_s.empty? }
     end
 
-    # ACCOUNT'S OWN NAME FOR A CUSTOMER REFERENCE, declared here rather
-    # than reaching for `Customer::CustomerNumber`. The same shape, and
-    # deliberately a second declaration: a type belongs to the aggregate
-    # that uses it (OnboardingCase redeclares `AccountNumber` for the
-    # same reason), and everything that walks an aggregate's own scope —
-    # the fuzzer's `ValueGenerator` among them — has nowhere to look for
-    # a type declared next door.
-    value_object "CustomerReference" do
-      attribute :value, String, pattern: '[^ \t\n\r]'
-      invariant("a customer reference is present") { !value.to_s.empty? }
-    end
-
     value_object "DailyLimit" do
       attribute :cents, Integer, default: 0
       invariant("a daily limit is non-negative") { !cents.negative? }
@@ -398,13 +386,25 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Stop an account moving while something is investigated"
 
       reference_to Account
-
-      # NOT `customer is active`. A freeze exists to stop money moving
-      # while something is investigated, and the commonest reason to
-      # investigate is that the customer was just suspended — the old
-      # guard refused the exact case the domain most needs, which is why
-      # `FreezeAccountsOnSuspension` had never once fired. A closed
-      # customer is still out of scope: there is nothing left to freeze.
+      # "customer is not closed" — CloseAccount's own established idiom
+      # for a compliance-adjacent command, NOT "customer is active" (the
+      # money-moving commands' own guard: ApplyFee, CorrectFee,
+      # AccrueInterest, ...). A closed relationship has nothing left to
+      # freeze against ; a SUSPENDED one is precisely the case this
+      # command exists for — FreezeAccountsOnSuspension fires BECAUSE a
+      # customer was just suspended, and "customer is active" made that
+      # reaction's own one caller impossible to satisfy, always. Real
+      # bug, found twice independently — once wiring `for_each` into
+      # this policy, once writing the reference page for `trigger`.
+      #
+      # NO `standing` PASS-THROUGH ATTRIBUTE, and none is needed now:
+      # the policy projects with `with: { account: :account }`, so the
+      # event's own `standing` never reaches this command and it has
+      # nothing to declare for a field it does not read. An earlier pass
+      # added one, which is what made the fan-out succeed for the first
+      # time and so exposed the Rust kernel's own missing `for_each` —
+      # closed in this same change; see FreezeAccountsOnSuspension's own
+      # comment below.
       given("customer is not closed") { customer.status != "closed" }
       given("account is open") { status == "open" }
       emits "AccountFrozen"
@@ -532,30 +532,40 @@ Hecks.bluebook "Banking", version: "v1" do
     # by the same name Facade::Handle's own hydrated accessor answers
     # to (`account.customer`) — and `status` is Customer's own
     # lifecycle field, checked on the TARGET, not this aggregate.
-    # THE FAN-OUT'S OWN QUERY. `FreezeAccountsOnSuspension` runs this
-    # against `CustomerSuspended`'s payload, which carries the customer's
-    # own `reference` — so the parameter is typed as that reference's own
-    # value object, and `comparable` unwraps the single-field object to
-    # the same bare scalar `customer_id` holds.
-    #
-    # NOT `reference_to Customer, as: :reference`, which reads better and
-    # is what query.md's own `reference_to` section documents : hecks-
-    # parse does not implement `Query.reference_to` yet (Stage 1, see
-    # spec/parser_coverage_spec.rb), and this would be the first use in
-    # the corpus — parser parity is a harder thing to give up than a
-    # nicer spelling.
-    query "OpenForCustomerReference" do
-      description "One customer's own accounts that are still open — what a suspension has to reach."
-      attribute :reference, CustomerReference
-      where(customer_id: :reference)
-      where(status: "open")
-      order_by :number
-    end
-
     query "OpenForSuspendedCustomers" do
       description "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now."
       where(status: "open")
       where(:"customer.status" => "suspended")
+      order_by :number
+    end
+
+    # THE for_each TARGET for `FreezeAccountsOnSuspension`, below — scoped
+    # to ONE customer, unlike `OpenForSuspendedCustomers` above (a
+    # standing dashboard ask, deliberately unscoped: "everyone currently
+    # exposed"). A fan-out needs the narrower ask: only THIS event's own
+    # customer's accounts, or every OTHER already-suspended customer's
+    # open accounts would get re-dispatched every single time any one
+    # customer is suspended. `reference` — not `customer_id` — because
+    # that is the actual key `CustomerSuspended`'s own payload carries
+    # (`Customer.Suspend`'s own `reference_to Customer` addresses its OWN
+    # aggregate by Customer's declared identity path, `identified_by
+    # CustomerNumber, as: :reference` — not a synthetic `customer_id`
+    # foreign key, which only a REFERENCING command like `Account.Open`
+    # mints).
+    query "OpenForCustomer" do
+      description "One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry."
+      # PLAIN String, not the cross-aggregate CustomerNumber VO Customer's
+      # own identity is declared as: a query attribute's declared type is
+      # never runtime-coerced (`QueryInterpreter#resolve_query_value` is a
+      # raw `args[value]` lookup — comparability is handled entirely by
+      # `Ports::Query::InMemory.holds?`'s own `comparable` unwrap on BOTH
+      # sides, regardless of which shape the caller offers), so String
+      # here changes nothing about what a real caller may pass — it only
+      # spares `Fuzzing::ValueGenerator` an aggregate.value_object lookup
+      # this query's own aggregate (Account) could never satisfy for a VO
+      # declared under a DIFFERENT aggregate (Customer).
+      attribute :reference, String
+      where(customer_id: :reference, status: "open")
       order_by :number
     end
 
@@ -1595,16 +1605,87 @@ Hecks.bluebook "Banking", version: "v1" do
     end
   end
 
-  # ONE SUSPENSION, EVERY OPEN ACCOUNT THAT CUSTOMER HOLDS. Written
-  # without `for_each` it had never fired once: the event names a
-  # customer and `FreezeAccount` acts on an account, so there was no
-  # account for the trigger to address and every delivery was refused
-  # into the reaction log where nobody looks. The fan-out is what
-  # supplies the missing half — one `FreezeAccount` per row the query
-  # answers, each addressed by its own id.
+  # TWO REAL BUGS FOUND AND FIXED; TWO MORE FOUND, BOTH GENUINELY
+  # BIGGER THAN THIS ONE FIX'S OWN SCOPE, BOTH DELIBERATELY LEFT OPEN.
+  # This policy has refused EVERY dispatch, silently, for as long as it
+  # existed — the name was always plural ("Accounts"), and the
+  # mechanism only ever attempted ONE dispatch, with the wrong shape.
+  #
+  # FIXED, AND KEPT EVEN THOUGH `for_each` ISN'T WIRED BELOW YET (see
+  # the two gaps this comment ends on) — both are real, general fixes,
+  # verified safe on their own, and stay dormant/harmless the moment
+  # nothing in the corpus actually exercises `for_each`:
+  #
+  #   THE ADDRESSING BUG — `PolicyInterpreter`'s own reference-key
+  #   resolution (`Behaviour::Command#addressing_key_for`) now asks the
+  #   TARGET command how it expects to be addressed, rather than
+  #   guessing `<aggregate>_id` unconditionally. `Account.Freeze` is
+  #   addressed by `account` (it self-references Account, the same
+  #   self-vs-foreign-key distinction `Customer.Suspend`'s own
+  #   `reference` argument already demonstrates elsewhere in this
+  #   file), not `account_id` — verified directly against
+  #   `Account.OpenForCustomer` (below), the for_each target this fix
+  #   is FOR.
+  #
+  #   THE BUSINESS-RULE CONTRADICTION — `Account.Freeze`'s own given
+  #   used to read "customer is active," impossible to satisfy from the
+  #   one reaction that exists to invoke it (a customer who was just
+  #   suspended is, by definition, no longer active). Now "customer is
+  #   not closed," matching `Account.CloseAccount`'s own established
+  #   idiom for a compliance-adjacent command — verified directly
+  #   (`spec/runtime/freeze_accounts_on_suspension_spec.rb`).
+  #
+  # STILL OPEN — WHOLESALE PAYLOAD FORWARDING. `Account.Freeze` still
+  # declares neither `reference` nor `standing`, which `deliver_for_
+  # each_row` (were `for_each` wired below) would still forward
+  # wholesale from CustomerSuspended's own payload. An unused
+  # `attribute :standing, String, optional: true` pass-through (the
+  # same shape `Account.Review`'s own `customer_id`/`risk` already
+  # establish in spec/runtime/policy_spec.rb's Fanout fixture) closes
+  # this — verified, it dispatches fine on the Ruby side — but doing so
+  # surfaces the FIRST of three real Rust gaps below (event-payload
+  # serialization), so it isn't added here either.
+  #
+  # STILL OPEN — THREE SEPARATE, REAL RUST GAPS, discovered only once
+  # the two fixes above let this policy's own for_each dispatch
+  # actually SUCCEED for the first time (in Ruby):
+  #
+  #
+  # ONE SUSPENSION, EVERY OPEN ACCOUNT THAT CUSTOMER HOLDS — wired now,
+  # which the comment this replaces could not do. It named three gaps
+  # standing in the way; two are closed:
+  #
+  #   PARSER (gap 2) — `parse::policy` now builds `for_each`, and
+  #   `trigger`'s own `with:` besides, so `examples/banking` can carry
+  #   both and stay a full byte-exact `REAL_PARITY_MEMBERS` domain.
+  #   `where` is still unbuilt: it is a BLOCK, not a positional text.
+  #
+  #   KERNEL DISPATCH (gap 3) — `kernel::orchestrate`'s own `PolicyRule`
+  #   carries `for_each`, `for_each_key` and `with_spec`, and
+  #   `react_policies` runs the declared query and dispatches once per
+  #   row. `spec/rust_conformance_spec.rb` is the proof rather than the
+  #   claim: it compared Ruby's `frozen` against Rust's `open` on this
+  #   very policy until the kernel could fan out, and passes now.
+  #
+  #   `for_each_key` is RESOLVED AT CODEGEN, by asking
+  #   `Behaviour::Command#addressing_key_for` — never re-derived in the
+  #   kernel. Two answers are correct (`account` for a command
+  #   self-referencing its own aggregate, `account_id` for one merely
+  #   holding a reference) and that judgement belongs to the target
+  #   command; reimplementing it in a second language is how the two
+  #   runtimes would drift again, one bug lower down.
+  #
+  #   `sparse:` (gap 1) STAYS OPEN, and is untouched here — it diverges
+  #   this generator from `hecks-codegen`, which
+  #   `spec/codegen_parity_spec.rb` holds byte-identical to it.
+  #
+  # `with:` is the other half of making it work. Without a projection
+  # the whole `CustomerSuspended` payload rides along and
+  # `FreezeAccount` has to declare a `standing` it never reads; naming
+  # the row sends that and nothing else.
   policy "FreezeAccountsOnSuspension" do
     on       "CustomerSuspended"
-    for_each "Account.OpenForCustomerReference"
+    for_each "Account.OpenForCustomer"
     # THE ROW, AND NOTHING ELSE. `account` is the key the fan-out merges
     # for each row it answers, and naming it here is what keeps
     # `CustomerSuspended`'s own `standing` from riding along — leave

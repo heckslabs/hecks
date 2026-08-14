@@ -112,6 +112,57 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Binding {
+    pub key: String,
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for Binding {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "key" => Some(Field::Value(Value::Str(self.key.clone()))),
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl Binding {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Binding {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Binding {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["key", "value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Binding does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        key: { let x = v.require("key", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.key: expected String".to_string()))? },
+        value: { let x = v.require("value", "Binding")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Binding.value: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
 }
@@ -168,6 +219,7 @@ pub struct Policy {
     pub target_domain: Option<PolicyText>,
     pub r#where: Option<PolicyText>,
     pub for_each: Option<PolicyText>,
+    pub with_spec: Vec<Binding>,
     pub position: Option<Position>,
 }
 
@@ -183,6 +235,7 @@ impl crate::kernel::Fielded for Policy {
             "target_domain" => self.target_domain.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "where" => self.r#where.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "for_each" => self.for_each.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "with_spec" => Some(Field::Value(Value::List(self.with_spec.len()))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -200,6 +253,7 @@ impl Policy {
         ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("where".to_string(), self.r#where.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("for_each".to_string(), self.for_each.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("with_spec".to_string(), crate::kernel::Json::Array(self.with_spec.iter().map(|x| x.to_json()).collect())),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -216,6 +270,7 @@ impl Policy {
         target_domain: match v.get("target_domain") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
         r#where: match v.get("where") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
         for_each: match v.get("for_each") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        with_spec: match v.get("with_spec").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Binding::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
         })
     }
@@ -302,6 +357,7 @@ pub fn dispatch_declare(
             target_domain: args.target_domain.clone(),
             r#where: args.r#where.clone(),
             for_each: args.for_each.clone(),
+            with_spec: vec![],
             position: args.position.clone(),
         }),
     },
@@ -362,6 +418,82 @@ if !unknown.is_empty() {
         r#where: match v.get("where") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
         for_each: match v.get("for_each") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
         position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        })
+    }
+}
+
+impl crate::kernel::Fielded for BindArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "key" => Some(Field::Nested(&self.key)),
+            "value" => Some(Field::Nested(&self.value)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct BindArgs {
+    pub key: PolicyText,
+    pub value: PolicyText,
+}
+
+pub fn dispatch_bind(
+    repo: &mut impl crate::kernel::Repository<Policy>, id: &str, args: BindArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Policy> {
+        args.key.check_invariants()?;
+        args.value.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Bind",
+        "Bluebook::Policy",
+        "Policy",
+        "bluebook_id, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.with_spec.push(Binding { key: args.key.value.clone(), value: args.value.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["TriggerBindingAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl BindArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),
+        ])
+    }
+}
+
+impl BindArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["key", "value", "id", "policy", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Bind does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        key: PolicyText::from_json(v.require("key", "BindArgs")?)?,
+        value: PolicyText::from_json(v.require("value", "BindArgs")?)?,
         })
     }
 }

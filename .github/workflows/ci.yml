@@ -90,6 +90,26 @@ jobs:
       - name: rspec
         run: bundle exec rspec
 
+      # DYNAMIC — generates random-but-valid command/query sequences from
+      # EVERY example domain's own IR (plus the self-hosted grammar
+      # meta-domain) and replays each one, checking every declared
+      # property (docs/decisions/0024) plus interpreter-crash and
+      # determinism. Wired in here, not run only ad hoc, because it found
+      # a real bug the first time anyone pointed it at lib/hecksagain/
+      # grammar: a domain composing more than one bluebook (grammar is
+      # Expression+Translation; banking is Banking+Governance+Identity)
+      # could make a property misresolve a refusal against the wrong
+      # domain, and nothing before this step ran on every push would ever
+      # have caught it. No `--seeds`/`--steps` override — bin/fuzz's own
+      # defaults (20 seeds, 30 steps) keep this fast enough for every
+      # push while still exercising real depth; a deeper, ad hoc sweep
+      # (60+ seeds) is what actually found the bug above and is a manual
+      # `bin/fuzz` invocation, not this step's job. Exits non-zero the
+      # same way every other gate in this workflow does — no special
+      # handling here.
+      - name: bin/fuzz
+        run: bin/fuzz
+
       # Static analysis over the IR — unreachable lifecycle states, dead
       # transitions, saga states no handler chain reaches — facts the
       # runtime itself never checks at dispatch time. Boots every corpus

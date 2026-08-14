@@ -345,13 +345,17 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
     }
 
     let policies: Vec<Json> = ir.get("policies").map(Json::each).unwrap_or(&[]).to_vec();
+    // The RAW aggregate JSON, not `registry_aggregates` — a fan-out's
+    // addressing key is read off the target command's own declared
+    // `references`/`attributes`, which `AggregateEntry` does not carry.
+    let policy_aggregates: Vec<Json> = ir.get("aggregates").map(Json::each).unwrap_or(&[]).to_vec();
 
     let mut registry_rs = String::new();
     puts_str(&mut registry_rs, &crate::registry::emit_registry(exemplar, &registry_aggregates));
     puts_blank(&mut registry_rs);
     puts_str(&mut registry_rs, &crate::registry::emit_reference_lookup(&registry_aggregates));
     puts_blank(&mut registry_rs);
-    puts_str(&mut registry_rs, &reactions::emit_policy_table(exemplar, domain_name, &policies));
+    puts_str(&mut registry_rs, &reactions::emit_policy_table(exemplar, domain_name, &policies, &policy_aggregates));
     puts_blank(&mut registry_rs);
     puts_str(&mut registry_rs, &reactions::emit_cross_domain_policy_table(exemplar, domain_name, &policies));
     puts_blank(&mut registry_rs);

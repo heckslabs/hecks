@@ -9,6 +9,7 @@ module Hecksagain
 
         def build_catalog(runtime)
           creating, instance, entity_commands, queries, entity_queries = [], [], [], [], []
+          read_models = []
 
           runtime.registry.bluebooks.each do |domain_name, bluebook|
             bluebook.aggregates.each do |aggregate|
@@ -32,10 +33,25 @@ module Hecksagain
                 end
               end
             end
+
+            # THE BARE DOMAIN FORM — "Domain.report_name", no "::" — the
+            # SAME shape `Dispatcher#query` itself branches on to route a
+            # read-model ask apart from an aggregate query. A report was
+            # never in this catalog at all before: `aggregation_matches_
+            # recompute` (count/median) has only ever been exercised by
+            # hand-built specs, never a single real generated sequence,
+            # because nothing here ever asked one. `model:`, not
+            # `aggregate:` — a rootless report has no aggregate of its
+            # own to be eligible against (see picker.rb's own use of
+            # `model.reference_target`).
+            bluebook.read_models.each do |model|
+              read_models << { verb: "#{domain_name}.#{model.query_name}", model: model }
+            end
           end
 
           { creating: creating, instance: instance, entity_commands: entity_commands,
-            queries: queries, entity_queries: entity_queries, populators: populators(runtime),
+            queries: queries, entity_queries: entity_queries, read_models: read_models,
+            populators: populators(runtime),
             # Which aggregates this corpus can actually make one of — the ones
             # `satisfiable?` is entitled to wait for.
             creatable: creating.map { |entry| entry[:aggregate].hecks_name }.to_set }

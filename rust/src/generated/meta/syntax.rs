@@ -642,6 +642,7 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "refuses", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "realm", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "latest", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    Argument { keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "" },
 ];
 
 impl Argument {

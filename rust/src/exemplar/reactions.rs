@@ -24,7 +24,7 @@ fn tmpl_with_value_literal_fn_host() {
 // ... }` (json.rs's `closed_set_table_row_field`) already is.
 // TMPL:policy_table BEGIN
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
-crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb" },
+crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[] },
 ];
 // TMPL:policy_table END
 

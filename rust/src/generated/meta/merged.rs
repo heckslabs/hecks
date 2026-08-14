@@ -564,6 +564,15 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::meta::policy::dispatch_declare(&mut store.policy, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::Policy.Bind" => {
+              let id = crate::generated::meta::policy::Policy::extract_id(args_json)?;
+              let args = crate::generated::meta::policy::BindArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Language"), "Bind", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Policy", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::meta::policy::dispatch_bind(&mut store.policy, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::ProcessManager.Declare" => {
               let args = crate::generated::meta::processmanager::DeclareArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Language"), "Declare", caller_role)?;

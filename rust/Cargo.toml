@@ -9,7 +9,7 @@
 # has; any other still-generated domain stays reachable via
 # `--no-default-features --features <name>`.
 [features]
-default = ["banking"]
+default = ["pizzas"]
 compliance = []
 meta = []
 pizzas = []

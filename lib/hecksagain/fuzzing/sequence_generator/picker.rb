@@ -12,6 +12,7 @@ module Hecksagain
           catalog[:instance].each { |entry| rest << entry if actionable?(catalog, entry) }
           catalog[:entity_commands].each { |entry| rest << entry if actionable?(catalog, entry) }
           catalog[:entity_queries].each { |entry| rest << entry if @known_ids[entry[:aggregate].hecks_name].any? }
+          catalog[:read_models].each { |entry| rest << entry if read_model_actionable?(entry) }
 
           makers = catalog[:creating].select { |entry| satisfiable?(catalog, entry) }
           pool   = rest + makers.flat_map { |entry| [entry] * creating_weight(rest.size) }
@@ -40,6 +41,18 @@ module Hecksagain
 
         def actionable?(catalog, entry)
           @known_ids[entry[:aggregate].hecks_name].any? && satisfiable?(catalog, entry)
+        end
+
+        # A ROOTLESS report (no `reference_to` at all) has nothing to wait
+        # for — it reads whole tables, the same "always eligible" position
+        # `catalog[:queries]` itself takes. A ROOTED one needs a real
+        # instance of its own `reference_target` to ask about first, same
+        # rule `actionable?` already gives an instance command — asking
+        # `Banking.disputed_payment_count` before any Account exists would
+        # just be refused (`refuse_object_reference`/`NotFound`) the same
+        # way `Account.Credit` would be, for the identical reason.
+        def read_model_actionable?(entry)
+          entry[:model].reference_target.nil? || @known_ids[entry[:model].reference_target].any?
         end
 
         # A COMMAND THAT REFERENCES NOTHING THAT EXISTS CANNOT SUCCEED, so it is

@@ -552,6 +552,14 @@
       "args": {}
     },
     {
+      "query": "Banking::Account.OpenForCustomer",
+      "args": {
+        "reference": {
+          "value": "CUST-0001"
+        }
+      }
+    },
+    {
       "verb": "Banking::Customer.Reinstate",
       "args": {
         "reference": {
@@ -1815,11 +1823,9 @@
       "args": {}
     },
     {
-      "query": "Banking::Account.OpenForCustomerReference",
+      "query": "Banking::Account.OpenForCustomer",
       "args": {
-        "reference": {
-          "value": "CUST-0001"
-        }
+        "reference": "CUST-0001"
       }
     },
     {

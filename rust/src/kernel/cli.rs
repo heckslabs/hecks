@@ -300,6 +300,7 @@ pub fn run(input: &str) -> String {
             cross_domain_policies: CROSS_DOMAIN_POLICIES,
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: reference_key_for_aggregate,
+            queries: QUERIES,
         };
         if let Err(refusal) = orchestrate(
             &mut store,
