@@ -178,11 +178,11 @@ message is exactly the description you wrote — nothing templated, no
 translation between what you declared and what the caller reads.
 `Freeze` carries two: `given("customer is active")` and
 `given("account is open")` — the second names, in business language,
-exactly the fact its own `transition "Freeze" => "frozen", from:
+exactly the fact its own `transition "FreezeAccount" => "frozen", from:
 "open"` already enforces structurally:
 
 ```ruby
-account.freeze
+account.freeze_account
 account.status  # => "frozen"
 ```
 
@@ -195,7 +195,7 @@ that named `"open"` the only legal source state in the first place —
 see `lifecycles.md` for the full shape of that overlap:
 
 ```ruby
-account.freeze  # ~> GivenNotMet: Freeze refused — account is open
+account.freeze_account  # ~> GivenNotMet: FreezeAccount refused — account is open
 ```
 
 `Debit` declares three givens, and multiple givens run in the order you
@@ -207,7 +207,7 @@ balance and the limit still only reports the first:
 
 ```ruby
 account.unfreeze
-account.freeze
+account.freeze_account
 account.debit(amount: { cents: 999_999 }, narrative: { text: "frozen debit" })  # ~> GivenNotMet: the account is open
 ```
 
@@ -432,7 +432,7 @@ And a command acting on an identity that names no record refuses with
 `NotFound`, not a nil you have to check for yourself:
 
 ```ruby
-runtime.dispatch("Banking::Account.Freeze", number: "no-such-account")  # ~> NotFound: no Account with number.value
+runtime.dispatch("Banking::Account.FreezeAccount", number: "no-such-account")  # ~> NotFound: no Account with number.value
 ```
 
 ## Refusals leave state untouched

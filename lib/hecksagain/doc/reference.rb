@@ -19,9 +19,24 @@ module Hecksagain
       GENERATED_END = "<!-- generated:end -->".freeze
       TODO_SENTINEL = "<!-- TODO: document this word -->".freeze
 
+      # A PAGE'S OWN HAND-WRITTEN OPENING, harvested under a key no word
+      # can ever collide with (words are strings off the Syntax chapter;
+      # this is a Symbol). It exists so a page can boot ONCE — load a real
+      # corpus chapter, wire its hexagon — and have every word's example
+      # below run against that single boot, the way a guide's opening
+      # `ruby boot` block already does. Without it each word would have to
+      # stand up its own domain, and 105 invented chapters would collide
+      # on the facade constants `Surface.install` never uninstalls.
+      PREAMBLE = :preamble
+
       module_function
 
       def generated_begin(word) = "<!-- generated:begin word=#{word} -->"
+
+      # Keyed by REGION rather than by word — the same marker convention,
+      # used for the parts of a page that are not about one word: a
+      # page's generated lede here, README's generated indexes below.
+      def region_begin(id) = "<!-- generated:begin id=#{id} -->"
 
       def syntax
         meta = Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
@@ -63,23 +78,26 @@ module Hecksagain
       # the same heading and the same paragraph twice.
       def render_page(context, prose, path)
         words = keywords.select { |row| row[:context] == context }.group_by { |row| row[:word] }
-        orphans = prose.keys - words.keys
+        orphans = prose.keys - words.keys - [PREAMBLE]
         unless orphans.empty?
           raise "#{path} carries prose for #{orphans.join(', ')}, which the language no longer " \
                 "declares in #{context} — deleting writing is a human's decision, so decide"
         end
 
         sections = words.map { |word, forms| render_word(forms, prose[word]) }
+        preamble = prose[PREAMBLE].to_s.strip
         <<~PAGE
           # #{context}
 
+          #{region_begin('page')}
           #{context_lede(context)}
 
           *The tables on this page are generated from the language's own
           Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
           by `bin/reference` — do not edit inside the markers. The prose
           between them is hand-written and survives regeneration.*
-
+          #{GENERATED_END}
+          #{preamble.empty? ? '' : "\n#{preamble}\n"}
           #{sections.join("\n")}
         PAGE
       end
@@ -168,14 +186,30 @@ module Hecksagain
 
       # Prose keyed by word: everything between a section's generated
       # region and the next `## ` heading (or end of file).
+      #
+      # Starts on PREAMBLE rather than nil so the text between the PAGE's
+      # own generated lede and its first word heading is carried over too
+      # instead of being silently dropped. A page written before that
+      # region existed has no generated marker ahead of its first `## `,
+      # so nothing is collecting when that heading arrives and no empty
+      # preamble is invented — the older shape reads back unchanged.
       def harvest(text)
         prose = {}
-        current = nil
+        current = PREAMBLE
         collecting = false
         buffer = []
 
+        # A HEADING INSIDE A FENCE IS NOT A HEADING. `## something` is an
+        # ordinary Ruby comment, and now that every word's section carries
+        # runnable code, one written at the left margin would otherwise
+        # end that section mid-example and orphan the rest of it under a
+        # word the language never declared.
+        in_fence = false
+
         text.each_line do |line|
-          if (match = line.match(/\A## (\S+)\s*\z/))
+          in_fence = !in_fence if line.start_with?("```")
+
+          if !in_fence && (match = line.match(/\A## (\S+)\s*\z/))
             prose[current] = buffer.join.strip if current && collecting
             current = match[1]
             collecting = false
@@ -201,8 +235,6 @@ module Hecksagain
       # reference page, keyed by region id instead of a word, so the
       # index a reader lands on first can't drift from what actually
       # exists on disk either.
-      README_REGION = ->(id) { "<!-- generated:begin id=#{id} -->" }
-
       def readme_regions(root)
         {
           "guides" => guide_index(root),
@@ -277,8 +309,8 @@ module Hecksagain
 
       def render_readme(root, text)
         readme_regions(root).reduce(text) do |current, (id, content)|
-          pattern = /#{Regexp.escape(README_REGION.call(id))}.*?#{Regexp.escape(GENERATED_END)}/m
-          current.sub(pattern) { "#{README_REGION.call(id)}\n#{content}\n#{GENERATED_END}" }
+          pattern = /#{Regexp.escape(region_begin(id))}.*?#{Regexp.escape(GENERATED_END)}/m
+          current.sub(pattern) { "#{region_begin(id)}\n#{content}\n#{GENERATED_END}" }
         end
       end
 
@@ -287,14 +319,52 @@ module Hecksagain
         File.write(path, render_readme(root, File.read(path)))
       end
 
-      # The coverage gate's question: every LIVE word with no prose yet.
-      def undocumented(directory)
-        contexts.flat_map do |context|
+      # An example A READER CAN SEE and the harness will actually run.
+      # `ruby skip` is display-only by the doctest harness's own rule, and
+      # a hidden `<!-- doctest:boot -->` block is setup rather than an
+      # example — a word whose only "example" is invisible or inert is a
+      # word still shipping on its prose alone, which is the thing this
+      # gate exists to refuse.
+      EXAMPLE_FENCE = /^```ruby(?: bluebook| boot)?[ \t]*$/.freeze
+
+      def exemplified?(prose) = prose.to_s.match?(EXAMPLE_FENCE)
+
+      # EVERY LIVE WORD, PAIRED WITH ITS PROSE. Both coverage gates ask a
+      # question about this same walk and differ only in what they ask of
+      # the prose, so they share it rather than each re-deriving the page
+      # set — the two are meant to move together, and one drifting past
+      # the other is how a word ends up counted documented by one and
+      # missing to the other.
+      #
+      # `harvest` already rejects empty prose and the TODO sentinel, so a
+      # word with nothing written for it arrives here with a nil.
+      def live_words(directory)
+        contexts.flat_map { |context|
           path = File.join(directory, page_name(context))
           prose = File.exist?(path) ? harvest(File.read(path)) : {}
-          keywords.select { |row| row[:context] == context && live?(row) && prose[row[:word]].nil? }
-                  .map { |row| "#{row[:word]} (#{context})" }.uniq
-        end
+          keywords.select { |row| row[:context] == context && live?(row) }
+                  .map { |row| [row[:word], context, prose[row[:word]]] }
+        }.uniq { |word, context, _| [word, context] }
+      end
+
+      def name_of(word, context) = "#{word} (#{context})"
+
+      # The coverage gate's question: every LIVE word with no prose yet.
+      def undocumented(directory)
+        live_words(directory).reject { |_word, _context, prose| prose }
+                             .map { |word, context, _| name_of(word, context) }
+      end
+
+      # The SECOND coverage gate: prose is a declaration, and a
+      # declaration nothing runs cannot disagree with anything. A word
+      # documented only in sentences can go stale — or describe a word
+      # the runtime never wired at all, which this repository has already
+      # shipped twice (`read_model`'s where/order_by/limit/offset, and
+      # `role`/`goal` on a command). An example that RUNS is the only
+      # documentation that can go red.
+      def unexemplified(directory)
+        live_words(directory).reject { |_word, _context, prose| exemplified?(prose) }
+                             .map { |word, context, _| name_of(word, context) }
       end
     end
   end

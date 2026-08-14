@@ -1,11 +1,127 @@
 # Query
 
+<!-- generated:begin id=page -->
 Words available inside `query do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
+<!-- generated:end -->
+
+Most of these run against `examples/banking`, whose `Account` and
+`SafeDepositBox` queries carry ordering, limits, index hints, freshness,
+consistency and a real tenant boundary. `reference_to`, `offset` and
+`nulls` are written nowhere in the corpus, so they get a chapter of
+their own:
+
+```ruby boot
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+
+Hecks.hecksagon("Banking") do
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::SafeDepositBox.persisted_by("Memory")
+end
+```
+
+```ruby bluebook
+Hecks.bluebook "QueryReference" do
+  vision "The query words the corpus does not yet write."
+
+  aggregate "Warden" do
+    identified_by Badge, as: :badge
+
+    value_object("Badge") { attribute :value, String }
+
+    lifecycle :status, default: "on_duty" do
+      transition "StandDown" => "off_duty", from: "on_duty"
+    end
+
+    command "Appoint" do
+      attribute :badge, Badge
+      sets :badge, to: :badge
+      emits "WardenAppointed"
+    end
+
+    command "StandDown" do
+      reference_to Warden
+      emits "WardenStoodDown"
+    end
+  end
+
+  aggregate "Sighting" do
+    identified_by Tag, as: :tag
+    reference_to Warden
+    attribute :species, Species
+    attribute :count,   Count, optional: true
+
+    value_object("Tag")     { attribute :value, String }
+    value_object("Species") { attribute :value, String }
+    value_object("Count")   { attribute :value, Integer }
+
+    command "Log" do
+      attribute :tag,       Tag
+      attribute :warden_id, Warden
+      attribute :species,   Species
+      attribute :count,     Count, optional: true
+      sets :tag,     to: :tag
+      sets :species, to: :species
+      sets :count,   to: :count
+      emits "SightingLogged"
+    end
+
+    query "ByWarden" do
+      description "Every sighting one warden logged."
+      reference_to Warden, as: :warden
+      where(warden_id: :warden)
+      order_by :tag
+    end
+
+    query "Paged" do
+      description "The second page of two."
+      order_by :tag
+      limit 2
+      offset 1
+    end
+
+    query "ByCount" do
+      description "Ordered by count, with the uncounted ones last."
+      order_by :count
+      nulls :last
+    end
+
+    # A DOTTED HOP — a field on the warden, not on the sighting.
+    query "ByOffDutyWarden" do
+      description "Sightings still filed against a warden who has stood down."
+      where(:"warden.status" => "off_duty")
+      order_by :tag
+    end
+  end
+end
+```
+
+```ruby boot
+Hecks.hecksagon("QueryReference") do
+  QueryReference::Warden.persisted_by("Memory")
+  QueryReference::Sighting.persisted_by("Memory")
+end
+```
+
+```ruby
+runtime.dispatch("Banking::Customer.Register", reference: { value: "qy-1" },
+                 name: { given: "Nancy", family: "Roman" },
+                 email: { address: "nancy@example.com" })
+account = Banking::Account.open(customer_id: "qy-1", number: { value: "qy-a1" },
+                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+account.credit(amount: { cents: 9_000 }, narrative: { text: "funding" })
+
+runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-1" })
+runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-2" })
+runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-1" }, warden_id: "w-1", species: { value: "heron" }, count: { value: 3 })
+runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-2" }, warden_id: "w-1", species: { value: "egret" })
+runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-3" }, warden_id: "w-2", species: { value: "ibis" }, count: { value: 1 })
+```
 
 ## description
 
@@ -18,6 +134,10 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 A free-text label for the query — no rules attached, read by nothing but a human.
+
+```ruby
+runtime.registry.bluebook("Banking").aggregate("Account").queries.find { |q| q.hecks_name == "Open" }.description  # => "Accounts that can transact today."
+```
 
 ## attribute
 
@@ -39,6 +159,20 @@ Declares an argument this query accepts at ask-time, not a field on the
 aggregate — the `:symbol` a `where` value can resolve from
 (`attribute :ceiling, Draft` backs `where(draft: { lt: :ceiling })`). A
 `:symbol` naming no such attribute is refused when the bluebook builds.
+
+`Overdrawn` declares `attribute :floor, Money`, and the caller supplies
+it at ask-time — it is a parameter, not a field on `Account`:
+
+```ruby
+runtime.query("Banking::Account.Overdrawn", floor: { cents: 10_000 }).map { |row| row[:number][:value] }  # => ["qy-a1"]
+```
+
+Raise the floor and the same query answers differently, because the
+argument is the whole of what changed:
+
+```ruby
+runtime.query("Banking::Account.Overdrawn", floor: { cents: 1_000 })  # => []
+```
 
 ## reference_to
 
@@ -63,6 +197,15 @@ own `reference_to` has two of (see command.md) — just a plain
 attribute typed as a reference, `as:` naming it (bare, it would default
 to `camper_id`) and `optional:` working the same way it does anywhere
 else `attribute` accepts it.
+
+`ByWarden` takes a warden's own identity rather than a string that
+happens to look like one, and uses it in `where` the same as any other
+argument:
+
+```ruby
+runtime.query("QueryReference::Sighting.ByWarden", warden: "w-1").map { |row| row[:tag][:value] }  # => ["s-1", "s-2"]
+runtime.query("QueryReference::Sighting.ByWarden", warden: "w-2").map { |row| row[:tag][:value] }  # => ["s-3"]
+```
 
 ## where
 
@@ -98,6 +241,57 @@ See the queries-and-read-models guide for the exact refusal wording,
 including the existential-negation case (a nil or dangling reference
 never satisfies a hop clause, whatever the comparator).
 
+A bare value is `eq` — `Open` is `where(status: "open")`:
+
+```ruby
+runtime.query("Banking::Account.Open").size  # => 1
+```
+
+An ordered comparator reads the caller's argument. `HighBalance` is
+`where(balance: { gte: :floor })`:
+
+```ruby
+runtime.query("Banking::Account.HighBalance", floor: { cents: 9_000 }).size  # => 1
+runtime.query("Banking::Account.HighBalance", floor: { cents: 9_001 }).size  # => 0
+```
+
+A dotted path hops through a reference and reads a field on the TARGET.
+`ByOffDutyWarden` asks about the warden, not the sighting — nothing on
+a `Sighting` says anything about duty:
+
+```ruby
+runtime.query("QueryReference::Sighting.ByOffDutyWarden")  # => []
+runtime.dispatch("QueryReference::Warden.StandDown", warden: "w-1")
+runtime.query("QueryReference::Sighting.ByOffDutyWarden").map { |row| row[:tag][:value] }  # => ["s-1", "s-2"]
+```
+
+Nothing about the sightings changed — the hop read the warden, and the
+sightings filed against the warden still on duty are not in the answer:
+
+```ruby
+runtime.query("QueryReference::Sighting.ByOffDutyWarden").map { |row| row[:warden_id] }.uniq  # => ["w-1"]
+```
+
+Banking carries the same shape in `OpenForSuspendedCustomers` — open
+accounts whose customer has since been suspended. It now answers
+nothing, ever, and that is the domain working rather than the query
+failing: `FreezeAccountsOnSuspension` freezes every open account the
+moment its customer is suspended, so the dangerous state this query
+exists to surface can no longer be reached.
+
+```ruby
+Banking::Customer.find("qy-1").suspend(standing: { value: "under-review" })
+Banking::Account.find("qy-a1").status  # => "frozen"
+runtime.query("Banking::Account.OpenForSuspendedCustomers")  # => []
+```
+
+Put back, so the sections below start where this one found things — a
+reference page runs top to bottom against one boot:
+
+```ruby
+Banking::Customer.find("qy-1").reinstate.status  # => "active"
+```
+
 ## order_by
 
 <!-- generated:begin word=order_by -->
@@ -114,6 +308,20 @@ Names the field to sort by, ascending unless the second argument is
 whatever you declare, so an ask never silently falls back to store
 order.
 
+`ByWarden` orders by tag, and the rows come back in that order rather
+than the order they were logged:
+
+```ruby
+runtime.query("QueryReference::Sighting.ByWarden", warden: "w-1").map { |row| row[:tag][:value] }  # => ["s-1", "s-2"]
+```
+
+`HighBalance` is the descending case — `order_by :balance, :desc`:
+
+```ruby
+high = runtime.registry.bluebook("Banking").aggregate("Account").queries.find { |q| q.hecks_name == "HighBalance" }
+high.order_by.direction  # => :desc
+```
+
 ## limit
 
 <!-- generated:begin word=limit -->
@@ -128,6 +336,12 @@ Caps how many rows survive after ordering runs. Declare `order_by`
 first if you mean to keep a particular slice — limit trims what
 ordering already sorted, it doesn't decide which rows those are.
 
+`Paged` declares `limit 2` over three sightings, so only two survive:
+
+```ruby
+runtime.query("QueryReference::Sighting.Paged").size  # => 2
+```
+
 ## offset
 
 <!-- generated:begin word=offset -->
@@ -140,6 +354,19 @@ ordering already sorted, it doesn't decide which rows those are.
 
 Skips that many rows after ordering, for paging. Refused together with
 `cursor` on the same query — see `cursor`.
+
+`Paged` declares `limit 2` and `offset 1` over three sightings, so it
+skips the first and takes the two after it — the order SQL's own
+`LIMIT n OFFSET m` reads, and now what every engine here answers:
+
+```ruby
+runtime.query("QueryReference::Sighting.Paged").map { |row| row[:tag][:value] }  # => ["s-2", "s-3"]
+```
+
+Skip-then-take is the part that matters, and it is the difference
+between a second page and an empty one: taking two and THEN skipping one
+would answer a single row here, and nothing at all at `limit 10, offset
+10`.
 
 ## cursor
 
@@ -154,6 +381,13 @@ Skips that many rows after ordering, for paging. Refused together with
 Refused at build (`QueryBuilder#seal_cursor`, raises `Malformed`). No
 interpreter implements cursor pagination — declaring `cursor` here is
 always an error, not a silent no-op. Use `limit`/`offset` instead.
+
+There is no working example to write, and that is the documentation —
+the word refuses where it is written, before anything can boot:
+
+```ruby
+Hecksagain::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :tag }  # ~> Malformed: no interpreter implements cursor pagination
+```
 
 ## consistency
 
@@ -172,6 +406,17 @@ in this codebase's adapters or reference interpreter reads it back —
 metadata you're handing downstream, not a guarantee this runtime
 enforces yet.
 
+`SafeDepositBox.Rented` declares `consistency :snapshot`, and it
+round-trips:
+
+```ruby
+rented = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").queries.find { |q| q.hecks_name == "Rented" }
+rented.consistency.mode  # => :snapshot
+```
+
+"Not a guarantee this runtime enforces yet" is the part to hold it to —
+declared or not, the same rows come back.
+
 ## freshness
 
 <!-- generated:begin word=freshness -->
@@ -186,6 +431,14 @@ enforces yet.
 Declares a freshness mode and an optional `max_age:`. Same status as
 `consistency`: recorded on the specification, read by no adapter or
 interpreter here — declarative, not enforced.
+
+`Overdrawn` declares `freshness :eventual, max_age: 300`:
+
+```ruby
+overdrawn = runtime.registry.bluebook("Banking").aggregate("Account").queries.find { |q| q.hecks_name == "Overdrawn" }
+overdrawn.freshness.mode     # => :eventual
+overdrawn.freshness.max_age  # => 300
+```
 
 ## authorize
 
@@ -207,6 +460,35 @@ Memory, Sqlite, Postgres, and the entity/sub-list path alike — is
 scoped to the value given, regardless of what other filters were
 declared.
 
+`SafeDepositBox.Rented` declares `authorize :vault_access, tenant:
+:branch_code`. Two boxes, in two branches:
+
+```ruby
+Banking::SafeDepositBox.rent(customer_id: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
+Banking::SafeDepositBox.rent(customer_id: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
+```
+
+The tenant boundary is mandatory — an ask that does not say which branch
+it is standing in is refused rather than answered broadly:
+
+```ruby
+runtime.query("Banking::SafeDepositBox.Rented")  # ~> Unauthorized: pass branch_code:
+```
+
+Name it, and every row is scoped to it. The other branch's box is not
+in the answer, and no `where` said so:
+
+```ruby
+runtime.query("Banking::SafeDepositBox.Rented", branch_code: { value: "DT" }).map { |row| row[:branch_code][:value] }  # => ["DT"]
+```
+
+The policy name beside it is the half that is NOT checked — nothing in
+this runtime knows what `:vault_access` would mean:
+
+```ruby
+rented.authorization.policy  # => "vault_access"
+```
+
 ## nulls
 
 <!-- generated:begin word=nulls -->
@@ -221,6 +503,18 @@ Sets how nulls sort relative to real values. This one is genuinely
 enforced: both the in-memory ordering path and compiled SQL read it to
 place nulls consistently rather than leaving it to whatever the store
 happens to do.
+
+`count` is optional on a `Sighting`, so one of the three has none.
+`ByCount` declares `nulls :last`, and the uncounted sighting sorts
+after the counted ones rather than wherever the store would have put
+it:
+
+```ruby
+runtime.query("QueryReference::Sighting.ByCount").map { |row| row[:tag][:value] }  # => ["s-3", "s-1", "s-2"]
+```
+
+`s-2` is the one with no count, and it is last — the two real values
+sort among themselves first.
 
 ## inspect_query
 
@@ -240,6 +534,14 @@ method under the default `:sql` mode. No adapter in this codebase
 defines the former, so today declaring it never changes what comes
 back; it can only ever refuse.
 
+Nothing in the corpus declares it, and the reason is in the sentence
+above — against the Memory adapter it is a capability gate with nothing
+behind it:
+
+```ruby
+runtime.registry.bluebook("Banking").aggregate("Account").queries.map(&:inspection).compact  # => []
+```
+
 ## use_index
 
 <!-- generated:begin word=use_index -->
@@ -253,4 +555,13 @@ back; it can only ever refuse.
 Names an index hint. It's recorded on the specification and
 round-trips through the IR, but no adapter here reads it back to
 influence the query plan — the store still picks its own index.
+
+`Overdrawn` names one, and it survives into the IR:
+
+```ruby
+overdrawn.index_hints.map(&:name)  # => [:balance_index]
+```
+
+Which is the whole of what it does today. The rows are the same rows
+either way — a hint nobody reads is a comment with a syntax.
 

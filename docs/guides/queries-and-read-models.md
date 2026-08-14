@@ -71,7 +71,7 @@ runtime.dispatch("Banking::Account.Credit", number: { value: "c" }, amount: { ce
 runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "d" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 
-runtime.dispatch("Banking::Account.Freeze", number: { value: "c" })
+runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "c" })
 runtime.dispatch("Banking::Account.CloseAccount", number: { value: "d" })
 ```
 

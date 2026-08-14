@@ -32,22 +32,25 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # UNSET ON PURPOSE. An entry is a claim that some field is not worth a
   # fixture, and it would need to say why.
   #
-  # `where`/`for_each` (Policy) -- new language surface (conditional policy
-  # dispatch + fan-out), real and dispatch-tested (spec/runtime/
-  # policy_spec.rb's own "where and for_each" -- built INLINE, never
-  # reaching `spec/golden/ir/*.json` at all), but deliberately not yet
-  # exercised by any of THIS file's golden-tracked corpus members. Every
-  # one of them (`spec/ir_golden_spec.rb::LOADABLE` -- Pizzas, Banking,
-  # Expression, TillRoom/Wire/Reflex) is ALSO a `spec/parser_parity_spec
-  # .rb::REAL_PARITY_MEMBERS` entry, byte-matched against `hecks-parse` --
-  # and the Rust parser does not build `where`/`for_each` yet (the same,
-  # separately named `PENDING_PAIRS` entry in
-  # `spec/parser_coverage_spec.rb`). Declaring either word in any of
-  # these files would break that byte-match, not exercise this one. A
-  # future stage that builds `parse::policy`'s `where`/`for_each` arms
-  # and adds real usage to a golden-tracked member closes both gaps at
-  # once -- see `spec/parser_coverage_spec.rb::PENDING_PAIRS`'s own
-  # comment on `where`/`for_each` for the fuller reasoning.
+  # `where` (Policy) -- new language surface (conditional policy
+  # dispatch), real and dispatch-tested (spec/runtime/policy_spec.rb's
+  # own "where and for_each" -- built INLINE, never reaching
+  # `spec/golden/ir/*.json` at all), but not yet exercised by any of THIS
+  # file's golden-tracked corpus members. Every one of them
+  # (`spec/ir_golden_spec.rb::LOADABLE` -- Pizzas, Banking, Expression,
+  # TillRoom/Wire/Reflex) is ALSO a `spec/parser_parity_spec.rb::
+  # REAL_PARITY_MEMBERS` entry, byte-matched against `hecks-parse` -- and
+  # the Rust parser does not build `where` yet (the same, separately
+  # named `PENDING_PAIRS` entry in `spec/parser_coverage_spec.rb`), since
+  # a `where` is a BLOCK rather than the positional text every arm
+  # `parse::policy` already builds. Declaring one in any of these files
+  # would break that byte-match, not exercise this one.
+  #
+  # `for_each` CAME OFF this list, exactly the way the paragraph above
+  # says one should: `banking.bluebook`'s own `FreezeAccountsOnSuspension`
+  # now declares it for real (a suspension has to reach every account the
+  # customer holds), and `parse::policy` grew the matching arm in the
+  # same change -- closing both gaps at once.
   #
   # `count`/`median_field` (`ReadModel`'s two new reductions) do NOT need
   # an entry despite being new and genuinely nullable: `ReadModel#to_h`
@@ -58,8 +61,7 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # own `wire_presence` walk to see -- and banking.bluebook's own real
   # `DisputedPaymentCount`/`DisputedPaymentMedian` set them for real, so
   # there is nothing unexercised to name here even if it did.
-  ALLOWED_UNSET = { "where" => "new Policy surface, dispatch-tested inline -- see this file's own comment",
-                    "for_each" => "new Policy surface, dispatch-tested inline -- see this file's own comment" }.freeze
+  ALLOWED_UNSET = { "where" => "new Policy surface, dispatch-tested inline -- see this file's own comment" }.freeze
 
   # SET and NULL counts for every key in every frozen IR. An object or a list
   # counts as SET: `lifecycle` is a Hash when it is there and null when it is

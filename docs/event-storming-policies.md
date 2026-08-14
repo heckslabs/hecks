@@ -31,7 +31,7 @@ construct in this language is. Its DSL surface is exactly three methods
 ```ruby
 policy "FreezeAccountsOnSuspension" do
   on      "CustomerSuspended"
-  trigger "Account.Freeze"
+  trigger "Account.FreezeAccount"
 end
 
 policy "NotifyOnClosure" do

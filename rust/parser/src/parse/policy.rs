@@ -40,6 +40,17 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             "on" => policy.on_event = Some(super::positional_text(file, gated.line.number, "on", &gated.args, 1)?),
             "trigger" => policy.trigger_command = Some(super::positional_text(file, gated.line.number, "trigger", &gated.args, 1)?),
             "across" => policy.target_domain = Some(super::positional_text(file, gated.line.number, "across", &gated.args, 1)?),
+            // STAGE 4: `for_each` (fan-out — one `trigger` per row a
+            // declared query answers) — newly real: banking.bluebook's
+            // own `FreezeAccountsOnSuspension`, which is what a
+            // suspension needs to reach every account a customer holds.
+            // `ir::Policy` and `emit::policy_json` already carried the
+            // field and the `for_each` JSON key; only this arm was
+            // missing, so nothing about the wire format changes.
+            //
+            // `where` stays unbuilt: it is a BLOCK, not a positional
+            // text, and no corpus member declares one.
+            "for_each" => policy.for_each_query = Some(super::positional_text(file, gated.line.number, "for_each", &gated.args, 1)?),
             _ => return Err(super::not_built_yet("Policy", gated.row, file, gated.line.number, &gated.call.word)),
         }
     }

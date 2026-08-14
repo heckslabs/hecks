@@ -27,6 +27,15 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
                      name: { given: "A", family: "One" }, email: { address: "a@example.com" })
 
+    # A SECOND CUSTOMER, HOLDING NOTHING. The suspension below is here to
+    # give the standing query something to find, and `FreezeAccounts
+    # OnSuspension` now really does freeze every open account a suspended
+    # customer holds — so suspending c1 would empty the account-comparator
+    # tests of their subject matter. c2 owns none, so the standing test
+    # and the balance tests stop standing on each other.
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
+                     name: { given: "B", family: "Two" }, email: { address: "b@example.com" })
+
     # a(300), b(500), c(1000, later frozen), d(0, later closed) — the four
     # corners a floor/cap comparator family needs: strictly below, exactly at,
     # strictly above, and the zero balance closure requires.
@@ -38,21 +47,16 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
       runtime.dispatch("Banking::Account.Credit", number: { value: number }, amount: { cents: cents, currency: "USD" },
                                                    narrative: { text: "Opening" })
     end
-    runtime.dispatch("Banking::Account.Freeze", number: { value: "c" })
+    runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "c" })
     runtime.dispatch("Banking::Account.CloseAccount", number: { value: "d" })
 
-    # Authorized WHILE c1 is still active — CardPayment.Authorize now
-    # carries its own `given("customer is active")`, and the Suspend
-    # below exists only to give the "Ne matches customers not in good
-    # standing" query something to find, not to describe c1's standing
-    # at authorization time.
     runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a", authorisation: { value: "auth-1" },
                                                         amount: { cents: 4200 }, merchant: { value: "Risky Co" },
                                                         tags: [{ value: "high_risk" }])
     runtime.dispatch("Banking::CardPayment.Authorize", account_id: "b", authorisation: { value: "auth-2" },
                                                         amount: { cents: 1500 }, merchant: { value: "Ordinary Co" })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c1" }, standing: { value: "chargeback investigation" })
+    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" }, standing: { value: "chargeback investigation" })
     runtime
   end
 
@@ -69,7 +73,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
 
   it "Ne matches customers not in good standing" do
     refs = runtime.query("Banking::Customer.NotGoodStanding").map { |row| row[:reference].value }
-    expect(refs).to eq(%w[c1])
+    expect(refs).to eq(%w[c2])
   end
 
   it "Gt matches balances strictly above the floor" do

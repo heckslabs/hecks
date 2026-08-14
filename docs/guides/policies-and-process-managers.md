@@ -195,58 +195,71 @@ ever has to.
 
 A policy forwards the event's WHOLE payload as the trigger's arguments,
 verbatim — not reshaped, not filtered — so the event's shape and the
-trigger's argument shape have to agree before either is written.
-Banking's own corpus carries a policy where they don't:
+trigger's argument shape have to agree before either is written. There
+is no projection between them: a policy's `trigger` has no `with:` the
+way a saga's own `dispatch` does.
+
+Banking's own corpus shows what that costs. `Customer.Suspend` emits
+`CustomerSuspended` carrying its own two arguments — the customer's
+reference and the `standing` it was suspended with — and the policy
+reacting to it triggers `Account.FreezeAccount`, which has no use for
+either:
 
 ```ruby skip
 # Banking, top level, in examples/banking/bluebook/banking.bluebook
 policy "FreezeAccountsOnSuspension" do
-  on      "CustomerSuspended"
-  trigger "Account.Freeze"
+  on       "CustomerSuspended"
+  for_each "Account.OpenForCustomerReference"
+  trigger  "Account.FreezeAccount"
 end
 ```
 
-`Customer.Suspend` emits `CustomerSuspended` carrying its own two
-arguments — the customer's own reference and the `standing` it was
-suspended with. `Account.Freeze` declares neither: it takes no argument
-at all beyond which account to act on. Suspend a customer and watch the
-policy fire and refuse in the same beat:
+So `FreezeAccount` declares `attribute :standing, CustomerStanding,
+optional: true` — a field it never reads, declared only so the forward
+does not refuse — and `Account` carries its own `CustomerStanding`
+value object for that attribute to be typed by. Two declarations and an
+unread argument, all of it paying for one missing word.
+
+The other half is `for_each`. `CustomerSuspended` names a CUSTOMER, and
+a customer may hold several accounts — nothing in the event says which
+one to freeze, or how many. Without the fan-out there is no account for
+the trigger to address at all, which is why this policy sat in the
+corpus for a long time never once firing. With it, one suspension
+reaches every open account that customer holds:
 
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
                   name: { given: "Nadia", family: "Osei" }, email: { address: "nadia@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "a2" },
+runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "sus-1" },
                   kind: { name: "current" }, daily_limit: { cents: 50_000 })
+runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "sus-2" },
+                  kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
 before = runtime.reactions.size
 runtime.dispatch("Banking::Customer.Suspend", reference: "c2", standing: { value: "under review" })
-runtime.reactions[before..].size  # => 1
 
-runtime.reactions.last[:delivered]  # => false
-runtime.reactions.last[:reason]     # => "Freeze does not declare standing — it takes "
+# Filtered by policy: each freeze this one causes goes on to fire
+# `ReviewOnFreeze` in its own right, so the log carries those too.
+froze = runtime.reactions[before..].select { |row| row[:policy] == "FreezeAccountsOnSuspension" }
+froze.map { |row| row[:for_row] }  # => ["sus-1", "sus-2"]
+froze.map { |row| row[:delivered] }.uniq  # => [true]
 ```
 
-`Suspend` itself succeeded — the customer really is suspended:
+Both accounts moved, and nothing at the call site named either of them:
 
 ```ruby
 Banking::Customer.find("c2").status  # => "suspended"
-Banking::Account.find("a2").status   # => "open"
+Banking::Account.find("sus-1").status  # => "frozen"
+Banking::Account.find("sus-2").status  # => "frozen"
 ```
 
-— but the account it was meant to freeze never moved, because the
-event handed `Account.Freeze` a `standing` field it never declared, and
-`refuse_unknown_arguments` stops a command before it ever reaches the
-record. There is a second, quieter reason this particular pairing could
-never succeed even without `standing` in the way: `CustomerSuspended`
-carries the CUSTOMER's own reference, and a customer may hold more than
-one account — nothing in the event names which one to freeze, or how
-many. A policy is exactly this literal. Get the shapes to agree — a
-lean port or event carrying only what its trigger needs — and this
-class of bug has nowhere left to hide; get them wrong and the reaction
-dies as `UnknownArgument` or `AbsentArgument` on every single delivery,
-which is why an external fact belongs on a narrow, purpose-built event
-rather than one bookkeeping-heavy enough to drift from what reacts to
-it.
+Get the shapes to agree — a lean port or event carrying only what its
+trigger needs — and this class of bug has nowhere left to hide; get
+them wrong and the reaction dies as `UnknownArgument` or
+`AbsentArgument` on every single delivery, recorded in the reaction log
+and nowhere a caller will look. Which is why an external fact belongs
+on a narrow, purpose-built event rather than one bookkeeping-heavy
+enough to drift from what reacts to it.
 
 ## Reaching across domains
 
@@ -279,7 +292,7 @@ runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a
                   kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
 before = runtime.reactions.size
-runtime.dispatch("Banking::Account.Freeze", number: "a1")
+runtime.dispatch("Banking::Account.FreezeAccount", number: "a1")
 runtime.reactions[before..].size     # => 1
 runtime.reactions.last[:trigger]     # => "Compliance::AccountFreezeReview.Open"
 runtime.reactions.last[:delivered]   # => false
@@ -402,7 +415,7 @@ runtime.dispatch("Banking::Account.Open", customer_id: "c5", number: { value: "s
 runtime.dispatch("Banking::Account.Open", customer_id: "c5", number: { value: "dst2" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Account.Credit", number: "src2", amount: { cents: 1000 }, narrative: { text: "opening balance" })
-runtime.dispatch("Banking::Account.Freeze", number: "dst2")
+runtime.dispatch("Banking::Account.FreezeAccount", number: "dst2")
 
 runtime.dispatch("Banking::Transfer.Request", reference: { value: "tr2" }, amount: { cents: 200 },
                   narrative: { text: "rent" }, source: "src2", destination: "dst2")

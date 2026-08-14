@@ -93,6 +93,44 @@ Rules that keep the suite honest:
   else boots Memory.
 - Run your guide before believing it: `bundle exec rspec spec/guides_spec.rb`.
 
+## The reference
+
+`docs/reference/` is generated from the language's own Syntax chapter by
+`bin/reference`, and it carries examples under the same harness the
+guides do — with two rules the guides do not have.
+
+- **Every live word carries a running example, in its own `## <word>`
+  section.** `bin/doc_coverage` refuses a tree where one does not, and
+  the pre-push hook runs it. A word that cannot be exemplified is a
+  finding, not an exception: implement it, refuse it at build (and
+  document that refusal with a `# ~>` marker, the way `cursor` does), or
+  mark it non-live in `syntax.bluebook`. Do not weaken the gate.
+- **All declarations go in the page preamble** — the hand-written prose
+  between the page's generated lede and its first word heading.
+  `Doctest::Session#waves` reboots into a FRESH registry on any
+  declaration that follows a usage block, so a `Hecks.bluebook` or
+  `Hecks.hecksagon` inside a word's section silently throws away the
+  domain every section above it was written against. One boot per page;
+  each section then carries a `​```ruby` fence proving its own word.
+- Prefer the real corpus. A page that loads `examples/banking` invents no
+  chapter name and installs no new constants, which is what keeps 19
+  pages and 14 guides sharing one process safely. Declare a chapter of
+  your own only for a word nothing ships uses — and then say so in the
+  preamble, because that absence is itself worth knowing.
+- Sections run top to bottom against one boot, so a section that changes
+  state changes it for every section below. Put it back if it matters
+  (`docs/reference/query.md`'s `where` suspends a customer and reinstates
+  it for exactly this reason).
+- Chapter names are claimed once across the guides AND the reference
+  together — `spec/support/doctest_names.rb` enforces it, because
+  `Facade::Surface.install` puts both chapter and bare aggregate names on
+  `Object` and never removes them.
+- A claim marker must sit on a single-line expression. Assign to a local
+  first rather than wrapping a call across lines.
+- Run the reference before believing it:
+  `bundle exec rspec spec/reference_doctest_spec.rb`, then
+  `./bin/doc_coverage`.
+
 ## The voice
 
 Purely technical. No narrator, no first person, no signature. State

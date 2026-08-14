@@ -1,11 +1,46 @@
 # Hecksagon
 
+<!-- generated:begin id=page -->
 Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
+<!-- generated:end -->
+
+All three words are wiring, so they run against `examples/banking` with
+a hecksagon written here rather than the one the example ships:
+
+```ruby boot
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+
+Hecks.hecksagon("Banking") do
+  uses_framework "Governance"
+  subscribe "Compliance.AccountFreezeReviewOpened"
+
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+
+  # A DRIVING PORT declared against one aggregate's own box — the
+  # spelling `examples/pizzas` uses. See the note under `port` below on
+  # the bare, chapter-level form.
+  Banking::Account.port "RiskFeed" do
+    operation "Flag" do
+      reference_to Account, as: :number
+      attribute :narrative, Narrative
+      emits "RiskFlagReceived"
+    end
+  end
+end
+
+# A FRAMEWORK MEMBER BRINGS ITS OWN SHAPE, NOT ITS OWN PERSISTENCE —
+# whoever attaches it decides where its aggregates live.
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
+```
 
 ## subscribe
 
@@ -19,6 +54,20 @@ between them is hand-written and survives regeneration.*
 
 Names an event this hecksagon takes in from outside its own bluebook. It is declarative only, today — recorded on the registry (`runtime.registry.hecksagon(domain).subscriptions`) and readable back after boot, but nothing routes a subscribed event anywhere by itself. If a feature needs one to actually trigger a reaction, that reaction is still a `policy`, wired the ordinary way.
 
+Declared and readable back:
+
+```ruby
+runtime.registry.hecksagon("Banking").subscriptions  # => ["Compliance.AccountFreezeReviewOpened"]
+```
+
+"Declarative only" is the part to take literally. Nothing routes it —
+there is no handler to find, and asking the registry for one turns up
+nothing at all:
+
+```ruby
+runtime.registry.bluebook("Banking").policies.map(&:event_name).include?("AccountFreezeReviewOpened")  # => false
+```
+
 ## uses_framework
 
 <!-- generated:begin word=uses_framework -->
@@ -31,6 +80,20 @@ Names an event this hecksagon takes in from outside its own bluebook. It is decl
 
 Names a `lib/hecksagain/framework/bluebook/` member this domain wants attached — `uses_framework "Governance"`, say. Attaching one is a deployment decision, the same kind `persisted_by`/`projected_by` already are, so it lives in the hecksagon rather than as a fact stated in the domain's own bluebook. Loads that member's own bluebook into whatever registry this one is loading into — always from its own real location, never a copy, so it keeps working even when this domain is itself copied somewhere else first (a fuzz run's isolated tmp boot, for instance). Persistence is NOT part of what this loads — a member's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever is attaching it, the same as any other binding decision.
 
+The member is recorded on the hecksagon that asked for it:
+
+```ruby
+runtime.registry.hecksagon("Banking").framework_members  # => ["Governance"]
+```
+
+And its chapter is really loaded — `Governance` is a domain in this
+registry now, dispatchable like any other, though nothing in
+`banking.bluebook` mentions it:
+
+```ruby
+runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => ["RoleAssignment", "RoleTransition"]
+```
+
 ## port
 
 <!-- generated:begin word=port -->
@@ -42,4 +105,13 @@ Names a `lib/hecksagain/framework/bluebook/` member this domain wants attached �
 <!-- generated:end -->
 
 A driving port: a second front door for a fact that didn't originate inside the domain (a payment webhook, a card terminal). Called bare, as documented here, it belongs to the chapter as a whole rather than one aggregate. The more common shape in practice is the aggregate-scoped sibling — `Pizzas::Order.port "PaymentGateway" do ... end`, the same receiver `persisted_by` already reaches (see `examples/pizzas/bluebook/pizzas.hecksagon`) — which attaches to one record's own box instead. Either way the body only admits `operation`; see the DomainPort reference page.
+
+The aggregate-scoped form is what the boot above uses, and the port
+lands on the chapter either way:
+
+```ruby
+account = runtime.registry.bluebook("Banking").aggregate("Account")
+account.ports.map(&:name)  # => ["RiskFeed"]
+account.ports.first.operations.map(&:hecks_name)  # => ["Flag"]
+```
 

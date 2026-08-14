@@ -22,7 +22,7 @@
     {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-5"}, "amount": {"cents": 500, "currency": "USD"}, "narrative": {"text": "opening"}}},
 
     {"verb": "Banking::Account.CloseAccount", "args": {"number": {"value": "acct-4"}}},
-    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-5"}}},
+    {"verb": "Banking::Account.FreezeAccount", "args": {"number": {"value": "acct-5"}}},
 
     {"verb": "Banking::ATMCard.Issue", "args": {"account_id": "acct-1", "serial": {"value": "card-w"}, "daily_fee": {"amount": 5.0}}},
     {"verb": "Banking::ATMCard.Issue", "args": {"account_id": "acct-1", "serial": {"value": "card-x"}, "daily_fee": {"amount": 1.0}}},

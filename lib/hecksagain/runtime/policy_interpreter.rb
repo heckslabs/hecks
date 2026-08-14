@@ -121,10 +121,12 @@ module Hecksagain
       # against the triggering event's own payload (the same source
       # `deliver`'s own ordinary path forwards to `trigger` wholesale) and
       # fires `trigger` once per row, merging each row's own id into the
-      # forwarded payload under the iterated aggregate's own reference-key
-      # convention (`account_id` for `Account`, `AggregateBuilder
-      # #reference_to`'s own default mint — see `reference_key_for`'s own
-      # comment). A refusal is recorded per row and the fan-out continues ;
+      # forwarded payload under whichever name the TRIGGER addresses by —
+      # `account:` when it acts on the fanned aggregate, `account_id:`
+      # when it merely stores a reference to it. `reference_key_for`'s own
+      # comment carries the difference and why writing one of them
+      # unconditionally was wrong. A refusal is recorded per row and the
+      # fan-out continues ;
       # a crash resolving the QUERY ITSELF (an unresolvable domain/
       # aggregate/query, or the evaluator raising) is a single top-level
       # defect for the policy, the same shape `deliver`'s own outer rescue
@@ -136,7 +138,7 @@ module Hecksagain
         aggregate = resolve_query_aggregate(query_domain, aggregate_name, policy.for_each)
         payload   = event.payload.transform_keys(&:to_sym)
         rows      = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, payload)
-        reference_key = reference_key_for(aggregate_name)
+        reference_key = reference_key_for("#{query_domain}::#{aggregate_name}", target)
 
         Array(rows).map do |row|
           deliver_for_each_row(target, record, payload, reference_key, row)
@@ -184,7 +186,44 @@ module Hecksagain
       # so a `for_each` iterating Account and a command written
       # `reference_to Account` agree on the argument's name without either
       # one having to say so twice.
-      def reference_key_for(aggregate_name) = :"#{Naming.reference_key(aggregate_name)}_id"
+      # THE ROW'S ID, UNDER THE NAME THE TRIGGER ACTUALLY ADDRESSES BY.
+      # Two different names are correct here, and which one depends on
+      # whether the rows being fanned over ARE the records the trigger
+      # acts on :
+      #
+      #   for_each "Account.OpenForCustomer" + trigger "Account.Freeze"
+      #     -> `account:`    — Freeze ACTS ON that account. A command
+      #                        referencing its OWN aggregate is addressed
+      #                        by the bare reference key (see
+      #                        `ArgumentGate#reference_key`, which is the
+      #                        rule this now matches) and declares no
+      #                        attribute for it at all.
+      #
+      #   for_each "Account.OpenForCustomer" + trigger "Alert.Raise"
+      #     -> `account_id:` — the account is a FOREIGN reference the
+      #                        target stores as an attribute, which is
+      #                        what `reference_to` mints on an aggregate.
+      #
+      # Written `_id` unconditionally before, which is only ever right for
+      # the second shape — so the first, which is what a fan-out IS in
+      # practice (iterate one aggregate's rows, fire that same aggregate's
+      # command), was refused with `UnknownArgument` naming a key the
+      # command could not have taken. The fan-out itself was correct : the
+      # right rows, the right ids, `where` gating properly, one recorded
+      # `for_row:` each. Only the name they arrived under was wrong, so it
+      # failed as a per-row refusal in the reaction log rather than
+      # anywhere a caller would see it.
+      def reference_key_for(aggregate_fqn, target)
+        key = Naming.reference_key(aggregate_fqn)
+        acts_on_rows?(aggregate_fqn, target) ? key : :"#{key}_id"
+      end
+
+      # `target` is "Domain::Aggregate.Command", built by `deliver` — so
+      # the aggregate it acts on is everything left of the dot, compared
+      # QUALIFIED rather than by bare name : a fan-out over one domain's
+      # `Account` triggering another domain's same-named aggregate is a
+      # foreign reference, not a self one.
+      def acts_on_rows?(aggregate_fqn, target) = target.to_s.split(".").first == aggregate_fqn
 
       def resolve_query_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||

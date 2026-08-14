@@ -724,7 +724,15 @@
         },
         {
           "attributes": [
-
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "standing",
+              "optional": true,
+              "pattern": null,
+              "type": "CustomerStanding"
+            }
           ],
           "emits": [
             "AccountFrozen"
@@ -734,8 +742,8 @@
           ],
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
-              "description": "customer is active"
+              "canonical": "customer.status != \"closed\"",
+              "description": "customer is not closed"
             },
             {
               "canonical": "status == \"open\"",
@@ -746,7 +754,7 @@
           "mutations": [
 
           ],
-          "name": "Freeze",
+          "name": "FreezeAccount",
           "provenance": null,
           "references": "Account",
           "role": "Compliance officer"
@@ -1256,7 +1264,7 @@
         "field": "status",
         "transitions": [
           {
-            "command": "Freeze",
+            "command": "FreezeAccount",
             "from_state": "open",
             "to_state": "frozen"
           },
@@ -1446,6 +1454,38 @@
         },
         {
           "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "type": "CustomerReference"
+            }
+          ],
+          "description": "One customer's own accounts that are still open — what a suspension has to reach.",
+          "limit": null,
+          "name": "OpenForCustomerReference",
+          "order_by": {
+            "direction": "asc",
+            "field": "number"
+          },
+          "wheres": [
+            {
+              "field": "customer_id",
+              "op": "eq",
+              "value": ":reference"
+            },
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"open\""
+            }
+          ]
+        },
+        {
+          "attributes": [
 
           ],
           "description": "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.",
@@ -1493,6 +1533,54 @@
 
           ],
           "name": "AccountNumber"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": "good",
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a standing is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CustomerStanding"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a customer reference is present"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CustomerReference"
         },
         {
           "attributes": [
@@ -3570,7 +3658,7 @@
           "mutations": [
 
           ],
-          "name": "Send",
+          "name": "SendTransfer",
           "provenance": null,
           "references": "ExternalTransfer",
           "role": null
@@ -3654,7 +3742,7 @@
         "field": "status",
         "transitions": [
           {
-            "command": "Send",
+            "command": "SendTransfer",
             "from_state": "requested",
             "to_state": "sent"
           },
@@ -5665,11 +5753,11 @@
       "where": null
     },
     {
-      "for_each": null,
+      "for_each": "Account.OpenForCustomerReference",
       "name": "FreezeAccountsOnSuspension",
       "on_event": "CustomerSuspended",
       "target_domain": null,
-      "trigger_command": "Account.Freeze",
+      "trigger_command": "Account.FreezeAccount",
       "where": null
     },
     {
@@ -5849,7 +5937,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::ExternalTransfer.Send",
+              "command_name": "Banking::ExternalTransfer.SendTransfer",
               "with_spec": [
                 [
                   "end_to_end",

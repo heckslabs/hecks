@@ -44,4 +44,13 @@ if ! "$ROOT/bin/model_check"; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, model checks clean.\n\n'
+printf '\n[pre-push] docs coverage — words with no running example\n\n'
+
+if ! "$ROOT/bin/doc_coverage"; then
+  printf '\n[pre-push] BLOCKED — the language ships something undocumented.\n'
+  printf '           Write the missing sections and examples, or push with\n'
+  printf '           --no-verify and say why.\n\n'
+  exit 1
+fi
+
+printf '\n[pre-push] suite green, model checks clean, every word exemplified.\n\n'

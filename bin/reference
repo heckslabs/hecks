@@ -28,10 +28,18 @@ Hecksagain::Doc::Reference.write_readme!(root)
 
 puts "wrote #{written.size} pages to docs/reference/, and regenerated README.md's own indexes"
 
-missing = Hecksagain::Doc::Reference.undocumented(directory)
-if missing.empty?
-  puts "every live word carries prose."
-else
-  puts "#{missing.size} word(s) still carry no prose:"
-  missing.each { |word| puts "  #{word}" }
+# BOTH COVERAGE GATES, reported together — regeneration is when a new
+# word first appears on a page, so it is the moment somebody can see
+# what they now owe it. `bin/doc_coverage` asks the same two questions
+# as its own exit status, for the pre-push hook.
+{
+  "prose" => Hecksagain::Doc::Reference.undocumented(directory),
+  "a running example" => Hecksagain::Doc::Reference.unexemplified(directory)
+}.each do |owed, missing|
+  if missing.empty?
+    puts "every live word carries #{owed}."
+  else
+    puts "#{missing.size} word(s) still carry no #{owed}:"
+    missing.each { |word| puts "  #{word}" }
+  end
 end

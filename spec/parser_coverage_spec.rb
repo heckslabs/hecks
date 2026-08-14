@@ -146,17 +146,22 @@ RSpec.describe "the Rust parser's own coverage" do
   # instead would be precisely the false claim this whole harness exists
   # to make impossible (this table's own opening comment).
   #
-  # `where`/`for_each` `Policy` — new language surface (conditional policy
-  # dispatch + fan-out), same category as the rest of this list: declared
-  # for real (PolicyBuilder answers both, PolicyInterpreter evaluates
-  # them), but no corpus member `hecks-parse` actually parses (the nine
-  # self-hosted grammar files, `pizzas`/`banking`/`compliance`, the
-  # framework trio, `spec/fixtures/**`) uses either yet — the real dispatch
-  # coverage lives in `spec/runtime/policy_spec.rb`'s own inline-built
-  # bluebooks, which `hecks-parse` never sees. A future stage that builds
-  # `parse::policy`'s `where`/`for_each` arms and finds (or adds) a real
-  # corpus member exercising them shrinks this the same way every other
-  # entry here would.
+  # `where` `Policy` — new language surface (conditional policy
+  # dispatch), same category as the rest of this list: declared for real
+  # (PolicyBuilder answers it, PolicyInterpreter evaluates it), but no
+  # corpus member `hecks-parse` actually parses (the nine self-hosted
+  # grammar files, `pizzas`/`banking`/`compliance`, the framework trio,
+  # `spec/fixtures/**`) declares one yet — the real dispatch coverage
+  # lives in `spec/runtime/policy_spec.rb`'s own inline-built bluebooks,
+  # which `hecks-parse` never sees. It is also the harder half: a `where`
+  # is a BLOCK, where every arm `parse::policy` already builds reads a
+  # positional text.
+  #
+  # `for_each` came OFF this list the way the paragraph above says one
+  # should: `banking.bluebook`'s own `FreezeAccountsOnSuspension` became
+  # the real corpus member exercising it (a suspension has to reach every
+  # account the customer holds, and a policy with no fan-out could not
+  # address one), and `parse::policy` grew the matching arm.
   PENDING_PAIRS = (DECLARED_PAIRS - COVERED_PAIRS).freeze
 
   def self.reported_coverage

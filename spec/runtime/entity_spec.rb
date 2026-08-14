@@ -79,7 +79,7 @@ RSpec.describe "an entity" do
     # DISPATCH_ORDER, an already-reversed entry is refused there first:
     # GivenNotMet, not the lifecycle's own LifecycleRefused. Still refused
     # either way — see spec/runtime/command_rules_spec.rb's own matching
-    # note on Account.Freeze/Transfer.Settle for the general shape.
+    # note on Account.FreezeAccount/Transfer.Settle for the general shape.
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })

@@ -26,37 +26,92 @@ RSpec.describe Hecksagain::Facade::Handle do
   end
 
   # A non-creating verb whose snake-cased name collides with a real
-  # Object/Kernel method (`Account.Freeze` -> `freeze`) used to be silently
-  # swallowed by Kernel#freeze rather than dispatched — no error, no
-  # refusal, the transition just never happened.
+  # Object/Kernel method (`Freeze` -> `freeze`, `Send` -> `send`) used to
+  # be silently swallowed by the Kernel method rather than dispatched — no
+  # error, no refusal, the transition just never happened.
+  #
+  # THE FIXTURE IS DELIBERATE, not a convenience. Banking used to be the
+  # subject here (`Account.Freeze`, `ExternalTransfer.Send` were the only
+  # two colliding verbs in the whole corpus) and both were renamed —
+  # domain vocabulary should not be chosen by what Ruby happens to have
+  # taken. That leaves nothing shipped to prove this with, and the
+  # protection is for somebody ELSE'S domain now : anyone is still free to
+  # name a command `Freeze`, so the guard has to keep being tested. A
+  # chapter that exists only to collide is the honest way to do that.
+  def boot_collider
+    registry = Hecksagain::Runtime::Registry.new
+
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+
+      Hecks.bluebook "Collider" do
+        aggregate "Vault" do
+          identified_by Tag, as: :tag
+
+          value_object("Tag") { attribute :value, String }
+
+          lifecycle :status, default: "open" do
+            transition "Freeze" => "frozen", from: "open"
+            transition "Send"   => "sent",   from: "frozen"
+            transition "Thaw"   => "open",   from: "frozen"
+          end
+
+          command "Build" do
+            attribute :tag, Tag
+            then_set :tag, to: :tag
+            emits "VaultBuilt"
+          end
+
+          # Every one of these snake-cases onto a real Object/Kernel
+          # method, which is the entire point.
+          command("Freeze")  { reference_to Vault; emits "VaultFrozen" }
+          command("Send")    { reference_to Vault; emits "VaultSent" }
+          command("Thaw")    { reference_to Vault; emits "VaultThawed" }
+        end
+      end
+
+      Hecks.hecksagon("Collider") { ::Collider::Vault.persisted_by("Memory") }
+    end
+
+    registry.verify!
+    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+  end
+
   it "dispatches a verb even when its name collides with a Kernel method" do
-    boot_banking_in_memory
+    boot_collider
 
-    customer = Banking::Customer.register(
-      reference: { value: "c1" },
-      name: { given: "Ada", family: "Lovelace" },
-      email: { address: "ada@example.com" }
-    )
-    account = Banking::Account.open(
-      customer_id: customer.id,
-      number: { value: "a1" },
-      kind: { name: "current" },
-      daily_limit: { cents: 1_000 }
-    )
+    vault = Collider::Vault.build(tag: { value: "v1" })
+    expect(vault.status).to eq("open")
 
-    expect(account.status).to eq("open")
+    vault.freeze
 
-    account.freeze
+    expect(vault.status).to eq("frozen")
+    # NOT actually Kernel-frozen — the domain verb ran, the object did not
+    # become immutable.
+    expect(vault.frozen?).to be(false)
+    expect(vault.events.map(&:name)).to include("VaultFrozen")
 
-    expect(account.status).to eq("frozen")
-    expect(account.frozen?).to be(false)
-    expect(account.events.map(&:name)).to include("AccountFrozen")
+    # `send` is the sharper case: Kernel#send takes a method name and would
+    # happily invoke something else entirely rather than refuse.
+    vault.send
 
-    # Chains cleanly, the way every other non-creating verb does — a truly
-    # Kernel-frozen object would raise FrozenError the moment `run` tried to
-    # reassign @state.
-    account.unfreeze
-    expect(account.status).to eq("open")
+    expect(vault.status).to eq("sent")
+    expect(vault.events.map(&:name)).to include("VaultSent")
+  end
+
+  it "chains a colliding verb the way every other non-creating verb chains" do
+    boot_collider
+
+    vault = Collider::Vault.build(tag: { value: "v2" })
+    vault.freeze
+    # A truly Kernel-frozen object would raise FrozenError the moment `run`
+    # tried to reassign @state.
+    vault.thaw
+
+    expect(vault.status).to eq("open")
   end
 
   # `Handle#run` used to address every non-creating verb with

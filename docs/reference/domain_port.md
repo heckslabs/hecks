@@ -1,11 +1,88 @@
 # DomainPort
 
+<!-- generated:begin id=page -->
 Words available inside `port do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
+<!-- generated:end -->
+
+`operation` is the spelling the corpus uses; `tells`, `asks` and `verb`
+appear nowhere in it, so this page declares a domain that carries all
+four — a shipment that asks a carrier for a quote, is told when it was
+delivered, and records itself through a swappable resource port:
+
+```ruby bluebook
+Hecks.bluebook "DomainPortReference" do
+  vision "A shipment, and the two directions a port can point."
+
+  aggregate "Shipment" do
+    identified_by Waybill, as: :waybill
+    attribute :note, Note
+
+    value_object("Waybill") { attribute :value, String }
+    value_object("Note")    { attribute :text,  String }
+
+    command "Book" do
+      attribute :waybill, Waybill
+      attribute :note,    Note
+      then_set :waybill, to: :waybill
+      then_set :note,    to: :note
+      emits "ShipmentBooked"
+    end
+  end
+end
+```
+
+The adapter answering the ask refuses for one waybill and succeeds for
+the other, so both endings are reachable from a single boot:
+
+```ruby boot
+# A CLASS, not a module — the runtime instantiates whatever it resolves
+# for the port, so a bare module answers `NoMethodError: undefined
+# method 'new'`. Which itself arrives as a `refuses` event rather than
+# an exception, exactly as documented under `refuses` below.
+class RefCarrier
+  def quote(**args)
+    raise "no service to that address" if args[:waybill].to_s.include?("remote")
+
+    { "price" => { "cents" => 1_200 } }
+  end
+end
+
+Hecksagain::Adapters.const_set(:RefCarrier, RefCarrier) unless Hecksagain::Adapters.const_defined?(:RefCarrier, false)
+Hecks.adapter("RefCarrier") { port "Carrier" }
+
+Hecks.hecksagon("DomainPortReference") do
+  DomainPortReference::Shipment.persisted_by("Memory")
+
+  DomainPortReference::Shipment.port "Carrier" do
+    asks "Quote" do
+      reference_to Shipment, as: :waybill
+      answers "QuoteReturned"
+      refuses "QuoteRefused"
+    end
+
+    tells "Delivered" do
+      reference_to Shipment, as: :waybill
+      emits "DeliveryReported"
+    end
+  end
+
+  # A PORT IS A `verb` OR ONE-OR-MORE `operation`s, never both — so the
+  # resource port is a second port, not another word inside the first.
+  DomainPortReference::Shipment.port "Ledger" do
+    verb "recorded_by"
+  end
+end
+```
+
+```ruby
+runtime.dispatch("DomainPortReference::Shipment.Book", waybill: { value: "wb-1" }, note: { text: "two crates" })
+runtime.dispatch("DomainPortReference::Shipment.Book", waybill: { value: "wb-remote" }, note: { text: "one crate" })
+```
 
 ## operation
 
@@ -18,6 +95,15 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 Opens one translation from an external fact into this domain's own event vocabulary — `reference_to`, `attribute`, and `emits`, nothing else: the builder behind it defines no `given` or `then_set`, so an operation cannot read aggregate state or mutate a record itself. A `port` declares `operation`s or a `verb` (below) — never both, and never neither. Pizzas' `PaymentGateway` port and its `Receive` operation (`examples/pizzas/bluebook/pizzas.hecksagon`) are the worked example — it only emits `PizzaPaymentReceived`; the actual rules (must have a topping, must still be available) stay on `Order`'s own `Purchase` command, reached through the `OnPizzaPaymentReceived` policy beside it. See the PortOperation reference page for the vocabulary inside.
+
+An operation is addressed through its port, not directly off the
+aggregate — `Aggregate.Port.Operation`:
+
+```ruby
+shipment = runtime.registry.bluebook("DomainPortReference").aggregate("Shipment")
+shipment.ports.map(&:name)  # => ["Carrier"]
+shipment.ports.find { |port| port.name == "Carrier" }.operations.map(&:hecks_name)  # => ["Quote", "Delivered"]
+```
 
 ## tells
 
@@ -39,6 +125,23 @@ It emits, and that is all. There is no channel back to whoever called: an
 inbound operation is the anti-corruption boundary, and whatever should
 happen next happens wherever a `policy` reacts to the event it emitted.
 Declaring `answers` or `refuses` on one is refused when the bluebook builds.
+
+`Delivered` is an inbound fact: something outside says the crate
+arrived, and the domain records that it was told:
+
+```ruby
+told = runtime.dispatch("DomainPortReference::Shipment.Carrier.Delivered", waybill: "wb-1")
+told.events.map(&:name)  # => ["DeliveryReported"]
+```
+
+Nothing goes back. The event is the whole of it, and what happens next
+is a `policy`'s business:
+
+```ruby
+carrier = shipment.ports.find { |port| port.name == "Carrier" }
+delivered = carrier.operations.find { |operation| operation.hecks_name == "Delivered" }
+delivered.answers  # => nil
+```
 
 ## asks
 
@@ -69,6 +172,22 @@ It must name both endings (`answers` and `refuses`) and may not `emits`.
 An ask that named only its happy ending would put the failure somewhere the
 model cannot see, which is the whole reason a boundary is worth modelling.
 
+The adapter really is called, and what it returned comes back as the
+event the ask named:
+
+```ruby
+answered = runtime.dispatch("DomainPortReference::Shipment.Carrier.Quote", waybill: "wb-1")
+answered.events.map(&:name)  # => ["QuoteReturned"]
+```
+
+And when the outside says no, that is an event too — not an exception
+escaping into the caller:
+
+```ruby
+refused = runtime.dispatch("DomainPortReference::Shipment.Carrier.Quote", waybill: "wb-remote")
+refused.events.map(&:name)  # => ["QuoteRefused"]
+```
+
 ## verb
 
 <!-- generated:begin word=verb -->
@@ -89,4 +208,19 @@ instead of a separate file. A port is a `verb` or one-or-more `operation`s,
 never both; declaring neither, or both, refuses to build. See
 writing-an-adapter.md's own section on resource ports for a worked
 example.
+
+A `verb` port declares no operations at all — it names the binding word
+an adapter is reached by:
+
+A `verb` port does not land beside the driving ports on the aggregate —
+it registers as a RESOURCE port on the registry itself, next to the
+persistence and extraction ports the framework declares the same way:
+
+```ruby
+runtime.registry.ports.keys.sort  # => ["Ledger", "extraction", "persistence"]
+```
+
+Which is the difference the prose above is drawing. A driving port is
+part of the domain's own surface; a resource port is a socket an
+adapter plugs into, and it has no operations of its own to address.
 

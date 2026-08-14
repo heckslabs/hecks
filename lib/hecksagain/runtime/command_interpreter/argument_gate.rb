@@ -31,7 +31,7 @@ module Hecksagain
           raise UnknownArgument,
                 RefusalWording.render("UnknownArgument", "unknown_args",
                                       command: command.hecks_name, unknown: unknown.join(", "),
-                                      declared: command.attributes.map(&:name).join(", "))
+                                      declared: declared_reading(command))
         end
 
         # And it takes ALL of them. The other half of the same sentence, missing
@@ -60,7 +60,24 @@ module Hecksagain
           raise AbsentArgument,
                 RefusalWording.render("AbsentArgument", "absent_args",
                                       command: command.hecks_name, absent: absent.join(", "),
-                                      declared: command.attributes.map(&:name).join(", "))
+                                      declared: declared_reading(command))
+        end
+
+        # A COMMAND THAT DECLARES NOTHING STILL HAS TO SAY SO. `Account
+        # .Freeze` is `reference_to Account` and no attributes at all, so
+        # `{declared}` rendered empty and the sentence trailed off mid-
+        # clause : "Freeze does not declare standing — it takes ". Read
+        # against a real refusal that shape is worse than unhelpful — it
+        # looks like the message itself is broken, right where a caller
+        # is already trying to work out what went wrong.
+        #
+        # Only the empty case changes. Every command that declares even
+        # one attribute renders exactly as it did before, because refusal
+        # wording is contract and pinned byte-for-byte by the corpus (see
+        # `refuse_unknown_arguments`' own note on sorting for why).
+        def declared_reading(command)
+          declared = command.attributes.map(&:name)
+          declared.empty? ? "none" : declared.join(", ")
         end
 
         # What a process manager correlates by is ROUTING, not description. A saga

@@ -97,7 +97,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
   #      than re-deriving cross-domain-ness on the Ruby side.
   #
   #   2. `FreezeAccountsOnSuspension` forwards `CustomerSuspended`'s
-  #      payload (no `number:` field at all) into `Account.Freeze` —
+  #      payload (no `number:` field at all) into `Account.FreezeAccount` —
   #      found live, across THREE fixtures that all happen to dispatch
   #      `Customer.Suspend` (entities_policies_sagas.json, query_filters.
   #      json, named_queries_order_limit.json — none of them chosen for
@@ -121,7 +121,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
 
   def known_reaction_gap?(reaction)
     reaction["policy"] == "FreezeAccountsOnSuspension" &&
-      reaction["trigger"] == "Banking::Account.Freeze" &&
+      reaction["trigger"] == "Banking::Account.FreezeAccount" &&
       reaction["delivered"] == false
   end
 

@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+
+# EVERY LIVE WORD SHIPS WITH A RUNNING EXAMPLE, or this refuses. Prose is
+# a declaration, and a declaration nothing runs cannot disagree with the
+# runtime it describes.
+#
+# Two gates over docs/reference/, both derived from the language's own
+# Syntax chapter rather than a list somebody maintains:
+#
+#   documented   — the word's section carries hand-written prose, not the
+#                  TODO sentinel
+#   exemplified  — that prose carries a fence the doctest harness runs
+#                  (```ruby, ```ruby bluebook, ```ruby boot). A `ruby
+#                  skip` fence is display-only and a hidden
+#                  `<!-- doctest:boot -->` block is setup, so neither
+#                  counts: an example a reader cannot see is not one.
+#
+# This answers PRESENCE. That the examples PASS is spec/reference_
+# doctest_spec.rb's question, and the two together are the real claim:
+# every word has an example, and every example runs.
+#
+# Lives in the pre-push hook beside bin/model_check, for the same reason
+# that one does — a coverage miss reported as its own sentence is a
+# thing you can act on, where the same miss buried in a suite of 1500
+# examples is noise.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "hecksagain/doc/reference"
+
+directory = File.join(File.expand_path("..", __dir__), "docs/reference")
+
+undocumented  = Hecksagain::Doc::Reference.undocumented(directory)
+unexemplified = Hecksagain::Doc::Reference.unexemplified(directory)
+
+# REPORTED SEPARATELY, because they are different repairs: an
+# undocumented word needs somebody to write about it, an unexemplified
+# one needs somebody to prove it. A word with neither shows up in both
+# lists on purpose — you owe it both.
+def report(words, owed)
+  return true if words.empty?
+
+  puts "#{words.size} live #{words.size == 1 ? 'word carries' : 'words carry'} #{owed}:"
+  words.each { |word| puts "  #{word}" }
+  puts
+  false
+end
+
+clean = [
+  report(undocumented, "no prose — write their sections"),
+  report(unexemplified, "no running example — write one in each word's own section")
+].all?
+
+if clean
+  puts "every live word carries prose and a running example."
+  exit 0
+end
+
+warn "docs/reference/ is behind the language. Regenerate with bin/reference to see the words in place."
+exit 1

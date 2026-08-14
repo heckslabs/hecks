@@ -1,11 +1,23 @@
 # Handler
 
+<!-- generated:begin id=page -->
 Words available inside `on do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
+<!-- generated:end -->
+
+```ruby boot
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+
+Hecks.hecksagon("Banking") do
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::OnboardingCase.persisted_by("Memory")
+end
+```
 
 ## dispatch
 
@@ -23,4 +35,42 @@ own fields onto the command's arguments via `with:`. Same-domain by
 default like a policy's `trigger` — write `"Aggregate.Command"` — or
 prefix with `"Domain::"` to reach another domain directly; there is no
 separate `across` here, the qualified name carries it.
+
+`examples/banking`'s `Onboarding` saga carries one dispatching leg, and
+`with:` is where the saga's own memory of the opening event becomes the
+command's arguments — `customer_id: :customer` reads the field the
+saga remembered, and `kind:`/`daily_limit:` are literals the saga
+supplies itself:
+
+```ruby skip
+# examples/banking/bluebook/banking.bluebook
+on "OnboardingCleared", transition: { "screening" => "cleared" } do
+  dispatch "Banking::Account.Open", with: {
+    customer_id: :customer, number: :account_number,
+    kind: { name: "current" }, daily_limit: { cents: 0 }
+  }
+end
+```
+
+Nothing at the call site names an account. Clearing the case is the
+whole act, and the account exists afterwards:
+
+```ruby
+runtime.dispatch("Banking::Customer.Register", reference: { value: "hd-1" },
+                 name: { given: "Annie", family: "Easley" },
+                 email: { address: "annie@example.com" })
+kase = Banking::OnboardingCase.open(customer: "hd-1", reference: { value: "hd-c1" },
+                                    account_number: { value: "hd-a1" })
+kase.clear
+
+Banking::Account.find("hd-a1").customer_id  # => "hd-1"
+```
+
+The delivery is recorded, so a leg that fired and a leg that never ran
+are distinguishable after the fact:
+
+```ruby
+runtime.registry.saga_log.last[:dispatch]   # => "Banking::Account.Open"
+runtime.registry.saga_log.last[:delivered]  # => true
+```
 

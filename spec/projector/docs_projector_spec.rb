@@ -78,13 +78,13 @@ RSpec.describe Hecksagain::Projector::DocsProjector do
   describe "the lifecycle" do
     it "is a table of verb, from and to, with the state it starts in" do
       expect(banking).to include("Starts at `open`")
-      expect(banking).to match(/\| `Freeze` \| `open` \| `frozen` \|/)
+      expect(banking).to match(/\| `FreezeAccount` \| `open` \| `frozen` \|/)
     end
   end
 
   describe "a verb" do
     it "carries its goal and the role that issues it" do
-      command = registry.bluebook("Banking").aggregate("Account").commands.find { |c| c.hecks_name == "Freeze" }
+      command = registry.bluebook("Banking").aggregate("Account").commands.find { |c| c.hecks_name == "FreezeAccount" }
       expect(banking).to include(command.goal)
       expect(banking).to include("Issued by: **#{command.role}**")
     end

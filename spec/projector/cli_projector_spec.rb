@@ -33,8 +33,8 @@ RSpec.describe Hecksagain::Projector::CliProjector do
   end
 
   it "names a subcommand after its aggregate and verb, and keeps the fully-qualified one" do
-    expect(banking[:verbs]["account.freeze"][:verb]).to eq("Banking::Account.Freeze")
-    expect(banking[:verbs]["account.freeze"][:kind]).to eq(:command)
+    expect(banking[:verbs]["account.freeze_account"][:verb]).to eq("Banking::Account.FreezeAccount")
+    expect(banking[:verbs]["account.freeze_account"][:kind]).to eq(:command)
   end
 
   # THE COLLISION THAT DECIDED THE SHAPE. Banking declares a command
@@ -83,9 +83,9 @@ RSpec.describe Hecksagain::Projector::CliProjector do
     # `id` IS DECLARED NOWHERE. A non-creating command reaches an existing
     # record through `reference_to <its own aggregate>`, which does not come
     # back in `attributes` — so a caller reading the argument list alone would
-    # never send it, and `account.freeze` would be uncallable.
+    # never send it, and `account.freeze_account` would be uncallable.
     it "adds the id a non-creating command needs, and only there" do
-      expect(option(banking, "account.freeze", "id")).not_to be_nil
+      expect(option(banking, "account.freeze_account", "id")).not_to be_nil
       expect(option(banking, "account.open", "id")).to be_nil
     end
 
@@ -127,9 +127,9 @@ RSpec.describe Hecksagain::Projector::CliProjector do
 
     it "shows one verb's arguments and every way it refuses" do
       help = described_class.call(bluebook: registry.bluebook("Banking"),
-                                  options: { verb: "account.freeze" })[:usage]
+                                  options: { verb: "account.freeze_account" })[:usage]
 
-      expect(help).to include("dispatches Banking::Account.Freeze")
+      expect(help).to include("dispatches Banking::Account.FreezeAccount")
       expect(help).to include("issued by")
       expect(help).to match(/^\s+id\s+String; id of the Account to act on/)
       expect(help).to include("refused when:")

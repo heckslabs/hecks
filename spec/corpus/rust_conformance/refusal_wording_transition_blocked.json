@@ -4,7 +4,7 @@
   "steps": [
     {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
     {"verb": "Banking::Account.Open", "args": {"customer_id": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}}},
-    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-1"}}},
-    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-1"}}}
+    {"verb": "Banking::Account.FreezeAccount", "args": {"number": {"value": "acct-1"}}},
+    {"verb": "Banking::Account.FreezeAccount", "args": {"number": {"value": "acct-1"}}}
   ]
 }

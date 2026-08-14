@@ -151,7 +151,7 @@ RSpec.describe "the rules a command obeys" do
   describe "the state machine" do
     it "refuses a move an AGGREGATE's machine does not admit" do
       runtime = funded_account(boot_banking)
-      runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" }, id: "a1")
+      runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
 
       # Freeze also carries its own explicit `given("account is open")` (a
       # customer/account status guard, ported alongside this test's own
@@ -161,8 +161,8 @@ RSpec.describe "the rules a command obeys" do
       # own LifecycleRefused. The command is still refused either way;
       # only which check gets there first, and what it's named, changed.
       expect do
-        runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" }, id: "a1")
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Freeze refused — account is open")
+        runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "FreezeAccount refused — account is open")
     end
 
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do
@@ -170,7 +170,7 @@ RSpec.describe "the rules a command obeys" do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 1 }, narrative: narrative)
 
-      # Same overlap as Account.Freeze above: Amend now carries its own
+      # Same overlap as Account.FreezeAccount above: Amend now carries its own
       # `given("entry is posted")`, which pre-empts the entity's own
       # lifecycle machine (`admissible_transition` runs after
       # `enforce_givens`) — GivenNotMet, not LifecycleRefused. Still
@@ -198,7 +198,7 @@ RSpec.describe "the rules a command obeys" do
 
       # Settle now carries its own `given("transfer is credited")`, which
       # pre-empts the aggregate's own lifecycle machine the same way
-      # Account.Freeze's and LedgerEntry.Amend's guards do above —
+      # Account.FreezeAccount's and LedgerEntry.Amend's guards do above —
       # GivenNotMet, not LifecycleRefused. Still refused before any
       # destination credit was recorded, same guarantee as before.
       expect do
@@ -222,7 +222,7 @@ RSpec.describe "the rules a command obeys" do
 
       # Settle/Credited each now carry their own explicit status guards,
       # which pre-empt the aggregate's own lifecycle machine (same overlap
-      # documented above on Account.Freeze/LedgerEntry.Amend/Settle) —
+      # documented above on Account.FreezeAccount/LedgerEntry.Amend/Settle) —
       # GivenNotMet, not LifecycleRefused. Still refused at every one of
       # these out-of-order points, same guarantee as before.
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }
@@ -394,7 +394,7 @@ RSpec.describe "the rules a command obeys" do
 
     it "refuses on a bare ACCOUNT status guard — CardPayment.Authorize against a frozen account" do
       runtime = funded_account(boot_banking)
-      runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" })
+      runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" })
 
       expect do
         runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
@@ -407,7 +407,7 @@ RSpec.describe "the rules a command obeys" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a2" },
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
-      runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" })
+      runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" })
 
       expect do
         runtime.dispatch("Banking::Transfer.Request", reference: { value: "x1" },

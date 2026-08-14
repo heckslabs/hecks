@@ -764,13 +764,13 @@ mod tests {
             .then_some(())
             .expect("account open should succeed");
 
-        // `Banking::Account.Freeze` announces `AccountFrozen`, matched by
+        // `Banking::Account.FreezeAccount` announces `AccountFrozen`, matched by
         // `ReviewOnFreeze` (examples/banking/bluebook/banking.bluebook:
         // `across "Compliance"`) — the real trigger this whole feature
         // exists for, running end to end for the first time outside a
         // pure-WASM corpus comparison.
         let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-me" } });
-        let outcome = handle(&client, &wasm_path(), "Banking::Account.Freeze", freeze_args, None, &config, &invoker)
+        let outcome = handle(&client, &wasm_path(), "Banking::Account.FreezeAccount", freeze_args, None, &config, &invoker)
             .await
             .unwrap();
         assert!(outcome.accepted, "freeze should succeed: {:?}", outcome.result);
@@ -953,7 +953,7 @@ mod tests {
         provision_lineage(&*client.lock().await, "Banking", 1, &["Customer", "Account", "Transfer"]).await;
         let config = test_config("Banking", 1);
         // The real cross-domain policy `ReviewOnFreeze` fires on every
-        // `Account.Freeze` in this domain (proven by this file's own
+        // `Account.FreezeAccount` in this domain (proven by this file's own
         // `a_cross_domain_policy_delivers_through_the_real_rehydrate_
         // replay_path` above) — `NeverInvoker` would panic on it.
         let invoker = RecordingInvoker::new();
@@ -986,7 +986,7 @@ mod tests {
         // in "reversed" (`ends_on "TransferSettled"` never fires for
         // this one) — exactly the mid-flight, never-cleaned-up shape
         // this test needs a real saga row to recover.
-        handle(&client, &wasm_path(), "Banking::Account.Freeze", serde_json::json!({ "number": { "value": "dst-backfill" } }), None, &config, &invoker)
+        handle(&client, &wasm_path(), "Banking::Account.FreezeAccount", serde_json::json!({ "number": { "value": "dst-backfill" } }), None, &config, &invoker)
             .await.unwrap().accepted.then_some(()).expect("freeze should succeed");
         let transfer_args = serde_json::json!({
             "reference": { "value": "tr-backfill" }, "amount": { "cents": 200 },
@@ -1085,7 +1085,7 @@ mod tests {
         // `AlwaysFailingInvoker` fails, so `deliver_with_retry` exhausts
         // `MAX_DELIVERY_ATTEMPTS` before `handle` ever sees a result.
         let freeze_args = serde_json::json!({ "number": { "value": "acct-freeze-dead-letter" } });
-        let outcome = handle(&client, &wasm_path(), "Banking::Account.Freeze", freeze_args, None, &config, &invoker).await;
+        let outcome = handle(&client, &wasm_path(), "Banking::Account.FreezeAccount", freeze_args, None, &config, &invoker).await;
 
         assert!(
             outcome.is_err(),

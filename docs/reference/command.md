@@ -1,11 +1,77 @@
 # Command
 
+<!-- generated:begin id=page -->
 Words available inside `command do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
 by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
+<!-- generated:end -->
+
+Most of these run against `examples/banking`, whose `Account` commands
+carry roles, goals, givens, ensures and multi-fact `emits` for real.
+`sets` and a command-level `provenance` are written nowhere in the
+corpus — the corpus still spells the first `then_set` — so they get a
+chapter of their own:
+
+```ruby boot
+Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+
+Hecks.hecksagon("Banking") do
+  Banking::Customer.persisted_by("Memory")
+  Banking::Account.persisted_by("Memory")
+  Banking::SafeDepositBox.persisted_by("Memory")
+end
+```
+
+```ruby bluebook
+Hecks.bluebook "CommandReference" do
+  vision "The two command words the corpus does not yet write."
+
+  aggregate "Meter" do
+    identified_by Serial, as: :serial
+    attribute :reading, Reading
+    attribute :marks,   list_of(Mark)
+
+    value_object("Serial")  { attribute :value, Integer }
+    value_object("Reading") { attribute :units, Integer, default: 0 }
+    value_object("Mark")    { attribute :note,  String }
+
+    command "Install" do
+      attribute :serial, Serial
+      # THE NEW SPELLING — `sets`, where every bluebook in this
+      # repository still writes `then_set`. Both boot.
+      sets :serial, to: :serial
+      emits "MeterInstalled"
+    end
+
+    command "Advance" do
+      # A COMMAND'S OWN PROVENANCE, one level below the aggregate's.
+      provenance from: { source: "HecksCanonical", source_id: "command:meter-advance", source_version: "1.0" }
+
+      reference_to Meter
+      attribute :units, Reading
+      attribute :note,  Mark
+      sets :reading, increment: :units
+      sets :marks,   append: { note: :note }
+      emits "MeterAdvanced"
+    end
+  end
+end
+```
+
+```ruby boot
+Hecks.hecksagon("CommandReference") { CommandReference::Meter.persisted_by("Memory") }
+```
+
+```ruby
+runtime.dispatch("Banking::Customer.Register", reference: { value: "cm-1" },
+                 name: { given: "Annie", family: "Cannon" },
+                 email: { address: "annie@example.com" })
+account = Banking::Account.open(customer_id: "cm-1", number: { value: "cm-a1" },
+                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+```
 
 ## role
 
@@ -19,6 +85,25 @@ between them is hand-written and survives regeneration.*
 
 Names who calls this command — "Compliance officer", "Back office". Optional: a command with no declared `role` is never checked against anything. Where it IS declared, enforcement is opt-in on the caller's side too — unchecked by default, real once a caller states one. `Hecksagain.as_caller(role:, &block)` binds who is dispatching for the block (`Runtime::Caller`, `Thread.current`-backed, safe under nesting); a command whose declared `role` doesn't match refuses with `Unauthorized` (`CommandRules::Authorization#refuse_role_mismatch`, the `role_mismatch` refusal template). A policy or saga reaction never inherits the triggering caller's role — `Dispatcher#reenter` clears it, since a reaction is the system acting, not the original caller.
 
+`Freeze` is declared `role "Compliance officer"`. Unchecked by default —
+a caller who states nothing is not refused:
+
+```ruby
+runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "cm-a1" })
+Banking::Account.find("cm-a1").status  # => "frozen"
+```
+
+Real the moment a caller does state one:
+
+```ruby
+Hecksagain.as_caller(role: "Teller") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }  # ~> Unauthorized: Unfreeze refused
+```
+
+```ruby
+Hecksagain.as_caller(role: "Compliance officer") { runtime.dispatch("Banking::Account.Unfreeze", number: { value: "cm-a1" }) }
+Banking::Account.find("cm-a1").status  # => "open"
+```
+
 ## goal
 
 <!-- generated:begin word=goal -->
@@ -30,6 +115,14 @@ Names who calls this command — "Compliance officer", "Back office". Optional: 
 <!-- generated:end -->
 
 A one-line statement of intent — "Bring in one basket and count it toward the tree's yield." Descriptive only, unlike `role`: nothing enforces that the command's body actually does what its `goal` claims.
+
+Carried on the IR and read by nothing at dispatch:
+
+```ruby
+freeze = runtime.registry.bluebook("Banking").aggregate("Account").commands.find { |c| c.hecks_name == "FreezeAccount" }
+freeze.goal  # => "Stop an account moving while something is investigated"
+freeze.role  # => "Compliance officer"
+```
 
 ## provenance
 
@@ -46,6 +139,18 @@ command's own concept came from, when the command itself was adopted from a
 canonical source rather than authored here. Same shape, same raw Hash, same
 rule: nothing but a human, or future tooling, ever reads it.
 
+```ruby
+advance = runtime.registry.bluebook("CommandReference").aggregate("Meter").commands.find { |c| c.hecks_name == "Advance" }
+advance.provenance[:source_id]  # => "command:meter-advance"
+```
+
+A raw Hash, unvalidated — which is the deliberate part. Nothing coerces
+it, so nothing can refuse it either:
+
+```ruby
+advance.provenance[:source_version]  # => "1.0"
+```
+
 ## reference_to
 
 <!-- generated:begin word=reference_to -->
@@ -60,6 +165,20 @@ rule: nothing but a human, or future tooling, ever reads it.
 
 Whether this reference names the command's OWN aggregate decides everything: reference a different aggregate and the command creates, landing as a class method (`Tree.plant`); reference the aggregate it's declared on and the command acts on an existing record, landing as an instance method (`tree.harvest`). See commands.md's "Creating vs. acting" for the full split and the `AlreadyExists`/`NotFound` refusals each side produces.
 
+`Open` references `Customer` — a DIFFERENT aggregate — so it creates,
+and lands as a class method on the door:
+
+```ruby
+Banking::Account.respond_to?(:open)  # => true
+```
+
+`Freeze` references `Account`, the aggregate it is declared on, so it
+acts on a record that must already exist:
+
+```ruby
+runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "cm-nothing" })  # ~> NotFound: Account
+```
+
 ## given
 
 <!-- generated:begin word=given -->
@@ -71,6 +190,17 @@ Whether this reference names the command's OWN aggregate decides everything: ref
 <!-- generated:end -->
 
 A precondition, read against the record BEFORE any mutation runs. The first one that reads false refuses the whole dispatch with `GivenNotMet`, message exactly the `description` text — the rest never run. See commands.md for why the cheapest or most-likely-to-fail `given` belongs first.
+
+`Debit` declares three, and the FIRST false one is the whole refusal —
+this account is open and the balance is empty, so it is the second that
+answers:
+
+```ruby
+account.debit(amount: { cents: 999 }, narrative: { text: "nothing there" })  # ~> GivenNotMet: the balance covers it
+```
+
+The description IS the message, verbatim — which is why a `given` is
+written as a sentence a caller can act on rather than a name.
 
 ## sets
 
@@ -92,6 +222,26 @@ A precondition, read against the record BEFORE any mutation runs. The first one 
 
 Still spelled `then_set` in every real bluebook in this codebase — `was: "then_set"` in the language's own rename table, and the old spelling keeps booting alongside the new one. One call, one op: `to:` overwrites the field, `append:` grows a list attribute by one value object built from the pairs you name, `increment:`/`decrement:` do arithmetic on a numeric field. See commands.md's "`then_set` — one op per field" for the flattening rule `append:` applies to a single-member value object.
 
+`to:` overwrites, `increment:` does arithmetic, `append:` grows a list —
+one op per call, three calls across two commands here:
+
+```ruby
+meter = CommandReference::Meter.install(serial: { value: 7 })
+meter.reading.units  # => 0
+
+meter.advance(units: { units: 12 }, note: { note: "first read" })
+meter.reading.units  # => 12
+meter.marks.map { |mark| mark[:note] }  # => ["first read"]
+```
+
+Arithmetic accumulates rather than replacing, which is the difference
+between `increment:` and `to:`:
+
+```ruby
+meter.advance(units: { units: 5 }, note: { note: "second read" })
+meter.reading.units  # => 17
+```
+
 ## emits
 
 <!-- generated:begin word=emits -->
@@ -103,6 +253,17 @@ Still spelled `then_set` in every real bluebook in this codebase — `was: "then
 <!-- generated:end -->
 
 Names an event announced once the record is actually saved — `save` runs before `emit`, so a command that refuses after mutating never announces anything. One command may declare `emits` more than once, when a single act is really two facts worth reacting to separately.
+
+`SafeDepositBox.Surrender` is the corpus's own two-fact command — the
+surrender itself, and the keys it leaves outstanding. (A handle
+accumulates the events of every command run through it, so the rent that
+created this box is still in the list — the last two are `Surrender`'s.)
+
+```ruby
+box = Banking::SafeDepositBox.rent(customer_id: "cm-1", branch_code: { value: "DT" },
+                                   box_number: { value: 4 }, size: { value: "small" })
+box.surrender.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
+```
 
 ## attribute
 
@@ -122,6 +283,20 @@ Names an event announced once the record is actually saved — `save` runs befor
 
 Declares an argument this command needs, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
 
+A command takes the arguments it declares — all of them, and no others.
+Missing one refuses:
+
+```ruby
+account.credit(narrative: { text: "no amount" })  # ~> AbsentArgument: Credit was not given amount
+```
+
+And so does a name it never declared, rather than the value riding along
+unread:
+
+```ruby
+account.credit(amount: { cents: 1 }, narrative: { text: "ok" }, memo: "extra")  # ~> UnknownArgument: Credit does not declare memo
+```
+
 ## ensures
 
 <!-- generated:begin word=ensures -->
@@ -133,4 +308,22 @@ Declares an argument this command needs, scalar or value object — same word, s
 <!-- generated:end -->
 
 A postcondition, read AFTER the mutation runs but before `save` — `old` names the record as it stood before, so the check can assert a relationship between the two states, not just a fact about one. A false read raises `EnsuresNotMet` and the write never reaches the store. See commands.md for why this catches what a forgotten `given` doesn't.
+
+`Debit` declares two, and `old` is what lets the first say something a
+`given` structurally cannot — a relationship between before and after:
+
+```ruby skip
+# examples/banking/bluebook/banking.bluebook
+ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
+ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
+```
+
+Both hold on an ordinary debit, so nothing is visible but the result —
+which is what a postcondition looks like when the code is right:
+
+```ruby
+account.credit(amount: { cents: 5_000 }, narrative: { text: "funding" })
+account.debit(amount: { cents: 2_000 }, narrative: { text: "rent" })
+account.balance.cents  # => 3000
+```
 

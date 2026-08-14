@@ -17,8 +17,22 @@ module Hecksagain
           field   = declared.order_by&.field
           matched = Ordering.apply(matched, declared.order_by, declared.null_semantics,
                                    identity: ->(record) { record.id.to_s }) { |record| comparable(FieldPath.dig(record, field)) }
-          matched = matched.first(resolve(declared.limit.value, args).to_i) if declared.limit
+          # OFFSET FIRST, THEN LIMIT — the order SQL means by `LIMIT n
+          # OFFSET m`, which is what `SqlQueryBuilder` emits and therefore
+          # what every SQL-backed aggregate already answers. Written the
+          # other way round here, and the two engines disagreed on the
+          # same declaration: `limit 2, offset 1` over three rows is rows
+          # two and three in Postgres and Sqlite, and was row two alone in
+          # memory. Silently — a short page reads exactly like a page that
+          # ran out of rows.
+          #
+          # It gets worse the further you page, which is the case nobody
+          # writing the first page ever sees: at `limit 10, offset 10`,
+          # taking ten and then dropping ten leaves NOTHING, so page two
+          # of a memory-backed query came back empty however many rows
+          # were really there.
           matched = matched.drop(resolve(declared.offset.value, args).to_i) if declared.offset
+          matched = matched.first(resolve(declared.limit.value, args).to_i) if declared.limit
           matched
         end
 

@@ -122,7 +122,7 @@ RSpec.describe "QualityControl" do
                                engineer: { value: engineer })
   end
 
-  def a_check(sweep, subject: "Banking::Account.Freeze", expectation: "a frozen account refuses a second freeze")
+  def a_check(sweep, subject: "Banking::Account.FreezeAccount", expectation: "a frozen account refuses a second freeze")
     sweep.check(subject: { value: subject }, expectation: { value: expectation })
   end
 

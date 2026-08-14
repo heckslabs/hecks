@@ -11,7 +11,7 @@
     {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-1"}, "amount": {"cents": 300, "currency": "USD"}, "narrative": {"text": "Opening"}}},
     {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-2"}, "amount": {"cents": 500, "currency": "USD"}, "narrative": {"text": "Opening"}}},
     {"verb": "Banking::Account.Credit", "args": {"number": {"value": "acct-3"}, "amount": {"cents": 1000, "currency": "USD"}, "narrative": {"text": "Opening"}}},
-    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-3"}}},
+    {"verb": "Banking::Account.FreezeAccount", "args": {"number": {"value": "acct-3"}}},
     {"verb": "Banking::Account.CloseAccount", "args": {"number": {"value": "acct-4"}}},
     {"verb": "Banking::Customer.Suspend", "args": {"reference": {"value": "cust-1"}, "standing": {"value": "chargeback investigation"}}},
     {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-1", "authorisation": {"value": "auth-1"}, "amount": {"cents": 4200}, "merchant": {"value": "Risky Co"}, "tags": [{"value": "high_risk"}]}},

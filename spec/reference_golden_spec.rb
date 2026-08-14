@@ -41,6 +41,24 @@ RSpec.describe "the DSL reference" do
                        missing.join("\n  ")
   end
 
+  # THE THIRD GATE, and the one the other two cannot stand in for. Prose
+  # is a declaration, and a declaration nothing runs cannot disagree with
+  # the runtime it describes — this repository has shipped a documented
+  # word with no runtime path behind it twice (`read_model`'s
+  # where/order_by/limit/offset, and `role`/`goal` on a command), and in
+  # both cases the sentences were perfectly good sentences.
+  #
+  # PRESENCE ONLY. That the examples PASS is spec/reference_doctest_spec
+  # .rb's question, over the same pages. Both are needed and neither is
+  # the other: a fence that has never run proves nothing, and a page of
+  # passing fences can still leave half the language unexemplified.
+  it "lets no live word ship unexemplified" do
+    missing = Hecksagain::Doc::Reference.unexemplified(REFERENCE_DIR)
+    expect(missing).to be_empty,
+                       "#{missing.size} live words carry no running example — write one in each " \
+                       "word's own section:\n  " + missing.join("\n  ")
+  end
+
   it "carries README's own generated indexes, undrifted" do
     path = File.join(InMemoryDomain::ROOT, "README.md")
 

@@ -439,7 +439,7 @@
       }
     },
     {
-      "verb": "Banking::Account.Freeze",
+      "verb": "Banking::Account.FreezeAccount",
       "args": {
         "number": {
           "value": "acct-2"
@@ -483,7 +483,7 @@
       }
     },
     {
-      "verb": "Banking::Account.Freeze",
+      "verb": "Banking::Account.FreezeAccount",
       "args": {
         "number": {
           "value": "acct-1"
@@ -491,7 +491,7 @@
       }
     },
     {
-      "verb": "Banking::Account.Freeze",
+      "verb": "Banking::Account.FreezeAccount",
       "args": {
         "number": {
           "value": "acct-1"
@@ -1355,7 +1355,7 @@
       }
     },
     {
-      "verb": "Banking::Account.Freeze",
+      "verb": "Banking::Account.FreezeAccount",
       "args": {
         "number": {
           "value": "acct-4"
@@ -1371,7 +1371,7 @@
       }
     },
     {
-      "verb": "Banking::Account.Freeze",
+      "verb": "Banking::Account.FreezeAccount",
       "args": {
         "number": {
           "value": "acct-4"
@@ -1548,7 +1548,7 @@
       }
     },
     {
-      "verb": "Banking::Account.Freeze",
+      "verb": "Banking::Account.FreezeAccount",
       "args": {
         "number": {
           "value": "acct-7"
@@ -1813,6 +1813,14 @@
     {
       "query": "Banking::Account.Overdrawn",
       "args": {}
+    },
+    {
+      "query": "Banking::Account.OpenForCustomerReference",
+      "args": {
+        "reference": {
+          "value": "CUST-0001"
+        }
+      }
     },
     {
       "query": "Banking::Account.Open",
@@ -2123,7 +2131,7 @@
       }
     },
     {
-      "verb": "Banking::ExternalTransfer.Send",
+      "verb": "Banking::ExternalTransfer.SendTransfer",
       "args": {
         "end_to_end": {
           "value": "ext-recall"
@@ -2165,7 +2173,7 @@
       }
     },
     {
-      "verb": "Banking::ExternalTransfer.Send",
+      "verb": "Banking::ExternalTransfer.SendTransfer",
       "args": {
         "end_to_end": {
           "value": "ext-return"

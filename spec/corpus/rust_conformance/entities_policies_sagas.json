@@ -10,7 +10,7 @@
     {"verb": "Banking::Account.Credit", "args": {"amount": {"cents": 100, "currency": "USD"}, "narrative": {"text": "Refused — colour is not an argument Credit declares"}, "colour": "red", "number": {"value": "acct-1"}}},
     {"verb": "Banking::Account.Credit", "args": {"amount": {"cents": 25.5, "currency": "USD"}, "narrative": {"text": "Refused — a value object where an Integer is declared"}, "number": {"value": "acct-1"}}},
     {"verb": "Banking::Account.LedgerEntry.Amend", "args": {"number": {"value": "acct-1"}, "sequence": {"value": 1}, "adjustment": {"cents": 500, "currency": "USD"}, "narrative": {"text": "Corrected"}}},
-    {"verb": "Banking::Account.Freeze", "args": {"number": {"value": "acct-3"}}},
+    {"verb": "Banking::Account.FreezeAccount", "args": {"number": {"value": "acct-3"}}},
     {"verb": "Banking::Customer.Suspend", "args": {"standing": {"value": "under review"}, "reference": {"value": "CUST-0001"}}},
     {"verb": "Banking::Transfer.Request", "args": {"source": "acct-1", "destination": "acct-2", "amount": {"cents": 2500}, "narrative": {"text": "Rent"}, "reference": {"value": "xfer-1"}}},
     {"verb": "Banking::Transfer.Request", "args": {"source": "acct-1", "destination": "acct-3", "amount": {"cents": 1000}, "narrative": {"text": "Into a frozen account"}, "reference": {"value": "xfer-2"}}}

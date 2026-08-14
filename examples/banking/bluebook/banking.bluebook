@@ -219,6 +219,31 @@ Hecks.bluebook "Banking", version: "v1" do
       invariant("an account number is present") { !value.to_s.empty? }
     end
 
+    # THE STANDING A SUSPENSION CARRIES, declared here for one reason
+    # only: `FreezeAccountsOnSuspension` forwards `CustomerSuspended`'s
+    # whole payload to `FreezeAccount`, and a policy `trigger` has no
+    # `with:` projection the way a saga's own `dispatch` does. So the
+    # target has to be able to TAKE a field it will never read, and the
+    # type has to live in this aggregate's own scope for the fuzzer and
+    # every other walker to find it. Two declarations and an unread
+    # attribute is what one missing word costs.
+    value_object "CustomerStanding" do
+      attribute :value, String, default: "good", pattern: '[^ \t\n\r]'
+      invariant("a standing is named") { !value.to_s.empty? }
+    end
+
+    # ACCOUNT'S OWN NAME FOR A CUSTOMER REFERENCE, declared here rather
+    # than reaching for `Customer::CustomerNumber`. The same shape, and
+    # deliberately a second declaration: a type belongs to the aggregate
+    # that uses it (OnboardingCase redeclares `AccountNumber` for the
+    # same reason), and everything that walks an aggregate's own scope —
+    # the fuzzer's `ValueGenerator` among them — has nowhere to look for
+    # a type declared next door.
+    value_object "CustomerReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a customer reference is present") { !value.to_s.empty? }
+    end
+
     value_object "DailyLimit" do
       attribute :cents, Integer, default: 0
       invariant("a daily limit is non-negative") { !cents.negative? }
@@ -321,7 +346,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     lifecycle :status, default: "open" do
-      transition "Freeze"  => "frozen", from: "open"
+      transition "FreezeAccount" => "frozen", from: "open"
       transition "Unfreeze" => "open",  from: "frozen"
       transition "CloseAccount" => "closed", from: ["open", "frozen"]
     end
@@ -381,12 +406,27 @@ Hecks.bluebook "Banking", version: "v1" do
       emits "AccountDebited"
     end
 
-    command "Freeze" do
+    command "FreezeAccount" do
       role "Compliance officer"
       goal "Stop an account moving while something is investigated"
 
       reference_to Account
-      given("customer is active") { customer.status == "active" }
+
+      # FORWARDED BY `FreezeAccountsOnSuspension`, and declared here for
+      # that reason alone. A policy re-enters its trigger with the whole
+      # event payload verbatim, so a command reachable by one has to be
+      # able to take every field that event carries — `CustomerSuspended`
+      # carries the standing the customer was moved to, which a freeze
+      # has no use for and does not read.
+      attribute :standing, CustomerStanding, optional: true
+
+      # NOT `customer is active`. A freeze exists to stop money moving
+      # while something is investigated, and the commonest reason to
+      # investigate is that the customer was just suspended — the old
+      # guard refused the exact case the domain most needs, which is why
+      # `FreezeAccountsOnSuspension` had never once fired. A closed
+      # customer is still out of scope: there is nothing left to freeze.
+      given("customer is not closed") { customer.status != "closed" }
       given("account is open") { status == "open" }
       emits "AccountFrozen"
     end
@@ -513,6 +553,26 @@ Hecks.bluebook "Banking", version: "v1" do
     # by the same name Facade::Handle's own hydrated accessor answers
     # to (`account.customer`) — and `status` is Customer's own
     # lifecycle field, checked on the TARGET, not this aggregate.
+    # THE FAN-OUT'S OWN QUERY. `FreezeAccountsOnSuspension` runs this
+    # against `CustomerSuspended`'s payload, which carries the customer's
+    # own `reference` — so the parameter is typed as that reference's own
+    # value object, and `comparable` unwraps the single-field object to
+    # the same bare scalar `customer_id` holds.
+    #
+    # NOT `reference_to Customer, as: :reference`, which reads better and
+    # is what query.md's own `reference_to` section documents : hecks-
+    # parse does not implement `Query.reference_to` yet (Stage 1, see
+    # spec/parser_coverage_spec.rb), and this would be the first use in
+    # the corpus — parser parity is a harder thing to give up than a
+    # nicer spelling.
+    query "OpenForCustomerReference" do
+      description "One customer's own accounts that are still open — what a suspension has to reach."
+      attribute :reference, CustomerReference
+      where(customer_id: :reference)
+      where(status: "open")
+      order_by :number
+    end
+
     query "OpenForSuspendedCustomers" do
       description "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now."
       where(status: "open")
@@ -1001,7 +1061,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     lifecycle :status, default: "requested" do
-      transition "Send" => "sent", from: "requested"
+      transition "SendTransfer" => "sent", from: "requested"
       transition "Recall" => "recalled", from: "sent"
       transition "Return" => "returned", from: "sent"
     end
@@ -1023,7 +1083,7 @@ Hecks.bluebook "Banking", version: "v1" do
       emits "ExternalTransferRequested"
     end
 
-    command "Send" do
+    command "SendTransfer" do
       reference_to ExternalTransfer
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
@@ -1556,9 +1616,17 @@ Hecks.bluebook "Banking", version: "v1" do
     end
   end
 
+  # ONE SUSPENSION, EVERY OPEN ACCOUNT THAT CUSTOMER HOLDS. Written
+  # without `for_each` it had never fired once: the event names a
+  # customer and `FreezeAccount` acts on an account, so there was no
+  # account for the trigger to address and every delivery was refused
+  # into the reaction log where nobody looks. The fan-out is what
+  # supplies the missing half — one `FreezeAccount` per row the query
+  # answers, each addressed by its own id.
   policy "FreezeAccountsOnSuspension" do
-    on      "CustomerSuspended"
-    trigger "Account.Freeze"
+    on       "CustomerSuspended"
+    for_each "Account.OpenForCustomerReference"
+    trigger  "Account.FreezeAccount"
   end
 
   policy "NotifyOnClosure" do
@@ -1657,7 +1725,7 @@ Hecks.bluebook "Banking", version: "v1" do
     state "returned"
 
     on "ExternalTransferRequested", transition: { "requested" => "requested" } do
-      dispatch "Banking::ExternalTransfer.Send", with: { end_to_end: :end_to_end }
+      dispatch "Banking::ExternalTransfer.SendTransfer", with: { end_to_end: :end_to_end }
     end
 
     # THE COMPENSATING LEG, the same shape Settlement's own carries: a
