@@ -980,8 +980,8 @@
           ],
           "givens": [
             {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
+              "description": "customer is not closed",
+              "canonical": "customer.status != \"closed\""
             },
             {
               "description": "account is open",
@@ -5878,7 +5878,7 @@
       "trigger_command": "Account.Freeze",
       "target_domain": null,
       "where": null,
-      "for_each": "Account.OpenForCustomer"
+      "for_each": null
     },
     {
       "name": "NotifyOnClosure",

@@ -734,8 +734,8 @@
           ],
           "givens": [
             {
-              "canonical": "customer.status == \"active\"",
-              "description": "customer is active"
+              "canonical": "customer.status != \"closed\"",
+              "description": "customer is not closed"
             },
             {
               "canonical": "status == \"open\"",
@@ -5697,7 +5697,7 @@
       "where": null
     },
     {
-      "for_each": "Account.OpenForCustomer",
+      "for_each": null,
       "name": "FreezeAccountsOnSuspension",
       "on_event": "CustomerSuspended",
       "target_domain": null,
