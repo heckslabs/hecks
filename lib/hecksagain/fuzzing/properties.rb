@@ -1,4 +1,8 @@
+require "json"
 require_relative "../bluebook/model_check"
+require_relative "../bluebook/meta_validator"
+require_relative "../ports/query/in_memory"
+require_relative "../query_specification/field_path"
 
 module Hecksagain
   module Fuzzing
@@ -14,8 +18,43 @@ module Hecksagain
     # string naming what broke }` — a truthy return (including `true`)
     # is a pass; a String return is a failure, and the string IS the
     # finding. `history` is Replay's return shape.
+    #
+    # EVERY PROPERTY DECLARES THE LANGUAGE FEATURE IT COVERS, in
+    # `FEATURE_COVERAGE` below — a "Construct#attribute" pair spelled
+    # exactly as `Bluebook::MetaValidator.grammar_registry` names it,
+    # the SAME meta-domain that judges every real bluebook (see that
+    # module's own header: "the language IS the source"). That is the
+    # link this file exists to make real: a construct the language
+    # declares is a fact `spec/meta_domain_coverage_spec.rb` can
+    # enumerate on its own, without anyone re-typing the list here —
+    # so a new attribute added to `language/bluebook/*.bluebook` shows
+    # up in that spec as UNCLAIMED the moment it lands, not whenever
+    # someone remembers to go looking. Claiming a feature here is a
+    # deliberate act (a real property, checked at least once failing
+    # AND once passing — `spec/fuzzing/properties_spec.rb`'s own
+    # discipline) or an explicit, reasoned exemption in that same
+    # spec — never silence.
     module Properties
       module_function
+
+      # WHICH LANGUAGE FEATURE EACH PROPERTY IS ANSWERABLE FOR. Not
+      # exhaustive of everything a property's body happens to touch —
+      # `Command#attributes`, say, is exercised by nearly every property
+      # here without being what any of them was WRITTEN to guard — but
+      # exhaustive of the feature that would go UNCHECKED if this
+      # property did not exist. That is the question the coverage gate
+      # actually asks.
+      FEATURE_COVERAGE = {
+        lifecycle_values_are_declared: %w[Aggregate#state_field Aggregate#state_start Aggregate#transitions
+                                           Entity#state_field Entity#state_start Entity#transitions],
+        saga_advances_follow_declared_handlers: %w[Handler#from_state Handler#to_state Handler#event_type],
+        query_answers_match_reference: %w[Query#wheres Query#order_field Query#order_way Query#limit],
+        guard_refusals_are_declared: %w[Command#givens Command#ensures],
+        sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
+                                     ProcessManager#starts_on ProcessManager#ends_on],
+        fanout_dispatches_once_per_matching_row: %w[Policy#for_each Policy#where],
+        aggregation_matches_recompute: %w[ReadModel#count ReadModel#median_field]
+      }.freeze
 
       # Every lifecycle field a replay leaves an instance holding is one
       # of the aggregate's OWN declared states — the full set, not just
@@ -123,13 +162,257 @@ module Hecksagain
         offenders.empty? || offenders.join("; ")
       end
 
+      # EVERY GIVEN/ENSURES REFUSAL A RUN ACTUALLY RAISED NAMES A RULE
+      # THE COMMAND ACTUALLY DECLARES. `GivenNotMet`/`EnsuresNotMet` both
+      # quote their guard's own `description` verbatim
+      # (command_rules/admissibility.rb: `"#{command.hecks_name} refused
+      # — #{given.description}"`) — the SAME text `behavior.bluebook`'s
+      # own `Rule`/Command.Ensure hold as `Rule#description`, so a
+      # refusal whose quoted text is not among the refusing command's
+      # OWN `guard_descriptions` (Behaviour::Command, both givens and
+      # ensures) is either a stale message surviving a renamed rule, a
+      # rule firing against the wrong command's own guard set, or the
+      # wording drifting out from under the declaration it is supposed
+      # to quote — banking's own 128 status givens (customer/account
+      # guards, some through a cross-aggregate dereference) are exactly
+      # the surface this exists to hold to its word.
+      #
+      # `kind:` is what tells a guard refusal apart from the FOUR other
+      # `RefusalWording` templates sharing the identical "X refused — Y"
+      # shape (LifecycleRefused/transition_blocked, both TypeMismatch
+      # object-reference templates, Unauthorized/role_mismatch) — see
+      # Replay's own comment at the refusal rescue site. Pattern-matching
+      # the string alone would confuse a guard's own wording with any of
+      # those; the raised class does not.
+      GUARD_REFUSAL_KINDS = %w[Hecksagain::Runtime::GivenNotMet Hecksagain::Runtime::EnsuresNotMet].freeze
+
+      def guard_refusals_are_declared(history)
+        bluebook = history.fetch(:bluebook)
+
+        offenders = history.fetch(:refusals).filter_map do |refusal|
+          next unless GUARD_REFUSAL_KINDS.include?(refusal[:kind])
+
+          match = refusal[:error].to_s.match(/\A(.+) refused — (.+)\z/)
+          next "#{refusal[:verb]} raised #{refusal[:kind]} with unparseable message #{refusal[:error].inspect}" unless match
+
+          command = command_for_verb(bluebook, refusal[:verb])
+          next "#{refusal[:verb]} raised #{refusal[:kind]}, but no declared command resolves that verb" unless command
+          next if command.guard_descriptions.include?(match[2])
+
+          "#{refusal[:verb]} refused — #{match[2].inspect} — but #{command.hecks_name} declares no given " \
+            "or ensures with that description (it declares #{command.guard_descriptions.inspect})"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # A DECLARED PROCESS MANAGER'S OWN COMMAND — `command.hecks_name`,
+      # or an entity's own if the verb's second component is itself
+      # dotted (`Aggregate.Entity.Command`, the same two shapes
+      # `Dispatcher#dispatch` itself branches on). Shared by the guard
+      # property above and available for anything else that needs to go
+      # from a replayed verb back to its declaration.
+      def command_for_verb(bluebook, verb)
+        domain, aggregate_name, command_path = Naming.split_verb(verb)
+        return nil unless command_path
+
+        aggregate = bluebook.aggregate(aggregate_name)
+        return nil unless aggregate
+
+        if command_path.include?(".")
+          entity_name, sub = command_path.split(".", 2)
+          entity = aggregate.entities.find { |e| e.hecks_name == entity_name }
+          entity&.command(sub)
+        else
+          aggregate.command(command_path)
+        end
+      end
+
+      # A SAGA INSTANCE'S OWN CHECKPOINT SURVIVES BEING WRITTEN AND READ
+      # BACK — the durability contract `SagaInterpreter#checkpoint` makes
+      # (`state:` plus a `deep_copy`d `memory:`, handed to whatever
+      # adapter answers `save_saga`) and `Registry#rehydrate_sagas!`
+      # promises to restore on the next boot (`each_saga` yielding
+      # `[pm, correlation, state, memory]` back into `saga_instances`).
+      # `Replay` captures the LIVE store already materialised the same
+      # way `checkpoint` itself does (`Value.materialize`, not raw
+      # `Runtime::Value`s — see its own comment); this property pushes
+      # that captured memory through the SAME `JSON.generate` then
+      # `JSON.parse(symbolize_names: true)` round-trip `checkpoint`'s own
+      # `deep_copy` performs (mirrored here rather than called — a
+      # private instance method with no registry to hand it) and checks
+      # it comes back byte-identical. A memory holding anything that
+      # round-trip cannot carry faithfully — a bare Symbol leaf, a
+      # non-JSON type a future field introduces — is corruption the
+      # durable path would introduce on a REAL restart, caught here
+      # without needing one.
+      #
+      # `declares_state?` (Behaviour::ProcessManager) is the other half:
+      # a live or rehydrated instance sitting in a state the procedure
+      # never declares is the saga-durability twin of
+      # `lifecycle_values_are_declared` above.
+      def sagas_rehydrate_cleanly(history)
+        bluebook = history.fetch(:bluebook)
+        process_managers = bluebook.process_managers.to_h { |pm| [pm.name, pm] }
+
+        offenders = history.fetch(:saga_instances).flat_map do |pm_name, conversations|
+          pm = process_managers[pm_name]
+
+          conversations.filter_map do |correlation, instance|
+            problems = []
+
+            if pm && !pm.declares_state?(instance[:state])
+              problems << "holds state #{instance[:state].inspect}, which #{pm_name} never declares"
+            end
+
+            rehydrated = JSON.parse(JSON.generate(instance[:memory]), symbolize_names: true)
+            if rehydrated != instance[:memory]
+              problems << "memory does not survive its own checkpoint round-trip " \
+                          "(checkpointed #{instance[:memory].inspect}, rehydrated #{rehydrated.inspect})"
+            end
+
+            next if problems.empty?
+
+            "#{pm_name}##{correlation.inspect}: #{problems.join(' and ')}"
+          end
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # A `for_each` POLICY DISPATCHES EXACTLY ONCE PER ROW ITS DECLARED
+      # QUERY ANSWERS — never once for the triggering event regardless of
+      # row count, never skipping a matched row, never firing on a row a
+      # concurrent mutation only made match AFTER the fact. `Replay`
+      # computes the expected row-id set INDEPENDENTLY, at the same
+      # instant the real dispatch runs (`Replay.expected_fan_out_rows`,
+      # the query oracle's own shape aimed at fan-out: two engines
+      # compared, never one graded against itself), and records it
+      # beside what the reaction log actually shows. `expected_row_ids`
+      # is `nil`, not `[]`, when `policy.where` did not hold — no
+      # dispatch is the claim then, not "dispatched to zero rows," and a
+      # policy that dispatched anyway despite a failing guard is as real
+      # a finding as a row it skipped.
+      def fanout_dispatches_once_per_matching_row(history)
+        offenders = history.fetch(:fan_outs).filter_map do |finding|
+          expected = finding[:expected_row_ids]
+          actual   = finding[:actual_row_ids].sort
+
+          if expected.nil?
+            next if actual.empty?
+            next "#{finding[:policy]} on #{finding[:on]}: where did not hold, but dispatched to #{actual.inspect}"
+          end
+
+          next if actual == expected
+
+          "#{finding[:policy]} on #{finding[:on]}: for_each answered #{expected.inspect}, " \
+            "but the reaction log shows dispatches to #{actual.inspect}"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # A `count`/`median` REPORT'S REDUCED SCALAR MATCHES THE SAME
+      # REDUCTION DONE INDEPENDENTLY, over the SAME eligible rows —
+      # `ReadModelInterpreter#project`'s own FK-join (root first, then
+      # each many-side head matched against it) and `#median` (odd →
+      # the true middle, even → the average of the two middles as a
+      # Float, empty → `nil`; `count` is the filtered length, empty →
+      # `0`), reproduced here in plain Ruby against `history[:instances]`
+      # rather than a live registry — `FieldPath.dig` +
+      # `Ports::Query::InMemory.comparable`/`.holds?` are the SAME two
+      # calls the interpreter itself makes to read a field and judge a
+      # `where`, called here rather than re-derived, so this oracle
+      # cannot drift from what "read a field" or "a clause holds" mean
+      # without the interpreter drifting the identical way.
+      #
+      # Only a report whose `:query` is answered by the SAME bluebook
+      # `history[:bluebook]` carries (the bare `Domain.report_name`
+      # form, `domain == bluebook.name`) is checked — the same "only
+      # what we have the grammar for" scope `lifecycle_values_are_declared`
+      # already takes for a multi-domain replay.
+      def aggregation_matches_recompute(history)
+        bluebook  = history.fetch(:bluebook)
+        instances = history.fetch(:instances)
+
+        offenders = history.fetch(:queries).filter_map do |asked|
+          next if asked[:error]
+
+          domain, name = asked[:query].to_s.split(".", 2)
+          next unless name && domain == bluebook.name
+
+          model = bluebook.read_model(name)
+          next unless model && (model.count? || model.median_field)
+
+          reduced_head = model.aggregate_heads.find { |head| head[:many] }
+          next unless reduced_head
+
+          rows = eligible_rows(bluebook, instances, domain, model, reduced_head, asked[:args] || {})
+          expected = model.count? ? rows.length : recompute_median(rows, model.median_field)
+          actual = asked[:rows]&.first&.dig(reduced_head[:as])
+          next if actual == expected
+
+          "#{asked[:query]} #{asked[:args].inspect} answered #{actual.inspect} for #{reduced_head[:as]}, " \
+            "but recomputing independently from #{rows.length} eligible row(s) gives #{expected.inspect}"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # THE ELIGIBLE ROWS a `count`/`median` head reduces — every
+      # instance of the reduced head's own aggregate, FK-matched against
+      # the report's root reference (if it has one; a rootless report has
+      # none to match) exactly the way `ReadModelInterpreter#reference_fields`
+      # finds the matching attribute, then narrowed by the report's own
+      # `where` clauses via the SAME `InMemory.holds?` the interpreter's
+      # `execute` calls.
+      def eligible_rows(bluebook, instances, domain, model, reduced_head, args)
+        aggregate = bluebook.aggregate(reduced_head[:aggregate])
+        prefix = "#{domain}::#{reduced_head[:aggregate]}#"
+        rows = instances.filter_map { |key, state| state if key.start_with?(prefix) }
+
+        if model.reference_target
+          reference_id = args[model.reference_name].to_s
+          fk_fields = aggregate.attributes.select do |attribute|
+            attribute.reference? && attribute.type.target_name == model.reference_target.to_s
+          end.map(&:name)
+
+          rows = rows.select { |state| fk_fields.any? { |field| state[field].to_s == reference_id } }
+        end
+
+        rows.select do |state|
+          model.wheres.all? do |clause|
+            held = Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(state, clause.field))
+            Ports::Query::InMemory.holds?(clause, held, args)
+          end
+        end
+      end
+
+      # `ReadModelInterpreter#median`'s own definition, reproduced byte
+      # for byte: odd count → the true middle value, sorted; even count
+      # → the average of the two middle values, as a Float; empty → nil,
+      # never zero, so a caller cannot mistake "nothing to average" for
+      # "averaged to zero."
+      def recompute_median(rows, field)
+        values = rows.map { |state| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(state, field)) }
+                     .compact.sort
+        return nil if values.empty?
+
+        middle = values.length / 2
+        values.length.odd? ? values[middle] : (values[middle - 1] + values[middle]) / 2.0
+      end
+
       # THE STANDARD BATTERY, run over one replayed history — everything
-      # above except determinism, which needs to replay TWICE itself and
-      # so takes the steps directly rather than a single history.
+      # except determinism, which needs to replay TWICE itself and so
+      # takes the steps directly rather than a single history.
       def check(history)
         { lifecycle_values_are_declared: lifecycle_values_are_declared(history),
           saga_advances_follow_declared_handlers: saga_advances_follow_declared_handlers(history),
-          query_answers_match_reference: query_answers_match_reference(history) }
+          query_answers_match_reference: query_answers_match_reference(history),
+          guard_refusals_are_declared: guard_refusals_are_declared(history),
+          sagas_rehydrate_cleanly: sagas_rehydrate_cleanly(history),
+          fanout_dispatches_once_per_matching_row: fanout_dispatches_once_per_matching_row(history),
+          aggregation_matches_recompute: aggregation_matches_recompute(history) }
       end
     end
   end

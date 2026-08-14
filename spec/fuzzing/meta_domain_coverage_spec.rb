@@ -1,0 +1,135 @@
+
+require "spec_helper"
+require "hecksagain/fuzzing"
+
+# THE GATE THAT AUTOMATES THE THING THIS ARC EXISTS FOR — "we don't do
+# a good job of adding the properties when we add to the language."
+# `Bluebook::MetaValidator.grammar_registry` IS the language (that
+# module's own header: "the language IS the source" — every real
+# bluebook is judged against it, and it is loaded from the SAME
+# `language/bluebook/*.bluebook` files whether a domain author or this
+# spec asks). So every construct and attribute the language can ever
+# declare is enumerable, mechanically, with no second list to keep in
+# sync by hand — which is exactly the list `combination_coverage_spec.rb`
+# already keeps BY HAND for pairwise form coverage (that file's own
+# header: "Adding a property here is how a new form joins the gate").
+#
+# This spec closes the gap one level up: not "is this form exercised at
+# all," but "does a REAL RUN'S invariant exist for this feature, or was
+# it left unchecked." `Properties::FEATURE_COVERAGE` is the CLAIM —
+# which property answers for which "Construct#attribute" — and this
+# spec is the only thing that reads BOTH the claim and the grammar and
+# refuses to let them drift apart silently:
+#
+#   * a claimed feature that no longer exists in the grammar (renamed,
+#     removed) fails LOUDLY here, not by quietly protecting nothing
+#   * a feature the grammar adds that nobody claims, and that isn't an
+#     explicitly reasoned EXEMPTION or a named, honest KNOWN_GAP, fails
+#     here too — the moment it lands, not whenever someone remembers to
+#     go looking
+#
+# META_DOMAIN_KNOWN_GAPS is not a place to hide an unclaimed feature — it is a
+# VISIBLE, itemized admission ("this needs a property, this session did
+# not write one, here is why it's not a property yet"), the same
+# distinction `spec/combination_coverage_spec.rb`'s own "unmet on
+# purpose — and empty, which is the position to defend" makes for its
+# own gate.
+RSpec.describe "the fuzzer's declared properties, against the language's own grammar" do
+  META_DOMAIN_GRAMMAR = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+  META_DOMAIN_PROPERTY_COVERAGE = Hecksagain::Fuzzing::Properties::FEATURE_COVERAGE
+
+  # EVERY "Construct#attribute" THE LANGUAGE CAN DECLARE, read straight
+  # off the meta-domain — never re-typed, so an attribute added to
+  # `language/bluebook/*.bluebook` appears here the next time this spec
+  # runs, with no second edit anywhere in this file required to notice
+  # it exists.
+  META_DOMAIN_ALL_FEATURES = META_DOMAIN_GRAMMAR.aggregates.flat_map { |agg| agg.attributes.map { |attr| "#{agg.name}##{attr.name}" } }.freeze
+
+  # META_DOMAIN_STRUCTURAL_FEATURES BOOKKEEPING — no property should ever single these out,
+  # because they carry no behavior of their own to have wrong: an
+  # identity/foreign-key column, a position index the language's own
+  # `spec/ir_golden_spec.rb` already pins byte-for-byte, a human-facing
+  # label, or the meta-domain's OWN grammar tables (`Vocabulary`,
+  # `Syntax` — the closed sets a domain's fields point INTO, not a
+  # feature a domain itself exercises).
+  META_DOMAIN_STRUCTURAL_FEATURES = %w[
+    Bluebook#name Bluebook#vision Bluebook#classification Bluebook#version
+    Bluebook#formerly_known_as Bluebook#normalisations
+    Aggregate#bluebook_id Aggregate#name Aggregate#description Aggregate#provenance
+    Command#aggregate_id Command#entity_id Command#name Command#role Command#goal Command#provenance
+    Query#aggregate_id Query#entity_id Query#name Query#description
+    ValueObject#aggregate_id ValueObject#name
+    Member#value_object_id
+    Entity#aggregate_id Entity#owner Entity#name Entity#description
+    Policy#bluebook_id Policy#name Policy#aggregate
+    ProcessManager#bluebook_id ProcessManager#name
+    Handler#process_manager_id
+    Dispatch#handler_id
+    ReadModel#bluebook_id ReadModel#name ReadModel#description
+    Vocabulary#name Syntax#name
+  ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
+
+  # HONEST, ITEMIZED GAPS — a feature real enough to deserve its own
+  # invariant, that this arc did not reach. Each entry names the
+  # candidate property a future session should write, so "unclaimed"
+  # never has to mean "unnoticed."
+  META_DOMAIN_KNOWN_GAPS = {
+    "Aggregate#identified_by" => "a real run's own instances never collide on identity — no property recomputes and cross-checks identity derivation yet",
+    "Aggregate#attributes" => "field-level invariants (patterns, closed sets) are exercised by the fuzzer's invalid-value generator, not checked as a replay property",
+    "Aggregate#value_objects" => "same as Aggregate#attributes — VO shape is exercised, not replay-checked",
+    "Entity#identified_by" => "same as Aggregate#identified_by, one level in",
+    "Entity#attributes" => "same as Aggregate#attributes, one level in",
+    "Command#emits" => "which events a command MAY announce is checked at build time (meta-validator); a replay property cross-checking every emitted event against its command's own declared emits does not exist yet",
+    "Command#references" => "reference-typed command arguments are exercised constantly (guard dereferencing) but have no property of their own asking whether a dangling reference was ever silently accepted",
+    "Command#attributes" => "argument shape (type/pattern/optional/admits) is exercised by the fuzzer's value generators, not checked as a replay property",
+    "Command#mutations" => "then_set's own field-level mutation semantics have no independent replay recomputation the way aggregation_matches_recompute gives count/median",
+    "Query#attributes" => "query argument shape has no property of its own — same class of gap as Command#attributes",
+    "Query#options" => "the open-map query options (offset/cursor/tenant/consistency/...) have no property individually",
+    "ValueObject#attributes" => "VO field shape is build-time checked; no replay property",
+    "ValueObject#invariants" => "a VO invariant firing (or not) is exercised by generated sequences but not asserted as its own replay property",
+    "ValueObject#rows" => "closed-set membership rows have no replay property of their own",
+    "Member#shape" => "same as ValueObject#rows, one level in",
+    "Member#pairs" => "same as ValueObject#rows, one level in",
+    "Policy#on_event" => "which event a policy answers to is exercised by every reaction a generated sequence produces, but nothing asserts a policy NEVER fires on an event it doesn't declare",
+    "Policy#trigger_command" => "a policy's own target command is exercised by dispatch itself; no property names a mismatch between declared trigger and what actually fired",
+    "Policy#target_domain" => "cross-domain `across` policies have no property of their own — none of the example domains declare one yet",
+    "Dispatch#handler" => "a handler's own dispatch spec target has no independent replay property",
+    "Dispatch#command_name" => "same as Dispatch#handler",
+    "Dispatch#with_spec" => "argument-binding fidelity for a saga's own dispatched command has no property comparing bound args against the handler's own declared with_spec",
+    "ReadModel#query_name" => "the derived snake_case name is exercised by every report ask; no property names a drift between it and the declared name",
+    "ReadModel#reference_name" => "covered incidentally by aggregation_matches_recompute's own FK-join; not named on its own",
+    "ReadModel#reference_target" => "same as ReadModel#reference_name",
+    "ReadModel#aggregate_heads" => "multi-head `include` composition (beyond the single reduced head aggregation_matches_recompute checks) has no property of its own",
+    "ReadModel#options" => "same class of gap as Query#options",
+    "ReadModel#group_by" => "group_by's own nesting has no replay property — count/median are the two aggregations this arc reached"
+  }.freeze
+
+  it "claims, exempts, or names a gap for every feature the language's own grammar declares" do
+    claimed = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
+    accounted = claimed | META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_KNOWN_GAPS.keys.to_set
+
+    unaccounted = META_DOMAIN_ALL_FEATURES - accounted.to_a
+
+    expect(unaccounted).to be_empty,
+      "the language declares #{unaccounted.join(', ')} with no property claiming it, no structural " \
+      "exemption, and no named META_DOMAIN_KNOWN_GAPS entry — a construct just joined the language with nothing " \
+      "deciding, on purpose, whether a fuzzer property should exist for it"
+  end
+
+  it "never lets a claim rot — every FEATURE_COVERAGE entry names a feature the live grammar still declares" do
+    stale = META_DOMAIN_PROPERTY_COVERAGE.values.flatten - META_DOMAIN_ALL_FEATURES
+
+    expect(stale).to be_empty,
+      "FEATURE_COVERAGE claims #{stale.join(', ')}, which the language's own grammar no longer " \
+      "declares — a rename or removal left a property's claim pointing at nothing"
+  end
+
+  it "keeps META_DOMAIN_STRUCTURAL_FEATURES and META_DOMAIN_KNOWN_GAPS from double-counting a feature some property already claims" do
+    claimed = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set
+    overlap = (META_DOMAIN_STRUCTURAL_FEATURES.to_set | META_DOMAIN_KNOWN_GAPS.keys.to_set) & claimed
+
+    expect(overlap).to be_empty,
+      "#{overlap.to_a.join(', ')} is both CLAIMED by a property and marked structural/a known gap — " \
+      "pick one: a real property makes the exemption a lie"
+  end
+end

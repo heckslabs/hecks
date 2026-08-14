@@ -54,6 +54,20 @@ module Hecksagain
 
           refusals = []
           queries  = []
+          fan_outs = []
+
+          # EVERY AGGREGATE A `for_each` COULD EVER QUERY, resolved ONCE —
+          # `[domain, aggregate_name]` pairs, gleaned from every loaded
+          # bluebook's own fanning-out policies. Empty for every domain
+          # with no `for_each` at all (every example this corpus ships
+          # today), so the snapshot below costs nothing until a domain
+          # actually declares one.
+          fan_out_targets = runtime.registry.bluebooks.each_with_object({}) do |(domain, bluebook), targets|
+            bluebook.policies.select(&:fans_out?).each do |policy|
+              query_domain, aggregate_name, = policy.for_each_route(domain)
+              targets[[query_domain, aggregate_name]] ||= runtime.registry.bluebook(query_domain)&.aggregate(aggregate_name)
+            end
+          end
 
           steps.each do |step|
             step = step.transform_keys(&:to_s)
@@ -95,12 +109,42 @@ module Hecksagain
                 queries << { query: question, args: args, rows: rows, reference_rows: reference }
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
                 queries << { query: question, args: args, error: e.message }
-                refusals << { verb: question, error: e.message }
+                refusals << { verb: question, error: e.message, kind: e.class.name }
               end
               next
             end
 
             begin
+              # THE FAN-OUT ORACLE'S OWN LOW-WATER MARK — taken before
+              # dispatch, so any reaction this ONE step's own announced
+              # events produce (`reaction_log` grows in place, the same
+              # Array `runtime.reactions` already exposes) can be sliced
+              # out after, and matched against an INDEPENDENT recomputation
+              # of what a `for_each` policy should have fanned out over —
+              # the query oracle's own shape (two engines, compared, never
+              # one graded against itself), aimed at fan-out instead of a
+              # named ask.
+              reaction_mark = runtime.reactions.size
+
+              # THE SNAPSHOT A `for_each` QUERY WOULD HAVE SEEN — taken
+              # BEFORE this step's own dispatch, not after. The real
+              # `deliver_for_each` runs its query SYNCHRONOUSLY, inside
+              # this SAME dispatch, before this call even returns — so an
+              # oracle that re-reads the live repository AFTER `dispatch`
+              # answers sees whatever the fan-out's OWN dispatched
+              # commands already mutated (an Account a `Review` leg just
+              # moved out of "open," say), not what the query actually
+              # matched. A measured bug, not a hypothetical one — this
+              # exact ordering is what `spec/fuzzing/fan_out_spec.rb`'s
+              # own adversarial run against a live `for_each` policy
+              # caught the first time this shipped without it.
+              fan_out_snapshot = fan_out_targets.each_with_object({}) do |((fdomain, faggregate_name), aggregate), snap|
+                next unless aggregate
+
+                snap[[fdomain, faggregate_name]] =
+                  runtime.registry.repository(fdomain, aggregate).all.to_h { |record| [record.id, record.state.dup] }
+              end
+
               # `role:` — an OPTIONAL per-step key, absent on every one of
               # the 231 existing `spec/corpus/*.json` steps (their own
               # unwrapped `runtime.dispatch` call, unchanged, so nothing
@@ -110,13 +154,24 @@ module Hecksagain
               # step makes, then unbinds — mirrors `Caller.as`'s own
               # `ensure`-restore, so back-to-back steps with different (or
               # no) `role:` never leak into each other.
-              if step["role"]
-                Hecksagain.as_caller(role: step["role"]) { runtime.dispatch(step["verb"], **args) }
-              else
-                runtime.dispatch(step["verb"], **args)
-              end
+              result = if step["role"]
+                         Hecksagain.as_caller(role: step["role"]) { runtime.dispatch(step["verb"], **args) }
+                       else
+                         runtime.dispatch(step["verb"], **args)
+                       end
+
+              fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
             rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
-              refusals << { verb: step["verb"], error: e.message }
+              # `kind:` — the RAISED CLASS, not re-derived from the message.
+              # `GivenNotMet`/`EnsuresNotMet` share their exact wording
+              # ("<command> refused — <description>") with FOUR other
+              # refusal templates (Vocabulary's own LifecycleRefused/
+              # TypeMismatch/Unauthorized entries) — a property that told
+              # a guard refusal apart by pattern-matching the string alone
+              # would misread every one of those as a guard, or a guard as
+              # one of those. The class is unambiguous where the string
+              # is not.
+              refusals << { verb: step["verb"], error: e.message, kind: e.class.name }
             end
           end
 
@@ -131,15 +186,112 @@ module Hecksagain
 
           events = runtime.events.map { |event| { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload } }
 
+          # THE LIVE PROCESS-MANAGER STORE, materialised to inert data —
+          # `{ pm_name => { correlation => { state:, memory: } } }`, the
+          # SAME shape SagaInterpreter#checkpoint hands its persistence
+          # adapter (state plus a `Value.materialize`d memory, which is
+          # exactly what `deep_copy` there serialises). Captured here
+          # because Replay returns the history, not the runtime, and the
+          # runtime goes out of scope with the boot — so the saga-durability
+          # property (Properties.sagas_rehydrate_cleanly) reads this rather
+          # than reaching into a store the Memory rebind leaves as the
+          # no-op NULL_SAGA_STORE. Materialised, not raw, so the history
+          # stays plain data AND the round-trip check sees exactly the
+          # bytes a real adapter would have persisted.
+          saga_instances = runtime.registry.saga_instances.each_with_object({}) do |(pm_name, conversations), out|
+            out[pm_name] = conversations.each_with_object({}) do |(correlation, instance), rows|
+              rows[correlation] = { state: instance[:state], memory: Runtime::Value.materialize(instance[:memory]) }
+            end
+          end
+
           # The booted chapter rides along — the boot already happened, and
           # properties.rb's lifecycle/saga checks need the declared IR
           # (state sets, handler graphs) beside the history it produced.
           # Free: no second boot, just the object the first one already
           # built.
           { instances: instances, events: events, refusals: refusals,
-            reactions: runtime.reactions, sagas: runtime.sagas, queries: queries,
-            bluebook: runtime.registry.bluebooks.values.first }
+            reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
+            queries: queries, fan_outs: fan_outs, bluebook: runtime.registry.bluebooks.values.first }
         end
+      end
+
+      # THE FAN-OUT ORACLE — one finding per (event, for_each policy) this
+      # step's own announced events could have triggered, independent of
+      # `PolicyInterpreter#deliver_for_each`: the SAME `where` evaluator
+      # every given/ensures already runs through, but the QUERY answered
+      # by `Ports::Query::InMemory.holds?` directly against the live
+      # repository (`Replay.run_filter`'s own idiom), never by calling
+      # `QueryInterpreter` — sharing that call would make this oracle
+      # blind to exactly the code the fan-out feature adds.
+      #
+      # `expected_row_ids` is `nil` when `where` did not hold — no dispatch
+      # is the claim, not "dispatched to zero rows," so a property
+      # comparing this against the reaction log needs to tell the two
+      # apart. Recomputed once per event, not once per policy-and-event,
+      # because a `Chapter` de-duplicates on nothing this loop cannot
+      # cheaply repeat.
+      def fan_out_findings(runtime, snapshot, announced, reactions_since)
+        announced.each_with_object([]) do |event, findings|
+          # `event.aggregate` is domain-qualified ("Banking::Account" —
+          # see command_rules/emission.rb's own Event.new) — the SAME
+          # source `PolicyInterpreter#policies_for` reads, split the
+          # same two ways: `Naming.demodulise` for the emitting
+          # aggregate's bare name, plain `split("::")` for the domain.
+          domain = event.aggregate.to_s.split("::").first
+          bluebook = runtime.registry.bluebook(domain)
+          next unless bluebook
+
+          emitting = Naming.demodulise(event.aggregate)
+
+          bluebook.policies.each do |policy|
+            next unless policy.fans_out? && policy.event_name == event.name
+            next unless policy.event_qualifier.nil? || policy.event_qualifier == emitting
+
+            findings << fan_out_finding(runtime, snapshot, policy, event, domain, reactions_since)
+          end
+        end
+      end
+
+      def fan_out_finding(runtime, snapshot, policy, event, domain, reactions_since)
+        payload = event.payload.transform_keys(&:to_sym)
+        held = policy.where.to_s.empty? ||
+               Bluebook::Expression::Evaluator.call(policy.where, {}, payload)
+
+        expected = held ? expected_fan_out_rows(runtime, snapshot, policy, domain, payload) : nil
+
+        actual = reactions_since.select { |r| r[:policy] == policy.name && r[:on] == event.name }
+                                 .filter_map { |r| r[:for_row] }
+
+        { policy: policy.name, on: event.name, expected_row_ids: expected, actual_row_ids: actual }
+      end
+
+      # THE INDEPENDENT RECOMPUTATION — `policy.for_each`'s declared query,
+      # answered against the PRE-DISPATCH snapshot (see the snapshot's
+      # own comment at its capture site: the real fan-out's query runs
+      # synchronously, before its own dispatched commands can mutate
+      # anything the query would have matched, so this has to read the
+      # same "before" state or it grades the wrong moment). Comparators
+      # are `Ports::Query::InMemory.holds?`, never `QueryInterpreter` —
+      # sharing that call would make this oracle blind to exactly the
+      # code the fan-out feature adds. A `Symbol` where-value binds to
+      # the triggering event's own payload (the same binding
+      # `OpenForCustomer`'s `customer_id: :customer_id` relies on); a
+      # literal is compared as declared.
+      def expected_fan_out_rows(runtime, snapshot, policy, domain, payload)
+        query_domain, aggregate_name, query_name = policy.for_each_route(domain)
+        aggregate = runtime.registry.bluebook(query_domain)&.aggregate(aggregate_name)
+        query = aggregate&.query(query_name)
+        return [] unless query
+
+        rows = snapshot[[query_domain, aggregate_name]] || {}
+        matched = rows.select do |_id, state|
+          query.wheres.all? do |clause|
+            held = Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(state, clause.field))
+            Ports::Query::InMemory.holds?(clause, held, payload)
+          end
+        end
+
+        matched.keys.map(&:to_s).sort
       end
 
       # Answers ONE ad hoc filter step for real — the mirror image of

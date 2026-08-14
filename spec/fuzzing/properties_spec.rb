@@ -118,5 +118,135 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
       expect(comparable.call(first)).not_to eq(comparable.call(second))
     end
+
+    it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
+                              kind: "Hecksagain::Runtime::GivenNotMet" }] }
+
+      result = Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)
+      expect(result).to be_a(String)
+      expect(result).to include("a made up reason")
+    end
+
+    it "guard_refusals_are_declared passes a refusal quoting the command's own declared given through" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — the account is open",
+                              kind: "Hecksagain::Runtime::GivenNotMet" }] }
+
+      expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+    end
+
+    it "guard_refusals_are_declared ignores a refusal sharing the same wording but a DIFFERENT raised class" do
+      # LifecycleRefused/transition_blocked shares GivenNotMet's exact
+      # "X refused — Y" shape (RefusalWording's own template) — a
+      # refusal identified by string alone would misread this as an
+      # undeclared guard; identified by `kind:`, it is skipped outright.
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  refusals: [{ verb: "Banking::Account.CloseAccount",
+                              error: "CloseAccount refused — status is closed, and CloseAccount moves it only from open, frozen",
+                              kind: "Hecksagain::Runtime::LifecycleRefused" }] }
+
+      expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+    end
+
+    it "sagas_rehydrate_cleanly names a live instance holding a state its process manager never declares" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  saga_instances: { "Onboarding" => { "corr-1" => { state: "teleported", memory: { a: 1 } } } } }
+
+      result = Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
+      expect(result).to be_a(String)
+      expect(result).to include("teleported")
+    end
+
+    it "sagas_rehydrate_cleanly names a memory that does not survive its own checkpoint round-trip" do
+      # A bare Symbol LEAF — `deep_copy`'s own JSON round-trip (the exact
+      # write/read a real `save_saga`/`each_saga` adapter performs) reads
+      # a Symbol value back as a String, so this is corruption the
+      # durable path would introduce on a REAL restart, not a
+      # hypothetical one.
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  saga_instances: { "Onboarding" => { "corr-1" => { state: "screening", memory: { kind: :wire } } } } }
+
+      result = Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
+      expect(result).to be_a(String)
+      expect(result).to include("does not survive its own checkpoint round-trip")
+    end
+
+    it "sagas_rehydrate_cleanly passes a genuinely declared state and round-trip-safe memory through" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  saga_instances: { "Onboarding" => { "corr-1" =>
+                    { state: "screening", memory: { customer: "delta juliet", reference: { value: "corr-1" } } } } } }
+
+      expect(Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)).to eq(true)
+    end
+
+    it "fanout_dispatches_once_per_matching_row names a row the reaction log missed" do
+      history = { fan_outs: [{ policy: "ReviewOnFlag", on: "Flagged",
+                              expected_row_ids: ["a1", "a2"], actual_row_ids: ["a1"] }] }
+
+      result = Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)
+      expect(result).to be_a(String)
+      expect(result).to include('["a1", "a2"]').and include('["a1"]')
+    end
+
+    it "fanout_dispatches_once_per_matching_row names a dispatch that fired despite a failing where" do
+      history = { fan_outs: [{ policy: "ReviewOnFlag", on: "Flagged",
+                              expected_row_ids: nil, actual_row_ids: ["a1"] }] }
+
+      result = Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)
+      expect(result).to be_a(String)
+      expect(result).to include("where did not hold")
+    end
+
+    it "fanout_dispatches_once_per_matching_row passes an exact match, and a guarded no-op, through" do
+      history = { fan_outs: [
+        { policy: "ReviewOnFlag", on: "Flagged", expected_row_ids: ["a1", "a2"], actual_row_ids: ["a2", "a1"] },
+        { policy: "ReviewOnFlag", on: "Flagged", expected_row_ids: nil, actual_row_ids: [] }
+      ] }
+
+      expect(Hecksagain::Fuzzing::Properties.fanout_dispatches_once_per_matching_row(history)).to eq(true)
+    end
+
+    it "aggregation_matches_recompute names a count that disagrees with the recomputed eligible rows" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::CardPayment#p1" => { account_id: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p2" => { account_id: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p3" => { account_id: "acct-1", status: "authorized" }
+                  },
+                  queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
+                             rows: [{ account: {}, card_payments: 99 }] }] }
+
+      result = Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("99").and include("2")
+    end
+
+    it "aggregation_matches_recompute passes a count that matches the recomputed eligible rows" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::CardPayment#p1" => { account_id: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p2" => { account_id: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p3" => { account_id: "acct-1", status: "authorized" },
+                    "Banking::CardPayment#p4" => { account_id: "acct-2", status: "disputed" }
+                  },
+                  queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
+                             rows: [{ account: {}, card_payments: 2 }] }] }
+
+      expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
+    end
+
+    it "aggregation_matches_recompute passes a median matching the interpreter's own even/odd convention" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::CardPayment#p1" => { account_id: "acct-1", status: "disputed", amount: { cents: 100 } },
+                    "Banking::CardPayment#p2" => { account_id: "acct-1", status: "disputed", amount: { cents: 300 } }
+                  },
+                  queries: [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
+                             rows: [{ account: {}, card_payments: 200.0 }] }] }
+
+      expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
+    end
   end
 end
