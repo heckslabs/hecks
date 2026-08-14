@@ -20,13 +20,40 @@ pub fn emit_bool(node: &Evaluator) -> String {
         Evaluator::Compare { operator, left, right } => {
             format!("Expr::Compare {{ op: {}, left: Box::new({}), right: Box::new({}) }}", emit_comparison(operator), emit_resolver(left), emit_resolver(right))
         }
-        Evaluator::Include { haystack, needle } => format!("Expr::Include {{ haystack: Box::new({}), needle: Box::new({}) }}", emit_resolver(haystack), emit_resolver(needle)),
+        Evaluator::Include { haystack, needle } => emit_include(haystack, needle),
         Evaluator::Resolve(expr) => emit_resolver(expr),
     }
 }
 
 pub fn emit_comparison(op: &Operator) -> String {
     format!("crate::kernel::Comparison {{ less_than: {}, equal: {}, negated: {} }}", op.compares_less_than, op.compares_equal, op.negated)
+}
+
+/// Port of `rust/project/expr_emitter.rb`'s own `emit_include` — see that
+/// file's own header comment for the full reasoning. Short version: the
+/// kernel's `Value::List` is a length, never a real element set, so a
+/// LITERAL haystack (`["issued", "active"].include?(status)`) is
+/// rewritten into `needle == "issued" || needle == "active"` at
+/// generation time, using the SAME `Expr::Compare`/`Expr::Or` every other
+/// equality/either-or check already compiles to — not a new kernel
+/// `Value` shape for a haystack that's always fully known before a
+/// single record is ever read. A non-literal haystack (a real list-typed
+/// field, or a String) still emits `Expr::Include` unchanged.
+fn emit_include(haystack: &Resolver, needle: &Resolver) -> String {
+    let Resolver::ArrayLiteral(elements) = haystack else {
+        return format!("Expr::Include {{ haystack: Box::new({}), needle: Box::new({}) }}", emit_resolver(haystack), emit_resolver(needle));
+    };
+
+    if elements.is_empty() {
+        return "Expr::Bool(false)".to_string();
+    }
+
+    let eq = crate::expr::find_operator("==");
+    elements
+        .iter()
+        .map(|element| format!("Expr::Compare {{ op: {}, left: Box::new({}), right: Box::new({}) }}", emit_comparison(&eq), emit_resolver(needle), emit_resolver(element)))
+        .reduce(|left, right| format!("Expr::Or(Box::new({left}), Box::new({right}))"))
+        .unwrap()
 }
 
 pub fn emit_resolver(node: &Resolver) -> String {
@@ -43,5 +70,14 @@ pub fn emit_resolver(node: &Resolver) -> String {
         Resolver::ToS(receiver) => format!("Expr::ToS(Box::new({}))", emit_resolver(receiver)),
         Resolver::Modulo { receiver, divisor } => format!("Expr::Modulo {{ receiver: Box::new({}), divisor: Box::new({}) }}", emit_resolver(receiver), emit_resolver(divisor)),
         Resolver::Size(receiver) => format!("Expr::Size(Box::new({}))", emit_resolver(receiver)),
+        // Never reached in practice — `emit_include`, above, intercepts
+        // an `ArrayLiteral` haystack before it would ever recurse in
+        // here (the only shape the real grammar ever builds one for; see
+        // `Vocabulary::IncludeHaystack`). Kept as a real panic rather
+        // than folded into a `_ =>` arm, matching this match's own "no
+        // silent Unsupported case" discipline — a bare array literal
+        // reaching here is a genuinely new shape this generator has no
+        // rendering for yet, not a case to paper over.
+        Resolver::ArrayLiteral(_) => panic!("unhandled resolver node ArrayLiteral outside an Include haystack — the real grammar never builds one there; this generator is stale"),
     }
 }

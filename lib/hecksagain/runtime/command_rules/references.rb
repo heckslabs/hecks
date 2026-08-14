@@ -60,6 +60,54 @@ module Hecksagain
         def referenced_aggregate(attribute)
           attribute.type.resolve
         end
+
+        # A related record's OWN fields, reachable by name from `given`/
+        # `ensures` — `customer.status`, `account.customer.status` — without
+        # teaching the pure expression evaluator anything about
+        # repositories. The lookup happens HERE, once, before evaluation;
+        # `Resolver#lookup` just digs into a plain Hash exactly as it
+        # always has.
+        #
+        # `owner` is either the declaring aggregate/entity (its OWN
+        # `reference_to`, read off `source` — the record's stored state)
+        # or the command itself (a reference-typed ARGUMENT, read off
+        # `source` — the dispatch payload). Same shape either way: every
+        # reference-typed attribute `owner` declares becomes a key in the
+        # result, named by stripping the attribute's own `_id` suffix
+        # (`customer_id` → `customer`) — a no-op for an aliased reference
+        # that already carries no suffix (`reference_to Account, as:
+        # :source` → `source`), which is why this needs no separate case
+        # for `as:`.
+        #
+        # RECURSES into what it finds, so a chain like
+        # `account.customer.status` resolves in one pass: hydrating
+        # `account` also hydrates ITS OWN `customer_id` into a nested
+        # `customer` key. Depth-bounded rather than cycle-detected — nothing
+        # in this corpus dots more than two hops, and a bound is simpler
+        # than tracking visited (type, id) pairs for a cycle nothing here
+        # declares.
+        DEREFERENCE_DEPTH = 4
+        private_constant :DEREFERENCE_DEPTH
+
+        def dereference(domain, owner, source, depth: DEREFERENCE_DEPTH)
+          return {} if depth <= 0 || owner.nil?
+
+          owner.attributes.each_with_object({}) do |attribute, hydrated|
+            next unless attribute.reference?
+
+            id = source[attribute.name]
+            next if id.nil?
+
+            target = referenced_aggregate(attribute)
+            next unless target
+
+            record = @registry.repository(domain, target).find(id.to_s)
+            next unless record
+
+            name = attribute.name.to_s.sub(/_id\z/, "").to_sym
+            hydrated[name] = record.state.merge(dereference(domain, target, record.state, depth: depth - 1))
+          end
+        end
       end
     end
   end

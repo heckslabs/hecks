@@ -17,7 +17,7 @@
       },
       {
         "verb": "Banking::Transfer.Settle",
-        "includes": "only from \"credited\""
+        "includes": "transfer is credited"
       },
       {
         "verb": "Banking::Account.ApplyFee",
@@ -2643,22 +2643,422 @@
       "verb": "Banking::Statement.Generate",
       "args": {
         "account_id": "acct-1",
-        "period": { "value": "2026-08" },
-        "opening_balance": { "cents": 0 },
-        "closing_balance": { "cents": 0 },
-        "generated_on": { "value": "2026-09-01" },
-        "frequency": { "cadence": "monthly", "retention_months": 84, "paper_fee_cents": 0 }
+        "period": {
+          "value": "2026-08"
+        },
+        "opening_balance": {
+          "cents": 0
+        },
+        "closing_balance": {
+          "cents": 0
+        },
+        "generated_on": {
+          "value": "2026-09-01"
+        },
+        "frequency": {
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
+        }
       }
     },
     {
       "verb": "Banking::Statement.Generate",
       "args": {
         "account_id": "acct-1",
-        "period": { "value": "2026-08" },
-        "opening_balance": { "cents": 0 },
-        "closing_balance": { "cents": 0 },
-        "generated_on": { "value": "2026-09-02" },
-        "frequency": { "cadence": "monthly", "retention_months": 84, "paper_fee_cents": 0 }
+        "period": {
+          "value": "2026-08"
+        },
+        "opening_balance": {
+          "cents": 0
+        },
+        "closing_balance": {
+          "cents": 0
+        },
+        "generated_on": {
+          "value": "2026-09-02"
+        },
+        "frequency": {
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-GUARD-A"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "A"
+        },
+        "email": {
+          "address": "guard-a@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-a"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "customer_id": "CUST-GUARD-A"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-a"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "customer_id": "CUST-GUARD-A"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-GUARD-B"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "B"
+        },
+        "email": {
+          "address": "guard-b@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-b"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 1000
+        },
+        "customer_id": "CUST-GUARD-B"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": {
+          "value": "CARD-GUARD-B"
+        },
+        "daily_fee": {
+          "amount": 1
+        },
+        "account_id": "acct-guard-b"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Issue",
+      "args": {
+        "serial": {
+          "value": "CARD-GUARD-B"
+        },
+        "daily_fee": {
+          "amount": 1
+        },
+        "account_id": "acct-guard-b"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-GUARD-C"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "C"
+        },
+        "email": {
+          "address": "guard-c@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-c"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer_id": "CUST-GUARD-C"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "amount": {
+          "cents": 500,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Opening"
+        },
+        "number": {
+          "value": "acct-guard-c"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "sequence": {
+          "value": 1
+        },
+        "adjustment": {
+          "cents": -999999,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Amended to below nothing"
+        },
+        "number": {
+          "value": "acct-guard-c"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-GUARD-D"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "D"
+        },
+        "email": {
+          "address": "guard-d@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-d"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer_id": "CUST-GUARD-D"
+      }
+    },
+    {
+      "verb": "Banking::Account.AccrueInterest",
+      "args": {
+        "amount": {
+          "cents": 10,
+          "currency": "USD"
+        },
+        "number": {
+          "value": "acct-guard-d"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectInterest",
+      "args": {
+        "amount": {
+          "cents": 999999,
+          "currency": "USD"
+        },
+        "number": {
+          "value": "acct-guard-d"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-GUARD-E"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "E"
+        },
+        "email": {
+          "address": "guard-e@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-e-src"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer_id": "CUST-GUARD-E"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-e-dst"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer_id": "CUST-GUARD-E"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "amount": {
+          "cents": 5000,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "Funding"
+        },
+        "number": {
+          "value": "acct-guard-e-src"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Request",
+      "args": {
+        "source": "acct-guard-e-src",
+        "destination": "acct-guard-e-dst",
+        "amount": {
+          "cents": 100
+        },
+        "narrative": {
+          "text": "Not yet debited"
+        },
+        "reference": {
+          "value": "xfer-guard-e"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Settle",
+      "args": {
+        "reference": {
+          "value": "xfer-guard-e"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Register",
+      "args": {
+        "reference": {
+          "value": "CUST-GUARD-F"
+        },
+        "name": {
+          "given": "Guard",
+          "family": "F"
+        },
+        "email": {
+          "address": "guard-f@example.com"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "acct-guard-f"
+        },
+        "kind": {
+          "name": "current"
+        },
+        "daily_limit": {
+          "cents": 100000
+        },
+        "customer_id": "CUST-GUARD-F"
+      }
+    },
+    {
+      "verb": "Banking::Statement.Generate",
+      "args": {
+        "account_id": "acct-guard-f",
+        "period": {
+          "value": "2026-08"
+        },
+        "opening_balance": {
+          "cents": 0
+        },
+        "closing_balance": {
+          "cents": 0
+        },
+        "generated_on": {
+          "value": "2026-09-01"
+        },
+        "frequency": {
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
+        }
+      }
+    },
+    {
+      "verb": "Banking::Statement.Generate",
+      "args": {
+        "account_id": "acct-guard-f",
+        "period": {
+          "value": "2026-08"
+        },
+        "opening_balance": {
+          "cents": 0
+        },
+        "closing_balance": {
+          "cents": 0
+        },
+        "generated_on": {
+          "value": "2026-09-02"
+        },
+        "frequency": {
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
+        }
       }
     }
   ]

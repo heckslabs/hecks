@@ -23,7 +23,7 @@ module RustProjection
       when ev::Compare
         "Expr::Compare { op: #{emit_comparison(node.operator)}, left: Box::new(#{emit_resolver(node.left)}), right: Box::new(#{emit_resolver(node.right)}) }"
       when ev::Include
-        "Expr::Include { haystack: Box::new(#{emit_resolver(node.haystack)}), needle: Box::new(#{emit_resolver(node.needle)}) }"
+        emit_include(node)
       when ev::Resolve
         emit_resolver(node.expr)
       else
@@ -41,6 +41,43 @@ module RustProjection
     # target domain happens to call things.
     def emit_comparison(op)
       "crate::kernel::Comparison { less_than: #{op.compares_less_than}, equal: #{op.compares_equal}, negated: #{op.negated} }"
+    end
+
+    # `Expr::Include { haystack, needle }` exists in the kernel for a REAL
+    # list-typed FIELD haystack (`Value::List` there is a length, per that
+    # file's own header — a list field only ever answers `.size`/
+    # `.empty?`, never membership by value) — it was never built to check
+    # membership against a literal SET of scalars, and nothing in the
+    # corpus asks it to.
+    #
+    # `["issued", "active"].include?(status)` is different: haystack is a
+    # LITERAL `ArrayLiteral`, every element already known at generation
+    # time. Rather than growing the kernel a second `Value` shape (a real
+    # `Vec<Value>` alongside the length-only `List`) for a haystack that
+    # is always fully known before a single record is ever read, this
+    # rewrites it into what it always meant — `needle == "issued" ||
+    # needle == "active"` — using the SAME `Expr::Compare`/`Expr::Or` every
+    # other equality/either-or check in this grammar already compiles to.
+    # `Evaluator#includes?`'s own `Array` branch (`found.any? { |item|
+    # equal?(item, wanted) }`) is exactly an OR of equalities; this is
+    # that fact, generated instead of interpreted.
+    #
+    # A non-literal haystack (a real list-typed field, or a String) still
+    # emits `Expr::Include` unchanged — this only rewrites the shape the
+    # kernel cannot represent.
+    EQ = Hecksagain::Bluebook::Expression::Evaluator::OPERATORS.find { |op| op.symbol == "==" }
+    private_constant :EQ
+
+    def emit_include(node)
+      r = Hecksagain::Bluebook::Expression::Resolver
+      return "Expr::Include { haystack: Box::new(#{emit_resolver(node.haystack)}), needle: Box::new(#{emit_resolver(node.needle)}) }" \
+        unless node.haystack.is_a?(r::ArrayLiteral)
+
+      return "Expr::Bool(false)" if node.haystack.elements.empty?
+
+      node.haystack.elements
+          .map { |element| "Expr::Compare { op: #{emit_comparison(EQ)}, left: Box::new(#{emit_resolver(node.needle)}), right: Box::new(#{emit_resolver(element)}) }" }
+          .reduce { |left, right| "Expr::Or(Box::new(#{left}), Box::new(#{right}))" }
     end
 
     def emit_resolver(node)

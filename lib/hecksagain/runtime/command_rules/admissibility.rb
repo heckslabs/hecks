@@ -34,10 +34,43 @@ module Hecksagain
         end
         private_constant :GuardState
 
-        def enforce_givens(subject, command, args)
+        # `domain:` is only needed to dereference a reference-typed field
+        # (`customer.status`) — see References#dereference. `owner` is the
+        # declaring aggregate/entity when `subject` carries one (an
+        # entity's pre-mutation `view` does, same as an aggregate's
+        # `Instance`); a `subject` with no `.aggregate` just hydrates
+        # nothing from state, same as GuardState degrades above.
+        #
+        # MERGE ORDER MATTERS, and it is NOT "args always win": an
+        # unaliased command-level reference dereferences under a
+        # different name than the argument holds (`account_id` the arg,
+        # `account` the hydrated key — no collision, order is moot). An
+        # ALIASED one (`reference_to Customer, as: :customer`) hydrates
+        # under the SAME name the argument itself holds — `customer` is
+        # both the raw id an arg puts there and the key `customer.status`
+        # expects to dig into. If `args` merged last, the raw id (a
+        # String) would win and `.status` on a String is where a fuzzer
+        # found this — TypeError, not a refusal. Command-level
+        # dereferencing is the one thing that is SUPPOSED to override
+        # its own source argument for exactly this reason; args still
+        # wins over stored OWNER state (unchanged from before this fix).
+        # `parent:` is an entity command's OWN parent aggregate record
+        # (EntityInterpreter's `ctx.instance` — "the PARENT aggregate
+        # record", its own doc comment) — the entity's containment, not a
+        # declared reference attribute, so it doesn't come from
+        # `dereference`'s attribute scan the way `owner`'s do. Hydrated
+        # the same shape regardless: the parent's own state, plus ITS OWN
+        # references dereferenced one level in, so `parent.customer.status`
+        # (a parent aggregate reaching ITS OWN customer) resolves the same
+        # way `account.customer.status` does for a command-level reference.
+        # nil for an aggregate command — CommandInterpreter never passes it.
+        def enforce_givens(subject, command, args, domain:, parent: nil)
           state = GuardState.new(subject)
+          owner = subject.aggregate if subject.respond_to?(:aggregate)
+          attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
+          attrs = attrs.merge(parent: dereference(domain, parent.aggregate, parent.state).merge(parent.state)) if parent
           command.givens.each do |given|
-            next if Bluebook::Expression::Evaluator.call(given.canonical, state, args)
+            next if Bluebook::Expression::Evaluator.call(given.canonical, state, attrs)
 
             raise GivenNotMet, "#{command.hecks_name} refused — #{given.description}"
           end
@@ -56,10 +89,18 @@ module Hecksagain
         # Not new to ensures — `given` lives under the same rule — but an
         # ensures is more likely to collide, since it typically re-reads a
         # field the command just took in to mutate it.
-        def enforce_ensures(subject, command, args, old:)
+        def enforce_ensures(subject, command, args, old:, domain:, parent: nil)
           state = GuardState.new(subject)
+          owner = subject.aggregate if subject.respond_to?(:aggregate)
+          # Same merge-order reasoning as enforce_givens above: an
+          # aliased command-level reference must override its own raw
+          # id argument, not the other way round. `old` still wins over
+          # everything, unchanged.
+          attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
+          attrs = attrs.merge(parent: dereference(domain, parent.aggregate, parent.state).merge(parent.state)) if parent
+          attrs = attrs.merge(old: old)
           command.ensures.each do |rule|
-            next if Bluebook::Expression::Evaluator.call(rule.canonical, state, args.merge(old: old))
+            next if Bluebook::Expression::Evaluator.call(rule.canonical, state, attrs)
 
             raise EnsuresNotMet, "#{command.hecks_name} refused — #{rule.description}"
           end

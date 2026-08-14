@@ -55,8 +55,6 @@ runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
                   name: { given: "Ada", family: "Voss" }, email: { address: "ada@example.com" })
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
                   name: { given: "Bo", family: "Reyes" }, email: { address: "bo@example.com" })
-runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" },
-                  standing: { value: "chargeback investigation" })
 
 runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
@@ -110,6 +108,17 @@ would build — read it with `.value`, not `.inspect`, the same rule
 hash the whole way down; only `read_model` flattens that far, and the
 difference matters later in this guide.
 
+One more account, opened for `c2` WHILE `c2` is still active —
+`Account.Open` carries its own `given("customer is active")`, so this
+has to happen before what comes next, not after:
+
+```ruby
+runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "e" },
+                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
+runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" },
+                  standing: { value: "chargeback investigation" })
+```
+
 `ne` is the opposite direction — everyone the everyday roll leaves out:
 
 ```ruby skip
@@ -144,14 +153,14 @@ query "OpenForSuspendedCustomers" do
 end
 ```
 
-`c2` was suspended two examples ago and has never held an account —
-open one now, and it's exactly the shape this query exists to catch:
-a live account behind a customer nobody should be letting transact.
+`c2` opened `e` back in the first example, while still active, and was
+suspended right after — the account itself was never touched, so it's
+exactly the shape this query exists to catch: a live account behind a
+customer nobody should be letting transact, reachable only because
+suspension happens to an existing customer, not retroactively to the
+accounts they already hold.
 
 ```ruby
-runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "e" },
-                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
-
 runtime.query("Banking::Account.OpenForSuspendedCustomers").map { |row| row[:number].value }
 # => ["e"]
 ```

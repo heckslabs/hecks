@@ -20,6 +20,11 @@ pub enum Resolver {
     Modulo { receiver: Box<Resolver>, divisor: Box<Resolver> },
     Size(Box<Resolver>),
     Lookup(String),
+    /// `["active", "suspended"]` — a literal set, the haystack half of an
+    /// `.include?`. Port of `resolver.rb`'s own `ArrayLiteral` (added
+    /// alongside it, same commit family) — see that file's own header on
+    /// why this exists at all.
+    ArrayLiteral(Vec<Resolver>),
 }
 
 const SIGN_TESTS: [(&str, &str); 3] = [("positive?", ">"), ("negative?", "<"), ("zero?", "==")];
@@ -48,6 +53,9 @@ pub fn parse(expr: &str) -> Resolver {
     }
     if expr == "nil" {
         return Resolver::NilLiteral;
+    }
+    if let Some(elements) = array_elements(expr) {
+        return Resolver::ArrayLiteral(elements.iter().map(|element| parse(element)).collect());
     }
 
     if let Some((left, right)) = split_addition(expr) {
@@ -114,6 +122,55 @@ fn quoted(expr: &str) -> Option<&str> {
         return Some(&expr[1..expr.len() - 1]);
     }
     None
+}
+
+/// Port of `resolver.rb`'s own `array_elements` — the elements of a
+/// bracketed literal, or `None` if this isn't one. Splits on TOP-LEVEL
+/// commas only — quote-aware and depth-aware, the same discipline
+/// `split_addition` already applies, so a nested array or a comma inside
+/// a string element stays whole rather than splitting the literal in
+/// half.
+fn array_elements(expr: &str) -> Option<Vec<String>> {
+    if !(expr.starts_with('[') && expr.ends_with(']')) {
+        return None;
+    }
+
+    let inner = expr[1..expr.len() - 1].trim();
+    if inner.is_empty() {
+        return Some(Vec::new());
+    }
+
+    let mut elements = Vec::new();
+    let mut depth: i32 = 0;
+    let mut quote: Option<char> = None;
+    let mut current = String::new();
+
+    for char in inner.chars() {
+        if let Some(open) = quote {
+            if char == open {
+                quote = None;
+            }
+            current.push(char);
+            continue;
+        }
+
+        match char {
+            '"' | '\'' => quote = Some(char),
+            '[' | '(' => depth += 1,
+            ']' | ')' => depth -= 1,
+            _ => {}
+        }
+
+        if char == ',' && depth == 0 {
+            elements.push(current.trim().to_string());
+            current = String::new();
+        } else {
+            current.push(char);
+        }
+    }
+    elements.push(current.trim().to_string());
+
+    Some(elements.into_iter().filter(|element| !element.is_empty()).collect())
 }
 
 fn split_addition(expr: &str) -> Option<(&str, &str)> {

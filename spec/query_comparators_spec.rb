@@ -41,13 +41,18 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime.dispatch("Banking::Account.Freeze", number: { value: "c" })
     runtime.dispatch("Banking::Account.CloseAccount", number: { value: "d" })
 
-    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c1" }, standing: { value: "chargeback investigation" })
-
+    # Authorized WHILE c1 is still active — CardPayment.Authorize now
+    # carries its own `given("customer is active")`, and the Suspend
+    # below exists only to give the "Ne matches customers not in good
+    # standing" query something to find, not to describe c1's standing
+    # at authorization time.
     runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a", authorisation: { value: "auth-1" },
                                                         amount: { cents: 4200 }, merchant: { value: "Risky Co" },
                                                         tags: [{ value: "high_risk" }])
     runtime.dispatch("Banking::CardPayment.Authorize", account_id: "b", authorisation: { value: "auth-2" },
                                                         amount: { cents: 1500 }, merchant: { value: "Ordinary Co" })
+
+    runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c1" }, standing: { value: "chargeback investigation" })
     runtime
   end
 

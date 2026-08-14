@@ -153,10 +153,16 @@ RSpec.describe "the rules a command obeys" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" }, id: "a1")
 
+      # Freeze also carries its own explicit `given("account is open")` (a
+      # customer/account status guard, ported alongside this test's own
+      # dependency) — since `enforce_givens` runs BEFORE
+      # `admissible_transition` in DISPATCH_ORDER, an already-frozen
+      # account is refused there first: GivenNotMet, not the lifecycle's
+      # own LifecycleRefused. The command is still refused either way;
+      # only which check gets there first, and what it's named, changed.
       expect do
         runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" }, id: "a1")
-      end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
-                         'Freeze refused — status is "frozen", and Freeze moves it only from "open"')
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Freeze refused — account is open")
     end
 
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do
@@ -164,11 +170,15 @@ RSpec.describe "the rules a command obeys" do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 1 }, narrative: narrative)
 
+      # Same overlap as Account.Freeze above: Amend now carries its own
+      # `given("entry is posted")`, which pre-empts the entity's own
+      # lifecycle machine (`admissible_transition` runs after
+      # `enforce_givens`) — GivenNotMet, not LifecycleRefused. Still
+      # refused, same as before this guard existed.
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Amend",
                          number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 100, currency: "USD" }, narrative: narrative)
-      end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
-                         'Amend refused — state is "reversed", and Amend moves it only from "posted"')
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Amend refused — entry is posted")
     end
 
     it "does not settle a transfer until its destination credit is recorded" do
@@ -186,10 +196,14 @@ RSpec.describe "the rules a command obeys" do
                        amount: { cents: 100 }, narrative: { text: "A transfer waiting for credit" })
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
 
+      # Settle now carries its own `given("transfer is credited")`, which
+      # pre-empts the aggregate's own lifecycle machine the same way
+      # Account.Freeze's and LedgerEntry.Amend's guards do above —
+      # GivenNotMet, not LifecycleRefused. Still refused before any
+      # destination credit was recorded, same guarantee as before.
       expect do
         runtime.dispatch("Banking::Transfer.Settle", transfer: "x1")
-      end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
-                         'Settle refused — status is "debited", and Settle moves it only from "credited"')
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Settle refused — transfer is credited")
     end
 
     it "refuses duplicate and out-of-order transfer legs without changing their state" do
@@ -206,17 +220,211 @@ RSpec.describe "the rules a command obeys" do
                        reference: { value: "x1" }, source: "src", destination: "dst",
                        amount: { cents: 100 }, narrative: { text: "An ordered transfer" })
 
+      # Settle/Credited each now carry their own explicit status guards,
+      # which pre-empt the aggregate's own lifecycle machine (same overlap
+      # documented above on Account.Freeze/LedgerEntry.Amend/Settle) —
+      # GivenNotMet, not LifecycleRefused. Still refused at every one of
+      # these out-of-order points, same guarantee as before.
       expect { runtime.dispatch("Banking::Transfer.Settle", transfer: "x1") }
-        .to raise_error(Hecksagain::Runtime::LifecycleRefused, /status is "requested"/)
+        .to raise_error(Hecksagain::Runtime::GivenNotMet, "Settle refused — transfer is credited")
 
       runtime.dispatch("Banking::Transfer.Debited", transfer: "x1")
       runtime.dispatch("Banking::Transfer.Credited", transfer: "x1")
 
       expect { runtime.dispatch("Banking::Transfer.Credited", transfer: "x1") }
-        .to raise_error(Hecksagain::Runtime::LifecycleRefused,
-                        'Credited refused — status is "credited", and Credited moves it only from "debited"')
+        .to raise_error(Hecksagain::Runtime::GivenNotMet, "Credited refused — transfer is debited")
       expect(runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Transfer"))
                     .find("x1")[:status]).to eq("credited")
+    end
+  end
+
+  # A `given`/`ensures` reading a RELATED record's own field —
+  # `customer.status`, not just the dispatching record's own attributes.
+  # The pure expression evaluator never gained repository access for
+  # this: CommandRules::References#dereference resolves it BEFORE
+  # evaluation, once, into a plain Hash `Resolver#lookup` digs into
+  # exactly as it always has. Covers both shapes that reach it —
+  # an aggregate's OWN declared reference (Account's `reference_to
+  # Customer`, read off the record's stored state) and a COMMAND's own
+  # reference-typed argument (CardPayment.Authorize's `reference_to
+  # Account`, read off the dispatch payload) — plus the two-hop chain
+  # that composes them.
+  describe "dereferencing a related record's field in given/ensures" do
+    it "reads a stored aggregate-level reference's field, live — not a snapshot taken at dispatch time" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
+                         amount: { cents: 100, currency: "USD" }, narrative: { text: "before" })
+      end.not_to raise_error
+
+      runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
+                       standing: { value: "chargeback investigation" })
+
+      expect do
+        runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
+                         amount: { cents: 100, currency: "USD" }, narrative: { text: "after" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Credit refused — customer is active")
+    end
+
+    it "reads a command-level reference argument's field (one hop)" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::ATMCard.Issue", account_id: "a1",
+                         serial: { value: "s1" }, daily_fee: { cents: 100 })
+      end.not_to raise_error
+    end
+
+    it "chains through a command-level reference into ITS OWN aggregate-level reference (two hops)" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
+                         authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
+                         merchant: { value: "Merchant" })
+      end.not_to raise_error
+
+      runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
+                       standing: { value: "chargeback investigation" })
+
+      expect do
+        runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
+                         authorisation: { value: "auth2" }, amount: { cents: 500, currency: "USD" },
+                         merchant: { value: "Merchant" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Authorize refused — customer is active")
+    end
+
+    it "leaves a command with no reference-typed attributes at all untouched" do
+      runtime = boot_till
+      expect { runtime.dispatch("TillRoom::Till.OpenTill", number: { value: "till-1" }) }.not_to raise_error
+    end
+
+    # Found by the fuzzer, not by hand: an ALIASED command-level reference
+    # (`reference_to Customer, as: :customer`) hydrates under the SAME name
+    # its raw id argument already holds — unlike an unaliased one
+    # (`account_id` the argument, `account` the hydrated key, no
+    # collision). The dereferenced Hash must win that collision, or
+    # `customer.status` digs into the raw id string instead — a TypeError,
+    # not a refusal, the moment the id doesn't resolve to a real record.
+    it "resolves an ALIASED command-level reference over its own raw id argument" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::OnboardingCase.Open", customer: "c",
+                         reference: { value: "case-1" }, account_number: { value: "a2" })
+      end.not_to raise_error
+
+      runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
+                       standing: { value: "chargeback investigation" })
+
+      expect do
+        runtime.dispatch("Banking::OnboardingCase.Open", customer: "c",
+                         reference: { value: "case-2" }, account_number: { value: "a3" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Open refused — customer is active")
+    end
+
+    # The other half of the same bug: an id that does NOT resolve to a real
+    # record must be a clean refusal (whatever the aggregate's own gates
+    # say — here NotFound, from a plain `reference_to Customer, as:
+    # :customer` failing existence at resolve_references, BEFORE givens
+    # ever run) — never the dereferencer's problem to raise a TypeError
+    # over. This is what the fuzzer actually found: a garbage id string
+    # reaching `customer.status` and blowing up on `String#[]`.
+    it "refuses a dangling aliased reference by name, not with a TypeError from inside the guard" do
+      runtime = funded_account(boot_banking)
+
+      expect do
+        runtime.dispatch("Banking::OnboardingCase.Open", customer: "no-such-customer",
+                         reference: { value: "case-3" }, account_number: { value: "a4" })
+      end.to raise_error(Hecksagain::Runtime::NotFound)
+    end
+
+    # An ENTITY command's given/ensures reaching its own PARENT aggregate
+    # (`parent.status`) and, through it, the parent's OWN reference
+    # (`parent.customer.status`) — a third shape none of the above cover:
+    # `parent` names a structural relationship (EntityInterpreter's own
+    # `ctx.instance`), not a declared reference attribute, so it needs its
+    # own hydration path rather than reusing `dereference`'s attribute
+    # scan directly.
+    it "resolves an entity command's parent.customer.status, live" do
+      runtime = funded_account(boot_banking)
+      runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },
+                       amount: { cents: 100, currency: "USD" }, narrative: { text: "second" })
+      runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },
+                       amount: { cents: 100, currency: "USD" }, narrative: { text: "third" })
+
+      expect do
+        runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
+                         number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "before" })
+      end.not_to raise_error
+
+      runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
+                       standing: { value: "chargeback investigation" })
+
+      expect do
+        runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
+                         number: { value: "a1" }, sequence: { value: 3 }, narrative: { text: "after" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Reverse refused — customer is active")
+    end
+  end
+
+  # A REPRESENTATIVE SAMPLE of the customer/account-status guard family
+  # ported onto banking.bluebook (feat/banking-status-guards) — not
+  # exhaustive (~113 individual `given`s across ~56 commands), but one
+  # real example per category: a bare CUSTOMER-status guard, a bare
+  # ACCOUNT-status guard, an aliased cross-aggregate reference
+  # (source/destination) status guard, and an "other" own-record
+  # status/state guard that has nothing to do with customer/account at
+  # all. Section 223's "dereferencing a related record's field" tests,
+  # above, already prove several more of these guards fire as a side
+  # effect of proving the DEREFERENCING mechanism itself — this section
+  # is about the GUARDS, not the mechanism.
+  describe "the ported customer/account status guards" do
+    it "refuses on a bare CUSTOMER status guard — ATMCard.Issue for a suspended customer" do
+      runtime = funded_account(boot_banking)
+      runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
+                       standing: { value: "chargeback investigation" })
+
+      expect do
+        runtime.dispatch("Banking::ATMCard.Issue", account_id: "a1",
+                         serial: { value: "s1" }, daily_fee: { cents: 100 })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Issue refused — customer is active")
+    end
+
+    it "refuses on a bare ACCOUNT status guard — CardPayment.Authorize against a frozen account" do
+      runtime = funded_account(boot_banking)
+      runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" })
+
+      expect do
+        runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
+                         authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
+                         merchant: { value: "Merchant" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Authorize refused — account is open")
+    end
+
+    it "refuses on an ALIASED cross-aggregate reference's status guard — Transfer.Request from a frozen source" do
+      runtime = funded_account(boot_banking)
+      runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a2" },
+                       kind: { name: "current" }, daily_limit: { cents: 50_000 })
+      runtime.dispatch("Banking::Account.Freeze", number: { value: "a1" })
+
+      expect do
+        runtime.dispatch("Banking::Transfer.Request", reference: { value: "x1" },
+                         source: "a1", destination: "a2", amount: { cents: 100 },
+                         narrative: { text: "From a frozen source" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Request refused — source account is open")
+    end
+
+    it "refuses on an OTHER (own-record) status guard, unrelated to customer/account — ATMCard.Retire on an already-retired card" do
+      runtime = funded_account(boot_banking)
+      runtime.dispatch("Banking::ATMCard.Issue", account_id: "a1",
+                       serial: { value: "s1" }, daily_fee: { cents: 100 })
+      runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
+
+      expect do
+        runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
+      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Retire refused — card is issued or active")
     end
   end
 

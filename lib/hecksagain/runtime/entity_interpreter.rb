@@ -81,7 +81,7 @@ module Hecksagain
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) { @rules.enforce_givens(ctx.view, ctx.command, ctx.args) }
+        step(:enforce_givens) { @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, parent: ctx.instance) }
       end
 
       def step_admissible_transition(ctx)
@@ -105,7 +105,7 @@ module Hecksagain
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) do
           settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
-          @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element)
+          @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element, domain: ctx.domain, parent: ctx.instance)
         end
       end
 

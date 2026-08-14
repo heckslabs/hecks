@@ -69,11 +69,17 @@ RSpec.describe "an entity" do
     runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                      number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Once" })
 
+    # LedgerEntry.Reverse also carries its own explicit `given("entry is
+    # posted")` (a customer/account/entry status guard) — since
+    # `enforce_givens` runs BEFORE `admissible_transition` in
+    # DISPATCH_ORDER, an already-reversed entry is refused there first:
+    # GivenNotMet, not the lifecycle's own LifecycleRefused. Still refused
+    # either way — see spec/runtime/command_rules_spec.rb's own matching
+    # note on Account.Freeze/Transfer.Settle for the general shape.
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Twice" })
-    end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
-                       'Reverse refused — state is "reversed", and Reverse moves it only from "posted"')
+    end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Reverse refused — entry is posted")
   end
 
   it "refuses an element nobody posted, naming the parent" do

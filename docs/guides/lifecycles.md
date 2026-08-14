@@ -118,16 +118,23 @@ there `"captured"`, not `"disputed"` — and the command refuses before
 anything is written:
 
 ```ruby
-payment.chargeback  # ~> LifecycleRefused: status is "captured", and Chargeback moves it only from "disputed"
+payment.chargeback  # ~> GivenNotMet: Chargeback refused — payment is disputed
 ```
 
-Nothing in `Chargeback`'s declaration wrote that sentence — no `given`
-reading `status`, no hand-rolled check. The transition's own `from:`
-IS the rule, and `LifecycleRefused` is what a command raises when the
-current state names no matching transition. This is the whole point:
-you declared which states `Chargeback` may fire from once, at the
-lifecycle, and every caller who gets the order wrong meets the same
-refusal instead of a `nil` or a corrupted record.
+`Chargeback` also carries its own `given("payment is disputed") {
+status == "disputed" }` — a customer/account-status-guard-family
+addition, naming in business language exactly the condition
+`transition "Chargeback" => "charged_back", from: "disputed"` already
+enforces structurally. `enforce_givens` runs BEFORE
+`admissible_transition` in dispatch order, so where the two overlap
+like this, the `given` is what your caller actually sees:
+`GivenNotMet`, not `LifecycleRefused`, even though it is the lifecycle
+that named `"disputed"` the only legal source state in the first place.
+This is still the whole point of declaring it at the lifecycle: the
+states `Chargeback` may fire from are named once, and every caller who
+gets the order wrong meets a refusal instead of a `nil` or a corrupted
+record — which check gets there first when a `given` also names the
+same fact is a detail, not the guarantee.
 
 ## Terminal states
 
@@ -139,11 +146,15 @@ payment.dispute(disputed_by: "c1")
 payment.chargeback
 payment.status  # => "charged_back"
 
-payment.reject_dispute  # ~> LifecycleRefused: status is "charged_back", and RejectDispute moves it only from "disputed"
+payment.reject_dispute  # ~> GivenNotMet: RejectDispute refused — payment is disputed
 ```
 
-No transition names `from: "charged_back"` — on purpose, a charged-back
-payment is done. `bin/model_check` notices this shape on every
+Same overlap as `Chargeback` above — `RejectDispute` carries the same
+`given("payment is disputed")`, and it catches a `"charged_back"`
+payment before the lifecycle's own `admissible_transition` gets a
+turn. No transition names `from: "charged_back"` either way — on
+purpose, a charged-back payment is done. `bin/model_check` notices this
+shape on every
 lifecycle in the corpus and reports it as a `stuck_state` finding —
 but at `:warning` severity, not `:error`, because a genuinely terminal
 state (`"sold"` in the pizzas example, `"closed"` on a bank account) is

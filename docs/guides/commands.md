@@ -124,7 +124,7 @@ dispatch; the rest of this page proves each row once, live, against
 | `GivenNotMet` | a declared `given` reads false | debiting a frozen account |
 | `EnsuresNotMet` | a declared `ensures` reads false, AFTER the mutation ran | `Debit`'s own two postconditions — discussed below |
 | `InvariantViolation` | a value object's own rule rejects the fields it was built from | an account opened with no number |
-| `LifecycleRefused` | the command names a transition the current state cannot take | freezing an already-frozen account |
+| `LifecycleRefused` | the command names a transition the current state cannot take | discussed below, and in `lifecycles.md` — every transition in this corpus that would raise it also carries an overlapping `given` naming the same fact, which gets there first (see `given`, next) |
 | `AlreadyExists` | a creating command's identity already names a record | opening the same account number twice |
 | `NotFound` | an acting command's identity names no record | freezing an account that was never opened |
 | `AbsentArgument` | a required attribute never arrived | opening an account with no `kind` |
@@ -176,20 +176,26 @@ A `given` reads the record as it stands BEFORE any mutation and refuses
 if it doesn't like what it sees. The refusal is `GivenNotMet`, and the
 message is exactly the description you wrote — nothing templated, no
 translation between what you declared and what the caller reads.
-`Freeze` carries no `given` at all — its lifecycle transition is the
-only gate it has, and that is enough on its own:
+`Freeze` carries two: `given("customer is active")` and
+`given("account is open")` — the second names, in business language,
+exactly the fact its own `transition "Freeze" => "frozen", from:
+"open"` already enforces structurally:
 
 ```ruby
 account.freeze
 account.status  # => "frozen"
 ```
 
-Call it again and there is no state left for the transition to move
-from — the refusal is `LifecycleRefused`, not `GivenNotMet`, because
-nothing declared on `Freeze` itself objected:
+Call it again and both checks would refuse it — the account is no
+longer `"open"`, so neither the lifecycle transition nor the `given`
+admits this call. `enforce_givens` runs BEFORE `admissible_transition`
+in dispatch order, so the `given` is what your caller actually sees:
+`GivenNotMet`, not `LifecycleRefused`, even though it is the lifecycle
+that named `"open"` the only legal source state in the first place —
+see `lifecycles.md` for the full shape of that overlap:
 
 ```ruby
-account.freeze  # ~> LifecycleRefused: Freeze refused
+account.freeze  # ~> GivenNotMet: Freeze refused — account is open
 ```
 
 `Debit` declares three givens, and multiple givens run in the order you
