@@ -337,7 +337,11 @@ module Hecksagain
         def seal_query_field(owner, query, fields, lifecycle, field, ordering: false)
           name, *nested = field.to_s.split(".")
           attribute = fields.find { |candidate| candidate.name.to_s == name }
-          return if nested.empty? && (attribute || lifecycle&.field.to_s == name)
+          if nested.empty? && attribute
+            refuse_ambiguous_comparison!(owner, query, field, attribute)
+            return
+          end
+          return if nested.empty? && lifecycle&.field.to_s == name
           return if nested.any? && attribute && scalar_path?(attribute, nested)
 
           if nested.any? && attribute && resolves?(attribute, nested)
@@ -416,6 +420,39 @@ module Hecksagain
                 "#{owner}.#{query.hecks_name} resolves :#{value} from its arguments, " \
                 "but declares no #{value} attribute — an argument that does not exist " \
                 "resolves to nil and matches nothing"
+        end
+
+        # A BARE FIELD NAMING A VALUE OBJECT HAS TO SAY WHICH MEMBER IT
+        # MEANS, when more than one could answer. The dotted case above
+        # already refuses a path that lands on a value object rather than
+        # a scalar; a bare name was returning unconditionally, so
+        # `where(frequency: ...)` against a StatementFrequency
+        # (cadence, retention_months, paper_fee_cents) compiled — and the
+        # engines then disagreed about which member it meant, one taking
+        # the FIRST numeric and another declining to unwrap at all.
+        #
+        # Unambiguous is: exactly one member, whatever its type, or
+        # exactly one NUMERIC member among several (Money's `cents`
+        # beside its `currency` — the reading every engine already
+        # shared, and what the corpus relies on). Anything else names
+        # its member with a dotted path, which already works.
+        #
+        # A list is exempt: `contains` over a `list_of` reads element
+        # membership, not a scalar comparison, and has its own agreed
+        # reading across the engines.
+        def refuse_ambiguous_comparison!(owner, query, field, attribute)
+          return if attribute.list?
+
+          value_object = declared_value_object(attribute.type.to_s)
+          return unless value_object
+
+          members = QuerySpecification::Common::Comparison.ambiguous_members(value_object)
+          return if members.empty?
+
+          raise Malformed,
+                "#{owner}.#{query.hecks_name} asks about #{field}, which names #{attribute.type} — " \
+                "it has #{members.size} members (#{members.join(', ')}) and no single one a " \
+                "comparison can mean; name the member (#{field}.#{members.first})"
         end
 
         def scalar_path?(attribute, nested)

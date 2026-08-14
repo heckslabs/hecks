@@ -2,6 +2,7 @@ require_relative "../naming"
 require_relative "../ports/query"
 require_relative "../ports/query/ordering"
 require_relative "../query_specification/field_path"
+require_relative "../query_specification/common/comparison"
 require_relative "errors"
 require_relative "reference_hop"
 require_relative "refusal_wording"
@@ -35,11 +36,11 @@ module Hecksagain
 
         repository = @registry.repository(domain, aggregate)
         # `registry:` is threaded through so a `none_in_state` where-clause
-        # (Runtime::QueryInterpreter#none_in_state?'s own vendored
-        # addition) can look its target aggregate up — see
-        # Ports::Query::InMemory#none_in_state?'s own comment on why an
-        # ordinary aggregate-level Memory query needs this passed
-        # explicitly rather than closing over an instance variable.
+        # can look its target aggregate up — see
+        # QuerySpecification::Common::Comparison#none_in_state? for the
+        # comparator itself, and for why an ordinary aggregate-level
+        # Memory query needs the registry passed explicitly rather than
+        # closing over an instance variable.
         if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate, registry: @registry }))
           records = native
           # `record.state.merge(id: record.id)` — id LAST, not first. See
@@ -201,91 +202,17 @@ module Hecksagain
         holds?(clause, QuerySpecification::FieldPath.dig(record, clause.field), args, record: record, domain: domain)
       end
 
+      # The comparator table itself lives in
+      # QuerySpecification::Common::Comparison. This method and
+      # Ports::Query::InMemory#holds? used to carry a copy each and the
+      # two drifted — `none_in_state` reached only one of them, and
+      # `comparable` disagreed about value objects with two numeric
+      # members. What stays here is how a value is REACHED for this
+      # path: the registry is instance state rather than an argument.
       def holds?(clause, held, args, record: nil, domain: nil)
-        held = comparable(held)
-        want = comparable(resolve_query_value(clause.value, args))
-
-        case clause.op.to_s
-        when "eq"       then held == want
-        when "ne"       then held != want
-        when "lt"       then ordered?(held, want) && held < want
-        when "lte"      then ordered?(held, want) && held <= want
-        when "gt"       then ordered?(held, want) && held > want
-        when "gte"      then ordered?(held, want) && held >= want
-        when "in"       then members(want).include?(held.to_s)
-        when "contains" then contains?(held, want)
-        when "none_in_state" then none_in_state?(held, want)
-        else                 held == want
-        end
-      end
-
-      # Vendored addition, not (yet) upstream hecksagain (migration plan
-      # task 4) -- see comparators.rb's own comment on `none_in_state`
-      # itself. `want` is "Aggregate:state" (a literal, never resolved
-      # through `resolve_query_value`'s Symbol path -- the target names a
-      # TYPE, not an argument). `held` is THIS record's own field value,
-      # already unwrapped by `comparable` -- the point-lookup key. No
-      # `domain:` qualifier on "Aggregate" because the corpus's own usage
-      # never gives one (plan.bluebook's Story reaching Conductor's Claim)
-      # -- searched by bare name across every loaded domain, the same
-      # single free-text lookup `HecksagainRuntime.state` already does for
-      # a caller-supplied aggregate FQN. Ambiguous (two domains declaring
-      # the same aggregate name) is a real, theoretical gap -- picks the
-      # first match rather than refusing, since a where-clause never
-      # raises (see `ordered?`'s own comment on the same contract).
-      def none_in_state?(held, want)
-        aggregate_name, state = want.to_s.split(":", 2)
-        target = find_aggregate_by_name(aggregate_name)
-        return true unless target
-
-        target_domain, target_ir = target
-        record = @registry.repository(target_domain, target_ir).find(held)
-        return true unless record
-
-        comparable(record.state[:state]) != state
-      end
-
-      def find_aggregate_by_name(name)
-        @registry.bluebooks.each do |domain, bluebook|
-          aggregate = bluebook.aggregates.find { |a| a.hecks_name == name }
-          return [domain, aggregate] if aggregate
-        end
-        nil
-      end
-
-      # gt/gte/lt/lte are numeric-only and silently false otherwise — a
-      # where-clause never raises the way a given does, and that contract
-      # predates this change (lt was already exactly this permissive).
-      def ordered?(held, want) = held.is_a?(Numeric) && want.is_a?(Numeric)
-
-      # `in` reads a comma-separated list — a real Array survives untouched
-      # (a bluebook's own in-process value, before any wire serialisation),
-      # each element unwrapped the same way a scalar field is (a list of
-      # value objects is a list of single-field hashes) ; anything else is
-      # treated as CSV text. This is `in`'s reading of ITS ARGUMENT (a
-      # caller may legitimately pass "a,b,c" meaning "any of these") —
-      # unrelated to `contains`, which reads the STORED field. See
-      # `contains?`.
-      def members(value)
-        return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
-
-        value.to_s.split(",").map(&:strip)
-      end
-
-      # `contains` means two different things depending on what is HELD —
-      # real ELEMENT membership for a `list_of` field (a genuine Array
-      # arrives already, one element one member, nothing to split), and
-      # plain SUBSTRING for anything else. It used to fall through to
-      # `members`' comma-split for the scalar case too, silently reading a
-      # free-text field's own comma as a separator — which the SQL side's
-      # `instr`/`position` never did, so the two disagreed the moment a
-      # scalar's real content held a comma. Matching SQL's substring
-      # reading here, rather than the other way around, keeps every
-      # engine answering `contains` identically for the same declared field.
-      def contains?(held, want)
-        return members(held).include?(want.to_s) if held.is_a?(Array)
-
-        held.to_s.include?(want.to_s)
+        QuerySpecification::Common::Comparison.holds?(
+          clause.op, comparable(held), comparable(resolve_query_value(clause.value, args)), registry: @registry
+        )
       end
 
       def resolve_query_value(value, args)
@@ -300,16 +227,7 @@ module Hecksagain
         end
       end
 
-      def comparable(value)
-        value = value.to_h if value.is_a?(Value)
-        if value.is_a?(Hash)
-          scalars = value.values.select { |field| field.is_a?(Numeric) }
-          return scalars.first if scalars.size == 1
-          return value.values.first if value.size == 1
-        end
-
-        value
-      end
+      def comparable(value) = QuerySpecification::Common::Comparison.comparable(value)
 
       def ordered(records, order_by, null_semantics = nil)
         field = order_by&.field
