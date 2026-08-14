@@ -380,7 +380,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/project` | Refreshes every read-model projection a domain declares, by hand — the same catch-up a boot runs lazily, forced now rather than on first ... |
 | `bin/project_cli` | Mints a command-line binary for a domain, named after its bluebook. bin/project_cli # every domain in this checkout bin/project_cli qa # ... |
 | `bin/project_deploy` | The AWS DEPLOYMENT projector — docs/decisions/0018-rehydrate-replay-lambda-host.md. Generates the SAM template and build Makefile for rus... |
-| `bin/project_field_hints` | Generates rust/host/src/field_hints.rs — the four regex hints Hecksagain::Presentation::FieldShape#text_field (lib/hecksagain/ presentati... |
+| `bin/project_field_hints` | Generates rust/host/src/field_hints.rs — the four regex hints Hecksagain::Forms::FieldShape#text_field (lib/hecksagain/ forms/field_shape... |
 | `bin/project_kernel_capabilities` | Generates the two capability enums the hand-written Rust kernel (rust/src/kernel/attribute_shapes/*.rs, rust/src/kernel/ expression_opera... |
 | `bin/project_model` | Projects the model's holding half from the language that declares it. Behaviour::X is hand-written and untouched; `settle` is the seam. b... |
 | `bin/project_parser_table` | Projects the chapter's own Syntax aggregate into the Rust parser's keyword table — the parser's grammar knowledge DERIVED from hecksagain... |
@@ -429,7 +429,7 @@ lib/hecksagain/
   ports/                domain ports — auth, identity, persistence, query — declared like everything else.
   query_specification/  a query's shape, held apart from any engine that answers it.
   projections/          IR as a capability — `emits_ir`, and its consumers (OIDC, the DSL reference, the parser table).
-  presentation/         IR → HTML, and a Rack app content-negotiating it against plain JSON.
+  forms/                IR → HTML, and a Rack app content-negotiating it against plain JSON.
   interview/            a live discovery session against the language's own grammar — what `bin/interview` runs.
   fuzzing/              generated sequences, checked against declared properties — what `bin/fuzz` runs.
   doc/                  the generated DSL reference (`bin/reference`).
@@ -438,7 +438,7 @@ lib/hecksagain/
 ```
 
 Nothing here is required by `require "hecksagain"` unless a booted domain
-actually uses it — `presentation/`, `interview/`, and `fuzzing/` each stay
+actually uses it — `forms/`, `interview/`, and `fuzzing/` each stay
 out of the core boot chain on purpose, so a project that never touches one
 never pays for it.
 

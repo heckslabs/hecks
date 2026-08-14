@@ -3,7 +3,7 @@ require "uri"
 require_relative "field_renderer"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # The two directions between a flat, dotted, ALL-STRINGS web payload
     # (`{"amount.cents"=>"1050", "amount.currency"=>"USD"}`, whether it came
     # off a POST form body or a GET query string — Rack hands back the same
@@ -56,8 +56,8 @@ module Hecksagain
       # One line of the textarea per element. A line that itself needs
       # several fields (a multi-attribute value object as a list element)
       # is read as JSON on that one line — the honest fallback documented in
-      # docs/presentation-bluebook.md rather than a second widget this
-      # prototype doesn't build yet.
+      # docs/command-form-and-query-form-bluebook.md rather than a second
+      # widget this prototype doesn't build yet.
       def self.extract_list(field, raw)
         text = raw[field.path]
         return SKIP if text.nil? || text.strip.empty?
@@ -109,8 +109,8 @@ module Hecksagain
       end
 
       # Every leaf/list path a field tree carries, independent of any
-      # values — what `form_renderer.rb`'s inspect panel wants ("which
-      # fields does this command take"), where `flatten` above wants
+      # values — what `command_form_renderer.rb`'s inspect panel wants
+      # ("which fields does this command take"), where `flatten` above wants
       # "what does THIS submission look like" and returns nothing for a
       # field nothing was entered for.
       def self.paths(fields, into: [])

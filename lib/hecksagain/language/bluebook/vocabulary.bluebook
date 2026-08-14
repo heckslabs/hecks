@@ -394,8 +394,8 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # Hecksagain::Presentation::FieldShape's own EMAIL_HINT/URL_HINT/
-    # TEL_HINT/TEXTAREA_HINT (lib/hecksagain/presentation/field_shape.rb)
+    # Hecksagain::Forms::FieldShape's own EMAIL_HINT/URL_HINT/
+    # TEL_HINT/TEXTAREA_HINT (lib/hecksagain/forms/field_shape.rb)
     # — the regexes `text_field` matches a text attribute's own NAME
     # against (case-insensitively) to guess an HTML input type or a
     # textarea kind, when nothing more specific (a `pattern:`, an

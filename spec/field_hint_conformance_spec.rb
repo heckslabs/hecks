@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecksagain/presentation/field_shape"
+require "hecksagain/forms/field_shape"
 
 # FieldShape's own EMAIL_HINT/URL_HINT/TEL_HINT/TEXTAREA_HINT
-# (lib/hecksagain/presentation/field_shape.rb) are the LIVE table
+# (lib/hecksagain/forms/field_shape.rb) are the LIVE table
 # `text_field` reads at dispatch time — the same split RefusalTemplate/
 # RefusalWording already established (refusal_wording_conformance_spec.rb):
 # declared once, in language/bluebook/vocabulary.bluebook's `FieldHint`,
@@ -25,10 +25,10 @@ RSpec.describe "the declared field hints" do
   # write rust/host/src/field_hints.rs, so this spec and that generator
   # agree about what "the pattern" even means for a Ruby Regexp.
   FIELD_HINT_RUBY_TABLE = {
-    "email"    => Hecksagain::Presentation::FieldShape::EMAIL_HINT,
-    "url"      => Hecksagain::Presentation::FieldShape::URL_HINT,
-    "tel"      => Hecksagain::Presentation::FieldShape::TEL_HINT,
-    "textarea" => Hecksagain::Presentation::FieldShape::TEXTAREA_HINT,
+    "email"    => Hecksagain::Forms::FieldShape::EMAIL_HINT,
+    "url"      => Hecksagain::Forms::FieldShape::URL_HINT,
+    "tel"      => Hecksagain::Forms::FieldShape::TEL_HINT,
+    "textarea" => Hecksagain::Forms::FieldShape::TEXTAREA_HINT,
   }.freeze
 
   it "declares at least one hint, so a language regression doesn't silently empty this" do
