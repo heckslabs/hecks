@@ -36,10 +36,10 @@ module Hecksagain
           construct: "Policy",
           file:      "policy.rb",
           behaviour: "Behaviour::Policy",
-          readers:   %i[name on_event trigger_command target_domain],
+          readers:   %i[name on_event trigger_command target_domain where for_each],
           accessors: %i[aggregate],
           defaults:  { name: nil, on_event: "nil", trigger_command: "nil",
-                       target_domain: "nil", aggregate: "nil" },
+                       target_domain: "nil", where: "nil", for_each: "nil", aggregate: "nil" },
           coerce:    { name: ".to_s", aggregate: "&.to_s" },
           settles:   false
         }

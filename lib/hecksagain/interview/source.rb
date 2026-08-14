@@ -443,6 +443,12 @@ module Hecksagain
         body << "reference_to #{rm[:reference_target]}" if rm[:reference_target]
         Array(rm[:aggregate_heads]).each { |head| body << "include #{head[:aggregate]}" }
         body << "group_by #{Array(rm[:group_by]).map { |g| symbol_literal(g[:field]) }.join(', ')}" if Array(rm[:group_by]).any?
+        # `count`/`median` are `group_by`'s own two siblings — see
+        # `seal_aggregation` (read_model_builder.rb) for why a read
+        # model never carries more than one of the three, so rendering
+        # both unconditionally (rather than picking one) is safe.
+        body << "count" if rm[:count]
+        body << "median #{symbol_literal(rm[:median_field])}" if rm[:median_field]
         body << "" if body.any?
         body.concat(query_option_lines(rm))
         body.pop while body.last == ""

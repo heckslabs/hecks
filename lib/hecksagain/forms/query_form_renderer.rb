@@ -3,24 +3,26 @@ require "uri"
 require_relative "html"
 require_relative "field_shape"
 require_relative "field_renderer"
+require_relative "reference_options"
 require_relative "params"
 require_relative "record_table"
-require_relative "form_renderer"
 
 module Hecksagain
-  module Presentation
-    # Query -> the page body for its GET view: a canonical, shareable
-    # link (queries are GETs — every one of them is already a URL, so this
-    # says so up front rather than hiding that behind a form); a row of
-    # ready-made links for any closed-set parameter, since a caller filtering
-    # by an enum should not have to fill in a form to get a link they could
-    # just click; a filter FORM for everything else, which — being a GET
-    # form — produces exactly the same kind of link on submit; and the
-    # results table once a request actually supplies parameters.
-    module QueryRenderer
+  module Forms
+    # Query -> the page body for its GET view — the working half of what
+    # `query_form.bluebook` names (see docs/command-form-and-query-form-
+    # bluebook.md): a canonical, shareable link (queries are GETs — every
+    # one of them is already a URL, so this says so up front rather than
+    # hiding that behind a form); a row of ready-made links for any
+    # closed-set parameter, since a caller filtering by an enum should not
+    # have to fill in a form to get a link they could just click; a filter
+    # FORM for everything else, which — being a GET form — produces
+    # exactly the same kind of link on submit; and the results table once
+    # a request actually supplies parameters.
+    module QueryFormRenderer
       def self.render(registry:, domain:, aggregate:, query:, action:, params: {}, results: nil, error: nil)
         fields = query.attributes.map { |a| FieldShape.resolve(a, aggregate: aggregate) }
-        reference_options = FormRenderer.collect_reference_options(registry, domain, fields)
+        reference_options = ReferenceOptions.collect(registry, domain, fields)
 
         <<~HTML
           #{header(domain, aggregate, query)}

@@ -24,6 +24,18 @@ Hecks.bluebook "Bluebook" do
     # arbitrary NUMBER of fields, the same reason `aggregate_heads`/
     # `options` are lists rather than fixed attributes.
     attribute :group_by,         list_of(GroupByField)
+    # `count`/`median_field` are the OTHER two reductions a read model
+    # may declare over its one eligible head, siblings of `group_by`
+    # rather than of `options` — same permissive `ReadModelText` shape,
+    # and the same UNmarked-optional spelling `reference_name`/
+    # `reference_target` already use just above (permissiveness lives
+    # in `ReadModelText`'s own lack of an invariant, not in an
+    # `optional:` flag this chapter's aggregate-level attributes never
+    # carry) — "true"/"" for `count`, a field name or "" for
+    # `median_field`, both legitimately absent on a read model that
+    # declares neither.
+    attribute :count,            ReadModelText
+    attribute :median_field,     ReadModelText
 
     value_object "ReadModelName" do
       attribute :value, String
@@ -140,6 +152,40 @@ Hecks.bluebook "Bluebook" do
       then_set :group_by, append: { field: :field }
 
       emits "GroupByFieldAdded"
+    end
+
+    # `count`/`median` are LATE-SET scalars, the same shape `Lifecycle`'s
+    # own `state_field`/`state_start` already are on `Aggregate`
+    # (aggregate.bluebook) — a command carrying its own value and a bare
+    # `then_set field, to: field` copying it onto the record, rather
+    # than an `append:` (they are not lists, and there is only ever one
+    # of each). `count`/`median_field` are declared here, not folded
+    # into `Declare`, for the same reason `GroupBy` is its own command
+    # above: neither is known until the DSL body runs past `include`.
+    command "Count" do
+      role "Language"
+      goal "Mark the read model as a bare row count over its one eligible collection"
+
+      reference_to ReadModel
+      attribute :count, ReadModelText
+
+      then_set :count, to: :count
+
+      emits "CountDeclared"
+    end
+
+    command "Median" do
+      role "Language"
+      goal "Mark the read model as the median of one numeric field across its one eligible collection"
+
+      reference_to ReadModel
+      attribute :median_field, ReadModelText
+
+      given("a median field is named") { !median_field.value.to_s.empty? }
+
+      then_set :median_field, to: :median_field
+
+      emits "MedianFieldSet"
     end
 
     command "Option" do

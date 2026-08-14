@@ -24,6 +24,17 @@ Hecks.bluebook "Bluebook" do
     attribute :on_event,        PolicyText
     attribute :trigger_command, PolicyText
     attribute :target_domain,   PolicyText
+    # THE GUARD, CARRIED AS TEXT — same discipline `Command.givens`
+    # already holds: the block that wrote it is never called at
+    # runtime, only its EXTRACTED SOURCE is (Ports::Extraction), so
+    # what the language holds is the string, not a live Proc no wire
+    # format could carry. Optional — most policies fire unconditionally.
+    attribute :where,           PolicyText, optional: true
+    # THE FAN-OUT SOURCE — a query verb ("Aggregate.query_name" or
+    # "Domain::Aggregate.query_name"), same text shape as
+    # `trigger_command`/`target_domain` beside it. Optional — most
+    # policies fire once, not once per row.
+    attribute :for_each,        PolicyText, optional: true
 
     value_object "PolicyName" do
       attribute :value, String
@@ -63,6 +74,8 @@ Hecks.bluebook "Bluebook" do
       attribute :on_event,        PolicyText
       attribute :trigger_command, PolicyText
       attribute :target_domain,   PolicyText, optional: true
+      attribute :where,           PolicyText, optional: true
+      attribute :for_each,        PolicyText, optional: true
 
       attribute :position, Position, optional: true
       emits "ReactionDeclared"

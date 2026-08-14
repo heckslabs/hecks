@@ -270,6 +270,8 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("description", "ReadModel"), // STAGE 3
     ("include", "ReadModel"),     // STAGE 3
     ("group_by", "ReadModel"),    // STAGE 3
+    ("count", "ReadModel"),        // real, this session — banking.bluebook's own DisputedPaymentCount
+    ("median", "ReadModel"),       // real, this session — banking.bluebook's own DisputedPaymentMedian
     ("reference_to", "ReadModel"), // STAGE 4
     ("where", "ReadModel"),        // STAGE 4
     ("order_by", "ReadModel"),     // STAGE 4

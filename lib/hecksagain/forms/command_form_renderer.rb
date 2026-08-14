@@ -2,15 +2,17 @@ require "json"
 require_relative "html"
 require_relative "field_shape"
 require_relative "field_renderer"
+require_relative "reference_options"
 require_relative "params"
 
 module Hecksagain
-  module Presentation
-    # Command -> the page body for its HTML form. Every command in every
-    # loaded, exposed bluebook renders through here — nothing here is
-    # per-command code; see docs/presentation-bluebook.md for the 1:1 rule
-    # this deliberately holds to for now.
-    module FormRenderer
+  module Forms
+    # Command -> the page body for its HTML form — the working half of
+    # what `command_form.bluebook` names (see docs/command-form-and-query-
+    # form-bluebook.md). Every command in every loaded, exposed bluebook
+    # renders through here — nothing here is per-command code; see that
+    # doc for the 1:1 rule this deliberately holds to for now.
+    module CommandFormRenderer
       # `registry` is only used to populate a `:reference` field's
       # `<select>` with real records (including the identity picker itself,
       # for a non-creating command — see `identity_field` below). `values`/
@@ -29,7 +31,7 @@ module Hecksagain
 
       def self.render(registry:, domain:, aggregate:, command:, action:, values: nil, error: nil, prefill: {})
         all_fields = fields_for(aggregate, command)
-        reference_options = collect_reference_options(registry, domain, all_fields)
+        reference_options = ReferenceOptions.collect(registry, domain, all_fields)
         shown_values = values || prefill
 
         <<~HTML
@@ -81,29 +83,11 @@ module Hecksagain
 
       # No structured field attribution exists on a domain refusal today
       # (it is a typed exception with a rendered message — see
-      # docs/presentation-bluebook.md's note on `RefusalWording`), so this
-      # returns empty rather than guessing which field a message meant; the
-      # banner above carries the real text instead of a misattributed hint.
+      # docs/command-form-and-query-form-bluebook.md's note on
+      # `RefusalWording`), so this returns empty rather than guessing which
+      # field a message meant; the banner above carries the real text
+      # instead of a misattributed hint.
       def self.field_errors(_error) = {}
-
-      def self.collect_reference_options(registry, domain, fields)
-        targets = {}
-        walk(fields) { |field| targets[field.path] = field.target_aggregate if field.kind == :reference }
-        targets.transform_values { |aggregate| aggregate && options_for(registry, domain, aggregate) }
-      end
-
-      def self.walk(fields, &block)
-        fields.each do |field|
-          block.call(field)
-          walk(field.children, &block) if field.children
-        end
-      end
-
-      def self.options_for(registry, domain, aggregate)
-        registry.repository(domain, aggregate).all.first(200).map { |instance| [instance.id, instance.id] }
-      rescue StandardError
-        nil # a wiring gap (no repository bound) degrades to a plain text id input, not a 500
-      end
 
       def self.inspect_panel(domain, aggregate, command, action, fields)
         verb = "#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}"

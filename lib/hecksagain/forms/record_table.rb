@@ -2,22 +2,22 @@ require_relative "html"
 require_relative "field_shape"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # The one shape every renderer in this directory reads a record as —
     # `id` plus its state hash. `Runtime::Instance` already answers both,
     # so `repository.all`'s own records pass straight through; a QUERY's
     # answer does not (`QueryInterpreter#call` flattens `{id:}.merge(state)`
-    # into one hash with no method to call — see docs/presentation-bluebook.md's
-    # note on why), so app.rb wraps those results in one of these before
-    # they ever reach a renderer, and every renderer here only has to know
-    # one shape.
+    # into one hash with no method to call — see
+    # docs/command-form-and-query-form-bluebook.md's note on why), so
+    # app.rb wraps those results in one of these before they ever reach a
+    # renderer, and every renderer here only has to know one shape.
     Record = Struct.new(:id, :state)
 
     # An array of Record (or anything answering `#id`/`#state` — a
     # Runtime::Instance qualifies without wrapping) -> an HTML table.
     # Shared by the aggregate index page (record_renderer.rb) and a
-    # query's own results (query_renderer.rb) — the same records read the
-    # same columns either way.
+    # query's own results (query_form_renderer.rb) — the same records
+    # read the same columns either way.
     module RecordTable
       def self.columns(aggregate)
         lifecycle = aggregate.lifecycle&.field

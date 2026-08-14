@@ -1,7 +1,7 @@
 require_relative "html"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # The one HTML shell every page in this app renders inside — nav,
     # typography, form/table/badge styles, all inline (no CDN, no build
     # step: this ships inside the `hecksagain` gem, and a project that
@@ -16,19 +16,19 @@ module Hecksagain
           <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>#{Escape.html(title)} · presentation.bluebook</title>
+          <title>#{Escape.html(title)} · hecksagain forms</title>
           <style>#{STYLE}</style>
           </head>
           <body>
           <header class="site-header">
-            <a class="brand" href="/">presentation.bluebook</a>
+            <a class="brand" href="/">hecksagain forms</a>
             #{breadcrumbs_html(breadcrumbs)}
           </header>
           <main>
           #{body}
           </main>
           <footer class="site-footer">
-            <p>Generated straight from the loaded bluebook IR — nothing here is hand-authored per page. See <code>docs/presentation-bluebook.md</code>.</p>
+            <p>Generated straight from the loaded bluebook IR — nothing here is hand-authored per page. See <code>docs/command-form-and-query-form-bluebook.md</code>.</p>
           </footer>
           <script>#{SCRIPT}</script>
           </body>

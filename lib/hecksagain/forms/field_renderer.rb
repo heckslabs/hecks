@@ -3,12 +3,13 @@ require_relative "field_shape"
 require_relative "../naming"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # A Field (field_shape.rb) -> the `<div class="field">...</div>` or
     # `<fieldset>...</fieldset>` markup for it. One renderer, called
-    # recursively for a group's children, shared by FormRenderer (POST) and
-    # QueryRenderer (GET) — the same attribute shape asks for the same input
-    # either way; only the surrounding `<form>`'s method differs.
+    # recursively for a group's children, shared by CommandFormRenderer
+    # (POST) and QueryFormRenderer (GET) — the same attribute shape asks
+    # for the same input either way; only the surrounding `<form>`'s
+    # method differs.
     module FieldRenderer
       # `values` is the nested hash a sticky re-render (a rejected command,
       # a submitted query) carries back — read with the SAME dotted path a

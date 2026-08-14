@@ -72,7 +72,7 @@ module Hecksagain
         # query specification layer grew options after them.
         DYNAMIC_TAIL = {
           "Query"     => %i[options],
-          "ReadModel" => %i[options group_by aggregate_heads]
+          "ReadModel" => %i[options group_by aggregate_heads count median_field]
         }.freeze
 
         module_function

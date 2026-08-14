@@ -261,6 +261,241 @@ RSpec.describe "a read model's query options" do
       expect(rows.first[:card_payments].map { |p| p[:amount][:cents] }).to eq([600, 500, 400, 300, 200])
     end
   end
+
+  # `count`/`median` — the other two reductions `group_by` has siblings
+  # in (read_model_builder.rb's own `seal_aggregation`). The success/
+  # empty-set cases below dispatch banking.bluebook's OWN real
+  # `DisputedPaymentCount`/`DisputedPaymentMedian` read models (added
+  # alongside this task, the real corpus member `spec/judge_coverage_
+  # spec.rb` needs to ever OFFER `ReadModel.Count`/`ReadModel.Median` to
+  # the meta-domain at all — a verb the judge never offers is a verb
+  # every rule about it is decoration for, that spec's own header) — the
+  # `build` helper above already loads and persists the whole chapter,
+  # so no reopening is needed for them. The two REFUSAL cases (a median
+  # field that doesn't exist, or exists but isn't numeric) are declared
+  # on tiny read models reopening the same already-loaded "Banking"
+  # chapter instead (`Hecks.bluebook "Banking" do ... end` a second time
+  # — `BluebookBuilder.build` keeps one builder open per chapter name
+  # across calls) rather than in the file itself, because a bluebook
+  # that fails to build is not a real corpus member to freeze.
+  context "count and median" do
+    def build_with_bad_median(adapter: "Memory")
+      registry = Hecksagain::Runtime::Registry.new
+      Hecksagain.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+        Hecks.bluebook("Banking") do
+          # A field that exists but is not numeric (a single-String
+          # value object, `MerchantName{value}`) — refused at QUERY
+          # time, not at build time, the same as `median`'s missing-
+          # field case below and `group_by_target`'s own field checks.
+          read_model "BadMedianField" do
+            reference_to Account
+            include Account
+            include CardPayment
+            median :merchant
+          end
+
+          read_model "MissingMedianField" do
+            reference_to Account
+            include Account
+            include CardPayment
+            median :no_such_field
+          end
+        end
+        Hecks.hecksagon("Banking") do
+          Banking::Customer.persisted_by(adapter)
+          Banking::Account.persisted_by(adapter)
+          Banking::ATMCard.persisted_by(adapter)
+          Banking::Transfer.persisted_by(adapter)
+          Banking::CardPayment.persisted_by(adapter)
+          Banking::ExternalTransfer.persisted_by(adapter)
+          Banking::ScheduledPayment.persisted_by(adapter)
+          Banking::SafeDepositBox.persisted_by(adapter)
+          Banking::OnboardingCase.persisted_by(adapter)
+        end
+      end
+      registry.verify!
+      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    end
+
+    def open_account(runtime, customer:, account:)
+      Banking::Customer.register(reference: { value: customer }, name: { given: "A", family: "B" },
+                                  email: { address: "#{customer}@example.com" })
+      Banking::Account.open(customer_id: customer, number: { value: account },
+                             kind: { name: "current" }, daily_limit: { cents: 10_000 })
+    end
+
+    def dispute(account:, index:, cents:)
+      pay = Banking::CardPayment.authorize(account_id: account, authorisation: { value: "auth-#{account}-#{index}" },
+                                            amount: { cents: cents }, merchant: { value: "Shop#{index}" })
+      pay.capture
+      pay.dispute(disputed_by: "c-#{account}")
+    end
+
+    it "counts a filtered set — how many match, not which ones" do
+      runtime = build
+      open_account(runtime, customer: "c-acct-count", account: "acct-count")
+      [100, 200, 300].each_with_index { |cents, i| dispute(account: "acct-count", index: i, cents: cents) }
+      # An UNDISPUTED payment too, so a count of 3 (not 4) proves `where`
+      # actually filtered rather than the read model counting everything.
+      Banking::CardPayment.authorize(account_id: "acct-count", authorisation: { value: "auth-undisputed" },
+                                      amount: { cents: 999 }, merchant: { value: "Undisputed" })
+
+      rows = runtime.query("Banking.disputed_payment_count", account: "acct-count")
+      expect(rows.first[:card_payments]).to eq(3)
+    end
+
+    it "counts zero for an account with nothing matching — an Integer, not nil" do
+      runtime = build
+      open_account(runtime, customer: "c-acct-empty-count", account: "acct-empty-count")
+
+      rows = runtime.query("Banking.disputed_payment_count", account: "acct-empty-count")
+      expect(rows.first[:card_payments]).to eq(0)
+    end
+
+    it "takes the middle value for an ODD number of rows" do
+      runtime = build
+      open_account(runtime, customer: "c-acct-median-odd", account: "acct-median-odd")
+      [100, 500, 300].each_with_index { |cents, i| dispute(account: "acct-median-odd", index: i, cents: cents) }
+
+      rows = runtime.query("Banking.disputed_payment_median", account: "acct-median-odd")
+      expect(rows.first[:card_payments]).to eq(300)
+    end
+
+    # THE DEFINITIONAL CHOICE THIS SESSION MADE, PROVEN: the AVERAGE of
+    # the two middle values (300 and 500, sorted from [500, 100, 300,
+    # 700] -> [100, 300, 500, 700]), not the lower of the two (which
+    # would silently read 300 here too) or the upper (500) — a real
+    # ambiguity a same-valued fixture could not have caught.
+    it "averages the two middle values for an EVEN number of rows" do
+      runtime = build
+      open_account(runtime, customer: "c-acct-median-even", account: "acct-median-even")
+      [500, 100, 300, 700].each_with_index { |cents, i| dispute(account: "acct-median-even", index: i, cents: cents) }
+
+      rows = runtime.query("Banking.disputed_payment_median", account: "acct-median-even")
+      expect(rows.first[:card_payments]).to eq(400.0)
+    end
+
+    it "answers nil for the median of an empty set — not zero" do
+      runtime = build
+      open_account(runtime, customer: "c-acct-empty-median", account: "acct-empty-median")
+
+      rows = runtime.query("Banking.disputed_payment_median", account: "acct-empty-median")
+      expect(rows.first[:card_payments]).to be_nil
+    end
+
+    it "refuses a median field the aggregate does not declare, at query time" do
+      runtime = build_with_bad_median
+      open_account(runtime, customer: "c-acct-missing-field", account: "acct-missing-field")
+
+      expect { runtime.query("Banking.missing_median_field", account: "acct-missing-field") }
+        .to raise_error(ArgumentError, /no_such_field.*declares no such attribute/m)
+    end
+
+    it "refuses a median field that is not numeric, at query time" do
+      runtime = build_with_bad_median
+      open_account(runtime, customer: "c-acct-bad-field", account: "acct-bad-field")
+
+      expect { runtime.query("Banking.bad_median_field", account: "acct-bad-field") }
+        .to raise_error(ArgumentError, /merchant.*not numeric/m)
+    end
+
+    it "refuses count and median declared together" do
+      expect do
+        registry = Hecksagain::Runtime::Registry.new
+        Hecksagain.with_registry(registry) do
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          Hecks.bluebook("BothReductions") do
+            vision "x"
+            generic
+
+            aggregate "Account" do
+              identified_by { ref.value }
+              attribute :ref, Ref
+              value_object "Ref" do
+                attribute :value, String
+              end
+            end
+
+            read_model "Both" do
+              include Account
+              count
+              median :ref
+            end
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares both count and median/)
+    end
+
+    it "refuses count declared together with group_by" do
+      expect do
+        registry = Hecksagain::Runtime::Registry.new
+        Hecksagain.with_registry(registry) do
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          Hecks.bluebook("CountAndGroup") do
+            vision "x"
+            generic
+
+            aggregate "Account" do
+              identified_by { ref.value }
+              attribute :ref, Ref
+              value_object "Ref" do
+                attribute :value, String
+              end
+            end
+
+            read_model "Both" do
+              include Account
+              group_by :ref
+              count
+            end
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares count\/median together with group_by/)
+    end
+
+    it "refuses count declared with more than one many-side head" do
+      expect do
+        registry = Hecksagain::Runtime::Registry.new
+        Hecksagain.with_registry(registry) do
+          Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+          Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+          Hecks.bluebook("CrowdedCount") do
+            vision "x"
+            generic
+
+            aggregate "Account" do
+              identified_by { ref.value }
+              attribute :ref, Ref
+              value_object "Ref" do
+                attribute :value, String
+              end
+            end
+
+            aggregate "Entry" do
+              identified_by { ref.value }
+              attribute :ref, Ref
+              value_object "Ref" do
+                attribute :value, String
+              end
+            end
+
+            read_model "Both" do
+              include Account
+              include Entry
+              count
+            end
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares count\/median but includes 2 many-side/)
+    end
+  end
 end
 
 # A read model used to always need exactly one root record — `reference_to`

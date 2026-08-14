@@ -13,11 +13,11 @@ survives regeneration.
 - [ValueObject](value_object.md) — 3 words
 - [OneOf](one_of.md) — 1 word
 - [Lifecycle](lifecycle.md) — 1 word
-- [Policy](policy.md) — 3 words
+- [Policy](policy.md) — 5 words
 - [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
 - [Query](query.md) — 14 words
-- [ReadModel](read_model.md) — 15 words
+- [ReadModel](read_model.md) — 17 words
 - [Type](type.md) — 2 words
 - [Hecksagon](hecksagon.md) — 3 words
 - [DomainPort](domain_port.md) — 4 words

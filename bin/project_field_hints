@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
 # Generates rust/host/src/field_hints.rs — the four regex hints
-# Hecksagain::Presentation::FieldShape#text_field (lib/hecksagain/
-# presentation/field_shape.rb) matches a text attribute's own name
+# Hecksagain::Forms::FieldShape#text_field (lib/hecksagain/
+# forms/field_shape.rb) matches a text attribute's own name
 # (and, for email/url, its own `pattern:`) against, to guess an HTML
 # input type or a textarea kind for a field nothing more specific
 # already answered (no `pattern:`, no `admits:`, not a closed set).

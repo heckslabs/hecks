@@ -324,7 +324,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -348,7 +348,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -372,7 +372,7 @@
               "list": false,
               "name": "given",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -381,7 +381,7 @@
               "list": false,
               "name": "family",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -1478,7 +1478,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -1690,7 +1690,7 @@
               "list": false,
               "name": "text",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -2187,7 +2187,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -2304,7 +2304,7 @@
               "list": false,
               "name": "text",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -2726,7 +2726,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -2774,7 +2774,7 @@
               "list": false,
               "name": "text",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -3310,7 +3310,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -3355,7 +3355,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -3379,7 +3379,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -3702,7 +3702,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -3768,7 +3768,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -4208,7 +4208,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -4253,7 +4253,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -4277,7 +4277,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -4888,7 +4888,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -4960,7 +4960,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -5005,7 +5005,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -5275,7 +5275,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -5299,7 +5299,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -5484,7 +5484,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -5529,7 +5529,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -5649,40 +5649,52 @@
   "name": "Banking",
   "policies": [
     {
+      "for_each": null,
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
       "target_domain": "Compliance",
-      "trigger_command": "AccountFreezeReview.Open"
+      "trigger_command": "AccountFreezeReview.Open",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "RetryOnPaymentFailure",
       "on_event": "ScheduledPayment.ScheduledPaymentFailed",
       "target_domain": null,
-      "trigger_command": "ScheduledPayment.Retry"
+      "trigger_command": "ScheduledPayment.Retry",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "FreezeAccountsOnSuspension",
       "on_event": "CustomerSuspended",
       "target_domain": null,
-      "trigger_command": "Account.Freeze"
+      "trigger_command": "Account.Freeze",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "NotifyOnClosure",
       "on_event": "AccountClosed",
       "target_domain": "Notifications",
-      "trigger_command": "Notifications.Send"
+      "trigger_command": "Notifications.Send",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "ReviewOnBoxSurrender",
       "on_event": "BoxSurrendered",
       "target_domain": "Compliance",
-      "trigger_command": "BoxSurrenderReview.Open"
+      "trigger_command": "BoxSurrenderReview.Open",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "FlagKeyReturn",
       "on_event": "KeyReturnDue",
       "target_domain": "Notifications",
-      "trigger_command": "Notifications.Send"
+      "trigger_command": "Notifications.Send",
+      "where": null
     }
   ],
   "process_managers": [
@@ -6013,6 +6025,70 @@
         "field": "amount"
       },
       "query_name": "compliance_dashboard",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "count": true,
+      "description": "How many of an account's own card charges are under dispute — a single number, not the rows themselves.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "name": "DisputedPaymentCount",
+      "order_by": null,
+      "query_name": "disputed_payment_count",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The median amount of an account's own disputed card charges.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "median_field": "amount",
+      "name": "DisputedPaymentMedian",
+      "order_by": null,
+      "query_name": "disputed_payment_median",
       "reference_name": "account",
       "reference_target": "Account",
       "wheres": [

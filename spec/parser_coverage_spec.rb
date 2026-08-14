@@ -91,6 +91,7 @@ RSpec.describe "the Rust parser's own coverage" do
     %w[operation DomainPort],
     %w[reference_to PortOperation], %w[attribute PortOperation], %w[emits PortOperation],
     %w[report Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel], # STAGE 3
+    %w[count ReadModel], %w[median ReadModel], # real, this session — banking.bluebook's own DisputedPaymentCount/Median
     %w[reference_to ReadModel], %w[where ReadModel], %w[order_by ReadModel], # STAGE 4
     %w[limit ReadModel], %w[freshness ReadModel], %w[use_index ReadModel], # STAGE 4
     %w[list_of Type], %w[one_of Type] # STAGE 6 — bookkeeping, not new dispatch work; see
@@ -144,6 +145,18 @@ RSpec.describe "the Rust parser's own coverage" do
   # would shrink this the rest of the way — fabricating coverage here
   # instead would be precisely the false claim this whole harness exists
   # to make impossible (this table's own opening comment).
+  #
+  # `where`/`for_each` `Policy` — new language surface (conditional policy
+  # dispatch + fan-out), same category as the rest of this list: declared
+  # for real (PolicyBuilder answers both, PolicyInterpreter evaluates
+  # them), but no corpus member `hecks-parse` actually parses (the nine
+  # self-hosted grammar files, `pizzas`/`banking`/`compliance`, the
+  # framework trio, `spec/fixtures/**`) uses either yet — the real dispatch
+  # coverage lives in `spec/runtime/policy_spec.rb`'s own inline-built
+  # bluebooks, which `hecks-parse` never sees. A future stage that builds
+  # `parse::policy`'s `where`/`for_each` arms and finds (or adds) a real
+  # corpus member exercising them shrinks this the same way every other
+  # entry here would.
   PENDING_PAIRS = (DECLARED_PAIRS - COVERED_PAIRS).freeze
 
   def self.reported_coverage

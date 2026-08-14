@@ -297,7 +297,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -345,7 +345,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -369,7 +369,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             }
           ],
@@ -417,7 +417,7 @@
               "list": false,
               "name": "name",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "type": "String"
             },
             {
@@ -525,10 +525,12 @@
   "name": "Pizzas",
   "policies": [
     {
+      "for_each": null,
       "name": "OnPizzaPaymentReceived",
       "on_event": "PizzaPaymentReceived",
       "target_domain": null,
-      "trigger_command": "Order.Purchase"
+      "trigger_command": "Order.Purchase",
+      "where": null
     }
   ],
   "process_managers": [
