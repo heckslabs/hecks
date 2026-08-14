@@ -101,7 +101,10 @@ module Hecksagain
         return nil unless entry
 
         @exercised << entry[:verb]
-        entry[:query] ? build_query_step(runtime, entry) : build_command_step(runtime, catalog, entry)
+        if entry[:query]      then build_query_step(runtime, entry)
+        elsif entry[:model]   then build_read_model_step(runtime, entry)
+        else                       build_command_step(runtime, catalog, entry)
+        end
       end
     end
   end

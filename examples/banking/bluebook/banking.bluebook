@@ -520,6 +520,36 @@ Hecks.bluebook "Banking", version: "v1" do
       order_by :number
     end
 
+    # THE for_each TARGET for `FreezeAccountsOnSuspension`, below — scoped
+    # to ONE customer, unlike `OpenForSuspendedCustomers` above (a
+    # standing dashboard ask, deliberately unscoped: "everyone currently
+    # exposed"). A fan-out needs the narrower ask: only THIS event's own
+    # customer's accounts, or every OTHER already-suspended customer's
+    # open accounts would get re-dispatched every single time any one
+    # customer is suspended. `reference` — not `customer_id` — because
+    # that is the actual key `CustomerSuspended`'s own payload carries
+    # (`Customer.Suspend`'s own `reference_to Customer` addresses its OWN
+    # aggregate by Customer's declared identity path, `identified_by
+    # CustomerNumber, as: :reference` — not a synthetic `customer_id`
+    # foreign key, which only a REFERENCING command like `Account.Open`
+    # mints).
+    query "OpenForCustomer" do
+      description "One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry."
+      # PLAIN String, not the cross-aggregate CustomerNumber VO Customer's
+      # own identity is declared as: a query attribute's declared type is
+      # never runtime-coerced (`QueryInterpreter#resolve_query_value` is a
+      # raw `args[value]` lookup — comparability is handled entirely by
+      # `Ports::Query::InMemory.holds?`'s own `comparable` unwrap on BOTH
+      # sides, regardless of which shape the caller offers), so String
+      # here changes nothing about what a real caller may pass — it only
+      # spares `Fuzzing::ValueGenerator` an aggregate.value_object lookup
+      # this query's own aggregate (Account) could never satisfy for a VO
+      # declared under a DIFFERENT aggregate (Customer).
+      attribute :reference, String
+      where(customer_id: :reference, status: "open")
+      order_by :number
+    end
+
     policy "ReviewOnFreeze" do
       on      "Account.AccountFrozen"
       trigger "AccountFreezeReview.Open"
@@ -1556,6 +1586,27 @@ Hecks.bluebook "Banking", version: "v1" do
     end
   end
 
+  # A REAL, PRE-EXISTING BUG — found while wiring `for_each` into this
+  # domain, NOT fixed here yet. This policy has always refused, every
+  # single dispatch, silently: a plain `trigger` forwards the triggering
+  # event's OWN payload wholesale (CustomerSuspended's `{reference:,
+  # standing:}` — Customer's own fields) straight into `Account.Freeze`,
+  # which wants neither. The name is plural ("Accounts") but the
+  # mechanism only ever attempted ONE dispatch, with the wrong shape.
+  #
+  # `for_each "Account.OpenForCustomer"` (the query above exists
+  # specifically for this) looked like the fix, but ALSO does not work
+  # yet — `PolicyInterpreter#deliver_for_each_row`'s own reference-key
+  # mint (`Behaviour::Policy#fan_out_reference_key`) hardcodes
+  # `<aggregate>_id` for every fan-out target unconditionally. `Account`
+  # is addressed by `number` (`identified_by AccountNumber, as: :number`),
+  # not `account_id`, for a self-referencing command like `Freeze` — the
+  # exact same self-vs-foreign-key distinction that gives `Customer
+  # .Suspend` its own `reference` argument instead of `customer_id`
+  # elsewhere in this file. `for_each` has no way to express that today;
+  # fixing this needs a runtime change to `PolicyInterpreter`, not a
+  # domain-content edit, and is deliberately left alone here rather than
+  # forced through with something that only LOOKS wired correctly.
   policy "FreezeAccountsOnSuspension" do
     on      "CustomerSuspended"
     trigger "Account.Freeze"
