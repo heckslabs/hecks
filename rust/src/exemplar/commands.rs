@@ -83,6 +83,7 @@ pub fn dispatch_tmpl(
     repo: &mut impl crate::kernel::Repository<TmplRecord>, id: &str, args: TmplArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
+    let tmpl_eval_fielded = tmpl_with_references_placeholder();
 
     crate::kernel::dispatch(
         repo,
@@ -91,7 +92,7 @@ tmpl_invariant_check_placeholder()?;
         "TmplQualifiedName",
         "TmplAggregateName",
         "TmplIdentityReading",
-        &args,
+        &tmpl_eval_fielded,
         &[
 tmpl_given_spec_placeholder(),
         ],
@@ -112,6 +113,18 @@ tmpl_ensures_spec_placeholder(),
 
 fn tmpl_invariant_check_placeholder() -> Result<(), crate::kernel::Refusal> {
     Ok(())
+}
+// `tmpl_with_references_placeholder` — the real substitution is a
+// `crate::kernel::WithReferences` literal (`commands.rb`'s own
+// `with_references_binding`), the SAME cross-aggregate-dereference
+// Fielded surface `given`/`ensures` evaluation reads as `EvalContext.
+// args` (`reference_lookup.rs`'s own header) — standing in here as
+// plain `TmplArgs` only so this exemplar keeps compiling on its own;
+// `WithReferences` isn't reachable from a bare `TmplArgs` value, but
+// `&tmpl_eval_fielded` only needs SOME `impl Fielded` to typecheck this
+// shape, and `TmplArgs` already is one.
+fn tmpl_with_references_placeholder() -> TmplArgs {
+    TmplArgs { tmpl_field: 0 }
 }
 fn tmpl_given_spec_placeholder() -> crate::kernel::GivenSpec {
     crate::kernel::GivenSpec { description: "", expr: crate::kernel::Expr::Bool(true) }
@@ -141,9 +154,10 @@ fn tmpl_entity_mutation_lines_placeholder(record: &mut TmplElement) {}
 // TMPL:entity_dispatch_fn BEGIN
 pub fn dispatch_entity_tmpl(
     repo: &mut impl crate::kernel::Repository<TmplRecord>, parent_id: &str, element_id: &str, element_wants: &str, args: TmplArgs,
-    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, tmpl_deref_params_placeholder: (),
 ) -> crate::kernel::DispatchResult<TmplRecord> {
 tmpl_invariant_check_placeholder()?;
+    let tmpl_eval_fielded = tmpl_with_references_placeholder();
 
     crate::kernel::dispatch_entity(
         repo,
@@ -158,7 +172,7 @@ tmpl_invariant_check_placeholder()?;
         "TmplEntityName",
         "TmplEntityIdentityReading",
         element_wants,
-        &args,
+        &tmpl_eval_fielded,
         &[
 tmpl_given_spec_placeholder(),
         ],

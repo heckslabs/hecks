@@ -54,6 +54,7 @@ pub mod read_model;
 // bin/project_kernel_capabilities — see that script's own header for
 // where that decision is made.
 pub mod query_comparators;
+pub mod reference_lookup;
 pub mod repository;
 
 pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
@@ -63,6 +64,9 @@ pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
     orchestrate, CrossDomainPolicyRule, DispatchSpec, Handler, PendingCrossDomainReaction, PolicyRule, ProcessManagerDef,
     SagaInstance, Tables, WithValue, MAX_REACTION_DEPTH, REFUSED,
+};
+pub use reference_lookup::{
+    command_deref, owner_deref, parent_deref, DerefNode, ReferenceLookup, ReferenceSpec, ReferenceTable, WithReferences, DEREFERENCE_DEPTH,
 };
 pub use refusal_wording::RefusalSite;
 pub use repository::{check_reference, check_role, filter_entries, row_json, AggregateScan, InMemoryRepository, Repository};

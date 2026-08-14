@@ -29,13 +29,18 @@ pub fn step<'a>(current: Field<'a>, seg: &str, head: &str, path: &str) -> Result
 
 /// The path has run out of segments — `current` is either the scalar the
 /// whole dotted path resolved to (the ordinary case, every real corpus
-/// `Lookup`) or still a nested object (a path that names a value object
-/// itself rather than one of its fields — nothing generated actually
-/// does this, but it's refused rather than silently returning something
-/// no `Expr` variant expects).
+/// `Lookup`), or still a nested object (a path that names a value object
+/// or a dereferenced reference itself rather than one of its own
+/// fields). `Fielded::as_scalar` (expr.rs) is that object's own OPTIONAL
+/// "collapse me to a comparable scalar" reading — `DerefNode`'s own
+/// override (`reference_lookup.rs`) is the real, live example (`source
+/// != destination`); everything else still answers `None`, so a bare
+/// nested-VO lookup this corpus never actually needs still refuses the
+/// same way it always has, rather than silently returning something no
+/// `Expr` variant expects.
 pub fn finish(current: Field<'_>, path: &str) -> Result<Value, Refusal> {
     match current {
         Field::Value(v) => Ok(v),
-        Field::Nested(_) => Err(eval_error(format!("{path} resolved to an object, not a scalar"))),
+        Field::Nested(obj) => obj.as_scalar().ok_or_else(|| eval_error(format!("{path} resolved to an object, not a scalar"))),
     }
 }

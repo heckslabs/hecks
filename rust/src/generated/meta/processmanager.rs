@@ -51,6 +51,13 @@ impl ProcessManagerName {
 
 impl ProcessManagerName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ProcessManagerName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ProcessManagerName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerName.value: expected String".to_string()))? },
         })
@@ -91,6 +98,13 @@ impl ProcessManagerText {
 
 impl ProcessManagerText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ProcessManagerText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ProcessManagerText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManagerText.value: expected String".to_string()))? },
         })
@@ -131,6 +145,13 @@ impl SagaState {
 
 impl SagaState {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SagaState does not declare {} — it takes name",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: { let x = v.require("name", "SagaState")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SagaState.name: expected String".to_string()))? },
         })
@@ -171,6 +192,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -282,13 +310,14 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
         args.correlates_by.check_invariants()?;
         args.starts_on.check_invariants()?;
         if let Some(v) = &args.ends_on { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -308,7 +337,7 @@ pub fn dispatch_declare(
         "Bluebook::ProcessManager",
         "ProcessManager",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -377,9 +406,10 @@ pub struct StateArgs {
 }
 
 pub fn dispatch_state(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: StateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, id: &str, args: StateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ProcessManager> {
         args.name.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -388,7 +418,7 @@ pub fn dispatch_state(
         "Bluebook::ProcessManager",
         "ProcessManager",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],

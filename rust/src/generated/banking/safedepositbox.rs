@@ -37,6 +37,7 @@ impl BranchCode {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "BranchCode.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -51,6 +52,13 @@ impl BranchCode {
 
 impl BranchCode {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BranchCode does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "BranchCode")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BranchCode.value: expected String".to_string()))? },
         })
@@ -105,6 +113,13 @@ impl BoxNumber {
 
 impl BoxNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BoxNumber does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "BoxNumber")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("BoxNumber.value expects Integer, got {}", x.inspect())))? },
         })
@@ -159,6 +174,13 @@ impl VisitSequence {
 
 impl VisitSequence {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "VisitSequence does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "VisitSequence")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("VisitSequence.value expects Integer, got {}", x.inspect())))? },
         })
@@ -199,6 +221,7 @@ impl VisitDate {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "VisitDate.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -213,6 +236,13 @@ impl VisitDate {
 
 impl VisitDate {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "VisitDate does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "VisitDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VisitDate.value: expected String".to_string()))? },
         })
@@ -253,6 +283,13 @@ impl VisitNote {
 
 impl VisitNote {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["text"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "VisitNote does not declare {} — it takes text",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         text: { let x = v.require("text", "VisitNote")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("VisitNote.text: expected String".to_string()))? },
         })
@@ -293,6 +330,7 @@ impl KeySerial {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "KeySerial.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -307,6 +345,13 @@ impl KeySerial {
 
 impl KeySerial {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "KeySerial does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "KeySerial")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeySerial.value: expected String".to_string()))? },
         })
@@ -468,11 +513,12 @@ impl VisitAnnotateArgs {
 
 pub fn dispatch_entity_visit_annotate(
     repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: VisitAnnotateArgs,
-    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.date.check_invariants()?;
         args.sequence.check_invariants()?;
         args.note.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch_entity(
         repo,
@@ -487,9 +533,11 @@ pub fn dispatch_entity_visit_annotate(
         "Visit",
         "date.value, sequence.value",
         element_wants,
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) } },
+            crate::kernel::GivenSpec { description: "visit is logged", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("logged".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["logged"] }),
         |record| {
@@ -610,9 +658,10 @@ impl KeyIssuanceReturnArgs {
 
 pub fn dispatch_entity_keyissuance_return(
     repo: &mut impl crate::kernel::Repository<SafeDepositBox>, parent_id: &str, element_id: &str, element_wants: &str, args: KeyIssuanceReturnArgs,
-    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch_entity(
         repo,
@@ -627,8 +676,10 @@ pub fn dispatch_entity_keyissuance_return(
         "KeyIssuance",
         "serial.value",
         element_wants,
-        &args,
+        &with_references,
         &[
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.status")), right: Box::new(Expr::Str("rented".to_string())) } },
             crate::kernel::GivenSpec { description: "only an issued key is returned", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
@@ -744,10 +795,11 @@ pub struct RentArgs {
 }
 
 pub fn dispatch_rent(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, args: RentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -767,9 +819,10 @@ pub fn dispatch_rent(
         "Banking::SafeDepositBox",
         "SafeDepositBox",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "box is vacant", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("vacant".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["vacant"] }),
         |record| {
@@ -832,9 +885,10 @@ pub struct SurrenderArgs {
 }
 
 pub fn dispatch_surrender(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: SurrenderArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: SurrenderArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -843,8 +897,9 @@ pub fn dispatch_surrender(
         "Banking::SafeDepositBox",
         "SafeDepositBox",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
             crate::kernel::GivenSpec { description: "only a rented box is surrendered", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["rented"] }),
@@ -906,11 +961,12 @@ pub struct LogVisitArgs {
 }
 
 pub fn dispatch_log_visit(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: LogVisitArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: LogVisitArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.date.check_invariants()?;
         args.sequence.check_invariants()?;
         if let Some(v) = &args.note { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -919,8 +975,9 @@ pub fn dispatch_log_visit(
         "Banking::SafeDepositBox",
         "SafeDepositBox",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
             crate::kernel::GivenSpec { description: "only a rented box is opened", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
         ],
         None,
@@ -982,9 +1039,10 @@ pub struct IssueKeyArgs {
 }
 
 pub fn dispatch_issue_key(
-    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: IssueKeyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<SafeDepositBox>, id: &str, args: IssueKeyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<SafeDepositBox> {
         args.serial.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -993,9 +1051,10 @@ pub fn dispatch_issue_key(
         "Banking::SafeDepositBox",
         "SafeDepositBox",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "box is rented", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("rented".to_string())) } },
         ],
         None,
         |record| {

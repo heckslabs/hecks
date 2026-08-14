@@ -51,6 +51,13 @@ impl AggregateName {
 
 impl AggregateName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AggregateName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "AggregateName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AggregateName.value: expected String".to_string()))? },
         })
@@ -105,6 +112,13 @@ impl Description {
 
 impl Description {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Description does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Description")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Description.value: expected String".to_string()))? },
         })
@@ -145,6 +159,13 @@ impl IdentityField {
 
 impl IdentityField {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IdentityField does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "IdentityField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityField.value: expected String".to_string()))? },
         })
@@ -185,6 +206,13 @@ impl IdentityPath {
 
 impl IdentityPath {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IdentityPath does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "IdentityPath")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityPath.value: expected String".to_string()))? },
         })
@@ -243,6 +271,13 @@ impl Field {
 
 impl Field {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Field does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: { let x = v.require("name", "Field")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.name: expected String".to_string()))? },
         r#type: { let x = v.require("type", "Field")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Field.type: expected String".to_string()))? },
@@ -289,6 +324,13 @@ impl ValueName {
 
 impl ValueName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ValueName does not declare {} — it takes name",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: { let x = v.require("name", "ValueName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueName.name: expected String".to_string()))? },
         })
@@ -335,6 +377,13 @@ impl Transition {
 
 impl Transition {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["command", "from_state", "to_state"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Transition does not declare {} — it takes command, from_state, to_state",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         command: { let x = v.require("command", "Transition")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.command: expected String".to_string()))? },
         from_state: match v.get("from_state") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Transition.from_state: expected String".to_string()))?), None => None, },
@@ -377,6 +426,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -431,6 +487,13 @@ impl FieldName {
 
 impl FieldName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "FieldName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "FieldName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FieldName.value: expected String".to_string()))? },
         })
@@ -485,6 +548,13 @@ impl TypeName {
 
 impl TypeName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "TypeName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "TypeName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("TypeName.value: expected String".to_string()))? },
         })
@@ -525,6 +595,13 @@ impl LiteralText {
 
 impl LiteralText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "LiteralText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "LiteralText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LiteralText.value: expected String".to_string()))? },
         })
@@ -579,6 +656,13 @@ impl ListFlag {
 
 impl ListFlag {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ListFlag does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ListFlag")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ListFlag.value: expected String".to_string()))? },
         })
@@ -704,12 +788,13 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
         if let Some(v) = &args.provenance { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -733,7 +818,7 @@ pub fn dispatch_declare(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -800,9 +885,10 @@ pub struct IdentifyArgs {
 }
 
 pub fn dispatch_identify(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: IdentifyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: IdentifyArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.path.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -811,7 +897,7 @@ pub fn dispatch_identify(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "an identity part reaches a scalar", expr: Expr::Or(Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str(".".to_string())) }), Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str("_id".to_string())) })) },
         ],
@@ -882,7 +968,7 @@ pub struct AttributeArgs {
 }
 
 pub fn dispatch_attribute(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: AttributeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: AttributeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
         args.list.check_invariants()?;
@@ -890,6 +976,7 @@ pub fn dispatch_attribute(
         if let Some(v) = &args.pattern { v.check_invariants()?; }
         if let Some(v) = &args.default { v.check_invariants()?; }
         if let Some(v) = &args.admits { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -898,7 +985,7 @@ pub fn dispatch_attribute(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -981,7 +1068,7 @@ pub struct ReferenceArgs {
 }
 
 pub fn dispatch_reference(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: ReferenceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: ReferenceArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
         args.list.check_invariants()?;
@@ -989,6 +1076,7 @@ pub fn dispatch_reference(
         if let Some(v) = &args.pattern { v.check_invariants()?; }
         if let Some(v) = &args.default { v.check_invariants()?; }
         if let Some(v) = &args.admits { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -997,7 +1085,7 @@ pub fn dispatch_reference(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -1080,7 +1168,7 @@ pub struct HoldsArgs {
 }
 
 pub fn dispatch_holds(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: HoldsArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: HoldsArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
         args.list.check_invariants()?;
@@ -1088,6 +1176,7 @@ pub fn dispatch_holds(
         if let Some(v) = &args.pattern { v.check_invariants()?; }
         if let Some(v) = &args.default { v.check_invariants()?; }
         if let Some(v) = &args.admits { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -1096,7 +1185,7 @@ pub fn dispatch_holds(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -1169,10 +1258,11 @@ pub struct LifecycleArgs {
 }
 
 pub fn dispatch_lifecycle(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: LifecycleArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: LifecycleArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.state_field.check_invariants()?;
         args.state_start.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -1181,7 +1271,7 @@ pub fn dispatch_lifecycle(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -1247,11 +1337,12 @@ pub struct TransitionArgs {
 }
 
 pub fn dispatch_transition(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: TransitionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: TransitionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.command.check_invariants()?;
         if let Some(v) = &args.from_state { v.check_invariants()?; }
         args.to_state.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -1260,7 +1351,7 @@ pub fn dispatch_transition(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -1322,9 +1413,10 @@ pub struct SealArgs {
 }
 
 pub fn dispatch_seal(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: SealArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: SealArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -1333,7 +1425,7 @@ pub fn dispatch_seal(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "an aggregate says what it is known by", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("identified_by"))))) },
         ],
@@ -1392,9 +1484,10 @@ pub struct ValueArgs {
 }
 
 pub fn dispatch_value(
-    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: ValueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Aggregate>, id: &str, args: ValueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Aggregate> {
         args.name.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -1403,7 +1496,7 @@ pub fn dispatch_value(
         "Bluebook::Aggregate",
         "Aggregate",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],

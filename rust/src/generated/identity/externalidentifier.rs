@@ -51,6 +51,13 @@ impl ExternalIdentifierKey {
 
 impl ExternalIdentifierKey {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ExternalIdentifierKey does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ExternalIdentifierKey")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalIdentifierKey.value: expected String".to_string()))? },
         })
@@ -105,6 +112,13 @@ impl Issuer {
 
 impl Issuer {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Issuer does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Issuer")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Issuer.value: expected String".to_string()))? },
         })
@@ -159,6 +173,13 @@ impl Subject {
 
 impl Subject {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Subject does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Subject")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Subject.value: expected String".to_string()))? },
         })
@@ -253,11 +274,12 @@ pub struct LinkArgs {
 }
 
 pub fn dispatch_link(
-    repo: &mut impl crate::kernel::Repository<ExternalIdentifier>, args: LinkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ExternalIdentifier>, args: LinkArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ExternalIdentifier> {
         args.key.check_invariants()?;
         args.issuer.check_invariants()?;
         args.subject.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -274,7 +296,7 @@ pub fn dispatch_link(
         "Identity::ExternalIdentifier",
         "ExternalIdentifier",
         "key.value",
-        &args,
+        &with_references,
         &[
 
         ],

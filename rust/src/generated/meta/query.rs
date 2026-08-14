@@ -51,6 +51,13 @@ impl QueryName {
 
 impl QueryName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "QueryName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "QueryName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryName.value: expected String".to_string()))? },
         })
@@ -91,6 +98,13 @@ impl QueryText {
 
 impl QueryText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "QueryText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "QueryText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("QueryText.value: expected String".to_string()))? },
         })
@@ -137,6 +151,13 @@ impl Filter {
 
 impl Filter {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["field", "op", "value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Filter does not declare {} — it takes field, op, value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         field: { let x = v.require("field", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.field: expected String".to_string()))? },
         op: { let x = v.require("op", "Filter")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Filter.op: expected String".to_string()))? },
@@ -197,6 +218,13 @@ impl AskArgument {
 
 impl AskArgument {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AskArgument does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: { let x = v.require("name", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.name: expected String".to_string()))? },
         r#type: { let x = v.require("type", "AskArgument")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.type: expected String".to_string()))? },
@@ -252,6 +280,13 @@ impl AskOption {
 
 impl AskOption {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["option", "key", "value", "at"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AskOption does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         option: { let x = v.require("option", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.option: expected String".to_string()))? },
         key: { let x = v.require("key", "AskOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskOption.key: expected String".to_string()))? },
@@ -295,6 +330,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -426,7 +468,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Query>, owner_id: &str, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Query>, owner_id: &str, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
@@ -434,6 +476,7 @@ pub fn dispatch_declare(
         if let Some(v) = &args.order_way { v.check_invariants()?; }
         if let Some(v) = &args.limit { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -457,7 +500,7 @@ pub fn dispatch_declare(
         "Bluebook::Query",
         "Query",
         "owner_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -534,12 +577,13 @@ pub struct FilterArgs {
 }
 
 pub fn dispatch_filter(
-    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: FilterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: FilterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.field.check_invariants()?;
         if !["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"].contains(&args.op.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "op admits Vocabulary::QueryComparator — \"eq\", \"ne\", \"gt\", \"gte\", \"lt\", \"lte\", \"in\", \"contains\", \"none_in_state\" — got ", args.op.value))); }
         args.op.check_invariants()?;
         args.value.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -548,7 +592,7 @@ pub fn dispatch_filter(
         "Bluebook::Query",
         "Query",
         "owner_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -617,12 +661,13 @@ pub struct OptionArgs {
 }
 
 pub fn dispatch_option(
-    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.option.check_invariants()?;
         args.key.check_invariants()?;
         if let Some(v) = &args.value { v.check_invariants()?; }
         if let Some(v) = &args.at { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -631,7 +676,7 @@ pub fn dispatch_option(
         "Bluebook::Query",
         "Query",
         "owner_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
         ],
@@ -708,7 +753,7 @@ pub struct ArgumentArgs {
 }
 
 pub fn dispatch_argument(
-    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: ArgumentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Query>, id: &str, args: ArgumentArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Query> {
         args.name.check_invariants()?;
         args.r#type.check_invariants()?;
@@ -717,6 +762,7 @@ pub fn dispatch_argument(
         if let Some(v) = &args.pattern { v.check_invariants()?; }
         if let Some(v) = &args.default { v.check_invariants()?; }
         if let Some(v) = &args.admits { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -725,7 +771,7 @@ pub fn dispatch_argument(
         "Bluebook::Query",
         "Query",
         "owner_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],

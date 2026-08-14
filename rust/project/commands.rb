@@ -16,6 +16,32 @@ module RustProjection
         "from_states: &[#{transition[:from_states].map(&:inspect).join(', ')}] })"
     end
 
+    # `owner_deref`/`command_deref` — the two EXTRA parameters every
+    # generated `dispatch_*`/`dispatch_entity_*` function now takes,
+    # alongside its typed `args`, carrying whatever cross-aggregate
+    # dereference (`customer.status`, `parent.account.customer.status`)
+    # its OWN `given`/`ensures` clauses might need — already resolved,
+    # by the ROUTER (`registry.rb`'s own `aggregate_arms`/`entity_arms`),
+    # into plain owned data before this function is ever called
+    # (`reference_lookup.rs`'s own header on why that has to happen
+    # there, not here). Shared between `emit_command`/`emit_entity_command`
+    # — identical shape either way, the same way `invariant_checks_for`
+    # already is.
+    DEREF_PARAMS = ["owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>",
+                     "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>"].freeze
+
+    # The ONE line every generated `dispatch_*`/`dispatch_entity_*` body
+    # adds — `crate::kernel::WithReferences`, read directly
+    # (reference_lookup.rs): `command_deref` wins ties (an entity
+    # command's own `"parent"` entry lives in THAT list, appended by the
+    # router), the untouched typed `args` struct is checked second,
+    # `owner_deref` (an aggregate's own STORED reference fields) is
+    # checked last — the exact precedence `CommandRules::Admissibility
+    # #enforce_givens`'s own three-way `.merge` chain already has.
+    def with_references_binding
+      "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };"
+    end
+
     def command_skip_reason(command, aggregate, value_objects_by_name)
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
       return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
@@ -334,10 +360,12 @@ module RustProjection
                   }),
               }
         RUST
-        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params + ["args: #{cmd}Args", "mutations: &mut Vec<crate::kernel::MutationRecord>"]).join(", ")
+        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>"] + identity_extra_params +
+                        ["args: #{cmd}Args", "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS]).join(", ")
       else
         hydrate = %(crate::kernel::Hydrate::Act { id: id.to_string() })
-        fn_signature = "repo: &mut impl crate::kernel::Repository<#{record}>, id: &str, args: #{cmd}Args, mutations: &mut Vec<crate::kernel::MutationRecord>"
+        fn_signature = (["repo: &mut impl crate::kernel::Repository<#{record}>", "id: &str", "args: #{cmd}Args",
+                          "mutations: &mut Vec<crate::kernel::MutationRecord>", *DEREF_PARAMS]).join(", ")
       end
 
       dispatch_fn = Exemplar.render(
@@ -346,6 +374,8 @@ module RustProjection
         "dispatch_tmpl" => "dispatch_#{dispatch_fn_name(cmd)}",
         "TmplRecord" => record,
         "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),
+        "let tmpl_eval_fielded = tmpl_with_references_placeholder();" => with_references_binding,
+        "&tmpl_eval_fielded," => "&with_references,",
         "tmpl_hydrate_placeholder()" => hydrate,
         '"TmplCmdName"' => cmd.inspect,
         '"TmplQualifiedName"' => "#{domain_name}::#{aggregate[:name]}".inspect,
@@ -455,7 +485,10 @@ module RustProjection
         "dispatch_entity_tmpl" => "dispatch_entity_#{entity[:name].downcase}_#{dispatch_fn_name(cmd)}",
         "TmplRecord" => parent_record,
         "TmplArgs" => args_struct_name,
+        "tmpl_deref_params_placeholder: ()" => DEREF_PARAMS.join(", "),
         "tmpl_invariant_check_placeholder()?;" => invariant_checks.join("\n"),
+        "let tmpl_eval_fielded = tmpl_with_references_placeholder();" => with_references_binding,
+        "&tmpl_eval_fielded," => "&with_references,",
         "tmpl_list_field" => list_field,
         "TmplElement" => element_record,
         '"TmplQualifiedCommandName"' => qualified_command_name.inspect,

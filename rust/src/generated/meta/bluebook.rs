@@ -37,6 +37,13 @@ impl RuleText {
 
 impl RuleText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RuleText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "RuleText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RuleText.value: expected String".to_string()))? },
         })
@@ -89,6 +96,13 @@ impl NormalisationRule {
 
 impl NormalisationRule {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "NormalisationRule does not declare {} — it takes strategy, source_token, replacement, boundary, position",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         strategy: { let x = v.require("strategy", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.strategy: expected String".to_string()))? },
         source_token: { let x = v.require("source_token", "NormalisationRule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("NormalisationRule.source_token: expected String".to_string()))? },
@@ -147,6 +161,13 @@ impl BluebookName {
 
 impl BluebookName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BluebookName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "BluebookName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BluebookName.value: expected String".to_string()))? },
         })
@@ -201,6 +222,13 @@ impl Vision {
 
 impl Vision {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Vision does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Vision")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Vision.value: expected String".to_string()))? },
         })
@@ -255,6 +283,13 @@ impl Classification {
 
 impl Classification {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Classification does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Classification")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Classification.value: expected String".to_string()))? },
         })
@@ -309,6 +344,13 @@ impl Version {
 
 impl Version {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Version does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Version")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Version.value: expected String".to_string()))? },
         })
@@ -363,6 +405,13 @@ impl FormerlyKnownAs {
 
 impl FormerlyKnownAs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "FormerlyKnownAs does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "FormerlyKnownAs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("FormerlyKnownAs.value: expected String".to_string()))? },
         })
@@ -467,13 +516,14 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Bluebook>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Bluebook> {
         args.name.check_invariants()?;
         if let Some(v) = &args.vision { v.check_invariants()?; }
         if let Some(v) = &args.classification { v.check_invariants()?; }
         if let Some(v) = &args.version { v.check_invariants()?; }
         if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -492,7 +542,7 @@ pub fn dispatch_declare(
         "Bluebook::Bluebook",
         "Bluebook",
         "name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -567,13 +617,14 @@ pub struct NormaliseArgs {
 }
 
 pub fn dispatch_normalise(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: NormaliseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: NormaliseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Bluebook> {
         args.strategy.check_invariants()?;
         args.source_token.check_invariants()?;
         args.replacement.check_invariants()?;
         args.boundary.check_invariants()?;
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -582,7 +633,7 @@ pub fn dispatch_normalise(
         "Bluebook::Bluebook",
         "Bluebook",
         "name.value",
-        &args,
+        &with_references,
         &[
 
         ],

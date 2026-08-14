@@ -157,12 +157,34 @@ module RustProjection
           end
           extra_pass = extra_idents.map { |ident| "&#{ident}, " }.join
 
-          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? extra_pass : '&id, '}args, mutations)"
+          dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? extra_pass : '&id, '}args, mutations, owner_deref, command_deref)"
           id_line = c[:creates] ? "" : "let id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
+          # `owner_deref`/`command_deref` — `given`/`ensures` cross-
+          # aggregate dereference (`customer.status`, `account.customer.
+          # status`), resolved HERE rather than inside the generated
+          # `dispatch_*` function itself: it needs `store` (every OTHER
+          # aggregate's own repo), which only exists at this router level
+          # (`reference_lookup.rs`'s own header on why), and it must
+          # finish — end its own borrow of `store` — BEFORE the `&mut
+          # store.#{a[:mod]}` the dispatch call below takes; computing it
+          # first, into plain owned data, is what keeps those two borrows
+          # from ever overlapping. A CREATING command has no `id` yet (no
+          # record exists to fetch), so `owner_deref` is trivially empty
+          # — its OWN reference-typed attributes are already covered by
+          # `command_deref` below (`reference_specs.rb`'s own header: a
+          # creating command's attributes and its aggregate's are the
+          # same attributes).
+          owner_deref_expr = c[:creates] ? "Vec::new()" : "crate::kernel::owner_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &id)"
+          deref_lines = [
+            "let owner_deref = #{owner_deref_expr};",
+            "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
+          ]
+
           body = [id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
+                  *deref_lines,
                   "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
 
@@ -182,7 +204,7 @@ module RustProjection
         a[:entity_commands].map do |c|
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
-          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))"
+          dispatch_call = "#{mod_path}::dispatch_entity_#{c[:fn]}(&mut store.#{a[:mod]}, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))"
 
           # `element_wants` — `entity_element_missing`'s one genuinely
           # RUNTIME piece (`kernel::dispatch_entity`'s own header): the
@@ -192,11 +214,37 @@ module RustProjection
           # unconditionally, alongside `element_id`, never only on the
           # refusal path — it's a plain infallible dig, not worth gating
           # behind whether the dispatch actually fails.
+          #
+          # `owner_deref` is always empty here — a REAL, DOCUMENTED gap,
+          # not an oversight: an entity's OWN `reference_to` attributes
+          # (dereferenced off the addressed ELEMENT itself, distinct from
+          # `command_deref`'s `"parent"` entry below) would need this
+          # router to find the parent AND match the one addressed element
+          # BEFORE `dispatch_entity` itself does — the exact "parent"/
+          # "element" lookup `kernel::dispatch_entity` already owns
+          # internally. No entity in this corpus declares a reference-typed
+          # attribute of its own (confirmed against the real IR, not
+          # assumed), so nothing here is silently wrong today; a future
+          # entity that does would need this router taught the same
+          # peek-before-dispatch fetch `owner_deref` above already does
+          # for an aggregate.
+          #
+          # `command_deref` covers the entity command's OWN reference-typed
+          # arguments (`reference_specs.rb`) PLUS — merged in, matching
+          # `CommandRules::Admissibility#enforce_givens`'s own `parent:`
+          # tier exactly — the PARENT aggregate's own dereferenced state
+          # under the ONE name `parent.account.customer.status` reads:
+          # `crate::kernel::parent_deref` fetches the parent record this
+          # router already addresses by `parent_id` and recursively
+          # resolves ITS OWN `reference_to` attributes off it.
           body = ["let parent_id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;",
                   "let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(args_json)?;",
                   "let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(args_json);",
                   "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;",
                   role_line, *reference_lines,
+                  "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",
+                  "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
+                  "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id) { command_deref.push((\"parent\", parent_node)); }",
                   "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
                   dispatch_call].compact
 
@@ -257,6 +305,62 @@ module RustProjection
       )
 
       "#{header}#{body}"
+    end
+
+    # ── THE DOMAIN-WIDE REFERENCE TABLE + LOOKUP — `Store`'s own
+    # `crate::kernel::ReferenceLookup` impl (`reference_lookup.rs`'s own
+    # header on why this has to live here, keyed through `store`, rather
+    # than inside any one command's own generated function) plus the
+    # static `REFERENCE_TABLE` every `owner_deref`/`parent_deref`/
+    # `command_deref` call this same file's own `aggregate_arms`/
+    # `entity_arms` emit needs to keep recursing one hop further once
+    # it's fetched a target record (`reference_lookup.rs`'s own
+    # `specs_for`). One row per aggregate `emit_registry` above already
+    # generated a `Store` field for — `a[:reference_specs]`, computed once
+    # by `domain_generator.rb` off the real IR `attributes` list
+    # (`reference_specs.rb`), not re-derived here.
+    def emit_reference_table(aggregates)
+      rows = aggregates.map do |a|
+        qualified = "#{a[:domain_name]}::#{a[:name]}"
+        "    (#{qualified.inspect}, #{emit_reference_specs_literal(a[:reference_specs])}),"
+      end
+
+      <<~RUST
+        pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
+        #{rows.join("\n")}
+        ];
+      RUST
+    end
+
+    # `find_fielded` — one `if` per aggregate, the identical "Domain::
+    # Aggregate" prefix match `emit_registry`'s own `query_arms` already
+    # uses, each routing to that ONE aggregate's own repository and
+    # boxing whatever it finds as a type-erased `Fielded` — the fetched
+    # record's OWN generated impl (already type-correct: `Value::Int`/
+    # `Float`/`Str` exactly as declared), never a JSON-roundtripped
+    # guess. Falls through to `None` for any target this domain never
+    # declares (a genuine cross-domain reference — `references.rb`'s own
+    # `resolve_references` already tolerates this the identical way) or
+    # never generated (`unsupported_names`) — never a panic.
+    def emit_reference_lookup(aggregates)
+      arms = aggregates.map do |a|
+        prefix = "#{a[:domain_name]}::#{a[:name]}"
+        <<~RUST.rstrip
+                  if target == #{prefix.inspect} {
+                      return self.#{a[:mod]}.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+                  }
+        RUST
+      end
+
+      <<~RUST
+        #{emit_reference_table(aggregates)}
+        impl crate::kernel::ReferenceLookup for Store {
+            fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
+        #{arms.join("\n")}
+                None
+            }
+        }
+      RUST
     end
   end
 end

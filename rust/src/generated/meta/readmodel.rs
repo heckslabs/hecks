@@ -51,6 +51,13 @@ impl ReadModelName {
 
 impl ReadModelName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReadModelName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ReadModelName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelName.value: expected String".to_string()))? },
         })
@@ -91,6 +98,13 @@ impl ReadModelText {
 
 impl ReadModelText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ReadModelText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ReadModelText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModelText.value: expected String".to_string()))? },
         })
@@ -145,6 +159,13 @@ impl ProjectionPurpose {
 
 impl ProjectionPurpose {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ProjectionPurpose does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ProjectionPurpose")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionPurpose.value: expected String".to_string()))? },
         })
@@ -191,6 +212,13 @@ impl Head {
 
 impl Head {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["aggregate", "as", "many"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Head does not declare {} — it takes aggregate, as, many",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         aggregate: { let x = v.require("aggregate", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.aggregate: expected String".to_string()))? },
         r#as: { let x = v.require("as", "Head")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Head.as: expected String".to_string()))? },
@@ -242,6 +270,13 @@ impl ProjectionOption {
 
 impl ProjectionOption {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["option", "key", "value", "at"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ProjectionOption does not declare {} — it takes option, key, value, at",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         option: { let x = v.require("option", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.option: expected String".to_string()))? },
         key: { let x = v.require("key", "ProjectionOption")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProjectionOption.key: expected String".to_string()))? },
@@ -299,6 +334,13 @@ impl GroupByField {
 
 impl GroupByField {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["field"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "GroupByField does not declare {} — it takes field",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         field: { let x = v.require("field", "GroupByField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GroupByField.field: expected String".to_string()))? },
         })
@@ -339,6 +381,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -356,6 +405,8 @@ pub struct ReadModel {
     pub aggregate_heads: Vec<Head>,
     pub options: Vec<ProjectionOption>,
     pub group_by: Vec<GroupByField>,
+    pub count: Option<ReadModelText>,
+    pub median_field: Option<ReadModelText>,
     pub position: Option<Position>,
 }
 
@@ -372,6 +423,8 @@ impl crate::kernel::Fielded for ReadModel {
             "aggregate_heads" => Some(Field::Value(Value::List(self.aggregate_heads.len()))),
             "options" => Some(Field::Value(Value::List(self.options.len()))),
             "group_by" => Some(Field::Value(Value::List(self.group_by.len()))),
+            "count" => self.count.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "median_field" => self.median_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -390,6 +443,8 @@ impl ReadModel {
         ("aggregate_heads".to_string(), crate::kernel::Json::Array(self.aggregate_heads.iter().map(|x| x.to_json()).collect())),
         ("options".to_string(), crate::kernel::Json::Array(self.options.iter().map(|x| x.to_json()).collect())),
         ("group_by".to_string(), crate::kernel::Json::Array(self.group_by.iter().map(|x| x.to_json()).collect())),
+        ("count".to_string(), self.count.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("median_field".to_string(), self.median_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -407,6 +462,8 @@ impl ReadModel {
         aggregate_heads: match v.get("aggregate_heads").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Head::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ProjectionOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         group_by: match v.get("group_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(GroupByField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        count: match v.get("count") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
+        median_field: match v.get("median_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
         })
     }
@@ -464,7 +521,7 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.name.check_invariants()?;
         if let Some(v) = &args.description { v.check_invariants()?; }
@@ -472,6 +529,7 @@ pub fn dispatch_declare(
         if let Some(v) = &args.reference_name { v.check_invariants()?; }
         if let Some(v) = &args.reference_target { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -487,6 +545,8 @@ pub fn dispatch_declare(
             aggregate_heads: vec![],
             options: vec![],
             group_by: vec![],
+            count: None,
+            median_field: None,
             position: args.position.clone(),
         }),
     },
@@ -494,7 +554,7 @@ pub fn dispatch_declare(
         "Bluebook::ReadModel",
         "ReadModel",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -569,11 +629,12 @@ pub struct GatherArgs {
 }
 
 pub fn dispatch_gather(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GatherArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GatherArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.aggregate.check_invariants()?;
         args.r#as.check_invariants()?;
         args.many.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -582,7 +643,7 @@ pub fn dispatch_gather(
         "Bluebook::ReadModel",
         "ReadModel",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -645,9 +706,10 @@ pub struct GroupByArgs {
 }
 
 pub fn dispatch_group_by(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GroupByArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: GroupByArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.field.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -656,7 +718,7 @@ pub fn dispatch_group_by(
         "Bluebook::ReadModel",
         "ReadModel",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "a group_by field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("field.value"))))))) },
         ],
@@ -697,6 +759,148 @@ if !unknown.is_empty() {
     }
 }
 
+impl crate::kernel::Fielded for CountArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "count" => Some(Field::Nested(&self.count)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct CountArgs {
+    pub count: ReadModelText,
+}
+
+pub fn dispatch_count(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: CountArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        args.count.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Count",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.count = Some(args.count.clone());
+            Ok(())
+        },
+        &[
+
+        ],
+        &["CountDeclared"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl CountArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("count".to_string(), self.count.to_json()),
+        ])
+    }
+}
+
+impl CountArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["count", "id", "read_model", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Count does not declare {} — it takes count",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        count: ReadModelText::from_json(v.require("count", "CountArgs")?)?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for MedianArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "median_field" => Some(Field::Nested(&self.median_field)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MedianArgs {
+    pub median_field: ReadModelText,
+}
+
+pub fn dispatch_median(
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: MedianArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ReadModel> {
+        args.median_field.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Median",
+        "Bluebook::ReadModel",
+        "ReadModel",
+        "bluebook_id, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a median field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("median_field.value"))))))) },
+        ],
+        None,
+        |record| {
+        record.median_field = Some(args.median_field.clone());
+            Ok(())
+        },
+        &[
+
+        ],
+        &["MedianFieldSet"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl MedianArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("median_field".to_string(), self.median_field.to_json()),
+        ])
+    }
+}
+
+impl MedianArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["median_field", "id", "read_model", "bluebook_id", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Median does not declare {} — it takes median_field",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        median_field: ReadModelText::from_json(v.require("median_field", "MedianArgs")?)?,
+        })
+    }
+}
+
 impl crate::kernel::Fielded for OptionArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -721,12 +925,13 @@ pub struct OptionArgs {
 }
 
 pub fn dispatch_option(
-    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ReadModel>, id: &str, args: OptionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ReadModel> {
         args.option.check_invariants()?;
         args.key.check_invariants()?;
         if let Some(v) = &args.value { v.check_invariants()?; }
         if let Some(v) = &args.at { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -735,7 +940,7 @@ pub fn dispatch_option(
         "Bluebook::ReadModel",
         "ReadModel",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
         ],

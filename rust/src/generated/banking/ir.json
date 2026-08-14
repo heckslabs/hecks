@@ -59,7 +59,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -83,7 +83,7 @@
               "list": false,
               "default": "good",
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -107,7 +107,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -116,7 +116,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -246,7 +246,10 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "status == \"active\""
+            }
           ],
           "ensures": [
 
@@ -275,7 +278,10 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is suspended",
+              "canonical": "status == \"suspended\""
+            }
           ],
           "ensures": [
 
@@ -306,7 +312,10 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active or suspended",
+              "canonical": "[\"active\", \"suspended\"].include?(status)"
+            }
           ],
           "ensures": [
 
@@ -510,7 +519,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -722,7 +731,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -783,7 +792,10 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            }
           ],
           "ensures": [
 
@@ -846,6 +858,10 @@
           ],
           "givens": [
             {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
               "description": "the account is open",
               "canonical": "status == \"open\""
             }
@@ -904,6 +920,10 @@
           ],
           "givens": [
             {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
               "description": "the account is open",
               "canonical": "status == \"open\""
             },
@@ -959,7 +979,14 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -981,7 +1008,14 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "account is frozen",
+              "canonical": "status == \"frozen\""
+            }
           ],
           "ensures": [
 
@@ -1003,6 +1037,14 @@
 
           ],
           "givens": [
+            {
+              "description": "customer is not closed",
+              "canonical": "customer.status != \"closed\""
+            },
+            {
+              "description": "account is open or frozen",
+              "canonical": "[\"open\", \"frozen\"].include?(status)"
+            },
             {
               "description": "an account closes empty",
               "canonical": "balance.cents.zero?"
@@ -1045,6 +1087,14 @@
             }
           ],
           "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "status == \"open\""
+            },
             {
               "description": "the balance covers a fee",
               "canonical": "balance.cents >= amount.cents"
@@ -1094,6 +1144,14 @@
           ],
           "givens": [
             {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "status == \"open\""
+            },
+            {
               "description": "a correction cannot exceed collected fees",
               "canonical": "fees_cents.cents >= amount.cents"
             }
@@ -1141,7 +1199,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -1186,6 +1251,14 @@
             }
           ],
           "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "status == \"open\""
+            },
             {
               "description": "a correction cannot exceed accrued interest",
               "canonical": "interest_cents.cents >= amount.cents"
@@ -1321,6 +1394,18 @@
               ],
               "givens": [
                 {
+                  "description": "customer is active",
+                  "canonical": "parent.customer.status == \"active\""
+                },
+                {
+                  "description": "account is open",
+                  "canonical": "parent.status == \"open\""
+                },
+                {
+                  "description": "entry is posted",
+                  "canonical": "state == \"posted\""
+                },
+                {
                   "description": "an amendment leaves a non-negative amount",
                   "canonical": "amount.cents + adjustment.cents >= 0"
                 }
@@ -1368,7 +1453,18 @@
                 }
               ],
               "givens": [
-
+                {
+                  "description": "customer is active",
+                  "canonical": "parent.customer.status == \"active\""
+                },
+                {
+                  "description": "account is open",
+                  "canonical": "parent.status == \"open\""
+                },
+                {
+                  "description": "entry is posted",
+                  "canonical": "state == \"posted\""
+                }
               ],
               "ensures": [
 
@@ -1680,7 +1776,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -1797,7 +1893,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -1849,7 +1945,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -1894,7 +1997,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "card is issued or active",
+              "canonical": "[\"issued\", \"active\"].include?(status)"
+            }
           ],
           "ensures": [
 
@@ -1940,7 +2050,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -1969,7 +2086,14 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "card is issued",
+              "canonical": "status == \"issued\""
+            }
           ],
           "ensures": [
 
@@ -1991,7 +2115,14 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "card is issued or active",
+              "canonical": "[\"issued\", \"active\"].include?(status)"
+            }
           ],
           "ensures": [
 
@@ -2080,7 +2211,22 @@
                 }
               ],
               "givens": [
-
+                {
+                  "description": "customer is active",
+                  "canonical": "parent.account.customer.status == \"active\""
+                },
+                {
+                  "description": "account is open",
+                  "canonical": "parent.account.status == \"open\""
+                },
+                {
+                  "description": "card is not retired",
+                  "canonical": "status != \"retired\""
+                },
+                {
+                  "description": "withdrawal is taken",
+                  "canonical": "state == \"taken\""
+                }
               ],
               "ensures": [
 
@@ -2244,7 +2390,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -2292,7 +2438,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -2363,12 +2509,20 @@
           ],
           "givens": [
             {
+              "description": "source customer is active",
+              "canonical": "source.customer.status == \"active\""
+            },
+            {
+              "description": "source account is open",
+              "canonical": "source.status == \"open\""
+            },
+            {
               "description": "a transfer names its source",
-              "canonical": "!source.to_s.empty?"
+              "canonical": "!source.empty?"
             },
             {
               "description": "a transfer goes somewhere",
-              "canonical": "!destination.to_s.empty?"
+              "canonical": "!destination.empty?"
             },
             {
               "description": "a transfer moves BETWEEN accounts",
@@ -2426,7 +2580,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "source customer is active",
+              "canonical": "source.customer.status == \"active\""
+            },
+            {
+              "description": "source account is open",
+              "canonical": "source.status == \"open\""
+            },
+            {
+              "description": "transfer is requested",
+              "canonical": "status == \"requested\""
+            }
           ],
           "ensures": [
 
@@ -2448,7 +2613,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "destination customer is active",
+              "canonical": "destination.customer.status == \"active\""
+            },
+            {
+              "description": "destination account is open",
+              "canonical": "destination.status == \"open\""
+            },
+            {
+              "description": "transfer is credited",
+              "canonical": "status == \"credited\""
+            }
           ],
           "ensures": [
 
@@ -2470,7 +2646,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "destination customer is active",
+              "canonical": "destination.customer.status == \"active\""
+            },
+            {
+              "description": "destination account is open",
+              "canonical": "destination.status == \"open\""
+            },
+            {
+              "description": "transfer is debited",
+              "canonical": "status == \"debited\""
+            }
           ],
           "ensures": [
 
@@ -2492,7 +2679,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "source customer is active",
+              "canonical": "source.customer.status == \"active\""
+            },
+            {
+              "description": "source account is open",
+              "canonical": "source.status == \"open\""
+            },
+            {
+              "description": "transfer is debited",
+              "canonical": "status == \"debited\""
+            }
           ],
           "ensures": [
 
@@ -2514,7 +2712,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "source customer is active",
+              "canonical": "source.customer.status == \"active\""
+            },
+            {
+              "description": "transfer is requested",
+              "canonical": "status == \"requested\""
+            },
+            {
+              "description": "source account is open",
+              "canonical": "source.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -2660,7 +2869,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -2705,7 +2914,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -2729,7 +2938,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -2799,7 +3008,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -2844,7 +3060,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is authorized",
+              "canonical": "status == \"authorized\""
+            }
           ],
           "ensures": [
 
@@ -2866,7 +3093,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is authorized",
+              "canonical": "status == \"authorized\""
+            }
           ],
           "ensures": [
 
@@ -2888,7 +3126,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is captured",
+              "canonical": "status == \"captured\""
+            }
           ],
           "ensures": [
 
@@ -2910,7 +3159,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is captured",
+              "canonical": "status == \"captured\""
+            }
           ],
           "ensures": [
 
@@ -2940,7 +3200,18 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "customer is active",
+              "canonical": "disputed_by.status == \"active\""
+            },
+            {
+              "description": "payment is captured or refunded",
+              "canonical": "[\"captured\", \"refunded\"].include?(status)"
+            }
           ],
           "ensures": [
 
@@ -2969,7 +3240,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is disputed",
+              "canonical": "status == \"disputed\""
+            }
           ],
           "ensures": [
 
@@ -2991,7 +3273,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is disputed",
+              "canonical": "status == \"disputed\""
+            }
           ],
           "ensures": [
 
@@ -3172,7 +3465,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -3238,7 +3531,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -3308,7 +3601,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -3353,7 +3653,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "transfer is requested",
+              "canonical": "status == \"requested\""
+            }
           ],
           "ensures": [
 
@@ -3375,7 +3686,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "transfer is sent",
+              "canonical": "status == \"sent\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -3397,7 +3719,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "transfer is sent",
+              "canonical": "status == \"sent\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -3539,7 +3872,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -3584,7 +3917,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -3608,7 +3941,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -3726,7 +4059,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -3771,7 +4111,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is scheduled",
+              "canonical": "status == \"scheduled\""
+            }
           ],
           "ensures": [
 
@@ -3793,7 +4144,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is scheduled",
+              "canonical": "status == \"scheduled\""
+            }
           ],
           "ensures": [
 
@@ -3815,7 +4177,18 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is scheduled",
+              "canonical": "status == \"scheduled\""
+            }
           ],
           "ensures": [
 
@@ -3837,6 +4210,18 @@
 
           ],
           "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is failed",
+              "canonical": "status == \"failed\""
+            },
             {
               "description": "a retry is still allowed",
               "canonical": "attempts.value < max_attempts.value"
@@ -3874,6 +4259,18 @@
 
           ],
           "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is failed",
+              "canonical": "status == \"failed\""
+            },
             {
               "description": "every retry is exhausted",
               "canonical": "attempts.value >= max_attempts.value"
@@ -4026,7 +4423,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -4098,7 +4495,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -4143,7 +4540,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -4242,7 +4639,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "box is vacant",
+              "canonical": "status == \"vacant\""
+            },
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            }
           ],
           "ensures": [
 
@@ -4271,6 +4675,10 @@
 
           ],
           "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
             {
               "description": "only a rented box is surrendered",
               "canonical": "status == \"rented\""
@@ -4324,6 +4732,10 @@
           ],
           "givens": [
             {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
               "description": "only a rented box is opened",
               "canonical": "status == \"rented\""
             }
@@ -4364,7 +4776,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "box is rented",
+              "canonical": "status == \"rented\""
+            }
           ],
           "ensures": [
 
@@ -4473,7 +4892,18 @@
                 }
               ],
               "givens": [
-
+                {
+                  "description": "customer is active",
+                  "canonical": "parent.customer.status == \"active\""
+                },
+                {
+                  "description": "box is rented",
+                  "canonical": "parent.status == \"rented\""
+                },
+                {
+                  "description": "visit is logged",
+                  "canonical": "state == \"logged\""
+                }
               ],
               "ensures": [
 
@@ -4561,6 +4991,14 @@
                 }
               ],
               "givens": [
+                {
+                  "description": "customer is active",
+                  "canonical": "parent.customer.status == \"active\""
+                },
+                {
+                  "description": "box is rented",
+                  "canonical": "parent.status == \"rented\""
+                },
                 {
                   "description": "only an issued key is returned",
                   "canonical": "status == \"issued\""
@@ -4673,7 +5111,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -4697,7 +5135,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -4749,7 +5187,10 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            }
           ],
           "ensures": [
 
@@ -4786,7 +5227,14 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "case is screening",
+              "canonical": "status == \"screening\""
+            }
           ],
           "ensures": [
 
@@ -4808,7 +5256,14 @@
 
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "case is screening",
+              "canonical": "status == \"screening\""
+            }
           ],
           "ensures": [
 
@@ -4940,7 +5395,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -4985,7 +5440,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -5144,7 +5599,14 @@
             }
           ],
           "givens": [
-
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
           ],
           "ensures": [
 
@@ -5270,6 +5732,70 @@
       ]
     },
     {
+      "name": "DisputedPaymentCount",
+      "description": "How many of an account's own card charges are under dispute — a single number, not the rows themselves.",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "query_name": "disputed_payment_count",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "group_by": [
+
+      ],
+      "count": true
+    },
+    {
+      "name": "DisputedPaymentMedian",
+      "description": "The median amount of an account's own disputed card charges.",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "query_name": "disputed_payment_median",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "group_by": [
+
+      ],
+      "median_field": "amount"
+    },
+    {
       "name": "AccountsByKind",
       "description": "Every account the bank holds, sorted into what kind it is, then by its own number.",
       "reference_name": null,
@@ -5302,37 +5828,49 @@
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
       "trigger_command": "AccountFreezeReview.Open",
-      "target_domain": "Compliance"
+      "target_domain": "Compliance",
+      "where": null,
+      "for_each": null
     },
     {
       "name": "RetryOnPaymentFailure",
       "on_event": "ScheduledPayment.ScheduledPaymentFailed",
       "trigger_command": "ScheduledPayment.Retry",
-      "target_domain": null
+      "target_domain": null,
+      "where": null,
+      "for_each": null
     },
     {
       "name": "FreezeAccountsOnSuspension",
       "on_event": "CustomerSuspended",
       "trigger_command": "Account.Freeze",
-      "target_domain": null
+      "target_domain": null,
+      "where": null,
+      "for_each": null
     },
     {
       "name": "NotifyOnClosure",
       "on_event": "AccountClosed",
       "trigger_command": "Notifications.Send",
-      "target_domain": "Notifications"
+      "target_domain": "Notifications",
+      "where": null,
+      "for_each": null
     },
     {
       "name": "ReviewOnBoxSurrender",
       "on_event": "BoxSurrendered",
       "trigger_command": "BoxSurrenderReview.Open",
-      "target_domain": "Compliance"
+      "target_domain": "Compliance",
+      "where": null,
+      "for_each": null
     },
     {
       "name": "FlagKeyReturn",
       "on_event": "KeyReturnDue",
       "trigger_command": "Notifications.Send",
-      "target_domain": "Notifications"
+      "target_domain": "Notifications",
+      "where": null,
+      "for_each": null
     }
   ],
   "process_managers": [

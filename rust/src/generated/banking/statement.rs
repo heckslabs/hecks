@@ -37,6 +37,7 @@ impl StatementPeriod {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "StatementPeriod.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -51,6 +52,13 @@ impl StatementPeriod {
 
 impl StatementPeriod {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "StatementPeriod does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "StatementPeriod")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementPeriod.value: expected String".to_string()))? },
         })
@@ -91,6 +99,13 @@ impl StatementAmount {
 
 impl StatementAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["cents"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "StatementAmount does not declare {} — it takes cents",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         cents: { let x = v.require("cents", "StatementAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("StatementAmount.cents expects Integer, got {}", x.inspect())))? },
         })
@@ -131,6 +146,7 @@ impl StatementDate {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "StatementDate.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -145,6 +161,13 @@ impl StatementDate {
 
 impl StatementDate {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "StatementDate does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "StatementDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("StatementDate.value: expected String".to_string()))? },
         })
@@ -282,12 +305,13 @@ pub struct GenerateArgs {
 }
 
 pub fn dispatch_generate(
-    repo: &mut impl crate::kernel::Repository<Statement>, args: GenerateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Statement>, args: GenerateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Statement> {
         args.period.check_invariants()?;
         args.opening_balance.check_invariants()?;
         args.closing_balance.check_invariants()?;
         args.generated_on.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -306,9 +330,10 @@ pub fn dispatch_generate(
         "Banking::Statement",
         "Statement",
         "account_id, period.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         None,
         |record| {

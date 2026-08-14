@@ -37,6 +37,13 @@ impl MemberText {
 
 impl MemberText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "MemberText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "MemberText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberText.value: expected String".to_string()))? },
         })
@@ -64,7 +71,22 @@ impl crate::kernel::Fielded for Pair {
 
 impl Pair {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("key"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Pair"),
+            ("description", "a pair key is present"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.key) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Pair.key must match [^ \\t\\n\\r], got ", self.key))); }
         Ok(())
     }
 }
@@ -80,6 +102,13 @@ impl Pair {
 
 impl Pair {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["key", "value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Pair does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         key: { let x = v.require("key", "Pair")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.key: expected String".to_string()))? },
         value: { let x = v.require("value", "Pair")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.value: expected String".to_string()))? },
@@ -121,6 +150,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -214,10 +250,11 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Member>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Member>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Member> {
         args.shape.check_invariants()?;
         args.position.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -234,7 +271,7 @@ pub fn dispatch_declare(
         "Bluebook::Member",
         "Member",
         "value_object_id, position.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -299,10 +336,11 @@ pub struct PairArgs {
 }
 
 pub fn dispatch_pair(
-    repo: &mut impl crate::kernel::Repository<Member>, id: &str, args: PairArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Member>, id: &str, args: PairArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Member> {
         args.key.check_invariants()?;
         args.value.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -311,7 +349,7 @@ pub fn dispatch_pair(
         "Bluebook::Member",
         "Member",
         "value_object_id, position.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "an admitted row binds a named field", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("key.value"))))))) },
         ],

@@ -51,6 +51,13 @@ impl SyntaxName {
 
 impl SyntaxName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "SyntaxName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "SyntaxName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SyntaxName.value: expected String".to_string()))? },
         })
@@ -355,6 +362,8 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "on", context: "Policy", body: "none", inner: "", opens: "", fills: "on_event", status: "admitted", was: "" },
     Keyword { word: "trigger", context: "Policy", body: "none", inner: "", opens: "", fills: "trigger_command", status: "admitted", was: "" },
     Keyword { word: "across", context: "Policy", body: "none", inner: "", opens: "", fills: "target_domain", status: "admitted", was: "" },
+    Keyword { word: "where", context: "Policy", body: "source", inner: "", opens: "", fills: "where", status: "admitted", was: "" },
+    Keyword { word: "for_each", context: "Policy", body: "none", inner: "", opens: "", fills: "for_each", status: "admitted", was: "" },
     Keyword { word: "correlates_by", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "correlates_by", status: "admitted", was: "" },
     Keyword { word: "starts_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "starts_on", status: "admitted", was: "" },
     Keyword { word: "ends_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "ends_on", status: "admitted", was: "" },
@@ -380,6 +389,8 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "reference_to", context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target", status: "admitted", was: "" },
     Keyword { word: "include", context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads", status: "admitted", was: "" },
     Keyword { word: "group_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", status: "admitted", was: "" },
+    Keyword { word: "count", context: "ReadModel", body: "none", inner: "", opens: "", fills: "count", status: "admitted", was: "" },
+    Keyword { word: "median", context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field", status: "admitted", was: "" },
     Keyword { word: "where", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "" },
     Keyword { word: "order_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "" },
     Keyword { word: "limit", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "" },
@@ -398,10 +409,14 @@ pub const KEYWORD: &[Keyword] = &[
     Keyword { word: "uses_framework", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members", status: "admitted", was: "" },
     Keyword { word: "port", context: "Hecksagon", body: "keywords", inner: "DomainPort", opens: "DomainPort", fills: "", status: "admitted", was: "" },
     Keyword { word: "operation", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "" },
+    Keyword { word: "tells", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "" },
+    Keyword { word: "asks", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "" },
     Keyword { word: "verb", context: "DomainPort", body: "none", inner: "", opens: "", fills: "verb", status: "admitted", was: "" },
     Keyword { word: "reference_to", context: "PortOperation", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "attribute", context: "PortOperation", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "" },
     Keyword { word: "emits", context: "PortOperation", body: "none", inner: "", opens: "", fills: "emits", status: "admitted", was: "" },
+    Keyword { word: "answers", context: "PortOperation", body: "none", inner: "", opens: "", fills: "answers", status: "admitted", was: "" },
+    Keyword { word: "refuses", context: "PortOperation", body: "none", inner: "", opens: "", fills: "refuses", status: "admitted", was: "" },
     Keyword { word: "realm", context: "World", body: "none", inner: "", opens: "", fills: "realm", status: "admitted", was: "" },
     Keyword { word: "latest", context: "World", body: "none", inner: "", opens: "", fills: "latest", status: "admitted", was: "" },
 ];
@@ -544,6 +559,7 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "on", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "across", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    Argument { keyword: "for_each", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "correlates_by", context: "ProcessManager", at: "1", named: "", kind: "symbol", required: "true", fills: "correlates_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "starts_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "starts_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "ends_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "ends_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
@@ -585,6 +601,7 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "include", context: "ReadModel", at: "1", named: "", kind: "constant", required: "true", fills: "aggregate", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "include", context: "ReadModel", at: "", named: "as", kind: "symbol", required: "false", fills: "as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "group_by", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "group_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true" },
+    Argument { keyword: "median", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "median_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "where", context: "ReadModel", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "order_by", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "order_by", context: "ReadModel", at: "2", named: "", kind: "symbol", required: "false", fills: "direction", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
@@ -608,6 +625,8 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "uses_framework", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "port", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "operation", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    Argument { keyword: "tells", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    Argument { keyword: "asks", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "verb", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "reference_to", context: "PortOperation", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "reference_to", context: "PortOperation", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
@@ -619,6 +638,8 @@ pub const ARGUMENT: &[Argument] = &[
     Argument { keyword: "attribute", context: "PortOperation", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "attribute", context: "PortOperation", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "emits", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    Argument { keyword: "answers", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "answers", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    Argument { keyword: "refuses", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "realm", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     Argument { keyword: "latest", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
 ];

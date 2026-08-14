@@ -22,7 +22,7 @@ impl crate::kernel::Fielded for InstructionReference {
 
 impl InstructionReference {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "InstructionReference.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -37,6 +37,13 @@ impl InstructionReference {
 
 impl InstructionReference {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "InstructionReference does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "InstructionReference")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("InstructionReference.value: expected String".to_string()))? },
         })
@@ -91,6 +98,13 @@ impl ScheduledAmount {
 
 impl ScheduledAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["cents"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ScheduledAmount does not declare {} — it takes cents",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         cents: { let x = v.require("cents", "ScheduledAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("ScheduledAmount.cents expects Integer, got {}", x.inspect())))? },
         })
@@ -131,6 +145,7 @@ impl PaymentRecipient {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PaymentRecipient.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -145,6 +160,13 @@ impl PaymentRecipient {
 
 impl PaymentRecipient {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PaymentRecipient does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "PaymentRecipient")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentRecipient.value: expected String".to_string()))? },
         })
@@ -185,6 +207,7 @@ impl PaymentDueDate {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PaymentDueDate.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -199,6 +222,13 @@ impl PaymentDueDate {
 
 impl PaymentDueDate {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PaymentDueDate does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "PaymentDueDate")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentDueDate.value: expected String".to_string()))? },
         })
@@ -253,6 +283,13 @@ impl RetryCount {
 
 impl RetryCount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RetryCount does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetryCount.value expects Integer, got {}", x.inspect())))?, None => 0 },
         })
@@ -307,6 +344,13 @@ impl RetryLimit {
 
 impl RetryLimit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RetryLimit does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: match v.get("value") { Some(x) => x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RetryLimit.value expects Integer, got {}", x.inspect())))?, None => 3 },
         })
@@ -419,12 +463,13 @@ pub struct ScheduleArgs {
 }
 
 pub fn dispatch_schedule(
-    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, args: ScheduleArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, args: ScheduleArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
         args.instruction.check_invariants()?;
         args.amount.check_invariants()?;
         args.recipient.check_invariants()?;
         args.due_on.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -445,9 +490,10 @@ pub fn dispatch_schedule(
         "Banking::ScheduledPayment",
         "ScheduledPayment",
         "instruction.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         None,
         |record| {
@@ -513,9 +559,10 @@ pub struct ExecuteArgs {
 }
 
 pub fn dispatch_execute(
-    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: ExecuteArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: ExecuteArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -524,9 +571,11 @@ pub fn dispatch_execute(
         "Banking::ScheduledPayment",
         "ScheduledPayment",
         "instruction.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "payment is scheduled", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("scheduled".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["scheduled"] }),
         |record| {
@@ -582,9 +631,10 @@ pub struct CancelArgs {
 }
 
 pub fn dispatch_cancel(
-    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: CancelArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: CancelArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -593,9 +643,11 @@ pub fn dispatch_cancel(
         "Banking::ScheduledPayment",
         "ScheduledPayment",
         "instruction.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "payment is scheduled", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("scheduled".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["scheduled"] }),
         |record| {
@@ -651,9 +703,10 @@ pub struct FailArgs {
 }
 
 pub fn dispatch_fail(
-    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: FailArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: FailArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -662,9 +715,11 @@ pub fn dispatch_fail(
         "Banking::ScheduledPayment",
         "ScheduledPayment",
         "instruction.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "payment is scheduled", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("scheduled".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["scheduled"] }),
         |record| {
@@ -720,9 +775,10 @@ pub struct RetryArgs {
 }
 
 pub fn dispatch_retry(
-    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: RetryArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: RetryArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -731,8 +787,11 @@ pub fn dispatch_retry(
         "Banking::ScheduledPayment",
         "ScheduledPayment",
         "instruction.value",
-        &args,
+        &with_references,
         &[
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "payment is failed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("failed".to_string())) } },
             crate::kernel::GivenSpec { description: "a retry is still allowed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: false }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Lookup("max_attempts.value")) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["failed"] }),
@@ -790,9 +849,10 @@ pub struct AbandonArgs {
 }
 
 pub fn dispatch_abandon(
-    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: AbandonArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ScheduledPayment>, id: &str, args: AbandonArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ScheduledPayment> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -801,8 +861,11 @@ pub fn dispatch_abandon(
         "Banking::ScheduledPayment",
         "ScheduledPayment",
         "instruction.value",
-        &args,
+        &with_references,
         &[
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "payment is failed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("failed".to_string())) } },
             crate::kernel::GivenSpec { description: "every retry is exhausted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("attempts.value")), right: Box::new(Expr::Lookup("max_attempts.value")) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["failed"] }),

@@ -9,6 +9,20 @@ use crate::mutations;
 use crate::naming;
 use std::collections::HashMap;
 
+/// Port of `rust/project/commands.rb::DEREF_PARAMS` — the two EXTRA
+/// parameters every generated `dispatch_*`/`dispatch_entity_*` function
+/// now takes, already resolved by the ROUTER (`registry.rs`'s own
+/// `aggregate_arms`/`entity_arms`) into plain owned data
+/// (`reference_lookup.rs`'s own header on why that has to happen there).
+fn deref_params() -> [&'static str; 2] {
+    ["owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>", "command_deref: Vec<(&'static str, crate::kernel::DerefNode)>"]
+}
+
+/// Port of `rust/project/commands.rb#with_references_binding`.
+fn with_references_binding() -> String {
+    "let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };".to_string()
+}
+
 fn target_type_for<'a>(target: &str, aggregate: &'a Json, lifecycle_field: Option<&str>) -> Option<&'a str> {
     if lifecycle_field == Some(target) {
         return Some("String");
@@ -361,10 +375,18 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
         sig_parts.extend(identity_extra_params.iter().cloned());
         sig_parts.push(format!("args: {cmd}Args"));
         sig_parts.push("mutations: &mut Vec<crate::kernel::MutationRecord>".to_string());
+        sig_parts.extend(deref_params().iter().map(|s| s.to_string()));
         fn_signature = sig_parts.join(", ");
     } else {
+        let mut sig_parts = vec![
+            format!("repo: &mut impl crate::kernel::Repository<{record}>"),
+            "id: &str".to_string(),
+            format!("args: {cmd}Args"),
+            "mutations: &mut Vec<crate::kernel::MutationRecord>".to_string(),
+        ];
+        sig_parts.extend(deref_params().iter().map(|s| s.to_string()));
         hydrate = "crate::kernel::Hydrate::Act { id: id.to_string() }".to_string();
-        fn_signature = format!("repo: &mut impl crate::kernel::Repository<{record}>, id: &str, args: {cmd}Args, mutations: &mut Vec<crate::kernel::MutationRecord>");
+        fn_signature = sig_parts.join(", ");
     }
 
     let emits = command.get("emits").map(Json::each).unwrap_or(&[]);
@@ -377,6 +399,8 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
             ("dispatch_tmpl", format!("dispatch_{}", naming::dispatch_fn_name(&cmd))),
             ("TmplRecord", record),
             ("tmpl_invariant_check_placeholder()?;", invariant_checks.join("\n")),
+            ("let tmpl_eval_fielded = tmpl_with_references_placeholder();", with_references_binding()),
+            ("&tmpl_eval_fielded,", "&with_references,".to_string()),
             ("tmpl_hydrate_placeholder()", hydrate),
             ("\"TmplCmdName\"", naming::ruby_inspect_string(&cmd)),
             ("\"TmplQualifiedName\"", naming::ruby_inspect_string(&format!("{domain_name}::{}", aggregate.get("name").and_then(Json::as_str).unwrap_or("")))),
@@ -494,7 +518,10 @@ pub fn emit_entity_command(
             ("dispatch_entity_tmpl", format!("dispatch_entity_{}_{}", entity.get("name").and_then(Json::as_str).unwrap_or("").to_lowercase(), naming::dispatch_fn_name(&cmd))),
             ("TmplRecord", parent_record),
             ("TmplArgs", args_struct_name.clone()),
+            ("tmpl_deref_params_placeholder: ()", deref_params().join(", ")),
             ("tmpl_invariant_check_placeholder()?;", invariant_checks.join("\n")),
+            ("let tmpl_eval_fielded = tmpl_with_references_placeholder();", with_references_binding()),
+            ("&tmpl_eval_fielded,", "&with_references,".to_string()),
             ("tmpl_list_field", list_field),
             ("TmplElement", element_record),
             ("\"TmplQualifiedCommandName\"", naming::ruby_inspect_string(&qualified_command_name)),

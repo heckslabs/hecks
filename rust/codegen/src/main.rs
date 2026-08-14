@@ -41,6 +41,7 @@ mod prelude;
 mod queries;
 mod reactions;
 mod read_models;
+mod reference_specs;
 mod registry;
 mod shared;
 mod types;
@@ -268,6 +269,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
 
     let mut merged_rs = String::new();
     puts_str(&mut merged_rs, &crate::registry::emit_registry(&ex, &merged_aggregates));
+    puts_blank(&mut merged_rs);
+    puts_str(&mut merged_rs, &crate::registry::emit_reference_lookup(&merged_aggregates));
     puts_blank(&mut merged_rs);
     puts_str(&mut merged_rs, &reactions::emit_policy_table(&ex, &target_domain_name, &policies));
     puts_blank(&mut merged_rs);

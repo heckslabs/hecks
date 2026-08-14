@@ -82,6 +82,27 @@ pub enum Field<'a> {
 
 pub trait Fielded {
     fn field(&self, name: &str) -> Option<Field<'_>>;
+
+    /// A BARE (undotted) `Lookup` terminating on THIS object rather than
+    /// one of its own fields — `Resolver#unwrap_scalar`'s own "not a
+    /// single-field VO" fallthrough (resolver.rb, read directly): Ruby
+    /// returns the whole thing as-is (a Hash), still comparable/testable
+    /// generically (`==`/`!=`/`.empty?`) even though it's not a single
+    /// scalar. Most `Fielded` implementers have no sensible scalar
+    /// reading of themselves and don't override this (`None`, the
+    /// existing "refuse — nothing generated does this" behavior,
+    /// unchanged) — `reference_lookup.rs`'s `DerefNode` is the one real
+    /// override: a dereferenced record collapses to the id it was
+    /// fetched by, which is exactly what makes a bare `source !=
+    /// destination` (`examples/banking/bluebook/banking.bluebook`'s own
+    /// `Transfer.Request`, "a transfer moves BETWEEN accounts") a real
+    /// identity comparison instead of an unrepresentable object-to-object
+    /// one — two references are the same reference iff they resolved to
+    /// the same id, the identical fact `Value::Str` equality already
+    /// tests for every OTHER string field in this grammar.
+    fn as_scalar(&self) -> Option<Value> {
+        None
+    }
 }
 
 /// A `Fielded` with nothing in it — used where Ruby's own `attrs` is `{}`

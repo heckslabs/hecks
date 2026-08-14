@@ -301,6 +301,7 @@ module RustProjection
                 fn: "#{entity[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(command[:name]))}",
                 args_struct: "#{entity_name}#{Projector.rust_ident(command[:name])}Args",
                 reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
+                reference_specs: Projector.reference_specs(domain_name, command[:attributes]),
                 role: command[:role],
                 # `entity_element_missing`'s own `{entity}`/`{identity}` —
                 # codegen-time-static off the ENTITY's own declared name/
@@ -423,6 +424,7 @@ module RustProjection
               creates: creates,
               identity_extra_params: identity_extra_params,
               reference_checks: reference_checks(command, aggregates_by_name, unsupported_names),
+              reference_specs: Projector.reference_specs(domain_name, command[:attributes]),
               role: command[:role],
             }
           end
@@ -480,6 +482,14 @@ module RustProjection
           # from different chapters apart once they're combined into one
           # list.
           chapter_mod: mod_name,
+          # `reference_specs` — this AGGREGATE's own declared `reference_to`/
+          # `belongs_to` attributes (`Reference<X>`), for the domain-wide
+          # `REFERENCE_TABLE` `registry.rb`'s own `emit_reference_lookup`
+          # builds AND for an acting command's own `owner_deref` fetch
+          # (registry.rb's `aggregate_arms`/`entity_arms`, both keyed off
+          # this SAME aggregate hash) — computed once here, off the real
+          # IR `attributes` list, not re-derived per command.
+          reference_specs: Projector.reference_specs(domain_name, aggregate[:attributes]),
           # The bluebook's own DECLARED name ("Governance", not the
           # lowercase module "governance") — `emit_registry`'s own
           # `Store#instances()` dump uses this PER-aggregate, not a
@@ -653,6 +663,8 @@ module RustProjection
       registry_path = File.join(mod_dir, "registry.rs")
       File.open(registry_path, "w") do |f|
         f.puts Projector.emit_registry(registry_aggregates)
+        f.puts
+        f.puts Projector.emit_reference_lookup(registry_aggregates)
         f.puts
         f.puts Projector.emit_policy_table(domain_name, ir[:policies])
         f.puts

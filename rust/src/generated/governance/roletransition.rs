@@ -51,6 +51,13 @@ impl RoleName {
 
 impl RoleName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RoleName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "RoleName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RoleName.value: expected String".to_string()))? },
         })
@@ -105,6 +112,13 @@ impl Timestamp {
 
 impl Timestamp {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Timestamp does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Timestamp")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Timestamp.value: expected String".to_string()))? },
         })
@@ -192,10 +206,11 @@ pub struct GrantArgs {
 }
 
 pub fn dispatch_grant(
-    repo: &mut impl crate::kernel::Repository<RoleTransition>, args: GrantArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<RoleTransition>, args: GrantArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<RoleTransition> {
         args.from_role.check_invariants()?;
         args.to_role.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -211,7 +226,7 @@ pub fn dispatch_grant(
         "Governance::RoleTransition",
         "RoleTransition",
         "from_role.value, to_role.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -272,9 +287,10 @@ pub struct RevokeArgs {
 }
 
 pub fn dispatch_revoke(
-    repo: &mut impl crate::kernel::Repository<RoleTransition>, id: &str, args: RevokeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<RoleTransition>, id: &str, args: RevokeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<RoleTransition> {
         args.ends_at.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -283,7 +299,7 @@ pub fn dispatch_revoke(
         "Governance::RoleTransition",
         "RoleTransition",
         "from_role.value, to_role.value",
-        &args,
+        &with_references,
         &[
 
         ],

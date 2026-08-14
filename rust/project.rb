@@ -305,6 +305,7 @@ end
 require_relative "project/exemplar"
 require_relative "project/expr_emitter"
 require_relative "project/naming"
+require_relative "project/reference_specs"
 require_relative "project/constraints"
 require_relative "project/fielded"
 require_relative "project/json_codec"

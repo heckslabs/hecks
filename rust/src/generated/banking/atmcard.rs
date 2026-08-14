@@ -37,6 +37,7 @@ impl CardSerial {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "CardSerial.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -51,6 +52,13 @@ impl CardSerial {
 
 impl CardSerial {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CardSerial does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "CardSerial")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardSerial.value: expected String".to_string()))? },
         })
@@ -91,6 +99,13 @@ impl CardNickname {
 
 impl CardNickname {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CardNickname does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "CardNickname")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardNickname.value: expected String".to_string()))? },
         })
@@ -145,6 +160,13 @@ impl DailyFee {
 
 impl DailyFee {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["amount"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "DailyFee does not declare {} — it takes amount",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         amount: match v.get("amount") { Some(x) => x.as_f64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("DailyFee.amount expects Float, got {}", x.inspect())))?, None => 0.0 },
         })
@@ -199,6 +221,13 @@ impl WithdrawalSequence {
 
 impl WithdrawalSequence {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "WithdrawalSequence does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "WithdrawalSequence")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("WithdrawalSequence.value expects Integer, got {}", x.inspect())))? },
         })
@@ -253,6 +282,13 @@ impl WithdrawalAmount {
 
 impl WithdrawalAmount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["cents"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "WithdrawalAmount does not declare {} — it takes cents",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         cents: { let x = v.require("cents", "WithdrawalAmount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("WithdrawalAmount.cents expects Integer, got {}", x.inspect())))? },
         })
@@ -293,6 +329,7 @@ impl Narrative {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.text) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Narrative.text must match [^ \\t\\n\\r], got ", self.text))); }
         Ok(())
     }
 }
@@ -307,6 +344,13 @@ impl Narrative {
 
 impl Narrative {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["text"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Narrative does not declare {} — it takes text",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         text: { let x = v.require("text", "Narrative")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Narrative.text: expected String".to_string()))? },
         })
@@ -425,9 +469,10 @@ impl WithdrawalDisputeArgs {
 
 pub fn dispatch_entity_withdrawal_dispute(
     repo: &mut impl crate::kernel::Repository<ATMCard>, parent_id: &str, element_id: &str, element_wants: &str, args: WithdrawalDisputeArgs,
-    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.narrative.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch_entity(
         repo,
@@ -442,9 +487,12 @@ pub fn dispatch_entity_withdrawal_dispute(
         "Withdrawal",
         "sequence.value",
         element_wants,
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("parent.account.status")), right: Box::new(Expr::Str("open".to_string())) } },
+            crate::kernel::GivenSpec { description: "card is not retired", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("retired".to_string())) } },
+            crate::kernel::GivenSpec { description: "withdrawal is taken", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("state")), right: Box::new(Expr::Str("taken".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "state", from_states: &["taken"] }),
         |record| {
@@ -555,10 +603,11 @@ pub struct IssueArgs {
 }
 
 pub fn dispatch_issue(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, args: IssueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, args: IssueArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.serial.check_invariants()?;
         args.daily_fee.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -577,9 +626,10 @@ pub fn dispatch_issue(
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         None,
         |record| {
@@ -641,9 +691,10 @@ pub struct RenameArgs {
 }
 
 pub fn dispatch_rename(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RenameArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RenameArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.nickname.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -652,9 +703,10 @@ pub fn dispatch_rename(
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })) },
         ],
         None,
         |record| {
@@ -713,10 +765,11 @@ pub struct WithdrawArgs {
 }
 
 pub fn dispatch_withdraw(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: WithdrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: WithdrawArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
         args.cents.check_invariants()?;
         args.narrative.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -725,9 +778,10 @@ pub fn dispatch_withdraw(
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         None,
         |record| {
@@ -785,9 +839,10 @@ pub struct ActivateArgs {
 }
 
 pub fn dispatch_activate(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: ActivateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: ActivateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -796,9 +851,10 @@ pub fn dispatch_activate(
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "card is issued", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued"] }),
         |record| {
@@ -854,9 +910,10 @@ pub struct RetireArgs {
 }
 
 pub fn dispatch_retire(
-    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RetireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ATMCard>, id: &str, args: RetireArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ATMCard> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -865,9 +922,10 @@ pub fn dispatch_retire(
         "Banking::ATMCard",
         "ATMCard",
         "serial.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "card is issued or active", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("issued".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) })) },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["issued", "active"] }),
         |record| {

@@ -92,28 +92,36 @@ pub fn dispatch_by_name(
           "Governance::RoleAssignment.Assign" => {
               let args = crate::generated::governance::roleassignment::AssignArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
               let id = crate::generated::governance::roleassignment::RoleAssignment::extract_id(args_json)?;
               let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Grant" => {
               let args = crate::generated::governance::roletransition::GrantArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
               let id = crate::generated::governance::roletransition::RoleTransition::extract_id(args_json)?;
               let args = crate::generated::governance::roletransition::RevokeArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
@@ -136,6 +144,23 @@ pub fn dispatch_by_name(
 /// `correlates_by` to find it downstream.
 fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::Json) -> Vec<crate::kernel::Event> {
     events.into_iter().map(|e| crate::kernel::Event { payload: args_json.clone(), ..e }).collect()
+}
+
+pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
+    ("Governance::RoleAssignment", &[]),
+    ("Governance::RoleTransition", &[]),
+];
+
+impl crate::kernel::ReferenceLookup for Store {
+    fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
+if target == "Governance::RoleAssignment" {
+    return self.roleassignment.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Governance::RoleTransition" {
+    return self.roletransition.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+        None
+    }
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[

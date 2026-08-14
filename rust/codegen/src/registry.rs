@@ -8,6 +8,7 @@
 
 use crate::exemplar::Exemplar;
 use crate::naming;
+use crate::reference_specs::{self, ReferenceSpec};
 
 #[derive(Clone)]
 pub struct ReferenceCheck {
@@ -26,6 +27,9 @@ pub struct CommandEntry {
     pub creates: bool,
     pub identity_extra_params: Vec<String>,
     pub reference_checks: Vec<ReferenceCheck>,
+    /// This command's OWN reference-typed attributes — `command_deref`'s
+    /// own specs (`reference_specs.rb`'s own header).
+    pub reference_specs: Vec<ReferenceSpec>,
     pub role: Option<String>,
 }
 
@@ -36,6 +40,7 @@ pub struct EntityCommandEntry {
     pub fn_name: String,
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
+    pub reference_specs: Vec<ReferenceSpec>,
     pub role: Option<String>,
     /// `entity_name:`/`entity_identity_reading:` — carried in
     /// `domain_generator.rb`'s own `entity_commands` hash (its own
@@ -67,6 +72,10 @@ pub struct AggregateEntry {
     pub ports: Vec<PortEntry>,
     pub chapter_mod: String,
     pub domain_name: String,
+    /// This AGGREGATE's own reference-typed attributes — `owner_deref`'s
+    /// own specs, and the domain-wide `REFERENCE_TABLE`'s own row for
+    /// this aggregate (`reference_specs.rb`'s own header).
+    pub reference_specs: Vec<ReferenceSpec>,
 }
 
 pub fn emit_role_check(exemplar: &Exemplar, role: Option<&str>, command_name: &str) -> Option<String> {
@@ -165,10 +174,32 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 .collect();
             let extra_pass: String = extra_idents.iter().map(|ident| format!("&{ident}, ")).collect();
 
-            let dispatch_call = format!("{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations)", c.fn_name, a.module_name, if c.creates { extra_pass } else { "&id, ".to_string() });
+            let dispatch_call = format!(
+                "{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations, owner_deref, command_deref)",
+                c.fn_name,
+                a.module_name,
+                if c.creates { extra_pass } else { "&id, ".to_string() }
+            );
             let id_line = if c.creates { String::new() } else { format!("let id = {mod_path}::{}::extract_id(args_json)?;", a.record) };
             let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
             let reference_lines: Vec<String> = c.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
+
+            // `owner_deref`/`command_deref` — see `reference_lookup.rs`'s
+            // own header and `rust/project/registry.rb`'s identical
+            // comment: resolved HERE, before the `&mut store.<mod>`
+            // borrow below, since it needs `store` as a whole.
+            let owner_deref_expr = if c.creates {
+                "Vec::new()".to_string()
+            } else {
+                format!("crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &id)", naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name)))
+            };
+            let deref_lines = vec![
+                format!("let owner_deref = {owner_deref_expr};"),
+                format!(
+                    "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, {}, &args);",
+                    reference_specs::emit_reference_specs_literal(&c.reference_specs)
+                ),
+            ];
 
             let mut body: Vec<String> = Vec::new();
             if !id_line.is_empty() {
@@ -182,6 +213,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 }
             }
             body.extend(reference_lines.into_iter().filter(|l| !l.is_empty()));
+            body.extend(deref_lines);
             body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
             body.push(format!("{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"));
 
@@ -195,8 +227,10 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         for c in &a.entity_commands {
             let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
             let reference_lines: Vec<String> = c.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
-            let dispatch_call =
-                format!("{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &element_id, &element_wants, args, mutations).map(|(_, events)| stamp_payload(events, &payload))", c.fn_name, a.module_name);
+            let dispatch_call = format!(
+                "{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))",
+                c.fn_name, a.module_name
+            );
 
             let mut body: Vec<String> = vec![
                 format!("let parent_id = {mod_path}::{}::extract_id(args_json)?;", a.record),
@@ -208,6 +242,22 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 body.push(rl);
             }
             body.extend(reference_lines);
+            // `owner_deref` is always empty for an entity command — see
+            // `rust/project/registry.rb`'s own header on the real,
+            // documented gap (no entity in this corpus declares its own
+            // `reference_to`). `command_deref` covers the entity
+            // command's own reference-typed arguments, PLUS — merged in
+            // exactly like Ruby's own `parent:` tier — the PARENT
+            // aggregate's own dereferenced state under one `"parent"` key.
+            body.push("let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();".to_string());
+            body.push(format!(
+                "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, {}, &args);",
+                reference_specs::emit_reference_specs_literal(&c.reference_specs)
+            ));
+            body.push(format!(
+                "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, {}, &parent_id) {{ command_deref.push((\"parent\", parent_node)); }}",
+                naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
+            ));
             body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
             body.push(dispatch_call);
 
@@ -251,4 +301,38 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
     );
 
     format!("{header}{body}")
+}
+
+/// Port of `rust/project/registry.rb#emit_reference_table`.
+pub fn emit_reference_table(aggregates: &[AggregateEntry]) -> String {
+    let rows: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            let qualified = format!("{}::{}", a.domain_name, a.name);
+            format!("    ({}, {}),", naming::ruby_inspect_string(&qualified), reference_specs::emit_reference_specs_literal(&a.reference_specs))
+        })
+        .collect();
+
+    format!("pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[\n{}\n];\n", rows.join("\n"))
+}
+
+/// Port of `rust/project/registry.rb#emit_reference_lookup`.
+pub fn emit_reference_lookup(aggregates: &[AggregateEntry]) -> String {
+    let arms: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            let prefix = format!("{}::{}", a.domain_name, a.name);
+            format!(
+                "if target == {} {{\n    return self.{}.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);\n}}",
+                naming::ruby_inspect_string(&prefix),
+                a.module_name
+            )
+        })
+        .collect();
+
+    format!(
+        "{}\nimpl crate::kernel::ReferenceLookup for Store {{\n    fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {{\n{}\n        None\n    }}\n}}\n",
+        emit_reference_table(aggregates),
+        arms.join("\n")
+    )
 }

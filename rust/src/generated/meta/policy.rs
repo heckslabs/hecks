@@ -51,6 +51,13 @@ impl PolicyName {
 
 impl PolicyName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PolicyName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "PolicyName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyName.value: expected String".to_string()))? },
         })
@@ -91,6 +98,13 @@ impl PolicyText {
 
 impl PolicyText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PolicyText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "PolicyText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PolicyText.value: expected String".to_string()))? },
         })
@@ -131,6 +145,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -145,6 +166,8 @@ pub struct Policy {
     pub on_event: Option<PolicyText>,
     pub trigger_command: Option<PolicyText>,
     pub target_domain: Option<PolicyText>,
+    pub r#where: Option<PolicyText>,
+    pub for_each: Option<PolicyText>,
     pub position: Option<Position>,
 }
 
@@ -158,6 +181,8 @@ impl crate::kernel::Fielded for Policy {
             "on_event" => self.on_event.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "trigger_command" => self.trigger_command.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "target_domain" => self.target_domain.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "where" => self.r#where.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "for_each" => self.for_each.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -173,6 +198,8 @@ impl Policy {
         ("on_event".to_string(), self.on_event.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("trigger_command".to_string(), self.trigger_command.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("where".to_string(), self.r#where.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("for_each".to_string(), self.for_each.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -187,6 +214,8 @@ impl Policy {
         on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
         trigger_command: match v.get("trigger_command") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
         target_domain: match v.get("target_domain") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        r#where: match v.get("where") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        for_each: match v.get("for_each") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
         })
     }
@@ -225,6 +254,8 @@ impl crate::kernel::Fielded for DeclareArgs {
             "on_event" => Some(Field::Nested(&self.on_event)),
             "trigger_command" => Some(Field::Nested(&self.trigger_command)),
             "target_domain" => self.target_domain.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "where" => self.r#where.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "for_each" => self.for_each.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -240,18 +271,23 @@ pub struct DeclareArgs {
     pub on_event: PolicyText,
     pub trigger_command: PolicyText,
     pub target_domain: Option<PolicyText>,
+    pub r#where: Option<PolicyText>,
+    pub for_each: Option<PolicyText>,
     pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Policy>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Policy>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Policy> {
         args.name.check_invariants()?;
         if let Some(v) = &args.aggregate { v.check_invariants()?; }
         args.on_event.check_invariants()?;
         args.trigger_command.check_invariants()?;
         if let Some(v) = &args.target_domain { v.check_invariants()?; }
+        if let Some(v) = &args.r#where { v.check_invariants()?; }
+        if let Some(v) = &args.for_each { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -264,6 +300,8 @@ pub fn dispatch_declare(
             on_event: Some(args.on_event.clone()),
             trigger_command: Some(args.trigger_command.clone()),
             target_domain: args.target_domain.clone(),
+            r#where: args.r#where.clone(),
+            for_each: args.for_each.clone(),
             position: args.position.clone(),
         }),
     },
@@ -271,7 +309,7 @@ pub fn dispatch_declare(
         "Bluebook::Policy",
         "Policy",
         "bluebook_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -298,6 +336,8 @@ impl DeclareArgs {
         ("on_event".to_string(), self.on_event.to_json()),
         ("trigger_command".to_string(), self.trigger_command.to_json()),
         ("target_domain".to_string(), self.target_domain.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("where".to_string(), self.r#where.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("for_each".to_string(), self.for_each.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -305,10 +345,10 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["bluebook_id", "name", "aggregate", "on_event", "trigger_command", "target_domain", "position", "id"]);
+let unknown = v.unknown_keys(&["bluebook_id", "name", "aggregate", "on_event", "trigger_command", "target_domain", "where", "for_each", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes bluebook_id, name, aggregate, on_event, trigger_command, target_domain, position",
+        "Declare does not declare {} — it takes bluebook_id, name, aggregate, on_event, trigger_command, target_domain, where, for_each, position",
         unknown.join(", ")
     )));
 }
@@ -319,6 +359,8 @@ if !unknown.is_empty() {
         on_event: PolicyText::from_json(v.require("on_event", "DeclareArgs")?)?,
         trigger_command: PolicyText::from_json(v.require("trigger_command", "DeclareArgs")?)?,
         target_domain: match v.get("target_domain") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
+        r#where: match v.get("where") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
+        for_each: match v.get("for_each") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
         position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }

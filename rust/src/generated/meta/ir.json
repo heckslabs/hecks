@@ -3421,7 +3421,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
@@ -3445,7 +3445,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -3454,7 +3454,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -3463,7 +3463,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -3504,7 +3504,18 @@
             }
           ],
           "invariants": [
-
+            {
+              "description": "a field is named",
+              "canonical": "!name.to_s.empty?"
+            },
+            {
+              "description": "a field has a type",
+              "canonical": "!type.to_s.empty?"
+            },
+            {
+              "description": "a field's list mode is specified",
+              "canonical": "!list.to_s.empty?"
+            }
           ],
           "closed_set": false,
           "members": [
@@ -3520,7 +3531,7 @@
               "list": false,
               "default": null,
               "optional": true,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -3529,12 +3540,19 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             }
           ],
           "invariants": [
-
+            {
+              "description": "an assertion description is present",
+              "canonical": "!description.to_s.empty?"
+            },
+            {
+              "description": "an assertion canonical form is present",
+              "canonical": "!canonical.to_s.empty?"
+            }
           ],
           "closed_set": false,
           "members": [
@@ -3937,7 +3955,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null
             },
             {
@@ -3951,7 +3969,10 @@
             }
           ],
           "invariants": [
-
+            {
+              "description": "a pair key is present",
+              "canonical": "!key.to_s.empty?"
+            }
           ],
           "closed_set": false,
           "members": [
@@ -4858,6 +4879,24 @@
           "admits": null
         },
         {
+          "name": "where",
+          "type": "PolicyText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "for_each",
+          "type": "PolicyText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null
+        },
+        {
           "name": "position",
           "type": "Position",
           "list": false,
@@ -4989,6 +5028,24 @@
             },
             {
               "name": "target_domain",
+              "type": "PolicyText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "where",
+              "type": "PolicyText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "for_each",
               "type": "PolicyText",
               "list": false,
               "default": null,
@@ -9352,6 +9409,58 @@
             [
               [
                 "word",
+                "where"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "where"
+              ]
+            ],
+            [
+              [
+                "word",
+                "for_each"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "for_each"
+              ]
+            ],
+            [
+              [
+                "word",
                 "correlates_by"
               ],
               [
@@ -10002,6 +10111,58 @@
             [
               [
                 "word",
+                "count"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "count"
+              ]
+            ],
+            [
+              [
+                "word",
+                "median"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "median_field"
+              ]
+            ],
+            [
+              [
+                "word",
                 "where"
               ],
               [
@@ -10470,6 +10631,58 @@
             [
               [
                 "word",
+                "tells"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "PortOperation"
+              ],
+              [
+                "opens",
+                "PortOperation"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "asks"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "PortOperation"
+              ],
+              [
+                "opens",
+                "PortOperation"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
                 "verb"
               ],
               [
@@ -10569,6 +10782,58 @@
               [
                 "fills",
                 "emits"
+              ]
+            ],
+            [
+              [
+                "word",
+                "answers"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "answers"
+              ]
+            ],
+            [
+              [
+                "word",
+                "refuses"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "refuses"
               ]
             ],
             [
@@ -13682,6 +13947,36 @@
             [
               [
                 "keyword",
+                "for_each"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "for_each"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "correlates_by"
               ],
               [
@@ -14944,6 +15239,36 @@
             [
               [
                 "keyword",
+                "median"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "median_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "where"
               ],
               [
@@ -15634,6 +15959,66 @@
             [
               [
                 "keyword",
+                "tells"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "asks"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "verb"
               ],
               [
@@ -15964,6 +16349,66 @@
             [
               [
                 "keyword",
+                "answers"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "answers"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "refuses"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "refuses"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "realm"
               ],
               [
@@ -16123,6 +16568,24 @@
           "name": "group_by",
           "type": "GroupByField",
           "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "count",
+          "type": "ReadModelText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "median_field",
+          "type": "ReadModelText",
+          "list": false,
           "default": null,
           "optional": false,
           "pattern": null,
@@ -16518,6 +16981,83 @@
           ],
           "emits": [
             "GroupByFieldAdded"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Count",
+          "role": "Language",
+          "goal": "Mark the read model as a bare row count over its one eligible collection",
+          "references": "ReadModel",
+          "attributes": [
+            {
+              "name": "count",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "count",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "count"
+              }
+            }
+          ],
+          "emits": [
+            "CountDeclared"
+          ],
+          "provenance": null
+        },
+        {
+          "name": "Median",
+          "role": "Language",
+          "goal": "Mark the read model as the median of one numeric field across its one eligible collection",
+          "references": "ReadModel",
+          "attributes": [
+            {
+              "name": "median_field",
+              "type": "ReadModelText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a median field is named",
+              "canonical": "!median_field.value.to_s.empty?"
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "median_field",
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "median_field"
+              }
+            }
+          ],
+          "emits": [
+            "MedianFieldSet"
           ],
           "provenance": null
         },

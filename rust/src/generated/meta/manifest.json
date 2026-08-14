@@ -335,6 +335,18 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::ReadModel.Count",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::ReadModel.Median",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::ReadModel.Option",
     "generated": true,
     "routed": true

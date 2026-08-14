@@ -208,6 +208,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
                     fn_name: format!("{}_{}", entity.get("name").and_then(Json::as_str).unwrap_or("").to_lowercase(), crate::naming::dispatch_fn_name(&crate::naming::rust_ident(entity_command_name))),
                     args_struct: format!("{entity_name_ident}{}Args", crate::naming::rust_ident(entity_command_name)),
                     reference_checks: reference_checks(command, &aggregates_by_name, &unsupported_names),
+                    reference_specs: crate::reference_specs::reference_specs(domain_name, command.get("attributes").map(Json::each).unwrap_or(&[])),
                     role: command.get("role").map(Json::to_s),
                     entity_name: entity.get("name").and_then(Json::as_str).unwrap_or("").to_string(),
                     entity_identity_reading: identified_by.iter().map(Json::to_s).collect::<Vec<_>>().join(", "),
@@ -266,6 +267,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
                 creates,
                 identity_extra_params,
                 reference_checks: reference_checks(command, &aggregates_by_name, &unsupported_names),
+                reference_specs: crate::reference_specs::reference_specs(domain_name, cmd_attrs),
                 role: command.get("role").map(Json::to_s),
             });
         }
@@ -304,6 +306,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
             ports: port_operations,
             chapter_mod: mod_name.to_string(),
             domain_name: domain_name.to_string(),
+            reference_specs: crate::reference_specs::reference_specs(domain_name, aggregate.get("attributes").map(Json::each).unwrap_or(&[])),
         });
     }
 
@@ -345,6 +348,8 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
 
     let mut registry_rs = String::new();
     puts_str(&mut registry_rs, &crate::registry::emit_registry(exemplar, &registry_aggregates));
+    puts_blank(&mut registry_rs);
+    puts_str(&mut registry_rs, &crate::registry::emit_reference_lookup(&registry_aggregates));
     puts_blank(&mut registry_rs);
     puts_str(&mut registry_rs, &reactions::emit_policy_table(exemplar, domain_name, &policies));
     puts_blank(&mut registry_rs);

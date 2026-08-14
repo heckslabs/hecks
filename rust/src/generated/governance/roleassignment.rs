@@ -51,6 +51,13 @@ impl IdentityId {
 
 impl IdentityId {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "IdentityId does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "IdentityId")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IdentityId.value: expected String".to_string()))? },
         })
@@ -105,6 +112,13 @@ impl RoleName {
 
 impl RoleName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RoleName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "RoleName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RoleName.value: expected String".to_string()))? },
         })
@@ -159,6 +173,13 @@ impl Scope {
 
 impl Scope {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Scope does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Scope")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Scope.value: expected String".to_string()))? },
         })
@@ -213,6 +234,13 @@ impl Timestamp {
 
 impl Timestamp {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Timestamp does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Timestamp")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Timestamp.value: expected String".to_string()))? },
         })
@@ -313,12 +341,13 @@ pub struct AssignArgs {
 }
 
 pub fn dispatch_assign(
-    repo: &mut impl crate::kernel::Repository<RoleAssignment>, args: AssignArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<RoleAssignment>, args: AssignArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<RoleAssignment> {
         args.actor_id.check_invariants()?;
         args.role_name.check_invariants()?;
         args.scope.check_invariants()?;
         args.starts_at.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -336,7 +365,7 @@ pub fn dispatch_assign(
         "Governance::RoleAssignment",
         "RoleAssignment",
         "actor_id.value, role_name.value, starts_at.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -401,9 +430,10 @@ pub struct RevokeArgs {
 }
 
 pub fn dispatch_revoke(
-    repo: &mut impl crate::kernel::Repository<RoleAssignment>, id: &str, args: RevokeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<RoleAssignment>, id: &str, args: RevokeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<RoleAssignment> {
         args.ends_at.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -412,7 +442,7 @@ pub fn dispatch_revoke(
         "Governance::RoleAssignment",
         "RoleAssignment",
         "actor_id.value, role_name.value, starts_at.value",
-        &args,
+        &with_references,
         &[
 
         ],

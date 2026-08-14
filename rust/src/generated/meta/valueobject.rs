@@ -37,6 +37,13 @@ impl RowCount {
 
 impl RowCount {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "RowCount does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "RowCount")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("RowCount.value expects Integer, got {}", x.inspect())))? },
         })
@@ -77,6 +84,7 @@ impl ValueObjectName {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ValueObjectName.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -91,6 +99,13 @@ impl ValueObjectName {
 
 impl ValueObjectName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ValueObjectName does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ValueObjectName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObjectName.value: expected String".to_string()))? },
         })
@@ -128,7 +143,54 @@ impl crate::kernel::Fielded for ShapeField {
 
 impl ShapeField {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("name"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ShapeField"),
+            ("description", "a field is named"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("type"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ShapeField"),
+            ("description", "a field has a type"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("list"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "ShapeField"),
+            ("description", "a field's list mode is specified"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.name) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ShapeField.name must match [^ \\t\\n\\r], got ", self.name))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.r#type) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ShapeField.type must match [^ \\t\\n\\r], got ", self.r#type))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.list) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "ShapeField.list must match [^ \\t\\n\\r], got ", self.list))); }
         Ok(())
     }
 }
@@ -149,6 +211,13 @@ impl ShapeField {
 
 impl ShapeField {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ShapeField does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         name: { let x = v.require("name", "ShapeField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.name: expected String".to_string()))? },
         r#type: { let x = v.require("type", "ShapeField")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ShapeField.type: expected String".to_string()))? },
@@ -182,7 +251,38 @@ impl crate::kernel::Fielded for Assertion {
 
 impl Assertion {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
-
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Assertion"),
+            ("description", "an assertion description is present"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Assertion"),
+            ("description", "an assertion canonical form is present"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+        if let Some(__optional_value) = &self.description { if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &__optional_value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Assertion.description must match [^ \\t\\n\\r], got ", __optional_value))); } }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.canonical) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Assertion.canonical must match [^ \\t\\n\\r], got ", self.canonical))); }
         Ok(())
     }
 }
@@ -198,6 +298,13 @@ impl Assertion {
 
 impl Assertion {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Assertion does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         description: match v.get("description") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Assertion.description: expected String".to_string()))?), None => None, },
         canonical: { let x = v.require("canonical", "Assertion")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Assertion.canonical: expected String".to_string()))? },
@@ -239,6 +346,13 @@ impl Position {
 
 impl Position {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Position does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "Position")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("Position.value expects Integer, got {}", x.inspect())))? },
         })
@@ -279,6 +393,13 @@ impl ValueObjectText {
 
 impl ValueObjectText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "ValueObjectText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "ValueObjectText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObjectText.value: expected String".to_string()))? },
         })
@@ -380,10 +501,11 @@ pub struct DeclareArgs {
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.name.check_invariants()?;
         if let Some(v) = &args.position { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -402,7 +524,7 @@ pub fn dispatch_declare(
         "Bluebook::ValueObject",
         "ValueObject",
         "aggregate_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -477,7 +599,7 @@ pub struct FieldArgs {
 }
 
 pub fn dispatch_field(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: FieldArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: FieldArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.name.check_invariants()?;
         args.r#type.check_invariants()?;
@@ -486,6 +608,7 @@ pub fn dispatch_field(
         if let Some(v) = &args.pattern { v.check_invariants()?; }
         if let Some(v) = &args.default { v.check_invariants()?; }
         if let Some(v) = &args.admits { v.check_invariants()?; }
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -494,7 +617,7 @@ pub fn dispatch_field(
         "Bluebook::ValueObject",
         "ValueObject",
         "aggregate_id, name.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -565,9 +688,10 @@ pub struct CloseArgs {
 }
 
 pub fn dispatch_close(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         args.rows.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -576,7 +700,7 @@ pub fn dispatch_close(
         "Bluebook::ValueObject",
         "ValueObject",
         "aggregate_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "a closed set admits a member", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, left: Box::new(Expr::Lookup("rows.value")), right: Box::new(Expr::Int(0)) } },
         ],
@@ -637,10 +761,11 @@ pub struct AssertArgs {
 }
 
 pub fn dispatch_assert(
-    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: AssertArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: AssertArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<ValueObject> {
         if let Some(v) = &args.description { v.check_invariants()?; }
         args.canonical.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -649,7 +774,7 @@ pub fn dispatch_assert(
         "Bluebook::ValueObject",
         "ValueObject",
         "aggregate_id, name.value",
-        &args,
+        &with_references,
         &[
             crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
             crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))) },

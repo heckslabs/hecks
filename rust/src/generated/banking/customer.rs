@@ -37,6 +37,7 @@ impl CustomerNumber {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "CustomerNumber.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -51,6 +52,13 @@ impl CustomerNumber {
 
 impl CustomerNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CustomerNumber does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "CustomerNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerNumber.value: expected String".to_string()))? },
         })
@@ -91,6 +99,7 @@ impl CustomerStanding {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.value) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "CustomerStanding.value must match [^ \\t\\n\\r], got ", self.value))); }
         Ok(())
     }
 }
@@ -105,6 +114,13 @@ impl CustomerStanding {
 
 impl CustomerStanding {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "CustomerStanding does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: match v.get("value") { Some(x) => x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CustomerStanding.value: expected String".to_string()))?, None => "good".to_string() },
         })
@@ -162,6 +178,8 @@ impl PersonName {
         ])));
     }
 }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.given) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PersonName.given must match [^ \\t\\n\\r], got ", self.given))); }
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.family) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "PersonName.family must match [^ \\t\\n\\r], got ", self.family))); }
         Ok(())
     }
 }
@@ -177,6 +195,13 @@ impl PersonName {
 
 impl PersonName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["given", "family"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "PersonName does not declare {} — it takes given, family",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         given: { let x = v.require("given", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.given: expected String".to_string()))? },
         family: { let x = v.require("family", "PersonName")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PersonName.family: expected String".to_string()))? },
@@ -218,6 +243,13 @@ impl EmailAddress {
 
 impl EmailAddress {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["address"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "EmailAddress does not declare {} — it takes address",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         address: { let x = v.require("address", "EmailAddress")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("EmailAddress.address: expected String".to_string()))? },
         })
@@ -314,11 +346,12 @@ pub struct RegisterArgs {
 }
 
 pub fn dispatch_register(
-    repo: &mut impl crate::kernel::Repository<Customer>, args: RegisterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Customer>, args: RegisterArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Customer> {
         args.reference.check_invariants()?;
         args.name.check_invariants()?;
         args.email.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -336,7 +369,7 @@ pub fn dispatch_register(
         "Banking::Customer",
         "Customer",
         "reference.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -401,9 +434,10 @@ pub struct SuspendArgs {
 }
 
 pub fn dispatch_suspend(
-    repo: &mut impl crate::kernel::Repository<Customer>, id: &str, args: SuspendArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Customer>, id: &str, args: SuspendArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Customer> {
         args.standing.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -412,9 +446,9 @@ pub fn dispatch_suspend(
         "Banking::Customer",
         "Customer",
         "reference.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active"] }),
         |record| {
@@ -471,9 +505,10 @@ pub struct ReinstateArgs {
 }
 
 pub fn dispatch_reinstate(
-    repo: &mut impl crate::kernel::Repository<Customer>, id: &str, args: ReinstateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Customer>, id: &str, args: ReinstateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Customer> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -482,9 +517,9 @@ pub fn dispatch_reinstate(
         "Banking::Customer",
         "Customer",
         "reference.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is suspended", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["suspended"] }),
         |record| {
@@ -541,9 +576,10 @@ pub struct CloseArgs {
 }
 
 pub fn dispatch_close(
-    repo: &mut impl crate::kernel::Repository<Customer>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<Customer>, id: &str, args: CloseArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Customer> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -552,9 +588,9 @@ pub fn dispatch_close(
         "Banking::Customer",
         "Customer",
         "reference.value",
-        &args,
+        &with_references,
         &[
-
+            crate::kernel::GivenSpec { description: "customer is active or suspended", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("active".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("suspended".to_string())) })) },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["active", "suspended"] }),
         |record| {

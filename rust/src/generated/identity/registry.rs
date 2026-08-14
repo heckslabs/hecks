@@ -92,15 +92,19 @@ pub fn dispatch_by_name(
           "Identity::Identity.Register" => {
               let args = crate::generated::identity::identity::RegisterArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
               crate::kernel::check_reference(&store.identity, &args.identity_id, "Identity", "identity_id")?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity_id", as_name: "identity", target: "Identity::Identity" }], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations).map(|(_, events)| stamp_payload(events, &payload))
+              crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
@@ -123,6 +127,23 @@ pub fn dispatch_by_name(
 /// `correlates_by` to find it downstream.
 fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::Json) -> Vec<crate::kernel::Event> {
     events.into_iter().map(|e| crate::kernel::Event { payload: args_json.clone(), ..e }).collect()
+}
+
+pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
+    ("Identity::Identity", &[]),
+    ("Identity::ExternalIdentifier", &[crate::kernel::ReferenceSpec { field: "identity_id", as_name: "identity", target: "Identity::Identity" }]),
+];
+
+impl crate::kernel::ReferenceLookup for Store {
+    fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
+if target == "Identity::Identity" {
+    return self.identity.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Identity::ExternalIdentifier" {
+    return self.externalidentifier.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+        None
+    }
 }
 
 pub const POLICIES: &[crate::kernel::PolicyRule] = &[
