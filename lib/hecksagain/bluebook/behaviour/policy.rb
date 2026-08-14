@@ -36,11 +36,16 @@ module Hecksagain
           [domain, aggregate, query_name]
         end
 
-        # THE ARGUMENT NAME THE FAN-OUT MINTS EACH MATCHED ROW'S ID UNDER —
-        # the same `<aggregate>_id` mint `reference_to <Aggregate>` gives a
-        # bare reference, so a `for_each` iterating Account and a command
-        # written `reference_to Account` agree on the argument's name.
-        def fan_out_reference_key(aggregate_name) = :"#{Naming.reference_key(aggregate_name)}_id"
+        # THE ARGUMENT NAME A FAN-OUT DISPATCH mints each matched row's id
+        # under used to be minted HERE, unconditionally, as `<aggregate>
+        # _id` — a real bug: a target command declared ON the very
+        # aggregate it self-references (`Account.Freeze`) is addressed by
+        # its OWN identity field's name, not a synthetic foreign key, and
+        # every such dispatch refused. That question is not this policy's
+        # to answer at all — it depends on the TARGET COMMAND'S OWN
+        # declared shape, not on the aggregate name alone — so it now
+        # lives on `Behaviour::Command#addressing_key_for`, asked of the
+        # resolved target command by `PolicyInterpreter#addressing_key_for`.
       end
     end
   end

@@ -1702,6 +1702,38 @@
             "direction": "asc"
           },
           "limit": null
+        },
+        {
+          "name": "OpenForCustomer",
+          "description": "One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry.",
+          "attributes": [
+            {
+              "name": "reference",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "customer_id",
+              "op": "eq",
+              "value": ":reference"
+            },
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"open\""
+            }
+          ],
+          "order_by": {
+            "field": "number",
+            "direction": "asc"
+          },
+          "limit": null
         }
       ],
       "ports": [
@@ -5846,7 +5878,7 @@
       "trigger_command": "Account.Freeze",
       "target_domain": null,
       "where": null,
-      "for_each": null
+      "for_each": "Account.OpenForCustomer"
     },
     {
       "name": "NotifyOnClosure",

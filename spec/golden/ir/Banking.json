@@ -5697,7 +5697,7 @@
       "where": null
     },
     {
-      "for_each": null,
+      "for_each": "Account.OpenForCustomer",
       "name": "FreezeAccountsOnSuspension",
       "on_event": "CustomerSuspended",
       "target_domain": null,

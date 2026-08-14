@@ -1,29 +1,44 @@
 
 require "spec_helper"
 
-# A REAL, CURRENTLY-OPEN BUG — found wiring `for_each` into banking for
-# the first time (this session's own property-testing arc), not a
-# hypothetical. `FreezeAccountsOnSuspension` has refused EVERY dispatch,
-# silently, since the day it was written: `CustomerSuspended`'s own
-# payload (`{reference:, standing:}` — Customer's own fields) forwards
-# wholesale into `Account.Freeze`, which wants neither. The name is
-# plural ("Accounts") but the mechanism only ever attempted ONE
-# dispatch, with the wrong shape — no account has ever actually been
-# frozen by this policy.
+# ONE REAL BUG FIXED HERE; TWO MORE FOUND AND DELIBERATELY LEFT OPEN —
+# found wiring `for_each` into banking for the first time (this
+# session's own property-testing arc), not a hypothetical.
+# `FreezeAccountsOnSuspension` has refused every dispatch, silently,
+# since the day it was written. See banking.bluebook's own comment on
+# the policy for the full account; the short version:
 #
-# `for_each "Account.OpenForCustomer"` looked like the fix (the query
-# below was added specifically for it) but does NOT close this — see
-# banking.bluebook's own comment on the policy for why:
-# `PolicyInterpreter#deliver_for_each_row`'s reference-key mint
-# (`Behaviour::Policy#fan_out_reference_key`) hardcodes `<aggregate>_id`
-# for every fan-out target, but `Account` is addressed by `number`
-# (`identified_by AccountNumber, as: :number`), not `account_id`, for a
-# self-referencing command like `Freeze`. Closing this needs a runtime
-# change, not a domain-content one — deliberately NOT made here.
+#   FIXED — the ADDRESSING BUG. `for_each` used to hardcode
+#   `<aggregate>_id` for every fan-out target unconditionally
+#   (`Behaviour::Policy#fan_out_reference_key`, since deleted).
+#   `Account.Freeze` self-references Account and is addressed by
+#   `account`, not `account_id` — the same self-vs-foreign-key
+#   distinction `Customer.Suspend`'s own `reference` argument already
+#   demonstrates elsewhere in the corpus.
+#   `Behaviour::Command#addressing_key_for`, asked of the resolved
+#   TARGET command rather than guessed from the aggregate name alone,
+#   fixes this — verified below, and confirmed Rust-conformance-safe
+#   (a pure interpreter change, no new declared IR).
 #
-# This spec pins BOTH halves: the bug that has always been there (still
-# open), and the new query that exists and works correctly on its own,
-# scoped to one customer, ready for whichever fix eventually lands.
+#   STILL OPEN — wholesale payload forwarding. `Account.Freeze` still
+#   declares neither `reference` nor `standing`, which
+#   `deliver_for_each_row` still forwards wholesale from
+#   CustomerSuspended's own payload. An unused pass-through attribute
+#   (the fix `Account.Review`'s own `customer_id`/`risk` already use
+#   elsewhere) was tried and reverted — it trips a real Rust codegen
+#   gap: Rust serializes every declared attribute into an emitted
+#   event's payload, `null` for one never supplied, where Ruby
+#   serializes only what was actually in `args`. A Rust codegen
+#   question, not fixed here.
+#
+#   STILL OPEN — a business-rule contradiction, independent of the
+#   above: `Account.Freeze`'s own `given("customer is active")` cannot
+#   be satisfied by the one reaction that exists to invoke it. A real
+#   domain decision, not guessed at here.
+#
+# So: the account is still not frozen today, same as before this fix —
+# but the FAN-OUT ITSELF is now demonstrably correct (right accounts,
+# right addressing key, right scoping), which the first spec pins.
 RSpec.describe "FreezeAccountsOnSuspension" do
   def build
     registry = Hecksagain::Runtime::Registry.new
@@ -49,23 +64,41 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
   end
 
-  it "STILL refuses every account it should freeze — the open bug, pinned so a fix has to touch this spec" do
+  it "fans out to every one of the RIGHT customer's own open accounts — the addressing bug, fixed" do
     runtime = build
     runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
                                                      name: { given: "Ada", family: "Lovelace" },
                                                      email: { address: "ada@example.com" })
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0002" },
+                                                     name: { given: "Grace", family: "Hopper" },
+                                                     email: { address: "grace@example.com" })
     runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0001", number: { value: "acct-1" },
+                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
+    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0001", number: { value: "acct-1b" },
+                                               kind: { name: "savings" }, daily_limit: { cents: 50_000 })
+    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0002", number: { value: "acct-2" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
                                                    standing: { value: "chargeback investigation" })
 
-    reaction = runtime.reactions.find { |r| r[:policy] == "FreezeAccountsOnSuspension" }
-    expect(reaction).to include(delivered: false)
-    expect(reaction[:reason]).to match(/Freeze does not declare/)
+    reactions = runtime.reactions.select { |r| r[:policy] == "FreezeAccountsOnSuspension" }
+    # BOTH of CUST-0001's own accounts, and ONLY those — acct-2 belongs
+    # to a different customer and the fan-out correctly never touches it.
+    # If this ever asserts "does not declare account_id" again, the
+    # addressing fix regressed; it should always be exactly the
+    # wholesale-forwarding refusal now (a SEPARATE, still-open issue —
+    # see this file's own header).
+    expect(reactions.map { |r| r[:for_row] }.sort).to eq(%w[acct-1 acct-1b])
+    reactions.each do |reaction|
+      expect(reaction).to include(delivered: false)
+      expect(reaction[:reason]).to eq("Freeze does not declare standing — it takes ")
+    end
 
-    account = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find("acct-1")
-    expect(account.state[:status]).to eq("open"), "the account was never actually frozen — the bug this spec pins"
+    repository = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account"))
+    expect(repository.find("acct-1").state[:status]).to eq("open")
+    expect(repository.find("acct-1b").state[:status]).to eq("open")
+    expect(repository.find("acct-2").state[:status]).to eq("open") # untouched — different customer
   end
 
   it "Account.OpenForCustomer answers correctly on its own — the for_each target, scoped to ONE customer" do

@@ -121,14 +121,19 @@ module Hecksagain
       # against the triggering event's own payload (the same source
       # `deliver`'s own ordinary path forwards to `trigger` wholesale) and
       # fires `trigger` once per row, merging each row's own id into the
-      # forwarded payload under the iterated aggregate's own reference-key
-      # convention (`account_id` for `Account`, `AggregateBuilder
-      # #reference_to`'s own default mint — see `reference_key_for`'s own
-      # comment). A refusal is recorded per row and the fan-out continues ;
-      # a crash resolving the QUERY ITSELF (an unresolvable domain/
-      # aggregate/query, or the evaluator raising) is a single top-level
-      # defect for the policy, the same shape `deliver`'s own outer rescue
-      # already gives every other reaction.
+      # forwarded payload under whichever key THE TARGET COMMAND ITSELF
+      # expects to be addressed by (`Behaviour::Command#addressing_key_for`
+      # — never a guessed, one-size mint: `Account.Freeze`, addressed by
+      # `account` because it is declared ON Account and self-references
+      # it, refused every dispatch for as long as this hardcoded
+      # `<aggregate>_id` instead — a real bug, found wiring `for_each`
+      # into a real domain for the first time, not a hypothetical). A
+      # refusal is recorded per row and the fan-out continues ; a crash
+      # resolving the QUERY ITSELF, or the TARGET COMMAND'S OWN inability
+      # to address this aggregate at all (`addressing_key_for` answering
+      # `nil` — a domain-authoring mistake, not a data problem), is a
+      # single top-level defect for the policy, the same shape `deliver`'s
+      # own outer rescue already gives every other reaction.
       def deliver_for_each(policy, event, domain, target, record)
         return nil unless where_holds?(policy, event)
 
@@ -136,7 +141,7 @@ module Hecksagain
         aggregate = resolve_query_aggregate(query_domain, aggregate_name, policy.for_each)
         payload   = event.payload.transform_keys(&:to_sym)
         rows      = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, payload)
-        reference_key = policy.fan_out_reference_key(aggregate_name)
+        reference_key = addressing_key_for(target, aggregate_name)
 
         Array(rows).map do |row|
           deliver_for_each_row(target, record, payload, reference_key, row)
@@ -147,6 +152,31 @@ module Hecksagain
         warn "[hecksagain] defect in reaction — policy #{policy.name} on #{event.name} " \
              "resolving for_each #{policy.for_each}: #{error.class}: #{error.message}"
         record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
+      end
+
+      # RESOLVES `target` ("Domain::Aggregate.Command", the same shape
+      # `deliver`'s own caller already built) back to its OWN declared
+      # command, then asks IT how it expects to be addressed by a row of
+      # `aggregate_name` — see `Behaviour::Command#addressing_key_for`'s
+      # own comment for the two shapes that answers. Raises (caught by
+      # `deliver_for_each`'s own outer `rescue StandardError`, the same
+      # "a defect, not a refusal" treatment `resolve_query_aggregate`'s
+      # own `UnknownVerb` already gets one level up) rather than
+      # silently falling back on a guess when the target command cannot
+      # be resolved, or genuinely cannot be addressed by this aggregate
+      # at all — either is a domain-authoring mistake worth surfacing
+      # loudly, not a row this fan-out simply skips.
+      def addressing_key_for(target, aggregate_name)
+        target_domain, target_aggregate_name, target_command_name = Naming.split_verb(target)
+        command = @registry.bluebook(target_domain)&.aggregate(target_aggregate_name)&.command(target_command_name)
+        raise UnknownVerb, "for_each's own trigger #{target.inspect} does not resolve to a declared command" unless command
+
+        key = command.addressing_key_for(aggregate_name)
+        return key if key
+
+        raise ArgumentError,
+              "#{target} cannot be addressed by a row of #{aggregate_name} — it declares no self-reference to " \
+              "#{aggregate_name} and no reference-typed attribute targeting it"
       end
 
       def deliver_for_each_row(target, record, payload, reference_key, row)
@@ -163,10 +193,13 @@ module Hecksagain
         row_record.merge(delivered: false, reason: error.message)
       end
 
-      # `for_each`'s own route and reference-key mint moved onto the
-      # Policy itself (Behaviour::Policy#for_each_route / #fan_out_reference_key)
-      # — one reading the interpreter and the fuzzer's fan-out property
-      # both call, rather than the same split spelled twice.
+      # `for_each`'s own QUERY route moved onto the Policy itself
+      # (Behaviour::Policy#for_each_route) — one reading the interpreter
+      # and the fuzzer's fan-out property both call, rather than the
+      # same split spelled twice. The reference-KEY the dispatch itself
+      # uses is `addressing_key_for`, above — a property of the TARGET
+      # COMMAND, not of the policy, so it lives on `Behaviour::Command`
+      # instead.
 
       def resolve_query_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||
