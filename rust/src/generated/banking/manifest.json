@@ -461,6 +461,11 @@
   },
   {
     "kind": "query",
+    "id": "Banking::Account.OpenForCustomer",
+    "generated": true
+  },
+  {
+    "kind": "query",
     "id": "Banking::ATMCard.Active",
     "generated": true
   },

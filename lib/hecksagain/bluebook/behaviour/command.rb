@@ -48,6 +48,48 @@ module Hecksagain
         # collections; `compact` because a rule's description is optional
         # (behavior.bluebook's Rule) and an unnamed one quotes nothing.
         def guard_descriptions = (@givens + @ensures).map(&:description).compact
+
+        # THE ARGUMENT NAME THAT ADDRESSES an instance of `aggregate_name`
+        # for THIS command — the one fact `PolicyInterpreter`'s own
+        # `for_each` fan-out needs and, until this reading existed, had
+        # to guess at (see git blame: `Behaviour::Policy
+        # #fan_out_reference_key`, which hardcoded `<aggregate>_id`
+        # unconditionally and refused every dispatch to a self-
+        # addressing command as a result — `Account.Freeze`, addressed
+        # by `number`/`account`, not `account_id`).
+        #
+        # TWO SHAPES, the same two `CommandBuilder#reference_to` already
+        # tells apart at declare time (command_builder.rb's own comment
+        # on `cross_reference` — "`as:` MEANS a named attribute... a
+        # command can point at another instance of its OWN kind"):
+        #
+        #   SELF-ADDRESSING — `references == aggregate_name` (this verb
+        #   is declared ON the very aggregate it acts on, `reference_to
+        #   Account` on a command Account itself owns). No attribute was
+        #   minted for it at all; the SAME bare key
+        #   `CommandInterpreter::ArgumentGate#reference_key` already
+        #   accepts as "addressing, not describing" is reused here
+        #   rather than re-derived — one door, not two.
+        #
+        #   CROSS-REFERENCING — a real, declared reference-typed
+        #   attribute whose OWN target is `aggregate_name` (`customer_id`
+        #   on `Account.Open`, or whatever `as:` named it). Its NAME is
+        #   the key, exactly as declared — never re-derived from the
+        #   target's name, because an `as:` reference's name and its
+        #   target's snake case can legitimately differ (`Transfer`'s own
+        #   `source`/`destination`, both `Reference<Account>`).
+        #
+        # `nil` when neither shape matches — a CREATING command (nothing
+        # to address yet) or one that simply never references this
+        # aggregate at all. A caller minting a fan-out dispatch is
+        # expected to treat `nil` as "this command cannot be addressed by
+        # a row of this aggregate," not to fall back on a guess.
+        def addressing_key_for(aggregate_name)
+          return Naming.reference_key(aggregate_name) if references.to_s == aggregate_name.to_s
+
+          attributes.find { |attribute| attribute.reference? && attribute.type.target_name.to_s == aggregate_name.to_s }
+                    &.name
+        end
       end
 
       # A MUTATION'S OWN READINGS. Included (not extended) — Mutation is

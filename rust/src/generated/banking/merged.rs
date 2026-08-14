@@ -993,6 +993,16 @@ crate::kernel::QueryDef {
     limit: None,
 },
 crate::kernel::QueryDef {
+    verb: "Banking::Account.OpenForCustomer",
+    aggregate: "Banking::Account",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "customer_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("reference") },
+        crate::kernel::QueryCondition { field: "status", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Literal("open") },
+    ],
+    order_by: Some(crate::kernel::query_ordering::OrderBy { field: "number", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
     verb: "Banking::ATMCard.Active",
     aggregate: "Banking::ATMCard",
     conditions: &[

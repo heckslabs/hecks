@@ -18,6 +18,26 @@ module Hecksagain
           { "query" => entry[:verb], "args" => args }
         end
 
+        # A REPORT ASK — the bare domain form `entry[:verb]` already carries
+        # ("Domain.report_name", no "::"), so `Dispatcher#query` routes it
+        # to the read model rather than an aggregate query. A `ReadModel`
+        # has no declared `.attributes` the way a `Query` does — its own
+        # argument surface is exactly ONE key, `reference_name`, and ONLY
+        # for a rooted model (`read_model_actionable?` already gated a
+        # rootless one straight into eligibility with nothing to supply).
+        # A BARE scalar, not `identity_shaped` — `ReadModelInterpreter#
+        # refuse_object_reference` explicitly REJECTS a Hash/Value offered
+        # here (this is the one place in the whole generator where the
+        # subject's own identity must NOT be wrapped the way a command
+        # argument's would be).
+        def build_read_model_step(runtime, entry)
+          model = entry[:model]
+          args  = model.reference_target.nil? ? {} : { model.reference_name.to_s => pick_known(model.reference_target) }
+
+          safe_call { runtime.query(entry[:verb], **symbolize(args)) }
+          { "query" => entry[:verb], "args" => args }
+        end
+
         def build_command_step(runtime, catalog, entry)
           args = args_for(entry[:command].attributes, entry[:aggregate])
           add_identity!(args, entry)
