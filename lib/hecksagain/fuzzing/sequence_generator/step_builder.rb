@@ -56,6 +56,12 @@ module Hecksagain
             # domains today — every list is populated via a per-element append
             # command instead. Skipped rather than guessed at.
             next if attribute.list?
+            # AN OPTIONAL ARGUMENT IS SOMETIMES NOT GIVEN, and that is an
+            # ordinary payload rather than a damaged one — see
+            # OPTIONAL_OMITTED_PROBABILITY for why this cannot live in
+            # `malform` below and what it was costing while it did not
+            # exist at all.
+            next if attribute.optional? && @random.rand < SequenceGenerator::OPTIONAL_OMITTED_PROBABILITY
 
             built[attribute.name.to_s] = ValueGenerator.value_for(attribute, aggregate, random: @random, known_ids: @known_ids)
           end
