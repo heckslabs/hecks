@@ -371,7 +371,6 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecksagain::Fuzzing::SequenceGenerator) and checks each one th... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
-| `bin/interview` | A live discovery session — one declaration at a time, the language's OWN refusals as the interview's feedback, rendered as an event-storm... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
 | `bin/merge_tail` | Tail-merge: the one deliberate command. It marks a business event — an old app retiring — never a shape change. One transaction: advance ... |
 | `bin/model_check` | STATIC ANALYSIS OVER THE IR — unreachable lifecycle states, transitions nothing can ever fire, saga states no handler chain reaches, a co... |
@@ -430,17 +429,16 @@ lib/hecksagain/
   query_specification/  a query's shape, held apart from any engine that answers it.
   projections/          IR as a capability — `emits_ir`, and its consumers (OIDC, the DSL reference, the parser table).
   forms/                IR → HTML, and a Rack app content-negotiating it against plain JSON.
-  interview/            a live discovery session against the language's own grammar — what `bin/interview` runs.
   fuzzing/              generated sequences, checked against declared properties — what `bin/fuzz` runs.
   doc/                  the generated DSL reference (`bin/reference`).
-  framework/            shared, domain-agnostic bluebooks (Governance, Identity, ConsoleSettings, Interview) — referenced, not copied.
+  framework/            shared, domain-agnostic bluebooks (Governance, Identity, ConsoleSettings) — referenced, not copied.
   deploy/               the Deploy bluebook — what `deployed_to` means, judged the same way as everything else.
 ```
 
 Nothing here is required by `require "hecksagain"` unless a booted domain
-actually uses it — `forms/`, `interview/`, and `fuzzing/` each stay
-out of the core boot chain on purpose, so a project that never touches one
-never pays for it.
+actually uses it — `forms/` and `fuzzing/` each stay out of the core
+boot chain on purpose, so a project that never touches one never pays
+for it.
 
 ## A single runtime
 

@@ -134,22 +134,24 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   # `belongs_to`, and `on`'s blockless form — the deliberately "big one"
   # per the plan.
   #
-  # "expression"/"translation" (Stage 3) and, now, "compliance"/
-  # "interview" (Stage 4) ALSO come out here, genuine bonuses neither
-  # stage set out to build: two concurrently-landed real corpus members
-  # (`examples/compliance/`, `lib/hecksagain/framework/bluebook/
-  # interview.bluebook`) that Stage 4's own real construction work
+  # "expression"/"translation" (Stage 3) and, now, "compliance"
+  # (Stage 4) ALSO come out here, a genuine bonus neither stage set out
+  # to build: a concurrently-landed real corpus member
+  # (`examples/compliance/`) that Stage 4's own real construction work
   # (entity/process_manager/read-model-options/provenance/nested-policy)
   # happened to fully cover, confirmed byte-exact against Ruby's own
   # `ir.json` before being moved here — the identical discipline every
   # other REAL_PARITY_MEMBERS entry gets. Leaving a member that
   # demonstrably round-trips marked "pending: not yet implemented" would
   # be exactly the kind of false claim this whole harness exists to make
-  # impossible, so they're promoted rather than left stale — this is also
-  # exactly the safety net working as designed: both showed up as
-  # spec FAILURES ("a PENDING member that no longer fails the way its own
+  # impossible, so it's promoted rather than left stale — this is also
+  # exactly the safety net working as designed: it showed up as a
+  # spec FAILURE ("a PENDING member that no longer fails the way its own
   # reason says it should") the moment this stage's real construction
-  # work made them stop failing, not a silent pass.
+  # work made it stop failing, not a silent pass. (A second concurrently-
+  # landed bonus member, "interview", was promoted here the same way at
+  # the time — the whole Interview domain has since been removed from
+  # this repo, taking that entry with it.)
   #
   # STAGE 5 removes EVERY `spec/fixtures/**/*.bluebook` member too — the
   # plan's own Stage 5 was narrowed (see this file's own history/the
@@ -179,7 +181,7 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
   # enclosing bracket at all — both genuinely new, both real corpus
   # syntax (vocabulary.bluebook's own long `RefusalTemplate` wording).
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
-                     %w[pizzas identity governance console_settings expression translation banking compliance interview bluebook_language] -
+                     %w[pizzas identity governance console_settings expression translation banking compliance bluebook_language] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -210,8 +212,7 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
     [stem, [chapter_name, [bluebook, hecksagon_in(domain)].compact]]
   }.merge(
-    # THE FRAMEWORK TRIO (Stage 3) PLUS "interview" (Stage 4's own
-    # bonus — see PENDING_MEMBERS' comment). A framework bluebook has no
+    # THE FRAMEWORK TRIO (Stage 3). A framework bluebook has no
     # `.hecksagon` of its own (confirmed by reading
     # lib/hecksagain/framework/bluebook/ directly): the comparison target
     # is `hecks-parse chapter --chapter <Name> <bluebook>` standing
@@ -221,7 +222,11 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     # `"Identity"` — real Stage 4 territory, and banking.hecksagon's own
     # sibling `Hecks.hecksagon "Governance"`/`"Identity"` blocks, a SEPARATE
     # finding `parse::chapter`'s own header explains).
-    %w[identity governance console_settings interview].to_h { |stem|
+    #
+    # "interview" (Stage 4's own bonus member, PARITY_FRAMEWORK_MEMBERS)
+    # was removed along with the whole Interview domain — dropped, not
+    # kept in this repo.
+    %w[identity governance console_settings].to_h { |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecksagain/framework/bluebook/#{stem}.bluebook"
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
