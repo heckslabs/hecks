@@ -146,10 +146,11 @@ declared alongside it and read in full there.)
 A creating command is a module method; a mutating command is a method on the
 record it references, and never mutates without being asked to justify
 itself first — `given` refuses before `then_set` ever runs, and `PizzaName`'s
-invariant refuses before either does, on the same booted domain from above:
+`pattern:` refuses before either does — ahead of `PizzaName`'s own
+"a pizza is named" invariant, on the same booted domain from above:
 
 ```ruby
-Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> InvariantViolation: a pizza is named
+Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
 Pizzas' own mutations either replace a field (`then_set :status, to: "sold"`,

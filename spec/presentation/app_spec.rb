@@ -73,8 +73,12 @@ RSpec.describe Hecksagain::Presentation::App do
       post "/Banking/Customer/Register.html", "reference.value" => "", "name.given" => "Ada",
                                                 "name.family" => "Lovelace", "email.address" => "ada@example.com"
       expect(last_response.status).to eq(422)
-      expect(last_response.body).to include("InvariantViolation")
-      expect(last_response.body).to include("customer reference is present")
+      # CustomerNumber carries a `pattern:` (the whitespace-only sweep) as
+      # well as its "a customer reference is present" invariant — attribute
+      # coercion runs before invariants, so a blank reference is refused as
+      # a TypeMismatch, not an InvariantViolation.
+      expect(last_response.body).to include("TypeMismatch")
+      expect(last_response.body).to include("CustomerNumber.value must match")
       # sticky — the value the caller actually typed survives the re-render
       expect(last_response.body).to include('value="Ada"')
     end
