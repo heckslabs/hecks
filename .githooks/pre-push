@@ -36,6 +36,31 @@ if ! (cd "$ROOT" && bundle exec parallel_rspec spec); then
   exit 1
 fi
 
+printf '\n[pre-push] adapter agreement — one declared query, every engine, same answer\n\n'
+
+# WHY THIS ONE io SPEC AND NOT THE REST. `io: true` is excluded from the
+# ordinary loop (spec_helper.rb) and included when CI=true — but that tag
+# also covers the Rust conformance build, the deploy-contract specs and
+# the build pipeline, which want a toolchain and real cloud resources and
+# have no business in a ~40s pre-push. This one is different on both
+# counts: it runs in about five seconds, and it DEGRADES rather than
+# skipping — PostgresProbe means Memory-vs-Sqlite agreement still runs,
+# and still means something, on a machine with no local Postgres.
+#
+# It earns the slot because of what it catches. Four query bugs have now
+# shipped where two engines answered the same declared query differently
+# — `ne:` with an empty string, array `in:`, `ne:` against a null field,
+# and `in` on a numeric field. Every one of them is invisible to a
+# self-consistent adapter spec: each engine looked fine alone. Catching
+# that on push to GitHub rather than before is catching it a day late.
+if ! (cd "$ROOT" && bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io); then
+  printf '\n[pre-push] BLOCKED — the engines disagree about a declared query.\n'
+  printf '           One of them is wrong; a self-consistent adapter spec\n'
+  printf '           cannot tell you which. Fix it, or push with --no-verify\n'
+  printf '           and say why.\n\n'
+  exit 1
+fi
+
 printf '\n[pre-push] model check — unreachable states, dead transitions, orphaned handlers\n\n'
 
 if ! "$ROOT/bin/model_check"; then
@@ -53,4 +78,4 @@ if ! "$ROOT/bin/doc_coverage"; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, model checks clean, every word exemplified.\n\n'
+printf '\n[pre-push] suite green, engines agree, model checks clean, every word exemplified.\n\n'
