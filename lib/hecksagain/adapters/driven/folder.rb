@@ -24,7 +24,22 @@ module Hecksagain
         load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
       end
 
-      def load_domain(directory) = load_each(directory, DOMAIN_ORDER)
+      # CHAPTERS FIRST, JUDGED ONCE, THEN EVERYTHING THAT READS THEM.
+      # A chapter may be split across files (the language's own grammar is
+      # nine), and judging file one before files two-through-nine exist
+      # refuses references that are perfectly well declared a file later —
+      # see MetaValidator.defer for the whole reasoning. DOMAIN_ORDER
+      # already places every `*.bluebook` ahead of hecksagons and worlds,
+      # so the window ends at the last chapter pattern rather than at a
+      # hand-written list this would otherwise have to keep in step.
+      def load_domain(directory)
+        boundary = DOMAIN_ORDER.rindex { |pattern| pattern.end_with?(".bluebook") }
+        return load_each(directory, DOMAIN_ORDER) unless boundary
+
+        Bluebook::MetaValidator.defer { load_each(directory, DOMAIN_ORDER[0..boundary]) }
+        Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
+        load_each(directory, DOMAIN_ORDER[(boundary + 1)..])
+      end
 
       def load_each(directory, patterns)
         return unless File.directory?(directory)

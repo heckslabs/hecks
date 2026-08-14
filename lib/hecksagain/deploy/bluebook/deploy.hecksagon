@@ -1,0 +1,4 @@
+# The Deploy domain, bound so it boots standing alone.
+Hecks.hecksagon "Deploy" do
+  persisted_by "Memory"
+end

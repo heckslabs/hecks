@@ -29,10 +29,38 @@ module Hecksagain
       def call(domain_path)
         Dir.mktmpdir("hecksagain-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
-          FileUtils.cp_r(domain_path, copy)
+          copy_dereferencing(domain_path, copy)
           FileUtils.rm_rf(File.join(copy, "data"))
           rebind_to_memory!(copy)
           yield copy
+        end
+      end
+
+      # SYMLINKS ARE FOLLOWED, NOT COPIED. `FileUtils.cp_r` reproduces a
+      # symlink AS a symlink, and a RELATIVE one then points at nothing
+      # from a tmpdir — `lib/hecksagain/framework/bluebook/compliance
+      # .bluebook` is exactly that, a link to
+      # `examples/compliance/bluebook/compliance.bluebook`, so the whole
+      # framework domain failed to boot here with a LoadError naming a
+      # path under /var/folders that had never existed. Nothing about the
+      # domain was wrong; the copy was.
+      #
+      # `FileUtils.cp` follows a symlink and copies its CONTENT, which is
+      # what an isolated boot wants: the copy has to stand alone, since
+      # rebind_to_memory! rewrites files in it and must not reach back
+      # through a link into the real tree.
+      def copy_dereferencing(source, destination)
+        FileUtils.mkdir_p(destination)
+        Dir.glob(File.join(source, "**", "*"), File::FNM_DOTMATCH).each do |path|
+          next if [".", ".."].include?(File.basename(path))
+
+          target = File.join(destination, path.delete_prefix("#{source}/"))
+          if File.directory?(path)
+            FileUtils.mkdir_p(target)
+          else
+            FileUtils.mkdir_p(File.dirname(target))
+            FileUtils.cp(path, target)
+          end
         end
       end
 

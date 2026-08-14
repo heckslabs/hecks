@@ -1,0 +1,15 @@
+# THE LANGUAGE IS A DOMAIN LIKE ANY OTHER, and this is the line that
+# says so. `lib/hecksagain/language/bluebook/` describes what a bluebook
+# IS — nine files, one chapter — and until MetaValidator.defer existed it
+# could not be booted the ordinary way at all: each file was judged
+# before its siblings had been read, so Aggregate's reference to Bluebook
+# dangled and the load refused. It boots now, which means it can also be
+# fuzzed, model-checked and inspected exactly like banking or pizzas.
+#
+# Memory because this chapter is read, never written to a store — nothing
+# dispatches a command against the language in production. A binding
+# still has to be DECLARED rather than defaulted, so that what answers is
+# a stated fact rather than whatever the runtime happened to fall back on.
+Hecks.hecksagon "Bluebook" do
+  persisted_by "Memory"
+end
