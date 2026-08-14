@@ -47,6 +47,25 @@ module Hecksagain
       # refused step reaches no new state and a sequence of them is SILENT.
       MALFORMED_ARGUMENT_PROBABILITY = 0.12
 
+      # HOW OFTEN AN OPTIONAL ARGUMENT IS SIMPLY NOT GIVEN — a fair coin,
+      # because that is exactly what `optional:` means: present or absent,
+      # both legal, neither the interesting case.
+      #
+      # This is NOT a malformation and must not be filed as one. `malform`
+      # drops an argument too, but a dropped REQUIRED argument is refused,
+      # a refusal writes no record, and bin/fuzz counts it SILENT — so the
+      # one outcome worth reaching (a stored record carrying a null, then
+      # QUERIED) was unreachable from that path by construction. Until
+      # this existed no generated history contained a null at all, which
+      # meant `query_answers_match_reference` — the differential that
+      # diffs every native adapter against the reference interpreter — had
+      # never once compared a nullable field. Four query bugs shipped in
+      # exactly that blind spot (`ne:` with an empty string, array `in:`,
+      # `ne:` against a null, `in` on a numeric field); the adapter
+      # agreement gate had the identical hole and found a fourth bug the
+      # hour it was closed.
+      OPTIONAL_OMITTED_PROBABILITY = 0.5
+
       # How strongly an unexercised verb is preferred over one this sequence has
       # already dispatched. Random picking revisits the same handful of verbs and
       # leaves whole commands untouched for a whole run — which is the same
