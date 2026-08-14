@@ -206,7 +206,50 @@ until ARGV.empty?
   end
 end
 
-domains = domain_arg ? [domain_arg] : Dir.glob("#{ROOT}/examples/*/") + [File.join(ROOT, "lib/hecksagain/grammar")]
+# EVERY DOMAIN IN THE PROJECT, not a hand-kept list. This used to be
+# `examples/*/` plus the grammar, and what that list left out mattered:
+# the generator can only produce a null by OMITTING AN OPTIONAL
+# ARGUMENT, and between them the example domains hold exactly ONE
+# non-list optional command attribute — measured, 2400 generated steps
+# produced zero nulls. `lib/hecksagain/framework` alone holds 29, and
+# the language's own chapters hold 96. A differential oracle only ever
+# sees what its corpus can express, which is the same lesson the
+# adapter-agreement gate taught this week by having no null in its
+# fixture at all.
+#
+# Discovered rather than listed, so a domain added anywhere is swept
+# without anyone remembering to add it here. The exclusions are all
+# "not a domain": build artifacts and their vendored copies, the Rust
+# parser's own fixtures, frozen era archives, translation files (which
+# are not chapters), and lib/hecksagain/forms/examples — a presentation
+# config that merely wears the .bluebook extension while actually
+# calling `Hecksagain::Forms.configure`.
+# `spec/fixtures/eras` and `spec/fixtures/model_check` are the two that
+# are NOT domains despite looking like directories full of them:
+# `eras/` holds a dozen deliberately CONFLICTING versions of one domain
+# (base.bluebook beside bump_identity, bump_cardinality, ...) for era
+# comparison, and loading them together means nothing and refuses;
+# `model_check/` holds domains broken ON PURPOSE so the model checker
+# has something to find. `spec/fixtures` itself stays in — those are
+# ordinary, separate, well-formed domains that merely share a folder.
+EXCLUDED_FROM_SWEEP = %r{
+  /\.aws-sam/ | ^rust/ | /data/eras/ | /translations/
+  | ^lib/hecksagain/forms/examples/
+  | ^spec/fixtures/(eras|model_check)/
+}x
+
+def sweepable_domains(root)
+  Dir.chdir(root) do
+    Dir.glob("**/*.bluebook")
+      .reject { |path| path.match?(EXCLUDED_FROM_SWEEP) }
+      .map { |path| File.dirname(path) }
+      .map { |dir| File.basename(dir) == "bluebook" ? File.dirname(dir) : dir }
+      .uniq.sort
+      .map { |dir| File.join(root, dir) }
+  end
+end
+
+domains = domain_arg ? [domain_arg] : sweepable_domains(ROOT)
 
 ok = domains.reduce(true) { |all_ok, domain| fuzz_domain(domain, seeds, steps) && all_ok }
 
