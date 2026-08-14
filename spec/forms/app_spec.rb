@@ -1,13 +1,13 @@
 require "spec_helper"
-require "hecksagain/presentation"
+require "hecksagain/forms"
 require "rack/test"
 require "json"
 
-RSpec.describe Hecksagain::Presentation::App do
+RSpec.describe Hecksagain::Forms::App do
   include Rack::Test::Methods
 
   BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
-  PRESENTATION_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecksagain/presentation/examples/banking_console.bluebook")
+  FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecksagain/forms/examples/banking_console.bluebook")
 
   # The same rebind spec/facade/handle_spec.rb already uses —
   # [[feedback_specs_prefer_memory_adapter]] — banking.hecksagon itself
@@ -21,14 +21,14 @@ RSpec.describe Hecksagain::Presentation::App do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(BANKING_BLUEBOOK)
-        Kernel.load(PRESENTATION_BLUEBOOK)
+        Kernel.load(FORMS_BLUEBOOK)
         Hecks.hecksagon("Banking") do
           ::Banking::Customer.persisted_by("Memory")
           ::Banking::Account.persisted_by("Memory")
         end
       end
       registry.verify!
-      Hecksagain::Presentation::App.for(registry: registry, presentation_name: "BankingConsole")
+      Hecksagain::Forms::App.for(registry: registry, app_name: "BankingConsole")
     end
   end
 
@@ -134,7 +134,7 @@ RSpec.describe Hecksagain::Presentation::App do
     end
   end
 
-  it "refuses a chapter this presentation does not expose" do
+  it "refuses a chapter this app does not expose" do
     get "/Deploy/Anything.html"
     expect(last_response.status).to eq(404)
   end

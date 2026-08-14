@@ -1,7 +1,7 @@
 module Hecksagain
-  module Presentation
+  module Forms
     # Hand-rolled, on purpose — the repo has no ERB anywhere and no template
-    # engine dependency (see docs/presentation-bluebook.md's survey). Every
+    # engine dependency (see docs/command-form-and-query-form-bluebook.md's survey). Every
     # other generator in this codebase (bin/reference's markdown, the IR's own
     # `to_h`) builds output as plain Ruby strings; this does the same for HTML,
     # with exactly one job: nothing that reaches `Escape.html` ever becomes a

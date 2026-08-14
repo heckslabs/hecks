@@ -1,5 +1,5 @@
 module Hecksagain
-  module Presentation
+  module Forms
     # THE VALUE-OBJECT CLASSIFICATION every consumer of a resolved VO
     # shape needs, spelled once — `field_shape.rb` (a command's own
     # form), `ui_schema.rb` (embryonaut_console's table/detail-panel

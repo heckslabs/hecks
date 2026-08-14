@@ -2,7 +2,7 @@ require_relative "../bluebook/attribute"
 require_relative "value_object_shape"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # One resolved field, ready for a renderer to turn into markup. A LEAF
     # scalar carries `kind`/`options`/etc; a `:group` or `:list` carries
     # `children` instead and nothing else on itself.
@@ -50,7 +50,7 @@ module Hecksagain
 
     # Attribute -> Field. The one mapping every renderer in this
     # directory reads instead of re-deriving its own — see
-    # docs/presentation-bluebook.md's survey of the gap this closes (the
+    # docs/command-form-and-query-form-bluebook.md's survey of the gap this closes (the
     # prior generic-console attempt fell back to `type="text"` for anything
     # that wasn't a number or an enum; a `pattern` naming an email shape, or a
     # closed set another aggregate declares, went unread).

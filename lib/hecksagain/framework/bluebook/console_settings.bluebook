@@ -14,12 +14,13 @@ Hecks.bluebook "ConsoleSettings" do
   # framework member already uses, rather than this being the one
   # exception with its own private boot path.
   #
-  # NOT named "Presentation" — Hecksagain::Presentation (lib/hecksagain/
-  # presentation/) already names a different, real thing: a dormant
-  # prototype that renders raw forms/query views straight off any IR, zero
-  # config. This chapter is the opposite kind of surface — a CURATED,
-  # hand-authored dashboard's own settings — and picks a name that doesn't
-  # read as the same one.
+  # NOT named "Forms" — Hecksagain::Forms (lib/hecksagain/forms/) already
+  # names a different, real thing: a dormant prototype (the working half
+  # of command_form.bluebook/query_form.bluebook, see docs/command-form-
+  # and-query-form-bluebook.md) that renders raw forms/query views
+  # straight off any IR, zero config. This chapter is the opposite kind
+  # of surface — a CURATED, hand-authored dashboard's own settings — and
+  # picks a name that doesn't read as the same one.
   #
   # SCOPE: everything presentation.yml carries EXCEPT a collection's own
   # `after_create` (a dispatch chain with a literal-or-$field-or-
