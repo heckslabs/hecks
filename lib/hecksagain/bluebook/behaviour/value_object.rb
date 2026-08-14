@@ -19,7 +19,7 @@ module Hecksagain
         # CustomerNumber{value}) is a NAME for a scalar, not a genuine
         # group — [[feedback_name_the_scalar_field]]. Four call sites
         # already inline this exact check (`attributes.size == 1` /
-        # `attributes.first`) — `presentation/field_shape.rb` (twice),
+        # `attributes.first`) — `forms/field_shape.rb` (twice),
         # `adapters/driven/sql_query_builder.rb`,
         # `fuzzing/invalid_value_generator.rb` — kept as-is for now
         # (not migrated to this reader), but any NEW caller should

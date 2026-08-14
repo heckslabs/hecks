@@ -13,23 +13,23 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
                skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
   POSTGRES_ADAPTER = InMemoryDomain::POSTGRES_ADAPTER
-  SPEC_DB = "hecksagain_saga_durability_spec".freeze
+  SAGA_DURABILITY_SPEC_DB = "hecksagain_saga_durability_spec".freeze
 
   before(:all) do
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{SPEC_DB}")
+    admin.exec("DROP DATABASE IF EXISTS #{SAGA_DURABILITY_SPEC_DB} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{SAGA_DURABILITY_SPEC_DB}")
     admin.close
   end
 
   after(:all) do
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{SAGA_DURABILITY_SPEC_DB} WITH (FORCE)")
     admin.close
   end
 
   before do
-    scrub = PG.connect(dbname: SPEC_DB)
+    scrub = PG.connect(dbname: SAGA_DURABILITY_SPEC_DB)
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
@@ -46,7 +46,7 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
       Hecks.hecksagon("Wire") { persisted_by "Postgres" }
-      Hecks.world("Wire") { persisted_by("Postgres") { database(SPEC_DB) } }
+      Hecks.world("Wire") { persisted_by("Postgres") { database(SAGA_DURABILITY_SPEC_DB) } }
     end
 
     registry.verify!

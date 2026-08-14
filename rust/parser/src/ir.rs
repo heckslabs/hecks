@@ -313,6 +313,22 @@ pub struct Policy {
     pub on_event: Option<String>,
     pub trigger_command: Option<String>,
     pub target_domain: Option<String>,
+    // `where`/`for_each` — new language surface (conditional policy
+    // dispatch + fan-out; `PolicyBuilder#where`/`#for_each`,
+    // `lib/hecksagain/bluebook/dsl/policy_builder.rb`). Named
+    // `where_clause`/`for_each_query` in Rust (`where` is a reserved
+    // word, and `for_each` collides with nothing but is renamed to match)
+    // — `emit.rs::policy_json` still spells the JSON keys `where`/
+    // `for_each`, which is the only shape that has to match Ruby's own
+    // wire format. `parse::policy::parse_body` does not build either yet
+    // (Stage 1 "not yet implemented", same as every other pair
+    // `spec/parser_coverage_spec.rb::PENDING_PAIRS` names) — both fields
+    // stay `None`/`null` for every real corpus member this parser
+    // already parses, which is what keeps `spec/parser_parity_spec.rb`'s
+    // byte-exact comparisons passing for `pizzas`/`banking`/`reflex`/
+    // etc. without building real `where`/`for_each` parsing.
+    pub where_clause: Option<String>,
+    pub for_each_query: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

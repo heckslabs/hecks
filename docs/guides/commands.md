@@ -383,12 +383,17 @@ ride along in silence:
 account.credit(amount: { cents: 100 }, narrative: { text: "x" }, memo: "nope")  # ~> UnknownArgument: Credit does not declare memo
 ```
 
-A value object's own invariant travels with it into every command that
+A value object's own rules travel with it into every command that
 carries one, checked the moment the argument is coerced — before
-`Open`'s given, before its identity is even looked up:
+`Open`'s given, before its identity is even looked up. A `pattern:` a
+value object declares is checked first, ahead of any hand-written
+`invariant` on the same field — `AccountNumber` carries both a
+`pattern:` (non-whitespace-somewhere) and a presence invariant, so a
+blank number is refused as a `TypeMismatch`, not the more specific
+`InvariantViolation` its own invariant would otherwise raise:
 
 ```ruby
-Banking::Account.open(customer_id: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> InvariantViolation: AccountNumber invariant violated — an account number is present
+Banking::Account.open(customer_id: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: AccountNumber.value must match [^ \t\n\r], got ""
 ```
 
 A value object arrives as its fields, plainly — `{ name: "current" }`,

@@ -3,7 +3,7 @@ require_relative "field_shape"
 require_relative "record_table"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # The two pages a `.bluebook` doesn't declare but a browsing developer
     # always wants: every record of an aggregate, and one record's own
     # state plus what it can legally do next. Neither is a `query` — they

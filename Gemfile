@@ -19,11 +19,11 @@ gem "google-id-token", "~> 1.4"
 # should never need this installed.
 gem "aws-sdk-lambda", "~> 1.0"
 
-# For lib/hecksagain/presentation/app.rb — lazily required there, same
+# For lib/hecksagain/forms/app.rb — lazily required there, same
 # reasoning as the adapters above: a domain that never boots the
-# presentation surface should never need a Rack implementation
+# forms surface should never need a Rack implementation
 # installed. rackup/webrick supply `bin/present`'s own dev server;
-# neither is a runtime dependency of the presentation app itself,
+# neither is a runtime dependency of the forms app itself,
 # which only needs `Rack::Request`/`Rack::Response` and is handed to
 # whatever server the embedding project already runs.
 gem "rack", "~> 3.0"

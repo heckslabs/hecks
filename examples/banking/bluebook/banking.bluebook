@@ -95,18 +95,18 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :standing,  CustomerStanding
 
     value_object "CustomerNumber" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a customer reference is present") { !value.to_s.empty? }
     end
 
     value_object "CustomerStanding" do
-      attribute :value, String, default: "good"
+      attribute :value, String, default: "good", pattern: '[^ \t\n\r]'
       invariant("a standing is named") { !value.to_s.empty? }
     end
 
     value_object "PersonName" do
-      attribute :given,  String
-      attribute :family, String
+      attribute :given,  String, pattern: '[^ \t\n\r]'
+      attribute :family, String, pattern: '[^ \t\n\r]'
 
       invariant("a given name is present")  { !given.to_s.empty? }
       invariant("a family name is present") { !family.to_s.empty? }
@@ -212,7 +212,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :interest_cents, Money
 
     value_object "AccountNumber" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an account number is present") { !value.to_s.empty? }
     end
 
@@ -261,7 +261,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "Narrative" do
-      attribute :text, String
+      attribute :text, String, pattern: '[^ \t\n\r]'
 
       invariant("a movement explains itself") { !text.to_s.empty? }
     end
@@ -513,7 +513,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :withdrawals, list_of(Withdrawal)
 
     value_object "CardSerial" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a card serial is present") { !value.to_s.empty? }
     end
 
@@ -537,7 +537,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "Narrative" do
-      attribute :text, String
+      attribute :text, String, pattern: '[^ \t\n\r]'
 
       invariant("a withdrawal explains itself") { !text.to_s.empty? }
     end
@@ -655,7 +655,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :amount,    TransferMoney
 
     value_object "TransferReference" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a transfer is referenced") { !value.to_s.empty? }
     end
     attribute :narrative, Narrative
@@ -666,7 +666,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "Narrative" do
-      attribute :text, String
+      attribute :text, String, pattern: '[^ \t\n\r]'
 
       invariant("a transfer explains itself") { !text.to_s.empty? }
     end
@@ -761,7 +761,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :amount,   PaymentAmount
 
     value_object "AuthorisationCode" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
     end
     attribute :merchant, MerchantName
 
@@ -771,7 +771,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "MerchantName" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a merchant name is present") { !value.to_s.empty? }
     end
 
@@ -782,7 +782,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :tags, list_of(Tag)
 
     value_object "Tag" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a tag is not the empty string") { !value.to_s.empty? }
     end
 
@@ -892,7 +892,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :direction,   MovementDirection, admits: "Account::LedgerDirection"
 
     value_object "EndToEndReference" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
     end
 
     # A plain text holder. The VALUES it may carry are Account's business, which
@@ -908,7 +908,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "BeneficiaryName" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a beneficiary name is present") { !value.to_s.empty? }
     end
 
@@ -966,7 +966,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :max_attempts, RetryLimit
 
     value_object "InstructionReference" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
     end
 
     value_object "ScheduledAmount" do
@@ -975,12 +975,12 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "PaymentRecipient" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a payment recipient is present") { !value.to_s.empty? }
     end
 
     value_object "PaymentDueDate" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a payment due date is present") { !value.to_s.empty? }
     end
 
@@ -1112,7 +1112,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :keys,   list_of(KeyIssuance)
 
     value_object "BranchCode" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a branch is coded") { !value.to_s.empty? }
     end
 
@@ -1127,7 +1127,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "VisitDate" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a visit names its date") { !value.to_s.empty? }
     end
 
@@ -1136,7 +1136,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "KeySerial" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a key is serialed") { !value.to_s.empty? }
     end
 
@@ -1296,12 +1296,12 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :account_number, AccountNumber
 
     value_object "OnboardingReference" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an onboarding case is referenced") { !value.to_s.empty? }
     end
 
     value_object "AccountNumber" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("an account number is present") { !value.to_s.empty? }
     end
 
@@ -1375,7 +1375,7 @@ Hecks.bluebook "Banking", version: "v1" do
     attribute :frequency,       StatementFrequency
 
     value_object "StatementPeriod" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a statement names its period") { !value.to_s.empty? }
     end
 
@@ -1384,7 +1384,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "StatementDate" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a statement is dated") { !value.to_s.empty? }
     end
 

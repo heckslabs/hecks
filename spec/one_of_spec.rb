@@ -44,19 +44,28 @@ RSpec.describe "one_of" do
 
   # This used to reach the door through EmailAddress, whose rule was the
   # hand-rolled invariant `address.include?("@")`. That rule is a declared
-  # `pattern:` now, so the example moved to a value object that still HAS an
-  # invariant — otherwise the test would have kept its name and quietly stopped
-  # testing invariants at all.
+  # `pattern:` now, so the example moved to CustomerNumber, a value object
+  # that still HAD an invariant with nothing else guarding it — otherwise
+  # the test would have kept its name and quietly stopped testing
+  # invariants at all.
+  #
+  # CustomerNumber has since gained a `pattern:` of its own (the
+  # whitespace-only sweep — banking's own value objects, alongside
+  # shape.bluebook's), so a blank reference is refused as a TypeMismatch
+  # now, before CustomerNumber's invariant is ever reached — the identical
+  # shift EmailAddress went through. DailyLimit is an Integer field with
+  # no pattern to shadow it (patterns only ever apply to String), so its
+  # own invariant is genuinely still what fires here.
   it "judges an object payload's invariants at the same door" do
     runtime = boot_banking
 
     expect do
-      runtime.dispatch("Banking::Customer.Register",
-                       reference: { value: "" },
-                       name: { given: "No", family: "Reference" },
-                       email: { address: "no@reference.com" })
+      runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a1" },
+                                                kind: { name: "current" }, daily_limit: { cents: -1 })
     end.to raise_error(Hecksagain::Runtime::InvariantViolation,
-                       'CustomerNumber invariant violated — a customer reference is present (given {"value":""})')
+                       'DailyLimit invariant violated — a daily limit is non-negative (given {"cents":-1})')
   end
 
   it "judges an object payload's patterns at the same door" do

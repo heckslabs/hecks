@@ -9,7 +9,7 @@
     "refusals": [
       {
         "verb": "Banking::Account.Credit",
-        "includes": "a movement explains itself"
+        "includes": "Narrative.text must match"
       },
       {
         "verb": "Banking::Account.LedgerEntry.Amend",

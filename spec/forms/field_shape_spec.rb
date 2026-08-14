@@ -1,7 +1,7 @@
 require "spec_helper"
-require "hecksagain/presentation/field_shape"
+require "hecksagain/forms/field_shape"
 
-RSpec.describe Hecksagain::Presentation::FieldShape do
+RSpec.describe Hecksagain::Forms::FieldShape do
   BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
 
   # No persistence adapter, no hecksagon, no verify! — a Field is derived
@@ -78,7 +78,7 @@ RSpec.describe Hecksagain::Presentation::FieldShape do
   end
 
   it "humanizes a dotted path by its last segment, and an underscored name by all its words" do
-    expect(Hecksagain::Presentation::Humanize.label("daily_limit")).to eq("Daily limit")
-    expect(Hecksagain::Presentation::Humanize.label("amount.cents")).to eq("Cents")
+    expect(Hecksagain::Forms::Humanize.label("daily_limit")).to eq("Daily limit")
+    expect(Hecksagain::Forms::Humanize.label("amount.cents")).to eq("Cents")
   end
 end

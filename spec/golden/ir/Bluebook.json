@@ -4871,6 +4871,24 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "where",
+          "optional": true,
+          "pattern": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "for_each",
+          "optional": true,
+          "pattern": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "position",
           "optional": false,
           "pattern": null,
@@ -4930,6 +4948,24 @@
               "default": null,
               "list": false,
               "name": "target_domain",
+              "optional": true,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "where",
+              "optional": true,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "for_each",
               "optional": true,
               "pattern": null,
               "type": "PolicyText"
@@ -9376,6 +9412,58 @@
               [
                 "fills",
                 "target_domain"
+              ]
+            ],
+            [
+              [
+                "word",
+                "where"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "where"
+              ]
+            ],
+            [
+              [
+                "word",
+                "for_each"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "for_each"
               ]
             ],
             [
@@ -13862,6 +13950,36 @@
               [
                 "fills",
                 "target_domain"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "for_each"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "for_each"
               ]
             ],
             [

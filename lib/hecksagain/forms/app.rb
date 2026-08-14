@@ -4,28 +4,29 @@ require_relative "page"
 require_relative "field_shape"
 require_relative "index_renderer"
 require_relative "record_renderer"
-require_relative "form_renderer"
-require_relative "query_renderer"
+require_relative "command_form_renderer"
+require_relative "query_form_renderer"
 require_relative "params"
 
 module Hecksagain
-  module Presentation
+  module Forms
     # The content-negotiated router: `GET /Banking/Account/Overdrawn.html`
     # renders the query view built in this directory; the identical path
     # with no extension (or `.json`) dispatches the SAME ask through
     # `Runtime::Dispatcher#query` and answers with its raw result — one
     # route, two representations, exactly the "change the file format on
-    # the route" mechanism this was built around (docs/presentation-bluebook.md).
+    # the route" mechanism this was built around
+    # (docs/command-form-and-query-form-bluebook.md).
     #
     # A plain Rack app (`#call(env)`) — no Sinatra, no Rails. `rack` itself
     # is a LAZY dependency the same way `pg`/`oauth2`/`aws-sdk-lambda` are
     # for their own adapters (see the Gemfile's own comment) : a project
     # that never boots this file never needs it installed.
     class App
-      def self.for(registry:, presentation_name:)
-        config = Presentation.config(presentation_name) ||
-                 raise(ArgumentError, "no presentation #{presentation_name.inspect} configured — " \
-                                       "call Hecksagain::Presentation.configure(#{presentation_name.inspect}) { expose \"...\" } first")
+      def self.for(registry:, app_name:)
+        config = Forms.config(app_name) ||
+                 raise(ArgumentError, "no app #{app_name.inspect} configured — " \
+                                       "call Hecksagain::Forms.configure(#{app_name.inspect}) { expose \"...\" } first")
         new(registry: registry, exposed: config.exposes)
       end
 
@@ -64,7 +65,7 @@ module Hecksagain
       def refuse_unexposed(domain)
         return if @exposed.include?(domain)
 
-        raise RouteNotFound, "#{domain.inspect} is not exposed by this presentation — declared chapters: #{@exposed.join(', ')}"
+        raise RouteNotFound, "#{domain.inspect} is not exposed by this app — declared chapters: #{@exposed.join(', ')}"
       end
 
       def split_format(segment)
@@ -130,15 +131,15 @@ module Hecksagain
 
       def command_form(domain, aggregate, command, action, status: 200, values: nil, error: nil, prefill: {})
         html("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}",
-             FormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, command: command,
-                                  action: action, values: values, error: error, prefill: prefill),
+             CommandFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, command: command,
+                                         action: action, values: values, error: error, prefill: prefill),
              breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [command.hecks_name, nil]],
              status: status)
       end
 
       def submit_command(request, domain, aggregate, command, action)
         raw = request.POST
-        fields = FormRenderer.fields_for(aggregate, command)
+        fields = CommandFormRenderer.fields_for(aggregate, command)
         args = Params.extract(fields, raw)
         result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **args)
         redirect("/#{domain}/#{aggregate.hecks_name}/#{result.id}.html")
@@ -152,7 +153,7 @@ module Hecksagain
         return respond(405, "text/plain", "GET or POST only") unless request.post?
 
         raw = request.POST
-        fields = FormRenderer.fields_for(aggregate, command)
+        fields = CommandFormRenderer.fields_for(aggregate, command)
         args = Params.extract(fields, raw)
         result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **args)
         # id LAST — same reasoning as the other JSON-serializing call
@@ -178,8 +179,8 @@ module Hecksagain
         fields = query.attributes.map { |a| FieldShape.resolve(a, aggregate: aggregate) }
         results, error = asked.empty? ? [nil, nil] : run_query(domain, aggregate, query, fields, asked)
         html("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}",
-             QueryRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, query: query,
-                                   action: action, params: asked, results: results, error: error),
+             QueryFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, query: query,
+                                       action: action, params: asked, results: results, error: error),
              breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [query.hecks_name, nil]],
              status: error ? 422 : 200)
       end

@@ -13,7 +13,7 @@ survives regeneration.
 - [ValueObject](value_object.md) — 3 words
 - [OneOf](one_of.md) — 1 word
 - [Lifecycle](lifecycle.md) — 1 word
-- [Policy](policy.md) — 3 words
+- [Policy](policy.md) — 5 words
 - [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
 - [Query](query.md) — 14 words

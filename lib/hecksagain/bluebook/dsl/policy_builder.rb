@@ -12,12 +12,48 @@ module Hecksagain
 
         def across(domain_name) = @target_domain = domain_name.to_s
 
+        # THE GUARD — same extraction CommandBuilder#given/#ensures already
+        # use (Ports::Extraction reads the block's SOURCE ; the block itself
+        # is never called, here or at runtime — Runtime::PolicyInterpreter
+        # evaluates the extracted text through the same
+        # Bluebook::Expression::Evaluator a command's own given/ensures run
+        # through). No description argument the way given/ensures each
+        # carry one : a given's description becomes a GivenNotMet message,
+        # and a where that does not hold refuses nothing — it just means
+        # this policy does not apply to this event, exactly like an
+        # `event_qualifier` miss, which carries no message either.
+        #
+        # Evaluated against the triggering EVENT's OWN PAYLOAD, not a
+        # stored record — a policy reacts to what just happened, and has no
+        # aggregate instance of its own to read state from.
+        def where(&predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s where did not survive extraction — its source " \
+                  "could not be read, so no other runtime could ever evaluate it"
+          end
+
+          @where = canonical
+        end
+
+        # THE FAN-OUT SOURCE — a query verb, "Aggregate.query_name" or
+        # "Domain::Aggregate.query_name", the same qualified-or-not shape a
+        # saga's own `dispatch` command name already takes
+        # (SagaInterpreter#qualified). Runtime::PolicyInterpreter runs the
+        # named query against the triggering event's own payload and fires
+        # `trigger` once per row, instead of once for the event.
+        def for_each(verb) = @for_each = verb.to_s
+
         def build
           Policy.new(
             name:            @name,
             on_event:        @on_event,
             trigger_command: @trigger_command,
-            target_domain:   @target_domain
+            target_domain:   @target_domain,
+            where:           @where,
+            for_each:        @for_each
           )
         end
 
