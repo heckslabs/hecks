@@ -36,11 +36,20 @@ module Hecksagain
           construct: "Policy",
           file:      "policy.rb",
           behaviour: "Behaviour::Policy",
-          readers:   %i[name on_event trigger_command target_domain where for_each],
+          readers:   %i[name on_event trigger_command target_domain where for_each with_spec],
           accessors: %i[aggregate],
           defaults:  { name: nil, on_event: "nil", trigger_command: "nil",
-                       target_domain: "nil", where: "nil", for_each: "nil", aggregate: "nil" },
+                       target_domain: "nil", where: "nil", for_each: "nil",
+                       with_spec: "[]", aggregate: "nil" },
           coerce:    { name: ".to_s", aggregate: "&.to_s" },
+          # A LIST OF BINDINGS IS NOT A SCALAR ON THE WIRE. Every other
+          # field emits as itself; this one has to render the way
+          # `DispatchSpec`'s own `with_spec` does — keys to strings, and
+          # `render_value` KEEPING the leading colon on a Symbol, because
+          # a binding that reads an event field and one that supplies a
+          # literal string are otherwise indistinguishable once written
+          # down (see `MetaValidator::Readings`' own note on exactly that).
+          renders:   { with_spec: "-> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } }" },
           settles:   false
         }
       }.freeze
@@ -78,11 +87,12 @@ module Hecksagain
       # The emission, keyed as the model spells it and sourced as the
       # language declares it.
       def emits(bluebook, name)
-        fields = emitted_fields(bluebook, name)
-        width  = fields.map { |f| f.to_s.length }.max.to_i
+        fields  = emitted_fields(bluebook, name)
+        renders = HOST.fetch(name).fetch(:renders, {})
+        width   = fields.map { |f| f.to_s.length }.max.to_i
 
         "emits_ir(\n" +
-          fields.map { |f| "  #{"#{f}:".ljust(width + 1)} :#{f}" }.join(",\n") +
+          fields.map { |f| "  #{"#{f}:".ljust(width + 1)} #{renders.fetch(f, ":#{f}")}" }.join(",\n") +
           "\n)"
       end
 

@@ -8,7 +8,23 @@ module Hecksagain
 
         def on(event_name) = @on_event = event_name.to_s
 
-        def trigger(command_name) = @trigger_command = command_name.to_s
+        # `with:` — WHAT THE TRIGGER IS GIVEN, when the event's own shape
+        # is not it. Omitted, the whole event payload forwards verbatim,
+        # which is what every policy did before this existed.
+        #
+        # Same `key => value` shape a saga's own `dispatch ..., with:`
+        # takes, and read the same way at runtime: a Symbol names a field
+        # on the triggering event, anything else is a literal the policy
+        # supplies itself. The reason it exists is the reason a saga's
+        # does — a reaction crosses an aggregate boundary, and the event
+        # on one side is under no obligation to be shaped like the
+        # command on the other. Without it the target has to DECLARE
+        # every field the event happens to carry, whether it reads them
+        # or not.
+        def trigger(command_name, with: nil)
+          @trigger_command = command_name.to_s
+          @with_spec = (with || {}).to_a
+        end
 
         def across(domain_name) = @target_domain = domain_name.to_s
 
@@ -53,7 +69,8 @@ module Hecksagain
             trigger_command: @trigger_command,
             target_domain:   @target_domain,
             where:           @where,
-            for_each:        @for_each
+            for_each:        @for_each,
+            with_spec:       @with_spec || []
           )
         end
 

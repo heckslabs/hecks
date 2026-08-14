@@ -15,7 +15,7 @@
 # may have several (one row per position, one per named kwarg), so an
 # argument is addressed by --keyword/--context plus --at or --named:
 #
-#   bin/evolve argument-propose <keyword> --context X --kind K [--at N] [--named NAME] [--required true|false] [--fills F]
+#   bin/evolve argument-propose <keyword> --context X --kind K [--at N] [--named NAME] [--required true|false] [--fills F] [--pairs-shape verbatim]
 #   bin/evolve argument-admit|argument-deprecate|argument-retire <keyword> --context X [--at N] [--named NAME]
 #
 # Every mutating command does the same dance: snapshot the touched
@@ -120,7 +120,7 @@ when "argument-propose"
     Evolve.propose_argument(keyword: keyword, context: context, kind: kind,
                             required: option("required", "false"),
                             at: option("at", ""), named: option("named", ""),
-                            fills: option("fills", ""))
+                            fills: option("fills", ""), pairs_shape: option("pairs-shape"))
   end
   if ok
     puts "Proposed. It reaches no projection until admitted. Before `bin/evolve argument-admit`:"

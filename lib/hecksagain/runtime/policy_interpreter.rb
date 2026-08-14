@@ -2,6 +2,7 @@ require_relative "../naming"
 require_relative "errors"
 require_relative "query_interpreter"
 require_relative "refusal_wording"
+require_relative "value"
 require_relative "../bluebook/expression/evaluator"
 
 
@@ -79,7 +80,7 @@ module Hecksagain
                               reason: "reaction depth #{@door.max_reaction_depth} reached")
         end
 
-        @door.reenter(target, **event.payload.transform_keys(&:to_sym))
+        @door.reenter(target, **trigger_args(policy, event))
         record.merge(delivered: true)
       rescue *DOMAIN_REFUSALS => error
         # The target refused — a fact about the domain, recorded and not
@@ -136,12 +137,19 @@ module Hecksagain
 
         query_domain, aggregate_name, query_name = for_each_route(policy, domain)
         aggregate = resolve_query_aggregate(query_domain, aggregate_name, policy.for_each)
-        payload   = event.payload.transform_keys(&:to_sym)
-        rows      = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, payload)
+        # THE QUERY reads the EVENT, not the projection — `with:` says
+        # what the TRIGGER is given, and a fan-out's query is asking a
+        # different question (which rows) with the event's own vocabulary.
+        # THE QUERY reads the EVENT, never the projection — `with:` says
+        # what the TRIGGER is given, and the fan-out's query is asking a
+        # different question (WHICH rows) in the event's own vocabulary.
+        query_args    = event.payload.transform_keys(&:to_sym)
+        rows          = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, query_args)
         reference_key = reference_key_for("#{query_domain}::#{aggregate_name}", target)
 
         Array(rows).map do |row|
-          deliver_for_each_row(target, record, payload, reference_key, row)
+          args = trigger_args(policy, event, reference_key => row[:id])
+          deliver_for_each_row(target, record, args, row)
         end
       rescue *DOMAIN_REFUSALS => error
         record.merge(delivered: false, reason: error.message)
@@ -151,7 +159,7 @@ module Hecksagain
         record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
       end
 
-      def deliver_for_each_row(target, record, payload, reference_key, row)
+      def deliver_for_each_row(target, record, args, row)
         row_record = record.merge(for_row: row[:id])
 
         if @door.reaction_depth_reached?
@@ -159,7 +167,10 @@ module Hecksagain
                                   reason: "reaction depth #{@door.max_reaction_depth} reached")
         end
 
-        @door.reenter(target, **payload.merge(reference_key => row[:id]))
+        # ALREADY MERGED, by `trigger_args` — the row key has to be in the
+        # source a `with:` projection reads from, not bolted on after it,
+        # or a projection could never name the row it acts on.
+        @door.reenter(target, **args)
         row_record.merge(delivered: true)
       rescue *DOMAIN_REFUSALS => error
         row_record.merge(delivered: false, reason: error.message)
@@ -213,6 +224,39 @@ module Hecksagain
       # `for_row:` each. Only the name they arrived under was wrong, so it
       # failed as a per-row refusal in the reaction log rather than
       # anywhere a caller would see it.
+      # WHAT THE TRIGGER IS GIVEN. Undeclared, the event's whole payload
+      # forwards verbatim — the behaviour every policy had before the
+      # word existed, and still the right default for a trigger shaped
+      # like its event.
+      #
+      # Declared, it is the same reading a saga's own `dispatch ...,
+      # with:` gets (`SagaInterpreter#dispatch_args`): a Symbol names a
+      # field on the SOURCE below, anything else is a literal the policy
+      # supplies itself. A saga additionally resolves against its own
+      # memory and correlation key; a policy has neither — it holds
+      # nothing between events — so the source is the event, plus:
+      #
+      # `extra` is a FAN-OUT'S ROW KEY, merged into the source BEFORE the
+      # projection rather than after it. That is what lets a `for_each`
+      # policy name the row it is acting on — `with: { account: :account }`
+      # — and therefore what lets one send the row and NOTHING ELSE. A
+      # trigger that needs only which record to act on is the ordinary
+      # case for a fan-out, and before this it could not be written: the
+      # whole event rode along, and the target had to declare every field
+      # of it whether it read them or not.
+      def trigger_args(policy, event, extra = {})
+        payload = event.payload.transform_keys(&:to_sym).merge(extra)
+        return payload if policy.with_spec.to_a.empty?
+
+        policy.with_spec.to_h do |key, value|
+          resolved = value.is_a?(Symbol) ? payload[value] : value
+          # Carried as STATE, not as the emitting aggregate's own runtime
+          # type — the same reason a saga materialises: two aggregates may
+          # share a value object's fields without sharing the class.
+          [key.to_sym, Value.materialize(resolved)]
+        end
+      end
+
       def reference_key_for(aggregate_fqn, target)
         key = Naming.reference_key(aggregate_fqn)
         acts_on_rows?(aggregate_fqn, target) ? key : :"#{key}_id"

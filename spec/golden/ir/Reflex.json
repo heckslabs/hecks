@@ -442,7 +442,10 @@
       "on_event": "Flipped",
       "target_domain": null,
       "trigger_command": "Light.Log",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     },
     {
       "for_each": null,
@@ -450,7 +453,10 @@
       "on_event": "Rang",
       "target_domain": null,
       "trigger_command": "Echo.Ring",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     },
     {
       "for_each": null,
@@ -458,7 +464,10 @@
       "on_event": "Raised",
       "target_domain": "Notifications",
       "trigger_command": "Notifications.Send",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     }
   ],
   "process_managers": [

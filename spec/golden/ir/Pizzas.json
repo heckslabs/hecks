@@ -530,7 +530,10 @@
       "on_event": "PizzaPaymentReceived",
       "target_domain": null,
       "trigger_command": "Order.Purchase",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     }
   ],
   "process_managers": [

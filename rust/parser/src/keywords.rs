@@ -342,6 +342,7 @@ pub static ARGUMENTS: &[ArgumentRow] = &[
     ArgumentRow { keyword: "refuses", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "", variadic: "" },
     ArgumentRow { keyword: "realm", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "", variadic: "" },
     ArgumentRow { keyword: "latest", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "", variadic: "" },
+    ArgumentRow { keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "", variadic: "" },
 ];
 
 pub static CONTEXTS: &[&str] = &[

@@ -38,7 +38,16 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
 
         match gated.row.word {
             "on" => policy.on_event = Some(super::positional_text(file, gated.line.number, "on", &gated.args, 1)?),
-            "trigger" => policy.trigger_command = Some(super::positional_text(file, gated.line.number, "trigger", &gated.args, 1)?),
+            "trigger" => {
+                policy.trigger_command =
+                    Some(super::positional_text(file, gated.line.number, "trigger", &gated.args, 1)?);
+                // STAGE 4: `trigger`'s own `with:` — the projection
+                // between an event's shape and its trigger's. Read by
+                // the SAME parser `dispatch`'s own `with:` uses; the two
+                // are the same word in two places, and reading them two
+                // ways is how they would drift.
+                policy.with_spec = super::process_manager::parse_with_pairs_opt(&gated.args);
+            }
             "across" => policy.target_domain = Some(super::positional_text(file, gated.line.number, "across", &gated.args, 1)?),
             // STAGE 4: `for_each` (fan-out — one `trigger` per row a
             // declared query answers) — newly real: banking.bluebook's

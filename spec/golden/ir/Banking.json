@@ -724,15 +724,7 @@
         },
         {
           "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "standing",
-              "optional": true,
-              "pattern": null,
-              "type": "CustomerStanding"
-            }
+
           ],
           "emits": [
             "AccountFrozen"
@@ -1533,30 +1525,6 @@
 
           ],
           "name": "AccountNumber"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": "good",
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a standing is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "CustomerStanding"
         },
         {
           "attributes": [
@@ -5742,7 +5710,10 @@
       "on_event": "Account.AccountFrozen",
       "target_domain": "Compliance",
       "trigger_command": "AccountFreezeReview.Open",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     },
     {
       "for_each": null,
@@ -5750,7 +5721,10 @@
       "on_event": "ScheduledPayment.ScheduledPaymentFailed",
       "target_domain": null,
       "trigger_command": "ScheduledPayment.Retry",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     },
     {
       "for_each": "Account.OpenForCustomerReference",
@@ -5758,7 +5732,13 @@
       "on_event": "CustomerSuspended",
       "target_domain": null,
       "trigger_command": "Account.FreezeAccount",
-      "where": null
+      "where": null,
+      "with_spec": [
+        [
+          "account",
+          ":account"
+        ]
+      ]
     },
     {
       "for_each": null,
@@ -5766,7 +5746,10 @@
       "on_event": "AccountClosed",
       "target_domain": "Notifications",
       "trigger_command": "Notifications.Send",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     },
     {
       "for_each": null,
@@ -5774,7 +5757,10 @@
       "on_event": "BoxSurrendered",
       "target_domain": "Compliance",
       "trigger_command": "BoxSurrenderReview.Open",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     },
     {
       "for_each": null,
@@ -5782,7 +5768,10 @@
       "on_event": "KeyReturnDue",
       "target_domain": "Notifications",
       "trigger_command": "Notifications.Send",
-      "where": null
+      "where": null,
+      "with_spec": [
+
+      ]
     }
   ],
   "process_managers": [

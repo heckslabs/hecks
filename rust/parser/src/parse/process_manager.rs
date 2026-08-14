@@ -152,9 +152,7 @@ fn parse_dispatches(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseR
         match gated.row.word {
             "dispatch" => {
                 let command_name = super::positional_text(file, gated.line.number, "dispatch", &gated.args, 1)?;
-                let with_spec = super::named_raw(&gated.args, "with")
-                    .map(|raw| parse_with_pairs(raw))
-                    .unwrap_or_default();
+                let with_spec = parse_with_pairs_opt(&gated.args);
                 dispatches.push(ir::DispatchSpec { command_name, with_spec });
             }
             _ => return Err(super::not_built_yet("Handler", gated.row, file, gated.line.number, &gated.call.word)),
@@ -173,7 +171,19 @@ fn parse_dispatches(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseR
 /// here) keeps its colon and a nested Hash literal (`{ text: "transfer
 /// out" }`) renders the same pinned way `Mutation`'s own append fields
 /// do.
-fn parse_with_pairs(raw: &str) -> Vec<(String, String)> {
+/// `with:` where it is optional — absent reads as no bindings at all,
+/// which is what BOTH callers mean by leaving it off: `dispatch` sends
+/// the command its declared arguments, and `trigger` forwards the
+/// event's whole payload verbatim.
+/// `with:` where it is optional — absent reads as no bindings at all,
+/// which is what BOTH callers mean by leaving it off: `dispatch` sends
+/// the command its declared arguments, and `trigger` forwards the
+/// event's whole payload verbatim.
+pub(super) fn parse_with_pairs_opt(args: &super::ArgumentGateResult) -> Vec<(String, String)> {
+    super::named_raw(args, "with").map(parse_with_pairs).unwrap_or_default()
+}
+
+pub(super) fn parse_with_pairs(raw: &str) -> Vec<(String, String)> {
     let trimmed = raw.trim();
     let inner = trimmed.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(trimmed);
     ruby_value::split_items(inner)

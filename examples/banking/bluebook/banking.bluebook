@@ -219,19 +219,6 @@ Hecks.bluebook "Banking", version: "v1" do
       invariant("an account number is present") { !value.to_s.empty? }
     end
 
-    # THE STANDING A SUSPENSION CARRIES, declared here for one reason
-    # only: `FreezeAccountsOnSuspension` forwards `CustomerSuspended`'s
-    # whole payload to `FreezeAccount`, and a policy `trigger` has no
-    # `with:` projection the way a saga's own `dispatch` does. So the
-    # target has to be able to TAKE a field it will never read, and the
-    # type has to live in this aggregate's own scope for the fuzzer and
-    # every other walker to find it. Two declarations and an unread
-    # attribute is what one missing word costs.
-    value_object "CustomerStanding" do
-      attribute :value, String, default: "good", pattern: '[^ \t\n\r]'
-      invariant("a standing is named") { !value.to_s.empty? }
-    end
-
     # ACCOUNT'S OWN NAME FOR A CUSTOMER REFERENCE, declared here rather
     # than reaching for `Customer::CustomerNumber`. The same shape, and
     # deliberately a second declaration: a type belongs to the aggregate
@@ -411,14 +398,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Stop an account moving while something is investigated"
 
       reference_to Account
-
-      # FORWARDED BY `FreezeAccountsOnSuspension`, and declared here for
-      # that reason alone. A policy re-enters its trigger with the whole
-      # event payload verbatim, so a command reachable by one has to be
-      # able to take every field that event carries — `CustomerSuspended`
-      # carries the standing the customer was moved to, which a freeze
-      # has no use for and does not read.
-      attribute :standing, CustomerStanding, optional: true
 
       # NOT `customer is active`. A freeze exists to stop money moving
       # while something is investigated, and the commonest reason to
@@ -1626,7 +1605,12 @@ Hecks.bluebook "Banking", version: "v1" do
   policy "FreezeAccountsOnSuspension" do
     on       "CustomerSuspended"
     for_each "Account.OpenForCustomerReference"
-    trigger  "Account.FreezeAccount"
+    # THE ROW, AND NOTHING ELSE. `account` is the key the fan-out merges
+    # for each row it answers, and naming it here is what keeps
+    # `CustomerSuspended`'s own `standing` from riding along — leave
+    # `with:` off and `FreezeAccount` would have to declare a field it
+    # never reads just to be reachable.
+    trigger  "Account.FreezeAccount", with: { account: :account }
   end
 
   policy "NotifyOnClosure" do

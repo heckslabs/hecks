@@ -170,8 +170,11 @@ module Hecksagain
             trigger_command: [:trigger_command, :plain],
             target_domain:   [:target_domain,   :plain],
             where:           [:where,           :plain],
-            for_each:        [:for_each,        :plain]
+            for_each:        [:for_each,        :plain],
+            with_spec:       [:with_spec,       :bindings]
           },
+          rows: { with_spec: :with_spec_rows },
+          reads: { with_spec: [:from, :with_spec] },
           derived: { position: :walk }
         ),
 

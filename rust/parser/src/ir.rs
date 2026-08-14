@@ -329,6 +329,13 @@ pub struct Policy {
     // etc. without building real `where`/`for_each` parsing.
     pub where_clause: Option<String>,
     pub for_each_query: Option<String>,
+    // `trigger`'s own `with:` — WHAT THE TRIGGER IS GIVEN, when the
+    // event's shape is not it. Same `pairs_shape: "verbatim"` open map,
+    // same `(key, rendered-value)` pairs, and the same `Literal::render`
+    // spelling per value as `DispatchSpec::with_spec` above: a Symbol
+    // keeps its colon, because a binding that READS an event field and
+    // one that supplies a literal string are otherwise the same text.
+    pub with_spec: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Default)]

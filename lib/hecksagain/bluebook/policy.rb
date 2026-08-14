@@ -15,23 +15,25 @@ module Hecksagain
         trigger_command: :trigger_command,
         target_domain:   :target_domain,
         where:           :where,
-        for_each:        :for_each
+        for_each:        :for_each,
+        with_spec:       -> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } }
       )
 
-      attr_reader :name, :on_event, :trigger_command, :target_domain, :where, :for_each
+      attr_reader :name, :on_event, :trigger_command, :target_domain, :where, :for_each, :with_spec
 
       # AGGREGATE, DECLARED AND DELIBERATELY OFF THE WIRE
       # the wire format is a pinned contract, and it does not carry
       # where a policy was written before the builder hoisted it
       attr_accessor :aggregate
 
-      def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil, where: nil, for_each: nil, aggregate: nil)
+      def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil, where: nil, for_each: nil, with_spec: [], aggregate: nil)
         @name = name.to_s
         @on_event = on_event
         @trigger_command = trigger_command
         @target_domain = target_domain
         @where = where
         @for_each = for_each
+        @with_spec = with_spec
         @aggregate = aggregate&.to_s
       end
     end

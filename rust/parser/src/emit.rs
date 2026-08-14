@@ -459,6 +459,10 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
         ("target_domain".to_string(), JsonValue::opt_str(&p.target_domain)),
         ("where".to_string(), JsonValue::opt_str(&p.where_clause)),
         ("for_each".to_string(), JsonValue::opt_str(&p.for_each_query)),
+        (
+            "with_spec".to_string(),
+            JsonValue::Array(p.with_spec.iter().map(|(k, v)| JsonValue::Array(vec![JsonValue::str(k.clone()), JsonValue::str(v.clone())])).collect()),
+        ),
     ])
 }
 

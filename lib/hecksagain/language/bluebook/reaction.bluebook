@@ -35,6 +35,19 @@ Hecks.bluebook "Bluebook" do
     # `trigger_command`/`target_domain` beside it. Optional — most
     # policies fire once, not once per row.
     attribute :for_each,        PolicyText, optional: true
+    # WHAT THE TRIGGER IS GIVEN, when the event's own shape is not it.
+    # Empty means the whole payload forwards verbatim — what every policy
+    # did before this existed, and still the right default for a trigger
+    # shaped like its event.
+    #
+    # The same `Binding` list a saga's own `Dispatch` carries, for the
+    # same reason: a reaction crosses an aggregate boundary, and the
+    # event on one side is under no obligation to be shaped like the
+    # command on the other. Without it the target has to declare every
+    # field the event happens to carry — banking's own `FreezeAccount`
+    # grew an attribute it never reads, and Account grew two duplicated
+    # value objects to type it, before this word existed.
+    attribute :with_spec,       list_of(Binding)
 
     value_object "PolicyName" do
       attribute :value, String
@@ -42,6 +55,14 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "PolicyText" do
+      attribute :value, String
+    end
+
+    # DECLARED HERE RATHER THAN SHARED WITH `Dispatch`'s own — a value
+    # object belongs to the aggregate that uses it, and everything that
+    # walks an aggregate's own scope has nowhere else to look.
+    value_object "Binding" do
+      attribute :key,   String
       attribute :value, String
     end
 
@@ -79,6 +100,19 @@ Hecks.bluebook "Bluebook" do
 
       attribute :position, Position, optional: true
       emits "ReactionDeclared"
+    end
+
+    command "Bind" do
+      role "Language"
+      goal "Bind one argument of the triggered command"
+
+      reference_to Policy
+      attribute :key,   PolicyText
+      attribute :value, PolicyText
+
+      then_set :with_spec, append: { key: :key, value: :value }
+
+      emits "TriggerBindingAttached"
     end
   end
 

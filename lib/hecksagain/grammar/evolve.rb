@@ -133,8 +133,15 @@ module Hecksagain
         end
       end
 
+      # `pairs_shape` — for a `pairs` argument that fills ONE field with a
+      # whole key/value list rather than naming a field per pair (the
+      # shape `Handler.dispatch`'s own `with:` already carries). Without
+      # it, `spec/syntax_conformance_spec.rb` reads a pairs argument
+      # naming a single field as a row that "names a single field, which
+      # it cannot fill" — correctly, since the two shapes are genuinely
+      # different and only one of them can be checked the same way.
       def propose_argument(keyword:, context:, kind:, required: "false", at: "", named: "", fills: "",
-                           path: syntax_path)
+                           pairs_shape: nil, path: syntax_path)
         if argument_rows(path).any? { |r| argument_identity(r) == [keyword, context, at, named] }
           raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is " \
                         "already declared — one row per (keyword, context, at, named)"
@@ -143,9 +150,10 @@ module Hecksagain
         source = File.read(path)
         block  = argument_block(source)
         indent = block[/^(\s*)member /, 1] || "        "
+        shape = pairs_shape.to_s.empty? ? "" : %(pairs_shape: "#{pairs_shape}", )
         row = %(#{indent}member keyword: "#{keyword}", context: "#{context}", at: "#{at}", ) +
               %(named: "#{named}", kind: "#{kind}", required: "#{required}", fills: "#{fills}", ) +
-              %(status: "proposed"\n)
+              shape + %(status: "proposed"\n)
 
         closing = block.rindex(/^\s*end\s*$/)
         updated = block[0...closing] + row + block[closing..]

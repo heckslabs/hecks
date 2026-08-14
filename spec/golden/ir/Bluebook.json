@@ -4888,6 +4888,15 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "with_spec",
+          "optional": false,
+          "pattern": null,
+          "type": "Binding"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "position",
           "optional": false,
@@ -4997,6 +5006,52 @@
           "provenance": null,
           "references": null,
           "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "PolicyText"
+            }
+          ],
+          "emits": [
+            "TriggerBindingAttached"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Bind one argument of the triggered command",
+          "mutations": [
+            {
+              "fields": {
+                "key": ":key",
+                "value": ":value"
+              },
+              "op": "append",
+              "target": "with_spec"
+            }
+          ],
+          "name": "Bind",
+          "provenance": null,
+          "references": "Policy",
+          "role": "Language"
         }
       ],
       "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
@@ -5087,6 +5142,36 @@
 
           ],
           "name": "PolicyText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Binding"
         },
         {
           "attributes": [
@@ -16472,6 +16557,40 @@
               [
                 "fills",
                 "latest"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "trigger"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "with_spec"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
               ]
             ]
           ],

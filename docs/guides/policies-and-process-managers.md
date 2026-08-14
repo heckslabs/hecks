@@ -193,32 +193,38 @@ ever has to.
 
 ## When the event's shape and the trigger's don't agree
 
-A policy forwards the event's WHOLE payload as the trigger's arguments,
-verbatim — not reshaped, not filtered — so the event's shape and the
-trigger's argument shape have to agree before either is written. There
-is no projection between them: a policy's `trigger` has no `with:` the
-way a saga's own `dispatch` does.
+By default a policy forwards the event's WHOLE payload as the trigger's
+arguments, verbatim — not reshaped, not filtered — so unless you say
+otherwise, the event's shape and the trigger's argument shape have to
+agree before either is written.
 
-Banking's own corpus shows what that costs. `Customer.Suspend` emits
-`CustomerSuspended` carrying its own two arguments — the customer's
-reference and the `standing` it was suspended with — and the policy
-reacting to it triggers `Account.FreezeAccount`, which has no use for
-either:
+Banking's own corpus shows what that costs when they don't.
+`Customer.Suspend` emits `CustomerSuspended` carrying its own two
+arguments — the customer's reference and the `standing` it was
+suspended with — and the policy reacting to it triggers
+`Account.FreezeAccount`, which has no use for either. Forwarded whole,
+`FreezeAccount` would have to declare a `standing` it never reads just
+to be reachable, and `Account` would need a value object declared
+solely to type it.
+
+`with:` is how a trigger says what it actually needs — the same
+`key => value` shape a saga's own `dispatch ..., with:` takes, and read
+the same way: a Symbol names a field on the source, anything else is a
+literal the policy supplies itself.
 
 ```ruby skip
 # Banking, top level, in examples/banking/bluebook/banking.bluebook
 policy "FreezeAccountsOnSuspension" do
   on       "CustomerSuspended"
   for_each "Account.OpenForCustomerReference"
-  trigger  "Account.FreezeAccount"
+  trigger  "Account.FreezeAccount", with: { account: :account }
 end
 ```
 
-So `FreezeAccount` declares `attribute :standing, CustomerStanding,
-optional: true` — a field it never reads, declared only so the forward
-does not refuse — and `Account` carries its own `CustomerStanding`
-value object for that attribute to be typed by. Two declarations and an
-unread argument, all of it paying for one missing word.
+`account` is the key the fan-out merges for each row it answers. The row
+is part of the source a projection reads from, not something bolted on
+afterwards — which is what lets a trigger be given the record it acts on
+and nothing else.
 
 The other half is `for_each`. `CustomerSuspended` names a CUSTOMER, and
 a customer may hold several accounts — nothing in the event says which

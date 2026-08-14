@@ -27,14 +27,14 @@ Hecks.bluebook "Compliance" do
   #
   # TWO AGGREGATES, NOT ONE — found live, designing this: Banking's own
   # `ReviewOnFreeze`/`ReviewOnBoxSurrender` policies forward their
-  # triggering event's payload VERBATIM (`policy` blocks have no `with:`
-  # reshaping — only a `process_manager`'s own `dispatch ... with:` can
-  # do that), and the two events carry genuinely different fields
-  # (`AccountFrozen`: `number`; `BoxSurrendered`: `branch_code` +
-  # `box_number`). One shared aggregate would need either an artificial
-  # union of both shapes or a reshaping step that doesn't exist for a
-  # policy. Two small aggregates, each identified by its own subject's
-  # own natural key, need neither.
+  # triggering event's payload VERBATIM (neither declares a `with:`
+  # projection, which policies have gained since), and the two events
+  # carry genuinely different fields (`AccountFrozen`: `number`;
+  # `BoxSurrendered`: `branch_code` + `box_number`). One shared
+  # aggregate would need an artificial union of both shapes — and while
+  # `with:` could now reshape either side into it, that would be
+  # inventing a sameness the domain does not have. Two small aggregates,
+  # each identified by its own subject's own natural key, need neither.
 
   aggregate "AccountFreezeReview" do
     description "The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened."

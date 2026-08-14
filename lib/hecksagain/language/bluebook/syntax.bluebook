@@ -953,6 +953,7 @@ Hecks.bluebook "Bluebook" do
         member keyword: "refuses",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses"
         member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
         member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
+        member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
       end
     end
   end

@@ -88,7 +88,10 @@ Hecks.bluebook "PolicyReference" do
     on       "RefAlertRaised"
     where    { severity.level >= 3 }
     for_each "RefCard.ForHolder"
-    trigger  "RefCard.Block"
+    # THE ROW, AND NOTHING ELSE. `Block` takes only which card; the
+    # alert's own `ref`/`holder`/`severity` are none of its business,
+    # and without this projection they would ride along and be refused.
+    trigger  "RefCard.Block", with: { ref_card: :ref_card }
   end
 end
 ```
@@ -146,20 +149,22 @@ runtime.registry.reaction_log.last[:on]  # => "AccountFrozen"
 ## trigger
 
 <!-- generated:begin word=trigger -->
-`trigger trigger_command` — fills `trigger_command`
+`trigger trigger_command, with:` — fills `trigger_command`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | trigger_command |
+| `with:` | pairs | false | with_spec |
 <!-- generated:end -->
 
 The command `on`'s event fires, named bare — `"Aggregate.Command"`,
 never domain-prefixed — because it defaults to this policy's own
-domain; see `across` to reach another one. The event's whole payload
-forwards verbatim as the command's arguments, so the two shapes have to
-agree before either is written. A policy that ends up triggering the
-event it reacts to does not loop forever: `Dispatcher::MAX_REACTION_DEPTH`
-(5) stops the chain and records why.
+domain; see `across` to reach another one. Without `with:`, the event's
+whole payload forwards verbatim as the command's arguments, so the two
+shapes have to agree before either is written; `with:` is how a trigger
+whose shape is not its event's says what it actually needs. A policy
+that ends up triggering the event it reacts to does not loop forever:
+`Dispatcher::MAX_REACTION_DEPTH` (5) stops the chain and records why.
 
 The triggered command really ran — a review exists that nothing in the
 banking call chain asked for:
@@ -170,20 +175,37 @@ runtime.registry.reaction_log.last[:delivered]  # => true
 Compliance::AccountFreezeReview.find("po-a1").status  # => "open"
 ```
 
-"The event's whole payload forwards verbatim" is the part to write
-against, and it is a real constraint on the target rather than a
-detail. `FreezeAccountsOnSuspension`, in the same chapter, reacts to
-`CustomerSuspended` and triggers `Account.FreezeAccount` — so
-`FreezeAccount` has to be able to TAKE `standing`, a field a freeze
-never reads, purely because the event carries it. It declares it
-optional for exactly that reason.
+**`with:` names what the trigger is given.** Same `key => value` shape a
+saga's own `dispatch ..., with:` takes, and read the same way: a Symbol
+names a field on the triggering event, anything else is a literal the
+policy supplies itself.
 
-There is no projection between the two: a policy's `trigger` has no
-`with:` the way a saga's own `dispatch` does. A target that cannot
-take every field the event carries is refused, the triggering command
-still succeeds, and the reason lands in the reaction log rather than in
-the caller's lap — which is a good way for a policy to be broken for a
-long time without anyone noticing.
+Left off, the whole payload forwards — which is a real constraint on the
+target, not a detail. `FreezeAccountsOnSuspension`, in the same chapter,
+reacts to `CustomerSuspended` and triggers `Account.FreezeAccount`;
+without a projection, `FreezeAccount` would have to be able to TAKE the
+`standing` that event carries, a field a freeze never reads, and Account
+would need a value object declared solely to type it. Naming what the
+trigger wants is what makes that unnecessary:
+
+```ruby skip
+# examples/banking/bluebook/banking.bluebook
+policy "FreezeAccountsOnSuspension" do
+  on       "CustomerSuspended"
+  for_each "Account.OpenForCustomerReference"
+  trigger  "Account.FreezeAccount", with: { account: :account }
+end
+```
+
+`account` is the key the fan-out merges for each row it answers — the
+row is part of the source a projection reads from, not something bolted
+on after it, which is what lets a trigger be given the record and
+nothing else. See `for_each` below for the fan-out itself.
+
+A target that cannot take every field it is given is refused, the
+triggering command still succeeds, and the reason lands in the reaction
+log rather than in the caller's lap — which is a good way for a policy
+to stay broken for a long time without anyone noticing.
 
 ## across
 
@@ -274,30 +296,34 @@ PolicyReference::RefAlert.raise_alert(ref: { value: "po-al2" }, holder: { value:
 runtime.registry.reaction_log.last(2).map { |row| row[:for_row] }  # => ["po-c1", "po-c2"]
 ```
 
+Each row really is delivered to, and both cards moved — nothing at the
+call site named a card:
+
+```ruby
+runtime.registry.reaction_log.last(2).map { |row| row[:delivered] }.uniq  # => [true]
+PolicyReference::RefCard.find("po-c1").status  # => "blocked"
+PolicyReference::RefCard.find("po-c2").status  # => "blocked"
+```
+
 A card belonging to somebody else is not in the query's answer, so the
-fan-out never reaches it:
+fan-out never reaches it — this one was issued before the alert above
+and is still untouched:
 
 ```ruby
 PolicyReference::RefCard.issue(serial: { value: "po-c3" }, holder: { value: "po-h2" })
-PolicyReference::RefAlert.raise_alert(ref: { value: "po-al3" }, holder: { value: "po-h1" }, severity: { level: 5 })
-runtime.registry.reaction_log.last(2).map { |row| row[:for_row] }  # => ["po-c1", "po-c2"]
+PolicyReference::RefAlert.raise_alert(ref: { value: "po-al3" }, holder: { value: "po-h2" }, severity: { level: 5 })
+runtime.registry.reaction_log.last[:for_row]  # => "po-c3"
 ```
 
-**The delivery itself does not currently arrive.** `Block` addresses
-its own aggregate — `reference_to RefCard` — and a command referencing
-its OWN aggregate takes the bare reference key (`ref_card:`), while
-`PolicyInterpreter#reference_key_for` merges the row id as
-`ref_card_id:` unconditionally:
+Only `po-h2`'s own card is in that fan-out — `po-c1` and `po-c2` were
+never candidates, because the query answered about a different holder.
 
-```ruby
-runtime.registry.reaction_log.last[:delivered]  # => false
-PolicyReference::RefCard.find("po-c1").status   # => "active"
-```
-
-Both spellings are real elsewhere — `customer_id:` addresses a FOREIGN
-reference (`Account.Open`'s `reference_to Customer`, which is how the
-`Onboarding` saga opens an account), and `account:` addresses a SELF
-reference (`Account.FreezeAccount`). `for_each` is always the self-referencing
-case, since it fans out over one aggregate's rows to fire that same
-aggregate's command, so the `_id` suffix is wrong for every use of it.
+The key the row arrives under is `ref_card` — BARE, not `ref_card_id`.
+A command referencing its OWN aggregate is addressed by the bare
+reference key, and a fan-out is always that case, since it iterates one
+aggregate's rows to fire that same aggregate's command. The `_id`
+spelling is the FOREIGN one (`Account.Open`'s `reference_to Customer`,
+which is how the `Onboarding` saga opens an account), and it is what
+this merged unconditionally before — so every fan-out in the language
+was refused, per row, into the reaction log.
 
