@@ -221,6 +221,14 @@ module Hecksagain
             reference_target: [:reference_target, :plain],
             aggregate_heads:  [:aggregate_heads,  [:each, :head]],
             group_by:         [:group_by,         [:each, :group_by_field]],
+            # `count`/`median_field` are `group_by`'s own two siblings —
+            # scalars, not lists, so no `[:each, ...]` shape ; `:plain`
+            # is what `Assembly::Build` needs (fed the native `to_h`
+            # value directly, already `true`/`nil`/a String), and the
+            # `reads:` entry below is what `Reconstruction` needs
+            # instead (fed the STRINGIFIED meta-domain row).
+            count:            [:count,            :plain],
+            median_field:     [:median_field,     :plain],
             # A read model inherits every option an ask has, so it reads them the
             # same way — see Query.
             wheres:           [:wheres,           [:each, :where_clause]],
@@ -254,7 +262,13 @@ module Hecksagain
           # for those two. `group_by` needs its own reader the same way — a
           # rootless read model's grouping keys, added independently on main.
           reads: { reference_name: :symbol, aggregate_heads: [:each, :head],
-                  group_by: [:each, :group_by_field], wheres: [:each, :where_clause] },
+                  group_by: [:each, :group_by_field], wheres: [:each, :where_clause],
+                  # `count` needs the boolean coercion `Shapes#read_model_count`
+                  # gives it (a stringified "true"/absent on the wire, a real
+                  # `true`/`nil` in `to_h`) — `median_field` needs none: the
+                  # default `text(row[key])` cell reader already returns the
+                  # same String-or-nil `ReadModel#to_h`'s own `&.to_s` does.
+                  count: :read_model_count },
           derived: {
             position: :walk,
             query_name: [:computed, :query_name],

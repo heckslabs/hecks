@@ -292,6 +292,15 @@ pub struct ReadModel {
     // same information with no loss, and `read_model_json` re-wraps each
     // one into its own `{"field": ...}` object at emit time.
     pub group_by: Vec<String>,
+    // `count`/`median_field` — `group_by`'s own two siblings
+    // (`ReadModelBuilder#seal_aggregation`), a bare row count and a
+    // median-of-one-field reduction over the eligible collection. Both
+    // OMITTED from the wire (not `null`) when absent, the same
+    // `extra_options_to_h` reading `options` below already gets — see
+    // `read_model_json`'s own emission, which pushes them only when
+    // set, matching `IR::ReadModel#to_h`'s own conditional merge.
+    pub count: bool,
+    pub median_field: Option<String>,
     // See `Query.options`'s own header — the identical
     // `extra_options_to_h` shape, shared verbatim rather than a second
     // `BTreeMap`-ordering hazard copied one struct over.

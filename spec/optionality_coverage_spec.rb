@@ -32,6 +32,16 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   # UNSET ON PURPOSE. Nothing is here, and that is the point — the corpus
   # currently fills every nullable field it carries. An entry would be a claim
   # that some field is not worth a fixture, and it would need to say why.
+  #
+  # `count`/`median_field` (`ReadModel`'s two new reductions) do NOT need
+  # an entry despite being new and genuinely nullable: `ReadModel#to_h`
+  # OMITS the key entirely rather than emitting `null` when neither is
+  # declared (the same "ABSENT is not EMPTY" reading `extra_options_to_h`
+  # already gives `cursor`/`offset`/etc), so a read model that declares
+  # neither carries no `count`/`median_field` key at all for this spec's
+  # own `wire_presence` walk to see — and banking.bluebook's own real
+  # `DisputedPaymentCount`/`DisputedPaymentMedian` set them for real, so
+  # there is nothing unexercised to name here even if it did.
   ALLOWED_UNSET = {}.freeze
 
   # SET and NULL counts for every key in every frozen IR. An object or a list

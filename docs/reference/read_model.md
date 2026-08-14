@@ -90,6 +90,46 @@ root — every `include`d head reading its own aggregate whole, no id
 argument at dispatch — is `group_by`'s own real use (nesting a whole
 table by its own field values has no root record to hang off).
 
+## count
+
+<!-- generated:begin word=count -->
+`count` — fills `count`
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered)
+rows to a single Integer — how many match, not which ones. A bare
+word, no argument: its presence in the read model IS the value. Held
+to the same "exactly one many-side head" rule `group_by`/`where`/etc
+already are (`ReadModelBuilder#seal_aggregation`), and refused
+together with `group_by` or with `median` — a read model reports one
+shape. See `Banking::DisputedPaymentCount` for the real corpus
+example.
+
+## median
+
+<!-- generated:begin word=median -->
+`median median_field` — fills `median_field`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | median_field |
+<!-- generated:end -->
+
+Reduces the eligible collection's own (already `where`-filtered) rows
+to the median of one numeric field — a bare number, or a value object
+carrying one (the same "numeric" `where`/`order_by` already lean on).
+An ODD number of rows answers the one true middle value ; an EVEN
+number answers the AVERAGE of the two middle values, sorted (not the
+lower or the upper of the two). An empty collection answers `nil`, not
+zero — "nothing to average" is a different fact from "the values
+averaged to zero." Refused at DISPATCH time if the named field doesn't
+exist, or exists but isn't numeric — same timing as `group_by`'s own
+field check, for the same reason (the aggregate this read model
+targets isn't known until then). Same `seal_aggregation` rule `count`
+carries: exactly one many-side head, never combined with `group_by` or
+with `count`. See `Banking::DisputedPaymentMedian` for the real corpus
+example.
+
 ## where
 
 <!-- generated:begin word=where -->

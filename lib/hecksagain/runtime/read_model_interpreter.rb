@@ -4,6 +4,7 @@ require_relative "value"
 require_relative "refusal_wording"
 require_relative "tenant_scope"
 require_relative "../ports/query/in_memory"
+require_relative "../query_specification/field_path"
 
 module Hecksagain
   module Runtime
@@ -34,13 +35,16 @@ module Hecksagain
         # the wrapper adds underneath.
         eligible = model.filtered_head_name
         model = TenantScope.apply(model, args)
-        # A ROOTLESS or `group_by`-declared model skips the SQLite native
-        # escape hatch entirely (there is no root aggregate to look up a
-        # repository FOR when rootless, and `query_read_model` knows
-        # nothing about grouping) — always runs the in-process loop below
-        # instead. Correct everywhere ; not SQL-pushed-down for a SQLite-
-        # backed aggregate yet, a real, named limit, not a silent one.
-        unless rootless || model.group_by.any?
+        # A ROOTLESS, `group_by`-declared, or `count`/`median`-declared
+        # model skips the SQLite native escape hatch entirely (there is
+        # no root aggregate to look up a repository FOR when rootless,
+        # and `query_read_model` knows nothing about grouping or
+        # reducing) — always runs the in-process loop below instead.
+        # Correct everywhere ; not SQL-pushed-down for a SQLite-backed
+        # aggregate yet, a real, named limit, not a silent one — the
+        # same one `group_by` already accepted, extended here rather
+        # than narrowed.
+        unless rootless || model.group_by.any? || model.count? || model.median_field
           repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
           if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
             return repository.query_read_model(domain, model, args, bluebook)
@@ -94,9 +98,14 @@ module Hecksagain
         # back.
         heads = model.aggregate_heads.each_with_object({}) { |head, report| report[head[:as]] = rows_by_as[head[:as]] }
         grouped_head = group_by_target(model, bluebook)
+        reduced_head = aggregation_target(model, bluebook)
         [heads.each_with_object({}) do |(as, value), out|
           out[as] = if grouped_head && as == grouped_head[:as]
                       nest(value.map { |record| Value.materialize_unwrapped(row(record)) }, model.group_by_fields)
+                    elsif reduced_head && as == reduced_head[:as] && model.count?
+                      value.length
+                    elsif reduced_head && as == reduced_head[:as]
+                      median(value, model.median_field)
                     elsif value.is_a?(Array)
                       value.map { |record| Value.materialize(row(record)) }
                     else
@@ -156,6 +165,57 @@ module Hecksagain
           stripped = group.map { |row| row.reject { |key, _| key == field } }
           rest.empty? ? stripped.first : nest(stripped, rest)
         end
+      end
+
+      # `count`/`median`'s own declared target — the SAME single
+      # many-side head `group_by_target` resolves, for the same reason
+      # (`seal_aggregation` already refuses zero or several many-side
+      # heads, and refuses count/median declared alongside group_by, so
+      # there is exactly one to name whenever this is asked at all).
+      # Raises loudly on a `median` field that doesn't exist, or exists
+      # but isn't numeric, rather than silently comparing garbage or
+      # averaging strings.
+      def aggregation_target(model, bluebook)
+        return nil unless model.count? || model.median_field
+
+        target = model.aggregate_heads.find { |head| head[:many] }
+        return target unless model.median_field
+
+        aggregate = bluebook.aggregate(target[:aggregate])
+        attribute = aggregate.attribute(model.median_field)
+        unless attribute
+          raise ArgumentError,
+                "#{model.name}'s median names #{model.median_field.inspect}, but #{target[:aggregate]} " \
+                "declares no such attribute (it declares #{aggregate.attributes.map(&:name).join(', ')})"
+        end
+        unless QuerySpecification::FieldPath.numeric?(attribute, []) { |type| aggregate.value_object(type) }
+          raise ArgumentError,
+                "#{model.name}'s median names #{model.median_field.inspect} on #{target[:aggregate]}, " \
+                "which is not numeric — median needs a numeric field (a bare number, or a " \
+                "value object carrying one)"
+        end
+        target
+      end
+
+      # THE STANDARD DEFINITION. An ODD count's median is its one true
+      # middle value, sorted ; an EVEN count's median is the AVERAGE of
+      # its two middle values — the common convention (as opposed to,
+      # say, always taking the lower of the two), and the one this
+      # session's own task named explicitly as the deliberate choice.
+      # An EMPTY collection has no median: nil, not zero, so a caller
+      # cannot mistake "nothing to average" for "the values averaged to
+      # zero". Reuses `Ports::Query::InMemory`'s own field reading
+      # (`FieldPath.dig` + `comparable`) — the same unwrap `where`/
+      # `order_by` already give a value-object-carrying field, so
+      # `median :daily_limit` on a `DailyLimit{cents}` field reads the
+      # same scalar an `order_by :daily_limit` comparison already would.
+      def median(rows, field)
+        values = rows.map { |record| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row(record), field)) }
+                     .compact.sort
+        return nil if values.empty?
+
+        middle = values.length / 2
+        values.length.odd? ? values[middle] : (values[middle - 1] + values[middle]) / 2.0
       end
 
       def fetch(bluebook, domain, aggregate_name, id)

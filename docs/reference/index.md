@@ -17,7 +17,7 @@ survives regeneration.
 - [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
 - [Query](query.md) — 14 words
-- [ReadModel](read_model.md) — 15 words
+- [ReadModel](read_model.md) — 17 words
 - [Type](type.md) — 2 words
 - [Hecksagon](hecksagon.md) — 3 words
 - [DomainPort](domain_port.md) — 4 words

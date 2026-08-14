@@ -38,6 +38,8 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     let mut reference_name: Option<String> = None;
     let mut includes: Vec<(String, Option<String>)> = Vec::new();
     let mut group_by_fields: Vec<String> = Vec::new();
+    let mut count = false;
+    let mut median_field: Option<String> = None;
     let mut wheres: Vec<ir::WhereClause> = Vec::new();
     let mut order_by: Option<ir::OrderBy> = None;
     let mut limit: Option<ir::LimitSpec> = None;
@@ -79,6 +81,15 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 // as a symbol; just strip each one's leading `:`.
                 group_by_fields = gated.args.positional.iter().map(|(_, text)| text.trim().trim_start_matches(':').to_string()).collect();
             }
+            // `ReadModelBuilder#count` — a bare word, no argument at
+            // all (`def count = @count = true`); its presence in the
+            // source IS the value, same as `generic`'s own Bluebook-
+            // context row.
+            "count" => count = true,
+            // `ReadModelBuilder#median(field)` — one required
+            // positional symbol (`def median(field) = @median_field =
+            // field.to_sym`).
+            "median" => median_field = Some(super::positional_symbol(file, last_line, "median", &gated.args, 1)?),
             "where" => wheres.extend(query_derive::where_clauses(&gated.args.named)),
             "order_by" => {
                 let field = super::positional_symbol(file, last_line, "order_by", &gated.args, 1)?;
@@ -114,6 +125,8 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
         limit,
         aggregate_heads,
         group_by: group_by_fields,
+        count,
+        median_field,
         options,
     })
 }

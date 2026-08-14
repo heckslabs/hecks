@@ -171,6 +171,18 @@ module Hecksagain
 
         def group_by_field(row) = { field: text(row[:field]) }
 
+        # `count`'s own boolean, read back the SAME way `head`'s own
+        # `many` is (`text(row[:many]).to_s == "true"`) — except a
+        # `ReadModel.Count` command is dispatched AT ALL only when
+        # `@count` was truthy (`MetaValidator::Judge#setters` skips a
+        # setter whose every source is absent), so an undeclared read
+        # model's own `count` field never gets written and comes back
+        # `nil` here, never `"false"` — matching `ReadModel#to_h`'s own
+        # `true`/`nil` pair (never `false`) exactly, rather than the
+        # unconditional `true`/`false` `head`'s own `many` needs (every
+        # head DOES get a `Gather` dispatch, declared or derived).
+        def read_model_count(row) = (true if text(row[:count]).to_s == "true")
+
         # THE APPEND FLATTENING, IN REVERSE.
         #
         # An append binds several fields at once and the language's Change holds one

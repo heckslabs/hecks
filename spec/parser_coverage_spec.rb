@@ -91,6 +91,7 @@ RSpec.describe "the Rust parser's own coverage" do
     %w[operation DomainPort],
     %w[reference_to PortOperation], %w[attribute PortOperation], %w[emits PortOperation],
     %w[report Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel], # STAGE 3
+    %w[count ReadModel], %w[median ReadModel], # real, this session — banking.bluebook's own DisputedPaymentCount/Median
     %w[reference_to ReadModel], %w[where ReadModel], %w[order_by ReadModel], # STAGE 4
     %w[limit ReadModel], %w[freshness ReadModel], %w[use_index ReadModel], # STAGE 4
     %w[list_of Type], %w[one_of Type] # STAGE 6 — bookkeeping, not new dispatch work; see

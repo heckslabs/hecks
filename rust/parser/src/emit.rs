@@ -390,6 +390,17 @@ fn read_model_json(r: &ir::ReadModel) -> JsonValue {
             JsonValue::Array(r.group_by.iter().map(|field| JsonValue::Object(vec![("field".to_string(), JsonValue::str(field.clone()))])).collect()),
         ),
     ];
+    // `count`/`median_field` — `group_by`'s own two siblings, pushed
+    // ONLY when set (`IR::ReadModel#to_h`'s own conditional `reductions`
+    // merge, read_model.rb) — never a `null` key for a read model that
+    // declares neither, which is every one but banking.bluebook's own
+    // `DisputedPaymentCount`/`DisputedPaymentMedian`.
+    if r.count {
+        pairs.push(("count".to_string(), JsonValue::Bool(true)));
+    }
+    if let Some(field) = &r.median_field {
+        pairs.push(("median_field".to_string(), JsonValue::str(field.clone())));
+    }
     pairs.extend(query_options_json(&r.options));
     JsonValue::Object(pairs)
 }

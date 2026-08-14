@@ -425,6 +425,17 @@ Hecks.bluebook "Bluebook" do
         member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target"
         member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
         member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
+        # `count`/`median` are the OTHER two reductions `group_by` has
+        # siblings in — see `seal_aggregation`'s own comment
+        # (read_model_builder.rb) for why the three cannot combine.
+        # `count` is a BARE WORD, no argument at all — the same shape
+        # `generic` (Bluebook context, above) already is — so it has no
+        # matching row in the Argument table below; its own presence in
+        # a read model's source IS the value, exactly the way `generic`
+        # calling ReadModelBuilder#count sets `@count = true` with
+        # nothing to read an argument out of.
+        member word: "count",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "count"
+        member word: "median",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field"
         # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
         # three words, same builder module, different landing — `fills:
         # "options"` here, `fills: "field"`/`"direction"`/`"value"` etc. on
@@ -872,6 +883,10 @@ Hecks.bluebook "Bluebook" do
         # (`:kind, :number`) — a fixed `at: "1"`/`at: "2"` pair would
         # have papered over the real cardinality rather than declaring it.
         member keyword: "group_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "group_by", variadic: "true"
+        # `count` has NO row here — `def count = @count = true` takes no
+        # argument at all, so there is nothing at position 1 to gate
+        # (see this word's own Keyword-table comment, above).
+        member keyword: "median",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "median_field"
         member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
         member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
         member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"

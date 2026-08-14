@@ -5565,6 +5565,70 @@
       "aggregate_heads": [
         {
           "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "count": true,
+      "description": "How many of an account's own card charges are under dispute — a single number, not the rows themselves.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "name": "DisputedPaymentCount",
+      "order_by": null,
+      "query_name": "disputed_payment_count",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
+          "as": "account",
+          "many": false
+        },
+        {
+          "aggregate": "CardPayment",
+          "as": "card_payments",
+          "many": true
+        }
+      ],
+      "description": "The median amount of an account's own disputed card charges.",
+      "group_by": [
+
+      ],
+      "limit": null,
+      "median_field": "amount",
+      "name": "DisputedPaymentMedian",
+      "order_by": null,
+      "query_name": "disputed_payment_median",
+      "reference_name": "account",
+      "reference_target": "Account",
+      "wheres": [
+        {
+          "field": "status",
+          "op": "eq",
+          "value": "\"disputed\""
+        }
+      ]
+    },
+    {
+      "aggregate_heads": [
+        {
+          "aggregate": "Account",
           "as": "accounts",
           "many": true
         }

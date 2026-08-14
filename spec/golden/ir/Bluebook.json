@@ -10031,6 +10031,58 @@
             [
               [
                 "word",
+                "count"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "count"
+              ]
+            ],
+            [
+              [
+                "word",
+                "median"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "median_field"
+              ]
+            ],
+            [
+              [
+                "word",
                 "where"
               ],
               [
@@ -15077,6 +15129,36 @@
             [
               [
                 "keyword",
+                "median"
+              ],
+              [
+                "context",
+                "ReadModel"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "median_field"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "where"
               ],
               [
@@ -16366,6 +16448,24 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "count",
+          "optional": false,
+          "pattern": null,
+          "type": "ReadModelText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "median_field",
+          "optional": false,
+          "pattern": null,
+          "type": "ReadModelText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "position",
           "optional": false,
           "pattern": null,
@@ -16548,6 +16648,83 @@
             }
           ],
           "name": "GroupBy",
+          "provenance": null,
+          "references": "ReadModel",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "count",
+              "optional": false,
+              "pattern": null,
+              "type": "ReadModelText"
+            }
+          ],
+          "emits": [
+            "CountDeclared"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+
+          ],
+          "goal": "Mark the read model as a bare row count over its one eligible collection",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "count"
+              },
+              "target": "count"
+            }
+          ],
+          "name": "Count",
+          "provenance": null,
+          "references": "ReadModel",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "median_field",
+              "optional": false,
+              "pattern": null,
+              "type": "ReadModelText"
+            }
+          ],
+          "emits": [
+            "MedianFieldSet"
+          ],
+          "ensures": [
+
+          ],
+          "givens": [
+            {
+              "canonical": "!median_field.value.to_s.empty?",
+              "description": "a median field is named"
+            }
+          ],
+          "goal": "Mark the read model as the median of one numeric field across its one eligible collection",
+          "mutations": [
+            {
+              "op": "set",
+              "source": {
+                "kind": "argument",
+                "name": "median_field"
+              },
+              "target": "median_field"
+            }
+          ],
+          "name": "Median",
           "provenance": null,
           "references": "ReadModel",
           "role": "Language"

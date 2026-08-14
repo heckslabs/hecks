@@ -41,7 +41,34 @@ Hecks.bluebook "Banking", version: "v1" do
     use_index :account_index
   end
 
-  # A THIRD SHAPE — ROOTLESS. Neither CustomerPortfolio nor
+  # TWO MORE SHAPES — REDUCTIONS, not gathered rows. A compliance
+  # reviewer opening `ComplianceDashboard` wants the five worst disputes
+  # themselves ; a manager scanning every account for risk wants a
+  # single NUMBER per account first, before ever opening one. `count`/
+  # `median` answer that without handing back rows to count or average
+  # by hand — siblings of `group_by`, riding the same `where` an
+  # ordinary read model already applies (`seal_aggregation` refuses
+  # combining either with `group_by` or with each other; read_model
+  # _builder.rb's own comment has the full reasoning).
+  report "DisputedPaymentCount" do
+    description "How many of an account's own card charges are under dispute — a single number, not the rows themselves."
+    reference_to Account
+    include Account
+    include CardPayment
+    where(status: "disputed")
+    count
+  end
+
+  report "DisputedPaymentMedian" do
+    description "The median amount of an account's own disputed card charges."
+    reference_to Account
+    include Account
+    include CardPayment
+    where(status: "disputed")
+    median :amount
+  end
+
+  # A FIFTH SHAPE — ROOTLESS. Neither CustomerPortfolio nor
   # ComplianceDashboard has a use for this: both center on one real
   # record. A branch manager's own question is different — every
   # account the bank holds, at once, sorted into what kind it is, then

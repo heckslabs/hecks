@@ -287,7 +287,10 @@ RSpec.describe "a construct's identity" do
     it "hangs a read model off the CHAPTER, since no one head declares it" do
       # A read model gathers heads from several aggregates. Hanging it off one of
       # them would name the wrong owner.
-      expect(bank.read_models.map(&:hecks_fqn)).to eq(["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.AccountsByKind"])
+      expect(bank.read_models.map(&:hecks_fqn)).to eq(
+        ["Banking.CustomerPortfolio", "Banking.ComplianceDashboard", "Banking.DisputedPaymentCount",
+         "Banking.DisputedPaymentMedian", "Banking.AccountsByKind"]
+      )
     end
 
     it "keeps the name it always had, because only a class had a rival answer" do
