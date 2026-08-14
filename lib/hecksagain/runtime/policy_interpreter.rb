@@ -132,11 +132,11 @@ module Hecksagain
       def deliver_for_each(policy, event, domain, target, record)
         return nil unless where_holds?(policy, event)
 
-        query_domain, aggregate_name, query_name = for_each_route(policy, domain)
+        query_domain, aggregate_name, query_name = policy.for_each_route(domain)
         aggregate = resolve_query_aggregate(query_domain, aggregate_name, policy.for_each)
         payload   = event.payload.transform_keys(&:to_sym)
         rows      = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, payload)
-        reference_key = reference_key_for(aggregate_name)
+        reference_key = policy.fan_out_reference_key(aggregate_name)
 
         Array(rows).map do |row|
           deliver_for_each_row(target, record, payload, reference_key, row)
@@ -163,28 +163,10 @@ module Hecksagain
         row_record.merge(delivered: false, reason: error.message)
       end
 
-      # `for_each "Account.OpenForCustomer"` runs against THIS EVENT'S OWN
-      # domain by default — the same default a saga's own `dispatch`
-      # command name takes (`SagaInterpreter#qualified`) — or an explicit
-      # `"Domain::Aggregate.query_name"` names its own. Deliberately
-      # independent of `across`/`target_domain`, which name where
-      # `trigger` fires, not where the fan-out's own query runs — the two
-      # need not be the same domain.
-      def for_each_route(policy, domain)
-        path, query_name = policy.for_each.to_s.split(".", 2)
-        query_domain, aggregate_name = path.to_s.include?("::") ? path.split("::", 2) : [domain, path]
-
-        [query_domain, aggregate_name, query_name]
-      end
-
-      # THE SAME MINT `AggregateBuilder#reference_to` gives a bare
-      # `reference_to Account` (`account_id`, no `as:`) — `Naming
-      # .reference_key` plus the `_id` suffix, the same two-step
-      # `Interview::Source#default` already uses for exactly this reason —
-      # so a `for_each` iterating Account and a command written
-      # `reference_to Account` agree on the argument's name without either
-      # one having to say so twice.
-      def reference_key_for(aggregate_name) = :"#{Naming.reference_key(aggregate_name)}_id"
+      # `for_each`'s own route and reference-key mint moved onto the
+      # Policy itself (Behaviour::Policy#for_each_route / #fan_out_reference_key)
+      # — one reading the interpreter and the fuzzer's fan-out property
+      # both call, rather than the same split spelled twice.
 
       def resolve_query_aggregate(domain, aggregate_name, verb)
         bluebook = @registry.bluebook(domain) ||

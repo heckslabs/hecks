@@ -38,6 +38,16 @@ module Hecksagain
         end
 
         def creates? = @references.nil?
+
+        # EVERY REASON THIS VERB CAN REFUSE ON A RULE — the descriptions of
+        # its givens AND its ensures, the exact text the runtime quotes
+        # after "refused — " when a guard is not met (see
+        # command_rules/admissibility.rb's GivenNotMet/EnsuresNotMet). A
+        # property that asks "did the runtime only ever refuse for a rule
+        # the language wrote" reads this rather than re-deriving the two
+        # collections; `compact` because a rule's description is optional
+        # (behavior.bluebook's Rule) and an unnamed one quotes nothing.
+        def guard_descriptions = (@givens + @ensures).map(&:description).compact
       end
 
       # A MUTATION'S OWN READINGS. Included (not extended) — Mutation is
