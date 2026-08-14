@@ -35,6 +35,36 @@ module Hecksagain
           "#{expression} #{direction}#{nulls}, id #{direction}"
         end
 
+        # THE COMPARATORS A NULL CANNOT SATISFY — the other half of
+        # `sql_predicate` below. That one answers "the value COMPARED TO is
+        # null" (`eq: nil` -> IS NULL, `ne: nil` -> IS NOT NULL, a real
+        # convention both adapters already shared). This one answers the
+        # case nothing covered: the ROW'S OWN value is null and the value
+        # compared to is not.
+        #
+        # SQL says unknown. `NULL <> 'red'` is NULL, not true, so the row
+        # is not returned. Ruby says `nil != "red"` is true, so it is. The
+        # two adapters therefore answered the SAME query on the SAME data
+        # differently — Memory returning a row SQLite omitted — which is
+        # not a difference of opinion a caller can plan around.
+        #
+        # Resolved toward SQL, and not because SQL is the store: an absent
+        # or null field is UNKNOWN, not a value, and a comparison against
+        # unknown is unknown rather than true. Making SQL match Ruby
+        # instead would mean compiling every `ne:` to
+        # `(col <> $1 OR col IS NULL)` — more to get right in two
+        # dialects, and a reliable way to lose an index — to make a real
+        # query engine agree with an in-memory one.
+        #
+        # `none_in_state` is deliberately NOT here: it is a 9th, vendored
+        # comparator whose `held` is a reference id, and a row holding no
+        # reference is genuinely "not in that state" rather than unknown.
+        NULL_UNMATCHABLE = %w[eq ne lt lte gt gte in contains].freeze
+
+        def unmatchable?(operation, held, want)
+          held.nil? && !want.nil? && NULL_UNMATCHABLE.include?(operation.to_s)
+        end
+
         def sql_predicate(expression, operation, value)
           if value.nil? && operation.to_s == "eq"
             ["#{expression} IS NULL", []]
