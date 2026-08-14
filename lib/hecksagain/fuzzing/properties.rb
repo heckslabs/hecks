@@ -193,7 +193,7 @@ module Hecksagain
         first  = Replay.call(domain_path, steps)
         second = Replay.call(domain_path, steps)
 
-        comparable = ->(history) { history.reject { |key, _| key == :bluebook } }
+        comparable = ->(history) { history.reject { |key, _| key == :bluebook || key == :bluebooks } }
         return true if comparable.call(first) == comparable.call(second)
 
         "two replays of the same #{steps.length} steps produced different histories"
@@ -247,7 +247,7 @@ module Hecksagain
       GUARD_REFUSAL_KINDS = %w[Hecksagain::Runtime::GivenNotMet Hecksagain::Runtime::EnsuresNotMet].freeze
 
       def guard_refusals_are_declared(history)
-        bluebook = history.fetch(:bluebook)
+        bluebooks = history.fetch(:bluebooks)
 
         offenders = history.fetch(:refusals).filter_map do |refusal|
           next unless GUARD_REFUSAL_KINDS.include?(refusal[:kind])
@@ -255,7 +255,7 @@ module Hecksagain
           match = refusal[:error].to_s.match(/\A(.+) refused — (.+)\z/)
           next "#{refusal[:verb]} raised #{refusal[:kind]} with unparseable message #{refusal[:error].inspect}" unless match
 
-          command = command_for_verb(bluebook, refusal[:verb])
+          command = command_for_verb(bluebooks, refusal[:verb])
           next "#{refusal[:verb]} raised #{refusal[:kind]}, but no declared command resolves that verb" unless command
           next if command.guard_descriptions.include?(match[2])
 
@@ -272,9 +272,23 @@ module Hecksagain
       # `Dispatcher#dispatch` itself branches on). Shared by the guard
       # property above and available for anything else that needs to go
       # from a replayed verb back to its declaration.
-      def command_for_verb(bluebook, verb)
+      #
+      # RESOLVED AGAINST `bluebooks` (the FULL map, `history[:bluebooks]`
+      # — every loaded domain, keyed by name), never a single assumed
+      # bluebook: a verb names its OWN domain (`Naming.split_verb`'s
+      # first element), and that domain is not always the one Replay
+      # happens to expose as `history[:bluebook]`. A fuzz run against
+      # `lib/hecksagain/grammar` (Expression + Translation, in load
+      # order) found this the hard way — every `Translation::Map.Seal`
+      # refusal read as "no declared command resolves that verb" purely
+      # because `history[:bluebook]` was Expression, not Translation; the
+      # refusal was real, this property's own domain resolution was not.
+      def command_for_verb(bluebooks, verb)
         domain, aggregate_name, command_path = Naming.split_verb(verb)
         return nil unless command_path
+
+        bluebook = bluebooks[domain]
+        return nil unless bluebook
 
         aggregate = bluebook.aggregate(aggregate_name)
         return nil unless aggregate

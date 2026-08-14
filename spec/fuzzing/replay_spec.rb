@@ -59,7 +59,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
     first  = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
     second = Hecksagain::Fuzzing::Replay.call(REPLAY_PIZZAS, [create_step, topping_step])
 
-    comparable = ->(h) { h.reject { |k, _| k == :bluebook } }
+    comparable = ->(h) { h.reject { |k, _| k == :bluebook || k == :bluebooks } }
     expect(comparable.call(first)).to eq(comparable.call(second))
   end
 end

@@ -13,6 +13,13 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
   ROOT_DIR = InMemoryDomain::ROOT
   PROPERTIES_PIZZAS  = File.join(ROOT_DIR, "examples/pizzas")
   PROPERTIES_BANKING = File.join(ROOT_DIR, "examples/banking")
+  # The self-hosted META-domain — Expression + Translation, in that load
+  # order — used ONLY to pin the multi-bluebook regression below. A real
+  # `bin/fuzz` run against this domain (Expression loads first) is what
+  # found it: every genuine `Translation::Map.Seal` refusal read as
+  # unresolvable because `command_for_verb` only ever consulted whichever
+  # bluebook happened to load first.
+  PROPERTIES_GRAMMAR = File.join(ROOT_DIR, "lib/hecksagain/grammar")
 
   def generated_history(domain, seed)
     steps = Hecksagain::Fuzzing::SequenceGenerator.generate(domain, seed: seed, steps: 25)
@@ -46,6 +53,10 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
   describe "each property, seen failing" do
     def bluebook_for(domain)
       Hecksagain::Fuzzing::Replay.call(domain, [])[:bluebook]
+    end
+
+    def bluebooks_for(domain)
+      Hecksagain::Fuzzing::Replay.call(domain, [])[:bluebooks]
     end
 
     it "lifecycle_values_are_declared names an instance holding an undeclared state" do
@@ -114,13 +125,13 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
            "args" => { "name" => { "value" => "X" },
                        "pizza" => { "price_cents" => { "cents" => 100 }, "size" => { "value" => "small" } } } }]
       )
-      comparable = ->(h) { h.reject { |k, _| k == :bluebook } }
+      comparable = ->(h) { h.reject { |k, _| k == :bluebook || k == :bluebooks } }
 
       expect(comparable.call(first)).not_to eq(comparable.call(second))
     end
 
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
-      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
                               kind: "Hecksagain::Runtime::GivenNotMet" }] }
 
@@ -130,8 +141,27 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "guard_refusals_are_declared passes a refusal quoting the command's own declared given through" do
-      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — the account is open",
+                              kind: "Hecksagain::Runtime::GivenNotMet" }] }
+
+      expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
+    end
+
+    it "guard_refusals_are_declared resolves a refusal against ITS OWN domain, not just the first-loaded one" do
+      # THE REAL REGRESSION, pinned exactly as bin/fuzz found it: a
+      # domain under fuzz commonly composes more than one bluebook
+      # (Expression loads before Translation here) — a genuine given
+      # refusal from a NON-first domain used to read as "no declared
+      # command resolves that verb," purely because command_for_verb only
+      # ever consulted whichever bluebook happened to load first, never
+      # the refusing verb's OWN domain.
+      bluebooks = bluebooks_for(PROPERTIES_GRAMMAR)
+      expect(bluebooks.keys).to eq(%w[Expression Translation]) # Expression loads first — the shape the bug needed
+
+      history = { bluebooks: bluebooks,
+                  refusals: [{ verb: "Translation::Map.Seal",
+                              error: "Seal refused — an empty edge explains nothing",
                               kind: "Hecksagain::Runtime::GivenNotMet" }] }
 
       expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
@@ -142,7 +172,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # "X refused — Y" shape (RefusalWording's own template) — a
       # refusal identified by string alone would misread this as an
       # undeclared guard; identified by `kind:`, it is skipped outright.
-      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals: [{ verb: "Banking::Account.CloseAccount",
                               error: "CloseAccount refused — status is closed, and CloseAccount moves it only from open, frozen",
                               kind: "Hecksagain::Runtime::LifecycleRefused" }] }

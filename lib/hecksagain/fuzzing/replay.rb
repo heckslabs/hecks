@@ -209,9 +209,22 @@ module Hecksagain
           # (state sets, handler graphs) beside the history it produced.
           # Free: no second boot, just the object the first one already
           # built.
+          #
+          # `bluebook:` (singular) stays the FIRST-loaded chapter — every
+          # existing property scopes itself to "only what we have the
+          # grammar for" against exactly this one, deliberately (see
+          # lifecycle_values_are_declared's own comment). `bluebooks:`
+          # (plural) is the FULL map, keyed by domain name — a domain
+          # under fuzz commonly composes more than one bluebook (banking
+          # alone loads Banking + Governance + Identity), and a refusal
+          # or an event can legitimately come from ANY of them, not only
+          # whichever one happened to load first. A property that needs
+          # to resolve a verb back to its OWN declaring bluebook — not
+          # "the" bluebook — reads this instead.
           { instances: instances, events: events, refusals: refusals,
             reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
-            queries: queries, fan_outs: fan_outs, bluebook: runtime.registry.bluebooks.values.first }
+            queries: queries, fan_outs: fan_outs, bluebook: runtime.registry.bluebooks.values.first,
+            bluebooks: runtime.registry.bluebooks.dup }
         end
       end
 
