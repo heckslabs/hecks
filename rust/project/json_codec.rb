@@ -226,7 +226,22 @@ module RustProjection
     # `optional: true` aggregate record, so it can't be folded into the
     # generic per-attribute loop above without special-casing every branch
     # in it for one field.
-    def emit_to_json_flat(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [], aggregate: nil)
+    # `sparse:` — COMMAND ARGS STRUCTS ONLY (this method's two Args call
+    # sites, domain_generator.rb + commands.rb, pass `sparse: true`;
+    # value objects and aggregate/entity records never do). Per-field
+    # expression logic below is IDENTICAL either way — `sparse:` only
+    # picks which of the two OUTER exemplar templates wraps the result:
+    # `to_json_flat` keeps every `(key, value)` pair, `null` included for
+    # an unset optional field (correct for a persisted record, which
+    # legitimately HAS every declared field) ; `to_json_flat_sparse`
+    # drops a `(key, Json::Null)` pair entirely, matching Ruby's own
+    # `payload: args` — an event's payload should carry exactly the keys
+    # the caller actually supplied, not every key the command COULD have
+    # accepted. See `rust/src/exemplar/json.rs`'s own comment on
+    # `to_json_flat_sparse` for the full argument, including why the
+    # filter is safe (no required field's own conversion ever produces
+    # `Json::Null`).
+    def emit_to_json_flat(struct_name, attributes, value_objects_by_name, optional: false, extra_fields: [], aggregate: nil, sparse: false)
       field_exprs = attributes.map do |attr|
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
@@ -289,7 +304,14 @@ module RustProjection
       # because `commands.rb`'s entity-command heredoc interpolates this
       # return value directly, not through `f.puts` (which wouldn't care
       # either way).
-      "#{Exemplar.render('to_json_flat', 'TmplFlatType2' => struct_name, 'tmpl_to_json_field_block()' => field_block)}\n"
+      rendered = if sparse
+                   Exemplar.render("to_json_flat_sparse", "TmplFlatType3" => struct_name,
+                                                           "tmpl_to_json_field_block_sparse()" => field_block)
+                 else
+                   Exemplar.render("to_json_flat", "TmplFlatType2" => struct_name,
+                                                    "tmpl_to_json_field_block()" => field_block)
+                 end
+      "#{rendered}\n"
     end
 
     # THE INVERSE OF `emit_to_json_flat`, for the SAME two struct kinds

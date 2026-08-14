@@ -363,6 +363,21 @@ module RustProjection
             # the SAME structural shape Ruby's `payload: args` already is,
             # and what a policy/process-manager reaction needs to forward
             # real data into a re-triggered command's own from_json.
+            #
+            # NOT `sparse: true` here — json_codec.rb's own `sparse:`
+            # exists, is real, and closes a genuine gap (an unset
+            # optional argument's key should be ABSENT from an emitted
+            # event's payload, matching Ruby's `payload: args`, not
+            # present-with-`null`) — but wiring it in here diverges this
+            # generator's own output from `hecks-codegen`'s (a SEPARATE,
+            # from-scratch Rust reimplementation `spec/codegen_parity_
+            # spec.rb` holds byte-identical to this one), across nearly
+            # every domain with any optional command attribute, not just
+            # the one this was written for. A THIRD Rust effort, on top
+            # of the parser gap `for_each` itself already found —
+            # porting `sparse:` there too is real, separate work,
+            # deliberately not attempted here. Left unwired so this
+            # generator's own output stays exactly what it always was.
             f.puts Projector.emit_to_json_flat(args_struct, command[:attributes], value_objects_by_name)
             f.puts
             allowlist = Projector.command_argument_allowlist(aggregate, command, ir[:process_managers])

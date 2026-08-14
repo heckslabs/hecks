@@ -1065,7 +1065,7 @@ pub fn dispatch_freeze(
         "number.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
+            crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("closed".to_string())) } },
             crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
