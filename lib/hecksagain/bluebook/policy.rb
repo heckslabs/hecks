@@ -13,21 +13,25 @@ module Hecksagain
         name:            :name,
         on_event:        :on_event,
         trigger_command: :trigger_command,
-        target_domain:   :target_domain
+        target_domain:   :target_domain,
+        where:           :where,
+        for_each:        :for_each
       )
 
-      attr_reader :name, :on_event, :trigger_command, :target_domain
+      attr_reader :name, :on_event, :trigger_command, :target_domain, :where, :for_each
 
       # AGGREGATE, DECLARED AND DELIBERATELY OFF THE WIRE
       # the wire format is a pinned contract, and it does not carry
       # where a policy was written before the builder hoisted it
       attr_accessor :aggregate
 
-      def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil, aggregate: nil)
+      def initialize(name:, on_event: nil, trigger_command: nil, target_domain: nil, where: nil, for_each: nil, aggregate: nil)
         @name = name.to_s
         @on_event = on_event
         @trigger_command = trigger_command
         @target_domain = target_domain
+        @where = where
+        @for_each = for_each
         @aggregate = aggregate&.to_s
       end
     end

@@ -123,4 +123,191 @@ RSpec.describe "a policy" do
                      delivered: false, defect: true, error_class: "NoMethodError")
     )
   end
+
+  # `where` (a conditional guard on whether a policy fires) and `for_each`
+  # (fan-out — the same trigger dispatched once per row a query answers,
+  # instead of once for the event) — new language surface, not a bug fix.
+  # Built INLINE (`Hecks.bluebook "Fanout" do ... end`), not a fixture
+  # file: `spec/fixtures/**/*.bluebook` is swept into
+  # `spec/parser_parity_spec.rb`'s own byte-exact Rust comparison
+  # automatically (STAGE 5's own "EVERY member" merge), and the Rust
+  # parser does not build `where`/`for_each` yet (a deliberate, named
+  # `PENDING_PAIRS` entry — see `spec/parser_coverage_spec.rb`) — an
+  # inline bluebook never reaches that scan at all, the same reason
+  # `spec/dsl_spec.rb`'s own `build_bluebook` helper builds inline rather
+  # than from a file.
+  describe "where and for_each" do
+    def boot_fanout
+      registry = Hecksagain::Runtime::Registry.new
+
+      Hecksagain.with_registry(registry) do
+        Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+
+        Hecks.bluebook "Fanout" do
+          aggregate "Customer" do
+            identified_by { customer_id.value }
+            attribute :customer_id, CustomerId
+            attribute :risk,        RiskLevel
+
+            value_object("CustomerId") { attribute :value, String }
+            value_object("RiskLevel")  { attribute :value, String }
+
+            command "Flag" do
+              role "Ops"
+              goal "flag a customer's risk level"
+              attribute :customer_id, CustomerId
+              attribute :risk,        RiskLevel
+              then_set :customer_id, to: :customer_id
+              then_set :risk,        to: :risk
+              emits "Flagged"
+            end
+
+            command "Acknowledge" do
+              role "Ops"
+              goal "acknowledge a customer was reviewed"
+              reference_to Customer
+              attribute :risk, RiskLevel, optional: true
+              then_set :risk, to: { value: "acknowledged" }
+              emits "Acknowledged"
+            end
+          end
+
+          aggregate "Account" do
+            identified_by { account_id.value }
+            attribute :account_id,  AccountId
+            attribute :customer_id, AccountCustomerId
+            attribute :status,      AccountStatus
+
+            value_object("AccountId")         { attribute :value, String }
+            value_object("AccountCustomerId") { attribute :value, String }
+            value_object("AccountStatus")     { attribute :value, String }
+
+            command "Open" do
+              role "Ops"
+              goal "open an account"
+              attribute :account_id,  AccountId
+              attribute :customer_id, AccountCustomerId
+              then_set :account_id,  to: :account_id
+              then_set :customer_id, to: :customer_id
+              then_set :status,      to: { value: "open" }
+              emits "Opened"
+            end
+
+            command "Review" do
+              role "Ops"
+              goal "open a review on an account"
+              reference_to Account
+              attribute :customer_id, AccountCustomerId, optional: true
+              attribute :risk,        String,            optional: true
+              then_set :status, to: { value: "reviewing" }
+              emits "Reviewed"
+            end
+
+            query "OpenForCustomer" do
+              attribute :customer_id, AccountCustomerId
+              where(customer_id: :customer_id, "status.value": "open")
+            end
+          end
+
+          # THE GUARD ALONE — no for_each, isolates `where` on its own.
+          policy "NotifyOnFlag" do
+            on      "Customer.Flagged"
+            where { risk == "high" }
+            trigger "Customer.Acknowledge"
+          end
+
+          # THE GUARD AND THE FAN-OUT TOGETHER — the task's own worked
+          # example ("for each open Account belonging to this Customer,
+          # trigger AccountFreezeReview.Open"), self-contained in one
+          # domain rather than crossing `across`.
+          policy "ReviewOnFlag" do
+            on       "Customer.Flagged"
+            where { risk == "high" }
+            for_each "Account.OpenForCustomer"
+            trigger  "Account.Review"
+          end
+        end
+
+        Hecks.hecksagon("Fanout") do
+          ::Fanout::Customer.persisted_by("Memory")
+          ::Fanout::Account.persisted_by("Memory")
+        end
+      end
+
+      Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+    end
+
+    def open_two_accounts_for(runtime, customer_id)
+      runtime.dispatch("Fanout::Account.Open", account_id: { value: "#{customer_id}-a1" },
+                                               customer_id: { value: customer_id })
+      runtime.dispatch("Fanout::Account.Open", account_id: { value: "#{customer_id}-a2" },
+                                               customer_id: { value: customer_id })
+    end
+
+    it "dispatches when the where clause holds" do
+      runtime = boot_fanout
+      open_two_accounts_for(runtime, "c1")
+
+      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+
+      expect(runtime.reactions).to include(
+        hash_including(policy: "NotifyOnFlag", on: "Flagged", trigger: "Fanout::Customer.Acknowledge",
+                       delivered: true)
+      )
+      expect(Fanout::Customer.find("c1").risk[:value]).to eq("acknowledged")
+    end
+
+    it "skips silently — no reaction_log entry at all — when the where clause does not hold" do
+      runtime = boot_fanout
+      open_two_accounts_for(runtime, "c1")
+
+      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "low" })
+
+      expect(runtime.reactions).to be_empty
+      expect(Fanout::Customer.find("c1").risk[:value]).to eq("low")
+    end
+
+    it "fans a for_each policy out once per row a query answers, not once for the event" do
+      runtime = boot_fanout
+      open_two_accounts_for(runtime, "c1")
+      # A THIRD account, a DIFFERENT customer — proves the fan-out is
+      # scoped by the query's own where, not "every Account that exists".
+      runtime.dispatch("Fanout::Account.Open", account_id: { value: "c2-a1" }, customer_id: { value: "c2" })
+
+      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+
+      review_reactions = runtime.reactions.select { |r| r[:policy] == "ReviewOnFlag" }
+      expect(review_reactions.size).to eq(2)
+      expect(review_reactions.map { |r| r[:for_row] }).to contain_exactly("c1-a1", "c1-a2")
+      expect(review_reactions).to all(include(trigger: "Fanout::Account.Review", delivered: true))
+
+      expect(Fanout::Account.find("c1-a1").status[:value]).to eq("reviewing")
+      expect(Fanout::Account.find("c1-a2").status[:value]).to eq("reviewing")
+      expect(Fanout::Account.find("c2-a1").status[:value]).to eq("open")
+    end
+
+    it "records a for_each row it cannot deliver as a refusal, and still delivers the rest" do
+      runtime = boot_fanout
+      open_two_accounts_for(runtime, "c1")
+      # Already reviewing — Account has no lifecycle/transition guard of
+      # its own here, so this dispatch does not refuse ; the refusal this
+      # test actually reaches for is the SAME payload-gate refusal the
+      # earlier plain-`trigger` smoke test found (Account.Review would
+      # refuse if it did not declare a field the event forwards), proven
+      # here by naming a for_each query on an aggregate that has none —
+      # a real, ordinary UnknownVerb refusal, recorded and not fatal.
+      registry = runtime.registry
+      registry.bluebook("Fanout").policies.find { |p| p.name == "ReviewOnFlag" }
+              .instance_variable_set(:@for_each, "Account.NoSuchQuery")
+
+      runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: "c1" }, risk: { value: "high" })
+
+      review = runtime.reactions.find { |r| r[:policy] == "ReviewOnFlag" }
+      expect(review).to include(delivered: false)
+      expect(review[:reason]).to match(/no query/)
+    end
+  end
 end

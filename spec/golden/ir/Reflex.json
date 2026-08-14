@@ -437,22 +437,28 @@
   "name": "Reflex",
   "policies": [
     {
+      "for_each": null,
       "name": "LogOnFlip",
       "on_event": "Flipped",
       "target_domain": null,
-      "trigger_command": "Light.Log"
+      "trigger_command": "Light.Log",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "RingOnRang",
       "on_event": "Rang",
       "target_domain": null,
-      "trigger_command": "Echo.Ring"
+      "trigger_command": "Echo.Ring",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "NotifyOnRaise",
       "on_event": "Raised",
       "target_domain": "Notifications",
-      "trigger_command": "Notifications.Send"
+      "trigger_command": "Notifications.Send",
+      "where": null
     }
   ],
   "process_managers": [

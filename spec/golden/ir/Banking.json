@@ -5187,40 +5187,52 @@
   "name": "Banking",
   "policies": [
     {
+      "for_each": null,
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
       "target_domain": "Compliance",
-      "trigger_command": "AccountFreezeReview.Open"
+      "trigger_command": "AccountFreezeReview.Open",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "RetryOnPaymentFailure",
       "on_event": "ScheduledPayment.ScheduledPaymentFailed",
       "target_domain": null,
-      "trigger_command": "ScheduledPayment.Retry"
+      "trigger_command": "ScheduledPayment.Retry",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "FreezeAccountsOnSuspension",
       "on_event": "CustomerSuspended",
       "target_domain": null,
-      "trigger_command": "Account.Freeze"
+      "trigger_command": "Account.Freeze",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "NotifyOnClosure",
       "on_event": "AccountClosed",
       "target_domain": "Notifications",
-      "trigger_command": "Notifications.Send"
+      "trigger_command": "Notifications.Send",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "ReviewOnBoxSurrender",
       "on_event": "BoxSurrendered",
       "target_domain": "Compliance",
-      "trigger_command": "BoxSurrenderReview.Open"
+      "trigger_command": "BoxSurrenderReview.Open",
+      "where": null
     },
     {
+      "for_each": null,
       "name": "FlagKeyReturn",
       "on_event": "KeyReturnDue",
       "target_domain": "Notifications",
-      "trigger_command": "Notifications.Send"
+      "trigger_command": "Notifications.Send",
+      "where": null
     }
   ],
   "process_managers": [

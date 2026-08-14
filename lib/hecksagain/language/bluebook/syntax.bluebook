@@ -375,6 +375,24 @@ Hecks.bluebook "Bluebook" do
         member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
         member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command"
         member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
+        # `where { ... }` — a guard on whether the policy fires at all, read
+        # against the triggering EVENT's own payload. Same extraction as
+        # `given`/`invariant` above (`body: "source"`, no runtime `eval` of
+        # live Ruby) — but no description argument the way those two carry
+        # one: a `given`'s description becomes a refusal message, and a
+        # `where` that does not hold refuses nothing, it just means this
+        # policy does not apply to this event (PolicyInterpreter#policies_for
+        # filters it out silently, the same as an `event_qualifier` miss) —
+        # so there is no message for a description to become.
+        member word: "where",           context: "Policy",    body: "source", inner: "", opens: "",       fills: "where"
+        # `for_each "Aggregate.query_name"` — fan-out: the policy's `trigger`
+        # fires once per row a declared query answers, instead of once for
+        # the event. The query runs against the SAME domain the event
+        # belongs to unless the verb is itself domain-qualified
+        # (`"Domain::Aggregate.query_name"`) — mirrors how a saga's own
+        # `dispatch` verb defaults to its process manager's domain
+        # (`SagaInterpreter#qualified`).
+        member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "",       fills: "for_each"
 
         member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
         member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
@@ -794,6 +812,11 @@ Hecks.bluebook "Bluebook" do
         member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event"
         member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command"
         member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"
+        # `where` has no Argument row — its only argument is the block
+        # `body: "source"` already captures (see its own Keyword-row
+        # comment above); there is no positional/named text argument
+        # beside it the way `given`/`invariant` each carry a description.
+        member keyword: "for_each",        context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each"
 
         member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
         member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"

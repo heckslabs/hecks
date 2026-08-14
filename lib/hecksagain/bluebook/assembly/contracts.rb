@@ -168,7 +168,9 @@ module Hecksagain
             aggregate:       [:aggregate,       :plain],
             on_event:        [:on_event,        :plain],
             trigger_command: [:trigger_command, :plain],
-            target_domain:   [:target_domain,   :plain]
+            target_domain:   [:target_domain,   :plain],
+            where:           [:where,           :plain],
+            for_each:        [:for_each,        :plain]
           },
           derived: { position: :walk }
         ),

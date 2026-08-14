@@ -1,5 +1,8 @@
 require_relative "../naming"
 require_relative "errors"
+require_relative "query_interpreter"
+require_relative "refusal_wording"
+require_relative "../bluebook/expression/evaluator"
 
 
 module Hecksagain
@@ -12,9 +15,19 @@ module Hecksagain
         @door     = door
       end
 
+      # `deliver` returns `nil` for a policy whose `where` did not hold —
+      # SILENTLY, the same as a policy `policies_for` never selected at all
+      # (an `event_qualifier` miss carries no reaction_log entry either) —
+      # so nothing is appended for it. A `for_each` policy answers an ARRAY
+      # (one record per matched row) rather than one record ; `Array(...)`
+      # is wrong here (it would explode a plain record Hash into its own
+      # key/value pairs), so the two shapes are told apart explicitly.
       def react(event, domain)
         policies_for(event, domain).each do |policy|
-          @registry.reaction_log << deliver(policy, event, domain)
+          result = deliver(policy, event, domain)
+          next if result.nil?
+
+          (result.is_a?(Array) ? result : [result]).each { |record| @registry.reaction_log << record }
         end
       end
 
@@ -32,9 +45,34 @@ module Hecksagain
         end
       end
 
+      # THE GUARD, evaluated against the triggering event's own payload —
+      # a policy has no aggregate instance of its own to read state from,
+      # so `state` is empty and every bare name a `where` resolves comes
+      # from `attrs` (Expression::Resolver#fetch checks `attrs` before
+      # `state`, so this is exactly the shape `enforce_givens` already
+      # gives a command's own given, minus the settled-record half a
+      # policy simply has none of). Called from inside `deliver`'s own
+      # rescue-guarded body (both callers, below) — never guarded here —
+      # so an EvaluationError (an unresolvable field, a bad comparison) is
+      # caught the SAME way any other reaction defect is, not swallowed as
+      # though the policy had merely declined to fire.
+      def where_holds?(policy, event)
+        return true if policy.where.to_s.empty?
+
+        Bluebook::Expression::Evaluator.call(policy.where, {}, event.payload.transform_keys(&:to_sym))
+      end
+
       def deliver(policy, event, domain)
+        # `record` ASSIGNED BEFORE ANY BRANCH THAT CAN RAISE, same reason
+        # `deliver_for_each`'s own header gives : both rescue clauses below
+        # call `.merge` on it, and a defect raised before it existed would
+        # be caught here only to raise a second, different NoMethodError
+        # trying to record the first one.
         target = "#{policy.target_domain || domain}::#{policy.trigger_command}"
         record = { policy: policy.name, on: event.name, trigger: target }
+
+        return deliver_for_each(policy, event, domain, target, record) unless policy.for_each.to_s.empty?
+        return nil unless where_holds?(policy, event)
 
         if @door.reaction_depth_reached?
           return record.merge(delivered: false,
@@ -77,6 +115,83 @@ module Hecksagain
         warn "[hecksagain] defect in reaction — policy #{policy.name} on #{event.name} " \
              "firing #{target}: #{error.class}: #{error.message}"
         record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
+      end
+
+      # THE FAN-OUT — `policy.for_each` names a query ; this runs it
+      # against the triggering event's own payload (the same source
+      # `deliver`'s own ordinary path forwards to `trigger` wholesale) and
+      # fires `trigger` once per row, merging each row's own id into the
+      # forwarded payload under the iterated aggregate's own reference-key
+      # convention (`account_id` for `Account`, `AggregateBuilder
+      # #reference_to`'s own default mint — see `reference_key_for`'s own
+      # comment). A refusal is recorded per row and the fan-out continues ;
+      # a crash resolving the QUERY ITSELF (an unresolvable domain/
+      # aggregate/query, or the evaluator raising) is a single top-level
+      # defect for the policy, the same shape `deliver`'s own outer rescue
+      # already gives every other reaction.
+      def deliver_for_each(policy, event, domain, target, record)
+        return nil unless where_holds?(policy, event)
+
+        query_domain, aggregate_name, query_name = for_each_route(policy, domain)
+        aggregate = resolve_query_aggregate(query_domain, aggregate_name, policy.for_each)
+        payload   = event.payload.transform_keys(&:to_sym)
+        rows      = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, payload)
+        reference_key = reference_key_for(aggregate_name)
+
+        Array(rows).map do |row|
+          deliver_for_each_row(target, record, payload, reference_key, row)
+        end
+      rescue *DOMAIN_REFUSALS => error
+        record.merge(delivered: false, reason: error.message)
+      rescue StandardError => error
+        warn "[hecksagain] defect in reaction — policy #{policy.name} on #{event.name} " \
+             "resolving for_each #{policy.for_each}: #{error.class}: #{error.message}"
+        record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
+      end
+
+      def deliver_for_each_row(target, record, payload, reference_key, row)
+        row_record = record.merge(for_row: row[:id])
+
+        if @door.reaction_depth_reached?
+          return row_record.merge(delivered: false,
+                                  reason: "reaction depth #{@door.max_reaction_depth} reached")
+        end
+
+        @door.reenter(target, **payload.merge(reference_key => row[:id]))
+        row_record.merge(delivered: true)
+      rescue *DOMAIN_REFUSALS => error
+        row_record.merge(delivered: false, reason: error.message)
+      end
+
+      # `for_each "Account.OpenForCustomer"` runs against THIS EVENT'S OWN
+      # domain by default — the same default a saga's own `dispatch`
+      # command name takes (`SagaInterpreter#qualified`) — or an explicit
+      # `"Domain::Aggregate.query_name"` names its own. Deliberately
+      # independent of `across`/`target_domain`, which name where
+      # `trigger` fires, not where the fan-out's own query runs — the two
+      # need not be the same domain.
+      def for_each_route(policy, domain)
+        path, query_name = policy.for_each.to_s.split(".", 2)
+        query_domain, aggregate_name = path.to_s.include?("::") ? path.split("::", 2) : [domain, path]
+
+        [query_domain, aggregate_name, query_name]
+      end
+
+      # THE SAME MINT `AggregateBuilder#reference_to` gives a bare
+      # `reference_to Account` (`account_id`, no `as:`) — `Naming
+      # .reference_key` plus the `_id` suffix, the same two-step
+      # `Interview::Source#default` already uses for exactly this reason —
+      # so a `for_each` iterating Account and a command written
+      # `reference_to Account` agree on the argument's name without either
+      # one having to say so twice.
+      def reference_key_for(aggregate_name) = :"#{Naming.reference_key(aggregate_name)}_id"
+
+      def resolve_query_aggregate(domain, aggregate_name, verb)
+        bluebook = @registry.bluebook(domain) ||
+                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
+        bluebook.aggregate(aggregate_name) ||
+          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate",
+                                                    domain: domain, aggregate: aggregate_name.inspect))
       end
     end
   end
