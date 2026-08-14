@@ -52,7 +52,7 @@ Hecks.bluebook "Pizzas" do
     attribute :customer_name, CustomerName
 
     value_object "PizzaName" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a pizza is named") { !value.to_s.empty? }
     end
 
@@ -62,12 +62,12 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "CustomerName" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a customer is named") { !value.to_s.empty? }
     end
 
     value_object "ToppingName" do
-      attribute :value, String
+      attribute :value, String, pattern: '[^ \t\n\r]'
       invariant("a topping is named") { !value.to_s.empty? }
     end
 
@@ -77,7 +77,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "Topping" do
-      attribute :name,   String
+      attribute :name,   String, pattern: '[^ \t\n\r]'
       attribute :amount, Integer
     end
 
@@ -209,16 +209,19 @@ order.add_topping(topping: { value: "Late" }, amount: { value: 1 })   # ~> Given
 And try to put a nameless pizza on the menu:
 
 ```ruby
-Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })   # ~> InvariantViolation: a pizza is named
+Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
 Two different refusals, and the difference matters. The `given` is the
 command's own rule — it reads the aggregate's state and says no on its
-behalf. The invariant is the value object's rule — it travels with
-`PizzaName` into every command that carries one, declared once,
-enforced everywhere. Neither is an exception in the Ruby sense. A
-refusal is the domain saying no, in words declared for it, and the
-runtime treats it as half of what the domain means.
+behalf. `PizzaName`'s `pattern:` is the value object's rule — it
+travels with `PizzaName` into every command that carries one, declared
+once, enforced everywhere, and checked ahead of `PizzaName`'s own
+hand-written "a pizza is named" invariant (attribute coercion runs
+before invariants, so a blank name never reaches it). Neither is an
+exception in the Ruby sense. A refusal is the domain saying no, in
+words declared for it, and the runtime treats it as half of what the
+domain means.
 
 Every example on this page is executed against the real runtime by
 `spec/guides_spec.rb`, including the assertions and refusals. This

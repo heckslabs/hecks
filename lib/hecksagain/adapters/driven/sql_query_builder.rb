@@ -1,4 +1,4 @@
-require_relative "../../presentation/value_object_shape"
+require_relative "../../forms/value_object_shape"
 require_relative "../../query_specification/common/null_policy"
 require_relative "../../query_specification/field_path"
 require_relative "../../runtime/errors"
@@ -136,7 +136,7 @@ module Hecksagain
                  end
         member ||= if path.empty? && attribute && value_object?(attribute)
                      object = @aggregate.value_object(attribute.type)
-                     Presentation::ValueObjectShape.numeric_member(object)&.name
+                     Forms::ValueObjectShape.numeric_member(object)&.name
                    end
         nested_expression(name, path, member)
       end

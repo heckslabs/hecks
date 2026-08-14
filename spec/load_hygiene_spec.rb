@@ -83,7 +83,7 @@ RSpec.describe "load hygiene", io: true do
       end
     end
 
-    shared_values = %w[BANKING_BLUEBOOK ROOT_DIR]
+    shared_values = %w[BANKING_BLUEBOOK ROOT_DIR WIRE_BLUEBOOK]
     colliding = definitions.select { |name, files| files.uniq.size > 1 && !shared_values.include?(name) }
 
     expect(colliding).to be_empty,

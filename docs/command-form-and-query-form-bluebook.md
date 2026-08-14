@@ -1,10 +1,20 @@
-# presentation.bluebook: forms and views straight off the IR
+# command_form.bluebook and query_form.bluebook: forms and views straight off the IR
 
-**Status: prototype.** A working slice lives at `lib/hecksagain/presentation/`,
-demoed by `bin/present` against the banking example. This records the design,
-what it deliberately does and doesn't do yet, and the path to making
-`presentation` a real word in the language rather than the ordinary Ruby DSL
-it is today.
+**Status: prototype.** A working slice lives at `lib/hecksagain/forms/`,
+demoed by `bin/present` against the banking example. This records the
+design, what it deliberately does and doesn't do yet, and the path to
+making these real words in the language rather than the ordinary Ruby DSL
+they are today.
+
+**Two words, not one.** This used to be pitched as a single future word,
+`presentation.bluebook`. Renamed on purpose: a command and a query are
+different declarations with different shapes (a command is a POST and a
+form; a query is a GET and a view), and naming them separately —
+`command_form.bluebook` for the one, `query_form.bluebook` for the other —
+says that up front instead of hiding it behind one umbrella word. A third,
+`report_form.bluebook`, names where a chapter's cross-aggregate `report`
+would eventually get the same treatment — see "Reports and read models are
+not wired" below; nothing renders one yet.
 
 ## The idea
 
@@ -12,12 +22,12 @@ Every command already declares everything an HTML form needs — its
 attributes, their types, their patterns, their closed sets, which role may
 call it, what it emits. Every query already declares everything a filter
 view needs. None of that has ever been read as UI before; the language just
-sits there, fully structured, unused for this. `presentation.bluebook` reads
-it: for any command, render an HTML `<form>`; for any query, render a GET
-view. **One rule, applied uniformly** — not a page authored per aggregate,
-not a template per command. A command or query gains a form the moment it's
-declared, and loses nothing when it's renamed, because nothing downstream
-was hand-written against its old name.
+sits there, fully structured, unused for this. `command_form.bluebook`
+reads a command and renders an HTML `<form>`; `query_form.bluebook` reads a
+query and renders a GET view. **One rule, applied uniformly** — not a page
+authored per aggregate, not a template per command. A command or query
+gains a form the moment it's declared, and loses nothing when it's
+renamed, because nothing downstream was hand-written against its old name.
 
 ## Content negotiation by file extension
 
@@ -36,17 +46,18 @@ GET  /Banking/Account/a1                 → the same record, as JSON
 GET  /Banking/Account.html               → every Account + a "+ Open" link
 ```
 
-One route, two representations. `.html` is presentation.bluebook's whole
-job; the bare/`.json` path is not a pre-existing API this project already
-had (there wasn't one) — it's the necessary other half of "changing the
-format changes the representation," built alongside so the mechanism is
-real rather than illustrated by one branch of an if.
+One route, two representations. `.html` is `command_form.bluebook`/
+`query_form.bluebook`'s whole job; the bare/`.json` path is not a
+pre-existing API this project already had (there wasn't one) — it's the
+necessary other half of "changing the format changes the representation,"
+built alongside so the mechanism is real rather than illustrated by one
+branch of an if.
 
 ## What "excellent HTML" means here
 
 Not a framework, not a component library — plain, hand-rolled HTML5, in the
 spirit of the rest of this codebase (no ERB, no template engine anywhere in
-the repo; see `lib/hecksagain/presentation/html.rb`'s own note). Concretely:
+the repo; see `lib/hecksagain/forms/html.rb`'s own note). Concretely:
 
 - **Semantic, accessible markup.** Real `<label for>`, `<fieldset>`/`<legend>`
   for a value object's own fields, `aria-describedby` linking a field to its
@@ -110,9 +121,11 @@ offer for "which account."
 
 ## The field-shape mapping
 
-`lib/hecksagain/presentation/field_shape.rb` is the one place `IR::Attribute`
-becomes an HTML input shape. It's the piece the prior prototype in this
-repo (`embryonaut_console`'s `ui_schema.rb` + `presentation.yml`, vendored
+`lib/hecksagain/forms/field_shape.rb` is the one place `IR::Attribute`
+becomes an HTML input shape — shared by both words equally, since a
+command's own attribute and a query's own parameter resolve to the exact
+same shape. It's the piece the prior prototype in this repo
+(`embryonaut_console`'s `ui_schema.rb` + `presentation.yml`, vendored
 under `deploy/embryonaut/.aws-sam/build/...` — see the survey that grounded
 this design) fell short of: everything that wasn't a number or a
 closed-set VO fell back to `<input type="text">`, even when a `pattern`
@@ -150,29 +163,68 @@ not a string that merely looks like one — no coercion happens at that layer.
 So `Params.extract` casts against the *same* `Field` a `FieldRenderer` used
 to draw the input, one reading of the IR for both jobs.
 
+## What's shared, what's per-word
+
+`command_form.bluebook`/`query_form.bluebook` split at exactly the point
+where a command and a query actually differ — `CommandFormRenderer`
+(`command_form_renderer.rb`) owns the POST form and its submit handling;
+`QueryFormRenderer` (`query_form_renderer.rb`) owns the canonical link,
+quick-links, and filter form. Everything else in `lib/hecksagain/forms/` is
+genuinely cross-cutting and stays shared rather than being forked in two —
+splitting it would mean two copies drifting, for no reader's benefit:
+
+- `field_shape.rb` / `field_renderer.rb` — an attribute becomes the same
+  input shape whether it's a command's argument or a query's parameter.
+- `value_object_shape.rb` — the shared "is this VO money-shaped," "does it
+  have exactly one attribute," "which member is numeric" classification
+  `field_shape.rb` reads, also read directly by
+  `adapters/driven/sql_query_builder.rb` for its own ORDER BY compilation —
+  a command's own form, a query's own view, and a query's own SQL
+  compilation all need the identical answer to the identical question.
+- `reference_options.rb` — resolving a `:reference` field's `<select>`
+  options against a real repository, needed by both.
+- `params.rb` — the flat-web-payload ↔ nested-typed-hash conversion, needed
+  by both a POST body and a GET query string.
+- `record_table.rb` / `record_renderer.rb` / `index_renderer.rb` — the
+  aggregate index page, a record's own show page, and the home page are
+  neither a command form nor a query view; they read the repository (or
+  the registry) directly and exist for every aggregate whether or not it
+  declares a query at all.
+- `page.rb` / `html.rb` — the shared HTML shell and escaping.
+- `app.rb` — the one Rack router dispatching to all of the above by route
+  shape, since a real request needs one answer regardless of which word
+  eventually formalizes it.
+
 ## What this deliberately leaves out
 
-- **Not real language syntax yet.** `presentation.bluebook`'s `expose` word
-  does *not* go through `Hecks.*` / `Runtime::Registry` / `MetaValidator` the
-  way `bluebook`/`hecksagon`/`world` do. `docs/guides/extending-hecks.md` is
-  explicit that a real word is "a declared row before it is a line of Ruby,"
-  judged by `syntax.bluebook` — and this hasn't earned that yet. It's an
-  ordinary Ruby DSL (`Hecksagain::Presentation.configure("Name") { expose
-  "Banking" }`, `lib/hecksagain/presentation.rb`), one level of module
-  state, no different in kind from a project's own initializer. This was
-  tried the other way first — `Hecks.present` as a real collector into
-  `Runtime::Registry` — and reverted: `spec/syntax_conformance_spec.rb` and
+- **Not real language syntax yet.** Neither word goes through `Hecks.*` /
+  `Runtime::Registry` / `MetaValidator` the way `bluebook`/`hecksagon`/
+  `world` do. `docs/guides/extending-hecks.md` is explicit that a real word
+  is "a declared row before it is a line of Ruby," judged by
+  `syntax.bluebook` — and this hasn't earned that yet. It's an ordinary
+  Ruby DSL (`Hecksagain::Forms.configure("Name") { expose "Banking" }`,
+  `lib/hecksagain/forms.rb`), one level of module state, no different in
+  kind from a project's own initializer. This was tried the other way
+  first — `Hecks.present` as a real collector into `Runtime::Registry` —
+  and reverted: `spec/syntax_conformance_spec.rb` and
   `spec/dsl_coverage_spec.rb` both correctly refused a new word on the
   `Hecksagain` module surface with no `syntax.bluebook` row and no coverage
   example, which is exactly what those gates are for. Graduating this into
-  real syntax — earning a place beside `bluebook`/`hecksagon` — is the
-  natural next step once more than one domain has actually used the shape.
+  real syntax — earning a place beside `bluebook`/`hecksagon`, as two (or
+  three) separate words rather than one — is the natural next step once
+  more than one domain has actually used the shape.
+- **`expose` grants a whole chapter, not a command or query individually.**
+  Today's `expose "Banking"` turns forms/views on for every command and
+  query in that chapter at once — there is no per-declaration override yet.
+  `command_form.bluebook`/`query_form.bluebook` are where that finer grain
+  would live (a specific command's own label, a specific query's own
+  default filter), once there's a real reason to build it.
 - **Not living under `examples/`.** Every top-level entry under `examples/`
   is independently scanned as a full corpus member by `spec/corpus_spec.rb`
   and `spec/model_check_spec.rb` (`Dir.glob(examples/*)`), each expected to
   be a complete, independently model-checked domain with its own corpus
   script. The demo config is a sample of *this feature*, not a domain, so
-  it lives at `lib/hecksagain/presentation/examples/banking_console.bluebook`
+  it lives at `lib/hecksagain/forms/examples/banking_console.bluebook`
   instead — found this the hard way, mid-build, when adding a second example
   directory turned two unrelated specs red.
 - **No field-level refusal attribution.** A domain refusal is a typed
@@ -182,11 +234,14 @@ to draw the input, one reading of the IR for both jobs.
   input it was about. Worth building (parsing `RefusalWording`'s own
   templates back apart, or carrying structure through `InvariantViolation`
   itself), scoped out here.
-- **Reports and read models are not wired.** Only aggregate-scoped `command`
-  and `query` render. A chapter's `report` (a cross-aggregate read model,
-  dispatched through `Dispatcher#query` differently — see
-  `dispatcher.rb`'s own `domain.include?("::")` branch) is a distinct shape
-  this pass didn't reach.
+- **Reports and read models are not wired — `report_form.bluebook` is
+  named, not built.** Only aggregate-scoped `command` and `query` render. A
+  chapter's `report` (a cross-aggregate read model, dispatched through
+  `Dispatcher#query` differently — see `dispatcher.rb`'s own
+  `domain.include?("::")` branch) is a distinct shape this pass didn't
+  reach; `report_form.bluebook` is the name reserved for it, matching the
+  vocabulary `command_form`/`query_form` already establish, once it's
+  actually built.
 - **`list_of` of a multi-field element** falls back to one JSON object per
   line rather than a real repeatable fieldset with add/remove rows — the
   honest fallback, not a silent gap; `params.rb` says so at the call site.
@@ -210,8 +265,9 @@ Then, for example: `open http://localhost:4567/`,
 `open http://localhost:4567/Banking/Customer.html`,
 `curl http://localhost:4567/Banking/Account/Debit`.
 
-To point this at a different domain, write a `presentation.bluebook`-shaped
-file (anywhere but `examples/*` — see above) declaring which chapters to
+To point this at a different domain, write a
+`lib/hecksagain/forms/examples/banking_console.bluebook`-shaped file
+(anywhere but `examples/*` — see above) declaring which chapters to
 expose, and adapt `bin/present`'s own boot block (or, for a domain whose
 `.hecksagon` already binds a real adapter rather than needing the
 Memory rebind, just `Hecks.boot(path)` and skip the hand-rolled boot
@@ -219,9 +275,9 @@ entirely — `App.for` only needs a booted `Registry` and a configured name).
 
 ## Tests
 
-`spec/presentation/field_shape_spec.rb` — the IR → Field mapping, against
+`spec/forms/field_shape_spec.rb` — the IR → Field mapping, against
 banking's real attributes (no adapter needed; `Field` is pure IR reading).
-`spec/presentation/app_spec.rb` — the Rack app end to end, via `Rack::Test`
+`spec/forms/app_spec.rb` — the Rack app end to end, via `Rack::Test`
 and the Memory adapter: content negotiation, a full create-then-show round
 trip, a sticky rejected submission, a parameterized query, lifecycle-aware
 command links on a record page, 404s.
