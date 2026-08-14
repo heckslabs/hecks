@@ -1,0 +1,10 @@
+# The expression and translation grammars, bound so they boot standing
+# alone. Both are read-only in practice — Hecksagain::Grammar parses
+# against them — but a binding is declared rather than defaulted.
+Hecks.hecksagon "Expression" do
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "Translation" do
+  persisted_by "Memory"
+end

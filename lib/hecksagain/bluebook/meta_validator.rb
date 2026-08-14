@@ -63,6 +63,53 @@ module Hecksagain
       # assembled result (the fixpoint, made load-bearing).
       def self.bootstrapping? = @bootstrapping
 
+      # A CHAPTER MAY BE SPLIT ACROSS FILES, so it cannot be judged until
+      # every file has been read.
+      #
+      # `BluebookBuilder.build` already MERGES — `registry.bluebook_builder
+      # (name)` memoises one builder per chapter name, so nine files each
+      # saying `Hecks.bluebook "Bluebook"` accumulate into one. What it
+      # also does is call `MetaValidator.call` once PER FILE, judging a
+      # chapter that is still eight files short: `Aggregate`'s reference
+      # to `Bluebook` dangles because `Bluebook` has not been declared
+      # yet, and the load dies.
+      #
+      # The language's own grammar has always needed this and got it
+      # privately, through `@bootstrapping` (see load_grammar_into) —
+      # which is exactly why the language could not boot the way the
+      # domains it describes boot. This is that same two-phase load,
+      # available to anything: `Folder#load_domain` reads every
+      # `*.bluebook` inside `defer`, then judges each composed chapter
+      # once, before hecksagons and worlds load (DOMAIN_ORDER already
+      # puts every chapter ahead of those).
+      #
+      # Only chapters DECLARED INSIDE the window are judged afterwards.
+      # Re-judging one already assembled — a framework member pulled in
+      # earlier by `uses_framework`, say — would re-run Assembly and hand
+      # out a second set of classes for a graph something already holds.
+      def self.deferring? = @deferring
+
+      def self.defer
+        previous   = @deferring
+        @deferring = true
+        yield
+      ensure
+        @deferring = previous
+      end
+
+      def self.deferred_chapters = @deferred_chapters ||= []
+
+      def self.judge_deferred!(registry)
+        pending = deferred_chapters.uniq
+        @deferred_chapters = []
+        return unless registry
+
+        pending.each do |name|
+          chapter = registry.bluebook(name)
+          registry.add_bluebook(call(chapter)) if chapter
+        end
+      end
+
       def self.disabled? = ENV["HECKSAGAIN_META_VALIDATION"] == "off"
 
       # The same bluebook judged twice gets the same verdict, and a suite reloads
@@ -134,6 +181,11 @@ module Hecksagain
       # graph would hand two boots the same classes.
       def self.call(bluebook)
         return bluebook if disabled? || bootstrapping?
+
+        if deferring?
+          deferred_chapters << bluebook.hecks_name
+          return bluebook
+        end
 
         key = Digest::SHA256.hexdigest(JSON.generate(bluebook.to_h))
         held = verdicts[key] ||= hold(bluebook)
