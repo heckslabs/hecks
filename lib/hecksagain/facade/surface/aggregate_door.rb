@@ -126,6 +126,30 @@ module Hecksagain
             !Bluebook::DSL::HecksagonBuilder.collector.nil? || super(name, include_private)
           end
 
+          # THE SAME STALE-FACADE HAZARD `method_missing`/`port` ABOVE ALREADY
+          # DOCUMENT, one door lower — `Surface.install` installs an aggregate's
+          # OWN name as a bare TOP-LEVEL constant too (`Namespace.install(Object,
+          # aggregate.hecks_name, ...)`, surface.rb's own `install`), not only
+          # nested under its chapter. So once ANY domain has booted once in this
+          # process, `Account::Debit` written while declaring some OTHER
+          # bluebook — same domain or a different one — reaches THIS door's
+          # const_missing directly, never `Object.const_missing`/`ConstShim::
+          # Hook` at all: real modules resolve without ever calling that.
+          #
+          # `ir.hecks_name`, NOT the qualified `fqn` — a scoped reference has to
+          # read the SAME either way, whether or not a stale door happens to be
+          # sitting on this process from an earlier boot; qualifying it here
+          # would make `Account::Debit`'s own meaning depend on incidental
+          # process history, which is the exact instability S0b exists to
+          # remove (docs/dsl-work-slices.md — "two domains in one registry" is
+          # this file's own reason for being owned by that slice).
+          door.define_singleton_method(:const_missing) do |name|
+            resolver = Bluebook::DSL::ConstShim.resolver
+            return resolver.call("#{ir.hecks_name}::#{name}") if resolver
+
+            super(name)
+          end
+
           door
         end
       end

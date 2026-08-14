@@ -400,12 +400,15 @@ module Hecksagain
           builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
           # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
           # not a reference to something Ruby has heard of. `const_missing` hands
-          # over the symbol, and that is the whole answer: `Attribute` spells it
-          # with `to_s`, so the `TypeName` wrapper this used to build existed
+          # over a `ConstShim::ScopedConstant` (S0b, const_shim.rb's own comment),
+          # and that is still the whole answer for a bare name: `Attribute` spells
+          # it with `to_s`, so the `TypeName` wrapper this used to build existed
           # only long enough to be stringified. The concept still has a home — the
           # language declares `value_object "TypeName"` — it just needed no Ruby
-          # class of its own.
-          resolver = ->(const) { const }
+          # class of its own. A Module rather than a Symbol is what also lets
+          # `Account::Debit`/`admits: Account::LedgerDirection` answer their OWN
+          # `::` — a plain Symbol cannot.
+          resolver = ->(const) { ConstShim::ScopedConstant.for(const) }
           ConstShim.with(resolver) { builder.instance_eval(&block) } if block
           builder.build
         end

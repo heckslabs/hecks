@@ -1,4 +1,5 @@
 require_relative "../../bluebook/dsl/binding_proxy"
+require_relative "../../bluebook/dsl/const_shim"
 require_relative "../../bluebook/dsl/hecksagon_builder"
 
 module Hecksagain
@@ -68,11 +69,27 @@ module Hecksagain
           # load. With a collector open, the name becomes a `BindingProxy`
           # recording the same bind the aggregate module would ; without one, it
           # is a genuine NameError, exactly as before.
+          #
+          # THE OTHER READER OF A MISS is S0b's own bridge (docs/dsl-work-
+          # slices.md, const_shim.rb's `ScopedConstant`): a bluebook still being
+          # DECLARED that names `#{bluebook.name}::Something` — an event, a
+          # command reference, an `admits:` — reaches HERE, not
+          # `Object.const_missing`, the moment this chapter's own facade already
+          # exists (a previous boot in the same process, or this same chapter
+          # re-entering its own name). `ConstShim.active?` is exactly as true
+          # here as it is at the top level, mid-declaration, and consulting the
+          # SAME resolver is what makes a scoped reference resolve identically
+          # whether or not a facade happens to be built yet — the earlier
+          # attempt's own failure mode (this file's own history) was a bridge
+          # that worked only BEFORE any facade existed.
           chapter.define_singleton_method(:const_missing) do |name|
             collector = Bluebook::DSL::HecksagonBuilder.collector
-            return super(name) unless collector
+            return Bluebook::DSL::BindingProxy.new("#{bluebook.name}::#{name}", collector) if collector
 
-            Bluebook::DSL::BindingProxy.new("#{bluebook.name}::#{name}", collector)
+            resolver = Bluebook::DSL::ConstShim.resolver
+            return resolver.call("#{bluebook.name}::#{name}") if resolver
+
+            super(name)
           end
 
           chapter
