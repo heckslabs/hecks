@@ -51,7 +51,7 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
   MUTATION_VALUE_WRAP_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "MutationValueWrapGrowth" do
       aggregate "Breaker" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "BreakerId" do
           attribute :value, String

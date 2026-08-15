@@ -88,7 +88,9 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "Customer" do
     description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
 
-    identified_by CustomerNumber, as: :reference
+    attribute :reference, CustomerNumber
+
+    identified_by :reference
 
     attribute :name,      PersonName
     attribute :email,     EmailAddress
@@ -205,7 +207,9 @@ Hecks.bluebook "Banking", version: "v1" do
 
     reference_to Customer
 
-    identified_by AccountNumber, as: :number
+    attribute :number, AccountNumber
+
+    identified_by :number
 
     attribute :balance,      Money
     attribute :kind,         AccountKind
@@ -272,7 +276,9 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "LedgerEntry" do
       description "One movement across the account, in the order it was posted."
 
-      identified_by LedgerSequence, as: :sequence
+      attribute :sequence, LedgerSequence
+
+      identified_by :sequence
 
       attribute :amount,    Money
       attribute :narrative, Narrative
@@ -549,9 +555,8 @@ Hecks.bluebook "Banking", version: "v1" do
     # that is the actual key `CustomerSuspended`'s own payload carries
     # (`Customer.Suspend`'s own `reference_to Customer` addresses its OWN
     # aggregate by Customer's declared identity path, `identified_by
-    # CustomerNumber, as: :reference` — not a synthetic `customer_id`
-    # foreign key, which only a REFERENCING command like `Account.Open`
-    # mints).
+    # :reference` — not a synthetic `customer_id` foreign key, which only
+    # a REFERENCING command like `Account.Open` mints).
     query "OpenForCustomer" do
       description "One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry."
       # PLAIN String, not the cross-aggregate CustomerNumber VO Customer's
@@ -581,7 +586,9 @@ Hecks.bluebook "Banking", version: "v1" do
 
     reference_to Account
 
-    identified_by CardSerial, as: :serial
+    attribute :serial, CardSerial
+
+    identified_by :serial
 
     attribute :nickname,    CardNickname
     attribute :daily_fee,   DailyFee
@@ -620,7 +627,9 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "Withdrawal" do
       description "One handful of cash, in the order it was taken."
 
-      identified_by WithdrawalSequence, as: :sequence
+      attribute :sequence, WithdrawalSequence
+
+      identified_by :sequence
 
       attribute :cents,     WithdrawalAmount
       attribute :narrative, Narrative
@@ -739,7 +748,9 @@ Hecks.bluebook "Banking", version: "v1" do
     reference_to Account, as: :source
     reference_to Account, as: :destination
 
-    identified_by TransferReference, as: :reference
+    attribute :reference, TransferReference
+
+    identified_by :reference
 
     attribute :amount,    TransferMoney
 
@@ -871,7 +882,9 @@ Hecks.bluebook "Banking", version: "v1" do
 
     reference_to Account
     reference_to Customer, as: :disputed_by
-    identified_by AuthorisationCode, as: :authorisation
+    attribute :authorisation, AuthorisationCode
+
+    identified_by :authorisation
     attribute :amount,   PaymentAmount
 
     value_object "AuthorisationCode" do
@@ -1018,7 +1031,9 @@ Hecks.bluebook "Banking", version: "v1" do
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 
     reference_to Account
-    identified_by EndToEndReference, as: :end_to_end
+    attribute :end_to_end, EndToEndReference
+
+    identified_by :end_to_end
     attribute :amount,      ExternalAmount
     attribute :beneficiary, BeneficiaryName
     # WHICH WAY THE MONEY MOVED ON THE ACCOUNT — and the bank already has a set
@@ -1106,7 +1121,9 @@ Hecks.bluebook "Banking", version: "v1" do
 
     reference_to Account
     attribute :amount,    ScheduledAmount
-    identified_by InstructionReference, as: :instruction
+    attribute :instruction, InstructionReference
+
+    identified_by :instruction
 
     attribute :recipient, PaymentRecipient
     attribute :due_on,    PaymentDueDate
@@ -1261,13 +1278,10 @@ Hecks.bluebook "Banking", version: "v1" do
     # cross-reference, two entities (one of them composite in its own right),
     # and a closed set — the convergence market's Stall existed only to prove
     # was reachable at all.
-    identified_by do
-      branch_code.value
-      box_number.value
-    end
-
     attribute :branch_code, BranchCode
     attribute :box_number,  BoxNumber
+
+    identified_by :branch_code, :box_number
     # THE INLINE SHORTHAND, not a hand-declared value_object + one_of block —
     # AccountKind and LedgerDirection already exercise the block form
     # elsewhere in this chapter, so this is the other spelling: `one_of`
@@ -1312,13 +1326,10 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "Visit" do
       description "One opening of the box, in the order it happened that day."
 
-      identified_by do
-        date.value
-        sequence.value
-      end
-
       attribute :date,     VisitDate
       attribute :sequence, VisitSequence
+
+      identified_by :date, :sequence
       # MAY BE LEFT OUT — most openings are routine, and the exception is what
       # gets written down.
       attribute :note,     VisitNote, optional: true
@@ -1357,7 +1368,9 @@ Hecks.bluebook "Banking", version: "v1" do
     entity "KeyIssuance" do
       description "One key cut for the box, held by whoever last signed for it."
 
-      identified_by KeySerial, as: :serial
+      attribute :serial, KeySerial
+
+      identified_by :serial
 
       lifecycle :status, default: "issued" do
         transition "Return" => "returned", from: "issued"
@@ -1466,7 +1479,9 @@ Hecks.bluebook "Banking", version: "v1" do
     # is : a case belongs to exactly one customer, one at a time.
     belongs_to Customer
 
-    identified_by OnboardingReference, as: :reference
+    attribute :reference, OnboardingReference
+
+    identified_by :reference
 
     attribute :account_number, AccountNumber
 
@@ -1533,26 +1548,23 @@ Hecks.bluebook "Banking", version: "v1" do
     description "A snapshot of one account's activity over one period, generated once and never revised."
 
     reference_to Account
-    # A COMPOSITE IDENTITY WHOSE FIRST PART IS A BARE REFERENCE, not a
-    # dotted value-object field — SafeDepositBox's own composite identity
-    # dots into two value objects (branch_code.value, box_number.value);
-    # this is the other real shape the language allows.
-    # `AggregateBuilder#identified_by` reads whatever tokens its block's
-    # source holds, with no structural requirement that a component be
-    # dotted — `account_id` here is `reference_to Account`'s own minted
-    # attribute, addressed bare, resolved the same way
-    # `Runtime::Identity.from` resolves any identity head that IS a
-    # declared attribute: read directly, no walk into a value object.
-    identified_by do
-      account_id
-      period.value
-    end
-
     attribute :period,          StatementPeriod
     attribute :opening_balance, StatementAmount
     attribute :closing_balance, StatementAmount
     attribute :generated_on,    StatementDate
     attribute :frequency,       StatementFrequency
+
+    # A COMPOSITE IDENTITY WHOSE FIRST PART IS A REFERENCE, not a
+    # value-object field — SafeDepositBox's own composite identity
+    # unwraps two single-field value objects (branch_code, box_number);
+    # this is the other real shape the language allows.
+    # `AttributeCollector#resolve_identity_field!` reads each field's
+    # OWN declared type to decide how to reach it: `account_id` here is
+    # `reference_to Account`'s own minted attribute, already a scalar id,
+    # so it resolves bare — no value object to open, the same way
+    # `Runtime::Identity.from` resolves any identity head that IS a
+    # declared attribute directly.
+    identified_by :account_id, :period
 
     value_object "StatementPeriod" do
       attribute :value, String, pattern: '[^ \t\n\r]'
@@ -1717,10 +1729,10 @@ Hecks.bluebook "Banking", version: "v1" do
   process_manager "Settlement" do
     # THE FIELD, NAMED — Transfer.Request declares `attribute :reference,
     # TransferReference`, which is also what Transfer's own `identified_by
-    # { reference.value }` derives its id from, so this reads the exact same
-    # scalar the old bare `:transfer` reached only by coincidence (the
-    # aggregate's own reference key happening to spell the same as the
-    # correlation name). Named, not guessed.
+    # :reference` derives its id from, so this reads the exact same scalar
+    # the old bare `:transfer` reached only by coincidence (the aggregate's
+    # own reference key happening to spell the same as the correlation
+    # name). Named, not guessed.
     correlates_by :"reference.value"
     starts_on "TransferRequested"
     ends_on   "TransferSettled"
@@ -1779,7 +1791,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # object's rendered text are both defensible readings that correlate
   # differently. `:"end_to_end.value"` reaches past the wrapper for the one
   # scalar with a single unambiguous rendering, the same way `identified_by
-  # { end_to_end.value }` already does on the aggregate this saga watches.
+  # :end_to_end` already does on the aggregate this saga watches.
   process_manager "ExternalSettlement" do
     correlates_by :"end_to_end.value"
     starts_on "ExternalTransferRequested"

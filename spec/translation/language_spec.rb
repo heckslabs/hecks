@@ -210,7 +210,7 @@ RSpec.describe "the translation language" do
     GUARDED_V1 = <<~BLUEBOOK.freeze
       Hecks.bluebook "Guarded" do
         aggregate "Account" do
-          identified_by { balance.cents }
+          identified_by :balance
 
           attribute :balance, Money
 
@@ -224,7 +224,7 @@ RSpec.describe "the translation language" do
     GUARDED_RETYPED = <<~BLUEBOOK.freeze
       Hecks.bluebook "Guarded" do
         aggregate "Account" do
-          identified_by { balance.cents }
+          identified_by :balance
 
           attribute :balance, Cash
 
@@ -274,7 +274,7 @@ RSpec.describe "the translation language" do
     it "a vanished aggregate refuses unless retired declares it gone" do
       gone = 'Hecks.bluebook "Guarded" do
         aggregate "Vault" do
-          identified_by { label.value }
+          identified_by :label
 
           attribute :label, Label
 
@@ -296,7 +296,7 @@ RSpec.describe "the translation language" do
     GUARDED_NEW_REQUIRED_ATTRIBUTE = <<~BLUEBOOK.freeze
       Hecks.bluebook "Guarded" do
         aggregate "Account" do
-          identified_by { balance.cents }
+          identified_by :balance
 
           attribute :balance, Money
           attribute :tier, Tier
@@ -331,7 +331,7 @@ RSpec.describe "the translation language" do
     it "a new OPTIONAL attribute needs no translation at all" do
       optional = 'Hecks.bluebook "Guarded" do
         aggregate "Account" do
-          identified_by { balance.cents }
+          identified_by :balance
 
           attribute :balance, Money
           attribute :tier, Tier, optional: true

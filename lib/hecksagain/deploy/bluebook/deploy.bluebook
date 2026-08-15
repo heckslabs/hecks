@@ -22,7 +22,7 @@ Hecks.bluebook "Deploy" do
   aggregate "LambdaTarget" do
     description "One domain's validated AWS Lambda deploy target — what deployed_to(\"AwsLambda\") must resolve to before bin/project_deploy generates anything from it."
 
-    identified_by { domain.value }
+    identified_by :domain
 
     attribute :domain,   DomainName
     attribute :region,   Region

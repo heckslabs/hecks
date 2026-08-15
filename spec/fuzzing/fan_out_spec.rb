@@ -25,7 +25,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
 
       Hecks.bluebook "Fanout" do
         aggregate "Customer" do
-          identified_by { customer_id.value }
+          identified_by :customer_id
           attribute :customer_id, CustomerId
           attribute :risk,        RiskLevel
 
@@ -44,7 +44,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
         end
 
         aggregate "Account" do
-          identified_by { account_id.value }
+          identified_by :account_id
           attribute :account_id,  AccountId
           attribute :customer_id, AccountCustomerId
           attribute :status,      AccountStatus

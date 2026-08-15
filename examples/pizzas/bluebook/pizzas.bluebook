@@ -5,11 +5,12 @@ Hecks.bluebook "Pizzas" do
   aggregate "Order" do
     description "An order that gathers toppings on a pizza and is eventually sold to a customer."
 
-    identified_by PizzaName, as: :name
-
+    attribute :name,          PizzaName
     attribute :pizza,         Pizza
     attribute :toppings,      list_of(Topping)
     attribute :customer_name, CustomerName
+
+    identified_by :name
 
     value_object "PizzaName" do
       attribute :value, String, pattern: '[^ \t\n\r]'

@@ -7,10 +7,7 @@ Hecks.bluebook "Bluebook" do
     # THE AGGREGATE IT IS IN, AND ITS NAME. Note this is the identity of the RECORD
     # describing a piece, which is a different thing from the identity that piece
     # itself declares (`identified_by`, the list below).
-    identified_by do
-      aggregate_id
-      name.value
-    end
+    identified_by :aggregate_id, :name
 
     attribute :owner,         EntityText
     attribute :name,          EntityName
@@ -107,9 +104,10 @@ Hecks.bluebook "Bluebook" do
       reference_to Entity
       attribute :path, IdentityPath
 
-      # Two ways to reach a scalar — see Aggregate.Identify, where the same rule
-      # is written out in full.
-      given("an identity part reaches a scalar") { path.value.to_s.include?(".") || path.value.to_s.include?("_id") }
+      # See Aggregate.Identify, where the same rule is written out in full —
+      # the builder resolves the real shape (dotted-unwrap, reference, or
+      # bare scalar) before a part ever reaches here.
+      given("an identity part names something") { !path.value.to_s.empty? }
 
       then_set :identified_by, append: { value: :path }
       emits "PieceIdentified"

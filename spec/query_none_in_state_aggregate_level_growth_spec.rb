@@ -43,7 +43,7 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
   AGGREGATE_ANTI_JOIN_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "AggregateAntiJoinGrowth" do
       aggregate "Claim" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "ClaimId" do
           attribute :value, String
@@ -68,7 +68,7 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
       end
 
       aggregate "Board" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "BoardId" do
           attribute :value, String

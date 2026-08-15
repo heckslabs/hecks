@@ -36,7 +36,7 @@ RSpec.describe "mutation op remove" do
   MUTATION_REMOVE_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "MutationRemoveGrowth" do
       aggregate "Sprint" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "SprintId" do
           attribute :value, String

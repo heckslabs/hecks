@@ -93,29 +93,58 @@ module Hecksagain
           type
         end
 
-        # `identified_by :reference` — the bare-field form, DERIVING the path
-        # instead of spelling it: `field`'s own already-declared attribute
-        # names a value object, and when that value object holds EXACTLY one
-        # field there is only one thing `identified_by { field.value }` could
-        # ever have meant. More than one field is genuinely ambiguous (which
-        # one names the record?) — refused, naming every candidate, rather
-        # than guessing `.value`-if-present the way an earlier draft of this
-        # did (silently wrong the moment a second field, `pad`, arrives on
-        # what used to be single-field). Shared by AggregateBuilder and
-        # EntityBuilder (both include this module) — each resolves it at its
-        # own BUILD time, not at `identified_by`'s own call time, since every
-        # real bluebook declares identified_by BEFORE the attribute it
-        # names, so the attribute (and its own value-object type) don't
-        # exist to look up yet at that point.
+        # `identified_by :reference` — DERIVING the path instead of spelling
+        # it: `field`'s own already-declared attribute names a value
+        # object, and when that value object holds EXACTLY one field there
+        # is only one thing the identity could ever mean. More than one
+        # field is genuinely ambiguous (which one names the record?) —
+        # refused, naming every candidate, rather than guessing
+        # `.value`-if-present the way an earlier draft of this did
+        # (silently wrong the moment a second field, `pad`, arrives on
+        # what used to be single-field).
+        #
+        # AN IDENTITY HEAD IS A SINGLE-FIELD VALUE OBJECT (auto-unwrapped
+        # here), A BARE SCALAR, OR A REFERENCE (ADR 0025, "References") —
+        # never a list, never a multi-field value object. A reference is
+        # already a scalar id the moment it is stored (`reference_to`
+        # mints a bare attribute, never a nested object), so it resolves
+        # to its own name unchanged, the same as a primitive.
+        #
+        # Shared by AggregateBuilder and EntityBuilder (both include this
+        # module) — each resolves it at its own BUILD time, not at
+        # `identified_by`'s own call time, since every real bluebook
+        # declares identified_by BEFORE the attribute it names, so the
+        # attribute (and its own value-object type) don't exist to look up
+        # yet at that point.
         def resolve_identity_field!(field, value_objects, context_name)
           attr = attributes.find { |a| a.name == field }
+
+          # `:id` OR AN `_id`-SUFFIXED NAME WITH NO MATCHING ATTRIBUTE is
+          # not a typo to refuse — it is the language's own WALK-PARENT/
+          # FALLBACK-IDENTITY convention. The `_id` suffix is the meta-
+          # domain's own (the `Command`/`Entity`/`Aggregate` etc. records
+          # identify by `owner_id`/`bluebook_id`/`aggregate_id`, supplied
+          # by the judge's replay rather than declared locally — see
+          # `behavior.bluebook`'s own "owner_id is not a declared
+          # attribute" comment); bare `:id` is `Instance#materialize_
+          # identity!`'s own fallback name (`@aggregate.identified_by ||
+          # :id`) made explicit rather than left implicit — declaring
+          # `identified_by :id` says out loud what omitting `identified_by`
+          # entirely already meant. `reference_to` mints the `_id` suffix
+          # for the same reason `attr.reference?` below resolves bare: an
+          # `_id`(-shaped) name is already a scalar by the language's own
+          # spelling convention, walk-supplied or locally declared alike.
+          return [field.to_s] if attr.nil? && (field.to_s == "id" || field.to_s.end_with?("_id"))
+
           raise Malformed, "#{context_name}.identified_by :#{field} names no attribute #{context_name} declares" unless attr
 
-          if attr.reference?
+          if attr.list?
             raise Malformed,
-                  "#{context_name}.identified_by :#{field} names a reference — " \
-                  "write identified_by { #{field}.value }, naming the field explicitly"
+                  "#{context_name}.identified_by :#{field} names a list — an identity must be " \
+                  "a single value, and a list is never one"
           end
+
+          return [field.to_s] if attr.reference?
 
           vo = value_objects.find { |v| v.hecks_name.to_s == attr.type.to_s }
           return [field.to_s] unless vo # a bare primitive type — already itself scalar
@@ -127,9 +156,9 @@ module Hecksagain
             raise Malformed,
                   "#{context_name}.identified_by :#{field} names #{attr.type}, which has " \
                   "#{vo.attributes.size} fields (#{vo.attributes.map(&:name).join(', ')}) — " \
-                  "a bare field name only derives a path when its own value object has " \
-                  "exactly one field; write identified_by { #{field}.<field> } naming the " \
-                  "specific one"
+                  "a bare field name only derives an identity when its own value object has " \
+                  "exactly one field; give #{context_name} a single-field identity of its own " \
+                  "instead"
           end
         end
 

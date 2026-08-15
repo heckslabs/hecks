@@ -5,7 +5,7 @@ module Hecksagain
   module Runtime
     # THE SCALAR AN IDENTITY PATH NAMES.
     #
-    # An identity is DECLARED as a path — `identified_by { number.value }` — and
+    # An identity is DECLARED as a path — `identified_by :number` — and
     # this is the one place that reads one. It follows the path and nothing else.
     #
     # What it replaced was `Value.identifier`, which opened a one-field value

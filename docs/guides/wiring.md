@@ -36,7 +36,7 @@ up triggering.
 
 ```ruby skip
 aggregate "Order" do
-  identified_by { name.value }
+  identified_by :name
   # ...
 end
 

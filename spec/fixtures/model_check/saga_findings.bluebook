@@ -3,7 +3,7 @@ Hecks.bluebook "SagaFindings" do
   core
 
   aggregate "Leg" do
-    identified_by { reference.value }
+    identified_by :reference
 
     attribute :reference, Reference
 

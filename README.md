@@ -91,7 +91,7 @@ that refuses before it mutates.
 
 ```ruby skip
 aggregate "Order" do
-  identified_by { name.value }
+  identified_by :name
 
   attribute :name,     PizzaName
   attribute :toppings, list_of(Topping)
@@ -166,7 +166,7 @@ Hecks.bluebook "Banking" do
   core
 
   aggregate "Account" do
-    identified_by { number.value }
+    identified_by :number
 
     attribute :number,  AccountNumber
     attribute :balance, Money

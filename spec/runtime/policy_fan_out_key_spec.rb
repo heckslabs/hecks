@@ -5,7 +5,7 @@ require "spec_helper"
 #
 # `spec/runtime/policy_spec.rb` already covers `for_each` end to end and
 # asserts delivery — and passed for a reason that was not the rule. Its
-# `Fanout::Account` is `identified_by { account_id.value }` over an
+# `Fanout::Account` is `identified_by :account_id` over an
 # `attribute :account_id`, so the row id merged as `account_id:` matched
 # the aggregate's own IDENTITY HEAD directly and never needed the
 # reference key at all. Every aggregate in the real corpus names its
@@ -35,7 +35,7 @@ RSpec.describe "a for_each policy's row id" do
           # NOT `chit_id` — that is the whole point. An identity head
           # spelled after the aggregate would mask the reference key by
           # answering to the suffixed name itself.
-          identified_by { serial.value }
+          identified_by :serial
           attribute :serial, Serial
           attribute :holder, Holder
           attribute :condition, ChitState
@@ -76,7 +76,7 @@ RSpec.describe "a for_each policy's row id" do
         # A SECOND AGGREGATE that STORES a chit rather than being one —
         # the foreign-reference half of the same rule.
         aggregate "Audit" do
-          identified_by { note.value }
+          identified_by :note
           attribute :note, Note
           reference_to Chit
 
@@ -91,7 +91,7 @@ RSpec.describe "a for_each policy's row id" do
         end
 
         aggregate "Alarm" do
-          identified_by { alarm.value }
+          identified_by :alarm
           attribute :alarm,  AlarmRef
           attribute :holder, Holder
 

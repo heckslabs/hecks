@@ -27,9 +27,11 @@ RSpec.describe "a policy's trigger projection" do
 
       Hecks.bluebook "Projecting" do
         aggregate "Permit" do
-          identified_by Code, as: :code
+          attribute :code,   Code
           attribute :holder, Holder
           attribute :note,   Note
+
+          identified_by :code
 
           value_object("Code")   { attribute :value, String }
           value_object("Holder") { attribute :value, String }
@@ -71,9 +73,11 @@ RSpec.describe "a policy's trigger projection" do
         end
 
         aggregate "Breach" do
-          identified_by Ref, as: :ref
+          attribute :ref,     Ref
           attribute :holder,  Holder
           attribute :summary, Summary
+
+          identified_by :ref
 
           value_object("Ref")     { attribute :value, String }
           value_object("Holder")  { attribute :value, String }

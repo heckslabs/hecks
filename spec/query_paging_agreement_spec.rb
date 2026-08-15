@@ -27,7 +27,9 @@ RSpec.describe "limit and offset on one query" do
 
       Hecks.bluebook "Paging" do
         aggregate "Ticket" do
-          identified_by Number, as: :number
+          attribute :number, Number
+
+          identified_by :number
 
           value_object("Number") { attribute :value, String }
 

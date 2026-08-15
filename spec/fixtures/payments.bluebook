@@ -3,7 +3,7 @@ Hecks.bluebook "Payments" do
   supporting
 
   aggregate "Payment" do
-    identified_by { payment_id.value }
+    identified_by :payment_id
 
     value_object "PaymentId" do
       attribute :value, String

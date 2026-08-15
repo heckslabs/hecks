@@ -5,7 +5,7 @@ Hecks.bluebook "HopChain" do
   # for (Embryonaut's own hand-written PRECONDITIONS table, made a
   # declared query instead).
   aggregate "Client" do
-    identified_by { name.value }
+    identified_by :name
     attribute :name, "Name"
     value_object("Name") { attribute :value, String }
 
@@ -26,7 +26,7 @@ Hecks.bluebook "HopChain" do
   end
 
   aggregate "Engagement" do
-    identified_by { reference.value }
+    identified_by :reference
     reference_to Client
     attribute :reference, "Reference"
     value_object("Reference") { attribute :value, String }
@@ -53,7 +53,7 @@ Hecks.bluebook "HopChain" do
   end
 
   aggregate "Proposal" do
-    identified_by { number.value }
+    identified_by :number
     reference_to Engagement
     attribute :number, "Number"
     value_object("Number") { attribute :value, String }
@@ -107,7 +107,7 @@ Hecks.bluebook "HopChain" do
   # can loop forever, since the walk is bounded by the query's own
   # literal dotted string, not by the reference graph's shape.
   aggregate "Node" do
-    identified_by { label.value }
+    identified_by :label
     # `as:` is required for a self-reference to mean a plain ATTRIBUTE
     # rather than "the root this command acts on" —
     # CommandBuilder#reference_to's own comment names this exactly:

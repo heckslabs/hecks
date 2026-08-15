@@ -6,7 +6,7 @@ Hecks.bluebook "Translation" do
   aggregate "Rule" do
     description "One admitted way a value survives a shape change — its kind, where it reads from, where it writes to, and how it executes in every target that must apply it."
 
-    identified_by { source.value }
+    identified_by :source
 
     attribute :kind,        Kind
     attribute :source,      SourcePath
@@ -116,7 +116,7 @@ Hecks.bluebook "Translation" do
   aggregate "Map" do
     description "One translation edge between two minted eras — the ordered declarations that carry a domain's data across one shape change, sealed before anything boots through it."
 
-    identified_by { domain.value }
+    identified_by :domain
 
     attribute :domain,       DomainName
     attribute :from_shape,   ShapeHash

@@ -42,14 +42,11 @@ Hecks.bluebook "ConsoleSettings" do
     # exactly the confusion ui_schema.rb's own identity-collision fix
     # (see [[project_generic_founder_app]]) already had to work around
     # once for `id`.
-    identified_by do
-      agg.value
-      state.value
-    end
-
     attribute :agg,       StateStyleText
     attribute :state,     StateStyleText
     attribute :tone,      one_of("good", "warn", "danger", "muted", "accent"), optional: true
+
+    identified_by :agg, :state
     # `Flag`, wrapping "true"/"false" — not a bare `String` and not
     # `TrueClass`. Two confirmed-by-trying reasons neither works directly
     # on an aggregate/command attribute:
@@ -148,7 +145,9 @@ Hecks.bluebook "ConsoleSettings" do
   aggregate "Collection" do
     description "One app aggregate's own console presentation — nav label, curated columns, detail-panel fields (with an optional entity state_filter and a row_columns subset), identity-assignment strategy, field formats, preconditions, and which query lists it. Every list-shaped piece is rows on this root, never a nested list inside a value object — the same 'an open map is rows on a head' shape Wiring::Setting and Query::AskOption already use, and the same reason: no value object here can hold a map, and this sidesteps ever needing to find out whether one can hold a plain list either."
 
-    identified_by SettingsText, as: :agg
+    attribute :agg,                  SettingsText
+
+    identified_by :agg
 
     attribute :label,                SettingsText, optional: true
     attribute :key,                  SettingsText, optional: true
@@ -413,17 +412,18 @@ Hecks.bluebook "ConsoleSettings" do
   # THE DASHBOARD'S OWN STAT CARDS — domain-WIDE, not per-aggregate the
   # way Collection is (a stat can name any collection, or none in
   # particular), so this is a SINGLETON: exactly one row, ever, for the
-  # whole console. `identified_by OverviewKey, as: :key` mints a
-  # literal constant ("overview") rather than anything a person chooses — the
-  # same reason a creating command needs SOME identity to hydrate
-  # against (hydrate's own "an identity that is invented is neither
-  # derived from the record nor permanently associated with it"
-  # comment), just with the value fixed instead of derived from what's
-  # being declared.
+  # whole console. `attribute :key, OverviewKey` holds a literal constant
+  # ("overview") rather than anything a person chooses — the same reason
+  # a creating command needs SOME identity to hydrate against (hydrate's
+  # own "an identity that is invented is neither derived from the record
+  # nor permanently associated with it" comment), just with the value
+  # fixed instead of derived from what's being declared.
   aggregate "Overview" do
     description "The console's own dashboard stat cards, whole. One row, ever — `key` is always the literal 'overview', never chosen. Every stat gets replaced as a whole list on save, the same 'replace whole, never patch one' convention Collection's own columns/detail_fields/preconditions/field_formats already use."
 
-    identified_by OverviewKey, as: :key
+    attribute :key, OverviewKey
+
+    identified_by :key
 
     attribute :stats, list_of(Stat)
 

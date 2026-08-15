@@ -21,7 +21,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
   it "dispatches cleanly against a real, well-formed domain — no failures" do
     dir = write_domain("Widget", <<~RUBY)
       aggregate "Item" do
-        identified_by { name.value }
+        identified_by :name
         attribute :name, Name
         value_object "Name" do
           attribute :value, String
@@ -44,7 +44,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
   it "catches a command wrongly classified as creating — reloads clean, only breaks on dispatch" do
     dir = write_domain("Widget", <<~RUBY)
       aggregate "Item" do
-        identified_by { name.value }
+        identified_by :name
         attribute :name, Name
         value_object "Name" do
           attribute :value, String
@@ -68,7 +68,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
   it "walks aggregates in declaration order, so a later aggregate can reference an earlier one's real id" do
     dir = write_domain("Widget", <<~RUBY)
       aggregate "Item" do
-        identified_by { name.value }
+        identified_by :name
         attribute :name, Name
         value_object "Name" do
           attribute :value, String
@@ -79,8 +79,9 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
       end
 
       aggregate "Tag" do
-        identified_by { item_id }
         reference_to Item
+
+        identified_by :item_id
         command "Attach" do
           reference_to Item
         end
@@ -108,7 +109,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
   it "never touches the target directory's own real persisted data, however it's really bound" do
     dir = write_domain("Widget", <<~RUBY)
       aggregate "Item" do
-        identified_by { name.value }
+        identified_by :name
         attribute :name, Name
         value_object "Name" do
           attribute :value, String

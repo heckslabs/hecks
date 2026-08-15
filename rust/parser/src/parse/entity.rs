@@ -72,6 +72,12 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
                 entity.identified_by =
                     identity::resolve_identity_type(file, line, name, &target, as_field.as_deref(), insert_at, owner_value_objects, &mut entity.attributes)?;
             }
+            super::PendingIdentity::Fields { line, names } => {
+                entity.identified_by = names
+                    .iter()
+                    .map(|field| identity::resolve_identity_field(file, line, name, field, owner_value_objects, &entity.attributes))
+                    .collect::<crate::diag::ParseResult<Vec<String>>>()?;
+            }
             super::PendingIdentity::Paths(paths) => entity.identified_by = paths,
         }
     }

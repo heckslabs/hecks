@@ -344,7 +344,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       NUMERIC_PUSHDOWN_SOURCE = <<~BLUEBOOK.freeze
         Hecks.bluebook "NumericPushdown" do
           aggregate "Widget" do
-            identified_by { sku.value }
+            identified_by :sku
             attribute :sku,   Sku
             attribute :price, Price
 
@@ -420,7 +420,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     REFS_SOURCE = <<~BLUEBOOK.freeze
       Hecks.bluebook "Refs" do
         aggregate "Ticket" do
-          identified_by { number.value }
+          identified_by :number
           attribute :number, TicketNumber
           belongs_to :Team
           has_many :Invoices
@@ -431,7 +431,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
         end
 
         aggregate "Team" do
-          identified_by { name.value }
+          identified_by :name
           attribute :name, TeamName
 
           value_object "TeamName" do
@@ -440,7 +440,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
         end
 
         aggregate "Invoice" do
-          identified_by { reference.value }
+          identified_by :reference
           attribute :reference, InvoiceReference
 
           value_object "InvoiceReference" do

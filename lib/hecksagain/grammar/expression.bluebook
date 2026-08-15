@@ -18,7 +18,7 @@ Hecks.bluebook "Expression" do
     # Forcing them into this shape would stretch `renderings` and the
     # Arity invariant past what they mean. They stay declared only in
     # prose — named here rather than silently left out.
-    identified_by { symbol.value }
+    identified_by :symbol
 
     attribute :symbol,     OperatorSymbol
     attribute :category,   Category
@@ -173,7 +173,7 @@ Hecks.bluebook "Expression" do
   aggregate "Normalisation" do
     description "One rule that turns written source into canonical text — its boundary condition, where it sits in the order, and how it reads in every target that must apply it."
 
-    identified_by { name.value }
+    identified_by :name
 
     attribute :name,         RuleName
     attribute :strategy,     Strategy
@@ -304,7 +304,7 @@ Hecks.bluebook "Expression" do
   aggregate "Expression" do
     description "One predicate extracted from regular Ruby — the source as written, the canonical text the evaluator runs, and the subject it reads against."
 
-    identified_by { canonical.value }
+    identified_by :canonical
 
     attribute :description, Description
     attribute :source,      Source

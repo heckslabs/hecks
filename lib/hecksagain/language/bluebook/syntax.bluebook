@@ -53,7 +53,7 @@ Hecks.bluebook "Bluebook" do
 
     # ITS NAME, and nothing else — a syntax hangs under no other thing, exactly
     # as a vocabulary does.
-    identified_by { name.value }
+    identified_by :name
 
     attribute :name, SyntaxName
 
@@ -104,7 +104,7 @@ Hecks.bluebook "Bluebook" do
     #
     #   keywords  a nested body of more words — `aggregate "X" do … end`
     #   source    a block that is NEVER CALLED. Its text is the declaration —
-    #             `given("…") { balance >= amount }`, `identified_by { name.value }`.
+    #             `given("…") { balance >= amount }`, `identified_by :name`.
     #             Recovered through Ports::Extraction, which is why `number.value`
     #             needs no method called `number` to exist.
     #   rows      a body of `member` rows and nothing else — `one_of do … end`
@@ -646,15 +646,27 @@ Hecks.bluebook "Bluebook" do
         #
         # A SYMBOL NAMES AN ATTRIBUTE ALREADY DECLARED and derives the path
         # out of its own value object's single field, so the whole of what
-        # it fills is `identified_by` itself. A CONSTANT MINTS the attribute
-        # first, which is why its two rows are `reference_to`'s two rows —
-        # a target and an optional alias, filling `type` and `name`. Both
-        # arrive as plain Ruby Symbols and are told apart by the FIRST
-        # CHARACTER's case, the same reading the language already leans on
-        # everywhere else; `kind` is where that stops being implicit.
-        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by"
-        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type"
-        member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        # it fills is `identified_by` itself — the LIVE form (ADR 0025,
+        # "Identity"). VARIADIC, the same column `group_by`'s own row
+        # documents in full below: `identified_by :branch_code,
+        # :box_number` names a composite identity as any number of bare
+        # fields, not just one — confirmed real, not hypothetical:
+        # compliance.bluebook's own `BoxSurrenderReview`, banking.bluebook's
+        # `SafeDepositBox`/`Visit`/`Statement`.
+        #
+        # A CONSTANT MINTS THE ATTRIBUTE FIRST — LEGACY, admitted only
+        # while `MetaValidator.shadow_parsing?` (S0a's own bridge): no
+        # live corpus member spells it any more, but frozen era text
+        # minted before this removal still does, and that text must keep
+        # parsing. Its two rows are `reference_to`'s two rows — a target
+        # and an optional alias, filling `type` and `name`. Both arrive as
+        # plain Ruby Symbols/ScopedConstants and are told apart by the
+        # FIRST CHARACTER's case, the same reading the language already
+        # leans on everywhere else; `kind` is where that stops being
+        # implicit.
+        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
+        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
+        member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
         # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
         # Customer` attaches an attribute spelled `customer_id` — the language
         # mints the `_id` ending itself, which is why Identify's rule can read it
@@ -717,9 +729,9 @@ Hecks.bluebook "Bluebook" do
 
         member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
         # See Aggregate's own three rows above — the same method, one level down.
-        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by"
-        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type"
-        member keyword: "identified_by",   context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
+        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
+        member keyword: "identified_by",   context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
         member keyword: "command",         context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
         member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
         member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"

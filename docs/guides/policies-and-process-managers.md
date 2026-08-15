@@ -368,7 +368,7 @@ end
 
 `correlates_by` says which conversation an event belongs to — always a
 dotted path to one scalar, never a bare value object, for the same
-reason `identified_by { reference.value }` already holds `Transfer`'s
+reason `identified_by :reference` already holds `Transfer`'s
 own identity to: a value object has no single unambiguous rendering to
 key on. `starts_on`/`ends_on` bound the conversation, `state`
 enumerates what it may be in, and each `on ..., transition:` block is

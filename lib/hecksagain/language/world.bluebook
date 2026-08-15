@@ -5,7 +5,7 @@ Hecks.bluebook "World" do
   aggregate "World" do
     description "One .world — the per-deployment values a domain's adapters need. A sibling artifact to the bluebook, not part of it : the same domain runs in many worlds."
 
-    identified_by { domain.value }
+    identified_by :domain
 
     attribute :domain, WorldName
     attribute :realm,  Realm
@@ -46,10 +46,7 @@ Hecks.bluebook "World" do
     # THE WORLD IT IS IN, AND THE VERB IT ANSWERS. One world binds one adapter per
     # verb — that is what a binding IS — so the verb names the wiring, and the
     # world says whose.
-    identified_by do
-      world_id
-      verb.value
-    end
+    identified_by :world_id, :verb
 
     attribute :world,    WiringText
     attribute :verb,     WiringText

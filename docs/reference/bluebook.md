@@ -32,8 +32,9 @@ Hecks.bluebook "BluebookReference" do
   generic
 
   aggregate "Postcode" do
-    identified_by Code, as: :code
+    attribute :code, Code
 
+    identified_by :code
     value_object("Code") { attribute :value, String }
 
     command "Record" do
@@ -53,8 +54,9 @@ Hecks.bluebook "Ledgering" do
   formerly_known_as "Bookkeeping"
 
   aggregate "Folio" do
-    identified_by Number, as: :number
+    attribute :number, Number
 
+    identified_by :number
     value_object("Number") { attribute :value, String }
 
     command "OpenFolio" do

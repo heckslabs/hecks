@@ -19,7 +19,9 @@ Hecks.bluebook "DomainPortReference" do
   vision "A shipment, and the two directions a port can point."
 
   aggregate "Shipment" do
-    identified_by Waybill, as: :waybill
+    attribute :waybill, Waybill
+
+    identified_by :waybill
     attribute :note, Note
 
     value_object("Waybill") { attribute :value, String }

@@ -49,7 +49,9 @@ RSpec.describe Hecksagain::Facade::Handle do
 
       Hecks.bluebook "Collider" do
         aggregate "Vault" do
-          identified_by Tag, as: :tag
+          attribute :tag, Tag
+
+          identified_by :tag
 
           value_object("Tag") { attribute :value, String }
 
@@ -146,7 +148,7 @@ RSpec.describe Hecksagain::Facade::Handle do
   # `to_h` used to be `{ id: @id }.merge(@state)` — `@state` merged LAST,
   # so an aggregate free to declare its own attribute literally named `id`
   # (real corpus now: BurningManPrep's `Item`, `attribute :id, ItemId`,
-  # `identified_by { id.value }`) got that attribute's own WRAPPED value
+  # `identified_by :id`) got that attribute's own WRAPPED value
   # object silently clobbering the correctly-unwrapped bare `@id`. The
   # JSON door's own `/api/:coll` listing is the caller that actually hit
   # this: every record's own `id` key came back `{value: "..."}` instead
@@ -158,7 +160,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     source = <<~BLUEBOOK
       Hecks.bluebook "Thingy" do
         aggregate "Thing" do
-          identified_by { id.value }
+          identified_by :id
 
           value_object "ThingId" do
             attribute :value, String

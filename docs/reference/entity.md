@@ -29,7 +29,9 @@ Hecks.bluebook "EntityReference" do
   vision "An entity that points at something outside the record holding it."
 
   aggregate "Manifest" do
-    identified_by Docket, as: :docket
+    attribute :docket, Docket
+
+    identified_by :docket
     attribute :crates, list_of(Crate)
 
     value_object("Docket")  { attribute :value, String }
@@ -37,7 +39,9 @@ Hecks.bluebook "EntityReference" do
     value_object("Slot")    { attribute :value, Integer }
 
     entity "Crate" do
-      identified_by Slot, as: :slot
+      attribute :slot, Slot
+
+      identified_by :slot
       attribute :handler, Handler
       # THE WORD THIS CHAPTER EXISTS FOR — a crate inside one manifest,
       # naming the depot that holds it, which is its own aggregate.
@@ -61,8 +65,9 @@ Hecks.bluebook "EntityReference" do
   end
 
   aggregate "Depot" do
-    identified_by Code, as: :code
+    attribute :code, Code
 
+    identified_by :code
     value_object("Code") { attribute :value, String }
 
     command "OpenDepot" do
@@ -124,9 +129,10 @@ ledger_entry.description  # => "One movement across the account, in the order it
 
 Names the field that tells one element of the list apart from another — unique within the parent, not globally, since a `FoyerTicketNumber` only has to be unambiguous inside its own counter. See entities.md for how this identity is carried alongside the parent's own when a command or query reaches through the aggregate.
 
-`LedgerEntry` is `identified_by LedgerSequence, as: :sequence`, and the
-sequence only has to be unique inside its own account — every account
-starts counting at one:
+`LedgerEntry` is `identified_by :sequence` (with `attribute :sequence,
+LedgerSequence` declared alongside it), and the sequence only has to
+be unique inside its own account — every account starts counting at
+one:
 
 ```ruby
 account.ledger.map { |entry| entry[:sequence][:value] }  # => [1, 2]

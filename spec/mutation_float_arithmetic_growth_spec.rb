@@ -41,7 +41,7 @@ RSpec.describe "Float arithmetic on increment/decrement" do
   FLOAT_ARITHMETIC_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "FloatArithmeticGrowth" do
       aggregate "Organ" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "OrganId" do
           attribute :value, String

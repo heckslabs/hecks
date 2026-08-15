@@ -19,7 +19,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
 
       Hecks.bluebook "Beacon", version: "v1" do
         aggregate "Sighting" do
-          identified_by { code.value }
+          identified_by :code
 
           attribute :code, SightingCode
 
@@ -36,7 +36,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
         end
 
         aggregate "Alarm" do
-          identified_by { label.value }
+          identified_by :label
 
           attribute :label, AlarmLabel
 

@@ -109,7 +109,7 @@ File.write(File.join(GRANGE_DIR, "bluebook/grange.bluebook"), <<~BLUEBOOK)
     generic
 
     aggregate "Crate" do
-      identified_by { label.value }
+      identified_by :label
 
       attribute :label,  Label
       attribute :weight, Weight
@@ -167,7 +167,7 @@ File.write(File.join(GRANGE_DIR, "bluebook/grange.bluebook"), <<~BLUEBOOK)
     generic
 
     aggregate "Bin" do
-      identified_by { label.value }
+      identified_by :label
 
       attribute :label,    Label
       attribute :contents, Contents
@@ -375,7 +375,7 @@ verify it. If you reach for `compute`, budget the review — it is not
 optional, and the mint refuses without it.
 
 **`rekey`** is the aggregate's own identity changing what it's computed
-from — `identified_by { name.value }` becoming `identified_by { email.value }`,
+from — `identified_by :name` becoming `identified_by :email`,
 say. Ordinarily this refuses outright: stored ids were minted under the
 old key, and nothing in the other seven rule kinds says "these rows are
 the same entity under a new key." A `rekey` rule is exactly that

@@ -179,20 +179,27 @@ RSpec.describe "the language's own rules" do
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
 
-  # AN IDENTITY NAMES A FIELD, so the runtime never has to open a value object
-  # and guess which one was meant. The unwrap that used to do the guessing is
-  # gone from Value, so a declaration that stops at the attribute would leave the
-  # whole object standing as the id. The rule now fires on EACH PART as it is
-  # appended (`Entity.Identify`), not once at Declare.
-  it "refuses an entity known by a whole value object rather than a field" do
+  # AN IDENTITY NAMES A FIELD — but which SHAPE that field takes (a dotted
+  # value-object unwrap, a bare reference, or now a bare scalar too, ADR
+  # 0025's "Identity") is the BUILDER's own question
+  # (`AttributeCollector#resolve_identity_field!`), resolved before an
+  # identity part ever reaches this dispatch. This given used to re-check
+  # the shape here too — refusing a bare "sequence" outright — which is
+  # exactly the bug ADR 0025 names: bare-scalar identity already worked at
+  # the builder, and only this rule refused it. What is left for the
+  # meta-domain to say, once the builder has already resolved a real
+  # shape, is that a part was actually given a name at all. The rule now
+  # fires on EACH PART as it is appended (`Entity.Identify`), not once at
+  # Declare.
+  it "admits a bare scalar identity part — the builder resolves its shape, not this rule" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence")) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part reaches a scalar/)
+      .not_to raise_error
   end
 
-  it "admits an entity that names the field it is known by" do
+  it "admits a dotted identity part naming the field inside a value object" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
@@ -200,15 +207,23 @@ RSpec.describe "the language's own rules" do
       .not_to raise_error
   end
 
-  # Same split as Entity's, above : the per-part scalar rule fires on Identify,
+  it "refuses an entity identity part with no name at all" do
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+                      name: v("E"), description: v("a piece"), position: { value: 0 })
+
+    expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("")) }
+      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part names something/)
+  end
+
+  # Same split as Entity's, above : the per-part rule fires on Identify,
   # and "says what it is known by AT ALL" is Seal's, since Seal is the only
   # command dispatched once every part has had its chance to arrive.
-  it "refuses an aggregate known by a whole value object rather than a field" do
+  it "admits a bare scalar aggregate identity part" do
     aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
                          name: v("C"), description: v("an aggregate"))
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number")) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part reaches a scalar/)
+      .not_to raise_error
   end
 
   it "admits an aggregate known by the field inside its value object" do
@@ -217,6 +232,14 @@ RSpec.describe "the language's own rules" do
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number.value")) }
       .not_to raise_error
+  end
+
+  it "refuses an aggregate identity part with no name at all" do
+    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
+                         name: v("F"), description: v("an aggregate"))
+
+    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("")) }
+      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part names something/)
   end
 
   # `reference_to` written on a COMMAND, which the language records the same way

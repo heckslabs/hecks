@@ -30,8 +30,9 @@ Hecks.bluebook "QueryReference" do
   vision "The query words the corpus does not yet write."
 
   aggregate "Warden" do
-    identified_by Badge, as: :badge
+    attribute :badge, Badge
 
+    identified_by :badge
     value_object("Badge") { attribute :value, String }
 
     lifecycle :status, default: "on_duty" do
@@ -51,7 +52,9 @@ Hecks.bluebook "QueryReference" do
   end
 
   aggregate "Sighting" do
-    identified_by Tag, as: :tag
+    attribute :tag, Tag
+
+    identified_by :tag
     reference_to Warden
     attribute :species, Species
     attribute :count,   Count, optional: true

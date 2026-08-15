@@ -15,7 +15,7 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
   OLD_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "OldName" do
       aggregate "Acct" do
-        identified_by { number.value }
+        identified_by :number
         attribute :number, AccountNumber
         attribute :balance, Money
 
@@ -36,7 +36,7 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
       formerly_known_as "OldName"
 
       aggregate "Acct" do
-        identified_by { number.value }
+        identified_by :number
         attribute :number, AccountNumber
         attribute :balance, Money
 
@@ -58,7 +58,7 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
       formerly_known_as "OldName"
 
       aggregate "Acct" do
-        identified_by { number.value }
+        identified_by :number
         attribute :number, AccountNumber
         attribute :balance, Money
         attribute :note, Note

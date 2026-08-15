@@ -9,7 +9,7 @@ RSpec.describe "the translation scaffold" do
   SCAFFOLD_HELD = <<~BLUEBOOK.freeze
     Hecks.bluebook "Orders" do
       aggregate "Order" do
-        identified_by { meta.origin }
+        identified_by :order_id
 
         attribute :cost,   Money
         attribute :placed, Stamp
@@ -46,7 +46,7 @@ RSpec.describe "the translation scaffold" do
       end
 
       aggregate "Vault" do
-        identified_by { code.value }
+        identified_by :code
 
         attribute :code, Code
 
@@ -56,7 +56,7 @@ RSpec.describe "the translation scaffold" do
       end
 
       aggregate "Shed" do
-        identified_by { roof.value }
+        identified_by :roof
 
         attribute :roof, Roof
 
@@ -70,7 +70,7 @@ RSpec.describe "the translation scaffold" do
   SCAFFOLD_CURRENT = <<~BLUEBOOK.freeze
     Hecks.bluebook "Orders" do
       aggregate "Order" do
-        identified_by { meta.origin }
+        identified_by :order_id
 
         attribute :amount, Money
         attribute :placed, Timestamp
@@ -107,7 +107,7 @@ RSpec.describe "the translation scaffold" do
       end
 
       aggregate "Strongbox" do
-        identified_by { code.value }
+        identified_by :code
 
         attribute :code, Code
 
@@ -175,7 +175,7 @@ RSpec.describe "the translation scaffold" do
   IDENTITY_HELD = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
-        identified_by { name.value }
+        identified_by :name
         attribute :name,  PersonName
         attribute :email, PersonEmail
 
@@ -193,7 +193,7 @@ RSpec.describe "the translation scaffold" do
   IDENTITY_CURRENT = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
-        identified_by { email.value }
+        identified_by :email
         attribute :name,  PersonName
         attribute :email, PersonEmail
 

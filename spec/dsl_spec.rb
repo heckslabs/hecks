@@ -26,7 +26,7 @@ RSpec.describe "the DSL surface" do
   def build_aggregate(domain, &block)
     build_bluebook(domain) do
       aggregate("Thing") do
-        identified_by { thing_id.value }
+        identified_by :thing_id
         instance_eval(&block) if block
       end
     end.aggregate("Thing")
@@ -338,7 +338,7 @@ RSpec.describe "the DSL surface" do
       expect do
         build_bluebook("HeadOnly") do
           aggregate "Root" do
-            identified_by { id.value }
+            identified_by :id
 
             value_object("Code") { attribute :value, String }
 
@@ -456,7 +456,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("Coins") do
           aggregate("Coin") do
-            identified_by { id.value }
+            identified_by :id
 
             attribute :currency, Currency
 
@@ -534,7 +534,7 @@ RSpec.describe "the DSL surface" do
             # A bare scalar payload short-circuits the ".value" dig (see
             # `identity_from`'s "AN ID IS ALWAYS A SCALAR" note), so this derives
             # from exactly what each dispatch already supplies — nothing minted.
-            identified_by { id.value }
+            identified_by :id
 
             attribute :kind,   Kind
             attribute :amount, Amount
@@ -628,7 +628,7 @@ RSpec.describe "the DSL surface" do
     it "read_model declares a domain-level projection" do
       model = build_bluebook("Portfolio") do
         aggregate "Customer" do
-          identified_by { id.value }
+          identified_by :id
 
           attribute :reference, CustomerNumber
           value_object "CustomerNumber" do
@@ -654,7 +654,7 @@ RSpec.describe "the DSL surface" do
       build = ->(chapter, word) do
         build_bluebook(chapter) do
           aggregate "Customer" do
-            identified_by { id.value }
+            identified_by :id
 
             attribute :reference, CustomerNumber
             value_object "CustomerNumber" do
@@ -781,7 +781,7 @@ RSpec.describe "the DSL surface" do
       expect {
         build_bluebook("BackAndForth") do
           aggregate "Rider" do
-            identified_by { tag.value }
+            identified_by :tag
             attribute :tag, RiderTag
             value_object "RiderTag" do
               attribute :value, String
@@ -790,7 +790,7 @@ RSpec.describe "the DSL surface" do
           end
 
           aggregate "Bicycle" do
-            identified_by { serial.value }
+            identified_by :serial
             attribute :serial, BicycleSerial
             value_object "BicycleSerial" do
               attribute :value, String
@@ -804,7 +804,7 @@ RSpec.describe "the DSL surface" do
     it "allows one aggregate to reference another in a single direction" do
       bluebook = build_bluebook("OneWay") do
         aggregate "Owner" do
-          identified_by { tag.value }
+          identified_by :tag
           attribute :tag, OwnerTag
           value_object "OwnerTag" do
             attribute :value, String
@@ -812,7 +812,7 @@ RSpec.describe "the DSL surface" do
         end
 
         aggregate "Item" do
-          identified_by { serial.value }
+          identified_by :serial
           attribute :serial, ItemSerial
           value_object "ItemSerial" do
             attribute :value, String
@@ -909,7 +909,7 @@ RSpec.describe "the DSL surface" do
       expect do
         build_bluebook("NonScalarKey") do
           aggregate "Thing" do
-            identified_by { id.value }
+            identified_by :id
             attribute :id, ThingId
 
             value_object "ThingId" do
@@ -948,7 +948,7 @@ RSpec.describe "the DSL surface" do
       expect do
         build_bluebook("StrandedKey") do
           aggregate "Thing" do
-            identified_by { id.value }
+            identified_by :id
             attribute :id, ThingId
 
             value_object "ThingId" do
@@ -990,7 +990,7 @@ RSpec.describe "the DSL surface" do
       # the wrong source entirely.
       built = build_bluebook("Agged") do
         aggregate("Thing") do
-          identified_by { id.value }
+          identified_by :id
         end
       end
       expect(built.aggregates.map(&:name)).to eq(["Thing"])
@@ -1007,7 +1007,7 @@ RSpec.describe "the DSL surface" do
     it "verbs lists every command as a fully-qualified verb" do
       bluebook = build_bluebook("Verbed") do
         aggregate("Thing") do
-          identified_by { id.value }
+          identified_by :id
           command("Do")
         end
       end
@@ -1029,7 +1029,10 @@ RSpec.describe "the DSL surface" do
 
     it "identified_by names a field, and the HEAD is what readers look up" do
       identified = build_aggregate("Identified") do
-        identified_by { name.value }
+        value_object("IdentifiedName") { attribute :value, String }
+        attribute :name, IdentifiedName
+
+        identified_by :name
       end
 
       expect(identified.identity_paths).to eq(["name.value"])
@@ -1038,10 +1041,14 @@ RSpec.describe "the DSL surface" do
 
     it "identified_by joins several paths, and offers no single HEAD for a composite" do
       identified = build_aggregate("Composite") do
-        identified_by do
-          batch_id
-          name.value
-        end
+        value_object("CompositeName") { attribute :value, String }
+        attribute :name, CompositeName
+
+        # `:batch_id` — no matching attribute, resolved bare by the same
+        # `_id`-convention `resolve_identity_field!` already grants a
+        # reference (see that method's own comment); `:name` unwraps
+        # its single-field value object the ordinary way.
+        identified_by :batch_id, :name
       end
 
       expect(identified.identity_paths).to eq(["batch_id", "name.value"])
@@ -1096,35 +1103,43 @@ RSpec.describe "the DSL surface" do
         end.to raise_error(Malformed, /identified_by :nonexistent names no attribute Thing declares/)
       end
 
-      it "refuses a reference — a reference has no single field to derive" do
-        expect do
-          build_bluebook("Refs") do
-            aggregate "Team" do
-              identified_by { name.value }
-              value_object("Name") { attribute :value, String }
-              attribute :name, Name
-            end
-
-            aggregate "Board" do
-              identified_by :owner
-              reference_to Team, as: :owner
-            end
+      # ADR 0025, "References": an identity head may be a single-field
+      # value object, a bare scalar, OR A REFERENCE — a reference is
+      # already a scalar id the moment it is stored (`reference_to`
+      # mints a bare attribute, never a nested object), so there is
+      # nothing to unwrap and it resolves to its own name unchanged.
+      # This used to refuse; ADR 0025 admits it on purpose.
+      it "admits a reference — already a scalar, nothing to derive" do
+        bluebook = build_bluebook("Refs") do
+          aggregate "Team" do
+            identified_by :name
+            value_object("Name") { attribute :value, String }
+            attribute :name, Name
           end
-        end.to raise_error(Malformed, /identified_by :owner names a reference/)
+
+          aggregate "Board" do
+            identified_by :owner
+            reference_to Team, as: :owner
+          end
+        end
+
+        board = bluebook.aggregate("Board")
+        expect(board.identity_paths).to eq(["owner"])
+        expect(board.identified_by).to eq(:owner)
       end
 
-      it "refuses giving both a field name and a block" do
+      it "no longer takes a block at all — not even alongside a field name" do
         expect do
           Hecksagain::Bluebook::DSL::AggregateBuilder.build("Both") do
             identified_by(:id) { id.value }
           end
-        end.to raise_error(Malformed, /identified_by takes a field name\/value object or a block, not both/)
+        end.to raise_error(Malformed, /identified_by no longer takes a block/)
       end
 
       it "works the same way on an entity, deriving from the OWNING AGGREGATE's own value object" do
         bluebook = build_bluebook("Games") do
           aggregate "Bracket" do
-            identified_by { bracket_id.value }
+            identified_by :bracket_id
             attribute :bracket_id, BracketId
             value_object("BracketId") { attribute :value, String }
             value_object("GameId")    { attribute :value, String }
@@ -1142,11 +1157,43 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    describe "identified_by ValueObject — minting the attribute from the type, mirroring reference_to" do
-      it "mints the attribute AND derives its path, no separate attribute call needed" do
-        found = build_aggregate("Order") do
+    it "refuses as: on the bare-field-name form — there is no field left it could rename" do
+      expect do
+        build_aggregate("Thing") do
+          value_object("Name") { attribute :value, String }
+          attribute :name, Name
+          identified_by :name, as: :other
+        end
+      end.to raise_error(Malformed, /Thing\.identified_by takes no as: — name the declared field itself/)
+    end
+
+    it "refuses the value-object type form in LIVE source — it used to mint the attribute, and minting is gone" do
+      expect do
+        build_aggregate("Order") do
           identified_by PizzaName
           value_object("PizzaName") { attribute :value, String }
+        end
+      end.to raise_error(Malformed, /Thing\.identified_by no longer takes a value object — declare the attribute first/)
+    end
+
+    # LEGACY — `identified_by ValueObject, as: field` minted the attribute
+    # from the type; ADR 0025 ("Identity") removes it from LIVE source, but
+    # frozen era text minted under it must still parse (S0a's own bridge).
+    # `MetaValidator.while_shadow_parsing` is what `EraGuard.shadow_parse`
+    # wraps its own eval in — these tests exercise the SAME mechanism
+    # directly, at the DSL layer, rather than round-tripping through a
+    # real file on disk the way `spec/shadow_parse_spec.rb` does end to end.
+    describe "identified_by ValueObject — LEGACY, admitted only while shadow-parsing" do
+      def legacy(&block)
+        Hecksagain::Bluebook::MetaValidator.while_shadow_parsing { yield }
+      end
+
+      it "mints the attribute AND derives its path, no separate attribute call needed" do
+        found = legacy do
+          build_aggregate("Order") do
+            identified_by PizzaName
+            value_object("PizzaName") { attribute :value, String }
+          end
         end
 
         expect(found.identified_by).to eq(:pizza_name)
@@ -1155,9 +1202,11 @@ RSpec.describe "the DSL surface" do
       end
 
       it "as: overrides the minted attribute's own name" do
-        found = build_aggregate("Order") do
-          identified_by PizzaName, as: :name
-          value_object("PizzaName") { attribute :value, String }
+        found = legacy do
+          build_aggregate("Order") do
+            identified_by PizzaName, as: :name
+            value_object("PizzaName") { attribute :value, String }
+          end
         end
 
         expect(found.identified_by).to eq(:name)
@@ -1167,11 +1216,13 @@ RSpec.describe "the DSL surface" do
 
       it "refuses a value object with more than one field, naming every candidate" do
         expect do
-          build_aggregate("Thing") do
-            identified_by ThingRef
-            value_object("ThingRef") do
-              attribute :value, String
-              attribute :pad, Integer
+          legacy do
+            build_aggregate("Thing") do
+              identified_by ThingRef
+              value_object("ThingRef") do
+                attribute :value, String
+                attribute :pad, Integer
+              end
             end
           end
         end.to raise_error(Malformed, /identified_by names ThingRef, which has 2 fields \(value, pad\)/)
@@ -1179,30 +1230,22 @@ RSpec.describe "the DSL surface" do
 
       it "refuses a type naming no declared value object" do
         expect do
-          build_aggregate("Thing") { identified_by Nonexistent }
+          legacy { build_aggregate("Thing") { identified_by Nonexistent } }
         end.to raise_error(Malformed, /identified_by names Nonexistent, which is not a declared value object/)
       end
 
-      it "refuses as: on the bare-field-name form — as: only applies to the value-object form" do
-        expect do
-          build_aggregate("Thing") do
-            value_object("Name") { attribute :value, String }
-            attribute :name, Name
-            identified_by :name, as: :other
-          end
-        end.to raise_error(Malformed, /identified_by :name takes no as:/)
-      end
-
       it "works the same way on an entity, minting from the OWNING AGGREGATE's own value object" do
-        bluebook = build_bluebook("Games") do
-          aggregate "Bracket" do
-            identified_by { bracket_id.value }
-            attribute :bracket_id, BracketId
-            value_object("BracketId") { attribute :value, String }
-            value_object("WinnerRef") { attribute :value, String }
+        bluebook = legacy do
+          build_bluebook("Games") do
+            aggregate "Bracket" do
+              identified_by :bracket_id
+              attribute :bracket_id, BracketId
+              value_object("BracketId") { attribute :value, String }
+              value_object("WinnerRef") { attribute :value, String }
 
-            entity "Game" do
-              identified_by WinnerRef, as: :winner
+              entity "Game" do
+                identified_by WinnerRef, as: :winner
+              end
             end
           end
         end
@@ -1257,7 +1300,7 @@ RSpec.describe "the DSL surface" do
     it "entity declares an identity-bearing member inside the boundary" do
       line = build_aggregate("Ordered") do
         entity "OrderLine" do
-          identified_by { sku.value }
+          identified_by :sku
           attribute :sku,      Sku
           attribute :quantity, Quantity
         end
@@ -1401,14 +1444,14 @@ RSpec.describe "the DSL surface" do
       it "derives from the OWNING ENTITY's own attribute too, not just an aggregate's" do
         bluebook = build_bluebook("Games") do
           aggregate "Bracket" do
-            identified_by { bracket_id.value }
+            identified_by :bracket_id
             attribute :bracket_id, BracketId
             value_object("BracketId") { attribute :value, String }
             value_object("GameId")    { attribute :value, String }
             value_object("WinnerRef") { attribute :value, String }
 
             entity "Game" do
-              identified_by { game_id.value }
+              identified_by :game_id
               attribute :game_id, GameId
               attribute :winner, WinnerRef
 
@@ -1515,7 +1558,7 @@ RSpec.describe "the DSL surface" do
         def build_hop_bluebook(name = "Hopping", client: nil, &proposal_query)
           build_bluebook(name) do
             aggregate "Client" do
-              identified_by { name.value }
+              identified_by :name
               attribute :name, "ClientName"
               value_object("ClientName") { attribute :value, String }
               lifecycle :status, default: "active" do
@@ -1525,7 +1568,7 @@ RSpec.describe "the DSL surface" do
             end
 
             aggregate "Proposal" do
-              identified_by { number.value }
+              identified_by :number
               reference_to Client
               attribute :number, "ProposalNumber"
               value_object("ProposalNumber") { attribute :value, String }
@@ -1562,7 +1605,7 @@ RSpec.describe "the DSL surface" do
           expect do
             build_bluebook("Dangling") do
               aggregate "Proposal" do
-                identified_by { number.value }
+                identified_by :number
                 reference_to Client
                 attribute :number, "ProposalNumber"
                 value_object("ProposalNumber") { attribute :value, String }
@@ -1621,7 +1664,7 @@ RSpec.describe "the DSL surface" do
         it "a multi-hop chain reads left to right, outward to inward" do
           bluebook = build_bluebook("MultiHop") do
             aggregate "Client" do
-              identified_by { name.value }
+              identified_by :name
               attribute :name, "ClientName"
               value_object("ClientName") { attribute :value, String }
               lifecycle :status, default: "active" do
@@ -1630,14 +1673,14 @@ RSpec.describe "the DSL surface" do
             end
 
             aggregate "Engagement" do
-              identified_by { reference.value }
+              identified_by :reference
               reference_to Client
               attribute :reference, "EngagementRef"
               value_object("EngagementRef") { attribute :value, String }
             end
 
             aggregate "Proposal" do
-              identified_by { number.value }
+              identified_by :number
               reference_to Engagement
               attribute :number, "ProposalNumber"
               value_object("ProposalNumber") { attribute :value, String }
@@ -1653,7 +1696,7 @@ RSpec.describe "the DSL surface" do
           expect do
             build_bluebook("SelfRef") do
               aggregate "Node" do
-                identified_by { label.value }
+                identified_by :label
                 reference_to Node, as: :parent
                 attribute :label, "NodeLabel"
                 value_object("NodeLabel") { attribute :value, String }
@@ -1667,7 +1710,7 @@ RSpec.describe "the DSL surface" do
           expect do
             build_bluebook("TooDeep") do
               aggregate "Node" do
-                identified_by { label.value }
+                identified_by :label
                 reference_to Node
                 attribute :label, "NodeLabel"
                 value_object("NodeLabel") { attribute :value, String }
@@ -1691,13 +1734,13 @@ RSpec.describe "the DSL surface" do
           expect do
             build_bluebook("NonCollapse") do
               aggregate "Studio" do
-                identified_by { name.value }
+                identified_by :name
                 attribute :name, "StudioName"
                 value_object("StudioName") { attribute :value, String }
               end
 
               aggregate "Piece" do
-                identified_by { tag.value }
+                identified_by :tag
                 reference_to Studio, as: :studio
                 attribute :tag, "PieceTag"
                 value_object("PieceTag") { attribute :value, String }
@@ -1710,13 +1753,13 @@ RSpec.describe "the DSL surface" do
         it "the suffixed spelling IS the hop, for the same as:-named reference" do
           bluebook = build_bluebook("NonCollapseHop") do
             aggregate "Studio" do
-              identified_by { name.value }
+              identified_by :name
               attribute :name, "StudioName"
               value_object("StudioName") { attribute :value, String }
             end
 
             aggregate "Piece" do
-              identified_by { tag.value }
+              identified_by :tag
               reference_to Studio, as: :studio
               attribute :tag, "PieceTag"
               value_object("PieceTag") { attribute :value, String }
@@ -1755,11 +1798,11 @@ RSpec.describe "the DSL surface" do
     it "reference_to another root is an attribute, and leaves the command creating" do
       command = build_bluebook("Open") do
         aggregate("Customer") do
-          identified_by { id.value }
+          identified_by :id
           description "A customer"
         end
         aggregate("Thing") do
-          identified_by { id.value }
+          identified_by :id
           command("Do") { reference_to "Customer" }
         end
       end.aggregate("Thing").command("Do")
@@ -1822,11 +1865,11 @@ RSpec.describe "the DSL surface" do
     it "reference_to points at another root by its identity" do
       aggregate = build_bluebook("Referring") do
         aggregate("Pizza") do
-          identified_by { id.value }
+          identified_by :id
           description "A pizza"
         end
         aggregate("Thing") do
-          identified_by { id.value }
+          identified_by :id
           reference_to Pizza
         end
       end.aggregate("Thing")
@@ -1841,11 +1884,11 @@ RSpec.describe "the DSL surface" do
     it "has_one is a single reference, named for the target with no _id mint" do
       aggregate = build_bluebook("Owning") do
         aggregate("Profile") do
-          identified_by { id.value }
+          identified_by :id
           description "A profile"
         end
         aggregate("Account") do
-          identified_by { id.value }
+          identified_by :id
           has_one Profile
         end
       end.aggregate("Account")
@@ -1857,11 +1900,11 @@ RSpec.describe "the DSL surface" do
     it "belongs_to reads identically to has_one" do
       aggregate = build_bluebook("Dependent") do
         aggregate("Team") do
-          identified_by { id.value }
+          identified_by :id
           description "A team"
         end
         aggregate("Player") do
-          identified_by { id.value }
+          identified_by :id
           belongs_to Team
         end
       end.aggregate("Player")
@@ -1873,11 +1916,11 @@ RSpec.describe "the DSL surface" do
     it "has_many singularizes the target and names the attribute for the plural written" do
       aggregate = build_bluebook("Holding") do
         aggregate("Invoice") do
-          identified_by { id.value }
+          identified_by :id
           description "An invoice"
         end
         aggregate("Ledger") do
-          identified_by { id.value }
+          identified_by :id
           has_many Invoices
         end
       end.aggregate("Ledger")
@@ -1889,11 +1932,11 @@ RSpec.describe "the DSL surface" do
     it "has_many, has_one, and belongs_to all take as: to override the default name" do
       aggregate = build_bluebook("Aliased") do
         aggregate("Warehouse") do
-          identified_by { id.value }
+          identified_by :id
           description "A warehouse"
         end
         aggregate("Shipment") do
-          identified_by { id.value }
+          identified_by :id
           has_many Warehouses, as: :origins
           has_one  Warehouse,  as: :dispatch_point
           belongs_to Warehouse, as: :destination
@@ -2132,7 +2175,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("DomPort") do
           aggregate("Thing") do
-            identified_by { thing_id.value }
+            identified_by :thing_id
           end
         end
         Hecks.hecksagon("DomPort") { DomPort::Thing.port("Gateway", &block) }
@@ -2159,7 +2202,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("DomPortVerb") do
           aggregate("Thing") do
-            identified_by { thing_id.value }
+            identified_by :thing_id
           end
         end
         Hecks.hecksagon("DomPortVerb") { DomPortVerb::Thing.port("Checkout") { verb "opened_by" } }
@@ -2190,7 +2233,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("RootPort") do
           aggregate("Thing") do
-            identified_by { thing_id.value }
+            identified_by :thing_id
           end
         end
         Hecks.hecksagon("RootPort") do
@@ -2206,7 +2249,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("RootPortVerb") do
           aggregate("Thing") do
-            identified_by { thing_id.value }
+            identified_by :thing_id
           end
         end
         Hecks.hecksagon("RootPortVerb") { port("Weather") { verb "provided_by" } }
@@ -2223,7 +2266,7 @@ RSpec.describe "the DSL surface" do
       registry = in_registry do
         Hecks.bluebook("PortOp") do
           aggregate("Thing") do
-            identified_by { thing_id.value }
+            identified_by :thing_id
           end
         end
         Hecks.hecksagon("PortOp") { PortOp::Thing.port("Gateway") { operation("Do", &block) } }

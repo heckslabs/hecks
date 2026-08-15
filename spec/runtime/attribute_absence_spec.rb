@@ -17,7 +17,7 @@ RSpec.describe "reading a declared attribute a record predates" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Hecks.bluebook("Absence") do
         aggregate("Account") do
-          identified_by { number.value }
+          identified_by :number
 
           attribute :number,  Number
           attribute :balance, Balance

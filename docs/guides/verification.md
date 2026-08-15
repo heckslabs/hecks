@@ -42,7 +42,7 @@ because the hole is the whole demonstration:
 ```ruby bluebook
 Hecks.bluebook "Chapelle" do
   aggregate "Reliquary" do
-    identified_by { label.value }
+    identified_by :label
 
     attribute :label, Label
 

@@ -17,7 +17,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by { code.value }
+        identified_by :code
         command "Add" do
           attribute :code, Code
         end
@@ -32,7 +32,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Number" do
           attribute :value, String
         end
-        identified_by { number.value }
+        identified_by :number
         command "Issue" do
           attribute :number, Number
         end
@@ -55,7 +55,7 @@ RSpec.describe Hecksagain::Router do
         include Account
       end
       aggregate "Customer" do
-        identified_by { reference.value }
+        identified_by :reference
         attribute :reference, CustomerNumber
         attribute :name, PersonName
         value_object "CustomerNumber" do
@@ -70,7 +70,7 @@ RSpec.describe Hecksagain::Router do
         end
       end
       aggregate "Account" do
-        identified_by { id.value }
+        identified_by :id
         reference_to Customer
         attribute :number, AccountNumber
         attribute :balance, Balance, default: { cents: 0 }
@@ -109,7 +109,7 @@ RSpec.describe Hecksagain::Router do
   it "gives every aggregate .find/.all/.count on the router surface too, not just its own declared verbs" do
     write_domain("catalog", "Catalog", <<~RUBY, realm: "Realm")
       aggregate "Book" do
-        identified_by { code.value }
+        identified_by :code
         attribute :code, Code
         value_object "Code" do
           attribute :value, String
@@ -136,7 +136,7 @@ RSpec.describe Hecksagain::Router do
   it "resolves an unpinned route to the world's latest domain version" do
     write_domain("banking_v1", "Banking", <<~RUBY, version: "v1")
       aggregate "Account" do
-        identified_by { id.value }
+        identified_by :id
         description "v1"
         command "Credit" do
         end
@@ -144,7 +144,7 @@ RSpec.describe Hecksagain::Router do
     RUBY
     write_domain("banking_v2", "Banking", <<~RUBY, version: "v2", latest: "v2")
       aggregate "Account" do
-        identified_by { id.value }
+        identified_by :id
         description "v2"
         command "Credit" do
         end
@@ -160,7 +160,7 @@ RSpec.describe Hecksagain::Router do
   it "rejects an unknown route and mismatched command/query door" do
     write_domain("catalog", "Catalog", <<~RUBY)
       aggregate "Book" do
-        identified_by { id.value }
+        identified_by :id
         description "A book"
         command "Add" do; end
         query "Available" do; end
@@ -182,7 +182,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by { code.value }
+        identified_by :code
         command "Add" do
           attribute :code, Code
         end
@@ -208,7 +208,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by { code.value }
+        identified_by :code
         command "LegacyOpen" do
           attribute :code, Code
         end
@@ -221,7 +221,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by { code.value }
+        identified_by :code
         command "Open" do
           attribute :code, Code
         end
@@ -239,7 +239,7 @@ RSpec.describe Hecksagain::Router do
   it "rejects unknown namespace options and non-command method names" do
     write_domain("catalog", "Catalog", <<~RUBY, realm: "EdgeRealm")
       aggregate "Book" do
-        identified_by { id.value }
+        identified_by :id
         description "A book"
         command "Add" do
         end
@@ -263,7 +263,7 @@ RSpec.describe Hecksagain::Router do
         value_object "Code" do
           attribute :value, String
         end
-        identified_by { code.value }
+        identified_by :code
         command "Add" do
           attribute :code, Code
         end
@@ -282,7 +282,7 @@ RSpec.describe Hecksagain::Router do
     %w[catalog billing].each do |domain_name|
       write_domain(domain_name, domain_name.capitalize, <<~RUBY, realm: "AmbiguityRealm")
         aggregate "SharedShortcutBook" do
-          identified_by { id.value }
+          identified_by :id
           description "A book"
           command "Add" do
           end

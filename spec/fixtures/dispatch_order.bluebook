@@ -6,7 +6,7 @@ Hecks.bluebook "DispatchOrder" do
   aggregate "Widget" do
     description "A row with a creating command that also transitions on arrival."
 
-    identified_by { label.value }
+    identified_by :label
 
     attribute :label,  Label
     attribute :amount, Amount
@@ -65,7 +65,7 @@ Hecks.bluebook "DispatchOrder" do
     entity "Part" do
       description "A piece a widget holds, transitioned and mutated in one dispatch — no other test fixture needs real persistence to exercise entity dispatch order."
 
-      identified_by { sequence.value }
+      identified_by :sequence
 
       attribute :sequence, PartSequence
       attribute :note,     Note

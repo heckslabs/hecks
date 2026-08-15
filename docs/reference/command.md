@@ -30,7 +30,9 @@ Hecks.bluebook "CommandReference" do
   vision "The two command words the corpus does not yet write."
 
   aggregate "Meter" do
-    identified_by Serial, as: :serial
+    attribute :serial, Serial
+
+    identified_by :serial
     attribute :reading, Reading
     attribute :marks,   list_of(Mark)
 

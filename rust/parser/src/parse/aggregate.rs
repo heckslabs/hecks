@@ -195,6 +195,12 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 aggregate.identified_by =
                     identity::resolve_identity_type(file, line, name, &target, as_field.as_deref(), insert_at, &aggregate.value_objects, &mut aggregate.attributes)?;
             }
+            super::PendingIdentity::Fields { line, names } => {
+                aggregate.identified_by = names
+                    .iter()
+                    .map(|field| identity::resolve_identity_field(file, line, name, field, &aggregate.value_objects, &aggregate.attributes))
+                    .collect::<crate::diag::ParseResult<Vec<String>>>()?;
+            }
             super::PendingIdentity::Paths(paths) => aggregate.identified_by = paths,
         }
     }

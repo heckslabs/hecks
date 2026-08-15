@@ -24,7 +24,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
       generic
 
       aggregate "Thing" do
-        identified_by { name.value }
+        identified_by :name
 
         attribute :name, ThingName
 

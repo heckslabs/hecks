@@ -31,60 +31,45 @@ module Hecksagain
           @provenance = from
         end
 
-        # WHICH UNCHANGING FACTS SAY WHICH ONE THIS IS — FIELDS, not whole value
-        # objects. `identified_by { number.value }` names the scalar inside
-        # AccountNumber ; an identity is a value, and serialising a value object
-        # into one only worked while something downstream guessed at `values.first`.
-        # Nothing guesses now.
+        # WHICH UNCHANGING FACTS SAY WHICH ONE THIS IS — a declared field,
+        # never a minted one (ADR 0025, "Identity"). `identified_by :number`
+        # points at an attribute already declared on its own line ; the
+        # type used to be spelled here too (`identified_by AccountNumber,
+        # as: :number`) ONLY because that was the one place minting it, and
+        # minting is gone — `attribute :number, AccountNumber` says it once,
+        # where every other attribute does.
         #
-        # SEVERAL PATHS, and the identity is their JOIN, in declaration order :
-        #
-        #   identified_by do
-        #     aggregate_id
-        #     name.value
-        #   end                        ->  "Pizzas::Order:PlaceOrder"
-        #
-        # One path is the ordinary case and reads exactly as it always did. More
-        # than one is what a thing named BENEATH another needs : a command is not
-        # named by `PlaceOrder`, which every chapter may spell, but by the
-        # aggregate it belongs to AND that name. Nothing here is minted, so the
-        # same declaration names the same record on every run.
-        #
-        # The block is never CALLED. Its source is read the same way a given's is
-        # (Ports::Extraction), which is why `number.value` needs no method called
-        # `number` to exist — the same reason `balance >= amount` works in a given.
-        # The canonical form collapses the block's newlines to single spaces, so
-        # the paths arrive here already separated and in the order written.
-        def identified_by(target = nil, as: nil, &path)
-          if target
-            raise Malformed, "#{@name}.identified_by takes a field name/value object or a block, not both" if path
+        # SEVERAL FIELDS, and the identity is their JOIN, in declaration
+        # order — composite identity is `identified_by :branch_code,
+        # :box_number`, not a block. A single-field value object auto-
+        # unwraps to its own member (`identified_by :number` derives
+        # "number.value" when `Number` has exactly one field) ; a bare
+        # scalar or a reference resolves to its own name unchanged — see
+        # `AttributeCollector#resolve_identity_field!`, shared with
+        # `EntityBuilder`.
+        def identified_by(*targets, as: nil, &path)
+          return legacy_identified_by(targets.first, as: as, &path) if MetaValidator.shadow_parsing?
 
-            # A bareword constant (`PizzaName`) and a quoted field name
-            # (`:name`) are BOTH plain Ruby Symbols by the time they reach
-            # here — `const_missing` always hands Ruby a Symbol, and this
-            # DSL's own bluebook-level resolver returns it unchanged (see
-            # ConstShim's own comment on why a Module wrapper can't be made
-            # to hold). Distinguished the same way the language already
-            # reads everywhere else: a value object is PascalCase, a field
-            # is snake_case — the FIRST CHARACTER's own case is what
-            # `reference_to`/`attribute` themselves lean on implicitly by
-            # only ever being handed one or the other.
-            if target.to_s[0] =~ /[A-Z]/
-              @identity_type_pending = [target, as, attributes.size]
-            else
-              raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
+          raise Malformed,
+                "#{@name}.identified_by no longer takes a block — write identified_by :field, " \
+                "or identified_by :field_one, :field_two for a composite identity" if path
+          raise Malformed, "#{@name}.identified_by names no field" if targets.empty?
 
-              @identity_field_pending = target
-            end
-            return
+          # A bareword constant (`PizzaName`) and a quoted field name
+          # (`:name`) are BOTH plain Ruby Symbols/ScopedConstants by the
+          # time they reach here — distinguished the same way the language
+          # already reads everywhere else: a value object is PascalCase, a
+          # field is snake_case.
+          if targets.size == 1 && targets.first.to_s[0] =~ /[A-Z]/
+            field = as || Naming.snake(targets.first)
+            raise Malformed,
+                  "#{@name}.identified_by no longer takes a value object — declare the attribute " \
+                  "first (attribute :#{field}, #{targets.first}) and write identified_by :#{field}"
           end
 
-          raise Malformed, "#{@name}.identified_by names no field" unless path
+          raise Malformed, "#{@name}.identified_by takes no as: — name the declared field itself" if as
 
-          paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
-          raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
-
-          @identity_paths = paths
+          @identity_fields_pending = targets
         end
 
         # `optional:` — matching `CommandBuilder#reference_to`'s own
@@ -207,7 +192,38 @@ module Hecksagain
             @identity_paths = resolve_identity_type!(type, as, insert_at, @value_objects + closed_sets, @name)
           elsif @identity_field_pending
             @identity_paths = resolve_identity_field!(@identity_field_pending, @value_objects + closed_sets, @name)
+          elsif @identity_fields_pending
+            @identity_paths = @identity_fields_pending.flat_map do |field|
+              resolve_identity_field!(field, @value_objects + closed_sets, @name)
+            end
           end
+        end
+
+        # LEGACY — the two removed spellings (a value object + as:, and the
+        # multi-line block), kept alive ONLY for `EraGuard.shadow_parse`
+        # (S0a, ADR 0025) to still make sense of frozen era text that used
+        # them; unreachable outside `MetaValidator.shadow_parsing?`.
+        # Byte-identical to what `identified_by` did before this slice.
+        def legacy_identified_by(target, as:, &path)
+          if target
+            raise Malformed, "#{@name}.identified_by takes a field name/value object or a block, not both" if path
+
+            if target.to_s[0] =~ /[A-Z]/
+              @identity_type_pending = [target, as, attributes.size]
+            else
+              raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
+
+              @identity_field_pending = target
+            end
+            return
+          end
+
+          raise Malformed, "#{@name}.identified_by names no field" unless path
+
+          paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
+          raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
+
+          @identity_paths = paths
         end
 
         # Every reference is told which Aggregate declares it, so it can

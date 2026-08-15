@@ -630,8 +630,8 @@
           ],
           "givens": [
             {
-              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")",
-              "description": "an identity part reaches a scalar"
+              "canonical": "!path.value.to_s.empty?",
+              "description": "an identity part names something"
             }
           ],
           "goal": "Attach one part of the aggregate's identity",
@@ -4313,8 +4313,8 @@
           ],
           "givens": [
             {
-              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")",
-              "description": "an identity part reaches a scalar"
+              "canonical": "!path.value.to_s.empty?",
+              "description": "an identity part names something"
             }
           ],
           "goal": "Attach one part of the entity's identity",
@@ -11457,6 +11457,10 @@
               [
                 "fills",
                 "identified_by"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -11487,6 +11491,10 @@
               [
                 "fills",
                 "type"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -11517,6 +11525,10 @@
               [
                 "fills",
                 "name"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -12357,6 +12369,10 @@
               [
                 "fills",
                 "identified_by"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -12387,6 +12403,10 @@
               [
                 "fills",
                 "type"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -12417,6 +12437,10 @@
               [
                 "fills",
                 "name"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [

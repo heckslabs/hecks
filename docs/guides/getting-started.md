@@ -44,7 +44,7 @@ Hecks.bluebook "Pizzas" do
   aggregate "Order" do
     description "An order that gathers toppings on a pizza and is eventually sold to a customer."
 
-    identified_by { name.value }
+    identified_by :name
 
     attribute :name,          PizzaName
     attribute :pizza,         Pizza
@@ -148,7 +148,7 @@ end
 
 Read it once as prose before you read it as code. An aggregate is the
 thing with identity — two orders named `"Margherita"` ARE the same
-order, which is exactly what `identified_by { name.value }` declares.
+order, which is exactly what `identified_by :name` declares.
 A value object has no identity at all; a `PizzaName` is only its
 value, and its invariant travels with it everywhere the value goes.
 The lifecycle names the states an order may hold and the one

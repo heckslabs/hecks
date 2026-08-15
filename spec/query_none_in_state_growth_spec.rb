@@ -45,7 +45,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
   NONE_IN_STATE_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "AntiJoinGrowth" do
       aggregate "Claim" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "ClaimId" do
           attribute :value, String
@@ -70,7 +70,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
       end
 
       aggregate "Board" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "BoardId" do
           attribute :value, String
@@ -80,7 +80,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
         attribute :assignments, list_of(Assignment)
 
         entity "Assignment" do
-          identified_by { claim_id.value }
+          identified_by :claim_id
 
           attribute :claim_id, String
 

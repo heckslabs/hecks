@@ -19,7 +19,9 @@ Hecks.bluebook "FileReference" do
   vision "One domain, written across the three kinds of file."
 
   aggregate "Dispatch" do
-    identified_by Docket, as: :docket
+    attribute :docket, Docket
+
+    identified_by :docket
     attribute :note, Note
 
     value_object("Docket") { attribute :value, String }

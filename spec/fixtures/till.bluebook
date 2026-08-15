@@ -6,7 +6,7 @@ Hecks.bluebook "TillRoom" do
   aggregate "Till" do
     description "One cash drawer and the count of cents inside it."
 
-    identified_by { number.value }
+    identified_by :number
 
     attribute :number,  TillNumber
     attribute :balance, Money, default: { cents: 0 }

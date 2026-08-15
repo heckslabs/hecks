@@ -1,6 +1,6 @@
 Hecks.bluebook "Shaped" do
   aggregate "Customer" do
-    identified_by { full_name.value }
+    identified_by :full_name
 
     attribute :full_name, FullName
 
@@ -10,7 +10,7 @@ Hecks.bluebook "Shaped" do
   end
 
   aggregate "Account" do
-    identified_by { number.value }
+    identified_by :number
 
     reference_to Customer
 

@@ -30,8 +30,9 @@ Hecks.bluebook "AggregateReference" do
   vision "The three spellings of a reference, side by side."
 
   aggregate "Studio" do
-    identified_by Name, as: :name
+    attribute :name, Name
 
+    identified_by :name
     value_object("Name") { attribute :value, String }
 
     command "Found" do
@@ -42,8 +43,9 @@ Hecks.bluebook "AggregateReference" do
   end
 
   aggregate "Film" do
-    identified_by Title, as: :title
+    attribute :title, Title
 
+    identified_by :title
     value_object("Title") { attribute :value, String }
 
     # THREE WORDS, THREE FIELD NAMES, ONE MECHANISM. `reference_to`
@@ -138,10 +140,11 @@ runtime.registry.bluebook("Banking").aggregate("Account").provenance[:source_id]
 | `as:` | symbol | false | name |
 <!-- generated:end -->
 
-Names which unchanging field or fields say which record this is — a single path (`{ tag.value }`) reads back exactly as written, and several paths, one per line, join in declaration order (`"north:3"`). The block is never called; its source is read the same way a `given`'s is, so a path names a field with no method behind it required. Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — the second `Establish` against an existing identity refuses as a duplicate, not a fresh record.
+Names which already-declared field or fields say which record this is — one bare field (`:tag`) points at a single-field value object and its path is derived (`tag.value`); several, one per argument, join in declaration order (`"north:3"`). A bare scalar or a reference resolves to its own name unchanged, since there is nothing to unwrap. Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — the second `Establish` against an existing identity refuses as a duplicate, not a fresh record.
 
-`Account` is `identified_by AccountNumber, as: :number`, so the number
-IS the record's identity — not a field beside it:
+`Account` declares `attribute :number, AccountNumber` and then
+`identified_by :number`, so the number IS the record's identity — not
+a field beside it:
 
 ```ruby
 account.id  # => "ag-a1"

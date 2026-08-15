@@ -24,7 +24,7 @@ RSpec.describe "role-based command rejections" do
     generic
 
     aggregate "Order" do
-      identified_by { ref.value }
+      identified_by :ref
       attribute :ref, OrderRef
       value_object "OrderRef" do
         attribute :value, String

@@ -5,7 +5,9 @@ Hecks.bluebook "Identity" do
   aggregate "Identity" do
     description "A stable organizational identity, independent of how it was authenticated."
 
-    identified_by IdentityId, as: :identity_id
+    attribute :identity_id, IdentityId
+
+    identified_by :identity_id
 
     value_object "IdentityId" do
       attribute :value, String
@@ -29,9 +31,11 @@ Hecks.bluebook "Identity" do
     description "One authenticated (issuer, subject) pair, linked to the identity it proves control of."
 
     reference_to Identity
-    identified_by ExternalIdentifierKey, as: :key
+    attribute :key,     ExternalIdentifierKey
     attribute :issuer,  Issuer
     attribute :subject, Subject
+
+    identified_by :key
 
     value_object "ExternalIdentifierKey" do
       attribute :value, String

@@ -49,7 +49,7 @@ nothing told the runtime how to tell them apart.
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 aggregate "Customer" do
-  identified_by { reference.value }
+  identified_by :reference
   attribute :reference, CustomerNumber
   ...
 end
@@ -70,10 +70,10 @@ itself does not say which vault it is in:
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 aggregate "SafeDepositBox" do
-  identified_by do
-    branch_code.value
-    box_number.value
-  end
+  attribute :branch_code, BranchCode
+  attribute :box_number,  BoxNumber
+
+  identified_by :branch_code, :box_number
   ...
 end
 ```
@@ -210,7 +210,7 @@ def banking_bad_default
     code = <<~RUBY
       Hecks.bluebook("BankingBadDefault") do
         aggregate "Thing" do
-          identified_by { thing_id.value }
+          identified_by :thing_id
           value_object("Price") { attribute :cents, Integer }
           attribute :price, Price, default: 0
         end
@@ -246,7 +246,7 @@ def banking_bad_pattern
     code = <<~RUBY
       Hecks.bluebook("BankingBadPattern") do
         aggregate "Thing" do
-          identified_by { thing_id.value }
+          identified_by :thing_id
           value_object("Code") { attribute :value, String, pattern: '^(?=.*[A-Z]).+$' }
           attribute :code, Code
         end
@@ -406,7 +406,7 @@ def banking_bad_one_of
     code = <<~RUBY
       Hecks.bluebook("BankingBadOneOf") do
         aggregate "Thing" do
-          identified_by { thing_id.value }
+          identified_by :thing_id
           attribute :box, Box
 
           value_object "Box" do
@@ -480,7 +480,7 @@ uses the base form for its account:
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 aggregate "ExternalTransfer" do
-  identified_by { end_to_end.value }
+  identified_by :end_to_end
   reference_to Account
   ...
 end
@@ -528,7 +528,7 @@ is banking's only user of the sugar, and it reaches for `belongs_to`:
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 aggregate "OnboardingCase" do
-  identified_by { reference.value }
+  identified_by :reference
   belongs_to Customer
   ...
 end
@@ -578,14 +578,14 @@ def banking_has_many_demo
     code = <<~RUBY
       Hecks.bluebook("HasManyDemo") do
         aggregate "Slip" do
-          identified_by { code.value }
+          identified_by :code
           value_object("SlipTag") { attribute :value, String }
           attribute :code, SlipTag
           command("Open") { attribute :code, SlipTag; emits "SlipOpened" }
         end
 
         aggregate "Vault" do
-          identified_by { tag.value }
+          identified_by :tag
           value_object("VaultTag") { attribute :value, String }
           attribute :tag, VaultTag
           has_many Slips

@@ -9,10 +9,7 @@ Hecks.bluebook "Bluebook" do
     # context around it. This is the derivation `MetaValidator::Judge#identify`
     # spelled by hand as "#{parent_id}::#{name}" for as long as the language could
     # not say it.
-    identified_by do
-      bluebook_id
-      name.value
-    end
+    identified_by :bluebook_id, :name
 
     # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
     attribute :name,          AggregateName
@@ -115,25 +112,27 @@ Hecks.bluebook "Bluebook" do
       reference_to Aggregate
       attribute :path, IdentityPath
 
-      # AN IDENTITY PART REACHES A SCALAR. This rule used to sit on Seal reading
+      # AN IDENTITY PART NAMES SOMETHING. This rule used to sit on Seal reading
       # `empty? || == "id" || includes(".")` — two escapes and a check. The escapes
       # were the whole of it : `empty?` let an aggregate say nothing and be given a
       # minted `id`, and `== "id"` let it name that slot outright. Both are gone,
       # so what is left is the rule itself, and it now runs on every part rather
       # than on whichever one a single field happened to hold.
       #
-      # TWO WAYS TO REACH ONE. A path opens a value object and names the field
-      # inside it — `number.value`. A REFERENCE is already a scalar : it holds
-      # another root's id, so there is nothing to open, which is precisely what the
-      # retired `== "id"` escape was true about and wrong to generalise from. The
-      # language MINTS the `_id` ending itself in `reference_to`, so reading it here
-      # is reading the language's own spelling, not guessing at a convention.
-      #
-      # Said with `include?` rather than `end_with?` because `include?` is a word
-      # the predicate sublanguage HAS and `end_with?` is not — and a given written
-      # in words the sublanguage cannot read does not fail loudly, it simply refuses
-      # everything, which is how the first draft of this rule refused `name.value`.
-      given("an identity part reaches a scalar") { path.value.to_s.include?(".") || path.value.to_s.include?("_id") }
+      # THREE WAYS TO REACH A SCALAR (ADR 0025, "Identity"), and this given no
+      # longer distinguishes them — it used to accept only a dotted path
+      # (`number.value`, a value object's own field) or an `_id`-suffixed
+      # reference, and REFUSED a bare scalar field (`sku`), which is legal
+      # too : a plain primitive attribute IS already a scalar, nothing to
+      # open. That distinction belongs to the BUILDER, which resolves each
+      # spelling before an identity part ever reaches here
+      # (`AttributeCollector#resolve_identity_field!` — the single place
+      # that decides dotted-unwrap vs. reference vs. bare-scalar, and the
+      # only place that can, since it alone holds the attribute's declared
+      # type). What is left for THIS rule to say, once the builder has
+      # already resolved a real shape, is only that a part was actually
+      # given a name at all.
+      given("an identity part names something") { !path.value.to_s.empty? }
 
       then_set :identified_by, append: { value: :path }
       emits "RootIdentified"

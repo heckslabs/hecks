@@ -18,8 +18,9 @@ Hecks.bluebook "WorldReference", version: "2" do
   vision "A chapter that pins a contract version, so a world has something to pin to."
 
   aggregate "Beacon" do
-    identified_by Callsign, as: :callsign
+    attribute :callsign, Callsign
 
+    identified_by :callsign
     value_object("Callsign") { attribute :value, String }
 
     command "Light" do
@@ -36,8 +37,9 @@ Hecks.bluebook "WorldReferenceUnpinned" do
   vision "The ordinary case: no version, so no pin to disagree with."
 
   aggregate "Lamp" do
-    identified_by Callsign, as: :callsign
+    attribute :callsign, Callsign
 
+    identified_by :callsign
     value_object("Callsign") { attribute :value, String }
 
     command "Light" do

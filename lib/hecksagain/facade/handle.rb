@@ -32,7 +32,7 @@ module Hecksagain
 
       # `id: @id` LAST, not first — an aggregate is free to declare its own
       # attribute literally named `id` (BurningManPrep's `Item`, `attribute
-      # :id, ItemId`, is real corpus now: `identified_by { id.value }` reads
+      # :id, ItemId`, is real corpus now: `identified_by :id` reads
       # THAT attribute for identity). When it does, `@state[:id]` holds the
       # full wrapped value object, not the bare identity string — merging
       # `@state` on top of `{ id: @id }` let that wrapped VO silently

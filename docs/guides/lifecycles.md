@@ -207,7 +207,7 @@ Hecks.bluebook "Impasse" do
   aggregate "InboundLot" do
     description "One inbound lot, from logging to inspection."
 
-    identified_by { lot.value }
+    identified_by :lot
 
     attribute :lot, LotNumber
 

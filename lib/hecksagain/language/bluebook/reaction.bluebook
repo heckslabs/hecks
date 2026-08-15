@@ -6,10 +6,7 @@ Hecks.bluebook "Bluebook" do
 
     # THE CHAPTER IT IS IN, AND ITS NAME. A policy hangs off the chapter rather
     # than an aggregate, so the chapter is the part above it.
-    identified_by do
-      bluebook_id
-      name.value
-    end
+    identified_by :bluebook_id, :name
 
     attribute :name,            PolicyName
     # WHICH HEAD DECLARED IT, empty for a reaction the chapter owns.
@@ -123,10 +120,7 @@ Hecks.bluebook "Bluebook" do
 
     # THE CHAPTER IT IS IN, AND ITS NAME — the same shape a policy takes, and for
     # the same reason.
-    identified_by do
-      bluebook_id
-      name.value
-    end
+    identified_by :bluebook_id, :name
 
     attribute :name,      ProcessManagerName
     attribute :correlates_by, ProcessManagerText
@@ -208,10 +202,7 @@ Hecks.bluebook "Bluebook" do
     # event once, so the event names the leg. The judge keyed this by POSITION
     # ("#{parent}##{index}"), which is a mint : insert a leg above and every leg
     # below is renamed. The event does not move.
-    identified_by do
-      process_manager_id
-      event_type.value
-    end
+    identified_by :process_manager_id, :event_type
 
     # No `saga` field. It named the old word for a process manager, held nothing —
     # ProcessManagerHandler has no such reader, so every Handler record's saga
@@ -276,10 +267,7 @@ Hecks.bluebook "Bluebook" do
 
     # THE HANDLER IT IS IN, AND THE COMMAND IT SENDS — keyed by position before,
     # for the same want of a way to say this.
-    identified_by do
-      handler_id
-      command_name.value
-    end
+    identified_by :handler_id, :command_name
 
     attribute :handler,      DispatchText
     attribute :command_name, DispatchText

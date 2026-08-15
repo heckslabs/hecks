@@ -14,7 +14,7 @@ RSpec.describe "hydrating stored state through declared defaults" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Hecks.bluebook("Hydration") do
         aggregate("Account") do
-          identified_by { standing.value }
+          identified_by :standing
 
           attribute :balance, Money
           attribute :standing, Standing, default: { value: "good" }

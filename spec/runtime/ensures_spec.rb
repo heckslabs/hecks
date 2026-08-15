@@ -28,7 +28,7 @@ RSpec.describe "a command's ensures" do
       core
 
       aggregate "Box" do
-        identified_by { number.value }
+        identified_by :number
 
         attribute :number,  Number
         attribute :balance, Money, default: { cents: 0 }
@@ -143,7 +143,7 @@ RSpec.describe "a command's ensures" do
         core
 
         aggregate "Purse" do
-          identified_by { number.value }
+          identified_by :number
 
           attribute :number, Number
           attribute :total,  Money, default: { cents: 0 }
@@ -205,7 +205,7 @@ RSpec.describe "a command's ensures" do
             # the same rule `given` already lives under), and colliding
             # them here would make `label.value` in the ensures read the
             # dispatch's addressing argument instead of the settled record.
-            identified_by { serial.value }
+            identified_by :serial
             attribute :serial, Serial
             attribute :label,  Label
             attribute :cents,  Integer

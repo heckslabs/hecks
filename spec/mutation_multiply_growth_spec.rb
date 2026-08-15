@@ -34,7 +34,7 @@ RSpec.describe "mutation op multiply" do
   MUTATION_MULTIPLY_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "MutationMultiplyGrowth" do
       aggregate "Organ" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "OrganId" do
           attribute :value, String

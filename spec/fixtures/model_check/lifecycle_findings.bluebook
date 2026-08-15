@@ -3,7 +3,7 @@ Hecks.bluebook "LifecycleFindings" do
   core
 
   aggregate "Widget" do
-    identified_by { number.value }
+    identified_by :number
 
     attribute :number, Number
     attribute :parts,  list_of(Part)
@@ -46,7 +46,7 @@ Hecks.bluebook "LifecycleFindings" do
     end
 
     entity "Part" do
-      identified_by { serial.value }
+      identified_by :serial
       attribute :serial, Serial
 
       # STUCK STATE: reachable ("mounted" is the default), but nothing

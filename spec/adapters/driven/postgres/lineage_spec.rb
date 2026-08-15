@@ -482,7 +482,7 @@ RSpec.describe "lineage in the Postgres adapter",
     collide_v1 = <<~BLUEBOOK
       Hecks.bluebook "Collide" do
         aggregate "Acct" do
-          identified_by { kind.value }
+          identified_by :kind
           attribute :amount, Money
           attribute :kind, Kind
           belongs_to :Team
@@ -494,7 +494,7 @@ RSpec.describe "lineage in the Postgres adapter",
           end
         end
         aggregate "Team" do
-          identified_by { name.value }
+          identified_by :name
           attribute :name, TeamName
           value_object "TeamName" do
             attribute :value, String
@@ -793,7 +793,7 @@ RSpec.describe "lineage in the Postgres adapter",
   PRICING_V1 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Pricing" do
       aggregate "Quote" do
-        identified_by { sku.value }
+        identified_by :sku
 
         attribute :sku, Sku
         attribute :price_cents, Cents
@@ -812,7 +812,7 @@ RSpec.describe "lineage in the Postgres adapter",
   PRICING_V2 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Pricing" do
       aggregate "Quote" do
-        identified_by { sku.value }
+        identified_by :sku
 
         attribute :sku, Sku
         attribute :price_dollars, Dollars
@@ -920,7 +920,7 @@ RSpec.describe "lineage in the Postgres adapter",
   ROSTER_V1 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
-        identified_by { name.value }
+        identified_by :name
 
         attribute :name,  PersonName
         attribute :title, PersonTitle
@@ -939,7 +939,7 @@ RSpec.describe "lineage in the Postgres adapter",
   ROSTER_V2 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
-        identified_by { email.value }
+        identified_by :email
 
         attribute :name,  PersonName
         attribute :title, PersonTitle

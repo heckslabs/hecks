@@ -4,7 +4,7 @@ Hecks.bluebook "Wire" do
   core
 
   aggregate "Drawer" do
-    identified_by { number.value }
+    identified_by :number
 
     attribute :number, DrawerNumber
     attribute :cents, Money, default: { cents: 0 }
@@ -66,7 +66,7 @@ Hecks.bluebook "Wire" do
   end
 
   aggregate "Wire" do
-    identified_by { reference.value }
+    identified_by :reference
 
     attribute :reference,   WireReference
     attribute :amount,      Money, default: { cents: 0 }
@@ -125,7 +125,7 @@ Hecks.bluebook "Wire" do
 
   process_manager "Carry" do
     # THE FIELD, NAMED — Wire.Ask declares `attribute :reference,
-    # WireReference`, the same field Wire's own `identified_by { reference.value }`
+    # WireReference`, the same field Wire's own `identified_by :reference`
     # derives its id from, so this reaches the exact scalar the old bare
     # `:wire` reached only by coincidence (the aggregate's own reference key
     # happening to spell the same as the correlation name).

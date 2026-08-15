@@ -48,7 +48,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     # carries, so the two cannot collide however they are spelled. The fallback was
     # hiding a lookup bug ; removing it made the bug visible, and the bug was the
     # smaller thing.
-    identified_by { name.value }
+    identified_by :name
 
     attribute :name,           BluebookName
     attribute :vision,         Vision

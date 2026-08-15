@@ -19,7 +19,7 @@ RSpec.describe "a query's own rows keep a declared :id attribute from clobbering
     source = <<~BLUEBOOK
       Hecks.bluebook "Thingy" do
         aggregate "Thing" do
-          identified_by { id.value }
+          identified_by :id
 
           value_object "ThingId" do
             attribute :value, String

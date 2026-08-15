@@ -39,7 +39,9 @@ Hecks.bluebook "Compliance" do
   aggregate "AccountFreezeReview" do
     description "The compliance review a frozen account gets, opened the moment Banking::Account.Freeze already happened."
 
-    identified_by AccountNumber, as: :number
+    attribute :number, AccountNumber
+
+    identified_by :number
 
     value_object "AccountNumber" do
       attribute :value, String
@@ -90,13 +92,10 @@ Hecks.bluebook "Compliance" do
   aggregate "BoxSurrenderReview" do
     description "The compliance review a surrendered safe deposit box gets — audit/escheatment implications, not a fraud contain the way a freeze is, but the same after-the-fact review shape."
 
-    identified_by do
-      branch_code.value
-      box_number.value
-    end
-
     attribute :branch_code, BranchCode
     attribute :box_number,  BoxNumber
+
+    identified_by :branch_code, :box_number
 
     value_object "BranchCode" do
       attribute :value, String

@@ -133,7 +133,18 @@ RSpec.describe "the evolve surgery" do
     with_copy do |path|
       rows = Hecksagain::Grammar::Evolve.argument_rows(path)
       expect(rows.size).to be > 100
-      expect(rows.map { |row| row[:status] }.uniq).to eq(["admitted"])
+      expect(rows.map { |row| row[:status] }.uniq.sort).to eq(["admitted", "deprecated"])
+
+      # THE FOUR ROWS ADR 0025's identity slice (S1) actually deprecated —
+      # `identified_by`'s legacy value-object/`as:` argument rows, admitted
+      # only while `MetaValidator.shadow_parsing?` (S0a's own bridge).
+      # Pinned by name rather than just counting "not admitted", so a
+      # future deprecation elsewhere in the table shows up here too.
+      deprecated = rows.select { |row| row[:status] == "deprecated" }
+      expect(deprecated.map { |row| [row[:keyword], row[:context], row[:named]] }.sort).to eq(
+        [["identified_by", "Aggregate", ""], ["identified_by", "Aggregate", "as"],
+         ["identified_by", "Entity", ""], ["identified_by", "Entity", "as"]].sort
+      )
     end
   end
 

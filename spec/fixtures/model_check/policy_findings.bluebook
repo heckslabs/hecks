@@ -3,7 +3,7 @@ Hecks.bluebook "PolicyFindings" do
   core
 
   aggregate "Note" do
-    identified_by { number.value }
+    identified_by :number
 
     attribute :number, Number
 

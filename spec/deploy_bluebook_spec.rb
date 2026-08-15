@@ -118,7 +118,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
         File.write(File.join(bluebook_dir, "#{FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
           Hecks.bluebook "Scratch" do
             aggregate "Thing" do
-              identified_by { name.value }
+              identified_by :name
               attribute :name, ThingName
               value_object "ThingName" do
                 attribute :value, String

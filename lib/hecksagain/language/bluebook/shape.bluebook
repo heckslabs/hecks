@@ -7,10 +7,7 @@ Hecks.bluebook "Bluebook" do
     # THE AGGREGATE IT BELONGS TO, AND ITS NAME. A value object belongs to one
     # aggregate by rule, and `Name` or `Amount` is spelled in half the chapters
     # there are.
-    identified_by do
-      aggregate_id
-      name.value
-    end
+    identified_by :aggregate_id, :name
 
     attribute :name,       ValueObjectName
     attribute :attributes, list_of(ShapeField)
@@ -153,10 +150,7 @@ Hecks.bluebook "Bluebook" do
     # a mint — it is read straight out of the source file, the same fact the
     # language already holds deliberately so that an ask ordered any other way
     # cannot take declaration order away.
-    identified_by do
-      value_object_id
-      position.value
-    end
+    identified_by :value_object_id, :position
 
     attribute :shape, MemberText
     attribute :pairs, list_of(Pair)

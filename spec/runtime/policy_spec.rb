@@ -148,7 +148,7 @@ RSpec.describe "a policy" do
 
         Hecks.bluebook "Fanout" do
           aggregate "Customer" do
-            identified_by { customer_id.value }
+            identified_by :customer_id
             attribute :customer_id, CustomerId
             attribute :risk,        RiskLevel
 
@@ -176,7 +176,7 @@ RSpec.describe "a policy" do
           end
 
           aggregate "Account" do
-            identified_by { account_id.value }
+            identified_by :account_id
             attribute :account_id,  AccountId
             attribute :customer_id, AccountCustomerId
             attribute :status,      AccountStatus

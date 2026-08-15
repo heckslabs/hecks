@@ -172,9 +172,12 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparison
 /// against Ruby's own `ir.json`, not just "the word gates cleanly." A
 /// word this crate merely GATES but doesn't build real IR for (e.g.
-/// `identified_by`'s bare-field form, `entity`) stays off this list —
-/// reporting it here would be exactly the kind of claim this whole plan
-/// exists to make impossible. Grouped by construct, in the same order
+/// `entity`) stays off this list — reporting it here would be exactly
+/// the kind of claim this whole plan exists to make impossible.
+/// `identified_by`'s bare-field form (ADR 0025's LIVE spelling, `build/
+/// identity.rs::resolve_identity_field`) joined the legacy type-form in
+/// building real IR, so the pair stays listed on the same terms it
+/// always was. Grouped by construct, in the same order
 /// `parse::mod::dispatch_stub` maps contexts.
 ///
 /// STAGE 2 built the first block (pizzas.bluebook). STAGE 3 added the

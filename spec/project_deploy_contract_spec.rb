@@ -40,7 +40,7 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
       File.write(File.join(bluebook_dir, "#{CONTRACT_FIXTURE_BASENAME}.bluebook"), <<~BLUEBOOK)
         Hecks.bluebook "Scratch" do
           aggregate "Thing" do
-            identified_by { name.value }
+            identified_by :name
             attribute :name, ThingName
             value_object "ThingName" do
               attribute :value, String

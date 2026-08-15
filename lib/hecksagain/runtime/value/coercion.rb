@@ -160,7 +160,7 @@ module Hecksagain
         # `Value.identifier` used to live here: hand it a one-field value object
         # and it opened it, so `identified_by :number` could pass for an identity
         # and the runtime would guess which field was meant. THAT GUESS IS GONE.
-        # An identity names its field — `identified_by { number.value }` — and the
+        # An identity names its field — `identified_by :number` — and the
         # path is what reaches the scalar. A declaration that names no field is
         # refused when the bluebook loads, so nothing has to be unwrapped later.
         #

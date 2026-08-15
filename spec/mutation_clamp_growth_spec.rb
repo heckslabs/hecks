@@ -35,7 +35,7 @@ RSpec.describe "mutation op clamp" do
   MUTATION_CLAMP_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "MutationClampGrowth" do
       aggregate "Organ" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "OrganId" do
           attribute :value, String

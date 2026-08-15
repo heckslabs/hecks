@@ -20,7 +20,9 @@ Hecks.bluebook "PolicyReference" do
   vision "The two policy modifiers the corpus never needed."
 
   aggregate "RefCard" do
-    identified_by Serial, as: :serial
+    attribute :serial, Serial
+
+    identified_by :serial
     attribute :holder, Holder
 
     value_object "Serial" do
@@ -55,7 +57,9 @@ Hecks.bluebook "PolicyReference" do
   end
 
   aggregate "RefAlert" do
-    identified_by AlertRef, as: :ref
+    attribute :ref, AlertRef
+
+    identified_by :ref
     attribute :holder,   Holder
     attribute :severity, Severity
 

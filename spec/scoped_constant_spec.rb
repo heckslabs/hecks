@@ -31,7 +31,7 @@ RSpec.describe "the scoped-constant bridge" do
       generic
 
       aggregate "ScopedBridgeThing" do
-        identified_by { name.value }
+        identified_by :name
 
         attribute :name, ScopedBridgeThingName
 

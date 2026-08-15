@@ -5,10 +5,7 @@ Hecks.bluebook "Bluebook" do
     reference_to Bluebook
 
     # THE CHAPTER IT IS IN, AND ITS NAME.
-    identified_by do
-      bluebook_id
-      name.value
-    end
+    identified_by :bluebook_id, :name
 
     attribute :name,             ReadModelName
     attribute :description,      ProjectionPurpose

@@ -35,8 +35,9 @@ Hecks.bluebook "ReadModelReference" do
   vision "The read-model words the corpus does not yet declare."
 
   aggregate "Depot" do
-    identified_by Code, as: :code
+    attribute :code, Code
 
+    identified_by :code
     value_object("Code") { attribute :value, String }
 
     command "OpenDepot" do
@@ -47,7 +48,9 @@ Hecks.bluebook "ReadModelReference" do
   end
 
   aggregate "Parcel" do
-    identified_by Label, as: :label
+    attribute :label, Label
+
+    identified_by :label
     reference_to Depot
     attribute :region, Region
     attribute :weight, Weight, optional: true

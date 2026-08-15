@@ -100,7 +100,7 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
       File.write(File.join(directory, "widget.bluebook"), <<~RUBY)
         Hecks.bluebook "Widget" do
           aggregate "Item" do
-            identified_by { name.value }
+            identified_by :name
             attribute :name, Name
             value_object "Name" do
               attribute :value, String
@@ -111,8 +111,9 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
           end
 
           aggregate "Tag" do
-            identified_by { item_id }
             reference_to Item
+
+            identified_by :item_id
             command "Attach" do
               reference_to Item
             end

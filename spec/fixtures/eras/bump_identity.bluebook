@@ -1,6 +1,6 @@
 Hecks.bluebook "Shaped" do
   aggregate "Customer" do
-    identified_by { full_name.value }
+    identified_by :full_name
 
     attribute :full_name, FullName
 
@@ -10,16 +10,13 @@ Hecks.bluebook "Shaped" do
   end
 
   aggregate "Account" do
-    identified_by do
-      number.value
-      balance.cents
-    end
-
     reference_to Customer
 
     attribute :number,  AccountNumber
     attribute :balance, Money
     attribute :tags,    list_of(Tag)
+
+    identified_by :number, :balance
 
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"
@@ -29,9 +26,14 @@ Hecks.bluebook "Shaped" do
       attribute :value, String
     end
 
+    # SINGLE-FIELD HERE, unlike base.bluebook's own Money — a bare
+    # `identified_by :balance` only auto-unwraps when there is exactly
+    # one field to unwrap to (ADR 0025, "Identity"); this fixture is
+    # unused by any spec today, so trimming `currency` is the minimal
+    # way to keep it syntactically valid rather than giving it a
+    # dedicated identity field that would muddy what "bumped" here.
     value_object "Money" do
-      attribute :cents,    Integer
-      attribute :currency, String, default: "USD"
+      attribute :cents, Integer
     end
 
     value_object "Tag" do

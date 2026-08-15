@@ -5,7 +5,7 @@ Hecks.bluebook "Hecksagon" do
   aggregate "Hecksagon" do
     description "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it."
 
-    identified_by { domain.value }
+    identified_by :domain
 
     attribute :domain,             HecksagonName
     attribute :subscriptions,      list_of(Subscription)
@@ -71,11 +71,7 @@ Hecks.bluebook "Hecksagon" do
     # THE HECKSAGON IT IS IN, THE AGGREGATE IT NAMES, THE VERB IT ANSWERS.
     # One hecksagon binds one adapter per (aggregate, verb) pair — that is
     # what a binding IS — so the triple identifies it.
-    identified_by do
-      hecksagon_id
-      aggregate.value
-      verb.value
-    end
+    identified_by :hecksagon_id, :aggregate, :verb
 
     attribute :hecksagon, BindingText
     attribute :aggregate, BindingText
@@ -106,7 +102,7 @@ Hecks.bluebook "Hecksagon" do
   aggregate "DomainPort" do
     description "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the chapter) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) door). One of two shapes, never both: a list of operations translating an inbound fact into this domain's own events, or a bare verb naming a swappable resource port (the same Hecks.port a project's own .port file declares, reached from inside the hecksagon instead)."
 
-    identified_by { name.value }
+    identified_by :name
 
     attribute :name, PortName
     attribute :verb, PortVerb, optional: true
@@ -125,7 +121,7 @@ Hecks.bluebook "Hecksagon" do
   aggregate "PortOperation" do
     description "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/then_set : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits."
 
-    identified_by { name.value }
+    identified_by :name
 
     attribute :name,       OperationName
     attribute :attributes, list_of(PortOperationField)

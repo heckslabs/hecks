@@ -2,7 +2,7 @@
 Hecks.bluebook "Shaped", version: "v2" do
   vision "the same shape, told differently"
   aggregate "Customer" do
-    identified_by { full_name.value }
+    identified_by :full_name
 
     attribute :full_name, FullName
 
@@ -12,7 +12,7 @@ Hecks.bluebook "Shaped", version: "v2" do
   end
 
   aggregate "Account" do
-    identified_by { number.value }
+    identified_by :number
 
     reference_to Customer
 

@@ -19,7 +19,9 @@ Hecks.bluebook "PortOperationReference" do
   vision "One licence, told things by the outside and asking things of it."
 
   aggregate "Licence" do
-    identified_by Serial, as: :serial
+    attribute :serial, Serial
+
+    identified_by :serial
     attribute :holder, Holder
 
     value_object("Serial") { attribute :value, String }

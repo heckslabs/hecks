@@ -30,7 +30,7 @@ RSpec.describe Doctest do
 
         aggregate "DoctestGadget" do
           description "A widget."
-          identified_by { name.value }
+          identified_by :name
 
           attribute :name, Name
 
@@ -132,7 +132,7 @@ RSpec.describe Doctest do
 
         aggregate "DoctestHarnessMemo" do
           description "A note."
-          identified_by { label.value }
+          identified_by :label
 
           attribute :label, Label
 

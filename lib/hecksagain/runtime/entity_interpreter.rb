@@ -185,7 +185,7 @@ module Hecksagain
       # reached — never by opening a value object and taking whatever single
       # field is inside. That unwrapping is gone from the language : a piece
       # that does not name its fields is refused when the bluebook loads ("an
-      # entity says what it is known by", "an identity part reaches a scalar"),
+      # entity says what it is known by", "an identity part names something"),
       # so by the time a dispatch arrives here there is always a path to dig.
       def element_identity(entity, element)
         parts = entity.identity_paths.map do |path|

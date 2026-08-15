@@ -960,22 +960,25 @@ fn brace_body_statements(body: &str) -> Vec<String> {
 /// DERIVATION while `Paths` (the SOURCE-shaped block form, either
 /// spelling) is not: its body already IS the identity, captured raw and
 /// canonicalized, never resolved against already-declared attributes.
-/// The FIELD form (`identified_by :field`) is still left
-/// `not_yet_implemented` — no real corpus member exercises it yet.
+/// `Fields` is the LIVE form (ADR 0025) — one or more bare symbols,
+/// each resolved against its own already-declared attribute at
+/// `build/identity.rs::resolve_identity_field`.
 pub(crate) enum PendingIdentity {
     Type { line: usize, target: String, as_field: Option<String>, insert_at: usize },
+    Fields { line: usize, names: Vec<String> },
     Paths(Vec<String>),
 }
 
 /// `AggregateBuilder#identified_by`/`EntityBuilder#identified_by` — the
 /// THREE forms Ruby's own single method distinguishes: a bareword
-/// starting uppercase is a value object (the TYPE form, `identified_by
-/// PizzaName, as: :name`, `Opener::None`); starting lowercase (a Symbol)
-/// is the FIELD form (`identified_by :field`, `Opener::None`, still not
-/// exercised by any real corpus member — refused with an honest
-/// not-yet-implemented diagnostic); a BLOCK — spelled either
-/// `identified_by { ... }` (`Opener::BraceBlock`) or `identified_by
-/// do ... end` (`Opener::DoBlock`) — is the SOURCE form, captured raw and
+/// starting uppercase is a value object (the LEGACY TYPE form,
+/// `identified_by PizzaName, as: :name`, `Opener::None`); one or more
+/// starting lowercase are Symbols, the LIVE FIELD form (`identified_by
+/// :field, :field_two`, `Opener::None`, VARIADIC — syntax.bluebook's own
+/// `identified_by` argument row, `variadic: "true"`, the same column
+/// `group_by`'s does); a BLOCK — spelled either `identified_by { ... }`
+/// (`Opener::BraceBlock`) or `identified_by do ... end`
+/// (`Opener::DoBlock`) — is the LEGACY SOURCE form, captured raw and
 /// canonicalized, one path per whitespace-separated token in the
 /// canonical text, mirroring `Ports::Extraction.canonical(path).to_s
 /// .split(" ").reject(&:empty?)` exactly.
@@ -996,7 +999,10 @@ pub(crate) fn parse_identified_by(
                     let as_field = named_symbol(args, "as");
                     Ok(PendingIdentity::Type { line, target: text.to_string(), as_field, insert_at })
                 }
-                "symbol" => Err(Diagnostic::not_yet_implemented(file, line, "identified_by (bare-field form)")),
+                "symbol" => {
+                    let names: Vec<String> = args.positional.iter().map(|(_, raw)| positional_symbol_text(file, line, "identified_by", raw)).collect::<ParseResult<_>>()?;
+                    Ok(PendingIdentity::Fields { line, names })
+                }
                 other => Err(Diagnostic::new(file, line, format!("'identified_by's positional argument reads as {other}, neither a value object nor a field"))),
             }
         }
@@ -1005,6 +1011,17 @@ pub(crate) fn parse_identified_by(
             paths_from_source(file, line, &raw)
         }
     }
+}
+
+/// The bare name out of a positional symbol TOKEN, already known (by the
+/// generic argument gate's own `kind_matches` check) to be `kind:
+/// "symbol"` — a thin wrapper over `symbol_text` for a caller iterating
+/// `args.positional` directly rather than through `positional_symbol`'s
+/// own single-index lookup (VARIADIC — `identified_by` may take any
+/// number, so there is no single `at` to ask for).
+fn positional_symbol_text(file: &str, line: usize, word: &str, raw: &str) -> ParseResult<String> {
+    let trimmed = raw.trim();
+    symbol_text(trimmed).ok_or_else(|| Diagnostic::new(file, line, format!("'{word}'s positional argument ('{trimmed}') is not a symbol")))
 }
 
 /// `identified_by`'s SOURCE-shaped body (either spelling) -> its own

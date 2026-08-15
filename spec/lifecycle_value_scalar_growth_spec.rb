@@ -40,7 +40,7 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
   LIFECYCLE_VALUE_SCALAR_SOURCE = <<~BLUEBOOK
     Hecks.bluebook "LifecycleValueScalarGrowth" do
       aggregate "Task" do
-        identified_by { id.value }
+        identified_by :id
 
         value_object "TaskId" do
           attribute :value, String

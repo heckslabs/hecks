@@ -13,7 +13,15 @@
 //! since `parse::command`/`parse::query`/`parse::value_object`/
 //! `parse::policy`/`parse::lifecycle` all stopped being stubs. STAGE 4
 //! adds `process_manager.bluebook` to that same list (`parse::
-//! process_manager`, previously fully stubbed).
+//! process_manager`, previously fully stubbed). ADR 0025's identity
+//! slice (S1, docs/dsl-work-slices.md) closes the last two:
+//! `aggregate.bluebook`/`entity.bluebook` exercised `identified_by`'s
+//! bare-FIELD form, previously the one remaining `not_yet_implemented`
+//! diagnostic this crate raised on purpose — `build/identity.rs::
+//! resolve_identity_field` builds real IR for it now, so both fixtures
+//! moved to `now_implemented_fixtures_parse_for_real` below and the
+//! `still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct`
+//! test that pinned their failure is gone — nothing is still pending.
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -24,40 +32,6 @@ fn fixture(name: &str) -> PathBuf {
 
 fn run(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse")).args(args).output().expect("failed to run hecks-parse")
-}
-
-#[test]
-fn still_pending_bluebook_fixtures_fail_closed_naming_their_own_construct() {
-    // STILL genuinely not built: `aggregate.bluebook`/`entity.bluebook`
-    // both exercise `identified_by`'s bare-FIELD form specifically
-    // (`identified_by :name`, not the bare-TYPE form pizzas.bluebook
-    // uses, nor the SOURCE/block form governance.bluebook/
-    // console_settings.bluebook use and `build/identity.rs` resolves) —
-    // STAGE 4 shares this resolution between `parse::aggregate` and
-    // `parse::entity` via `parse::mod::parse_identified_by` (`EntityBuilder
-    // #identified_by` is, per its own comment, "the aggregate's method
-    // line for line"), so BOTH now report the identical, construct-
-    // agnostic diagnostic ("identified_by (bare-field form)") rather than
-    // a per-construct-prefixed one — checked for that shared wording here
-    // instead of a construct name. `process_manager.bluebook` moved to
-    // `now_implemented_fixtures_parse_for_real` below — STAGE 4 taught
-    // `parse::process_manager` to build real IR.
-    let cases: &[(&str, &str)] = &[("aggregate.bluebook", "FixtureAggregate"), ("entity.bluebook", "FixtureEntity")];
-
-    for (file, chapter) in cases {
-        let path = fixture(file);
-        let output = run(&["chapter", "--chapter", chapter, path.to_str().unwrap()]);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-
-        assert_eq!(output.status.code(), Some(1), "{file}: expected exit 1 (parse error). stdout={stdout} stderr={stderr}");
-        assert!(stdout.is_empty(), "{file}: stdout must stay empty on a still-pending failure — never a partial/fabricated ir.json, got {stdout}");
-        assert!(stderr.contains("not yet implemented"), "{file}: expected a not-yet-implemented diagnostic, got: {stderr}");
-        assert!(
-            stderr.contains("identified_by (bare-field form)"),
-            "{file}: expected the shared bare-field-form diagnostic, got: {stderr}"
-        );
-    }
 }
 
 #[test]
@@ -76,6 +50,10 @@ fn now_implemented_fixtures_parse_for_real() {
         ("lifecycle.bluebook", "FixtureLifecycle"),
         ("read_model.bluebook", "FixtureReadModel"),
         ("process_manager.bluebook", "FixtureProcessManager"), // STAGE 4
+        // ADR 0025 identity slice (S1) — `identified_by`'s bare-field
+        // form, the one remaining not-yet-implemented diagnostic.
+        ("aggregate.bluebook", "FixtureAggregate"),
+        ("entity.bluebook", "FixtureEntity"),
     ];
 
     for (file, chapter) in cases {

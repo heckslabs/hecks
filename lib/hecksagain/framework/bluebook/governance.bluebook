@@ -11,17 +11,13 @@ Hecks.bluebook "Governance" do
     # adapter exists yet in this codebase to mint a synthetic id, and none
     # is needed: `starts_at` already makes "this actor started holding this
     # role at this time" unique on its own.
-    identified_by do
-      actor_id.value
-      role_name.value
-      starts_at.value
-    end
-
     attribute :actor_id,  IdentityId
     attribute :role_name, RoleName
     attribute :scope,     Scope
     attribute :starts_at, Timestamp
     attribute :ends_at,   Timestamp, optional: true
+
+    identified_by :actor_id, :role_name, :starts_at
 
     value_object "IdentityId" do
       attribute :value, String
@@ -81,14 +77,11 @@ Hecks.bluebook "Governance" do
   aggregate "RoleTransition" do
     description "Role X is authorized to act as role Y — until revoked."
 
-    identified_by do
-      from_role.value
-      to_role.value
-    end
-
     attribute :from_role, RoleName
     attribute :to_role,   RoleName
     attribute :ends_at,   Timestamp, optional: true
+
+    identified_by :from_role, :to_role
 
     value_object "RoleName" do
       attribute :value, String

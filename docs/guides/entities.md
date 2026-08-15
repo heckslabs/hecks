@@ -39,13 +39,10 @@ aggregate "SafeDepositBox" do
 
   reference_to Customer
 
-  identified_by do
-    branch_code.value
-    box_number.value
-  end
-
   attribute :branch_code, BranchCode
   attribute :box_number,  BoxNumber
+
+  identified_by :branch_code, :box_number
   attribute :size,        one_of("small", "medium", "large"), default: { value: "small" }
   attribute :visits,      list_of(Visit)
   attribute :keys,        list_of(KeyIssuance)
@@ -82,13 +79,10 @@ aggregate "SafeDepositBox" do
   entity "Visit" do
     description "One opening of the box, in the order it happened that day."
 
-    identified_by do
-      date.value
-      sequence.value
-    end
-
     attribute :date,     VisitDate
     attribute :sequence, VisitSequence
+
+    identified_by :date, :sequence
     attribute :note,     VisitNote, optional: true
 
     lifecycle :state, default: "logged" do
@@ -118,7 +112,7 @@ aggregate "SafeDepositBox" do
   entity "KeyIssuance" do
     description "One key cut for the box, held by whoever last signed for it."
 
-    identified_by { serial.value }
+    identified_by :serial
 
     attribute :serial, KeySerial
 

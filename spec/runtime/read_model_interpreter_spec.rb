@@ -82,7 +82,7 @@ RSpec.describe "a read model's query options" do
           generic
 
           aggregate "Account" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             value_object "Ref" do
               attribute :value, String
@@ -110,7 +110,7 @@ RSpec.describe "a read model's query options" do
           generic
 
           aggregate "Account" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             value_object "Ref" do
               attribute :value, String
@@ -118,7 +118,7 @@ RSpec.describe "a read model's query options" do
           end
 
           aggregate "Entry" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             reference_to Account, as: :account
             value_object "Ref" do
@@ -127,7 +127,7 @@ RSpec.describe "a read model's query options" do
           end
 
           aggregate "Note" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             reference_to Account, as: :account
             value_object "Ref" do
@@ -179,7 +179,7 @@ RSpec.describe "a read model's query options" do
           generic
 
           aggregate "Item" do
-            identified_by { name.value }
+            identified_by :name
             attribute :name, Name
             value_object "Name" do
               attribute :value, String
@@ -191,7 +191,7 @@ RSpec.describe "a read model's query options" do
           end
 
           aggregate "Promotion" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             reference_to Item, as: :item
             value_object "Ref" do
@@ -415,7 +415,7 @@ RSpec.describe "a read model's query options" do
             generic
 
             aggregate "Account" do
-              identified_by { ref.value }
+              identified_by :ref
               attribute :ref, Ref
               value_object "Ref" do
                 attribute :value, String
@@ -443,7 +443,7 @@ RSpec.describe "a read model's query options" do
             generic
 
             aggregate "Account" do
-              identified_by { ref.value }
+              identified_by :ref
               attribute :ref, Ref
               value_object "Ref" do
                 attribute :value, String
@@ -471,7 +471,7 @@ RSpec.describe "a read model's query options" do
             generic
 
             aggregate "Account" do
-              identified_by { ref.value }
+              identified_by :ref
               attribute :ref, Ref
               value_object "Ref" do
                 attribute :value, String
@@ -479,7 +479,7 @@ RSpec.describe "a read model's query options" do
             end
 
             aggregate "Entry" do
-              identified_by { ref.value }
+              identified_by :ref
               attribute :ref, Ref
               value_object "Ref" do
                 attribute :value, String
@@ -595,7 +595,7 @@ RSpec.describe "a rootless read model's own group_by" do
         # `::Widget` — `uninitialized constant Nested::Widget::Item`,
         # order-dependent, reproduced directly (not guessed at).
         aggregate "Gadget" do
-          identified_by { ref.value }
+          identified_by :ref
           attribute :ref,   Ref
           attribute :group, Ref
           value_object "Ref" do
@@ -659,7 +659,7 @@ RSpec.describe "a rootless read model's own group_by" do
           generic
 
           aggregate "Account" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             value_object "Ref" do
               attribute :value, String
@@ -687,7 +687,7 @@ RSpec.describe "a rootless read model's own group_by" do
           generic
 
           aggregate "Account" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             value_object "Ref" do
               attribute :value, String
@@ -695,7 +695,7 @@ RSpec.describe "a rootless read model's own group_by" do
           end
 
           aggregate "Entry" do
-            identified_by { ref.value }
+            identified_by :ref
             attribute :ref, Ref
             value_object "Ref" do
               attribute :value, String

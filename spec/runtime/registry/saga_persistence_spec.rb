@@ -30,7 +30,7 @@ RSpec.describe "Registry#saga_persistence" do
     Hecks.with_registry(registry) do
       Hecks.bluebook(domain) do
         aggregate("Thing") do
-          identified_by { thing_id.value }
+          identified_by :thing_id
         end
       end
     end

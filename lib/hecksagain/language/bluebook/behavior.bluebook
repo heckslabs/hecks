@@ -26,10 +26,7 @@ Hecks.bluebook "Bluebook" do
     # chapter’s aggregate whichever piece declared it ; `owner_id` names only
     # whichever declared THIS one. `owner_id` is not a declared attribute —
     # it is the WALK's immediate parent, read the same way `position` is.
-    identified_by do
-      owner_id
-      name.value
-    end
+    identified_by :owner_id, :name
 
     attribute :name,       CommandName
     attribute :role,       Actor
@@ -325,10 +322,7 @@ Hecks.bluebook "Bluebook" do
     # THE IMMEDIATE OWNER, AND ITS NAME — the same derivation Command takes
     # (see the note there), because an ask sits exactly where a verb does and
     # an entity's asks are its own the same way its verbs are.
-    identified_by do
-      owner_id
-      name.value
-    end
+    identified_by :owner_id, :name
 
     attribute :name,        QueryName
     attribute :description, QueryText

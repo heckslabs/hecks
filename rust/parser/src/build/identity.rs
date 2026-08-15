@@ -2,18 +2,32 @@
 //! `#resolve_identity_type!` (`lib/hecksagain/bluebook/dsl/attribute_collector.rb`)
 //! — the two DERIVING forms of `identified_by`:
 //!
-//!   `identified_by :field`            — the bare-field form. `field`'s
-//!                                        already-declared attribute names
-//!                                        a value object; when that value
-//!                                        object holds EXACTLY one
-//!                                        attribute, the path is
-//!                                        `field.<that attribute>`. More
-//!                                        than one field is refused,
-//!                                        naming every candidate.
-//!   `identified_by ValueObject, as: field` — the bare-type form, mirrors
-//!                                        `reference_to`'s own shape: the
-//!                                        attribute itself is MINTED (name
-//!                                        is `as:` or `Naming.snake(type)`),
+//!   `identified_by :field, :field_two` — the LIVE form (ADR 0025,
+//!                                        "Identity"), one or more.
+//!                                        Each field's own already-
+//!                                        declared attribute decides the
+//!                                        shape: a reference resolves
+//!                                        bare (already a scalar); a
+//!                                        single-field value object
+//!                                        auto-unwraps to
+//!                                        `field.<that attribute>`; a
+//!                                        bare primitive resolves
+//!                                        unchanged. A list, or a value
+//!                                        object with more than one
+//!                                        field, refuses.
+//!   `identified_by ValueObject, as: field` — LEGACY (Ruby: only under
+//!                                        `MetaValidator.shadow_parsing?`
+//!                                        — history predating this
+//!                                        removal, S0a's own bridge).
+//!                                        No live corpus member uses it
+//!                                        any more; kept here since
+//!                                        Rust's own corpus never
+//!                                        needed the live/legacy split
+//!                                        Ruby's shadow-parse draws.
+//!                                        Mirrors `reference_to`'s own
+//!                                        shape: the attribute itself is
+//!                                        MINTED (name is `as:` or
+//!                                        `Naming.snake(type)`),
 //!                                        requires the value object to
 //!                                        have exactly one field.
 //!
@@ -26,6 +40,68 @@
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
+
+/// `AttributeCollector#resolve_identity_field!` — the bare-field form,
+/// `identified_by :field` (one or more, composite identity is their
+/// JOIN). `field`'s own already-declared attribute decides the shape:
+/// a reference is already a scalar (resolves bare, unchanged) ; a
+/// single-field value object auto-unwraps to `field.<that field>` ; a
+/// bare primitive resolves unchanged too. A list, or a value object
+/// with more than one field, refuses.
+///
+/// `:id` OR AN `_id`-SUFFIXED NAME WITH NO MATCHING ATTRIBUTE is not a
+/// typo to refuse — it is the language's own WALK-PARENT/FALLBACK-
+/// IDENTITY convention (the meta-domain's own `Command`/`Entity`/
+/// `Aggregate` etc. identify by `owner_id`/`bluebook_id`/`aggregate_id`,
+/// supplied by the judge's replay rather than declared locally; bare
+/// `:id` is `Instance#materialize_identity!`'s own fallback name made
+/// explicit). Mirrors Ruby's own comment on this exact branch,
+/// `attribute_collector.rb`.
+pub fn resolve_identity_field(file: &str, line: usize, context_name: &str, field: &str, value_objects: &[ir::ValueObject], attributes: &[ir::Attribute]) -> ParseResult<String> {
+    let attr = attributes.iter().find(|a| a.name == field);
+
+    let attr = match attr {
+        Some(attr) => attr,
+        None if field == "id" || field.ends_with("_id") => return Ok(field.to_string()),
+        None => {
+            return Err(Diagnostic::new(file, line, format!("{context_name}.identified_by :{field} names no attribute {context_name} declares")));
+        }
+    };
+
+    if attr.list {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{context_name}.identified_by :{field} names a list — an identity must be a single value, and a list is never one"),
+        ));
+    }
+
+    if attr.type_name.starts_with("Reference<") {
+        return Ok(field.to_string());
+    }
+
+    let Some(vo) = value_objects.iter().find(|v| v.name == attr.type_name) else {
+        return Ok(field.to_string()); // a bare primitive type — already itself scalar
+    };
+
+    match vo.attributes.len() {
+        1 => Ok(format!("{field}.{}", vo.attributes[0].name)),
+        n => {
+            let names: Vec<String> = vo.attributes.iter().map(|a| a.name.clone()).collect();
+            Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "{context_name}.identified_by :{field} names {}, which has {n} fields ({}) — a bare field \
+                     name only derives an identity when its own value object has exactly one field; give \
+                     {context_name} a single-field identity of its own instead",
+                    attr.type_name,
+                    names.join(", ")
+                ),
+            ))
+        }
+    }
+}
 
 /// `AttributeCollector#resolve_identity_type!` — `identified_by
 /// ValueObject, as: field`. Confirmed real: pizzas.bluebook's own
