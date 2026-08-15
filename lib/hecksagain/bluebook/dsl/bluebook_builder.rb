@@ -98,6 +98,11 @@ module Hecksagain
           # have resolved to nil.
           validate_query_hops!(bluebook)
 
+          # Same precondition, same reason: a `projects` declaration's
+          # own reference cannot resolve until every aggregate in the
+          # chapter is real and owner-stamped (S12, ADR 0025).
+          validate_projected_fields!(bluebook)
+
           # The language judges the bluebook, in the language. Last, so the
           # meta-domain sees a fully built IR — the whole-document rules need
           # every declaration present, which is why they cannot be givens fired
@@ -538,6 +543,66 @@ module Hecksagain
                 "#{clause.op} after hopping to #{target.hecks_name}, but the field it lands " \
                 "on #{held} — an ordered comparison needs a numeric field, and over " \
                 "anything else the adapters answer differently or not at all"
+        end
+
+        # THE TARGET HALF of `projects` validation (S12, ADR 0025) —
+        # `AggregateBuilder#seal_projected_fields` already checked the
+        # LOCAL half at declare time (the reference names a real
+        # `reference_to` on THIS aggregate); this checks the reference
+        # actually resolves to a real aggregate in this chapter, and
+        # that aggregate really declares `remote_field` as a scalar.
+        #
+        # Reuses `QuerySpecification::HopPath` rather than re-deriving
+        # hop resolution a second way — `"reference/remote_field"` is
+        # the same single-hop shape a query's own `/`-spelled hop
+        # resolves, even though `projects`'s own DSL spelling is dotted
+        # (`from: :"customer.status"`): two constructs, two spellings,
+        # one resolution primitive. A single hop can never reach
+        # HopPath::MAX_HOPS, so :too_deep is structurally unreachable
+        # here and is not special-cased.
+        def validate_projected_fields!(bluebook)
+          bluebook.aggregates.each do |aggregate|
+            aggregate.projected_fields.each { |field| validate_projected_field!(aggregate, field) }
+          end
+        end
+
+        def validate_projected_field!(aggregate, field)
+          plan = QuerySpecification::HopPath.plan("#{field.reference}/#{field.remote_field}", aggregate.attributes)
+
+          if plan.refusal == :unresolvable
+            raise Malformed,
+                  "#{aggregate.hecks_name}.projects :#{field.name} reads through :#{field.reference}, " \
+                  "which hops to #{plan.hops.last.target_name}, which this chapter never declares — " \
+                  "a projection through an aggregate this chapter cannot see resolves to nothing"
+          end
+
+          target = plan.hops.last.target
+          remote_attribute = target.attributes.find { |candidate| candidate.name.to_s == plan.tail }
+
+          # THE WORKED EXAMPLE ITSELF (ADR 0025) reads through a
+          # LIFECYCLE field — banking's Customer.status is `lifecycle
+          # :status`, never a plain `attribute` — the same fallback
+          # validate_hop_tail! already gives a query's own hop tail. A
+          # lifecycle field is always a plain string by construction ;
+          # nothing further to check once it matches by name.
+          return if remote_attribute.nil? && target.lifecycle&.field.to_s == plan.tail
+
+          unless remote_attribute
+            raise Malformed,
+                  "#{aggregate.hecks_name}.projects :#{field.name} reads #{target.hecks_name}'s own " \
+                  "#{plan.tail.inspect}, which #{target.hecks_name} never declares"
+          end
+
+          return if projectable_scalar?(target, remote_attribute)
+
+          raise Malformed,
+                "#{aggregate.hecks_name}.projects :#{field.name} reads #{target.hecks_name}'s own " \
+                "#{plan.tail.inspect}, which is not a scalar — a projected field copies a single " \
+                "value, never a reference, a value object, or a list"
+        end
+
+        def projectable_scalar?(target, attribute)
+          !attribute.list? && !attribute.reference? && target.value_object(attribute.type).nil?
         end
 
         # `correlates_by` NAMES A SCALAR, NOW CHECKED RATHER THAN TRUSTED.

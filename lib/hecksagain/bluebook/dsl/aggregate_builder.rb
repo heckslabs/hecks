@@ -11,6 +11,7 @@ module Hecksagain
           @commands      = []
           @invariants    = []
           @named_givens  = {}
+          @projected_fields = []
           @identity_paths = []
           @entities      = []
           @queries       = []
@@ -46,6 +47,45 @@ module Hecksagain
           target = Naming.demodulise(type)
           @reference_targets << target
           attribute(as || default_reference_name(target), Reference.new(target), optional: optional)
+        end
+
+        # A RULE MAY ONLY READ WITHIN ITS OWN AGGREGATE BOUNDARY (S12,
+        # ADR 0025 — "Consistency across aggregate boundaries"). A
+        # `given`/`ensures`/`invariant` used to reach through a
+        # `reference_to` at RULE-EVALUATION TIME (`References#
+        # dereference`, a live query against another aggregate's own
+        # repository, unbounded and inconsistent with the "a rule reads
+        # only this record" model everywhere else) — `projects` is what
+        # replaces that: `projects :customer_status, from: :"customer.
+        # status"` declares that THIS aggregate holds its own copy of
+        # `Customer`'s own `:status`, kept fresh by a REBUILD SWEEP
+        # (`Runtime::ProjectionRebuild`) rather than read live. A rule
+        # then reads `customer_status` the same way it reads any other
+        # local field — no dot, no reference walk.
+        #
+        # `from:` NAMES THE LOCAL REFERENCE, not the target aggregate —
+        # `customer`, the attribute THIS aggregate's own `reference_to
+        # Customer` already minted, not `Customer` the type — so two
+        # references to the same aggregate (aliased differently) can
+        # each carry their own projection without ambiguity. The TARGET
+        # field's own existence cannot be checked here: the target
+        # aggregate does not exist yet while THIS one is still being
+        # declared (the same reason a query's own hop tail is checked
+        # by `BluebookBuilder#validate_query_hops!`, once every
+        # aggregate in the chapter is real, not by `AggregateBuilder`
+        # itself) — `validate_projected_fields!` is where that half
+        # happens.
+        def projects(name, from:)
+          reference, _, remote_field = from.to_s.rpartition(".")
+
+          if reference.empty? || remote_field.empty?
+            raise Malformed,
+                  "#{@name}.projects :#{name} names #{from.inspect}, which is not " \
+                  "reference.field — say which reference and which field on it, e.g. " \
+                  "from: :\"customer.status\""
+          end
+
+          @projected_fields << ProjectedField.new(name: name.to_sym, reference: reference.to_sym, remote_field: remote_field.to_sym)
         end
 
         # `has_many`, `has_one`, `belongs_to` — LEGACY (ADR 0025,
@@ -196,6 +236,7 @@ module Hecksagain
           seal_query_targets
           seal_defaults
           seal_lifecycle_guards
+          seal_projected_fields
 
           ir = Aggregate.new(
             name:          @name,
@@ -205,6 +246,7 @@ module Hecksagain
             commands:      @commands,
             invariants:    @invariants,
             preconditions: @named_givens.values,
+            projected_fields: @projected_fields,
             identified_by: @identity_paths,
             lifecycle:     @lifecycle,
             entities:      @entities,
@@ -350,6 +392,35 @@ module Hecksagain
                   "#{@name}.#{command.hecks_name} guards from: #{Array(command.from).inspect}, but " \
                   "#{@name} declares no lifecycle — from: checks a lifecycle field, and there is " \
                   "none here to check"
+          end
+        end
+
+        # `projects`'s OWN half of "does this actually resolve" (S12,
+        # ADR 0025) — the LOCAL half only: `reference` must name a real
+        # reference-typed attribute this aggregate declares, and
+        # `name` must not collide with an attribute already declared
+        # (a projected field is its own kind of field, never a second
+        # spelling of one that already exists). The TARGET aggregate's
+        # own field is checked separately, once every aggregate in the
+        # chapter is real — see BluebookBuilder#validate_projected_
+        # fields!'s own comment for why that half cannot happen here.
+        def seal_projected_fields
+          declared = attributes.map { |attribute| attribute.name.to_sym }
+
+          @projected_fields.each do |field|
+            if declared.include?(field.name)
+              raise Malformed,
+                    "#{@name}.projects :#{field.name} names a field #{@name} already declares — " \
+                    "a projected field is never a second spelling of one that already exists"
+            end
+
+            reference_attribute = attributes.find { |attribute| attribute.name == field.reference }
+            unless reference_attribute&.reference?
+              raise Malformed,
+                    "#{@name}.projects :#{field.name} reads through #{field.reference.inspect}, which " \
+                    "#{@name} never declares as a reference_to — projects reads through a REFERENCE, " \
+                    "never a value object or a scalar"
+            end
           end
         end
 

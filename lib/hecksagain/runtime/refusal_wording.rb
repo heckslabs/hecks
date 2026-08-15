@@ -97,7 +97,11 @@ module Hecksagain
         %w[AttributeAbsent absent_read] =>
           "{aggregate} {field} is absent on this record — declared, not optional, and " \
           "added since it was written. Backfill it in a translation (backfill :{field}, " \
-          "default: ...), or declare it optional: true"
+          "default: ...), or declare it optional: true",
+        %w[ProjectionAbsent absent_read] =>
+          "{aggregate} {field} is not yet projected on this record — declared via " \
+          "projects :{field}, but no rebuild sweep has populated it. Run the sweep, " \
+          "or read {reference}.{remote_field} directly if this rule cannot wait"
       }.freeze
 
       module_function

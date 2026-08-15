@@ -258,6 +258,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -1286,6 +1289,13 @@
           "description": "customer is not closed"
         }
       ],
+      "projected_fields": [
+        {
+          "name": "customer_status",
+          "reference": "customer",
+          "remote_field": "status"
+        }
+      ],
       "provenance": {
         "source": "HecksCanonical",
         "source_id": "aggregate:account",
@@ -2175,6 +2185,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -2747,6 +2760,18 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+        {
+          "name": "source_account_status",
+          "reference": "source",
+          "remote_field": "status"
+        },
+        {
+          "name": "destination_account_status",
+          "reference": "destination",
+          "remote_field": "status"
+        }
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3316,6 +3341,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3748,6 +3776,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -4263,6 +4294,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -4949,6 +4983,13 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+        {
+          "name": "customer_status",
+          "reference": "customer",
+          "remote_field": "status"
+        }
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5349,6 +5390,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5581,6 +5625,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,

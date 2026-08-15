@@ -516,3 +516,60 @@ refusal message, everywhere it's read:
 account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:canonical)  # => ["customer.status != \"closed\""]
 ```
 
+## projects
+
+<!-- generated:begin word=projects -->
+`projects name, from:` — fills `projected_fields`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | name |
+| `from:` | symbol | true | from |
+<!-- generated:end -->
+
+A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (ADR 0025, "Consistency
+across aggregate boundaries") — the boundary rule's whole point is that
+a `given`/`ensures`/`invariant` should never reach across a
+`reference_to` at rule-evaluation time to ask another aggregate a
+question live. `projects` is the alternative: `from:` names a dotted
+path — the LOCAL reference attribute to read through, then the SCALAR
+field on the target to copy — and the copy lands under `name` on this
+aggregate's own record, kept fresh by an explicit rebuild sweep
+(`Runtime::RebuildSweep`) rather than read on every dispatch.
+
+`from:` is checked in two tiers, the same way a query's own hop is.
+Declaring it checks the LOCAL half immediately — `reference` must name
+a real `reference_to` this aggregate actually declares, never a value
+object or a plain attribute:
+
+```ruby
+Hecks.bluebook("Bad") { aggregate("Widget") { identified_by :id; projects :owner_status, from: :status } }  # ~> Malformed: reference.field
+```
+
+The TARGET half resolves once every aggregate in the chapter is real
+— `remote_field` must land on a real scalar there, never a reference,
+a value object, or a list (`BluebookBuilder#validate_projected_fields!`,
+checked alongside `validate_query_hops!`). `Account` and
+`SafeDepositBox` each declare one, both reading the same remote field
+through their own independent `reference_to Customer`:
+
+```ruby
+banking = runtime.registry.bluebook("Banking")
+banking.aggregate("Account").projected_fields.map { |f| [f.name, f.reference, f.remote_field] }        # => [[:customer_status, :customer, :status]]
+banking.aggregate("SafeDepositBox").projected_fields.map { |f| [f.name, f.reference, f.remote_field] }  # => [[:customer_status, :customer, :status]]
+```
+
+A record that predates the declaration, or that no sweep has yet
+reached, reads as genuinely ABSENT rather than as a stale guess — a
+`given`/`ensures`/`invariant` that reads a projected field before it
+has ever been swept refuses with `ProjectionAbsent`, the same shape
+`AttributeAbsent` already gives an ordinary field nobody backfilled.
+Neither of banking's own two declarations is wired into a real rule
+yet — Account and SafeDepositBox both still check `customer.status`
+live, the way every `given("customer is active")` in this corpus
+always has — so the sweep, and the refusal it guards against, are
+demonstrated directly instead: `spec/runtime/rebuild_sweep_spec.rb`
+declares a small dedicated fixture, dispatches into it, and shows a
+guard refuse with `ProjectionAbsent` before a sweep runs and read the
+swept value cleanly after.
+

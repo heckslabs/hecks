@@ -188,8 +188,8 @@ Hecks.bluebook "Bluebook" do
     value_object "DomainRefusal" do
       attribute :name, String,
                 one_of: ["AbsentArgument", "AlreadyExists", "AttributeAbsent", "EnsuresNotMet", "GivenNotMet",
-                         "InvariantViolation", "LifecycleRefused", "NotFound", "RemoteRefusal", "TypeMismatch",
-                         "Unauthorized", "UnknownArgument", "UnknownVerb"]
+                         "InvariantViolation", "LifecycleRefused", "NotFound", "ProjectionAbsent", "RemoteRefusal",
+                         "TypeMismatch", "Unauthorized", "UnknownArgument", "UnknownVerb"]
     end
 
     # THE WORDING ITSELF, for every DomainRefusal site that is not already
@@ -299,6 +299,14 @@ Hecks.bluebook "Bluebook" do
              template: "{aggregate} {field} is absent on this record — declared, not optional, and " \
                        "added since it was written. Backfill it in a translation (backfill :{field}, " \
                        "default: ...), or declare it optional: true"
+      # S12, ADR 0025 — the same silent-wrong-answer class AttributeAbsent
+      # above refuses, one line up: a `projects` field this record predates,
+      # or that no rebuild sweep has populated yet, read by a rule as
+      # though it were a real value rather than one nobody has copied over.
+      member refusal: "ProjectionAbsent", site: "absent_read",
+             template: "{aggregate} {field} is not yet projected on this record — declared via " \
+                       "projects :{field}, but no rebuild sweep has populated it. Run the sweep, " \
+                       "or read {reference}.{remote_field} directly if this rule cannot wait"
     end
 
     # SagaInterpreter::REFUSED.

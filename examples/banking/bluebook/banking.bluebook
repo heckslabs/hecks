@@ -320,6 +320,21 @@ Hecks.bluebook "Banking", version: "v1" do
     # decrease it. One rule, checked for all of them, said once.
     invariant("the balance never goes negative") { balance.cents >= 0 }
 
+    # THE LOCAL COPY (S12, ADR 0025 — "Consistency across aggregate
+    # boundaries") — a held copy of Customer's own lifecycle field,
+    # kept fresh by a rebuild sweep rather than read live the way the
+    # `given` two lines down still does. Declared here, alongside the
+    # reference it reads through, but deliberately NOT yet the source
+    # `given("customer is active")` reads from: flipping every command
+    # that reads `customer.status` over to `customer_status` is a
+    # runtime-wide decision (when does the sweep run relative to a
+    # dispatch?) bigger than this one declaration, and out of scope
+    # for the slice that first proves the mechanism. See
+    # RebuildSweep, runtime/rebuild_sweep.rb, for the working half of
+    # that mechanism — sweep, absence, refusal — demonstrated end to
+    # end without yet being load-bearing for any real corpus rule.
+    projects :customer_status, from: :"customer.status"
+
     # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
     # 0025) — "customer is active" was the single most duplicated given
     # in the whole corpus (44% of all 183, per the ADR's own count,
@@ -332,8 +347,11 @@ Hecks.bluebook "Banking", version: "v1" do
     # reason (see FreezeAccount's own comment, below). LedgerEntry's
     # own Amend/Reverse read `parent.customer.status` instead — a
     # different relative path, so they keep their own given rather
-    # than reference this one; unifying across that boundary is S12's
-    # job, not this one's.
+    # than reference this one; unifying across that boundary — and
+    # every OTHER aggregate's own independent "customer is active" (44
+    # more of them, one hop or two, across ATMCard/Transfer/
+    # CardPayment/ExternalTransfer/ScheduledPayment/SafeDepositBox/
+    # OnboardingCase) — is a follow-up slice's job, not this one's.
     given("customer is active") { customer.status == "active" }
 
     # A SECOND PRECONDITION, DECLARED ONCE (S10, ADR 0025) — the exact
@@ -760,6 +778,16 @@ Hecks.bluebook "Banking", version: "v1" do
 
     reference_to Account, as: :source
     reference_to Account, as: :destination
+
+    # TWO REAL PROJECTIONS OFF TWO ALIASED REFERENCES TO THE SAME TYPE
+    # (S12, ADR 0025) — `source`/`destination` both point at Account,
+    # and each carries its own local copy of that account's own
+    # lifecycle field, entirely independent declarations despite
+    # sharing a target aggregate: the DSL spelling reads through the
+    # LOCAL reference name, not the target's type, for exactly this
+    # reason (AggregateBuilder#projects's own comment).
+    projects :source_account_status,      from: :"source.status"
+    projects :destination_account_status, from: :"destination.status"
 
     attribute :reference, TransferReference
 
@@ -1283,6 +1311,15 @@ Hecks.bluebook "Banking", version: "v1" do
     description "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face."
 
     reference_to Customer
+
+    # THE SAME LOCAL COPY Account declares (S12, ADR 0025) — a SECOND
+    # real corpus member, so `projected_fields` is exercised more than
+    # once (plurality_coverage_spec's own question): two independent
+    # aggregates, each with their own `reference_to Customer`, each
+    # copying the same remote field under the same local name by
+    # coincidence of both reading "is this customer active," not by
+    # any sharing this construct offers.
+    projects :customer_status, from: :"customer.status"
 
     # A BOX NUMBER REPEATS ACROSS BRANCHES — box 12 in the downtown vault and
     # box 12 in the uptown vault are not the same box, so neither the branch

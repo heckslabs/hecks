@@ -119,6 +119,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ("commands".to_string(), JsonValue::Array(a.commands.iter().map(command_json).collect())),
         ("invariants".to_string(), JsonValue::Array(a.invariants.iter().map(given_json).collect())),
         ("preconditions".to_string(), JsonValue::Array(a.preconditions.iter().map(given_json).collect())),
+        ("projected_fields".to_string(), JsonValue::Array(a.projected_fields.iter().map(projected_field_json).collect())),
         ("lifecycle".to_string(), a.lifecycle.as_ref().map(lifecycle_json).unwrap_or(JsonValue::Null)),
         ("entities".to_string(), JsonValue::Array(a.entities.iter().map(entity_json).collect())),
         ("queries".to_string(), JsonValue::Array(a.queries.iter().map(query_json).collect())),
@@ -175,6 +176,17 @@ fn given_json(g: &ir::Given) -> JsonValue {
     JsonValue::Object(vec![
         ("description".to_string(), JsonValue::opt_str(&g.description)),
         ("canonical".to_string(), JsonValue::str(g.canonical.clone())),
+    ])
+}
+
+/// `IR::Aggregate#to_h`'s own `projected_fields:` entry (S12, ADR
+/// 0025) — `{name:, reference:, remote_field:}`, all three plain
+/// Strings the same way `given_json` above spells its own two.
+fn projected_field_json(f: &ir::ProjectedField) -> JsonValue {
+    JsonValue::Object(vec![
+        ("name".to_string(), JsonValue::str(f.name.clone())),
+        ("reference".to_string(), JsonValue::str(f.reference.clone())),
+        ("remote_field".to_string(), JsonValue::str(f.remote_field.clone())),
     ])
 }
 

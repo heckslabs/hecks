@@ -221,6 +221,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -558,6 +561,15 @@
           "optional": false,
           "pattern": null,
           "type": "Rule"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "projected_fields",
+          "optional": false,
+          "pattern": null,
+          "type": "ProjectedField"
         },
         {
           "admits": null,
@@ -1250,6 +1262,74 @@
           "provenance": null,
           "references": "Aggregate",
           "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "FieldName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "type": "FieldName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "remote_field",
+              "optional": false,
+              "pattern": null,
+              "type": "FieldName"
+            }
+          ],
+          "emits": [
+            "ProjectedFieldAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!name.value.to_s.empty?",
+              "description": "a projected field is named"
+            },
+            {
+              "canonical": "!reference.value.to_s.empty?",
+              "description": "a projected field reads through a reference"
+            },
+            {
+              "canonical": "!remote_field.value.to_s.empty?",
+              "description": "a projected field names a remote field"
+            }
+          ],
+          "goal": "Declare a field read locally through a reference",
+          "mutations": [
+            {
+              "fields": {
+                "name": ":name",
+                "reference": ":reference",
+                "remote_field": ":remote_field"
+              },
+              "op": "append",
+              "target": "projected_fields"
+            }
+          ],
+          "name": "Projects",
+          "provenance": null,
+          "references": "Aggregate",
+          "role": "Language"
         }
       ],
       "description": "One aggregate inside a chapter — the head a domain's declarations attach to.",
@@ -1269,6 +1349,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -1556,6 +1639,45 @@
 
           ],
           "name": "Rule"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reference",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "remote_field",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ProjectedField"
         },
         {
           "attributes": [
@@ -2386,6 +2508,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -3282,6 +3407,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -3862,6 +3990,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -4262,6 +4393,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -4828,6 +4962,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5326,6 +5463,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5655,6 +5795,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -5911,6 +6054,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -6142,6 +6288,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
         {
@@ -6278,6 +6427,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -7253,6 +7405,12 @@
             [
               [
                 "name",
+                "ProjectionAbsent"
+              ]
+            ],
+            [
+              [
+                "name",
                 "RemoteRefusal"
               ]
             ],
@@ -7877,6 +8035,20 @@
                 "template",
                 "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"
               ]
+            ],
+            [
+              [
+                "refusal",
+                "ProjectionAbsent"
+              ],
+              [
+                "site",
+                "absent_read"
+              ],
+              [
+                "template",
+                "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"
+              ]
             ]
           ],
           "name": "RefusalTemplate"
@@ -8034,6 +8206,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -9229,6 +9404,32 @@
               [
                 "fills",
                 "preconditions"
+              ]
+            ],
+            [
+              [
+                "word",
+                "projects"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "projected_fields"
               ]
             ],
             [
@@ -12583,6 +12784,66 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "projects"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "projects"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "from"
               ]
             ],
             [
@@ -17137,6 +17398,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,

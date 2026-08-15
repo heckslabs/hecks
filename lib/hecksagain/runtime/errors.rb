@@ -36,6 +36,16 @@ module Hecksagain
     # optional means, and this refusal is deliberately narrower than the
     # nil-read it sits beside, not a replacement for it.
     class AttributeAbsent < StandardError; end
+    # THE SAME SILENT-WRONG-ANSWER CLASS AS ABOVE, one line up — a
+    # `projects` field (S12, ADR 0025) this record predates, or that no
+    # rebuild sweep has populated yet, read by a `given`/`ensures`/
+    # `invariant` as though it carried a real value. `GuardState` is
+    # the one place this is raised, the same way AttributeAbsent is —
+    # a DECLARED field the record does not yet carry, distinguished
+    # from that one only in WHY: an ordinary attribute is absent
+    # because nobody backfilled it, a projected field is absent
+    # because nobody has swept it yet.
+    class ProjectionAbsent < StandardError; end
     # A query or read model declares `authorize policy, tenant: :field` and
     # the caller did not pass that field — the one half of `authorize` this
     # runtime can enforce without a caller-identity system: the boundary

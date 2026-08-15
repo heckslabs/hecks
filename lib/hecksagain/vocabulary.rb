@@ -46,6 +46,7 @@ module Hecksagain
         {"name"=>"InvariantViolation"}.freeze,
         {"name"=>"LifecycleRefused"}.freeze,
         {"name"=>"NotFound"}.freeze,
+        {"name"=>"ProjectionAbsent"}.freeze,
         {"name"=>"RemoteRefusal"}.freeze,
         {"name"=>"TypeMismatch"}.freeze,
         {"name"=>"Unauthorized"}.freeze,
@@ -156,7 +157,8 @@ module Hecksagain
         {"refusal"=>"InvariantViolation", "site"=>"undeclared_set", "template"=>"{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"}.freeze,
         {"refusal"=>"Unauthorized", "site"=>"tenant_required", "template"=>"{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to"}.freeze,
         {"refusal"=>"Unauthorized", "site"=>"role_mismatch", "template"=>"{command} refused — role: {role}, and the caller stated {caller_role}"}.freeze,
-        {"refusal"=>"AttributeAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"}.freeze
+        {"refusal"=>"AttributeAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"}.freeze,
+        {"refusal"=>"ProjectionAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"}.freeze
       ].freeze,
       "SignTest" => [
         {"name"=>"positive?", "compares_via"=>">"}.freeze,

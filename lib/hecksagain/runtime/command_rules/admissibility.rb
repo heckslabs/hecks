@@ -39,12 +39,28 @@ module Hecksagain
           def initialize(instance)
             @instance = instance
             @declared = instance.respond_to?(:aggregate) ? instance.aggregate.attributes.to_h { |a| [a.name, a] } : {}
+            # S12, ADR 0025 — a SEPARATE index, the same reason
+            # `Aggregate#projected_fields` is a separate IR collection
+            # rather than folded into `attributes` (see that field's
+            # own comment): a projected field's absence means
+            # something different from an ordinary attribute's, so it
+            # needs its own refusal below, not `AttributeAbsent`'s.
+            # `projects` is AGGREGATE-scoped only — an entity's own
+            # `instance.aggregate` answers the ENTITY construct here
+            # (EntityInterpreter's own subject), which declares no
+            # `projected_fields` of its own, hence the extra guard
+            # `@declared` above does not need.
+            owner = instance.aggregate if instance.respond_to?(:aggregate)
+            @projected = owner.respond_to?(:projected_fields) ? owner.projected_fields.to_h { |f| [f.name, f] } : {}
           end
 
-          def key?(name) = @declared.key?(name.to_sym) || @instance.key?(name)
+          def key?(name) = @declared.key?(name.to_sym) || @projected.key?(name.to_sym) || @instance.key?(name)
 
           def [](name)
             return @instance[name] if @instance.key?(name)
+
+            projected = @projected[name.to_sym]
+            return raise_projection_absent(projected) if projected
 
             attribute = @declared[name.to_sym]
             return nil if attribute.nil? || attribute.optional?
@@ -52,6 +68,15 @@ module Hecksagain
             raise AttributeAbsent,
                   RefusalWording.render("AttributeAbsent", "absent_read",
                                         aggregate: @instance.aggregate.hecks_name, field: name)
+          end
+
+          private
+
+          def raise_projection_absent(projected)
+            raise ProjectionAbsent,
+                  RefusalWording.render("ProjectionAbsent", "absent_read",
+                                        aggregate: @instance.aggregate.hecks_name, field: projected.name,
+                                        reference: projected.reference, remote_field: projected.remote_field)
           end
         end
         private_constant :GuardState

@@ -1,0 +1,84 @@
+
+# A DEDICATED FIXTURE for S12 (ADR 0025, "Consistency across aggregate
+# boundaries") — small enough to exercise `projects` end to end
+# (declare, seal, sweep, refuse-while-unswept) without touching real
+# banking predicates, whose own `given("customer is active")` is
+# deliberately NOT yet wired to a projected field (see Account's own
+# comment in examples/banking/bluebook/banking.bluebook).
+Hecks.bluebook "ProjectedFields" do
+  vision "A Customer's status, held locally on the Account that refers to it, rather than read live."
+  core
+
+  aggregate "Customer" do
+    description "The record a Account's own projected field is a copy of."
+
+    identified_by :ref
+
+    attribute :ref, CustomerRef
+
+    lifecycle :status, default: "active" do
+      transition "Suspend" => "suspended", from: "active"
+    end
+
+    value_object "CustomerRef" do
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "Clerk"
+      goal "Open a customer record"
+
+      attribute :ref, CustomerRef
+
+      emits "CustomerRegistered"
+    end
+
+    command "Suspend" do
+      role "Clerk"
+      goal "Suspend a customer"
+
+      reference_to Customer
+
+      emits "CustomerSuspended"
+    end
+  end
+
+  aggregate "Account" do
+    description "Refers to a Customer, and holds a local copy of that Customer's own status."
+
+    identified_by :ref
+
+    attribute :ref, AccountRef
+    reference_to Customer
+
+    projects :customer_status, from: :"customer.status"
+
+    value_object "AccountRef" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Open an account for a customer"
+
+      reference_to Customer
+      attribute :ref, AccountRef
+
+      emits "AccountOpened"
+    end
+
+    # THE ONE PLACE THIS FIXTURE READS THE PROJECTED FIELD — banking's
+    # own corpus deliberately does not yet, so this is where
+    # `ProjectionAbsent`/a successful read after a sweep are both
+    # proven for real.
+    command "CheckCustomerActive" do
+      role "Clerk"
+      goal "Confirm the locally-held customer status reads active"
+
+      reference_to Account
+      given("the projected customer status is active") { customer_status == "active" }
+
+      emits "CustomerActiveChecked"
+    end
+  end
+end

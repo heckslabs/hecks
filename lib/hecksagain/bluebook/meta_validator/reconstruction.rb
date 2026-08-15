@@ -175,6 +175,9 @@ module Hecksagain
             # unlike `command`/`value_object`/`query` below.
             invariants:    Array(row[:invariants]).map { |held| rule(held) },
             preconditions: Array(row[:preconditions]).map { |held| rule(held) },
+            # S12, ADR 0025 — same reason invariants/preconditions are
+            # read by hand two lines up: `aggregate(row)` is hand-typed.
+            projected_fields: Array(row[:projected_fields]).map { |held| projected_field(held) },
             lifecycle:     lifecycle(row),
             entities:      declared("Entity", id).map { |piece| entity(piece) },
             queries:       own("Query", id).map { |ask| query(ask) },

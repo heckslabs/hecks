@@ -288,6 +288,11 @@ Hecks.bluebook "Bluebook" do
       # reference at the aggregate's own level — only a COMMAND's own
       # `given` can omit the block to name one of these back).
       member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions"
+      # A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
+      # "Consistency across aggregate boundaries") — no block, the same
+      # shape `attribute` already is one level up: a value declared,
+      # not a predicate evaluated.
+      member word: "projects",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "projected_fields"
 
       # A PIECE SAYS LESS THAN A HEAD, and the table is where that stops being
       # folklore : an entity admits no `value_object`, no `policy` and no
@@ -724,6 +729,14 @@ Hecks.bluebook "Bluebook" do
       # (the `at: "1"` row alone, no `required` on a block it never
       # takes) when it names one of THESE back instead.
       member keyword: "given",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # S12, ADR 0025 — `projects :customer_status, from:
+      # :"customer.status"`. The positional name is a symbol the same
+      # way `attribute`'s own is (line above, one level up); `from:` is
+      # a DOTTED symbol, not text — `reference.remote_field` is a path,
+      # not free prose, the same distinction `as:`'s own bare symbol
+      # draws against a description.
+      member keyword: "projects",        context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "projects",        context: "Aggregate", at: "",  named: "from",     kind: "symbol",   required: "true",  fills: "from"
 
       member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       # See Aggregate's own three rows above — the same method, one level down.

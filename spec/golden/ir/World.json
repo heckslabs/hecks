@@ -99,6 +99,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -356,6 +359,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,

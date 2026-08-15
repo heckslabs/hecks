@@ -108,7 +108,7 @@ when there's nothing to say:
 ```ruby
 account = ir.fetch(:aggregates).find { |a| a[:name] == "Account" }
 
-account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :lifecycle, :entities, :queries, :ports, :provenance]
+account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :projected_fields, :lifecycle, :entities, :queries, :ports, :provenance]
 ```
 
 `invariants` and `preconditions` are the aggregate-level rules (S10,

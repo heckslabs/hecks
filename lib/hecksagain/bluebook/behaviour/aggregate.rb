@@ -46,7 +46,14 @@ module Hecksagain
           @commands_by_name      = index_by_hecks_name(@commands)
           @queries_by_name       = index_by_hecks_name(@queries)
           @ports_by_name         = @ports.to_h { |port| [port.name, port] }
+          # S12, ADR 0025 — keyed by SYMBOL, the same convention
+          # `Indexed#attribute` already uses; `GuardState` asks for one
+          # by name at every dispatch, the rebuild sweep walks all of
+          # them once per pass.
+          @projected_fields_by_name = @projected_fields.to_h { |field| [field.name, field] }
         end
+
+        def projected_field(named) = @projected_fields_by_name[named.to_sym]
 
         # A value object is a CLASS now, so `name` is Ruby's answer (the constant
         # path) and the declared name is `hecks_name`. This finder is on its way

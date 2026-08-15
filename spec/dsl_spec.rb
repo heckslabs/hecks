@@ -1341,6 +1341,83 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /names no precondition Thing declares/)
     end
 
+    it "projects declares a field read locally through a reference" do
+      bluebook = build_bluebook("Projecting") do
+        aggregate("Customer") do
+          identified_by :id
+          lifecycle :status, default: "active" do
+            transition "Suspend" => "suspended", from: "active"
+          end
+        end
+
+        aggregate("Account") do
+          identified_by :id
+          reference_to Customer
+
+          projects :customer_status, from: :"customer.status"
+        end
+      end
+
+      field = bluebook.aggregate("Account").projected_fields.first
+      expect(field.name).to eq(:customer_status)
+      expect(field.reference).to eq(:customer)
+      expect(field.remote_field).to eq(:status)
+    end
+
+    it "projects refuses a from: that does not name reference.field" do
+      expect do
+        build_aggregate("MalformedProjection") do
+          projects :nope, from: :bare_word
+        end
+      end.to raise_error(Malformed, /reference\.field/)
+    end
+
+    it "projects refuses reading through something that is not a reference_to" do
+      expect do
+        build_aggregate("NotAReference") do
+          value_object("Status") { attribute :value, String }
+          attribute :status, Status
+
+          projects :nope, from: :"status.value"
+        end
+      end.to raise_error(Malformed, /never declares.*as a reference_to/)
+    end
+
+    it "projects refuses a remote field the target aggregate never declares" do
+      expect do
+        build_bluebook("UnknownRemoteField") do
+          aggregate("Customer") { identified_by :id }
+
+          aggregate("Account") do
+            identified_by :id
+            reference_to Customer
+
+            projects :nope, from: :"customer.nonexistent"
+          end
+        end
+      end.to raise_error(Malformed, /never declares/)
+    end
+
+    it "projects refuses landing on a reference or value object, not a scalar" do
+      expect do
+        build_bluebook("NonScalarProjection") do
+          aggregate("Region") { identified_by :id }
+
+          aggregate("Customer") do
+            identified_by :id
+            reference_to Region
+          end
+
+          aggregate("Account") do
+            identified_by :id
+            reference_to Customer
+
+            projects :nope, from: :"customer.region"
+          end
+        end
+      end.to raise_error(Malformed, /not a scalar/)
+    end
+
     it "command's from: guards against the lifecycle field, without transitioning it" do
       bluebook = build_bluebook("Guarding") do
         aggregate("Door") do

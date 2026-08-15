@@ -40,6 +40,12 @@ Hecks.bluebook "Bluebook" do
     # that a referencing command's own (already-resolved) `given`
     # entry came from.
     attribute :preconditions, list_of(Rule)
+    # A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
+    # "Consistency across aggregate boundaries") — the local half of
+    # `projects :name, from: :"reference.remote_field"`. Deliberately
+    # NOT folded into `attributes` — see the comment on
+    # `Aggregate#emits_ir`'s own `projected_fields:` entry for why.
+    attribute :projected_fields, list_of(ProjectedField)
 
     value_object "AggregateName" do
       attribute :value, String
@@ -103,6 +109,17 @@ Hecks.bluebook "Bluebook" do
     value_object "Rule" do
       attribute :description, String
       attribute :canonical,   String
+    end
+
+    # S12, ADR 0025 — `name` is this aggregate's own field being
+    # declared; `reference` names the local `reference_to` attribute to
+    # read through; `remote_field` names the scalar on the target. All
+    # three are plain identifiers, the same shape `Field#name`/`#type`
+    # already are.
+    value_object "ProjectedField" do
+      attribute :name,         String
+      attribute :reference,    String
+      attribute :remote_field, String
     end
 
     command "Declare" do
@@ -437,6 +454,29 @@ Hecks.bluebook "Bluebook" do
       sets :preconditions, append: { description: :description, canonical: :canonical }
 
       emits "PreconditionAttached"
+    end
+
+    # THE LOCAL HALF OF A CROSS-AGGREGATE READ (S12, ADR 0025) — the
+    # target's own existence and shape are checked elsewhere
+    # (BluebookBuilder#validate_projected_fields!, once every aggregate
+    # in the chapter is real), the same two-tier split a query's own
+    # hop already uses.
+    command "Projects" do
+      role "Language"
+      goal "Declare a field read locally through a reference"
+
+      reference_to Aggregate
+      attribute :name,         FieldName
+      attribute :reference,    FieldName
+      attribute :remote_field, FieldName
+
+      given("a projected field is named")     { !name.value.to_s.empty? }
+      given("a projected field reads through a reference") { !reference.value.to_s.empty? }
+      given("a projected field names a remote field") { !remote_field.value.to_s.empty? }
+
+      sets :projected_fields, append: { name: :name, reference: :reference, remote_field: :remote_field }
+
+      emits "ProjectedFieldAttached"
     end
   end
 end

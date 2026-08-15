@@ -106,6 +106,15 @@ module Hecksagain
           Given.new(description: rule[:description], canonical: rule[:canonical])
         end
 
+        # S12, ADR 0025 — `projects :name, from: :"reference.remote_field"`.
+        # All three fields are identifiers, unlike Invariant/Given's own
+        # free text, so — like `attribute`'s own `name`/`type` below —
+        # they come back as Symbols.
+        def projected_field(row)
+          ProjectedField.new(name: row[:name].to_sym, reference: row[:reference].to_sym,
+                              remote_field: row[:remote_field].to_sym)
+        end
+
         # `Mutation#to_h` branches on the operation, so this does too.
         #
         # An APPEND binds several fields at once, each either an ARGUMENT (a

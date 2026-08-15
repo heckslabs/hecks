@@ -164,6 +164,32 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
                 aggregate.preconditions.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
             }
+            // A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR
+            // 0025 — "Consistency across aggregate boundaries") —
+            // `from:` names a dotted path, split on the LAST "." the
+            // same way `AggregateBuilder#projects`'s own
+            // `from.to_s.rpartition(".")` does: `reference` is
+            // everything before it, `remote_field` the bare name
+            // after. TARGET-side resolution (does the reference
+            // actually resolve, does the remote aggregate actually
+            // declare that field) stays Ruby-DSL-builder-only, the
+            // same as a command's own block-less `given` above —
+            // `BluebookBuilder#validate_projected_fields!` needs the
+            // WHOLE chapter assembled, which this single-aggregate
+            // parse never has.
+            "projects" => {
+                let field_name = super::positional_symbol(file, line, "projects", &gated.args, 1)?;
+                let from = super::named_symbol(&gated.args, "from")
+                    .ok_or_else(|| Diagnostic::new(file, line, "'projects' requires a from:"))?;
+                let Some((reference, remote_field)) = from.rsplit_once('.') else {
+                    return Err(Diagnostic::new(file, line, format!("'projects' from: '{from}' is not reference.field")));
+                };
+                aggregate.projected_fields.push(ir::ProjectedField {
+                    name: field_name,
+                    reference: reference.to_string(),
+                    remote_field: remote_field.to_string(),
+                });
+            }
             "value_object" => {
                 let vo_name = super::positional_text(file, line, "value_object", &gated.args, 1)?;
                 let vo = super::parse_nested_body(file, lines, pos, &gated.call.opener, line, |f, l, p| value_object::parse_body(f, l, p, &vo_name))?;

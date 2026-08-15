@@ -63,11 +63,18 @@ module Hecksagain
             # hands a referencing command's own resolved list.
             invariants:    [:invariants,    [:each, :invariant]],
             preconditions: [:preconditions, [:each, :given]],
+            # S12, ADR 0025 — the local half of "projects :name, from:
+            # :\"reference.remote_field\"", read the same way
+            # invariants/preconditions above are: a synthetic command
+            # (Aggregate.Projects) the judge dispatches once per
+            # declaration, folded into a list on the owning aggregate.
+            projected_fields: [:projected_fields, [:each, :projected_field]],
             provenance:    [:provenance,    :plain]
           },
           rows: { transitions: :transition_rows, value_objects: :value_object_names, identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute],
-                   invariants: [:each, :rule], preconditions: [:each, :rule] },
+                   invariants: [:each, :rule], preconditions: [:each, :rule],
+                   projected_fields: [:each, :projected_field] },
           derived: {
             position: :walk,
             state_field:   [:folded, :lifecycle, :field],

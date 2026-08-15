@@ -59,6 +59,19 @@ pub struct Given {
 pub type Ensures = Given;
 pub type Invariant = Given;
 
+// S12, ADR 0025 — `projects :name, from: :"reference.remote_field"`.
+// All three fields are identifiers (`Aggregate#projects`'s own Ruby
+// side stores them as Symbols), spelled here as plain Strings the
+// same way `Field#name`/`#type` already are — `emit.rs`'s own
+// `projected_field_json` writes them out unquoted, matching Ruby's
+// `.to_s` on the wire.
+#[derive(Debug, Clone, Default)]
+pub struct ProjectedField {
+    pub name: String,
+    pub reference: String,
+    pub remote_field: String,
+}
+
 // `CommandBuilder#from`'s own normalization (`case from when Array then
 // from.map(&:to_s) when nil then nil else from.to_s end`) — ONE state or
 // SEVERAL, never wrapped in a `Rule`-shaped `{description:, canonical:}`
@@ -240,6 +253,16 @@ pub struct Aggregate {
     // resolution stays Ruby-DSL-builder-only, the same as S9's cycle
     // detection).
     pub preconditions: Vec<Given>,
+    // A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
+    // "Consistency across aggregate boundaries") — `projects :name,
+    // from: :"reference.remote_field"`. Deliberately NOT folded into
+    // `attributes`, the same reason `invariants`/`preconditions`
+    // above are not — `EraGuard::ShapeDiff` (Ruby-only, not mirrored
+    // here) only ever walks `attributes` to decide whether a NEW
+    // field leaves an existing record with something genuinely
+    // absent, and a projected field's own absence story is
+    // different.
+    pub projected_fields: Vec<ProjectedField>,
     pub lifecycle: Option<Lifecycle>,
     pub entities: Vec<Entity>,
     pub queries: Vec<Query>,

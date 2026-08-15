@@ -155,6 +155,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -383,6 +386,9 @@
       "preconditions": [
 
       ],
+      "projected_fields": [
+
+      ],
       "provenance": null,
       "queries": [
 
@@ -451,6 +457,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,
@@ -575,6 +584,9 @@
 
       ],
       "preconditions": [
+
+      ],
+      "projected_fields": [
 
       ],
       "provenance": null,

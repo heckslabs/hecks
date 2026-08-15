@@ -96,6 +96,11 @@ module Hecksagain
 
         def rule(row) = { description: text(row[:description]), canonical: text(row[:canonical]) }
 
+        # S12, ADR 0025 — `projects :name, from: :"reference.remote_field"`,
+        # read back the same three plain identifiers `rule` above reads
+        # description/canonical as.
+        def projected_field(row) = { name: text(row[:name]), reference: text(row[:reference]), remote_field: text(row[:remote_field]) }
+
         # `provenance from: {...}` rides the same literal encoding `default:`
         # does — an object literal, self-describing via Hecksagain::Literal — one
         # level up: a whole keyword's argument rather than an attribute's

@@ -15,7 +15,7 @@ RSpec.describe "the DSL surface is fully covered" do
     "AggregateBuilder" => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
       %i[description provenance identified_by reference_to has_many has_one belongs_to value_object command lifecycle
-         entity query policy attribute list_of attributes invariant given]
+         entity query policy attribute list_of attributes invariant given projects]
     ],
     "ValueObjectBuilder" => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
