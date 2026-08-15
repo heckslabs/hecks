@@ -21,7 +21,27 @@ module Hecksagain
       case value
       when nil then "nil"
       when Hash, Array then JSON.generate(value)
-      else value.inspect
+      else
+        # A Hecksagain::Runtime::Value reaching a refusal message (an
+        # arithmetic op's own `amount`/`current`, an Admissibility
+        # `current`, ...) had no case here, falling straight through to
+        # Ruby's own #inspect and leaking a raw object pointer
+        # ("#<Hecksagain::Runtime::Value:0x...>") into an otherwise
+        # correct domain refusal. Duck-typed on `respond_to?(:to_h)`
+        # rather than naming `Runtime::Value` directly — `Runtime::Value`
+        # itself requires THIS file (`runtime/value.rb`'s own
+        # `require_relative "../rendering"`), so naming it here would be
+        # circular. A single-field wrapper (the overwhelming common case
+        # — an amount, an id, a lifecycle field) unwraps to its bare
+        # scalar, described recursively; a genuinely multi-field value
+        # renders as its fields' JSON, same as a bare Hash already does
+        # two lines up.
+        if value.respond_to?(:to_h) && !value.is_a?(Hash) && !value.is_a?(Array)
+          fields = value.to_h
+          fields.size == 1 ? describe(fields.values.first) : JSON.generate(fields)
+        else
+          value.inspect
+        end
       end
     end
   end
