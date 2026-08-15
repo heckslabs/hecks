@@ -33,7 +33,10 @@ module Hecksagain
         CONTAINED = {
           "Bluebook"       => %i[aggregates read_models policies process_managers],
           "Aggregate"      => %i[commands entities queries value_objects],
-          "Entity"         => %i[commands queries],
+          # S17, ADR 0026 — an entity may nest further entities now
+          # (`Dispatch`, inside `Handler`) — same containment edge as
+          # Aggregate's own `entities`, one level down.
+          "Entity"         => %i[commands entities queries],
           "ValueObject"    => %i[members],
           "ProcessManager" => %i[handlers]
         }.freeze

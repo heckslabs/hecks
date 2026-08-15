@@ -1200,6 +1200,9 @@
             }
           ],
           "description": "One movement across the account, in the order it was posted.",
+          "entities": [
+
+          ],
           "identified_by": [
             "sequence.value"
           ],
@@ -2114,6 +2117,9 @@
             }
           ],
           "description": "One handful of cash, in the order it was taken.",
+          "entities": [
+
+          ],
           "identified_by": [
             "sequence.value"
           ],
@@ -4845,6 +4851,9 @@
             }
           ],
           "description": "One opening of the box, in the order it happened that day.",
+          "entities": [
+
+          ],
           "identified_by": [
             "date.value",
             "sequence.value"
@@ -4939,6 +4948,9 @@
             }
           ],
           "description": "One key cut for the box, held by whoever last signed for it.",
+          "entities": [
+
+          ],
           "identified_by": [
             "serial.value"
           ],

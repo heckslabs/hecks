@@ -71,7 +71,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     Entity#aggregate Entity#owner Entity#name Entity#description
     Policy#bluebook Policy#name Policy#aggregate
     ProcessManager#bluebook ProcessManager#name
-    Handler#process_manager
     ReadModel#bluebook ReadModel#name ReadModel#description
     Vocabulary#name Syntax#name
   ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
@@ -99,9 +98,15 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
       "fanout_dispatches_once_per_matching_row already claims WHICH rows a for_each dispatches to; WHAT each " \
       "of those dispatches carries is a second question, and closing it needs the reaction log to record the " \
       "args it sent, which it does not",
-    "Dispatch#handler" => "a handler's own dispatch spec target has no independent replay property",
-    "Dispatch#command_name" => "same as Dispatch#handler",
+    "Dispatch#command_name" => "a handler's own dispatch spec target has no independent replay property",
     "Dispatch#with_spec" => "argument-binding fidelity for a saga's own dispatched command has no property comparing bound args against the handler's own declared with_spec",
+    # S17, ADR 0026 — the LIST itself, not only its elements: unlike
+    # ProcessManager#handlers (below, GUARANTEED_BY_CONSTRUCTION —
+    # `saga_advances_follow_declared_handlers` already walks it to find
+    # each handler's own fields), nothing exercises Handler#dispatches
+    # at all — its own elements (Dispatch#command_name/#with_spec,
+    # above) are already-named gaps, so the list holding them is one too.
+    "Handler#dispatches" => "same gap as Dispatch#command_name/#with_spec, one level up — nothing exercises a handler's own dispatched-command list at all",
     "ReadModel#query_name" => "the derived snake_case name is exercised by every read model ask; no property names a drift between it and the declared name",
     "ReadModel#reference_name" => "covered incidentally by aggregation_matches_recompute's own FK-join; not named on its own",
     "ReadModel#reference_target" => "same as ReadModel#reference_name",

@@ -31,8 +31,17 @@ module Hecksagain
       # wraps `element` as it stood at `locate_element`, pre-mutation, and
       # `enforce_ensures` builds its own settled wrapper off `element` as it
       # stands after, the same split the original sequential code made.
+      #
+      # `chain` — S17, ADR 0026 — every entity the dotted verb passes
+      # through, root-first (`[Handler, Dispatch]` for `Handler.Dispatch.
+      # Bind`) ; `entity`/`entity_name` stay the CHAIN'S OWN LAST entry,
+      # the one a command actually belongs to and a mutation actually
+      # targets, so every step written before this ADR (enforce_givens,
+      # apply_mutations, advance_lifecycle, element_identity, ...) reads
+      # exactly as it always has. Only `locate_element` walks the chain.
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
-                            :args, :repository, :instance, :element, :view, :transition, :old_element, :result)
+                            :args, :repository, :instance, :chain, :element, :view, :transition,
+                            :old_element, :result)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -40,20 +49,44 @@ module Hecksagain
       end
 
       def call(domain, aggregate, dotted, args)
-        entity_name, command_name = Naming.split_dotted(dotted)
-        entity  = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
-                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                            aggregate: aggregate.hecks_name, entity: entity_name.inspect))
+        *entity_names, command_name = dotted.to_s.split(".")
+        if entity_names.empty?
+          raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                    aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
+        end
+
+        chain  = walk_entity_chain(aggregate, entity_names)
+        entity = chain.last
         command = entity.command(command_name) ||
                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
-                                                            entity: entity_name, command: command_name.inspect))
+                                                            entity: entity.hecks_name, command: command_name.inspect))
 
-        ctx = Context.new(domain, aggregate, entity, entity_name, command, command_name, args)
+        ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
+        ctx.chain = chain
         run_dispatch_order(DISPATCH_ORDER, ctx)
         [ctx.instance, ctx.result]
       end
 
       private
+
+      # ONE HOP PER DOTTED SEGMENT — `ProcessManager.Handler.Dispatch.Bind`
+      # (once the dispatcher has already stripped "Domain::Aggregate.")
+      # walks Handler off the aggregate, then Dispatch off Handler, each
+      # step reading `.entities` exactly the way the single-level case
+      # always did — a nested entity is "structurally interchangeable
+      # with an aggregate" (Entity's own header) for precisely this
+      # reason. Two levels is what Handler/Dispatch need today ; nothing
+      # here assumes it stops at two.
+      def walk_entity_chain(aggregate, entity_names)
+        owner = aggregate
+        entity_names.map do |name|
+          found = owner.entities.find { |piece| piece.hecks_name == name } ||
+                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
+                                                            aggregate: owner.hecks_name, entity: name.inspect))
+          owner = found
+          found
+        end
+      end
 
       def step_normalize_args(ctx)
         ctx.args = step(:normalize_args) { normalize_args(ctx.aggregate, ctx.command, ctx.args) }
@@ -73,7 +106,7 @@ module Hecksagain
       end
 
       def step_locate_element(ctx)
-        ctx.element = step(:locate_element) { element_of(ctx.aggregate, ctx.entity, ctx.entity_name, ctx.command_name, ctx.instance, ctx.args) }
+        ctx.element = step(:locate_element) { locate_chain(ctx.aggregate, ctx.chain, ctx.instance, ctx.args, ctx.command_name) }
         # `view` was hydrated ONCE, here, into its OWN state hash
         # (Value.hydrate builds a fresh Hash — never aliased with `element`)
         # — exactly right for enforce_givens, which must read pre-mutation.
@@ -146,14 +179,38 @@ module Hecksagain
         found.dup
       end
 
+      # ONE HOP PER CHAIN ENTRY. `container` starts as `instance` (the root
+      # aggregate record) and becomes each just-located element in turn —
+      # Dispatch's own element is found INSIDE the Handler element
+      # `locate_chain` located the step before, never inside `instance`
+      # directly. `owner` is whichever construct's OWN attribute declares
+      # the list being searched (Handler declares `dispatches` ; the root
+      # aggregate declares `handlers`) — `root_aggregate` stays the ROOT
+      # the whole way through instead, passed to `element_of` separately,
+      # because coercion (`Value.for_attribute`) resolves value objects
+      # against the root's own namespace only ; an entity must never
+      # answer `.value_object` (Entity's own header comment) so handing
+      # it an intermediate owner instead would break every VO-typed
+      # identity field a nested entity declares.
+      def locate_chain(root_aggregate, chain, instance, args, command_name)
+        container = instance
+        owner     = root_aggregate
+        chain.each do |entity|
+          container = element_of(root_aggregate, owner, entity, command_name, container, args)
+          owner = entity
+        end
+        container
+      end
+
       # ONE ELEMENT, MATCHED ON EVERY PART OF ITS IDENTITY — not just the first.
       # A piece's identity may be several paths, the same shape a head's can be,
       # so a dispatch that names the element has to supply every part and every
       # part has to agree with the stored one.
-      def element_of(aggregate, entity, entity_name, command_name, instance, args)
-        list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
+      def element_of(root_aggregate, owner, entity, command_name, container, args)
+        entity_name = entity.hecks_name
+        list_attr = owner.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
                     raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
-                                                              aggregate: aggregate.hecks_name, entity: entity_name))
+                                                              aggregate: owner.hecks_name, entity: entity_name))
 
         wants = entity.identity_paths.map do |path|
           head = path.to_s.split(".").first.to_sym
@@ -162,17 +219,18 @@ module Hecksagain
                                                         command: command_name, entity: entity_name,
                                                         identity: Identity.reading(entity)))
 
-          [head, path, Value.for_attribute(aggregate, entity.attribute(head), raw)]
+          [head, path, Value.for_attribute(root_aggregate, entity.attribute(head), raw)]
         end
 
-        original = Array(instance[list_attr.name])
+        original = Array(container[list_attr.name])
         position = original.find_index { |el| wants.all? { |head, _path, want| el[head] == want } }
         unless position
           raise NotFound, RefusalWording.render(
             "NotFound", "entity_element_missing",
             entity: entity_name, identity: Identity.reading(entity),
             wants: wants.map { |_h, path, want| Identity.scalar(path, want) }.join(", "),
-            aggregate: aggregate.hecks_name, parent_id: instance.id.inspect
+            aggregate: owner.hecks_name,
+            parent_id: container.respond_to?(:id) ? container.id.inspect : Rendering.describe(container)
           )
         end
 
@@ -181,12 +239,18 @@ module Hecksagain
         # one IN PLACE — the update mechanism for an entity, not a bug. But
         # in place means aliased with the adapter's own record until this
         # copies the array and the target element before handing either
-        # back, and writes the fresh array into `instance` so the copy is
+        # back, and writes the fresh array into `container` so the copy is
         # what persists on success and NOTHING aliased survives a refusal.
+        # `container[list_attr.name] = copied` reaches `instance` itself
+        # when this is the FIRST hop, and reaches the (already copied)
+        # PARENT element when it is a later one — either way it is the
+        # SAME already-fresh object `locate_chain` is about to hand back
+        # as `container` for the next hop, so nothing further has to
+        # propagate a write back up the chain by hand.
         copied  = original.dup
         element = copied[position].dup
         copied[position] = element
-        instance[list_attr.name] = copied
+        container[list_attr.name] = copied
         element
       end
 

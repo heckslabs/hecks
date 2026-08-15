@@ -57,11 +57,18 @@ module Hecksagain
           Build.call("ValueObject", row)
         end
 
+        # S17, ADR 0026 — RECURSES. "That is what `entity` is for, and
+        # `entity` is declared by the language and used zero times in it"
+        # — Dispatch, inside Handler, is the first use, so `row[:entities]`
+        # is built the same way `row` itself was reached: through this
+        # same method, one level deeper each time. Nothing here assumes
+        # it stops at one level of nesting.
         def entity(row)
           Build.call(
             "Entity", row,
             commands:  Array(row[:commands]).map { |verb| Build.call("Command", verb) },
             queries:   Array(row[:queries]).map { |ask| Build.call("Query", ask) },
+            entities:  Array(row[:entities]).map { |piece| entity(piece) },
             lifecycle: lifecycle_of(row)
           )
         end
@@ -72,13 +79,20 @@ module Hecksagain
         # rather than refused, so the guarantee would go quiet instead of red.
         def stamp_references(ir)
           lists = [ir.attributes, *ir.commands.map(&:attributes), *ir.queries.map(&:attributes)]
-          ir.entities.each do |piece|
+          entity_reference_lists(ir.entities, lists)
+
+          lists.flatten.select(&:reference?).each { |field| field.type.declared_in = ir }
+        end
+
+        # S17, ADR 0026 — walks NESTED entities too (Dispatch, inside
+        # Handler), not only an aggregate's own direct ones.
+        def entity_reference_lists(entities, lists)
+          entities.each do |piece|
             lists << piece.attributes
             lists.concat(piece.commands.map(&:attributes))
             lists.concat(piece.queries.map(&:attributes))
+            entity_reference_lists(piece.entities, lists)
           end
-
-          lists.flatten.select(&:reference?).each { |field| field.type.declared_in = ir }
         end
 
         # THREE LANGUAGE FIELDS, ONE IR OBJECT. `state_field`, `state_start` and

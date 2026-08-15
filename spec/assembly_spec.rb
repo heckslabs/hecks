@@ -93,13 +93,17 @@ RSpec.describe "a graph assembled from declarations" do
     # unnoticed, because nothing had taught `Declare` to carry it yet. What an
     # assembly must account for is what the language STORES.
     # S17, ADR 0026 — an ENTITY-OWNED category (Member, nested under
-    # ValueObject) has no top-level aggregate `meta.aggregate` can find any
-    # more — it hangs off its OWNER's own `.entities` instead, the same
-    # place the runtime itself looks (EntityInterpreter#call).
+    # ValueObject ; Dispatch, nested under Handler, itself entity-owned)
+    # has no top-level aggregate `meta.aggregate` can find any more — it
+    # hangs off its OWNER's own `.entities` instead, the same place the
+    # runtime itself looks (EntityInterpreter#call). Recurses because the
+    # owner may itself be entity-owned (Handler is, for Dispatch).
     def construct_for(meta, category, declared)
       return meta.aggregate(category) unless declared.entity_owned
 
-      meta.aggregate(declared.parent).entities.find { |piece| piece.hecks_name == category }
+      owner_plan = plan.category(declared.parent)
+      owner      = construct_for(meta, declared.parent, owner_plan)
+      owner.entities.find { |piece| piece.hecks_name == category }
     end
 
     def stored_fields(meta, category)
@@ -184,7 +188,14 @@ RSpec.describe "a graph assembled from declarations" do
 
         "no parent names it — a pointer is a *_id or one of #{Hecksagain::Bluebook::Assembly::PARENT_POINTERS.inspect}"
       when :children
-        child = Hecksagain::Naming.pascal(field.to_s.sub(/s\z/, ""))
+        # `field` is a PLURALIZED collection name ("dispatches", not
+        # "dispatch"), and naively stripping a trailing "s" mis-singularizes
+        # anything `Naming.plural` pluralized with "es" (dispatch -> dispatches,
+        # not dispatchs) — so this asks the PLURALIZER, the same one
+        # `Judge#collection_reader` used to name the field in the first
+        # place, which category name it belongs to, rather than guessing
+        # the word backward.
+        child = plan.names.find { |name| Hecksagain::Naming.plural(Hecksagain::Naming.snake(name)) == field.to_s }
         return nil if plan.category(child)&.parent == category
 
         "no category #{child} is declared with #{category} as its parent"

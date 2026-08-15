@@ -320,6 +320,12 @@ Hecks.bluebook "Bluebook" do
       member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
       member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
       member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
+      # S17, ADR 0026 — a piece nested inside a piece. "That is what
+      # `entity` is for, and `entity` is declared by the language and
+      # used zero times in it" (the ADR's own words) — `Dispatch`,
+      # inside `Handler`, is the first real use. Same shape as
+      # `Aggregate`'s own `entity` row above, one level down.
+      member word: "entity",          context: "Entity", body: "keywords", inner: "Entity",     opens: "Entity",   fills: ""
 
       member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
@@ -756,6 +762,9 @@ Hecks.bluebook "Bluebook" do
       # this piece's own lifecycle field (S10, ADR 0025).
       member keyword: "command",         context: "Entity", at: "",  named: "from",     kind: "literal",  required: "false", fills: "from"
       member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      # S17, ADR 0026 — same shape as Aggregate's own `entity` keyword
+      # row, one level down.
+      member keyword: "entity",          context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
       member keyword: "lifecycle",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
       member keyword: "attribute",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"

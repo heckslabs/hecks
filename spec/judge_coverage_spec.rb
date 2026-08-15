@@ -94,13 +94,18 @@ RSpec.describe "the judge's coverage of the language" do
   # longer show up in `aggregate.commands` — they are in `aggregate.
   # entities.first.commands`, and the judge reaches them through a DOTTED
   # verb (`ValueObject.Member.Pair`, `Judge#verb_for`), never a bare one.
+  # Recurses — `Dispatch`, inside `Handler`, nests two levels deep, not
+  # one, and `entity_verbs` walks a nested entity's own further-nested
+  # ones the same way `Judge#dotted_prefix` builds the verb string.
   def aggregate_verbs(aggregate)
-    own = aggregate.commands.map { |c| "Bluebook::#{aggregate.name}.#{c.hecks_name}" }
-    entities = aggregate.entities.flat_map do |entity|
-      entity.commands.map { |c| "Bluebook::#{aggregate.name}.#{entity.hecks_name}.#{c.hecks_name}" }
-    end
+    aggregate.commands.map { |c| "Bluebook::#{aggregate.name}.#{c.hecks_name}" } +
+      aggregate.entities.flat_map { |entity| entity_verbs(aggregate.name, entity) }
+  end
 
-    own + entities
+  def entity_verbs(prefix, entity)
+    dotted = "#{prefix}.#{entity.hecks_name}"
+    entity.commands.map { |c| "Bluebook::#{dotted}.#{c.hecks_name}" } +
+      entity.entities.flat_map { |piece| entity_verbs(dotted, piece) }
   end
 
   it "offers every verb the language declares" do

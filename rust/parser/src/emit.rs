@@ -362,6 +362,10 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
         ("attributes".to_string(), JsonValue::Array(e.attributes.iter().map(attribute_json).collect())),
         ("commands".to_string(), JsonValue::Array(e.commands.iter().map(command_json).collect())),
         ("queries".to_string(), JsonValue::Array(e.queries.iter().map(query_json).collect())),
+        // S17, ADR 0026 — `entity.rb`'s own `emits_ir` now names
+        // `entities: many(:entities)`, same field an Aggregate already
+        // carries (`aggregate_json`, above) — recurses the same way.
+        ("entities".to_string(), JsonValue::Array(e.entities.iter().map(entity_json).collect())),
         ("lifecycle".to_string(), e.lifecycle.as_ref().map(lifecycle_json).unwrap_or(JsonValue::Null)),
     ])
 }

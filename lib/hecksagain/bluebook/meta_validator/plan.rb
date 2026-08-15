@@ -71,13 +71,14 @@ module Hecksagain
         attr_reader :categories
 
         def initialize(meta)
-          @categories = meta.aggregates.each_with_object({}) do |aggregate, plan|
+          @categories = {}
+          meta.aggregates.each do |aggregate|
             # Vocabulary declares no commands — it is static declaration read from
             # the IR by spec/vocabulary_conformance_spec, never dispatched. It needs
             # no special case: a category with nothing to offer contributes nothing.
             next if aggregate.commands.empty?
 
-            plan[aggregate.hecks_name] = read(aggregate)
+            @categories[aggregate.hecks_name] = read(aggregate)
 
             # S17, ADR 0026 — Member/Handler/Dispatch are ENTITIES now
             # (`entity "Member" do ... end`, nested under `ValueObject`/
@@ -102,12 +103,18 @@ module Hecksagain
             # aggregate named "Member" to dispatch a BARE verb into
             # any more, so the judge has to build a DOTTED one instead
             # (see `Judge#verb_for`).
-            aggregate.entities.each do |entity|
-              next if entity.commands.empty?
-
-              plan[entity.hecks_name] = read(entity, owner: aggregate.hecks_name, entity_owned: true)
-            end
-          end.freeze
+            #
+            # RECURSES — `Dispatch` nests inside `Handler`, which nests
+            # inside `ProcessManager`, two levels deep, not one. Each
+            # nested entity's own `parent` names the DIRECT owner it was
+            # actually found under (Dispatch's is "Handler", not
+            # "ProcessManager") — `read`'s own `owner:` argument already
+            # takes whichever name is passed, so walking one level deeper
+            # each recursive call is the whole change; nothing about
+            # `read` itself needed to know how deep it was called from.
+            add_nested_entities(aggregate)
+          end
+          @categories.freeze
         end
 
         def category(name) = @categories[name.to_s]
@@ -118,17 +125,48 @@ module Hecksagain
         # own `entity_owned` flag) has no real top-level aggregate the
         # runtime can route a BARE verb into any more, so it is
         # spelled DOTTED here too — `Bluebook::ValueObject.Member.
-        # Declare`, matching `Judge#verb_for`'s own build exactly, so
-        # this stays what it already is: the judge's own coverage
-        # promise, not a second guess at it.
+        # Declare`, `Bluebook::ProcessManager.Handler.Dispatch.Bind` —
+        # matching `Judge#verb_for`/`#dotted_prefix`'s own build
+        # exactly (recursing the same way, for the same reason: an
+        # entity-owned category's own parent may itself be entity-
+        # owned), so this stays what it already is: the judge's own
+        # coverage promise, not a second guess at it.
         def verbs
           @categories.flat_map do |name, category|
-            prefix = category.entity_owned ? "#{category.parent}.#{name}" : name
-            category.verbs.map { |verb| "Bluebook::#{prefix}.#{verb}" }
+            category.verbs.map { |verb| "Bluebook::#{dotted_prefix(name)}.#{verb}" }
           end
         end
 
         private
+
+        # Walks one construct's own `.entities`, recursing into each
+        # found entity's own `.entities` in turn — S17, ADR 0026's
+        # two-level chain (`Dispatch`, inside `Handler`, inside
+        # `ProcessManager`). `owner` is passed down explicitly rather
+        # than re-derived, because it names whichever construct THIS
+        # call actually found the entity under — the DIRECT parent, not
+        # the root.
+        def add_nested_entities(owner)
+          owner.entities.each do |entity|
+            next if entity.commands.empty?
+
+            @categories[entity.hecks_name] = read(entity, owner: owner.hecks_name, entity_owned: true)
+            add_nested_entities(entity)
+          end
+        end
+
+        # THE FULL DOTTED PREFIX a category's own verbs hang off —
+        # mirrors `Judge#dotted_prefix` exactly (S17, ADR 0026): the
+        # plain name for an ordinary category, or its PARENT's own
+        # prefix with this category's name appended, for an entity-
+        # owned one, recursing because the parent may itself be
+        # entity-owned.
+        def dotted_prefix(name)
+          found = category(name)
+          return name unless found&.entity_owned
+
+          "#{dotted_prefix(found.parent)}.#{name}"
+        end
 
         # `owner:`/`entity_owned:` — S17, ADR 0026. An AGGREGATE-level
         # creating command carries its own parent as a `reference_to`

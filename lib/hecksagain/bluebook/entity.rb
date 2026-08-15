@@ -35,20 +35,27 @@ module Hecksagain
         attributes:    many(:attributes),
         commands:      many(:commands),
         queries:       many(:queries),
+        # S17, ADR 0026 — "That is what `entity` is for, and `entity` is
+        # declared by the language and used zero times in it" (the ADR's
+        # own words). Dispatch nests inside Handler, so an entity's own
+        # NESTED entities are part of its wire shape now, the same way
+        # an aggregate's always were — the field the ADR names as
+        # declared-but-unused until this slice.
+        entities:      many(:entities),
         lifecycle:     one(:lifecycle)
       )
 
       class << self
         attr_reader :description, :identified_by, :identity_paths, :identity_heads,
-                    :attributes, :commands, :queries, :lifecycle
+                    :attributes, :commands, :queries, :entities, :lifecycle
 
         def declare(name:, description: nil, identified_by: nil, attributes: [],
-                    commands: [], queries: [], lifecycle: nil)
+                    commands: [], queries: [], entities: [], lifecycle: nil)
           piece = Class.new(self)
           piece.hecks_name = name.to_s
           piece.absorb(description: description, identified_by: identified_by,
                        attributes: attributes, commands: commands,
-                       queries: queries, lifecycle: lifecycle)
+                       queries: queries, entities: entities, lifecycle: lifecycle)
           piece.stamp_children
           piece
         end
@@ -56,12 +63,13 @@ module Hecksagain
         # Assigns what the language declares, then hands off to the
         # behaviour's own `settle` — derived identity and the name
         # indexes, neither of which the declaration states.
-        def absorb(description:, identified_by:, attributes:, commands:, queries:, lifecycle:)
+        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, lifecycle:)
           @description   = description
           @identified_by = identified_by
           @attributes    = attributes
           @commands      = commands
           @queries       = queries
+          @entities      = entities
           @lifecycle     = lifecycle
 
           settle

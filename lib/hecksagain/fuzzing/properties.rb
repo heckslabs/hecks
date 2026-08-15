@@ -94,6 +94,12 @@ module Hecksagain
           "(value/coercion.rb#check_patterns, value/admission.rb) before it can exist — a stored value that violated " \
           "its own declared shape was never producible to begin with",
         "Aggregate#value_objects" => "the shape being coerced above — same door, same guarantee",
+        # S17, ADR 0026 — the list `saga_advances_follow_declared_handlers`
+        # (below) already walks to find each handler's own event_type/
+        # from_state/to_state (the three it claims) — a property cannot
+        # check a handler's own fields without iterating the list that
+        # holds them, so the list itself is exercised by the same door.
+        "ProcessManager#handlers" => "saga_advances_follow_declared_handlers already walks this list to find event_type/from_state/to_state — same door, same guarantee",
         "Aggregate#identified_by" => "CommandInterpreter's data-driven dispatch order refuses AlreadyExists " \
           "(command_interpreter.rb, command.creates?) for every creating command uniformly, before a duplicate id " \
           "can ever be stored — collision is refused at the door, not produced and later caught",

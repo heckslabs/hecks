@@ -210,9 +210,24 @@ module Hecksagain
             states:        [:states,        :plain]
           },
           reads: { states: :names },
-          derived: { position: :walk }
+          # S17, ADR 0026 — `handlers` is a REAL feature of the LANGUAGE's
+          # own "ProcessManager" declaration now (`attribute :handlers,
+          # list_of(Handler)`, reaction.bluebook), consumed by the judge
+          # walking `Plan`'s own containment tree (`Handler`'s own
+          # `.parent == "ProcessManager"`) rather than by any field this
+          # contract itself reads — the same `:children` shape Aggregate's
+          # own `value_objects` claim already uses, one level in.
+          derived: { position: :walk, handlers: :children }
         ),
 
+        # S17, ADR 0026 — Handler is a genuine entity now, nested under
+        # ProcessManager (`entity "Handler"`, reaction.bluebook). Neither
+        # `position` nor `handler` is a stored field any more: a saga
+        # answers each event ONCE, so `event_type` is Handler's own real,
+        # non-positional identity (no walk-minted `position` to derive),
+        # and the process manager it belongs to is structural now — which
+        # list this element sits in, not a stored field to fold a parent
+        # pointer out of.
         "Handler" => Contract.new(
           holder: ProcessManagerHandler, make: :new,
           fields: {
@@ -220,9 +235,21 @@ module Hecksagain
             from_state: [:from_state, :plain],
             to_state:   [:to_state,   :plain]
           },
-          derived: { position: :walk }
+          # `dispatches` — same reason ProcessManager's own `handlers`
+          # claim, above, is `:children` : a real feature of the
+          # LANGUAGE's own "Handler" declaration (`attribute :dispatches,
+          # list_of(Dispatch)`), consumed by the judge walking `Plan`'s
+          # own containment tree rather than by any field this contract
+          # reads.
+          derived: { dispatches: :children }
         ),
 
+        # S17, ADR 0026 — Dispatch is a genuine entity now, nested under
+        # Handler (`entity "Dispatch"`, reaction.bluebook) — two levels
+        # deep, "no life outside its Handler" (the ADR's own words).
+        # `command_name` is Dispatch's own real, non-positional identity
+        # — neither `position` nor `handler` is a stored field any more,
+        # the same reason Handler's own contract, above, dropped them.
         "Dispatch" => Contract.new(
           holder: DispatchSpec, make: :new,
           fields: {
@@ -231,7 +258,7 @@ module Hecksagain
           },
           rows: { with_spec: :with_spec_rows },
           reads: { with_spec: [:from, :with_spec] },
-          derived: { position: :walk, handler: :parent }
+          derived: {}
         ),
 
         "ReadModel" => Contract.new(

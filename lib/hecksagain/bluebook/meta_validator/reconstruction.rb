@@ -179,7 +179,7 @@ module Hecksagain
             # read by hand two lines up: `aggregate(row)` is hand-typed.
             projected_fields: Array(row[:projected_fields]).map { |held| projected_field(held) },
             lifecycle:     lifecycle(row),
-            entities:      declared("Entity", id).map { |piece| entity(piece) },
+            entities:      direct_entities(id, id).map { |piece| entity(piece) },
             queries:       own("Query", id).map { |ask| query(ask) },
             provenance:    provenance(row)
           }
@@ -212,6 +212,19 @@ module Hecksagain
 
         def query(row) = declaration("Query", row).merge(options_of(row))
 
+        # EVERY DIRECT ENTITY OF ONE OWNER — S17, ADR 0026. `declared
+        # ("Entity", root_id)` returns EVERY entity sharing the same
+        # ROOT aggregate, nested or not (Dispatch and Handler both carry
+        # `aggregate: process_manager_id`) — `owner` is the field that
+        # actually tells them apart : `Judge#nest_entities`'s own
+        # comment explains why it is the one to repurpose. Called with
+        # `owner_id == root_id` for an aggregate's own direct entities
+        # (Handler), and with `owner_id == some entity's own id` for
+        # THAT entity's own nested ones (Dispatch, owned by Handler).
+        def direct_entities(root_id, owner_id)
+          declared("Entity", root_id).select { |held| text(held[:owner]).to_s == owner_id.to_s }
+        end
+
         def entity(row)
           {
             name:        text(row[:name]),
@@ -223,6 +236,10 @@ module Hecksagain
             attributes:    Array(row[:attributes]).map { |field| shape_field(field) },
             commands:      within("Command", row).map { |verb| command(verb) },
             queries:       within("Query", row).map { |ask| query(ask) },
+            # S17, ADR 0026 — Dispatch, inside Handler : an entity's own
+            # NESTED entities, found the same way its own direct ones
+            # were one level up.
+            entities:      direct_entities(text(row[:aggregate]), row[:id]).map { |piece| entity(piece) },
             # An entity has its own state machine, and the language has held it all
             # along — Entity.Lifecycle and Entity.Transition were two of the fourteen
             # verbs that started firing when the judge became a walk. Only the
@@ -247,14 +264,27 @@ module Hecksagain
 
         def policy(row) = declaration("Policy", row)
 
+        # S17, ADR 0026 — Handler is a genuine entity now, nested under
+        # ProcessManager, created by `ProcessManager.Handler` (an
+        # ordinary append, the same way `Account.LogEntry` creates a
+        # LedgerEntry) and mutated by its own dotted `ProcessManager.
+        # Handler.Dispatch`/`...Dispatch.Bind`. Its data therefore lives
+        # INLINE on the process manager's own dispatched state — same as
+        # any other entity list — not behind a separate `DeclaredIn`
+        # query : there is no such query any more, the same fix
+        # `Reconstruction#members_of` already made for Member.
         def process_manager(row)
           declaration("ProcessManager", row,
-                      handlers: declared("Handler", row[:id]).map { |leg| handler(leg) })
+                      handlers: Array(row[:handlers]).map { |leg| handler(leg) })
         end
 
+        # S17, ADR 0026 — Dispatch, one level further in : nested under
+        # Handler, its data lives inline on the HANDLER row this method
+        # was just handed (`row` here IS one element of `handlers`,
+        # above), not behind any query either.
         def handler(row)
           declaration("Handler", row,
-                      dispatches: declared("Dispatch", row[:id]).map { |leg| dispatch(leg) })
+                      dispatches: Array(row[:dispatches]).map { |leg| dispatch(leg) })
         end
 
         def dispatch(row) = declaration("Dispatch", row)

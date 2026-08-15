@@ -133,102 +133,112 @@ module Hecksagain
           plan = @plan.category(category)
           return unless plan
 
-          id           = identify(category, parent_id, node, index)
-          # `extra` carries THIS node's OWNER's identity, handed down by
-          # `walk_all` (see `entity_child_extra`) — an entity-owned category's
-          # own verbs are dotted, so the owner it hangs off has to be
-          # addressed by every dispatch, not only the (nonexistent) creating
-          # one. `own` adds THIS node's own positional identity on top —
-          # Member's "Pair" locates the element it mutates the same way
-          # `EntityInterpreter#element_of` does, off `position`, which is
-          # never a stored field : it IS the walk index, the same fact
-          # `declare`'s own field loop already mints it from.
-          # Only an ENTITY-OWNED category's own sub-appends need this — an
-          # ordinary category's (Command's own "Rule"/"Argument", offered
-          # through the SAME `extra` slot for a DIFFERENT reason, see
-          # `within_entity` below) locate the record they attach to through
-          # the parent id `id:` already carries, and merging unrecognized
-          # `aggregate:`/`entity_id:` into THEIR payload would have the
-          # runtime refuse them for an argument they never declared.
-          own          = plan.entity_owned ? extra.merge(entity_own_identity(plan, index)) : {}
+          id = identify(category, parent_id, node, index)
+          # `extra` is the CUMULATIVE identity of every entity-owned
+          # ancestor above this node (Handler's own `event_type` AND
+          # ProcessManager's own `bluebook`/`name`, by the time Dispatch
+          # is reached — S17, ADR 0026's two-level chain). `identity`
+          # adds THIS node's own on top — computed for EVERY category,
+          # entity-owned or not, because a node need not be entity-owned
+          # itself to OWN one (ValueObject isn't, and Member still needs
+          # its `aggregate:`/`name:`) — it is simply what THIS node's own
+          # `identified_by` resolves to, the same fields `identify` two
+          # lines up already derives the joined id FROM.
+          #
+          # `own` is the SUBSET actually spent on a dispatch payload —
+          # only when THIS category is itself entity-owned, since an
+          # ordinary category (Command's own "Rule"/"Argument", offered
+          # through the SAME `extra` SLOT for a DIFFERENT reason, see
+          # `within_entity` below) locates the record it attaches to
+          # through the parent id `id:` already carries, and merging
+          # unrecognized `aggregate:`/`entity_id:` into THEIR payload
+          # would have the runtime refuse them for an argument they
+          # never declared.
+          identity     = extra.merge(node_identity(plan, category, node, index, parent_id))
+          own          = plan.entity_owned ? identity : {}
           eager, later = children_of(category).partition { |child| eager?(category, child) }
 
-          eager.each { |child| walk_all(child, node, id, entity_child_extra(child, category, node, parent_id)) }
+          eager.each { |child| walk_all(child, node, id, entity_child_extra(child, identity)) }
           setters(plan, category, node, id, own)
           appends(plan, category, node, id, own)
-          later.each { |child| walk_all(child, node, id, entity_child_extra(child, category, node, parent_id)) }
+          later.each { |child| walk_all(child, node, id, entity_child_extra(child, identity)) }
           within_entity(category, node, id, parent_id)
+          nest_entities(category, node, id, parent_id)
           sealers(plan, category, id, own)
         end
 
-        # S17, ADR 0026 — Member/Handler/Dispatch are ENTITY-OWNED
-        # categories now (see `Plan#initialize`'s own comment): the
-        # real runtime routes their own "Declare" through `Bluebook::
-        # #{owner}.#{category}.Declare`, a DOTTED verb, and
-        # `EntityInterpreter#parent` resolves the OWNER record from
-        # its own DECOMPOSED identity fields (`Identity.of`) — never
-        # from a single joined id string the way `plan.parent_key`'s
-        # ordinary single-field convention hands `within_entity`'s own
-        # "aggregate"/"entity_id". So an entity-owned child's own
-        # payload needs the owner's own identity fields, individually,
-        # under their own declared names — read off the OWNER node
-        # (`node` here) the same way `declare`'s own field loop reads
-        # ANY field, reused rather than re-derived.
-        # `owner_parent_id` is the OWNER'S OWN parent — what `field_value`
-        # hands back for the owner's `:parent`-kind identity part (ValueObject's
-        # own `aggregate`), so the owner's identity is re-derived here from the
-        # very same inputs `identify` derived it from one level up.
-        def entity_child_extra(child, owner_category, owner_node, owner_parent_id)
-          plan = @plan.category(child)
-          return {} unless plan&.entity_owned
-
-          owner_identity(owner_category, owner_node, owner_parent_id)
+        # WHAT A CHILD'S OWN `extra` STARTS FROM. An entity-owned child's
+        # own dotted dispatch needs every ANCESTOR's identity, which is
+        # exactly `identity` — already accumulated one level at a time by
+        # `detail_node` itself (regardless of whether each ancestor is
+        # ITSELF entity-owned — ValueObject contributes its own `aggregate:
+        # `/`name:` to Member's payload despite being an ordinary top-
+        # level category), so there is nothing left to re-derive here. An
+        # ordinary child (one with a real top-level aggregate of its own
+        # to dispatch a bare verb into) needs none of it.
+        def entity_child_extra(child, identity)
+          @plan.category(child)&.entity_owned ? identity : {}
         end
 
-        # A NODE'S OWN POSITIONAL IDENTITY, for an entity-owned category only.
-        # `position` is never a stored field — Member's own header says why
-        # ("position is not a mint — it is read straight out of the source
-        # file") — so it cannot come from `field_value`. It comes from the
-        # SAME walk index `identify`/`declare` already mint it from, merged
-        # into `Pair`'s own dispatch payload so `EntityInterpreter#element_of`
-        # (which reads `args[:position]` — see entity_interpreter.rb) can
-        # locate the element `ValueObject.Member` already created.
-        def entity_own_identity(plan, index)
-          return {} unless plan.entity_owned
-
+        # ONE NODE'S OWN IDENTITY, read off its own declaration — S17,
+        # ADR 0026. Three cases, the same three `identify`/`identity_part`
+        # already resolve one level up, unified here because a chain now
+        # walks more than one level (Handler -> Dispatch) and each level
+        # needs the SAME three answered about itself, not just the first:
+        #
+        #   the parent link   (plan.parent_key)   -> `parent_id`, the id
+        #                     the walk already carries in from one level up
+        #   a walk-minted one (POSITION)           -> the walk INDEX itself ;
+        #                     never a stored field (Member's own header:
+        #                     "position is not a mint — it is read straight
+        #                     out of the source file")
+        #   a real field      (anything else)      -> `field_value`, same
+        #                     reader every other field in this file uses
+        #                     (Handler's own `event_type`, Dispatch's own
+        #                     `command_name`)
+        #
+        # `carried` still decides bare-vs-wrapped the normal way ; POSITION
+        # is the one case with no verb to ask `carried` about (`plan.
+        # declare` is always nil for an entity-owned category — Plan#read's
+        # own comment says why), so it is minted straight as a value object,
+        # matching exactly what `declare`'s own field loop already mints a
+        # POSITION field as.
+        def node_identity(plan, category, node, index, parent_id)
           plan.identity_paths.each_with_object({}) do |path, fields|
-            head = path.to_s.split(".").first.to_sym
-            fields[head] = v(index) if head.to_s == POSITION
+            head = path.to_s.split(".").first
+            next if head == OWNER
+
+            if head == POSITION
+              fields[head.to_sym] = v(index)
+            else
+              raw = head == plan.parent_key.to_s ? parent_id : field_value(category, node, head.to_sym, parent_id)
+              fields[head.to_sym] = carried(plan, plan.declare, head, raw)
+            end
           end
+        end
+
+        # THE FULL DOTTED PREFIX a category's own verbs hang off — the
+        # plain name for an ordinary category (its own top-level
+        # aggregate reaches every verb bare), or its PARENT's own prefix
+        # with this category's name appended, for an entity-owned one.
+        # Dispatch's own parent, Handler, is itself entity-owned (S17,
+        # ADR 0026's two-level chain — `ProcessManager.Handler.Dispatch`),
+        # so this recurses rather than reading one level and stopping.
+        def dotted_prefix(plan)
+          return plan.name unless plan.entity_owned
+
+          "#{dotted_prefix(@plan.category(plan.parent))}.#{plan.name}"
         end
 
         # ENTITY-OWNED categories have no top-level aggregate for the runtime
         # to route a bare verb into any more — `Member`'s own "Pair" reaches
-        # the runtime as `ValueObject.Member.Pair`, the dotted shape
-        # `EntityInterpreter#call` already splits any real entity's own verb
-        # into (`Naming.split_dotted`, entity_interpreter.rb). An ordinary
-        # category stays bare, exactly as it always dispatched.
+        # the runtime as `ValueObject.Member.Pair`, and a NESTED one
+        # (`Dispatch`, inside `Handler`) reaches it as `ProcessManager.
+        # Handler.Dispatch.Bind` — the dotted shape `EntityInterpreter#call`
+        # already splits any real entity's own verb into, one hop per
+        # segment (`walk_entity_chain`, entity_interpreter.rb).
         def verb_for(plan, verb)
-          plan.entity_owned ? "#{plan.parent}.#{plan.name}.#{verb}" : "#{plan.name}.#{verb}"
-        end
-
-        def owner_identity(category, node, parent_id)
-          plan = @plan.category(category)
-          return {} unless plan
-
-          plan.identity_paths.each_with_object({}) do |path, fields|
-            head = path.to_s.split(".").first
-            next if head == OWNER || head == POSITION
-
-            # The parent-reference part of the owner's OWN identity (a
-            # ValueObject's "aggregate") is never a readable field on the
-            # node — `identify`/`identity_part` never read it through
-            # `field_value` either, they read it off the walk's own
-            # `parent_id` directly, so this does too rather than asking
-            # `field_value` to answer for something it was never given.
-            value = head == plan.parent_key.to_s ? parent_id : field_value(category, node, head.to_sym, parent_id)
-            fields[head.to_sym] = carried(plan, plan.declare, head, value)
-          end
+          "#{dotted_prefix(plan)}.#{verb}"
         end
 
         def walk_all(category, node, parent_id, extra = {})
@@ -258,6 +268,39 @@ module Hecksagain
                      aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
                      entity_id: carried(plan, plan&.declare, "entity_id", id))
           end
+        end
+
+        # AN ENTITY MAY NEST FURTHER ENTITIES — S17, ADR 0026's own words:
+        # "That is what `entity` is for, and `entity` is declared by the
+        # language and used zero times in it." `Dispatch`, inside
+        # `Handler`, is the first real use. The GENERIC "Entity" category
+        # cannot express this through `children_of`/`EAGER_CHILDREN` the
+        # way Aggregate's own entities/value_objects can — there is only
+        # ONE "Entity" Plan category, describing what ANY entity looks
+        # like, not one per nesting level — so this recurses by hand,
+        # the same special case `within_entity` (above) already is for
+        # Command/Query.
+        #
+        # `owner` is the field this repurposes — `entity.bluebook`
+        # declares it (`attribute :owner, EntityText`) and it has held
+        # exactly one value since ADR 0025's rename: the SAME id
+        # `aggregate` already carries, kept as a wrapped-text COPY,
+        # never read back anywhere else in this codebase (grep finds no
+        # second reference). For a NESTED entity, the two finally
+        # diverge — `aggregate` stays the ROOT (Dispatch resolves
+        # exactly the way any other Entity record does, by its root
+        # aggregate), and `owner` becomes THIS entity's own DIRECT
+        # parent (Handler, not ProcessManager) — which is exactly the
+        # fact `Reconstruction#direct_entities` needs to tell a
+        # root-level entity apart from a nested one sharing the same
+        # root.
+        def nest_entities(category, node, id, aggregate)
+          return unless category == "Entity"
+
+          plan = @plan.category("Entity")
+          walk_all("Entity", node, aggregate,
+                   aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
+                   owner: carried(plan, plan&.declare, "owner", id))
         end
 
         # WHERE IT SITS AMONG ITS SIBLINGS IS A FACT ABOUT THE WALK, not about the

@@ -430,16 +430,21 @@ RSpec.describe "the declared syntax" do
   # chapter's own aggregate names are already distinct), so a plain merge
   # is exact, not an approximation.
   # S17, ADR 0026 — includes each aggregate's own ENTITIES too, not only
-  # the aggregates themselves. Member (nested under ValueObject) is a real
-  # construct a keyword can legitimately open — `member` does, inside
-  # `one_of` — even though it is no longer a top-level aggregate with a
-  # bare verb of its own. An entity answers to `.hecks_name`/`.attributes`
-  # the same way an aggregate does, so nothing downstream has to know
-  # which one it got.
+  # the aggregates themselves — and recursively, since Dispatch nests two
+  # levels deep (inside Handler, inside ProcessManager). Member (nested
+  # under ValueObject) is a real construct a keyword can legitimately
+  # open — `member` does, inside `one_of` — even though it is no longer
+  # a top-level aggregate with a bare verb of its own. An entity answers
+  # to `.hecks_name`/`.attributes` the same way an aggregate does, so
+  # nothing downstream has to know which one it got.
+  def self.all_entities(entity)
+    [entity] + entity.entities.flat_map { |piece| all_entities(piece) }
+  end
+
   def self.all_meta_aggregates
     registry     = Hecksagain::Bluebook::MetaValidator.grammar_registry
     aggregates   = %w[Bluebook Hecksagon World].flat_map { |chapter| registry.bluebook(chapter).aggregates }
-    aggregates + aggregates.flat_map(&:entities)
+    aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end
 
   it "fills only fields the language declares" do

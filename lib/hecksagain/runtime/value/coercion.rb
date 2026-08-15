@@ -139,10 +139,31 @@ module Hecksagain
           end
         end
 
+        # S17, ADR 0026 — SEARCHES THE WHOLE ENTITY TREE, not only the
+        # root's own direct children. `aggregate` here is always the
+        # ROOT aggregate — `for_attribute`'s own `aggregate` argument is
+        # never reassigned as hydration recurses into a nested element,
+        # because coercion has to resolve value objects, and only the
+        # root answers `.value_object` at all (Entity's own header
+        # comment: an entity must NOT answer to it, or `Value.
+        # for_attribute` could no longer tell a piece from a head). So
+        # a NESTED entity — Dispatch, inside Handler — is not a direct
+        # child of the root the way Handler itself is, and a plain
+        # `aggregate.entities.find` stops one level short of it.
+        def find_entity(construct, name)
+          construct.entities.each do |candidate|
+            return candidate if candidate.hecks_name == name
+
+            found = find_entity(candidate, name)
+            return found if found
+          end
+          nil
+        end
+
         # Frozen through: a list read back out of the store is an answer,
         # not a handle on what is stored.
         def hydrate_entity_list(aggregate, attribute, value)
-          entity = aggregate.entities.find { |candidate| candidate.hecks_name == attribute.type.to_s }
+          entity = find_entity(aggregate, attribute.type.to_s)
           return value unless entity
 
           Array(value).map do |element|

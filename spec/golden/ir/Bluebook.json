@@ -4093,6 +4093,9 @@
             }
           ],
           "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Nested under the value object because a row is a list of pairs inside a list of rows.",
+          "entities": [
+
+          ],
           "identified_by": [
             "position.value"
           ],
@@ -5587,6 +5590,15 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "handlers",
+          "optional": false,
+          "pattern": null,
+          "type": "Handler"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "position",
           "optional": false,
@@ -5707,11 +5719,240 @@
           "provenance": null,
           "references": "ProcessManager",
           "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "event_type",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            }
+          ],
+          "emits": [
+            "LegDeclared"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Open a handler inside a process manager",
+          "mutations": [
+            {
+              "fields": {
+                "event_type": ":event_type",
+                "from_state": ":from_state",
+                "to_state": ":to_state"
+              },
+              "op": "append",
+              "target": "handlers"
+            }
+          ],
+          "name": "Handler",
+          "provenance": null,
+          "references": "ProcessManager",
+          "role": "Language"
         }
       ],
       "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
       "entities": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "event_type",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "from_state",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "to_state",
+              "optional": false,
+              "pattern": null,
+              "type": "HandlerText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": true,
+              "name": "dispatches",
+              "optional": false,
+              "pattern": null,
+              "type": "Dispatch"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "command_name",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "DispatchText"
+                }
+              ],
+              "emits": [
+                "SendDeclared"
+              ],
+              "ensures": [
 
+              ],
+              "from": null,
+              "givens": [
+
+              ],
+              "goal": "Open a dispatch inside a handler",
+              "mutations": [
+                {
+                  "fields": {
+                    "command_name": ":command_name"
+                  },
+                  "op": "append",
+                  "target": "dispatches"
+                }
+              ],
+              "name": "Dispatch",
+              "provenance": null,
+              "references": null,
+              "role": "Language"
+            }
+          ],
+          "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings.",
+          "entities": [
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "command_name",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "DispatchText"
+                },
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": true,
+                  "name": "with_spec",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "Binding"
+                }
+              ],
+              "commands": [
+                {
+                  "attributes": [
+                    {
+                      "admits": null,
+                      "default": null,
+                      "list": false,
+                      "name": "key",
+                      "optional": false,
+                      "pattern": null,
+                      "type": "DispatchText"
+                    },
+                    {
+                      "admits": null,
+                      "default": null,
+                      "list": false,
+                      "name": "value",
+                      "optional": false,
+                      "pattern": null,
+                      "type": "DispatchText"
+                    }
+                  ],
+                  "emits": [
+                    "BindingAttached"
+                  ],
+                  "ensures": [
+
+                  ],
+                  "from": null,
+                  "givens": [
+
+                  ],
+                  "goal": "Bind one argument of the dispatched command",
+                  "mutations": [
+                    {
+                      "fields": {
+                        "key": ":key",
+                        "value": ":value"
+                      },
+                      "op": "append",
+                      "target": "with_spec"
+                    }
+                  ],
+                  "name": "Bind",
+                  "provenance": null,
+                  "references": null,
+                  "role": "Language"
+                }
+              ],
+              "description": "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold.",
+              "entities": [
+
+              ],
+              "identified_by": [
+                "command_name.value"
+              ],
+              "lifecycle": null,
+              "name": "Dispatch",
+              "queries": [
+
+              ]
+            }
+          ],
+          "identified_by": [
+            "event_type.value"
+          ],
+          "lifecycle": null,
+          "name": "Handler",
+          "queries": [
+
+          ]
+        }
       ],
       "identified_by": [
         "bluebook",
@@ -5837,199 +6078,6 @@
               "name": "value",
               "optional": false,
               "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "process_manager",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<ProcessManager>"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "event_type",
-          "optional": false,
-          "pattern": null,
-          "type": "HandlerText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "from_state",
-          "optional": false,
-          "pattern": null,
-          "type": "HandlerText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "to_state",
-          "optional": false,
-          "pattern": null,
-          "type": "HandlerText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "process_manager",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<ProcessManager>"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "event_type",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "from_state",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "to_state",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "LegDeclared"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Open a handler inside a process manager",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "provenance": null,
-          "references": null,
-          "role": "Language"
-        }
-      ],
-      "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "process_manager",
-        "event_type.value"
-      ],
-      "invariants": [
-
-      ],
-      "lifecycle": null,
-      "name": "Handler",
-      "ports": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
-      "provenance": null,
-      "queries": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "process_manager",
-              "optional": false,
-              "pattern": null,
-              "type": "HandlerText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "process_manager",
-              "op": "eq",
-              "value": ":process_manager"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
               "type": "String"
             }
           ],
@@ -6042,219 +6090,6 @@
           ],
           "name": "HandlerText"
         },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "Integer"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "Position"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "handler",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Handler>"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "command_name",
-          "optional": false,
-          "pattern": null,
-          "type": "DispatchText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "with_spec",
-          "optional": false,
-          "pattern": null,
-          "type": "Binding"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "handler",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Handler>"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "command_name",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": true,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "SendDeclared"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Open a dispatch inside a handler",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "provenance": null,
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            }
-          ],
-          "emits": [
-            "BindingAttached"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Bind one argument of the dispatched command",
-          "mutations": [
-            {
-              "fields": {
-                "key": ":key",
-                "value": ":value"
-              },
-              "op": "append",
-              "target": "with_spec"
-            }
-          ],
-          "name": "Bind",
-          "provenance": null,
-          "references": "Dispatch",
-          "role": "Language"
-        }
-      ],
-      "description": "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "handler",
-        "command_name.value"
-      ],
-      "invariants": [
-
-      ],
-      "lifecycle": null,
-      "name": "Dispatch",
-      "ports": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
-      "provenance": null,
-      "queries": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "handler",
-              "optional": false,
-              "pattern": null,
-              "type": "DispatchText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "handler",
-              "op": "eq",
-              "value": ":handler"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
         {
           "attributes": [
             {
@@ -9583,6 +9418,32 @@
               [
                 "fills",
                 "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
+                "entity"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Entity"
+              ],
+              [
+                "opens",
+                "Entity"
+              ],
+              [
+                "fills",
+                ""
               ]
             ],
             [
@@ -12987,6 +12848,36 @@
               [
                 "keyword",
                 "query"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "entity"
               ],
               [
                 "context",

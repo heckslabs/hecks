@@ -35,8 +35,28 @@ module Hecksagain
         # ever reach.
         DERIVED_EVERYWHERE = %i[position].freeze
 
+        # S17, ADR 0026 — `Handler` is a genuine entity now, nested under
+        # `ProcessManager`, so `.aggregate` alone no longer finds it —
+        # it hangs off some aggregate's own `.entities` instead
+        # (searched recursively, the same reason `Value::Coercion#find_
+        # entity` does: a NESTED entity, like `Dispatch` inside
+        # `Handler`, is not a direct child of any aggregate either).
+        def construct_for(chapter, name)
+          chapter.aggregate(name) || chapter.aggregates.filter_map { |a| find_entity(a, name) }.first
+        end
+
+        def find_entity(construct, name)
+          construct.entities.each do |candidate|
+            return candidate if candidate.hecks_name == name
+
+            found = find_entity(candidate, name)
+            return found if found
+          end
+          nil
+        end
+
         def fields_for(category)
-          language = MetaValidator.grammar_registry.bluebook("Bluebook").aggregate(category.to_s)
+          language = construct_for(MetaValidator.grammar_registry.bluebook("Bluebook"), category.to_s)
           language.attributes.each_with_object({}) do |attribute, fields|
             next if attribute.list? || attribute.reference?
             next if DERIVED_EVERYWHERE.include?(attribute.name)

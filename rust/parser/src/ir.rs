@@ -228,6 +228,11 @@ pub struct Entity {
     pub attributes: Vec<Attribute>,
     pub commands: Vec<Command>,
     pub queries: Vec<Query>,
+    // S17, ADR 0026 — a piece nested inside a piece (Dispatch, inside
+    // Handler, reaction.bluebook) — `lib/hecksagain/bluebook/entity.rb`'s
+    // own `emits_ir` now names `entities: many(:entities)`, the same
+    // field an Aggregate already carries, one level down.
+    pub entities: Vec<Entity>,
     pub lifecycle: Option<Lifecycle>,
 }
 

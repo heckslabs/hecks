@@ -127,6 +127,11 @@ Hecks.bluebook "Bluebook" do
     attribute :starts_on,     ProcessManagerText
     attribute :ends_on,       ProcessManagerText
     attribute :states,    list_of(SagaState)
+    # S17, ADR 0026 — Handler nested here (see `entity "Handler"`, below),
+    # an entity rather than its own root aggregate. `list_of(Handler)`
+    # forward-references it the same way banking's own `attribute :ledger,
+    # list_of(LedgerEntry)` names LedgerEntry before it is declared.
+    attribute :handlers,  list_of(Handler)
 
     value_object "ProcessManagerName" do
       attribute :value, String
@@ -139,6 +144,28 @@ Hecks.bluebook "Bluebook" do
 
     value_object "SagaState" do
       attribute :name, String
+    end
+
+    # S17, ADR 0026 — HandlerText/DispatchText/Binding, hoisted up from
+    # the old standalone `aggregate "Handler"`/`aggregate "Dispatch"`. An
+    # entity cannot declare its own `value_object` (EntityBuilder has no
+    # such method — a piece borrows its owning aggregate's, the same way
+    # LedgerEntry borrows Account's Money), so these live here now, at
+    # the ROOT, where BOTH `entity "Handler"` and its own nested `entity
+    # "Dispatch"` can still reach them — a piece mints no value objects
+    # of its own AT ANY DEPTH, so there is exactly one pool however deep
+    # the nesting goes (`EntityBuilder#entity`'s own comment).
+    value_object "HandlerText" do
+      attribute :value, String
+    end
+
+    value_object "DispatchText" do
+      attribute :value, String
+    end
+
+    value_object "Binding" do
+      attribute :key,   String
+      attribute :value, String
     end
 
     # The way back: everything DECLARED IN the chapter above. The parent
@@ -191,55 +218,17 @@ Hecks.bluebook "Bluebook" do
 
       emits "SagaStateAttached"
     end
-  end
 
-  aggregate "Handler" do
-    description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings."
-
-    reference_to ProcessManager
-
-    # THE PROCESS MANAGER IT IS IN, AND THE EVENT IT ANSWERS. A saga answers each
-    # event once, so the event names the leg. The judge keyed this by POSITION
-    # ("#{parent}##{index}"), which is a mint : insert a leg above and every leg
-    # below is renamed. The event does not move.
-    identified_by :process_manager, :event_type
-
-    # No `saga` field. It named the old word for a process manager, held nothing —
-    # ProcessManagerHandler has no such reader, so every Handler record's saga
-    # was empty — and repeated the parent that `process_manager_id` already
-    # carries. A field that names the wrong thing, holds nothing, and duplicates
-    # the reference beside it.
-    #
-    # `event_type` is an event name, or one of the Trigger vocabulary's members
-    # when the leg answers something no aggregate announces.
-    attribute :event_type, HandlerText
-    attribute :from_state, HandlerText
-    attribute :to_state,   HandlerText
-
-    value_object "HandlerText" do
-      attribute :value, String
-    end
-
-    # The way back: everything DECLARED IN the process manager above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
-    value_object "Position" do
-      attribute :value, Integer
-    end
-
-    attribute :position, Position
-
-    query "DeclaredIn" do
-      attribute :process_manager, HandlerText
-      where(process_manager: :process_manager)
-      order_by :position
-    end
-    command "Declare" do
+    # THE HANDLER'S OWN CREATION. S17, ADR 0026 — Handler is a genuine
+    # ENTITY now (`entity "Handler"`, below), and an entity is never
+    # created through its own dotted verb — banking's own LedgerEntry is
+    # created by `Account.LogEntry`, an ordinary append on the OWNER,
+    # never by a `LedgerEntry.Declare` of its own
+    # (`EntityInterpreter#element_of` only LOCATES an element already on
+    # the list — it has no path that creates one). So Handler's creation
+    # moved here, onto ProcessManager, mirroring `State` beside it: a
+    # bare, aggregate-level append.
+    command "Handler" do
       role "Language"
       goal "Open a handler inside a process manager"
 
@@ -255,77 +244,80 @@ Hecks.bluebook "Bluebook" do
       attribute :from_state, HandlerText
       attribute :to_state,   HandlerText
 
-      attribute :position, Position, optional: true
+      sets :handlers, append: { event_type: :event_type, from_state: :from_state, to_state: :to_state }
+
       emits "LegDeclared"
     end
-  end
 
-  aggregate "Dispatch" do
-    description "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold."
+    # S17, ADR 0026 — ONE HANDLER, nested rather than its own root
+    # aggregate. No `saga` field. It named the old word for a process
+    # manager, held nothing — ProcessManagerHandler has no such reader,
+    # so every Handler record's saga was empty — and repeated the parent
+    # that its own containment already carries. A field that names the
+    # wrong thing, holds nothing, and duplicates the reference beside it.
+    #
+    # `event_type` is an event name, or one of the Trigger vocabulary's
+    # members when the leg answers something no aggregate announces — and
+    # is Handler's own real, non-positional identity now : a saga answers
+    # each event ONCE, so the event names the leg, and the process
+    # manager it belongs to is structural (which list this element sits
+    # in), not a stored field any more.
+    entity "Handler" do
+      description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings."
 
-    reference_to Handler
+      attribute :event_type, HandlerText
+      identified_by :event_type
 
-    # THE HANDLER IT IS IN, AND THE COMMAND IT SENDS — keyed by position before,
-    # for the same want of a way to say this. `handler` resolves through the
-    # reference above, the same way Handler's own `process_manager` does —
-    # not a duplicate text attribute (that collided with the bare reference's
-    # own mint under ADR 0025, and clobbered it in the args hash: the two
-    # shared one key, and whichever attribute's coercion ran last won).
-    identified_by :handler, :command_name
+      attribute :from_state, HandlerText
+      attribute :to_state,   HandlerText
+      # S17, ADR 0026 — Dispatch nested here too (see `entity "Dispatch"`,
+      # below), one level further in than Handler itself.
+      attribute :dispatches, list_of(Dispatch)
 
-    attribute :command_name, DispatchText
-    attribute :with_spec,    list_of(Binding)
+      # THE DISPATCH'S OWN CREATION — same reason Handler's own creation
+      # lives on ProcessManager, one level up: an entity is never created
+      # through its own dotted verb. Reached as a DOTTED verb itself
+      # (`ProcessManager.Handler.Dispatch`) since Handler, the owner
+      # doing the creating here, is an entity too, not a real aggregate
+      # with a bare verb of its own to dispatch into.
+      command "Dispatch" do
+        role "Language"
+        goal "Open a dispatch inside a handler"
 
-    value_object "DispatchText" do
-      attribute :value, String
-    end
+        attribute :command_name, DispatchText
 
-    value_object "Binding" do
-      attribute :key,   String
-      attribute :value, String
-    end
+        sets :dispatches, append: { command_name: :command_name }
 
-    # The way back: everything DECLARED IN the handler above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+        emits "SendDeclared"
+      end
 
-    attribute :position, Position
+      # S17, ADR 0026 — ONE COMMAND A HANDLER DISPATCHES, nested two
+      # levels in rather than its own root aggregate — "no life outside
+      # its Handler" (the ADR's own words). The bindings are an open
+      # map, which no value object can hold — that was always a reason
+      # it could not be one, never a reason it could not be an entity.
+      # `command_name` is Dispatch's own real, non-positional identity,
+      # the same shape Handler's own `event_type` just took one level up.
+      entity "Dispatch" do
+        description "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold."
 
-    query "DeclaredIn" do
-      attribute :handler, DispatchText
-      where(handler: :handler)
-      order_by :position
-    end
-    command "Declare" do
-      role "Language"
-      goal "Open a dispatch inside a handler"
+        attribute :command_name, DispatchText
+        identified_by :command_name
 
-      reference_to Handler
-      attribute :command_name, DispatchText
+        attribute :with_spec, list_of(Binding)
 
-      attribute :position, Position, optional: true
-      emits "SendDeclared"
-    end
+        command "Bind" do
+          role "Language"
+          goal "Bind one argument of the dispatched command"
 
-    command "Bind" do
-      role "Language"
-      goal "Bind one argument of the dispatched command"
+          attribute :key,   DispatchText
+          attribute :value, DispatchText
 
-      reference_to Dispatch
-      attribute :key,   DispatchText
-      attribute :value, DispatchText
+          sets :with_spec, append: { key: :key, value: :value }
 
-      sets :with_spec, append: { key: :key, value: :value }
-
-      emits "BindingAttached"
+          emits "BindingAttached"
+        end
+      end
     end
   end
 end

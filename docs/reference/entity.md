@@ -43,6 +43,8 @@ Hecks.bluebook "EntityReference" do
     value_object("Handler") { attribute :value, String }
     value_object("Slot")    { attribute :value, Integer }
 
+    value_object("Stamp") { attribute :value, String }
+
     entity "Crate" do
       attribute :slot, Slot
 
@@ -51,6 +53,22 @@ Hecks.bluebook "EntityReference" do
       # THE WORD THIS CHAPTER EXISTS FOR — a crate inside one manifest,
       # naming the depot that holds it, which is its own aggregate.
       reference_to Depot
+
+      attribute :seals, list_of(Seal)
+
+      command "Seal" do
+        attribute :stamp, Stamp
+        sets :seals, append: { stamp: :stamp }
+        emits "CrateSealed"
+      end
+
+      # THE WORD THE LAST SECTION OF THIS PAGE EXISTS FOR — a piece
+      # nested inside a piece: one inspection seal, inside one crate,
+      # inside one manifest.
+      entity "Seal" do
+        attribute :stamp, Stamp
+        identified_by :stamp
+      end
     end
 
     command "OpenManifest" do
@@ -306,5 +324,31 @@ The reference is stored on the crate itself, one field among its own:
 
 ```ruby
 EntityReference::Manifest.find("mf-1").crates.first[:depot_id]  # => "dp-1"
+```
+
+## entity
+
+<!-- generated:begin word=entity -->
+`entity name do ... end` — opens a `Entity` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+A piece nested inside a piece — the same word, opening the same body, one level further in than `Manifest`'s own `entity "Crate"` above. `EntityReference`'s `Crate` nests `Seal`: one inspection stamp, inside one crate, inside one manifest — "no life outside its Crate," the same way `Crate` itself has no life outside `Manifest`.
+
+A nested entity is created the same way any entity is: by its OWNER's own append command, never by a creating verb of its own. `Crate.Seal` is Crate's own command, and reaching it takes both outer identities — Manifest's own `docket`, then Crate's own `slot` — the same two-part reach `command.md`'s own reading through `parent` already uses one level down:
+
+```ruby
+runtime.dispatch("EntityReference::Manifest.Crate.Seal", docket: { value: "mf-1" }, slot: { value: 1 }, stamp: { value: "inspected-1" })
+EntityReference::Manifest.find("mf-1").crates.first[:seals].map { |seal| seal[:stamp][:value] }  # => ["inspected-1"]
+```
+
+A second seal appends beside the first — nested data, ordinary list semantics:
+
+```ruby
+runtime.dispatch("EntityReference::Manifest.Crate.Seal", docket: { value: "mf-1" }, slot: { value: 1 }, stamp: { value: "inspected-2" })
+EntityReference::Manifest.find("mf-1").crates.first[:seals].size  # => 2
 ```
 

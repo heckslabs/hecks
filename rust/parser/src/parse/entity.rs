@@ -12,7 +12,11 @@
 //! declares are `description`/`identified_by`/`attribute`/`command`/
 //! `query`/`lifecycle`, confirmed real by banking.bluebook's own
 //! `LedgerEntry`/`Withdrawal`/`Visit`/`KeyIssuance` (composite AND
-//! single-path identities, both TYPE and block/Paths forms).
+//! single-path identities, both TYPE and block/Paths forms). S17, ADR
+//! 0026 added a sixth: `entity`, nesting a piece inside a piece
+//! (`Dispatch`, inside `Handler`, reaction.bluebook) — "no `value_object`,
+//! no `policy`, no nested `entity`, no `reference_to`" is no longer
+//! quite the whole list ; `reference_to` is still the one real omission.
 
 use super::{command, lifecycle, query};
 use crate::build::identity;
@@ -67,6 +71,19 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
             "query" => {
                 let q_name = super::positional_text(file, line, "query", &gated.args, 1)?;
                 entity.queries.push(query::parse_body(file, lines, pos, &q_name)?);
+            }
+            // S17, ADR 0026 — a piece nested inside a piece (Dispatch,
+            // inside Handler). `owner_value_objects` passes straight
+            // through UNCHANGED, not re-derived from this entity's own
+            // attributes — a piece mints no value objects of its own at
+            // any depth (`EntityBuilder#entity`'s own comment: "there is
+            // exactly one pool, however deep the nesting goes"), the
+            // same reason `AggregateBuilder`'s own "entity" arm above
+            // builds its slice once and hands it to every entity at
+            // that level, unchanged.
+            "entity" => {
+                let e_name = super::positional_text(file, line, "entity", &gated.args, 1)?;
+                entity.entities.push(parse_body(file, lines, pos, &e_name, owner_value_objects)?);
             }
             _ => return Err(super::not_built_yet("Entity", gated.row, file, line, &gated.call.word)),
         }

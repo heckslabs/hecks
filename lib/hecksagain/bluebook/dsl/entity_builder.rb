@@ -9,6 +9,7 @@ module Hecksagain
           @name     = name
           @commands = []
           @queries  = []
+          @entities = []
           @owner_value_objects = owner_value_objects
         end
 
@@ -45,6 +46,21 @@ module Hecksagain
           @queries << QueryBuilder.build(name, owner_attributes: attributes, &block)
         end
 
+        # S17, ADR 0026 — A PIECE NESTED INSIDE A PIECE. "A `Dispatch`
+        # [has] no life outside its `Handler`" (the ADR's own words) —
+        # the same reason `Member` nests inside `ValueObject`, one level
+        # further in. `owner_value_objects` passes straight through
+        # unchanged, not re-derived from this entity's own attributes —
+        # a piece mints no value objects of its own at any depth, so a
+        # NESTED piece's bare `identified_by :field` still resolves
+        # against the SAME root aggregate's value objects an outer
+        # piece's already does (`AggregateBuilder#entity`'s own comment
+        # names this pool ; there is exactly one of them, however deep
+        # the nesting goes).
+        def entity(name, &block)
+          @entities << EntityBuilder.build(name, owner_value_objects: @owner_value_objects, &block)
+        end
+
         def lifecycle(field, default:, &block)
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end
@@ -59,6 +75,7 @@ module Hecksagain
             attributes:    attributes,
             commands:      @commands,
             queries:       @queries,
+            entities:      @entities,
             lifecycle:     @lifecycle
           )
         end
