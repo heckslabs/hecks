@@ -70,7 +70,7 @@ end
 
 policy "RetryOnPaymentFailure" do
   on      "ScheduledPayment.ScheduledPaymentFailed"
-  trigger "ScheduledPayment.Retry"
+  trigger ScheduledPayment::Retry
 end
 ```
 
@@ -222,7 +222,7 @@ literal the policy supplies itself.
 policy "FreezeAccountsOnSuspension" do
   on       "CustomerSuspended"
   for_each "Account.OpenForCustomer"
-  trigger  "Account.FreezeAccount", with: { account: :account }
+  trigger  Account::FreezeAccount, with: { account: :account }
 end
 ```
 
@@ -285,7 +285,7 @@ different domain entirely, `across` names it:
 # Account, in examples/banking/bluebook/banking.bluebook
 policy "ReviewOnFreeze" do
   on      "Account.AccountFrozen"
-  trigger "AccountFreezeReview.Open"
+  trigger AccountFreezeReview::Open
   across  "Compliance"
 end
 ```
@@ -348,25 +348,25 @@ process_manager "Settlement" do
   state "reversed"
 
   on "TransferRequested", transition: { "requested" => "requested" } do
-    dispatch "Banking::Account.Debit", with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
+    dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
   end
 
   on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
-    dispatch "Banking::Transfer.Debited", with: { transfer: :reference }
-    dispatch "Banking::Account.Credit", with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
+    dispatch Transfer::Debited, with: { transfer: :reference }
+    dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
   end
 
   on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
-    dispatch "Banking::Transfer.Credited", with: { transfer: :reference }
+    dispatch Transfer::Credited, with: { transfer: :reference }
   end
 
   on "TransferCredited", transition: { "awaiting_credit" => "settled" } do
-    dispatch "Banking::Transfer.Settle", with: { transfer: :reference }
+    dispatch Transfer::Settle, with: { transfer: :reference }
   end
 
   on :refused, transition: { "awaiting_credit" => "reversed" } do
-    dispatch "Banking::Account.Credit", with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
-    dispatch "Banking::Transfer.Reverse", with: { transfer: :reference }
+    dispatch Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+    dispatch Transfer::Reverse, with: { transfer: :reference }
   end
 end
 ```
@@ -485,7 +485,7 @@ process_manager "Onboarding" do
   state "declined"
 
   on "OnboardingCleared", transition: { "screening" => "cleared" } do
-    dispatch "Banking::Account.Open", with: {
+    dispatch Account::Open, with: {
       customer:    :customer,
       number:      :account_number,
       kind:        { name: "current" },

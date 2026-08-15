@@ -791,6 +791,20 @@ pub(crate) fn positional_constant<'a>(file: &str, line: usize, word: &str, args:
     positional_raw(file, line, word, args, at).map(|s| s.trim())
 }
 
+/// A COMMAND-REFERENCE positional argument — `trigger Account::Debit`
+/// (a bare command constant, `kind: "constant"`) or the LEGACY quoted
+/// spelling `trigger "Account.Debit"` (`kind: "text"`, still accepted by
+/// Ruby under `MetaValidator.shadow_parsing?`) — both declared as
+/// argument rows for the SAME `fills` slot (`trigger`'s own
+/// `trigger_command`, `dispatch`'s own `command_name`), so `argument_
+/// gate` already admits either lexical shape here; this just derives the
+/// same text `Hecksagain::Naming.command_ref` derives from whichever one
+/// was written.
+pub(crate) fn positional_command_ref(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
+    let raw = positional_raw(file, line, word, args, at)?;
+    Ok(crate::build::naming::command_ref(raw))
+}
+
 /// A NAMED argument's raw captured text, if the call gave one —
 /// `as: :name`, `optional: true`, `to: "sold"`.
 pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {

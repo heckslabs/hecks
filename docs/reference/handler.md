@@ -27,19 +27,21 @@ end
 ## dispatch
 
 <!-- generated:begin word=dispatch -->
-`dispatch command_name, with:` — opens a `Dispatch` body
+`dispatch command_name, command_name, with:` — opens a `Dispatch` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
+| positional 1 | constant | true | command_name |
 | positional 1 | text | true | command_name |
 | `with:` | pairs | false | with_spec |
 <!-- generated:end -->
 
 Fires a command from inside a handler leg, mapping the saga instance's
-own fields onto the command's arguments via `with:`. Same-domain by
-default like a policy's `trigger` — write `"Aggregate.Command"` — or
-prefix with `"Domain::"` to reach another domain directly; there is no
-separate `across` here, the qualified name carries it.
+own fields onto the command's arguments via `with:`. A bare command
+constant, same as a policy's `trigger` — `Aggregate::Command` — resolved
+same-domain by default, or `Domain::Aggregate::Command` to reach another
+domain directly; there is no separate `across` here, the qualified
+constant carries it.
 
 `examples/banking`'s `Onboarding` saga carries one dispatching leg, and
 `with:` is where the saga's own memory of the opening event becomes the
@@ -50,7 +52,7 @@ supplies itself:
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 on "OnboardingCleared", transition: { "screening" => "cleared" } do
-  dispatch "Banking::Account.Open", with: {
+  dispatch Account::Open, with: {
     customer: :customer, number: :account_number,
     kind: { name: "current" }, daily_limit: { cents: 0 }
   }
@@ -75,7 +77,7 @@ The delivery is recorded, so a leg that fired and a leg that never ran
 are distinguishable after the fact:
 
 ```ruby
-runtime.registry.saga_log.last[:dispatch]   # => "Banking::Account.Open"
+runtime.registry.saga_log.last[:dispatch]   # => "Account.Open"
 runtime.registry.saga_log.last[:delivered]  # => true
 ```
 

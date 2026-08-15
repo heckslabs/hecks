@@ -46,16 +46,16 @@ Hecks.bluebook "SagaFindings" do
     on "LegRequested", transition: { "requested" => "requested" } do
       # UNKNOWN DISPATCH: no aggregate in this domain answers to this
       # spelling — "Leg.Launch" does not exist ("Leg.Request" does).
-      dispatch "SagaFindings::Leg.Launch", with: { reference: :reference }
+      dispatch Leg::Launch, with: { reference: :reference }
     end
 
     # DEAF HANDLER: nothing ever emits "LegAdvanced" either.
     on "LegAdvanced", transition: { "requested" => "advanced" } do
-      dispatch "SagaFindings::Leg.Advance", with: { reference: :reference }
+      dispatch Leg::Advance, with: { reference: :reference }
     end
 
     on :refused, transition: { "advanced" => "compensated" } do
-      dispatch "SagaFindings::Leg.Advance", with: { reference: :reference }
+      dispatch Leg::Advance, with: { reference: :reference }
     end
   end
 end

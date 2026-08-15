@@ -100,7 +100,7 @@ RSpec.describe "a policy's trigger projection" do
         policy "RevokeOnBreach" do
           on       "BreachReported"
           for_each "Permit.ForHolder"
-          trigger  "Permit.Revoke", with: { permit: :permit }
+          trigger  Permit::Revoke, with: { permit: :permit }
         end
       end
 

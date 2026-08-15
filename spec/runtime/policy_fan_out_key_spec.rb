@@ -110,7 +110,7 @@ RSpec.describe "a for_each policy's row id" do
         policy "VoidChitsOnAlarm" do
           on       "Raised"
           for_each "Chit.LiveForHolder"
-          trigger  "Chit.Void"
+          trigger  Chit::Void
         end
       end
 

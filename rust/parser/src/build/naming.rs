@@ -17,6 +17,28 @@ pub fn demodulise(type_name: &str) -> String {
     type_name.rsplit("::").next().unwrap_or(type_name).to_string()
 }
 
+/// `Hecksagain::Naming.command_ref` — the command-reference text a bare
+/// command constant (`trigger Account::Debit`) OR the legacy quoted
+/// string (`trigger "Account.Debit"`, still accepted under
+/// `MetaValidator.shadow_parsing?`) resolves to. A String/Symbol value
+/// passes through unchanged (`value.to_s`); a bare constant chain is
+/// split at its LAST `::` and rejoined with `.` — `"Account::Debit"` ->
+/// `"Account.Debit"`, `"Banking::Account::Debit"` ->
+/// `"Banking::Account.Debit"` (only ONE `rpartition`, so an inner `::`
+/// stays exactly as written). `raw` is the argument's raw SOURCE text —
+/// quoted or bare — read the same way `positional_text` reads any other
+/// positional argument.
+pub fn command_ref(raw: &str) -> String {
+    match crate::ruby_value::read(raw.trim()) {
+        crate::ruby_value::Value::Str(s) => s,
+        crate::ruby_value::Value::Bare(bare) => match bare.rsplit_once("::") {
+            Some((path, command)) => format!("{path}.{command}"),
+            None => bare,
+        },
+        other => crate::ruby_value::to_s(&other),
+    }
+}
+
 /// `Hecksagain::Naming.snake` — `"PizzaName" -> "pizza_name"`. Mirrors
 /// the two-pass regex exactly: first split a run of capitals followed by
 /// a Capital+lowercase (`"HTTPServer"` -> `"HTTP_Server"`), then split a
@@ -135,5 +157,17 @@ mod tests {
     fn demodulises_a_namespaced_constant() {
         assert_eq!(demodulise("Pizzas::Order"), "Order");
         assert_eq!(demodulise("Order"), "Order");
+    }
+
+    #[test]
+    fn command_refs_a_bare_constant_by_its_last_namespace_segment() {
+        assert_eq!(command_ref("Account::Debit"), "Account.Debit");
+        assert_eq!(command_ref("Banking::Account::Debit"), "Banking::Account.Debit");
+        assert_eq!(command_ref("Debit"), "Debit");
+    }
+
+    #[test]
+    fn command_refs_a_legacy_quoted_string_unchanged() {
+        assert_eq!(command_ref("\"Account.Debit\""), "Account.Debit");
     }
 }

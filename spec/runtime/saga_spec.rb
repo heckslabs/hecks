@@ -65,7 +65,7 @@ RSpec.describe "a process manager" do
 
     # The refusal is still recorded — a fact about the domain, not a crash.
     expect(runtime.sagas).to include(
-      hash_including(dispatch: "Wire::Drawer.Put", delivered: false,
+      hash_including(dispatch: "Drawer.Put", delivered: false,
                      reason: "Put refused — the drawer is open")
     )
 
@@ -114,7 +114,7 @@ RSpec.describe "a process manager" do
       result = runtime.dispatch("Wire::Wire.Ask",
                                 reference: { value: "wire-defect" }, amount: { cents: 500 },
                                 source: "left", destination: "right")
-    }.to output(/Carry.*wire-defect.*Wire::Drawer\.Take.*after 4 attempts.*boom/m).to_stderr
+    }.to output(/Carry.*wire-defect.*Drawer\.Take.*after 4 attempts.*boom/m).to_stderr
 
     expect(result.events.map(&:name)).to eq(["WireAsked"])
     expect(Wire::Wire.find("wire-defect").status).to eq("asked")
@@ -127,7 +127,7 @@ RSpec.describe "a process manager" do
     # every attempt.
     expect(Wire::Drawer.find("left").cents.to_h).to eq(cents: 10_000)
 
-    take_log = runtime.sagas.select { |s| s[:dispatch] == "Wire::Drawer.Take" }
+    take_log = runtime.sagas.select { |s| s[:dispatch] == "Drawer.Take" }
     expect(take_log.count { |s| s[:retrying] }).to eq(3)
     expect(take_log.last).to include(delivered: false, defect: true, defect_compensated: true,
                                      error_class: "NoMethodError")
@@ -165,7 +165,7 @@ RSpec.describe "a process manager" do
       runtime.dispatch("Wire::Wire.Ask",
                        reference: { value: "wire-crash" }, amount: { cents: 1_000 },
                        source: "left", destination: "right")
-    }.to output(/Carry.*wire-crash.*Wire::Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
+    }.to output(/Carry.*wire-crash.*Drawer\.Put.*after 4 attempts.*boom/m).to_stderr
 
     expect(attempts).to eq(Hecksagain::Runtime::SagaInterpreter::MAX_DEFECT_RETRIES + 1)
 
@@ -174,7 +174,7 @@ RSpec.describe "a process manager" do
     expect(runtime.registry.saga_instances["Carry"]["wire-crash"][:state]).to eq("returned")
 
     expect(runtime.sagas).to include(
-      hash_including(process_manager: "Carry", instance: "wire-crash", dispatch: "Wire::Drawer.Put",
+      hash_including(process_manager: "Carry", instance: "wire-crash", dispatch: "Drawer.Put",
                      delivered: false, defect: true, defect_compensated: true, error_class: "NoMethodError")
     )
   end
@@ -201,7 +201,7 @@ RSpec.describe "a process manager" do
                      source: "left", destination: "right")
 
     expect(runtime.sagas).to include(
-      hash_including(process_manager: "Carry", instance: "wire-ceiling", dispatch: "Wire::Drawer.Put",
+      hash_including(process_manager: "Carry", instance: "wire-ceiling", dispatch: "Drawer.Put",
                      delivered: false, reason: "reaction depth 5 reached")
     )
 

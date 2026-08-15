@@ -43,7 +43,7 @@ Hecks.bluebook "Reflex" do
 
     policy "LogOnFlip" do
       on      "Flipped"
-      trigger "Light.Log"
+      trigger Light::Log
     end
 
     # THE SPECIFICATION OPTIONS, EXERCISED SOMEWHERE.
@@ -116,7 +116,7 @@ Hecks.bluebook "Reflex" do
 
     policy "RingOnRang" do
       on      "Rang"
-      trigger "Echo.Ring"
+      trigger Echo::Ring
     end
   end
 
@@ -140,7 +140,7 @@ Hecks.bluebook "Reflex" do
 
     policy "NotifyOnRaise" do
       on      "Raised"
-      trigger "Notifications.Send"
+      trigger Notifications::Send
       across  "Notifications"
     end
   end

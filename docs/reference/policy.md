@@ -95,7 +95,7 @@ Hecks.bluebook "PolicyReference" do
     # THE ROW, AND NOTHING ELSE. `Block` takes only which card; the
     # alert's own `ref`/`holder`/`severity` are none of its business,
     # and without this projection they would ride along and be refused.
-    trigger  "RefCard.Block", with: { ref_card: :ref_card }
+    trigger  RefCard::Block, with: { ref_card: :ref_card }
   end
 end
 ```
@@ -159,17 +159,18 @@ runtime.registry.reaction_log.last[:on]  # => "AccountFrozen"
 ## trigger
 
 <!-- generated:begin word=trigger -->
-`trigger trigger_command, with:` — fills `trigger_command`
+`trigger trigger_command, trigger_command, with:` — fills `trigger_command`
 
 | argument | kind | required | fills |
 |---|---|---|---|
+| positional 1 | constant | true | trigger_command |
 | positional 1 | text | true | trigger_command |
 | `with:` | pairs | false | with_spec |
 <!-- generated:end -->
 
-The command `on`'s event fires, named bare — `"Aggregate.Command"`,
-never domain-prefixed — because it defaults to this policy's own
-domain; see `across` to reach another one. Without `with:`, the event's
+The command `on`'s event fires, given as a bare command constant —
+`Aggregate::Command`, never domain-prefixed — because it defaults to
+this policy's own domain; see `across` to reach another one. Without `with:`, the event's
 whole payload forwards verbatim as the command's arguments, so the two
 shapes have to agree before either is written; `with:` is how a trigger
 whose shape is not its event's says what it actually needs. A policy
@@ -192,7 +193,7 @@ policy supplies itself.
 
 Left off, the whole payload forwards — which is a real constraint on the
 target, not a detail. `FreezeAccountsOnSuspension`, in the same chapter,
-reacts to `CustomerSuspended` and triggers `Account.FreezeAccount`;
+reacts to `CustomerSuspended` and triggers `Account::FreezeAccount`;
 without a projection, `FreezeAccount` would have to be able to TAKE the
 `standing` that event carries, a field a freeze never reads, and Account
 would need a value object declared solely to type it. Naming what the
@@ -203,7 +204,7 @@ trigger wants is what makes that unnecessary:
 policy "FreezeAccountsOnSuspension" do
   on       "CustomerSuspended"
   for_each "Account.OpenForCustomer"
-  trigger  "Account.FreezeAccount", with: { account: :account }
+  trigger  Account::FreezeAccount, with: { account: :account }
 end
 ```
 
@@ -232,7 +233,7 @@ policy's own. Leave it off and `trigger` is assumed to name a command
 in the same domain as the event that fired it — the ordinary case.
 
 `ReviewOnFreeze` declares `across "Compliance"`, and that is the whole
-difference between the bare `"AccountFreezeReview.Open"` it writes and
+difference between the bare `AccountFreezeReview::Open` it writes and
 the fully-qualified command the runtime actually dispatched:
 
 ```ruby

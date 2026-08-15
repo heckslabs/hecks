@@ -2,6 +2,6 @@
 Hecks.bluebook "FixturePolicy" do
   policy "NotifyOnCreate" do
     on "Widget.Created"
-    trigger "Notify"
+    trigger Widget::Notify
   end
 end

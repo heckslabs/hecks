@@ -151,7 +151,7 @@ fn parse_dispatches(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseR
         };
         match gated.row.word {
             "dispatch" => {
-                let command_name = super::positional_text(file, gated.line.number, "dispatch", &gated.args, 1)?;
+                let command_name = super::positional_command_ref(file, gated.line.number, "dispatch", &gated.args, 1)?;
                 let with_spec = parse_with_pairs_opt(&gated.args);
                 dispatches.push(ir::DispatchSpec { command_name, with_spec });
             }

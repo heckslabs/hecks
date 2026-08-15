@@ -156,6 +156,6 @@ Hecks.bluebook "Pizzas" do
   # pizzas.hecksagon for the port this reacts to.
   policy "OnPizzaPaymentReceived" do
     on "PizzaPaymentReceived"
-    trigger "Order.Purchase"
+    trigger Order::Purchase
   end
 end

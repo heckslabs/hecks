@@ -60,11 +60,11 @@ Hecks.bluebook "Payments" do
 
   policy "OnPaymentReceived" do
     on "PaymentReceived"
-    trigger "Payment.ConfirmReceipt"
+    trigger Payment::ConfirmReceipt
   end
 
   policy "OnPaymentDeclined" do
     on "PaymentDeclined"
-    trigger "Payment.RejectPayment"
+    trigger Payment::RejectPayment
   end
 end

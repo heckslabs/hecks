@@ -183,7 +183,13 @@ module Hecksagain
           end
 
           handler.dispatches.each do |dispatch|
-            next if verbs.include?(dispatch.command_name)
+            # SAME-DOMAIN, same as `SagaInterpreter#qualified` — a dispatch
+            # naming no domain at all (the ordinary shape a bare command
+            # constant now produces, S6) means THIS one, and is compared
+            # against `verbs_of`'s own fully-qualified spelling qualified
+            # the identical way, not left bare to miss it on a technicality.
+            qualified = dispatch.command_name.include?("::") ? dispatch.command_name : "#{bluebook.name}::#{dispatch.command_name}"
+            next if verbs.include?(qualified)
 
             findings << Finding.new(kind: :unknown_dispatch, severity: :error, subject: pm.name,
                                      message: "dispatches #{dispatch.command_name.inspect}, which this domain " \

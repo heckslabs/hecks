@@ -836,7 +836,7 @@ RSpec.describe "the DSL surface" do
       reaction = build_bluebook("Reacting") do
         policy "NotifyOnPlacement" do
           on      "OrderPlaced"
-          trigger "Notify.Send"
+          trigger Notify::Send
           across  "Notifications"
         end
       end.policies.first
@@ -855,7 +855,7 @@ RSpec.describe "the DSL surface" do
           state "paid"
 
           on "PaymentAuthorized", transition: { "awaiting_payment" => "paid" } do
-            dispatch "Order.Confirm", with: { order: :order_id }
+            dispatch Order::Confirm, with: { order: :order_id }
           end
         end
       end.process_managers.first
@@ -876,7 +876,7 @@ RSpec.describe "the DSL surface" do
             correlates_by :"id.value"
             starts_on "Started"
             on "Next", transition: { "a" => "b" } do
-              dispatch "X.Y"
+              dispatch X::Y
             end
           end
         end
@@ -891,7 +891,7 @@ RSpec.describe "the DSL surface" do
             starts_on "Started"
             state "a"
             on "Next", transition: { "a" => "nowhere" } do
-              dispatch "X.Y"
+              dispatch X::Y
             end
           end
         end
@@ -937,7 +937,7 @@ RSpec.describe "the DSL surface" do
             state "a"
             state "b"
             on "Started", transition: { "a" => "b" } do
-              dispatch "Thing.Start"
+              dispatch Thing::Start
             end
           end
         end
@@ -976,7 +976,7 @@ RSpec.describe "the DSL surface" do
             state "a"
             state "b"
             on "Started", transition: { "a" => "b" } do
-              dispatch "Thing.Start"
+              dispatch Thing::Start
             end
           end
         end
@@ -1822,7 +1822,7 @@ RSpec.describe "the DSL surface" do
       reaction = build_aggregate("Reactive") do
         policy "ChargeOnPlacement" do
           on      "Order.Placed"
-          trigger "Payment.Charge"
+          trigger Payment::Charge
         end
       end.policies.first
 

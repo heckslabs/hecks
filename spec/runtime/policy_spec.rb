@@ -216,7 +216,7 @@ RSpec.describe "a policy" do
           policy "NotifyOnFlag" do
             on      "Customer.Flagged"
             where { risk == "high" }
-            trigger "Customer.Acknowledge"
+            trigger Customer::Acknowledge
           end
 
           # THE GUARD AND THE FAN-OUT TOGETHER — the task's own worked
@@ -227,7 +227,7 @@ RSpec.describe "a policy" do
             on       "Customer.Flagged"
             where { risk == "high" }
             for_each "Account.OpenForCustomer"
-            trigger  "Account.Review"
+            trigger  Account::Review
           end
         end
 

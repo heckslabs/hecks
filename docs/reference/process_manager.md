@@ -25,7 +25,7 @@ process_manager "Onboarding" do
   state "declined"
 
   on "OnboardingCleared", transition: { "screening" => "cleared" } do
-    dispatch "Banking::Account.Open", with: {
+    dispatch Account::Open, with: {
       customer: :customer, number: :account_number,
       kind: { name: "current" }, daily_limit: { cents: 0 }
     }

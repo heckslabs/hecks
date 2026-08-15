@@ -21,8 +21,28 @@ module Hecksagain
         # command on the other. Without it the target has to DECLARE
         # every field the event happens to carry, whether it reads them
         # or not.
-        def trigger(command_name, with: nil)
-          @trigger_command = command_name.to_s
+        # THE COMMAND ITSELF, NOT ITS NAME (ADR 0025, "events and
+        # reactions" — command references become first-class): `trigger
+        # Account::Debit`, a bare constant `ConstShim` resolves the same
+        # way `reference_to Account` always has, not a quoted verb string.
+        # Collapses the qualified/unqualified split this word and a
+        # saga's own `dispatch` used to disagree about — see
+        # `Naming.command_ref`'s own header for how the `::`/`.` rewrite
+        # works, and `SagaInterpreter#qualified` for why an unqualified
+        # form has always been enough (same-domain is the fallback, so
+        # `Account::Debit` and `Banking::Account::Debit` mean the same
+        # thing here).
+        #
+        # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era
+        # text still writes the quoted form.
+        def trigger(command_ref, with: nil)
+          if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
+            raise Malformed,
+                  "#{@name}'s trigger #{command_ref.inspect} is quoted text — give the bare command " \
+                  "constant instead, e.g. trigger Account::Debit"
+          end
+
+          @trigger_command = Naming.command_ref(command_ref)
           @with_spec = (with || {}).to_a
         end
 

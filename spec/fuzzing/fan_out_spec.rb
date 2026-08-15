@@ -84,7 +84,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
           on       "Customer.Flagged"
           where { risk == "high" }
           for_each "Account.OpenForCustomer"
-          trigger  "Account.Review"
+          trigger  Account::Review
         end
       end
 

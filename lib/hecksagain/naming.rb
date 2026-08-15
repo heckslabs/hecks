@@ -93,5 +93,30 @@ module Hecksagain
 
       [domain, aggregate, command]
     end
+
+    # `trigger Account::Debit` / `dispatch Account::Debit` — a bare
+    # CONSTANT reference (`ConstShim`'s own `ScopedConstant`, S0b), not
+    # text (ADR 0025, "events and reactions" — command references become
+    # first-class). Ruby's `::` joins EVERY segment the same way a
+    # constant path always does, but a command's own `hecks_fqn` joins
+    # its aggregate with `.` (`Construct#hecks_separator`'s default,
+    # only an AGGREGATE overrides it to `::`) — so only the LAST `::`
+    # becomes a `.`; everything before it (the chapter, when a domain is
+    # spelled at all: `Banking::Account::Debit`) stays `::`-joined.
+    #
+    # A STRING PASSES THROUGH UNCHANGED, on purpose — legacy era text
+    # (S0a's own shadow-parsed spelling) already mixes `::` (domain) and
+    # `.` (command) correctly on its own, e.g. `"Banking::Account.Debit"`,
+    # and re-splitting that by content rather than by TYPE would corrupt
+    # it (its own last `::` sits between the domain and the aggregate,
+    # not the aggregate and the command). Only an actual constant object
+    # — never seen holding a `.` of its own — needs the rewrite at all.
+    def command_ref(value)
+      return value.to_s if value.is_a?(::String) || value.is_a?(::Symbol)
+
+      text = value.to_s
+      path, _, command = text.rpartition("::")
+      path.empty? ? text : "#{path}.#{command}"
+    end
   end
 end

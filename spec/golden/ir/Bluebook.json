@@ -13892,6 +13892,36 @@
               ],
               [
                 "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "trigger_command"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "trigger"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
                 "text"
               ],
               [
@@ -14183,6 +14213,36 @@
               [
                 "pairs_shape",
                 "fields"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command_name"
               ]
             ],
             [

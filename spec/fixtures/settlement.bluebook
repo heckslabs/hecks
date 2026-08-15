@@ -141,7 +141,7 @@ Hecks.bluebook "Wire" do
     on "WireAsked", transition: { "asked" => "asked" } do
       # `reference:` carries the correlation forward — Drawer does not
       # reference Wire, so this is pure passthrough, not an addressing key.
-      dispatch "Wire::Drawer.Take", with: { number: :source, amount: :amount, reference: :reference }
+      dispatch Drawer::Take, with: { number: :source, amount: :amount, reference: :reference }
     end
 
     on "Taken", transition: { "asked" => "carrying" } do
@@ -150,12 +150,12 @@ Hecks.bluebook "Wire" do
       # == "wire"), addressing which record to act on. The VALUE stays
       # `:reference`, reading the correlation the same way every other leg
       # does.
-      dispatch "Wire::Wire.Moved",  with: { wire: :reference }
-      dispatch "Wire::Drawer.Put",  with: { number: :destination, amount: :amount, reference: :reference }
+      dispatch Wire::Moved,  with: { wire: :reference }
+      dispatch Drawer::Put,  with: { number: :destination, amount: :amount, reference: :reference }
     end
 
     on "PutIn", transition: { "carrying" => "landed" } do
-      dispatch "Wire::Wire.Landed", with: { wire: :reference }
+      dispatch Wire::Landed, with: { wire: :reference }
     end
 
     # The compensating leg, and its trigger is a REFUSAL rather than an event —
@@ -164,8 +164,8 @@ Hecks.bluebook "Wire" do
     # stalled and dispatch Wire.Returned by hand ; until they did, the money was
     # out of the source drawer and nowhere else.
     on :refused, transition: { "carrying" => "returned" } do
-      dispatch "Wire::Drawer.Put",    with: { number: :source, amount: :amount, reference: :reference }
-      dispatch "Wire::Wire.Returned", with: { wire: :reference }
+      dispatch Drawer::Put,    with: { number: :source, amount: :amount, reference: :reference }
+      dispatch Wire::Returned, with: { wire: :reference }
     end
   end
 end

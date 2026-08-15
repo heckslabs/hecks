@@ -40,7 +40,7 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             "on" => policy.on_event = Some(super::positional_text(file, gated.line.number, "on", &gated.args, 1)?),
             "trigger" => {
                 policy.trigger_command =
-                    Some(super::positional_text(file, gated.line.number, "trigger", &gated.args, 1)?);
+                    Some(super::positional_command_ref(file, gated.line.number, "trigger", &gated.args, 1)?);
                 // STAGE 4: `trigger`'s own `with:` — the projection
                 // between an event's shape and its trigger's. Read by
                 // the SAME parser `dispatch`'s own `with:` uses; the two

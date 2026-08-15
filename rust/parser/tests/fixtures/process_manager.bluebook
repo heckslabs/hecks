@@ -7,7 +7,7 @@ Hecks.bluebook "FixtureProcessManager" do
     starts_on "Widget.Created"
 
     on "Widget.Created", transition: { "start" => "started" } do
-      dispatch "Notify"
+      dispatch Widget::Notify
     end
   end
 end

@@ -101,9 +101,20 @@ module Hecksagain
 
           def initialize = @dispatches = []
 
-          def dispatch(command_name, with: nil)
+          # THE COMMAND ITSELF (ADR 0025, "events and reactions" — command
+          # references become first-class), same shape and same reasons
+          # as `PolicyBuilder#trigger`'s own header — bare constant live,
+          # quoted text only under shadow-parsing (S0a's bridge; frozen
+          # era text still writes `dispatch "Banking::Account.Debit"`).
+          def dispatch(command_ref, with: nil)
+            if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
+              raise InvalidProcessManager,
+                    "dispatch #{command_ref.inspect} is quoted text — give the bare command constant " \
+                    "instead, e.g. dispatch Account::Debit"
+            end
+
             @dispatches << DispatchSpec.new(
-              command_name: command_name,
+              command_name: Naming.command_ref(command_ref),
               with_spec:    (with || {}).to_a
             )
           end

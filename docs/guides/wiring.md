@@ -44,7 +44,7 @@ end
 # the business rules stay on Purchase itself, reached only through this.
 policy "OnPizzaPaymentReceived" do
   on "PizzaPaymentReceived"
-  trigger "Order.Purchase"
+  trigger Order::Purchase
 end
 ```
 

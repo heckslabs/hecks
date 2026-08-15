@@ -29,13 +29,13 @@ Hecks.bluebook "PolicyFindings" do
   # DEAF POLICY: nothing in this domain ever emits "NoteArchived".
   policy "OnArchive" do
     on      "NoteArchived"
-    trigger "Note.Stamp"
+    trigger Note::Stamp
   end
 
   # UNKNOWN TRIGGER: "Note.Vanish" resolves to no command this domain
   # declares — the event is real, the target is not.
   policy "OnWrite" do
     on      "NoteWritten"
-    trigger "Note.Vanish"
+    trigger Note::Vanish
   end
 end

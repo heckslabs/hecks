@@ -795,7 +795,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "list",  required: "false", fills: "from_state"
 
       member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event"
-      member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command"
+      # THE COMMAND ITSELF, A BARE CONSTANT (ADR 0025, "events and
+      # reactions" — command references become first-class), always
+      # required. A SECOND ROW FOR THE SAME POSITION admits the OLD
+      # quoted-text form too — frozen era text still writes it, answered
+      # only under `MetaValidator.shadow_parsing?` (S0a's bridge); live
+      # source refuses it (`PolicyBuilder#trigger`'s own check).
+      member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command"
+      member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text",     required: "true", fills: "trigger_command"
       member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"
       # `where` has no Argument row — its only argument is the block
       # `body: "source"` already captures (see its own Keyword-row
@@ -825,6 +832,9 @@ Hecks.bluebook "Bluebook" do
       member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "false", fills: "event_type"
       member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields"
 
+      # Same two-row shape as Policy's own `trigger`, above — a bare
+      # constant live, the old quoted-text row kept for shadow-parsing.
+      member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "constant", required: "true",  fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 

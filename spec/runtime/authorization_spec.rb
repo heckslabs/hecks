@@ -59,7 +59,7 @@ RSpec.describe "role-based command rejections" do
 
     policy "StartPrep" do
       on      "OrderPlaced"
-      trigger "Order.Prepare"
+      trigger Order::Prepare
     end
   end
 

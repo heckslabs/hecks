@@ -61,7 +61,7 @@ RSpec.describe "a procedure, and when it is a saga" do
           state "screened"
 
           on "CandidateApplied", transition: { "applied" => "screened" } do
-            dispatch "Hiring::Candidate.Screen", with: { candidate: :candidate }
+            dispatch Candidate::Screen, with: { candidate: :candidate }
           end
         end
       end
@@ -102,7 +102,7 @@ RSpec.describe "a procedure, and when it is a saga" do
     # When compensation moves beside each dispatch this reads the completed legs
     # newest-first instead, and the shape here does not change.
     expect(settlement.saga.undoes).to eq(
-      ["Banking::Account.Credit", "Banking::Transfer.Reverse"]
+      ["Account.Credit", "Transfer.Reverse"]
     )
   end
 

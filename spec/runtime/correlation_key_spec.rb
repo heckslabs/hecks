@@ -69,7 +69,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
             # nothing here on purpose. Nor does the own-reference-key
             # fallback : Alarm's own reference key is "alarm", not "code".
             # Only the stamp resolves it.
-            dispatch "Alarm.Open", with: { label: { value: "backup" } }
+            dispatch Alarm::Open, with: { label: { value: "backup" } }
           end
         end
       end

@@ -68,6 +68,10 @@ module Hecksagain
           validate_correlation_keys!
           validate_no_bidirectional_references!
           policies = @aggregates.flat_map(&:policies) + @policies
+          unless MetaValidator.shadow_parsing?
+            validate_event_shapes!
+            validate_with_projections!(policies)
+          end
 
           # The chapter is the top of the construct chain — `Bluebook` is a
           # ROOT, and its constructor stamps every aggregate and read model with
@@ -142,6 +146,195 @@ module Hecksagain
 
           raise Malformed,
                 "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
+        end
+
+        # EVENTS ARE FIRST-CLASS BY CONVENTION, NOT BY DECLARATION (ADR
+        # 0025, "events and reactions" — "a domain event is a value
+        # object with its own attributes, not a label"). No new `event
+        # do ... end` construct exists to hand-author and keep in step
+        # with every emitting command by hand — an event's own known
+        # shape IS whichever command(s) declare `emits` for its name, and
+        # this is the ONE thing that has to hold for that convention to
+        # mean anything: every command that emits a given name has to
+        # agree on what it carries. An event is one fact; a fact does not
+        # carry two different truths depending on who is telling it.
+        #
+        # STRUCTURAL fields only (name/type/list/optional) — `pattern:`/
+        # `admits:`/`default:` are refinements ON a field, not a second
+        # claim about what the payload holds, so two emitting commands
+        # are free to differ there without actually disagreeing about
+        # the event's own shape.
+        def validate_event_shapes!
+          event_emitters.each do |event_name, pairs|
+            next if pairs.size == 1
+
+            shapes = pairs.map { |(_, command)| event_shape(command) }.uniq
+            next if shapes.size == 1
+
+            named = pairs.map { |(owner, command)| "#{owner}.#{command.hecks_name}" }.sort
+            raise Malformed,
+                  "#{event_name.inspect} is emitted with different shapes by #{named.join(' and ')} — " \
+                  "an event is one fact, and every command that emits it must declare the same fields"
+          end
+        end
+
+        # THE "EXPENSIVE HALF" the ADR names: "with: { account: :account }
+        # projecting into a reaction that has no declared contract ...
+        # breaks at dispatch rather than at load." Checked here, now that
+        # `validate_event_shapes!` (above) guarantees at most one real
+        # shape per event name, and command references being first-class
+        # (`Naming.command_ref`) means the TARGET side is a real
+        # resolvable command, not a string that might be a typo.
+        #
+        # SAME-CHAPTER ONLY, ON PURPOSE — a `with:` whose source event or
+        # target command lives outside this chapter (an `across` policy
+        # reacting to another domain's event entirely) is silently left
+        # unchecked rather than refused: there is nothing here yet to
+        # check it against, and "unresolvable" is not the same claim as
+        # "wrong."
+        #
+        # A FOR_EACH POLICY'S SOURCE ISN'T THE EVENT AT ALL — a fan-out
+        # `with:`'s symbols read the QUERY ROW `for_each` answers
+        # (FreezeAccountsOnSuspension's own comment: "`account` is the
+        # key the fan-out merges for each row"), which this has no shape
+        # for; the SOURCE half is skipped for those, the TARGET half
+        # (does the dispatched command actually declare the field) still
+        # runs, since that half is true regardless of where the value
+        # came from.
+        def validate_with_projections!(policies)
+          lookup = command_lookup
+
+          policies.each do |policy|
+            next if policy.with_spec.to_a.empty?
+
+            source_event = policy.for_each.to_s.empty? ? policy.on_event : nil
+            check_with_spec!(policy.trigger_command, source_event, policy.with_spec, lookup,
+                              "#{policy.name}'s trigger")
+          end
+
+          @process_managers.each do |pm|
+            pm.handlers.each do |handler|
+              handler.dispatches.each do |dispatch|
+                next if dispatch.with_spec.to_a.empty?
+
+                check_with_spec!(dispatch.command_name, handler.event_type, dispatch.with_spec, lookup,
+                                  "#{pm.name}'s dispatch #{dispatch.command_name}", pm: pm)
+              end
+            end
+          end
+        end
+
+        # `pm:` is present only for a process manager's own dispatch — a
+        # saga leg's source symbol resolves against the CURRENT triggering
+        # event first, same as a policy, but falls all the way back to the
+        # saga's own MEMORY when the current event does not carry it
+        # (`SagaInterpreter#dispatch_args`, its own last `else`) — and
+        # memory starts as the OPENING event's payload
+        # (`SagaInterpreter#instance = { ..., memory: event.payload }`,
+        # never updated after), never the leg's own. Settlement's own
+        # comment names exactly this: "the credit leg reads a destination
+        # no event carried" — `AccountDebited` never declares `:reference`,
+        # only `TransferRequested` (`pm.starts_on`) does, and that is
+        # where the value is genuinely still coming from.
+        def check_with_spec!(command_ref, event_name, with_spec, lookup, label, pm: nil)
+          target        = lookup[command_ref]
+          source_shape  = event_name && event_shape_for(event_name)
+          memory_shape  = pm && event_shape_for(pm.starts_on)
+          correlation   = pm && pm.correlates_by && pm.correlation_head
+
+          with_spec.each do |field, source|
+            if target && !command_declares?(target, field)
+              raise Malformed, "#{label}'s with: names #{field.inspect}, which #{command_ref} does not declare"
+            end
+
+            next unless source.is_a?(::Symbol)
+            next if source == correlation
+            next unless source_shape || memory_shape
+
+            found = [source_shape, memory_shape].compact.any? { |shape| shape.any? { |name, *| name == source } }
+            next if found
+
+            raise Malformed, "#{label}'s with: reads :#{source} off #{event_name.inspect}, which does not declare it"
+          end
+        end
+
+        # A command's OWN `reference_to` (bare, no `as:`) never lands in
+        # `attributes` — `CommandBuilder#reference_to`'s self-reference
+        # branch sets `command.references` instead (S2), and mints no new
+        # field at all. What addresses it is not one name but the SAME
+        # SET `CommandInterpreter::ArgumentGate#refuse_unknown_arguments`
+        # already accepts at dispatch time — `:id`, the owning aggregate's
+        # own `identity_heads` (real corpus proof — `Account.Debit`
+        # dispatched everywhere as `number: ...`, `Account`'s own
+        # `identified_by`), AND `Naming.reference_key(command.references)`
+        # (real corpus proof — `FreezeAccountsOnSuspension`'s `for_each`
+        # fan-out, whose own comment reads "`account` is the key the
+        # fan-out merges for each row it answers"). Both are simultaneously
+        # legal there, not context-dependent alternatives, so both are
+        # legal here : this mirrors that gate rather than re-deriving a
+        # narrower rule that would refuse one of two real, already-shipped
+        # dispatch conventions.
+        def command_declares?(command, field)
+          return true if command.attributes.any? { |a| a.name == field }
+          return true if field == :id
+          return true if correlation_heads.include?(field)
+          return false unless command.references
+
+          referenced = @aggregates.find { |a| a.hecks_name == command.references }
+          return false unless referenced
+
+          referenced.identity_heads.include?(field) || Naming.reference_key(command.references) == field
+        end
+
+        # THE FOURTH addressing key `ArgumentGate#refuse_unknown_arguments`
+        # accepts, alongside `:id`/`identity_heads`/`reference_key` — every
+        # saga in THIS domain's own `correlates_by` head, carried through
+        # every dispatch as pure passthrough (Settlement's own comment:
+        # "`reference:` carries the correlation forward... this is pure
+        # passthrough, not an addressing key"). A command declaring none of
+        # its attributes named this is not a gap; the correlation key rides
+        # through commands that never read it, same as it does at runtime.
+        def correlation_heads
+          @correlation_heads ||= @process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
+        end
+
+        # Every command this chapter declares, an aggregate's own AND
+        # every entity nested inside one, paired with a name for what
+        # declares it — shared by `validate_event_shapes!` and
+        # `validate_with_projections!`'s own command lookup, the same
+        # reach `HecksagonBuilder#commands_in` needs one level up (S8).
+        def each_command
+          return enum_for(:each_command) unless block_given?
+
+          @aggregates.each do |aggregate|
+            aggregate.commands.each { |command| yield aggregate.hecks_name, command }
+            aggregate.entities.each do |entity|
+              entity.commands.each { |command| yield "#{aggregate.hecks_name}.#{entity.hecks_name}", command }
+            end
+          end
+        end
+
+        def event_emitters
+          @event_emitters ||= each_command.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(owner, command), index|
+            command.emits.each { |event_name| index[event_name] << [owner, command] }
+          end
+        end
+
+        def event_shape(command)
+          command.attributes.map { |a| [a.name, a.type, a.list?, a.optional?] }.sort
+        end
+
+        def event_shape_for(event_name)
+          pairs = event_emitters.fetch(event_name.to_s, [])
+          return nil if pairs.empty?
+
+          event_shape(pairs.first.last)
+        end
+
+        def command_lookup
+          each_command.each_with_object({}) do |(owner, command), index|
+            index["#{owner}.#{command.hecks_name}"] = command
+          end
         end
 
         # A REFERENCE RING IS NOT A MODELLING CHOICE, IT IS A MISSING ONE

@@ -31,12 +31,12 @@ construct in this language is. Its DSL surface is exactly three methods
 ```ruby
 policy "FreezeAccountsOnSuspension" do
   on      "CustomerSuspended"
-  trigger "Account.FreezeAccount"
+  trigger Account::FreezeAccount
 end
 
 policy "NotifyOnClosure" do
   on      "AccountClosed"
-  trigger "Notifications.Send"
+  trigger Notifications::Send
   across  "Notifications"
 end
 ```

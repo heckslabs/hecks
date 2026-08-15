@@ -5745,7 +5745,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::Account.Debit",
+              "command_name": "Account.Debit",
               "with_spec": [
                 [
                   "number",
@@ -5773,7 +5773,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::Transfer.Debited",
+              "command_name": "Transfer.Debited",
               "with_spec": [
                 [
                   "transfer",
@@ -5782,7 +5782,7 @@
               ]
             },
             {
-              "command_name": "Banking::Account.Credit",
+              "command_name": "Account.Credit",
               "with_spec": [
                 [
                   "number",
@@ -5810,7 +5810,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::Transfer.Credited",
+              "command_name": "Transfer.Credited",
               "with_spec": [
                 [
                   "transfer",
@@ -5826,7 +5826,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::Transfer.Settle",
+              "command_name": "Transfer.Settle",
               "with_spec": [
                 [
                   "transfer",
@@ -5842,7 +5842,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::Account.Credit",
+              "command_name": "Account.Credit",
               "with_spec": [
                 [
                   "number",
@@ -5859,7 +5859,7 @@
               ]
             },
             {
-              "command_name": "Banking::Transfer.Reverse",
+              "command_name": "Transfer.Reverse",
               "with_spec": [
                 [
                   "transfer",
@@ -5889,7 +5889,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::ExternalTransfer.SendTransfer",
+              "command_name": "ExternalTransfer.SendTransfer",
               "with_spec": [
                 [
                   "end_to_end",
@@ -5905,7 +5905,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::ExternalTransfer.Return",
+              "command_name": "ExternalTransfer.Return",
               "with_spec": [
                 [
                   "end_to_end",
@@ -5934,7 +5934,7 @@
         {
           "dispatches": [
             {
-              "command_name": "Banking::Account.Open",
+              "command_name": "Account.Open",
               "with_spec": [
                 [
                   "customer",

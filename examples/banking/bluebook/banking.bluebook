@@ -554,7 +554,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
     policy "ReviewOnFreeze" do
       on      "Account.AccountFrozen"
-      trigger "AccountFreezeReview.Open"
+      trigger AccountFreezeReview::Open
       across  "Compliance"
     end
   end
@@ -1240,7 +1240,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
     policy "RetryOnPaymentFailure" do
       on      "ScheduledPayment.ScheduledPaymentFailed"
-      trigger "ScheduledPayment.Retry"
+      trigger ScheduledPayment::Retry
     end
   end
 
@@ -1678,12 +1678,12 @@ Hecks.bluebook "Banking", version: "v1" do
     # `CustomerSuspended`'s own `standing` from riding along — leave
     # `with:` off and `FreezeAccount` would have to declare a field it
     # never reads just to be reachable.
-    trigger  "Account.FreezeAccount", with: { account: :account }
+    trigger  Account::FreezeAccount, with: { account: :account }
   end
 
   policy "NotifyOnClosure" do
     on      "AccountClosed"
-    trigger "Notifications.Send"
+    trigger Notifications::Send
     across  "Notifications"
   end
 
@@ -1691,13 +1691,13 @@ Hecks.bluebook "Banking", version: "v1" do
   # names why both facts are real; this is where each finds its audience.
   policy "ReviewOnBoxSurrender" do
     on      "BoxSurrendered"
-    trigger "BoxSurrenderReview.Open"
+    trigger BoxSurrenderReview::Open
     across  "Compliance"
   end
 
   policy "FlagKeyReturn" do
     on      "KeyReturnDue"
-    trigger "Notifications.Send"
+    trigger Notifications::Send
     across  "Notifications"
   end
 
@@ -1722,7 +1722,7 @@ Hecks.bluebook "Banking", version: "v1" do
       # memory of the opening payload. `reference:` carries the correlation
       # forward — Account.Debit does not reference Transfer, so this is pure
       # passthrough, not an addressing key.
-      dispatch "Banking::Account.Debit", with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
+      dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
     end
 
     on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
@@ -1731,16 +1731,16 @@ Hecks.bluebook "Banking", version: "v1" do
       # ("Banking::Transfer") == "transfer"), addressing which record to act
       # on. The VALUE stays `:reference`, reading the correlation the same
       # way every other leg does.
-      dispatch "Banking::Transfer.Debited", with: { transfer: :reference }
-      dispatch "Banking::Account.Credit", with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
+      dispatch Transfer::Debited, with: { transfer: :reference }
+      dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
     end
 
     on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
-      dispatch "Banking::Transfer.Credited", with: { transfer: :reference }
+      dispatch Transfer::Credited, with: { transfer: :reference }
     end
 
     on "TransferCredited", transition: { "awaiting_credit" => "settled" } do
-      dispatch "Banking::Transfer.Settle", with: { transfer: :reference }
+      dispatch Transfer::Settle, with: { transfer: :reference }
     end
 
     # The compensating leg, triggered by a REFUSAL rather than an event. It hung
@@ -1749,8 +1749,8 @@ Hecks.bluebook "Banking", version: "v1" do
     # left the debit standing, the settlement stuck in awaiting_credit, and the
     # amount nowhere. The reversal was written and never armed.
     on :refused, transition: { "awaiting_credit" => "reversed" } do
-      dispatch "Banking::Account.Credit", with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
-      dispatch "Banking::Transfer.Reverse", with: { transfer: :reference }
+      dispatch Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+      dispatch Transfer::Reverse, with: { transfer: :reference }
     end
   end
 
@@ -1777,14 +1777,14 @@ Hecks.bluebook "Banking", version: "v1" do
     state "returned"
 
     on "ExternalTransferRequested", transition: { "requested" => "requested" } do
-      dispatch "Banking::ExternalTransfer.SendTransfer", with: { end_to_end: :end_to_end }
+      dispatch ExternalTransfer::SendTransfer, with: { end_to_end: :end_to_end }
     end
 
     # THE COMPENSATING LEG, the same shape Settlement's own carries: a
     # refusal, not an event nothing emits, arms the return instead of leaving
     # the request stranded "requested" until someone notices.
     on :refused, transition: { "requested" => "returned" } do
-      dispatch "Banking::ExternalTransfer.Return", with: { end_to_end: :end_to_end }
+      dispatch ExternalTransfer::Return, with: { end_to_end: :end_to_end }
     end
   end
 
@@ -1809,7 +1809,7 @@ Hecks.bluebook "Banking", version: "v1" do
       # the bank's default terms for a just-cleared customer, not something
       # onboarding negotiates; a customer who wants something else changes it
       # afterward through Account's own commands.
-      dispatch "Banking::Account.Open", with: {
+      dispatch Account::Open, with: {
         customer:    :customer,
         number:      :account_number,
         kind:        { name: "current" },
