@@ -308,5 +308,44 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
       expect(Hecksagain::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)).to eq(true)
     end
+
+    # AccountsByKind — real corpus, group_by :kind, :number, rootless. The
+    # instances here supply :kind/:number as BARE strings rather than real
+    # Kind{name}/Number{value} VOs — Value.materialize_unwrapped is a no-op
+    # on an already-bare String either way (the `when self` single-VO-
+    # unwrap branch only ever fires on a REAL Value instance), so this
+    # exercises the grouping/nesting recomputation itself without needing
+    # to hand-construct real Value objects for a hand-built history — the
+    # single-VO unwrap is ReadModelInterpreter's own spec's job, not this
+    # oracle's.
+    it "group_by_matches_recompute names a grouping that disagrees with the recomputed nesting" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::Account#a1" => { kind: "current", number: "a1", daily_limit: { cents: 0 } },
+                    "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } },
+                    "Banking::Account#a3" => { kind: "current", number: "a3", daily_limit: { cents: 0 } }
+                  },
+                  queries: [{ query: "Banking.accounts_by_kind", args: {},
+                             rows: [{ accounts: {} }] }] }
+
+      result = Hecksagain::Fuzzing::Properties.group_by_matches_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking.accounts_by_kind").and include("3 eligible row(s)")
+    end
+
+    it "group_by_matches_recompute passes a grouping that matches the recomputed nesting" do
+      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::Account#a1" => { kind: "current", number: "a1", daily_limit: { cents: 0 } },
+                    "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } }
+                  },
+                  queries: [{ query: "Banking.accounts_by_kind", args: {},
+                             rows: [{ accounts: {
+                               "current" => { "a1" => { daily_limit: { cents: 0 }, id: "a1" } },
+                               "savings" => { "a2" => { daily_limit: { cents: 0 }, id: "a2" } }
+                             } }] }] }
+
+      expect(Hecksagain::Fuzzing::Properties.group_by_matches_recompute(history)).to eq(true)
+    end
   end
 end

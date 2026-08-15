@@ -3,6 +3,7 @@ require_relative "../bluebook/model_check"
 require_relative "../bluebook/meta_validator"
 require_relative "../ports/query/in_memory"
 require_relative "../query_specification/field_path"
+require_relative "../runtime/value"
 
 module Hecksagain
   module Fuzzing
@@ -54,7 +55,8 @@ module Hecksagain
                                      ProcessManager#starts_on ProcessManager#ends_on],
         fanout_dispatches_once_per_matching_row: %w[Policy#for_each Policy#where],
         aggregation_matches_recompute: %w[ReadModel#count ReadModel#median_field],
-        stored_records_satisfy_declared_invariants: %w[Aggregate#invariants]
+        stored_records_satisfy_declared_invariants: %w[Aggregate#invariants],
+        group_by_matches_recompute: %w[ReadModel#group_by]
       }.freeze
 
       # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
@@ -502,6 +504,62 @@ module Hecksagain
         offenders.empty? || offenders.join("; ")
       end
 
+      # `aggregation_matches_recompute`'s own shape, extended from
+      # reducing a many-side head to a scalar (count/median) to NESTING
+      # it — `ReadModelInterpreter#group_by_target`/`#nest`, reproduced
+      # here in plain Ruby against `history[:instances]` the same way
+      # `eligible_rows` already reproduces the FK-join and `where`
+      # narrowing count/median share. `Value.materialize_unwrapped` is
+      # the SAME call `#project` makes before nesting (a single-field
+      # value object recurses to its bare scalar — a real grouping key
+      # has to BE one) — called here rather than re-derived, so this
+      # oracle cannot drift from what "the group key" means without the
+      # interpreter drifting the identical way.
+      #
+      # Real target: AccountsByKind (`group_by :kind, :number`,
+      # rootless — always generator-eligible with `{}` args).
+      def group_by_matches_recompute(history)
+        bluebook  = history.fetch(:bluebook)
+        instances = history.fetch(:instances)
+
+        offenders = history.fetch(:queries).filter_map do |asked|
+          next if asked[:error]
+
+          domain, name = asked[:query].to_s.split(".", 2)
+          next unless name && domain == bluebook.name
+
+          model = bluebook.read_model(name)
+          next unless model && model.group_by.any?
+
+          grouped_head = model.aggregate_heads.find { |head| head[:many] }
+          next unless grouped_head
+
+          rows = eligible_rows(bluebook, instances, domain, model, grouped_head, asked[:args] || {})
+          materialized = rows.map { |state| Runtime::Value.materialize_unwrapped(state) }
+          expected = nest_rows(materialized, model.group_by_fields)
+          actual = asked[:rows]&.first&.dig(grouped_head[:as])
+          next if actual == expected
+
+          "#{asked[:query]} #{asked[:args].inspect} answered a #{grouped_head[:as]} grouping that disagrees " \
+            "with independently nesting group_by #{model.group_by_fields.inspect} over #{rows.length} " \
+            "eligible row(s)"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # `ReadModelInterpreter#nest`, byte for byte: one level of nesting
+      # per `group_by` field in declared order, leaf is the row with
+      # every grouped field stripped (already spent, as the keys that
+      # reached it).
+      def nest_rows(rows, fields)
+        field, *rest = fields
+        rows.group_by { |row| row[field] }.transform_values do |group|
+          stripped = group.map { |row| row.reject { |key, _| key == field } }
+          rest.empty? ? stripped.first : nest_rows(stripped, rest)
+        end
+      end
+
       # THE ELIGIBLE ROWS a `count`/`median` head reduces — every
       # instance of the reduced head's own aggregate, FK-matched against
       # the report's root reference (if it has one; a rootless report has
@@ -512,7 +570,12 @@ module Hecksagain
       def eligible_rows(bluebook, instances, domain, model, reduced_head, args)
         aggregate = bluebook.aggregate(reduced_head[:aggregate])
         prefix = "#{domain}::#{reduced_head[:aggregate]}#"
-        rows = instances.filter_map { |key, state| state if key.start_with?(prefix) }
+        # `id:` MERGED IN, the same `record.to_h` (`@state.merge(id:
+        # @id)`) every live head row carries — count/median never read
+        # it, but group_by_matches_recompute's own independent nesting
+        # does, the same way ReadModelInterpreter#row(record) = record.
+        # to_h does for the live path it's checking against.
+        rows = instances.filter_map { |key, state| state.merge(id: key.split("#").last) if key.start_with?(prefix) }
 
         if model.reference_target
           reference_id = args[model.reference_name].to_s
@@ -556,7 +619,8 @@ module Hecksagain
           sagas_rehydrate_cleanly: sagas_rehydrate_cleanly(history),
           fanout_dispatches_once_per_matching_row: fanout_dispatches_once_per_matching_row(history),
           aggregation_matches_recompute: aggregation_matches_recompute(history),
-          stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history) }
+          stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history),
+          group_by_matches_recompute: group_by_matches_recompute(history) }
       end
     end
   end
