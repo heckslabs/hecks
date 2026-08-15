@@ -1,0 +1,129 @@
+
+# A DEDICATED FIXTURE for S17 (ADR 0026, "Member/Dispatch/Handler
+# become entities") — proves EntityInterpreter#apply_to_element's new
+# :append/:remove/:multiply/:clamp cases work for real, against a
+# small synthetic entity, before either mechanism is used to convert
+# the meta-domain's own Member/Dispatch.
+Hecks.bluebook "EntityListMutations" do
+  vision "An entity that holds a list of its own — the shape Member.pairs and Dispatch.with_spec both need."
+  core
+
+  aggregate "Board" do
+    description "A board holding one or more lists, each with its own tagged entries."
+
+    identified_by :name
+
+    attribute :name, BoardName
+    attribute :lists, list_of(TaggedList)
+
+    value_object "BoardName" do
+      attribute :value, String
+    end
+
+    value_object "Tag" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    value_object "ListLabel" do
+      attribute :value, String
+    end
+
+    value_object "ListCount" do
+      attribute :value, Integer, default: 0
+    end
+
+    entity "TaggedList" do
+      description "One list, own its own tags — the entity-owned list attribute this whole fixture exists to exercise."
+
+      attribute :label, ListLabel
+
+      identified_by :label
+
+      attribute :tags,  list_of(Tag)
+      attribute :count, ListCount
+
+      command "AddTag" do
+        role "Editor"
+        goal "Add a tag to this list"
+
+        attribute :key,   String
+        attribute :value, String
+
+        sets :tags, append: { key: :key, value: :value }
+
+        emits "TagAdded"
+      end
+
+      command "RemoveTag" do
+        role "Editor"
+        goal "Remove a tag from this list, by value"
+
+        attribute :tag, Tag
+
+        sets :tags, remove: :tag
+
+        emits "TagRemoved"
+      end
+
+      command "Bump" do
+        role "Editor"
+        goal "Increment this list's own count"
+
+        sets :count, increment: { value: 1 }
+
+        emits "Bumped"
+      end
+
+      command "Scale" do
+        role "Editor"
+        goal "Multiply this list's own count"
+
+        attribute :factor, Integer
+
+        sets :count, multiply: :factor
+
+        emits "Scaled"
+      end
+
+      command "Clamp" do
+        role "Editor"
+        goal "Bound this list's own count into a range"
+
+        sets :count, clamp: [0, 10]
+
+        emits "Clamped"
+      end
+    end
+
+    command "OpenBoard" do
+      role "Editor"
+      goal "Start a new board"
+
+      attribute :name, BoardName
+
+      emits "BoardOpened"
+    end
+
+    command "AddList" do
+      role "Editor"
+      goal "Add a list to the board"
+
+      reference_to Board
+      attribute :label, ListLabel
+
+      # `count: 0` A LITERAL, not a symbol reference — `append:`'s own
+      # field map admits either (MutationApplier#resolve_append_source
+      # returns anything non-Symbol verbatim). Supplied explicitly so
+      # the created element's own `count` is genuinely present from
+      # the start, not absent the way a field `append:` never mentions
+      # would be — `entity_element` only coerces/defaults fields
+      # ALREADY in the map, never invents a missing one (a separate,
+      # real gap this fixture deliberately sidesteps rather than
+      # takes on, since neither Member nor Dispatch needs it).
+      sets :lists, append: { label: :label, count: 0 }
+
+      emits "ListAdded"
+    end
+  end
+end

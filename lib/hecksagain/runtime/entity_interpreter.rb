@@ -207,23 +207,121 @@ module Hecksagain
         Naming.identity(parts)
       end
 
+      # S17, ADR 0026 — `:append`/`:remove`/`:multiply`/`:clamp`, an
+      # entity-scoped mirror of `CommandInterpreter::MutationApplier
+      # #apply`'s own four (that module's own header names each one's
+      # origin). Missing until now — an entity-owned command declaring
+      # `sets :some_list, append: {...}` matched no `when` here and
+      # silently no-opped, the one place this language otherwise
+      # refuses what it cannot check applying nothing instead. `Member`/
+      # `Dispatch` (S17) are the first real callers: both need to
+      # append a value-object-typed element (`Pair`/`Binding`) onto a
+      # list attribute THEY OWN, once they become entities of
+      # `ValueObject`/`ProcessManager` rather than separate aggregates.
+      #
+      # `:increment`/`:decrement`/`:multiply` ALSO fixed here, found
+      # while proving this method against a real fixture: they wrapped
+      # `amount` unconditionally whenever `attribute` existed, the same
+      # asymmetric-wrapping shape `MutationApplier#rewrap_arithmetic_
+      # result`'s own comment documents fixing at the aggregate level
+      # (migration plan task 9) — a phantom-created VO-typed field's
+      # `current` reads back a raw, unwrapped default, `amount` was
+      # wrapped anyway, and the two sides of one arithmetic call
+      # disagreed on Value-ness. Confirmed live, not theoretical: this
+      # method's own fixture (TaggedList.Bump, a VO-typed `count` with
+      # `default: 0`) raised exactly this TypeMismatch on its first
+      # real run.
       def apply_to_element(aggregate, entity, element, mutation, args)
         case mutation.op
         when :set
           value = @rules.resolve_source(mutation.source, args)
           attribute = entity.attribute(mutation.target)
           element[mutation.target] = attribute ? Value.for_attribute(aggregate, attribute, value) : value
+        when :append
+          element[mutation.target] = appended_to_element(aggregate, entity, element, mutation, args)
+        when :remove
+          element[mutation.target] = removed_from_element(aggregate, entity, element, mutation, args)
         when :increment, :decrement
           attribute = entity.attribute(mutation.target)
           amount    = @rules.resolve_source(mutation.source, args)
-          amount    = Value.for_attribute(aggregate, attribute, amount) if attribute
-          element[mutation.target] = @rules.arithmetic(
-            element[mutation.target],
-            amount,
-            mutation.target,
-            @rules.sign_of(mutation.op)
-          )
+          current   = element[mutation.target]
+          amount    = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
+          result    = @rules.arithmetic(current, amount, mutation.target, @rules.sign_of(mutation.op))
+          element[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
+        when :multiply
+          attribute = entity.attribute(mutation.target)
+          amount    = @rules.resolve_source(mutation.source, args)
+          current   = element[mutation.target]
+          amount    = Value.for_attribute(aggregate, attribute, amount) if attribute && current.is_a?(Value)
+          result    = @rules.multiply(current, amount, mutation.target)
+          element[mutation.target] = rewrap_arithmetic_result(aggregate, attribute, current, result)
+        when :clamp
+          element[mutation.target] = @rules.clamp(element[mutation.target], mutation.source, mutation.target)
+        else
+          # The aggregate-level twin's own backstop
+          # (MutationApplier#apply), for the same reason: applying
+          # nothing and refusing nothing would be the one silent
+          # no-op in a language that otherwise refuses what it cannot
+          # check.
+          raise WiringError, "no entity mutation applier handles :#{mutation.op} — add one before declaring it"
         end
+      end
+
+      # `MutationApplier#rewrap_arithmetic_result`'s own entity-scoped
+      # twin, byte-for-byte the same fix — see that method's own
+      # comment for the full "phantom-field asymmetric wrapping" story.
+      # A no-op whenever `current` was already a Value (the arithmetic
+      # call already returned one) or the mutation targets no declared
+      # attribute at all.
+      def rewrap_arithmetic_result(aggregate, attribute, current, result)
+        return result if current.is_a?(Value) || attribute.nil? || result.is_a?(Value)
+
+        Value.for_attribute(aggregate, attribute, result)
+      end
+
+      # `MutationApplier#resolve_append_source`'s own entity-scoped
+      # twin — a caller-supplied ARG first, falling back to the
+      # ELEMENT's own current field (never the parent instance's) when
+      # it isn't one.
+      def resolve_element_append_source(source, element, args)
+        return source unless source.is_a?(Symbol)
+        return args[source] if args.key?(source)
+
+        element[source]
+      end
+
+      # `MutationApplier#appended`'s own entity-scoped twin. VALUE-
+      # OBJECT elements only — an entity's own list, appended to by an
+      # entity-owned command, holds a value object (`Member.pairs`'
+      # own `Pair`, `Dispatch.with_spec`'s own `Binding`) the same way
+      # every real corpus append does; entity-in-entity nesting (a
+      # list of ANOTHER entity, owned by this one) is out of scope —
+      # `MutationApplier#entity_element`'s own fallback is deliberately
+      # not mirrored here, since nothing in this language's own
+      # `EntityBuilder` can declare a nested entity to need it (see
+      # S17's own scoping note on why Dispatch flattens under
+      # ProcessManager instead of nesting under Handler).
+      def appended_to_element(aggregate, entity, element, mutation, args)
+        fields       = mutation.source.transform_values { |source| resolve_element_append_source(source, element, args) }
+        element_type = entity.attribute(mutation.target)&.type
+        value_object = aggregate.value_object(element_type)
+        if value_object
+          value_object.attributes.each do |attribute|
+            fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
+          end
+        end
+        appended = value_object ? Value.build(value_object, fields) : fields
+        Freezer.deep(Array(element[mutation.target]) + [appended])
+      end
+
+      # `MutationApplier#removed`'s own entity-scoped twin — matches by
+      # VALUE EQUALITY, element-wise, the same "so a concurrent Add can
+      # never be lost" reasoning that method's own comment gives.
+      def removed_from_element(aggregate, entity, element, mutation, args)
+        value     = @rules.resolve_source(mutation.source, args)
+        attribute = entity.attribute(mutation.target)
+        value     = Value.for_attribute(aggregate, attribute, value) if attribute
+        Array(element[mutation.target]).reject { |candidate| candidate == value }
       end
     end
   end
