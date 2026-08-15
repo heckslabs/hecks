@@ -1,5 +1,19 @@
 # Postgres adapter split: plain `Postgres` + `PostgresEra` — implementation plan
 
+**Status: implemented, on branch `postgres-era-adapter-split`** (worktree
+`.claude/worktrees/postgres-era-adapter-split`, 6 commits: rename → spec-suite repoint + this doc's
+own ordering rewrite → Track B → Track A → Track C → Phase 3 fixes). `bundle exec rspec`: 1577
+examples, 0 failures. `bundle exec rspec --tag io`: every remaining failure traces to pre-existing
+repo debt confirmed present on the branch's own base commit (`d7394fdc`) — most of
+`postgres_era/lineage_spec.rb` and `domain_rename_spec.rb` blocked by an unrelated `identified_by`
+block-form removal in their own fixtures, 4 `postgres_era_spec.rb` examples blocked by an unrelated
+`belongs_to` removal, `saga_durability_postgres_spec.rb` blocked by an unrelated role/Governance-
+framework mismatch in its own fixture, and a pre-existing `ROOT` constant collision between two
+unrelated spec files — none caused by or fixed by this work, each individually reproduced against a
+clean `d7394fdc` checkout to confirm rather than assumed. Not yet done: merging the branch itself,
+and re-running Phase 2's real-Postgres validation spec (and the rest of the io-tagged suite) in CI
+once merged.
+
 Trigger: today's single `Postgres` adapter (`lib/hecksagain/adapters/driven/postgres.rb`) always
 carries full era/lineage machinery — `hecks_eras`, advisory-lock-guarded `append`, `head_view`
 compiled as a `DISTINCT ON`/`UNION ALL` reduction once a domain mints a second era — whether or
@@ -92,6 +106,8 @@ Phase 0 — Rename (sequential, blocking, no parallelism possible)
   answers lineage_capable? true.
 
 Phase 1 — three independent tracks, parallel (disjoint files once Phase 0 lands)
+  STATUS: done, all three tracks. Track A: 24 + 23 examples (its own spec + the extended
+  query_agreement_spec.rb), 0 failures. Track B: 26 examples, 0 failures.
 
   ┌─ Track A: new plain `Postgres` adapter (original Scope 2) ────────────────────────┐
   │  lib/hecksagain/adapters/driven/postgres.rb (NEW), postgres.adapter (NEW),         │
@@ -136,6 +152,11 @@ Phase 1 — three independent tracks, parallel (disjoint files once Phase 0 land
   │     resumable shape — principle 1 reaching backward                                │
   │   - additive (aggregate_id, ordinal DESC) index on the snapshot/matview tables     │
   └──────────────────────────────────────────────────────────────────────────────────┘
+  Track C STATUS: done. Two real bugs found and fixed via actual Postgres runs, not caught by
+  `ruby -c`: `PG::Result#[]` raises `IndexError` (not nil) on an out-of-range index, and does
+  not support negative indices the way a plain Ruby Array does — both `backfill_progress`'s
+  "no row yet" check and the per-chunk "last row" cursor read needed the explicit
+  `ntuples`-checked form.
 
 Phase 2 — Validation (original Scope 5), depends on Phase 1 Track C only
   New spec in hecksagain's own suite, against a real throwaway Postgres database (never the
@@ -146,11 +167,24 @@ Phase 2 — Validation (original Scope 5), depends on Phase 1 Track C only
   is mid-scan). Not routed through Payments (~/Projects/junkdrawer/payments) — that project
   stays on Heki by its own explicit design; this is a framework capability, proven against a
   purpose-built aggregate.
+  STATUS: done — spec/adapters/driven/postgres_era/field_cache_spec.rb, 7 examples, 0
+  failures, all four required proofs covered (pre-mint correctness, post-mint correctness,
+  crash-simulated resumability via a stubbed mid-backfill raise, and a measured concurrent
+  write completing in <1s against a deliberately slowed backfill on a separate connection).
 
 Phase 3 — Full-suite verification, depends on everything
   `bundle exec rspec` (unconditional suite) + `CI=true bundle exec rspec` or
   `--tag io` (the real-Postgres-gated suite, including the new Phase 2 spec and the extended
   query_agreement_spec.rb) run clean against local Postgres. Update this doc's own status.
+  STATUS: done. Surfaced and fixed two real issues neither Phase 1 nor Phase 2 caught alone:
+  a straggler `"Postgres"` string literal in exporter_spec.rb that Phase 0's rename missed
+  (needed to become `"PostgresEra"`), and two top-level-constant collisions across spec files
+  (`V1_SOURCE`/`V2_SOURCE` between the new field_cache_spec.rb and the pre-existing
+  lineage_spec.rb, `SPEC_DB` between the new postgres_spec.rb and the pre-existing
+  postgres_era_spec.rb) — not a lint nitpick: RSpec loads every spec file into one process, so
+  the second same-named constant silently keeps the first's VALUE, meaning field_cache_spec's
+  own mint test was silently running against lineage_spec's bluebook content whenever the full
+  suite ran together. `bundle exec rspec`: 1577 examples, 0 failures.
 ```
 
 Tracks A and B were delegated to parallel subagents once Phase 0 landed; Track C (and Phase 2) were
