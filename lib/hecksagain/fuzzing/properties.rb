@@ -50,6 +50,7 @@ module Hecksagain
                                            Entity#state_field Entity#state_start Entity#transitions],
         saga_advances_follow_declared_handlers: %w[Handler#from_state Handler#to_state Handler#event_type],
         query_answers_match_reference: %w[Query#wheres Query#order_field Query#order_way Query#limit],
+        paging_offset_partitions_correctly: %w[Query#options],
         guard_refusals_are_declared: %w[Command#givens Command#ensures],
         sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
                                      ProcessManager#starts_on ProcessManager#ends_on],
@@ -248,6 +249,96 @@ module Hecksagain
         end
 
         offenders.empty? || offenders.join("; ")
+      end
+
+      # THE SAME "TWO ENGINES, COMPARED" SHAPE query_answers_match_reference
+      # already uses, aimed squarely at Query#options' offset/limit pair —
+      # but recomputed from history[:instances] directly, a THIRD,
+      # independent computation, rather than comparing QueryInterpreter's
+      # own native and reference paths against each other (which could
+      # share the identical bug neither implementation happened to hit —
+      # see #4's own fix, which touched BOTH #interpret and
+      # #reference_interpret at once). `order_by` declared alongside
+      # `offset` or `limit` names a genuinely paged query. Ports::Query::
+      # Ordering.apply is the SAME engine QueryInterpreter#ordered calls,
+      # reused here rather than re-derived, so this oracle cannot drift
+      # from what "in order" means without the interpreter drifting the
+      # identical way — only the offset-then-limit .drop/.first slice
+      # (#4's own fix) is independently reproduced, in plain Ruby.
+      #
+      # Real target: ATMCard.ByFee (`limit 3; offset 1`).
+      def paging_offset_partitions_correctly(history)
+        bluebooks = history.fetch(:bluebooks)
+        instances = history.fetch(:instances)
+
+        offenders = history.fetch(:queries).filter_map do |asked|
+          next if asked[:error] || !asked[:query].is_a?(String) || !asked[:query].include?("::")
+
+          declared = query_for_verb(bluebooks, asked[:query])
+          next unless declared && declared.order_by && (declared.offset || declared.limit)
+
+          domain, aggregate_name, = Naming.split_verb(asked[:query])
+          args = asked[:args] || {}
+          rows = query_eligible_rows(instances, domain, aggregate_name, declared.wheres, args)
+          ordered = Ports::Query::Ordering.apply(
+            rows, declared.order_by, declared.null_semantics, identity: ->(row) { row[:id].to_s }
+          ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, declared.order_by.field)) }
+
+          skipped  = declared.offset ? ordered.drop(resolve_paging_value(declared.offset.value, args).to_i) : ordered
+          expected = declared.limit ? skipped.first(resolve_paging_value(declared.limit.value, args).to_i) : skipped
+          actual   = asked[:rows]
+          next if actual == expected
+
+          "#{asked[:query]} #{args.inspect} answered #{actual.inspect}, but independently recomputing " \
+            "order/offset/limit from #{rows.length} eligible row(s) gives #{expected.inspect}"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # THE DECLARED Query ITSELF, resolved from a replayed verb — the
+      # same shape #command_for_verb resolves a command by, one
+      # construct over. Entity-level queries (a dotted query_path) are
+      # out of scope here — paging on an entity's own list has no real
+      # corpus site yet, and the "one many-side head, one aggregate,
+      # no FK-join" shape #query_eligible_rows assumes doesn't hold for
+      # one.
+      def query_for_verb(bluebooks, verb)
+        domain, aggregate_name, query_path = Naming.split_verb(verb)
+        return nil unless query_path && !query_path.include?(".")
+
+        bluebook  = bluebooks[domain]
+        aggregate = bluebook&.aggregate(aggregate_name)
+        aggregate&.query(query_path)
+      end
+
+      # A QUERY'S OWN ROWS — unlike #eligible_rows (a ReadModel's
+      # reduced/grouped many-side head, possibly FK-joined against a
+      # root), a Query always asks about its OWN owning aggregate
+      # directly ; no join, no reference_target. `id:` merged in the
+      # same way #eligible_rows' own rows are, since a stable sort
+      # (Ordering.apply's own `identity:`) and the real answer's own
+      # `record.state.merge(id: record.id)` both need it.
+      def query_eligible_rows(instances, domain, aggregate_name, wheres, args)
+        prefix = "#{domain}::#{aggregate_name}#"
+        instances.filter_map do |key, state|
+          next unless key.start_with?(prefix)
+
+          row = state.merge(id: key.split("#").last)
+          next unless wheres.all? do |clause|
+            held = Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, clause.field))
+            Ports::Query::InMemory.holds?(clause, held, args)
+          end
+
+          row
+        end
+      end
+
+      # `QueryInterpreter#resolve_query_value`, reproduced: a declared
+      # limit/offset is either a literal or a Symbol naming an argument
+      # the caller supplied.
+      def resolve_paging_value(value, args)
+        value.is_a?(Symbol) ? args[value] : value
       end
 
       # EVERY GIVEN/ENSURES REFUSAL A RUN ACTUALLY RAISED NAMES A RULE
@@ -620,7 +711,8 @@ module Hecksagain
           fanout_dispatches_once_per_matching_row: fanout_dispatches_once_per_matching_row(history),
           aggregation_matches_recompute: aggregation_matches_recompute(history),
           stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history),
-          group_by_matches_recompute: group_by_matches_recompute(history) }
+          group_by_matches_recompute: group_by_matches_recompute(history),
+          paging_offset_partitions_correctly: paging_offset_partitions_correctly(history) }
       end
     end
   end

@@ -130,6 +130,43 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       expect(comparable.call(first)).not_to eq(comparable.call(second))
     end
 
+    # ATMCard.ByFee — real corpus, `order_by :daily_fee; limit 3; offset
+    # 1`. Four active cards, distinct fees; the true offset-1/limit-3 page
+    # is cards 2-4.
+    it "paging_offset_partitions_correctly names an answer that disagrees with the recomputed page" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::ATMCard#s1" => { status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } },
+                    "Banking::ATMCard#s2" => { status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
+                    "Banking::ATMCard#s3" => { status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
+                    "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
+                  },
+                  queries: [{ query: "Banking::ATMCard.ByFee", args: {},
+                             rows: [{ id: "s1", status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } }] }] }
+
+      result = Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::ATMCard.ByFee").and include("4 eligible row(s)")
+    end
+
+    it "paging_offset_partitions_correctly passes an answer that skips before it takes" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  instances: {
+                    "Banking::ATMCard#s1" => { status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } },
+                    "Banking::ATMCard#s2" => { status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
+                    "Banking::ATMCard#s3" => { status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
+                    "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
+                  },
+                  queries: [{ query: "Banking::ATMCard.ByFee", args: {},
+                             rows: [
+                               { id: "s2", status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
+                               { id: "s3", status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
+                               { id: "s4", status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
+                             ] }] }
+
+      expect(Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
+    end
+
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
