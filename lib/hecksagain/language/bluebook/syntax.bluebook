@@ -56,6 +56,13 @@ Hecks.bluebook "Bluebook" do
     identified_by :name
 
     attribute :name, SyntaxName
+    # S14, ADR 0026 — Keyword/Argument nested here (see `entity
+    # "Keyword"`/`entity "Argument"`, below), entities rather than
+    # closed-set value-object members. `list_of(...)` forward-references
+    # them the same way banking's own `attribute :ledger,
+    # list_of(LedgerEntry)` names LedgerEntry before it is declared.
+    attribute :keywords,  list_of(Keyword)
+    attribute :arguments, list_of(Argument)
 
     value_object "SyntaxName" do
       attribute :value, String
@@ -192,7 +199,20 @@ Hecks.bluebook "Bluebook" do
     # the expression grammar and not to any one chapter. If a field has no row
     # below, either it is derived or the surface cannot say it, and the second
     # kind is a finding.
-    value_object "Keyword" do
+    # S14, ADR 0026 — RENAMED FROM "Keyword". This is now the SEED TABLE
+    # only : the ~106 rows below are still hand-written exactly as they
+    # always were (nothing about them needed rewriting), but they no
+    # longer are what a reader reaches for directly. `SyntaxBoot`
+    # (meta_validator/syntax_boot.rb) walks THESE rows once, at boot,
+    # and DISPATCHES each one into a real `Keyword` — the genuine
+    # entity, below, that is what `ParserTable`/`syntax_conformance_
+    # spec`/`bin/reference` actually read now. Kept as a value object
+    # (not an entity itself) precisely because these ~106 rows ARE
+    # static, declaration-time data — nothing here is a runtime record
+    # being created, so a closed set's own `member` shorthand is still
+    # the right way to WRITE the source data, even though what gets
+    # READ is downstream of it now.
+    value_object "KeywordSeed" do
       attribute :word,    String
       attribute :context, String, admits: "Syntax::Context"
       attribute :body,    String, admits: "Syntax::Body"
@@ -584,7 +604,10 @@ Hecks.bluebook "Bluebook" do
     #
     # `one_of` IN THE TYPE POSITION IS VARIADIC — `one_of("small", "large")`
     # takes any number of literals. The row below spells the kind of one.
-    value_object "Argument" do
+    # S14, ADR 0026 — RENAMED FROM "Argument", same reason KeywordSeed
+    # (above) was : the ~178 rows below stay exactly as written, and
+    # `SyntaxBoot` dispatches each one into a real `Argument` entity.
+    value_object "ArgumentSeed" do
       attribute :keyword,  String
       attribute :context,  String, admits: "Syntax::Context"
       attribute :at,       String
@@ -1004,6 +1027,199 @@ Hecks.bluebook "Bluebook" do
       member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
       member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
       member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
+    end
+
+    # S14, ADR 0026 — "`Status` becomes a real `lifecycle` with declared
+    # transitions, so the ordering is enforced by declaration and the
+    # model checker can finally see it" (the ADR's own words). A value
+    # object has no identity, so it cannot transition — it can only be
+    # replaced wholesale (this file's own prior header, before this
+    # slice) — so Keyword and Argument become genuine ENTITIES of
+    # Syntax, each carrying a real `lifecycle :status`.
+    #
+    # THE REAL RECORD, not the source. `KeywordSeed`'s own ~106 rows
+    # (above) are what gets WRITTEN — hand-typed grammar data, still the
+    # natural way to spell ~106 static facts. `Keyword` is what gets
+    # READ : `SyntaxBoot` (meta_validator/syntax_boot.rb) dispatches one
+    # `Syntax.Keyword` per seed row, once, at boot, into a REAL "Bluebook"
+    # domain runtime — the same distinction `Reconstruction`/`Judge`
+    # already draw everywhere else between what a chapter DECLARES and
+    # what gets DISPATCHED from it, just run once more, for the
+    # language's own grammar table this time.
+    #
+    # `identified_by :position` — POSITIONAL, the same reason Member's
+    # own is (S17): a keyword row has no other field guaranteed unique on
+    # its own (the same word is legitimately admitted in more than one
+    # context), and declaration order is a fact about the SOURCE the
+    # language already holds deliberately elsewhere.
+    value_object "KeywordPosition" do
+      attribute :value, Integer
+    end
+
+    entity "Keyword" do
+      description "One word the bluebook surface admits — the body it may open, and the field it fills. Nested under Syntax because it is now the LANGUAGE'S OWN data, not merely its declaration : a word's own status is a real fact that moves, not a string replaced wholesale."
+
+      attribute :position, KeywordPosition
+      identified_by :position
+
+      attribute :word,    KeywordSeedText
+      attribute :context, KeywordSeedText, admits: "Syntax::Context"
+      attribute :body,    KeywordSeedText, admits: "Syntax::Body"
+      attribute :inner,   KeywordSeedText
+      attribute :opens,   KeywordSeedText
+      attribute :fills,   KeywordSeedText
+      attribute :was,     KeywordSeedText, optional: true
+
+      lifecycle :status, default: "admitted" do
+        # NOT `proposed` : nothing in the real table is ever declared
+        # proposed today, and the lifecycle's own default has to stay
+        # "admitted" to match every existing row's own implicit status —
+        # changing it would make every one of the ~106 rows silently
+        # start "proposed" instead. Declaring `proposed` as a state
+        # reachable from nowhere would be exactly the kind of decorative,
+        # unused declaration this whole ADR series exists to catch — so
+        # it is left out, honestly, rather than declared and unreachable.
+        transition "Deprecate" => "deprecated", from: "admitted"
+        transition "Retire"    => "retired",    from: ["admitted", "deprecated"]
+      end
+
+      command "Deprecate" do
+        role "Language"
+        goal "Mark a word as on its way out, still read"
+
+        emits "KeywordDeprecated"
+      end
+
+      command "Retire" do
+        role "Language"
+        goal "Remove a word from every generated parser table"
+
+        emits "KeywordRetired"
+      end
+    end
+
+    # S14, ADR 0026 — same reason Keyword's own is, one construct over.
+    # `identified_by :position` — positional, the SAME field name as
+    # Keyword's own on purpose: an Argument row's identity is never
+    # compared against a Keyword row's, so the shared name costs nothing
+    # and names the same fact both times.
+    value_object "ArgumentPosition" do
+      attribute :value, Integer
+    end
+
+    entity "Argument" do
+      description "One argument a keyword takes, typed. Nested under Syntax (a SIBLING of Keyword, not nested inside it — `keyword`/`context` name which Keyword row it belongs to, carried as ordinary fields rather than through containment, because the language reads Argument rows independently of any one Keyword element)."
+
+      attribute :position, ArgumentPosition
+      identified_by :position
+
+      attribute :keyword,          ArgumentSeedText
+      attribute :context,          ArgumentSeedText, admits: "Syntax::Context"
+      attribute :at,               ArgumentSeedText, optional: true
+      attribute :named,            ArgumentSeedText, optional: true
+      attribute :kind,             ArgumentSeedText, admits: "Syntax::ArgumentKind"
+      attribute :required,         ArgumentSeedText
+      attribute :fills,            ArgumentSeedText
+      attribute :selects,          ArgumentSeedText, optional: true
+      attribute :pair_key_fills,   ArgumentSeedText, optional: true
+      attribute :pair_value_fills, ArgumentSeedText, optional: true
+      attribute :pairs_shape,      ArgumentSeedText, optional: true
+      attribute :variadic,         ArgumentSeedText, optional: true
+
+      lifecycle :status, default: "admitted" do
+        transition "Deprecate" => "deprecated", from: "admitted"
+        transition "Retire"    => "retired",    from: ["admitted", "deprecated"]
+      end
+
+      command "Deprecate" do
+        role "Language"
+        goal "Mark an argument as on its way out, still read"
+
+        emits "ArgumentDeprecated"
+      end
+
+      command "Retire" do
+        role "Language"
+        goal "Remove an argument from every generated parser table"
+
+        emits "ArgumentRetired"
+      end
+    end
+
+    value_object "KeywordSeedText" do
+      attribute :value, String
+    end
+
+    value_object "ArgumentSeedText" do
+      attribute :value, String
+    end
+
+    # THE SYNTAX RECORD ITSELF. There is only ever one — the language
+    # describes its own single surface, not several — so unlike every
+    # other aggregate's own creating command, this carries no `position`:
+    # there are no siblings to order among.
+    command "Declare" do
+      role "Language"
+      goal "Open the language's own syntax table"
+
+      reference_to Bluebook
+      attribute :name, SyntaxName
+
+      emits "SyntaxDeclared"
+    end
+
+    # THE KEYWORD'S OWN CREATION. An entity is never created through its
+    # own dotted verb (S17's own finding, EntityInterpreter#element_of
+    # only LOCATES) — so, mirroring `ValueObject.Member`/`ProcessManager.
+    # Handler`, this is a bare, aggregate-level append. `position` is
+    # minted by `SyntaxBoot` as the seed row's own index — the same walk-
+    # index convention Member's own `position` already uses.
+    command "Keyword" do
+      role "Language"
+      goal "Admit one word the bluebook surface accepts"
+
+      reference_to Syntax
+      attribute :position, KeywordPosition
+      attribute :word,    KeywordSeedText
+      attribute :context, KeywordSeedText, admits: "Syntax::Context"
+      attribute :body,    KeywordSeedText, admits: "Syntax::Body"
+      attribute :inner,   KeywordSeedText
+      attribute :opens,   KeywordSeedText
+      attribute :fills,   KeywordSeedText
+      attribute :was,     KeywordSeedText, optional: true
+
+      sets :keywords, append: { position: :position, word: :word, context: :context, body: :body,
+                                 inner: :inner, opens: :opens, fills: :fills, was: :was }
+
+      emits "KeywordAdmitted"
+    end
+
+    command "Argument" do
+      role "Language"
+      goal "Admit one argument a keyword takes"
+
+      reference_to Syntax
+      attribute :position,          ArgumentPosition
+      attribute :keyword,           ArgumentSeedText
+      attribute :context,           ArgumentSeedText, admits: "Syntax::Context"
+      attribute :at,                ArgumentSeedText, optional: true
+      attribute :named,             ArgumentSeedText, optional: true
+      attribute :kind,              ArgumentSeedText, admits: "Syntax::ArgumentKind"
+      attribute :required,          ArgumentSeedText
+      attribute :fills,             ArgumentSeedText
+      attribute :selects,           ArgumentSeedText, optional: true
+      attribute :pair_key_fills,    ArgumentSeedText, optional: true
+      attribute :pair_value_fills,  ArgumentSeedText, optional: true
+      attribute :pairs_shape,       ArgumentSeedText, optional: true
+      attribute :variadic,          ArgumentSeedText, optional: true
+
+      sets :arguments, append: { position: :position, keyword: :keyword, context: :context, at: :at,
+                                  named: :named, kind: :kind, required: :required, fills: :fills,
+                                  selects: :selects, pair_key_fills: :pair_key_fills,
+                                  pair_value_fills: :pair_value_fills, pairs_shape: :pairs_shape,
+                                  variadic: :variadic }
+
+      emits "ArgumentAdmitted"
     end
   end
 end

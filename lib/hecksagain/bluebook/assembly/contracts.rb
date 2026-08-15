@@ -261,6 +261,54 @@ module Hecksagain
           derived: {}
         ),
 
+        # S14, ADR 0026 — Syntax/Keyword/Argument are never built via
+        # `Build`/`Reconstruction`'s own generic path — their own data
+        # lives in a dedicated repository `SyntaxBoot` (meta_validator/
+        # syntax_boot.rb) reads directly, never through the meta-
+        # domain's own reconstruction, the same reason `Member`'s own
+        # entry (above) carries `holder: nil, make: nil` too. These
+        # entries exist purely so the introspection specs
+        # (assembly_spec.rb) can hold them to the same "every field
+        # claimed" discipline every other category answers to.
+        "Syntax" => Contract.new(
+          holder: nil, make: nil,
+          fields: { name: [:name, :plain] },
+          derived: { keywords: :children, arguments: :children }
+        ),
+
+        "Keyword" => Contract.new(
+          holder: nil, make: nil,
+          fields: {
+            word:    [:word,    :plain],
+            context: [:context, :plain],
+            body:    [:body,    :plain],
+            inner:   [:inner,   :plain],
+            opens:   [:opens,   :plain],
+            fills:   [:fills,   :plain],
+            was:     [:was,     :plain]
+          },
+          derived: { position: :walk }
+        ),
+
+        "Argument" => Contract.new(
+          holder: nil, make: nil,
+          fields: {
+            keyword:          [:keyword,          :plain],
+            context:          [:context,          :plain],
+            at:               [:at,               :plain],
+            named:            [:named,            :plain],
+            kind:             [:kind,              :plain],
+            required:         [:required,         :plain],
+            fills:            [:fills,            :plain],
+            selects:          [:selects,          :plain],
+            pair_key_fills:   [:pair_key_fills,   :plain],
+            pair_value_fills: [:pair_value_fills, :plain],
+            pairs_shape:      [:pairs_shape,      :plain],
+            variadic:         [:variadic,         :plain]
+          },
+          derived: { position: :walk }
+        ),
+
         "ReadModel" => Contract.new(
           holder: ReadModel, make: :new,
           fields: {

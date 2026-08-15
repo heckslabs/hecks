@@ -83,9 +83,21 @@ RSpec.describe "the judge's coverage of the language" do
   # leaves them out by construction rather than by exclusion list. Vocabulary
   # declares no commands, so it contributes nothing and needs no special case —
   # it is static declaration read from the IR by spec/vocabulary_conformance_spec.
+  # S14, ADR 0026 — "Syntax" is named here for the SAME reason
+  # "Vocabulary" always was (it declares no commands, so `.commands`
+  # would find it empty anyway — but Syntax now DOES declare real
+  # commands): its own data is dispatched by `SyntaxBoot`, a dedicated,
+  # separate mechanism that seeds the language's own grammar table from
+  # its own still-static seed rows — never by `Judge`'s own walk, which
+  # only ever finds an EMPTY `keywords`/`arguments` list on the raw,
+  # statically-built "Syntax" node (no real domain, including the meta-
+  # domain itself, ever declares Syntax data through the ordinary DSL).
+  META_ONLY_AGGREGATES = %w[Vocabulary Syntax].freeze
+
   def declared_verbs
     Hecksagain::Bluebook::MetaValidator.grammar_registry
       .bluebook("Bluebook").aggregates
+      .reject { |aggregate| META_ONLY_AGGREGATES.include?(aggregate.hecks_name) }
       .flat_map { |aggregate| aggregate_verbs(aggregate) }
   end
 

@@ -29,8 +29,13 @@ RSpec.describe "the syntax lifecycle" do
   end
 
   WORD_STATUSES  = rows("Status").map { |row| row[:name] }
-  WORD_ROWS  = rows("Keyword")
-  ARGUMENT_ROWS = rows("Argument")
+  # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax now,
+  # dispatched through a real lifecycle rather than merely declared —
+  # `SyntaxBoot.call` reads them back post-dispatch, same shape `rows`
+  # above still produces for Status (an ordinary closed set, unaffected).
+  SYNTAX_TABLE  = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call
+  WORD_ROWS     = SYNTAX_TABLE[:keywords]
+  ARGUMENT_ROWS = SYNTAX_TABLE[:arguments]
   DECLARED_LANGUAGE_VERSION = judged_meta.version
 
   # AN ABSENT STATUS READS AS ADMITTED — the same convention hecks_eras

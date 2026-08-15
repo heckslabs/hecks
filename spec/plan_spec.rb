@@ -31,7 +31,14 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
         "ProcessManager" => "Bluebook",
         "Handler"        => "ProcessManager",
         "Dispatch"       => "Handler",
-        "ReadModel"      => "Bluebook"
+        "ReadModel"      => "Bluebook",
+        # S14, ADR 0026 — Syntax now declares real commands
+        # (Declare/Keyword/Argument), so `Plan` finds it (and its own
+        # entities, Keyword/Argument) the same way it finds every other
+        # real aggregate.
+        "Syntax"         => "Bluebook",
+        "Keyword"        => "Syntax",
+        "Argument"       => "Syntax"
       )
     end
 

@@ -34,10 +34,16 @@ RSpec.describe "the generated parser table" do
   end
 
   it "declares at least one row (a real, non-empty grammar table)" do
-    chapter = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
+    # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax
+    # now, dispatched through a real lifecycle — `render` (what
+    # `bin/project_parser_table` actually calls) reads them through
+    # `SyntaxBoot.call`, not `rows` directly any more (that still reads
+    # the still-static seed rows, `KeywordSeed`/`ArgumentSeed`, straight
+    # off the closed set).
+    table = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call
 
-    expect(Hecksagain::Projections::ParserTable.rows(chapter, "Keyword")).not_to be_empty
-    expect(Hecksagain::Projections::ParserTable.rows(chapter, "Argument")).not_to be_empty
+    expect(table[:keywords]).not_to be_empty
+    expect(table[:arguments]).not_to be_empty
   end
 
   # `declares: "Syntax"` is stated at registration, so the REGISTRY

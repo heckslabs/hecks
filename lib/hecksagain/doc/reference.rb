@@ -48,8 +48,17 @@ module Hecksagain
               .members.map { |row| row.to_h.transform_values(&:to_s) }
       end
 
-      def keywords  = @keywords  ||= rows("Keyword")
-      def arguments = @arguments ||= rows("Argument")
+      # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax
+      # now, dispatched (not merely declared) so their own `status`
+      # really is a lifecycle. `SyntaxBoot.call` reads the still-static
+      # seed rows (`KeywordSeed`/`ArgumentSeed`, still reachable through
+      # `rows` above for anything that still needs the closed sets —
+      # Context/Body/ArgumentKind, unaffected by this), dispatches each
+      # one through the real admission/lifecycle door, and hands back the
+      # same shape `rows` used to produce — nothing below this needed to
+      # change.
+      def keywords  = @keywords  ||= Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+      def arguments = @arguments ||= Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
 
       def status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
       def live?(row)     = %w[admitted deprecated].include?(status_of(row))

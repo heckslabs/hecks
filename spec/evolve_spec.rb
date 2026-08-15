@@ -127,10 +127,10 @@ RSpec.describe "the evolve surgery" do
       Hecksagain::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
                                              to: "retired", path: path)
 
-      before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "Keyword" do$/)]
+      before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "KeywordSeed" do$/)]
       after = File.read(path)
       expect(after[0...before_block.size]).to eq(before_block)
-      expect(after).to include('value_object "Argument"')
+      expect(after).to include('value_object "ArgumentSeed"')
     end
   end
 
@@ -244,7 +244,7 @@ RSpec.describe "the evolve surgery" do
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "retired",
                                                        named: "locale", path: path)
 
-      before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "Argument" do$/)]
+      before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "ArgumentSeed" do$/)]
       after = File.read(path)
       expect(after[0...before_block.size]).to eq(before_block)
     end

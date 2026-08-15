@@ -40,8 +40,16 @@ RSpec.describe "the declared syntax" do
           .members.map { |row| row.to_h.transform_values(&:to_s) }
   end
 
-  KEYWORDS      = rows("Keyword")
-  ARGUMENTS     = rows("Argument")
+  # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax now,
+  # dispatched (not merely declared) so their own `status` really is a
+  # lifecycle. `SyntaxBoot.call` reads `KeywordSeed`/`ArgumentSeed` (the
+  # still-static seed rows `rows` above still reads directly for Context/
+  # Body/ArgumentKind, which stay ordinary closed sets) and dispatches
+  # each one through the real admission/lifecycle door, handing back the
+  # exact shape `rows` used to read straight off the closed set — nothing
+  # below this line needed to change.
+  KEYWORDS      = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+  ARGUMENTS     = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
   CONTEXTS      = rows("Context").map { |row| row[:name] }
   BODIES        = rows("Body").map { |row| row[:name] }
   ARGUMENT_KIND = rows("ArgumentKind").map { |row| row[:name] }
@@ -196,7 +204,10 @@ RSpec.describe "the declared syntax" do
   # nothing resolves it for a value object nobody instantiates. Checked here
   # instead, or the three `admits:` in syntax.bluebook would be decoration.
   it "holds every admits-bearing column to the set it names" do
-    shape = ->(name) { self.class.syntax.value_objects.find { |vo| vo.hecks_name == name } }
+    # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax
+    # now, not value objects — found through `.entities`, same as Syntax
+    # (below) reaches every other real entity.
+    shape = ->(name) { self.class.syntax.entities.find { |e| e.hecks_name == name } }
 
     { "Keyword"  => { context: "Context", body: "Body" },
       "Argument" => { context: "Context", kind: "ArgumentKind" } }.each do |vo, links|
@@ -471,14 +482,27 @@ RSpec.describe "the declared syntax" do
   # EVERY DISPATCHED CATEGORY HAS A WORD, or a domain cannot declare it.
   #
   # The judge's plan is exactly the categories a bluebook can put records in
-  # (Vocabulary and Syntax declare no commands and so are not in it — they are
-  # the language's own declarations, written with `aggregate` like anything
+  # (Vocabulary declares no commands and so is not in it — it is
+  # the language's own declaration, written with `aggregate` like anything
   # else). If one of them had no word opening it, the language would hold a
   # category no bluebook could reach.
+  #
+  # S14, ADR 0026 — Syntax/Keyword/Argument are named here for the SAME
+  # reason Vocabulary always was, just reached a different way: Syntax
+  # now declares real commands (`Declare`/`Keyword`/`Argument`), so
+  # `plan.names` finds it (and its own entities, Keyword/Argument)
+  # unlike Vocabulary — but no real bluebook (Banking, Pizzas) ever
+  # opens a "Syntax"/"Keyword"/"Argument" record through the DSL ; the
+  # only caller that ever dispatches them is `SyntaxBoot`, a dedicated,
+  # internal mechanism that seeds the language's OWN grammar table from
+  # its own still-static `KeywordSeed`/`ArgumentSeed` rows, not
+  # something any domain's own bluebook file could reach.
+  META_ONLY_CATEGORIES = %w[Vocabulary Syntax Keyword Argument].freeze
+
   it "opens every category the judge dispatches" do
     plan   = Hecksagain::Bluebook::MetaValidator::Plan.for(
       Hecksagain::Bluebook::MetaValidator.grammar_registry
-    ).names
+    ).names - META_ONLY_CATEGORIES
     opened = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
 
     expect((plan - opened).sort).to be_empty,

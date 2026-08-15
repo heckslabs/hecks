@@ -116,7 +116,37 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Aggregate#invariants" => "checked after every command before save (Admissibility#enforce_invariants), the same point ensures is — but has no property of its own verifying a generated sequence that would violate one is always refused before save. The value-object equivalent (checked at coercion) has no property either; this is the same open question one level up",
     "Aggregate#preconditions" => "the aggregate's own named-once declaration; a referencing command's own resolved given is the SAME Given struct (CommandBuilder#given's no-block branch copies it verbatim), so its runtime effect is exactly what a command's own givens already are — no independent behavior a property could check beyond what already exercises Command#givens",
     "Command#from" => "checked pre-mutation as a lifecycle guard (Admissibility#enforce_lifecycle_guard), alongside givens — has no property of its own verifying a generated sequence dispatching a guarded command from a disallowed state is always refused. admissible_transition's own state-machine correctness has model_check for this instead of a fuzzer property, and from: shares that gap rather than closing it",
-    "Aggregate#projected_fields" => "the local half of a cross-aggregate read (S12, ADR 0025) is read by GuardState the same way an attribute is (ProjectionAbsent vs. AttributeAbsent), but nothing populates it inside a normal command dispatch — RebuildSweep is a separate, explicitly-called operation a generated fuzzer sequence never runs — so there is no dispatch-shaped behavior yet for a property to exercise. spec/runtime/rebuild_sweep_spec.rb covers the sweep itself directly instead"
+    "Aggregate#projected_fields" => "the local half of a cross-aggregate read (S12, ADR 0025) is read by GuardState the same way an attribute is (ProjectionAbsent vs. AttributeAbsent), but nothing populates it inside a normal command dispatch — RebuildSweep is a separate, explicitly-called operation a generated fuzzer sequence never runs — so there is no dispatch-shaped behavior yet for a property to exercise. spec/runtime/rebuild_sweep_spec.rb covers the sweep itself directly instead",
+    # S14, ADR 0026 — Syntax/Keyword/Argument are META-DOMAIN-ONLY : the
+    # language's own grammar table, dispatched once at boot by
+    # `SyntaxBoot` (a dedicated, internal mechanism — spec/syntax_
+    # lifecycle_spec.rb and spec/syntax_conformance_spec.rb already hold
+    # every row to the builders directly), never something a generated
+    # fuzzer sequence exercises the way it exercises a real domain's own
+    # Account/Customer dispatches. The fuzzer walks real corpus domains
+    # (banking, pizzas, ...), none of which ever declares Syntax data —
+    # there is no dispatch-shaped behavior here for a property to reach.
+    "Syntax#keywords" => "META-DOMAIN-ONLY grammar table, seeded once by SyntaxBoot — no real domain the fuzzer walks ever dispatches Syntax data ; spec/syntax_lifecycle_spec.rb/spec/syntax_conformance_spec.rb already hold every row to the builders directly",
+    "Syntax#arguments" => "same as Syntax#keywords",
+    "Keyword#word" => "same as Syntax#keywords, one level in",
+    "Keyword#context" => "same as Syntax#keywords, one level in",
+    "Keyword#body" => "same as Syntax#keywords, one level in",
+    "Keyword#inner" => "same as Syntax#keywords, one level in",
+    "Keyword#opens" => "same as Syntax#keywords, one level in",
+    "Keyword#fills" => "same as Syntax#keywords, one level in",
+    "Keyword#was" => "same as Syntax#keywords, one level in",
+    "Argument#keyword" => "same as Syntax#arguments, one level in",
+    "Argument#context" => "same as Syntax#arguments, one level in",
+    "Argument#at" => "same as Syntax#arguments, one level in",
+    "Argument#named" => "same as Syntax#arguments, one level in",
+    "Argument#kind" => "same as Syntax#arguments, one level in",
+    "Argument#required" => "same as Syntax#arguments, one level in",
+    "Argument#fills" => "same as Syntax#arguments, one level in",
+    "Argument#selects" => "same as Syntax#arguments, one level in",
+    "Argument#pair_key_fills" => "same as Syntax#arguments, one level in",
+    "Argument#pair_value_fills" => "same as Syntax#arguments, one level in",
+    "Argument#pairs_shape" => "same as Syntax#arguments, one level in",
+    "Argument#variadic" => "same as Syntax#arguments, one level in"
   }.freeze
 
   it "claims, exempts, guarantees, or names a gap for every feature the language's own grammar declares" do

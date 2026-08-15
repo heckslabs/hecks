@@ -106,15 +106,15 @@ module Hecksagain
         line =~ /^\s*member / && line.include?(%(word: "#{word}")) && line.include?(%(context: "#{context}"))
       end
 
-      # From `value_object "Keyword"` to ITS OWN closing `end` — `member`
+      # From `value_object "KeywordSeed"` to ITS OWN closing `end` — `member`
       # rows sit bare now (S3, ADR 0025 — the `one_of do ... end` wrapper
       # is gone), so the first bare `end` line after the opener already
       # IS the value object's own, the same fact the original one_of-
       # nested version of this method leaned on (nothing else nested
       # inside it either, before or after).
       def keyword_block(source)
-        start = source.index(/^\s*value_object "Keyword" do$/)
-        raise Refusal, "syntax.bluebook declares no Keyword value object" unless start
+        start = source.index(/^\s*value_object "KeywordSeed" do$/)
+        raise Refusal, "syntax.bluebook declares no KeywordSeed value object" unless start
 
         closing = source.index(/^\s*end\s*$/, start)
         closing = source.index(/\n/, closing) + 1
@@ -210,13 +210,13 @@ module Hecksagain
         File.write(path, source.sub(block, updated))
       end
 
-      # From `value_object "Argument"` to ITS OWN closing `end` — see
+      # From `value_object "ArgumentSeed"` to ITS OWN closing `end` — see
       # `keyword_block`'s own comment for why the first bare `end` after
       # the opener is already the right one, now that `member` rows sit
       # bare (S3, ADR 0025).
       def argument_block(source)
-        start = source.index(/^\s*value_object "Argument" do$/)
-        raise Refusal, "syntax.bluebook declares no Argument value object" unless start
+        start = source.index(/^\s*value_object "ArgumentSeed" do$/)
+        raise Refusal, "syntax.bluebook declares no ArgumentSeed value object" unless start
 
         closing = source.index(/^\s*end\s*$/, start)
         closing = source.index(/\n/, closing) + 1

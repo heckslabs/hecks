@@ -7953,14 +7953,691 @@
           "optional": false,
           "pattern": null,
           "type": "SyntaxName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "keywords",
+          "optional": false,
+          "pattern": null,
+          "type": "Keyword"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "arguments",
+          "optional": false,
+          "pattern": null,
+          "type": "Argument"
         }
       ],
       "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "bluebook",
+              "optional": false,
+              "pattern": null,
+              "type": "Reference<Bluebook>"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "SyntaxName"
+            }
+          ],
+          "emits": [
+            "SyntaxDeclared"
+          ],
+          "ensures": [
 
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Open the language's own syntax table",
+          "mutations": [
+
+          ],
+          "name": "Declare",
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordPosition"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inner",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opens",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            }
+          ],
+          "emits": [
+            "KeywordAdmitted"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Admit one word the bluebook surface accepts",
+          "mutations": [
+            {
+              "fields": {
+                "body": ":body",
+                "context": ":context",
+                "fills": ":fills",
+                "inner": ":inner",
+                "opens": ":opens",
+                "position": ":position",
+                "was": ":was",
+                "word": ":word"
+              },
+              "op": "append",
+              "target": "keywords"
+            }
+          ],
+          "name": "Keyword",
+          "provenance": null,
+          "references": "Syntax",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentPosition"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "keyword",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            }
+          ],
+          "emits": [
+            "ArgumentAdmitted"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Admit one argument a keyword takes",
+          "mutations": [
+            {
+              "fields": {
+                "at": ":at",
+                "context": ":context",
+                "fills": ":fills",
+                "keyword": ":keyword",
+                "kind": ":kind",
+                "named": ":named",
+                "pair_key_fills": ":pair_key_fills",
+                "pair_value_fills": ":pair_value_fills",
+                "pairs_shape": ":pairs_shape",
+                "position": ":position",
+                "required": ":required",
+                "selects": ":selects",
+                "variadic": ":variadic"
+              },
+              "op": "append",
+              "target": "arguments"
+            }
+          ],
+          "name": "Argument",
+          "provenance": null,
+          "references": "Syntax",
+          "role": "Language"
+        }
       ],
       "description": "How a bluebook is SPELLED — every word the surface admits, the body it may open, and the field it fills. The layer every other file in this directory does not have.",
       "entities": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordPosition"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inner",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opens",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
 
+              ],
+              "emits": [
+                "KeywordDeprecated"
+              ],
+              "ensures": [
+
+              ],
+              "from": null,
+              "givens": [
+
+              ],
+              "goal": "Mark a word as on its way out, still read",
+              "mutations": [
+
+              ],
+              "name": "Deprecate",
+              "provenance": null,
+              "references": null,
+              "role": "Language"
+            },
+            {
+              "attributes": [
+
+              ],
+              "emits": [
+                "KeywordRetired"
+              ],
+              "ensures": [
+
+              ],
+              "from": null,
+              "givens": [
+
+              ],
+              "goal": "Remove a word from every generated parser table",
+              "mutations": [
+
+              ],
+              "name": "Retire",
+              "provenance": null,
+              "references": null,
+              "role": "Language"
+            }
+          ],
+          "description": "One word the bluebook surface admits — the body it may open, and the field it fills. Nested under Syntax because it is now the LANGUAGE'S OWN data, not merely its declaration : a word's own status is a real fact that moves, not a string replaced wholesale.",
+          "entities": [
+
+          ],
+          "identified_by": [
+            "position.value"
+          ],
+          "lifecycle": {
+            "default": "admitted",
+            "field": "status",
+            "transitions": [
+              {
+                "command": "Deprecate",
+                "from_state": "admitted",
+                "to_state": "deprecated"
+              },
+              {
+                "command": "Retire",
+                "from_state": "admitted",
+                "to_state": "retired"
+              },
+              {
+                "command": "Retire",
+                "from_state": "deprecated",
+                "to_state": "retired"
+              }
+            ]
+          },
+          "name": "Keyword",
+          "queries": [
+
+          ]
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentPosition"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "keyword",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+
+              ],
+              "emits": [
+                "ArgumentDeprecated"
+              ],
+              "ensures": [
+
+              ],
+              "from": null,
+              "givens": [
+
+              ],
+              "goal": "Mark an argument as on its way out, still read",
+              "mutations": [
+
+              ],
+              "name": "Deprecate",
+              "provenance": null,
+              "references": null,
+              "role": "Language"
+            },
+            {
+              "attributes": [
+
+              ],
+              "emits": [
+                "ArgumentRetired"
+              ],
+              "ensures": [
+
+              ],
+              "from": null,
+              "givens": [
+
+              ],
+              "goal": "Remove an argument from every generated parser table",
+              "mutations": [
+
+              ],
+              "name": "Retire",
+              "provenance": null,
+              "references": null,
+              "role": "Language"
+            }
+          ],
+          "description": "One argument a keyword takes, typed. Nested under Syntax (a SIBLING of Keyword, not nested inside it — `keyword`/`context` name which Keyword row it belongs to, carried as ordinary fields rather than through containment, because the language reads Argument rows independently of any one Keyword element).",
+          "entities": [
+
+          ],
+          "identified_by": [
+            "position.value"
+          ],
+          "lifecycle": {
+            "default": "admitted",
+            "field": "status",
+            "transitions": [
+              {
+                "command": "Deprecate",
+                "from_state": "admitted",
+                "to_state": "deprecated"
+              },
+              {
+                "command": "Retire",
+                "from_state": "admitted",
+                "to_state": "retired"
+              },
+              {
+                "command": "Retire",
+                "from_state": "deprecated",
+                "to_state": "retired"
+              }
+            ]
+          },
+          "name": "Argument",
+          "queries": [
+
+          ]
+        }
       ],
       "identified_by": [
         "name.value"
@@ -11193,7 +11870,7 @@
               ]
             ]
           ],
-          "name": "Keyword"
+          "name": "KeywordSeed"
         },
         {
           "attributes": [
@@ -16769,7 +17446,91 @@
               ]
             ]
           ],
-          "name": "Argument"
+          "name": "ArgumentSeed"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "KeywordPosition"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "Integer"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ArgumentPosition"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "KeywordSeedText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ArgumentSeedText"
         }
       ]
     },
