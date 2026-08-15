@@ -6,25 +6,25 @@ require_relative "../../support/postgres_probe"
 # this repo already uses (support/postgres_probe.rb).
 RSpec.describe Hecksagain::Adapters::Postgres,
                io: true do
-  SPEC_DB = "hecksagain_postgres_spec".freeze
+  PLAIN_POSTGRES_SPEC_DB = "hecksagain_postgres_spec".freeze
 
   before(:all) do
     skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{SPEC_DB}")
+    admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_SPEC_DB} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{PLAIN_POSTGRES_SPEC_DB}")
     admin.close
   end
 
   after(:all) do
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_SPEC_DB} WITH (FORCE)")
     admin.close
   end
 
   before do
-    scrub = PG.connect(dbname: SPEC_DB)
+    scrub = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
@@ -35,7 +35,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
   end
 
   let(:adapter) do
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+    described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
   end
 
   def instance(id, **fields)
@@ -60,7 +60,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
   it "projects its schema as one real typed column per scalar attribute, plus id" do
     adapter
-    db = PG.connect(dbname: SPEC_DB)
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
     columns = db.exec_params(
       "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1", ["order"]
     ).each_with_object({}) { |row, memo| memo[row["column_name"]] = row["data_type"] }
@@ -136,16 +136,16 @@ RSpec.describe Hecksagain::Adapters::Postgres,
   it "outlives the adapter that wrote it" do
     adapter.save(instance("p1", name: { value: "Margherita" }, status: "sold"))
 
-    reopened = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+    reopened = described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
     expect(reopened.find("p1").status).to eq("sold")
   end
 
   it "boots twice with no error and no duplicate index" do
     adapter
-    db = PG.connect(dbname: SPEC_DB)
+    db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
     before_indexes = indexes_on(db, "order").sort
 
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+    described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB })
     after_indexes = indexes_on(db, "order").sort
     db.close
 
@@ -189,7 +189,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
     it "creates a plain btree index for the lifecycle field a declared query filters on" do
       adapter
-      db = PG.connect(dbname: SPEC_DB)
+      db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
       indexdefs = db.exec_params("SELECT indexdef FROM pg_indexes WHERE tablename = $1", ["order"]).map { |row| row["indexdef"] }
       db.close
 
@@ -198,7 +198,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
     it "creates an expression index reproducing the exact jsonb path a nested query compiles to" do
       adapter
-      db = PG.connect(dbname: SPEC_DB)
+      db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
       indexdefs = db.exec_params("SELECT indexdef FROM pg_indexes WHERE tablename = $1", ["order"]).map { |row| row["indexdef"] }
       db.close
 
@@ -207,7 +207,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
     it "attempts no index at all for the list-typed `toppings` attribute" do
       adapter
-      db = PG.connect(dbname: SPEC_DB)
+      db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
       indexdefs = db.exec_params("SELECT indexdef FROM pg_indexes WHERE tablename = $1", ["order"]).map { |row| row["indexdef"] }
       db.close
 
@@ -233,7 +233,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     end
 
     let(:tagged_aggregate) { build_tagged_aggregate }
-    let(:tagged_adapter) { described_class.new(aggregate: tagged_aggregate, settings: { database: SPEC_DB }) }
+    let(:tagged_adapter) { described_class.new(aggregate: tagged_aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB }) }
 
     def tagged_instance(id, tags:)
       built = Hecksagain::Runtime::Instance.new(aggregate: tagged_aggregate, id: id)
@@ -248,7 +248,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       declared = tagged_aggregate.query("TaggedRed")
       expect(tagged_adapter.query(declared, {}).map(&:id)).to eq(["w1"])
 
-      db = PG.connect(dbname: SPEC_DB)
+      db = PG.connect(dbname: PLAIN_POSTGRES_SPEC_DB)
       indexdefs = db.exec_params("SELECT indexdef FROM pg_indexes WHERE tablename = $1", ["widget"]).map { |row| row["indexdef"] }
       db.close
       expect(indexdefs.none? { |sql| sql.include?("tags") }).to be(true)
@@ -291,7 +291,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     end
 
     it "isolates sagas by domain within one shared database" do
-      other = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, domain: "OtherDomain" })
+      other = described_class.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_SPEC_DB, domain: "OtherDomain" })
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1", state: "start", memory: {})
       other.save_saga(process_manager: "Onboarding", correlation: "c1", state: "different", memory: {})
 

@@ -24,7 +24,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
 
   def owner_url = "postgres://#{FIELD_CACHE_OWNER}@localhost/#{FIELD_CACHE_DB}"
 
-  V1_SOURCE = <<~BLUEBOOK.freeze
+  FIELD_CACHE_V1_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Cache" do
       aggregate "Widget" do
         identified_by :code
@@ -67,7 +67,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   # diff: this test is about proving Track C's cache tables survive a
   # mint correctly, not about exercising the translation DSL's rename/
   # move/convert/drop machinery — that's lineage_spec.rb's own job.
-  V2_SOURCE = <<~BLUEBOOK.freeze
+  FIELD_CACHE_V2_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Cache" do
       aggregate "Item" do
         identified_by :code
@@ -112,7 +112,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   # An empty body — nothing to explain, since no attribute changed.
   def edge_source
     <<~RUBY
-      Hecks.data_translation("Cache", from: #{label_of(V1_SOURCE).inspect}, to: #{label_of(V2_SOURCE).inspect}) do
+      Hecks.data_translation("Cache", from: #{label_of(FIELD_CACHE_V1_SOURCE).inspect}, to: #{label_of(FIELD_CACHE_V2_SOURCE).inspect}) do
         aggregate("Item", was: "Widget") do
         end
       end
@@ -198,7 +198,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   # ── 1. cache-table correctness, before the mint ──────────────────────
 
   it "answers a declared where query correctly through the field cache, before any mint" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = adapter_for(registry, "Widget")
 
@@ -220,7 +220,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   end
 
   it "keeps the cache correct across a save that changes the cached field's value" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = adapter_for(registry, "Widget")
 
@@ -232,7 +232,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   end
 
   it "removes a deleted id from the cache" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = adapter_for(registry, "Widget")
 
@@ -244,13 +244,13 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   # ── 2. cache-table correctness, after the mint ───────────────────────
 
   it "answers the same declared query correctly after a real era mint" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate1 = registry.bluebooks.values.first.aggregate("Widget")
     adapter1 = adapter_for(registry, "Widget")
     adapter1.save(instance_for(aggregate1, "w1", status: "active", cents: 1000))
     adapter1.save(instance_for(aggregate1, "w2", status: "retired", cents: 900))
 
-    registry2 = check!(V2_SOURCE, translation_source: edge_source)
+    registry2 = check!(FIELD_CACHE_V2_SOURCE, translation_source: edge_source)
     aggregate2 = registry2.bluebooks.values.first.aggregate("Item")
     adapter2 = adapter_for(registry2, "Item", era: 2)
 
@@ -267,7 +267,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   end
 
   it "backfills a field cache correctly when the cache table is created against pre-existing history" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = adapter_for(registry, "Widget")
     adapter.save(instance_for(aggregate, "w1", status: "active", cents: 1000))
@@ -293,7 +293,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   # ── 3. backfill resumability under a simulated crash/restart ─────────
 
   it "resumes a backfill from its persisted cursor after a simulated crash mid-scan" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = adapter_for(registry, "Widget")
     ids = (1..10).map { |n| "w#{n}" }
@@ -343,7 +343,7 @@ RSpec.describe "PostgresEra field cache — Track C validation",
   # ── 4. genuine non-blocking-ness ──────────────────────────────────────
 
   it "lets a concurrent plain write through while a backfill is mid-scan" do
-    registry = check!(V1_SOURCE)
+    registry = check!(FIELD_CACHE_V1_SOURCE)
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = adapter_for(registry, "Widget")
     ids = (1..20).map { |n| "w#{n}" }

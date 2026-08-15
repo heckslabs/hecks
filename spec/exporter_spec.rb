@@ -2,17 +2,17 @@ require "spec_helper"
 
 RSpec.describe Hecksagain::Projector::Exporter do
   describe ".lineage" do
-    # A REAL Postgres binding, not `boot_in_memory`'s own override to
+    # A REAL PostgresEra binding, not `boot_in_memory`'s own override to
     # Memory — `Exporter.lineage`'s whole job is answering "which
     # adapter is this aggregate actually bound to," so a spec that
     # rebinds Order to Memory first would only ever prove the empty
     # case. `POSTGRES_ERA_ADAPTER` (the DSL declaration, InMemoryDomain's
     # own constant) plus a plain `require` of the Ruby class — the same
     # pairing bin/project_rust's own header explains — is enough:
-    # `lineage_capable?`'s `require "pg"` stays lazy, inside `Postgres.
+    # `lineage_capable?`'s `require "pg"` stays lazy, inside `PostgresEra.
     # connect_for` only, so this never needs a live database.
     def registry_with_pizzas_bound_to_postgres
-      require "hecksagain/adapters/driven/postgres"
+      require "hecksagain/adapters/driven/postgres_era"
       registry = Hecksagain::Runtime::Registry.new
       Hecksagain.with_registry(registry) do
         Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
@@ -44,7 +44,7 @@ RSpec.describe Hecksagain::Projector::Exporter do
       order = registry.bluebooks.fetch("Pizzas").aggregate("Order")
       adapter = Hecksagain::Runtime::EraCheck.adapter_for(registry, "Pizzas", order)
 
-      expect(adapter).to eq("Postgres")
+      expect(adapter).to eq("PostgresEra")
       expect(Hecksagain::Runtime::EraCheck.lineage_capable?(registry, adapter)).to be true
     end
   end
