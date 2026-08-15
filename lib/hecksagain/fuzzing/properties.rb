@@ -53,7 +53,8 @@ module Hecksagain
         sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
                                      ProcessManager#starts_on ProcessManager#ends_on],
         fanout_dispatches_once_per_matching_row: %w[Policy#for_each Policy#where],
-        aggregation_matches_recompute: %w[ReadModel#count ReadModel#median_field]
+        aggregation_matches_recompute: %w[ReadModel#count ReadModel#median_field],
+        stored_records_satisfy_declared_invariants: %w[Aggregate#invariants]
       }.freeze
 
       # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
@@ -327,6 +328,49 @@ module Hecksagain
         end
       end
 
+      # EVERY STORED RECORD STILL SATISFIES ITS OWN AGGREGATE'S DECLARED
+      # INVARIANTS — Admissibility#enforce_invariants (command_rules/
+      # admissibility.rb) checks these AFTER every command's mutations,
+      # BEFORE save, the same point `ensures` is checked. Nothing until
+      # now re-checked a record AFTER a whole replay finished, independent
+      # of whichever call site was supposed to have refused a violation
+      # in the first place — a record failing its own declared invariant
+      # here is proof a violating write landed anyway: the call site
+      # stopped calling enforce_invariants, or some other path (a
+      # translation, a backfill) wrote around it entirely.
+      #
+      # `history[:instances]` entries are already plain, symbol-keyed
+      # state Hashes (Replay.call's own `record.state`) — called against
+      # Evaluator.call the SAME way ValueObject::Builder#build already
+      # does for a VO's own invariants (value/coercion.rb), no GuardState
+      # wrapper needed the way enforce_invariants' own LIVE call uses one
+      # (GuardState exists for `parent.`/projected-field dereferencing
+      # mid-dispatch; a stored record's own scalar fields need none of
+      # that to re-check a same-aggregate invariant against itself).
+      #
+      # Real target: Account's own `invariant("the balance never goes
+      # negative") { balance.cents >= 0 }`.
+      def stored_records_satisfy_declared_invariants(history)
+        bluebooks = history.fetch(:bluebooks)
+
+        offenders = history.fetch(:instances).filter_map do |key, state|
+          domain_name    = key.split("::").first
+          aggregate_name = key.split("::").last.split("#").first
+          bluebook       = bluebooks[domain_name]
+          aggregate      = bluebook&.aggregate(aggregate_name)
+          next unless aggregate
+
+          violated = aggregate.invariants.find do |invariant|
+            !Bluebook::Expression::Evaluator.call(invariant.canonical, state)
+          end
+          next unless violated
+
+          "#{key} violates #{aggregate_name}'s own declared invariant #{violated.description.inspect}"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
       # A SAGA INSTANCE'S OWN CHECKPOINT SURVIVES BEING WRITTEN AND READ
       # BACK — the durability contract `SagaInterpreter#checkpoint` makes
       # (`state:` plus a `deep_copy`d `memory:`, handed to whatever
@@ -511,7 +555,8 @@ module Hecksagain
           guard_refusals_are_declared: guard_refusals_are_declared(history),
           sagas_rehydrate_cleanly: sagas_rehydrate_cleanly(history),
           fanout_dispatches_once_per_matching_row: fanout_dispatches_once_per_matching_row(history),
-          aggregation_matches_recompute: aggregation_matches_recompute(history) }
+          aggregation_matches_recompute: aggregation_matches_recompute(history),
+          stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history) }
       end
     end
   end

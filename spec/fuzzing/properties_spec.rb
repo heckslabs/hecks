@@ -292,5 +292,21 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
       expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
     end
+
+    it "stored_records_satisfy_declared_invariants names a stored balance that violates Account's own invariant" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  instances: { "Banking::Account#a1" => { balance: { cents: -500, currency: "USD" } } } }
+
+      result = Hecksagain::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::Account#a1").and include("the balance never goes negative")
+    end
+
+    it "stored_records_satisfy_declared_invariants passes a stored balance that holds the invariant" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  instances: { "Banking::Account#a1" => { balance: { cents: 500, currency: "USD" } } } }
+
+      expect(Hecksagain::Fuzzing::Properties.stored_records_satisfy_declared_invariants(history)).to eq(true)
+    end
   end
 end
