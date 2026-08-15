@@ -5,7 +5,9 @@ require_relative "lineage/provisioning"
 require_relative "lineage/era_store"
 require_relative "lineage/mint_transaction"
 require_relative "lineage/tail_merge"
+require_relative "lineage/resumable_backfill"
 require_relative "lineage/head_compiler"
+require_relative "lineage/field_cache"
 require_relative "lineage/transform_installer"
 require_relative "../../../naming"
 
@@ -76,15 +78,20 @@ module Hecksagain
       # One concern per file under lineage/: provisioning (DDL and the
       # RLS posture), era_store (the hecks_eras rows and their integrity),
       # mint_transaction (the one transaction that makes an era real),
-      # tail_merge (the one deliberate merge command), head_compiler (the
-      # chained-edge SQL a head derives through), transform_installer
-      # (the hecks_tr_* jsonb helpers).
+      # tail_merge (the one deliberate merge command), resumable_backfill
+      # (the one chunked/lock-free/resumable scan loop, shared by
+      # head_compiler's own backfill and field_cache's), head_compiler
+      # (the chained-edge SQL a head derives through), field_cache (the
+      # per-where-field read cache that lets a query skip the reduction
+      # entirely), transform_installer (the hecks_tr_* jsonb helpers).
       class Lineage
         include Provisioning
         include EraStore
         include MintTransaction
         include TailMerge
+        include ResumableBackfill
         include HeadCompiler
+        include FieldCache
         include TransformInstaller
 
         JOURNAL_COLUMNS = "ordinal, era, aggregate, aggregate_id, operation, state, mirrors".freeze

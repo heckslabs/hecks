@@ -120,6 +120,16 @@ module Hecksagain
         # CREATE TABLE IF NOT EXISTS nobody pays for twice.
         @lineage.ensure_head_snapshot!(table, @era)
         @lineage.ensure_first_head!(table) if @era == 1
+        # THE READ-CACHE SIDE OF THE ERA WORKAROUND (Track C,
+        # docs/postgres-era-adapter-split-plan.md §3) — one row-cache
+        # table per `where`-field this aggregate's own declared queries
+        # (and its entities' own) actually use, derived automatically
+        # (principle 3 — no bluebook keyword), self-healing and
+        # idempotent like everything else booted here. `@field_caches`
+        # maps field -> cache-table name; `query` below consults it to
+        # decide whether a declared query can skip the DISTINCT ON
+        # reduction entirely.
+        @field_caches = ensure_field_caches!
         create_event_table!
         create_saga_table!
       end
@@ -155,6 +165,50 @@ module Hecksagain
       end
 
       def count = @db.exec(%(SELECT COUNT(*) FROM #{quoted_head}))[0]["count"].to_i
+
+      # THE TWO-PHASE SHORTCUT (Track C, docs/postgres-era-adapter-split-
+      # plan.md §3). `SqlQueryBuilder#query` (`super`, unmodified per
+      # principle 2) always runs correctly here — it filters against
+      # `head_view`, which is already the fully-reduced current state —
+      # but for a domain that has minted a second era, that reduction
+      # itself is the expensive part, and no index on the jsonb path
+      # changes that (see field_cache.rb's own header for the SQL-
+      # semantics reason why). When every `where` clause this query
+      # declares either targets a cached field or is eligible to (an
+      # ordinary comparator, not a null-vs-value special case — see
+      # `cache_eligible?`), skip the reduction: look candidate ids up in
+      # the cache table(s) first (cheap, indexed, no reduction involved),
+      # then read ONLY those ids' current state from `head_view` — safe
+      # THROUGH the reduction because `id` is its own partition key. Any
+      # clause that ISN'T cache-eligible (an uncached field, or a null
+      # comparison) is simply re-checked against `head_view` in the
+      # second phase, exactly as `super` would have checked it anyway —
+      # this can only ever NARROW what phase two has to look at, never
+      # change what a clause means.
+      #
+      # FALLS BACK TO `super` WHENEVER NO CLAUSE CAN BE ACCELERATED — a
+      # query with no `where` at all (order_by-only — no cache table
+      # exists for these, see field_cache.rb), a query whose only clauses
+      # target fields with no cache table, or a domain that has never
+      # minted a second era at all (`@field_caches` is never empty just
+      # because era 1 has no reduction to skip — the cache tables still
+      # exist and still accelerate era 1 the same way, but the fallback
+      # path is already just as cheap there since head_view IS the
+      # snapshot table verbatim for era 1; skipping straight to `super`
+      # in that case would be a valid FUTURE optimization, not attempted
+      # here to keep this one code path correct for every era uniformly).
+      def query(declared, args = {}, context: {})
+        return super if @field_caches.empty? || declared.wheres.empty?
+
+        evaluated = declared.wheres.map { |clause| [clause, query_value(clause.value, args)] }
+        cached, uncached = evaluated.partition { |clause, value| cache_eligible?(clause, value) }
+        return super if cached.empty?
+
+        ids = cache_phase(cached)
+        return [] if ids.empty?
+
+        head_phase(declared, uncached, ids, args)
+      end
 
       # HELD FOR THE WHOLE TRANSACTION, not just around the INSERT — the
       # ordinal is assigned by the column's own `nextval()` default, inside
@@ -193,8 +247,19 @@ module Hecksagain
               "WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
               [entry.id, ordinal, JSON.generate(entry.state)]
             )
+            # SAME TRANSACTION, SAME ORDINAL — every field cache stays
+            # exactly as current as the snapshot it's derived from, for
+            # the identical reason `postgres_era.rb`'s own header comment
+            # gives for the journal/snapshot pair: if this transaction
+            # commits, every cache row is already correct; if it doesn't,
+            # none of them changed.
+            state_json = JSON.generate(entry.state)
+            @field_caches.each do |field, cache_table|
+              @lineage.upsert_field_cache_row!(cache_table, entry.id, ordinal, state_json, query_expression(field))
+            end
           else
             @db.exec_params("DELETE FROM #{quoted_head_snapshot} WHERE id = $1", [entry.id])
+            @field_caches.each_value { |cache_table| @lineage.delete_field_cache_row!(cache_table, entry.id) }
           end
         end
         entry
@@ -405,6 +470,112 @@ module Hecksagain
       end
 
       def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
+
+      # ── the field-cache read shortcut (Track C) ─────────────────────
+
+      # EVERY declared `where`-field this aggregate's own queries and its
+      # entities' own queries use, minus anything a cache table can't
+      # represent (see `cacheable_field?`) — never `order_by`-only
+      # fields, which never needed a cache in the first place (sorting
+      # the reduced output was never blocked by the reduction; only
+      # filtering was — see field_cache.rb's own header).
+      def ensure_field_caches!
+        cached_where_fields.to_h do |field|
+          [field, @lineage.ensure_field_cache!(table, @era, field, query_expression(field))]
+        end
+      end
+
+      def cached_where_fields
+        declared_queries.flat_map { |q| q.wheres.map { |clause| clause.field.to_s } }.uniq.select { |field| cacheable_field?(field) }
+      end
+
+      def declared_queries
+        @aggregate.queries + @aggregate.entities.flat_map(&:queries)
+      end
+
+      # LIST-TYPED FIELDS ARE EXCLUDED, same boundary the plain `Postgres`
+      # and `Sqlite`/`D1` adapters independently landed on for their own
+      # automatic indexing: `contains` means element membership, and a
+      # (id, ordinal, ONE value) cache row has nowhere to put more than
+      # one element. Everything else — a plain scalar, the lifecycle
+      # field, or a non-list value-object member path — reduces to
+      # exactly one comparable value per id, which is the one shape this
+      # cache table represents.
+      def cacheable_field?(field)
+        name = field.to_s.split(".").first
+        return true if @aggregate.lifecycle&.field.to_s == name
+
+        attribute = @aggregate.attribute(name)
+        !attribute.nil? && !attribute.list?
+      end
+
+      # A clause can be served by the cache when its field has a cache
+      # table AND it isn't the null-vs-value special case
+      # `QuerySpecification::Common::NullPolicy` intercepts before
+      # `where_clause` ever runs (see `query`'s own header comment) — a
+      # clause that fails either check simply flows to `head_phase`
+      # unaccelerated, exactly as `super` would have evaluated it.
+      def cache_eligible?(clause, value)
+        @field_caches.key?(clause.field.to_s) &&
+          QuerySpecification::Common::NullPolicy.sql_predicate(query_expression(clause.field, value: value), clause.op, value).nil?
+      end
+
+      # PHASE ONE — candidate ids, no reduction touched. One SELECT per
+      # cached clause against its own narrow (id, ordinal, value) table,
+      # `INTERSECT`ed into the set that satisfies every cached clause at
+      # once. Reuses `where_clause` (SqlQueryBuilder, private, already
+      # mixed into this class) UNCHANGED against the cache table's own
+      # `value` column instead of a jsonb path expression — the exact
+      # same operator compilation (`eq`/`ne`/`gt`/`gte`/`lt`/`lte`/`in`)
+      # a live query already gets against the real column, so a cached
+      # field supports every comparator `super` would have, not just the
+      # `eq` example in the plan doc's own illustration.
+      def cache_phase(cached)
+        binds = []
+        clauses = cached.map do |clause, value|
+          cache_table = @lineage.field_cache(table, @era, clause.field.to_s)
+          "SELECT id FROM #{quote_ident(cache_table)} WHERE #{where_clause(clause.op.to_s, quote_ident('value'), value, binds, field: clause.field)}"
+        end
+        @db.exec_params(clauses.join("\nINTERSECT\n"), binds).map { |row| row["id"] }
+      end
+
+      # PHASE TWO — `head_view`, restricted to phase one's candidate ids
+      # PLUS whatever clauses phase one couldn't accelerate, applied
+      # exactly the way `SqlQueryBuilder#query` (`super`) already applies
+      # every clause today: against the fully-reduced view, which is
+      # already correct regardless of caching (see this file's own
+      # `query` comment — a cache is a SPEED shortcut, never a
+      # correctness fix; head_view was always safe to filter directly,
+      # just expensive to reduce in the first place). Duplicates a small
+      # slice of `SqlQueryBuilder#query`'s own tail assembly (order_by/
+      # limit/offset) rather than reaching into it — principle 2
+      # (docs/postgres-era-adapter-split-plan.md): SqlQueryBuilder stays
+      # untouched by the era workaround, so this stays local to
+      # PostgresEra rather than growing a shared hook only one adapter
+      # would ever call.
+      def head_phase(declared, uncached, ids, args)
+        binds = []
+        clauses = ["id IN (#{ids.map { |id| placeholder(binds, id) }.join(', ')})"]
+        uncached.each do |clause, value|
+          expression = query_expression(clause.field, value: value)
+          if (null_predicate = QuerySpecification::Common::NullPolicy.sql_predicate(expression, clause.op, value))
+            clauses << null_predicate.first
+            next
+          end
+          clauses << where_clause(clause.op.to_s, expression, value, binds, field: clause.field)
+        end
+
+        sql = +"SELECT #{select_list} FROM #{from_relation} WHERE #{clauses.join(' AND ')}"
+        sql << if declared.order_by
+                 " ORDER BY #{order_clause(declared.order_by, declared.null_semantics)}"
+               else
+                 " ORDER BY id"
+               end
+        sql << " LIMIT #{placeholder(binds, query_value(declared.limit.value, args).to_i)}" if declared.limit
+        sql << unbounded_limit if !declared.limit && declared.offset
+        sql << " OFFSET #{placeholder(binds, query_value(declared.offset.value, args).to_i)}" if declared.offset
+        execute_query(sql, binds)
+      end
 
       def create_event_table!
         @db.exec(<<~SQL)
