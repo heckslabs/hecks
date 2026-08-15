@@ -21,7 +21,7 @@ RSpec.describe "the DSL reference's examples" do
     page = Doctest.parse(path)
 
     it "#{File.basename(path)} says nothing its examples cannot back", io: page.postgres do
-      skip "no reachable Postgres — start one to run this page" if page.postgres && !Doctest::POSTGRES_AVAILABLE
+      skip "no reachable Postgres — start one to run this page" if page.postgres && !Doctest.postgres_available?
 
       expect(Doctest.run(path)).to be(true)
     end

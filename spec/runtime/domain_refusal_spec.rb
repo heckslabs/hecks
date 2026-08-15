@@ -45,8 +45,9 @@ RSpec.describe "every refusal the corpus provokes" do
     # self-skipping otherwise, same as every other real-Postgres spec —
     # only for "pizzas"; "banking" stays a plain, always-runs example.
     it "#{name} raises only errors the domain is allowed to raise",
-       io: (name == "pizzas"),
-       skip: (name == "pizzas" && !PostgresProbe::AVAILABLE ? "no reachable Postgres — start one to run this spec" : false) do
+       io: (name == "pizzas") do
+      skip "no reachable Postgres — start one to run this spec" if name == "pizzas" && !PostgresProbe.available?
+
       script = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/#{name}.json")))
       Dir.mktmpdir do |tmp|
         domain = File.join(tmp, name)

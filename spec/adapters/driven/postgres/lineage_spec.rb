@@ -7,8 +7,7 @@ require_relative "../../../support/postgres_probe"
 # Runs only when a Postgres server is reachable — the shared probe in
 # support/postgres_probe.rb, like every other Postgres spec here.
 RSpec.describe "lineage in the Postgres adapter",
-               io: true,
-               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
+               io: true do
   LINEAGE_DB = "hecksagain_lineage_spec".freeze
 
   # The genuine table owner for this whole file — an ordinary,
@@ -111,6 +110,8 @@ RSpec.describe "lineage in the Postgres adapter",
   end
 
   before(:all) do
+    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{LINEAGE_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{LINEAGE_DB}")

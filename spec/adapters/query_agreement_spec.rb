@@ -26,40 +26,51 @@ require "pg"
 # The reachability probe itself lives in support/postgres_probe.rb,
 # shared by every Postgres spec — a real `PG.connect` round trip asking
 # the identical question five separate times over was real, redundant
-# I/O.
-postgres_available = PostgresProbe::AVAILABLE
+# I/O. LAZY: `postgres_available?` below only calls it from inside a
+# hook/example body, never at file-load time — see postgres_probe.rb's
+# own header for why that distinction matters even under `io: true`.
 
 # D1 needs real Cloudflare credentials (CLOUDFLARE_ACCOUNT_ID,
 # CLOUDFLARE_D1_DATABASE_ID, CLOUDFLARE_D1_API_TOKEN) — optional, same as
 # Postgres above: this gate runs Memory-vs-Sqlite-vs-Postgres agreement on
 # any machine, and additionally includes D1 wherever those three env vars
-# point at a real, reachable database.
-d1_available =
-  begin
-    if ENV["CLOUDFLARE_ACCOUNT_ID"] && ENV["CLOUDFLARE_D1_DATABASE_ID"] && ENV["CLOUDFLARE_D1_API_TOKEN"]
-      Hecksagain::Adapters::D1::Connection.new(
-        account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
-        database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
-        api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
-      ).execute("SELECT 1")
-      true
-    else
-      false
-    end
-  rescue StandardError
-    false
+# point at a real, reachable database. Same laziness as Postgres: only a
+# module method, memoized once, never a top-level constant — module
+# DEFINITION does no I/O, only calling `.available?` does.
+module QueryAgreementD1Probe
+  def self.available?
+    return @available if defined?(@available)
+
+    @available =
+      begin
+        if ENV["CLOUDFLARE_ACCOUNT_ID"] && ENV["CLOUDFLARE_D1_DATABASE_ID"] && ENV["CLOUDFLARE_D1_API_TOKEN"]
+          Hecksagain::Adapters::D1::Connection.new(
+            account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
+            database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
+            api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
+          ).execute("SELECT 1")
+          true
+        else
+          false
+        end
+      rescue StandardError
+        false
+      end
   end
+end
 
 RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, Postgres, and D1",
                io: true do
   AGREEMENT_DB = "hecksagain_query_agreement_spec".freeze
-  # A def sees no file-local the way the hook blocks do — the probe's
-  # verdict crosses into agree! as a constant.
-  POSTGRES_AVAILABLE = postgres_available
-  D1_AVAILABLE = d1_available
+
+  # Instance methods, not `def self.` — `PostgresProbe`/`QueryAgreementD1Probe`
+  # already memoize the real check once at the module level, so every call
+  # below is cheap; these just give hook/example bodies a short name for it.
+  def postgres_available? = PostgresProbe.available?
+  def d1_available? = QueryAgreementD1Probe.available?
 
   before(:all) do
-    next unless postgres_available
+    next unless postgres_available?
 
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{AGREEMENT_DB} WITH (FORCE)")
@@ -68,7 +79,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   end
 
   after(:all) do
-    next unless postgres_available
+    next unless postgres_available?
 
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{AGREEMENT_DB} WITH (FORCE)")
@@ -76,7 +87,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   end
 
   before do
-    next unless postgres_available
+    next unless postgres_available?
 
     scrub = PG.connect(dbname: AGREEMENT_DB)
     scrub.exec("DROP SCHEMA public CASCADE")
@@ -91,7 +102,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # gets to the same state: empty tables, freshly recreated by whichever
   # adapter's own schema-creation runs next when `d1` is first touched.
   before do
-    next unless d1_available
+    next unless d1_available?
 
     scrub = Hecksagain::Adapters::D1::Connection.new(
       account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
@@ -253,9 +264,9 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   let(:memory)   { Hecksagain::Adapters::Memory.new(aggregate: aggregate) }
   let(:sqlite)   { Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
-  let(:postgres) { postgres_available ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
+  let(:postgres) { postgres_available? ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
   let(:d1) do
-    next nil unless d1_available
+    next nil unless d1_available?
 
     Hecksagain::Adapters::D1.new(
       aggregate: aggregate,
@@ -314,8 +325,8 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
     expect(memory.query(declared, args).map(&:id)).to eq(expected)
     expect(sqlite.query(declared, args).map(&:id)).to eq(expected)
-    expect(postgres.query(declared, args).map(&:id)).to eq(expected) if POSTGRES_AVAILABLE
-    expect(d1.query(declared, args).map(&:id)).to eq(expected) if D1_AVAILABLE
+    expect(postgres.query(declared, args).map(&:id)).to eq(expected) if postgres_available?
+    expect(d1.query(declared, args).map(&:id)).to eq(expected) if d1_available?
   end
 
   it "compiles eq on the lifecycle field the same everywhere" do

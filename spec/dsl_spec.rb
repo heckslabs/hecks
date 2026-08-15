@@ -253,8 +253,9 @@ RSpec.describe "the DSL surface" do
     # database — same as every other real-Postgres spec, `io: true` and
     # self-skipping otherwise.
     it ".boot loads a domain directory and returns the door",
-       io: true,
-       skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
+       io: true do
+      skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
       runtime = Hecks.boot(File.expand_path("../examples/pizzas", __dir__))
       expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)
       expect(runtime.verbs).to include("Pizzas::Order.Purchase")

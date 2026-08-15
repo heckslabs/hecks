@@ -72,7 +72,15 @@ require_relative "support/ruby_codegen_prelude"
 # Left named here as a real, confirmed-currently-harmless gap, not
 # silently dropped — see `mutations.rs`'s own header for the full
 # argument.
-RSpec.describe "Rust codegen parity (hecks-codegen)" do
+# `io: true` — a `cargo build` subprocess spawn is real I/O by this
+# suite's own convention (see spec_helper.rb's `io: true` note), and
+# `build_codegen!` used to run at `describe`-body load time, unconditionally,
+# on every `bundle exec rspec` — RSpec still evaluates a group's top-level
+# body while building the example tree even when every example in it gets
+# excluded by the `io: true` filter, so tagging the group alone wasn't
+# enough; the build itself had to move into a `before(:context)` hook,
+# which — unlike plain body code — really is skipped when excluded.
+RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   CODEGEN_DIR = File.expand_path("../rust/codegen", __dir__)
   CODEGEN_BINARY = File.join(CODEGEN_DIR, "target", "debug", "hecks-codegen")
 
@@ -82,7 +90,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)" do
     raise "cargo build did not produce #{CODEGEN_BINARY}" unless File.executable?(CODEGEN_BINARY)
   end
 
-  build_codegen!
+  before(:context) { self.class.build_codegen! }
 
   def self.json_shaped(ir) = JSON.parse(JSON.generate(ir), symbolize_names: true)
 
