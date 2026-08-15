@@ -85,15 +85,15 @@ module Hecksagain
 
         # EVERY SPECIFICATION OPTION AN ASK CARRIES, flattened to rows.
         #
-        # `offset`, `cursor`, `nulls`, `authorize`, `consistency`, `freshness`,
-        # `inspect_query` and `use_index` are eight options, several compound
-        # (authorize names a policy AND a tenant) and one repeated (an index hint per
-        # occurrence). `extra_options_to_h` already spells every one of them and drops
-        # the absent ones, so this reads that rather than naming them here — a ninth
-        # option needs no change on either side.
+        # `offset`, `cursor`, `nulls`, `authorize` and `inspect_query` are
+        # five options, one compound (authorize names a policy AND a
+        # tenant). `extra_options_to_h` already spells every one of them
+        # and drops the absent ones, so this reads that rather than
+        # naming them here — a sixth option needs no change on either
+        # side.
         #
-        # `at` tells repeated rows apart, so two index hints do not collapse.
-        # `filters: true` adds a read model's wheres, order_by and limit.
+        # `filters: true` adds a read model's wheres, order_by and limit —
+        # `at` tells repeated rows apart, so two wheres do not collapse.
         #
         # THE LANGUAGE MAY HOLD MORE THAN `to_h` CARRIES, and this is where that
         # mattered. Until 2026-08-11, `ReadModel#to_h` omitted all three —

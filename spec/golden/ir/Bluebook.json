@@ -8404,7 +8404,7 @@
             [
               [
                 "word",
-                "report"
+                "read_model"
               ],
               [
                 "context",
@@ -8428,7 +8428,7 @@
               ],
               [
                 "was",
-                "read_model"
+                "report"
               ]
             ],
             [
@@ -9946,58 +9946,6 @@
             [
               [
                 "word",
-                "consistency"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "freshness"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "authorize"
               ],
               [
@@ -10051,32 +9999,6 @@
               [
                 "word",
                 "inspect_query"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "use_index"
               ],
               [
                 "context",
@@ -10388,58 +10310,6 @@
             [
               [
                 "word",
-                "consistency"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "freshness"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "authorize"
               ],
               [
@@ -10493,32 +10363,6 @@
               [
                 "word",
                 "inspect_query"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "use_index"
               ],
               [
                 "context",
@@ -11264,7 +11108,7 @@
             [
               [
                 "keyword",
-                "report"
+                "read_model"
               ],
               [
                 "context",
@@ -14904,126 +14748,6 @@
             [
               [
                 "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "timeout"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "timeout"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "max_age"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "max_age"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "authorize"
               ],
               [
@@ -15139,36 +14863,6 @@
               [
                 "fills",
                 "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "use_index"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "name"
               ]
             ],
             [
@@ -15568,126 +15262,6 @@
             [
               [
                 "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "timeout"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "timeout"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "max_age"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "max_age"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "authorize"
               ],
               [
@@ -15803,36 +15377,6 @@
               [
                 "fills",
                 "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "use_index"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "name"
               ]
             ],
             [

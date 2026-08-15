@@ -132,23 +132,6 @@ pub struct Query {
     pub options: QueryOptions,
 }
 
-/// `ConsistencySpec#to_h` (`lib/hecksagain/query_specification/common/consistency_spec.rb`)
-/// — `mode` bare (`mode.to_s`, no colon), `timeout` Literal-rendered
-/// (`QuerySpecification.render_value`, only present when given).
-#[derive(Debug, Clone, Default)]
-pub struct ConsistencySpec {
-    pub mode: String,
-    pub timeout: Option<String>,
-}
-
-/// `FreshnessSpec#to_h` — same shape as `ConsistencySpec`, `max_age` in
-/// place of `timeout`.
-#[derive(Debug, Clone, Default)]
-pub struct FreshnessSpec {
-    pub mode: String,
-    pub max_age: Option<String>,
-}
-
 /// `AuthorizationSpec#to_h` — BOTH fields bare `.to_s` (never
 /// Literal-rendered): `policy` a Symbol's bare name, `tenant` likewise
 /// when given.
@@ -158,26 +141,17 @@ pub struct AuthorizationSpec {
     pub tenant: Option<String>,
 }
 
-/// `IndexHint#to_h` — `{name: name.to_s}`.
-#[derive(Debug, Clone, Default)]
-pub struct IndexHint {
-    pub name: String,
-}
-
 /// Mirrors `QuerySpecification::Common::Options#extra_options_to_h`
 /// FIELD FOR FIELD, in Ruby's own declared order (`options_to_h`:
-/// offset, cursor, consistency, freshness, authorization, null_semantics,
-/// inspection, index_hints) — a TYPED struct rather than the Stage-1
-/// `BTreeMap<String, String>` this replaces, because a `BTreeMap` iterates
-/// its keys ALPHABETICALLY, which silently disagrees with Ruby's own
-/// declared field order the moment two options land on the SAME query
-/// (confirmed real: `SafeDepositBox.Rented`'s own `authorize`+
-/// `consistency` — alphabetically "authorization" sorts before
-/// "consistency", but Ruby's own `options_to_h` writes `consistency`
-/// FIRST). Shared verbatim by `Query` and `ReadModel` — both `< Options`
-/// on the Ruby side, and `extra_options_to_h` excludes `wheres`/
-/// `order_by`/`limit` by name in both, which is why those three stay
-/// separate fields on each IR struct instead of living here too.
+/// offset, cursor, authorization, null_semantics, inspection) — a TYPED
+/// struct rather than the Stage-1 `BTreeMap<String, String>` this
+/// replaces, because a `BTreeMap` iterates its keys ALPHABETICALLY,
+/// which silently disagreed with Ruby's own declared field order the
+/// moment two options landed on the SAME query. Shared verbatim by
+/// `Query` and `ReadModel` — both `< Options` on the Ruby side, and
+/// `extra_options_to_h` excludes `wheres`/`order_by`/`limit` by name in
+/// both, which is why those three stay separate fields on each IR
+/// struct instead of living here too.
 #[derive(Debug, Clone, Default)]
 pub struct QueryOptions {
     // OffsetSpec/CursorSpec-shaped ({value: Literal-rendered}) — already
@@ -185,8 +159,6 @@ pub struct QueryOptions {
     // `LimitSpec.value` already uses.
     pub offset: Option<String>,
     pub cursor: Option<String>,
-    pub consistency: Option<ConsistencySpec>,
-    pub freshness: Option<FreshnessSpec>,
     pub authorization: Option<AuthorizationSpec>,
     // `NullSemantics#to_h`'s `mode.to_s` — `extra_options_to_h` drops this
     // key entirely when it's the default (`{mode: "native"}`), so this is
@@ -196,7 +168,6 @@ pub struct QueryOptions {
     pub null_semantics: Option<String>,
     // `InspectionSpec#to_h`'s `mode.to_s`.
     pub inspection: Option<String>,
-    pub index_hints: Vec<IndexHint>,
 }
 
 #[derive(Debug, Clone, Default)]

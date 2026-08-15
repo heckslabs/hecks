@@ -1,19 +1,20 @@
-//! Mirrors `QuerySpecification::Common::DSL`'s eight option words
+//! Mirrors `QuerySpecification::Common::DSL`'s five option words
 //! (`lib/hecksagain/query_specification/common/dsl.rb`) — `offset`/
-//! `cursor`/`consistency`/`freshness`/`authorize`/`nulls`/`inspect_query`/
-//! `use_index`. Shared verbatim by `parse::query` and `parse::read_model`,
-//! since both Ruby builders `include QuerySpecification::Common::DSL` and
-//! land on the identical `ir::QueryOptions` shape (`ir.rs`'s own header
-//! explains why that's a typed struct rather than a second
-//! alphabetically-ordered `BTreeMap`). Confirmed real by banking.bluebook:
-//! `Account.Overdrawn`'s own `freshness :eventual, max_age: 300` +
-//! `use_index :balance_index`, `SafeDepositBox.Rented`'s own `authorize
-//! :vault_access, tenant: :branch_code` + `consistency :snapshot`,
-//! `ComplianceDashboard`'s own `freshness`/`use_index` on a READ MODEL.
+//! `cursor`/`authorize`/`nulls`/`inspect_query`. Shared verbatim by
+//! `parse::query` and `parse::read_model`, since both Ruby builders
+//! `include QuerySpecification::Common::DSL` and land on the identical
+//! `ir::QueryOptions` shape (`ir.rs`'s own header explains why that's a
+//! typed struct rather than a second alphabetically-ordered
+//! `BTreeMap`). Confirmed real by banking.bluebook: `SafeDepositBox
+//! .Rented`'s own `authorize :vault_access, tenant: :branch_code`.
 //! `offset`/`cursor`/`nulls`/`inspect_query` are NOT exercised by any real
 //! corpus member yet — built anyway, the same "correct even if
 //! unreachable today" basis `emit.rs`'s own entity/process-manager
 //! renderers already used before Stage 4 exercised THEM for real.
+//! `consistency`/`freshness`/`use_index` are GONE (ADR 0025, "reads") —
+//! declared and parsed by nothing but the HTML form renderer, so they
+//! failed the corpus-use-and-doctest bar and were deleted rather than
+//! deprecated.
 
 use crate::diag::ParseResult;
 use crate::ir;
@@ -21,7 +22,7 @@ use crate::parse::{self, ArgumentGateResult};
 use crate::ruby_value;
 
 /// Applies one already-gated option call onto `options` — `word` is one
-/// of the eight this module's own header names; `context` (`"Query"` or
+/// of the five this module's own header names; `context` (`"Query"` or
 /// `"ReadModel"`) is passed through only for `positional_symbol`'s own
 /// diagnostic wording, since the two contexts declare IDENTICAL argument
 /// shapes for every one of these words.
@@ -35,21 +36,10 @@ pub fn apply(file: &str, line: usize, word: &str, args: &ArgumentGateResult, opt
         // round-trips either one correctly without needing to know which.
         "offset" => options.offset = Some(rendered_positional(args, 1)),
         "cursor" => options.cursor = Some(rendered_positional(args, 1)),
-        "consistency" => {
-            let mode = parse::positional_symbol(file, line, word, args, 1)?;
-            let timeout = parse::named_raw(args, "timeout").map(rendered);
-            options.consistency = Some(ir::ConsistencySpec { mode, timeout });
-        }
-        "freshness" => {
-            let mode = parse::positional_symbol(file, line, word, args, 1)?;
-            let max_age = parse::named_raw(args, "max_age").map(rendered);
-            options.freshness = Some(ir::FreshnessSpec { mode, max_age });
-        }
         // `AuthorizationSpec#to_h` — BOTH fields bare `.to_s` (never
         // Literal-rendered): `policy`/`tenant` a Symbol's plain name, no
         // leading colon. `positional_symbol`/`named_symbol` already strip
-        // it, so no extra rendering step is needed here the way
-        // `consistency`/`freshness`'s own numeric fields need.
+        // it, so no extra rendering step is needed here.
         "authorize" => {
             let policy = parse::positional_symbol(file, line, word, args, 1)?;
             let tenant = parse::named_symbol(args, "tenant");
@@ -74,10 +64,6 @@ pub fn apply(file: &str, line: usize, word: &str, args: &ArgumentGateResult, opt
                 None => "sql".to_string(),
             };
             options.inspection = Some(mode);
-        }
-        "use_index" => {
-            let name = parse::positional_symbol(file, line, word, args, 1)?;
-            options.index_hints.push(ir::IndexHint { name });
         }
         other => unreachable!("build::query_options::apply called with an unhandled word: {other}"),
     }
@@ -104,16 +90,6 @@ mod tests {
     }
 
     #[test]
-    fn applies_freshness_with_a_max_age() {
-        let mut options = ir::QueryOptions::default();
-        let args = args_with(vec![(1, ":eventual")], vec![("max_age", "300")]);
-        apply("f.bluebook", 1, "freshness", &args, &mut options).unwrap();
-        let f = options.freshness.unwrap();
-        assert_eq!(f.mode, "eventual");
-        assert_eq!(f.max_age, Some("300".to_string()));
-    }
-
-    #[test]
     fn applies_authorize_with_a_tenant() {
         let mut options = ir::QueryOptions::default();
         let args = args_with(vec![(1, ":vault_access")], vec![("tenant", ":branch_code")]);
@@ -137,14 +113,5 @@ mod tests {
         let args = args_with(vec![], vec![]);
         apply("f.bluebook", 1, "inspect_query", &args, &mut options).unwrap();
         assert_eq!(options.inspection, Some("sql".to_string()));
-    }
-
-    #[test]
-    fn appends_an_index_hint() {
-        let mut options = ir::QueryOptions::default();
-        let args = args_with(vec![(1, ":balance_index")], vec![]);
-        apply("f.bluebook", 1, "use_index", &args, &mut options).unwrap();
-        assert_eq!(options.index_hints.len(), 1);
-        assert_eq!(options.index_hints[0].name, "balance_index");
     }
 }

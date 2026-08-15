@@ -1,7 +1,7 @@
 # ReadModel
 
 <!-- generated:begin id=page -->
-Words available inside `report do ... end`.
+Words available inside `read_model do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
@@ -9,12 +9,11 @@ by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
-Eleven of these seventeen run against `examples/banking`'s five reports,
-which between them carry every gathering and reducing shape the word has
-— a rooted portfolio, a filtered and capped dashboard, two reductions,
-and a rootless `group_by`. `offset`, `consistency`, `authorize`, `nulls`
-and `inspect_query` are declared by no report in the corpus, so they get
-one of their own:
+Most of these run against `examples/banking`'s five read models, which
+between them carry every gathering and reducing shape the word has —
+a rooted portfolio, a filtered and capped dashboard, two reductions,
+and a rootless `group_by`. `offset`, `authorize` and `nulls` are
+declared by no read model in the corpus, so they get one of their own:
 
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
@@ -71,7 +70,7 @@ Hecks.bluebook "ReadModelReference" do
     end
   end
 
-  report "DepotManifest" do
+  read_model "DepotManifest" do
     description "One depot's parcels, heaviest first, skipping the heaviest of all."
     reference_to Depot
     include Depot
@@ -80,7 +79,6 @@ Hecks.bluebook "ReadModelReference" do
     nulls :last
     limit 2
     offset 1
-    consistency :snapshot
     inspect_query :sql
     authorize :depot_access, tenant: :region
   end
@@ -432,48 +430,6 @@ the word refuses where it is written:
 Hecksagain::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelReference::Parcel; cursor :label }  # ~> Malformed: no interpreter implements cursor pagination
 ```
 
-## consistency
-
-<!-- generated:begin word=consistency -->
-`consistency mode, timeout:` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | mode |
-| `timeout:` | number | false | timeout |
-<!-- generated:end -->
-
-Declares a consistency mode and an optional `timeout:`. Captured on
-the specification and serialized for an adapter to see; nothing in
-this codebase's adapters or the read model runtime reads it back yet
-— metadata, not an enforced guarantee.
-
-```ruby
-runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").consistency.mode  # => :snapshot
-```
-
-Declared or not, the same rows came back above — which is what
-"metadata, not an enforced guarantee" means in practice.
-
-## freshness
-
-<!-- generated:begin word=freshness -->
-`freshness mode, max_age:` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | mode |
-| `max_age:` | number | false | max_age |
-<!-- generated:end -->
-
-Declares a freshness mode and an optional `max_age:`. Same status as
-`consistency` — recorded on the specification, read by nothing here.
-
-```ruby
-dash = runtime.registry.bluebook("Banking").read_model("ComplianceDashboard")
-dash.freshness.max_age  # => 60
-```
-
 ## authorize
 
 <!-- generated:begin word=authorize -->
@@ -553,23 +509,5 @@ regardless — no inspection came back, and nothing refused either:
 
 ```ruby
 runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").inspection.mode  # => :sql
-```
-
-## use_index
-
-<!-- generated:begin word=use_index -->
-`use_index name` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | name |
-<!-- generated:end -->
-
-Names an index hint. Recorded on the specification and round-trips
-through the IR; no adapter here reads it back for a read model any
-more than it does for a query.
-
-```ruby
-dash.index_hints.map(&:name)  # => [:account_index]
 ```
 

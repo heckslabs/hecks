@@ -8,7 +8,6 @@ module Hecksagain
         def initialize(name)
           @name   = name
           @wheres = []
-          @index_hints = []
         end
 
         def description(value) = @description = value
@@ -36,12 +35,9 @@ module Hecksagain
             limit:       @limit,
             offset:      @offset,
             cursor:      @cursor,
-            consistency: @consistency,
-            freshness: @freshness,
             authorization: @authorization,
             null_semantics: @null_semantics,
-            inspection: @inspection,
-            index_hints: @index_hints || []
+            inspection: @inspection
           )
         end
 

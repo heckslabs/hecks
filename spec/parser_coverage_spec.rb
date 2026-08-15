@@ -81,7 +81,7 @@ RSpec.describe "the Rust parser's own coverage" do
     %w[transition Lifecycle],
     %w[description Query], # STAGE 3
     %w[attribute Query], %w[where Query], %w[order_by Query],
-    %w[limit Query], %w[freshness Query], %w[authorize Query], %w[consistency Query], %w[use_index Query], # STAGE 4
+    %w[limit Query], %w[authorize Query], # STAGE 4
     %w[on Policy], %w[trigger Policy],
     %w[across Policy], # STAGE 4
     %w[correlates_by ProcessManager], %w[starts_on ProcessManager], %w[ends_on ProcessManager], # STAGE 4
@@ -90,10 +90,10 @@ RSpec.describe "the Rust parser's own coverage" do
     %w[port Hecksagon],
     %w[operation DomainPort],
     %w[reference_to PortOperation], %w[attribute PortOperation], %w[emits PortOperation],
-    %w[report Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel], # STAGE 3
+    %w[read_model Bluebook], %w[description ReadModel], %w[include ReadModel], %w[group_by ReadModel], # STAGE 3
     %w[count ReadModel], %w[median ReadModel], # real, this session — banking.bluebook's own DisputedPaymentCount/Median
     %w[reference_to ReadModel], %w[where ReadModel], %w[order_by ReadModel], # STAGE 4
-    %w[limit ReadModel], %w[freshness ReadModel], %w[use_index ReadModel], # STAGE 4
+    %w[limit ReadModel], # STAGE 4
     %w[list_of Type], %w[one_of Type] # STAGE 6 — bookkeeping, not new dispatch work; see
     # `rust/parser/src/main.rs::COVERED_PAIRS`'s own header on why these
     # two were already built (Stage 2/3) but never added to either list
@@ -129,9 +129,11 @@ RSpec.describe "the Rust parser's own coverage" do
   # live in production per MEMORY — Embryonaut→EmbryonautFoundersApp —
   # but no `.bluebook` IN THIS CODEBASE'S OWN TRACKED CORPUS declares
   # one); `cursor`/`offset`/`nulls`/`inspect_query` `Query`/`ReadModel`
-  # and `authorize`/`consistency` `ReadModel` (declared query/read-model
-  # options no tracked corpus member happens to use — `limit`/
-  # `freshness`/`use_index`/`where`/`order_by` are, and are covered);
+  # and `authorize` `ReadModel` (declared query/read-model options no
+  # tracked corpus member happens to use — `limit`/`where`/`order_by`
+  # are, and are covered; `consistency`/`freshness`/`use_index` are gone
+  # entirely now, ADR 0025 — declared and parsed by nothing but the HTML
+  # form renderer, so they failed the corpus-use-and-doctest bar);
   # `world` `File`, `latest`/`realm` `World`, `subscribe`/
   # `uses_framework` `Hecksagon`, `verb` `DomainPort` (the `World`/
   # `Hecksagon` SIBLING grammar files — `language/world.bluebook`/

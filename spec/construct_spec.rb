@@ -306,8 +306,8 @@ RSpec.describe "a construct's identity" do
       # inherited instance methods that the runtime and the SQLite adapter read.
       ask = bank.aggregate("Account").query("Overdrawn")
 
-      %i[wheres order_by limit offset cursor consistency freshness
-         authorization null_semantics inspection index_hints].each do |option|
+      %i[wheres order_by limit offset cursor
+         authorization null_semantics inspection].each do |option|
         expect(ask).to respond_to(option), "an ask must still answer #{option}"
       end
     end

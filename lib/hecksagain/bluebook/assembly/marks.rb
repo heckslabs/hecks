@@ -183,8 +183,6 @@ module Hecksagain
           cursor:         [QuerySpecification::Common::CursorSpec,        %i[value]],
           null_semantics: [QuerySpecification::Common::NullSemantics,     []],
           authorization:  [QuerySpecification::Common::AuthorizationSpec, %i[policy tenant]],
-          consistency:    [QuerySpecification::Common::ConsistencySpec,   %i[timeout]],
-          freshness:      [QuerySpecification::Common::FreshnessSpec,     %i[max_age]],
           inspection:     [QuerySpecification::Common::InspectionSpec,    []]
         }.freeze
 
@@ -208,10 +206,6 @@ module Hecksagain
           value
         end
 
-        # A repeated option — an index hint per occurrence.
-        def index_hints(declared)
-          Array(declared).map { |hint| QuerySpecification::Common::IndexHint.new(name: hint[:name].to_sym) }
-        end
       end
     end
   end

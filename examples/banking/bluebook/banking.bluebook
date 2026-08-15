@@ -2,7 +2,7 @@ Hecks.bluebook "Banking", version: "v1" do
   vision "Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery."
   core
 
-  report "CustomerPortfolio" do
+  read_model "CustomerPortfolio" do
     description "A customer's cross-account position, rebuilt from aggregate heads."
     reference_to Customer
     include Customer
@@ -17,7 +17,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # A SECOND ROOT, ON PURPOSE. CustomerPortfolio gathers around a customer;
   # this gathers around an account — the compliance officer's actual unit of
   # work, since a hold or a dispute is filed against an account, not a person.
-  report "ComplianceDashboard" do
+  read_model "ComplianceDashboard" do
     description "One account, its own status, and any card charges disputed against it — the working set for a compliance review."
     reference_to Account
     include Account
@@ -33,12 +33,6 @@ Hecks.bluebook "Banking", version: "v1" do
     where(status: "disputed")
     order_by :amount, :desc
     limit 5
-
-    # A REVIEW WORKS FROM A SNAPSHOT, not a page reloaded mid-read while a
-    # dispute updates underneath it — the same reasoning as Overdrawn's own,
-    # a projection over on the report rather than a query.
-    freshness :eventual, max_age: 60
-    use_index :account_index
   end
 
   # TWO MORE SHAPES — REDUCTIONS, not gathered rows. A compliance
@@ -50,7 +44,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # ordinary read model already applies (`seal_aggregation` refuses
   # combining either with `group_by` or with each other; read_model
   # _builder.rb's own comment has the full reasoning).
-  report "DisputedPaymentCount" do
+  read_model "DisputedPaymentCount" do
     description "How many of an account's own card charges are under dispute — a single number, not the rows themselves."
     reference_to Account
     include Account
@@ -59,7 +53,7 @@ Hecks.bluebook "Banking", version: "v1" do
     count
   end
 
-  report "DisputedPaymentMedian" do
+  read_model "DisputedPaymentMedian" do
     description "The median amount of an account's own disputed card charges."
     reference_to Account
     include Account
@@ -79,7 +73,7 @@ Hecks.bluebook "Banking", version: "v1" do
   # (see group_by's own reference doc for why the two go together).
   # Two fields, not one — proves the NESTING actually nests (a single-
   # field group_by can't tell "one level" from "flattened by accident").
-  report "AccountsByKind" do
+  read_model "AccountsByKind" do
     description "Every account the bank holds, sorted into what kind it is, then by its own number."
     include Account
     group_by :kind, :number
@@ -496,11 +490,6 @@ Hecks.bluebook "Banking", version: "v1" do
       where(balance: { lt: :floor })
       order_by :balance
       limit 100
-      # A MORNING REPORT DOES NOT NEED THE LEDGER MID-WRITE. Read against
-      # yesterday's close rather than blocking on whatever posted a second
-      # ago, and use the index the report always hits.
-      freshness :eventual, max_age: 300
-      use_index :balance_index
     end
 
     query "HighBalance" do
@@ -1462,10 +1451,8 @@ Hecks.bluebook "Banking", version: "v1" do
       where(status: "rented")
       order_by :branch_code
       # A VAULT RECORD IS NOT A CASUAL READ. Named against the branch a caller
-      # is standing in, and snapshotted so the audit sees one consistent
-      # moment rather than a box that changed hands mid-read.
+      # is standing in.
       authorize :vault_access, tenant: :branch_code
-      consistency :snapshot
     end
   end
 

@@ -32,18 +32,26 @@ module Hecksagain
           @aggregates << AggregateBuilder.build(name, &block)
         end
 
-        # `report` is the word; `read_model` is the spelling every existing
-        # bluebook was written under (Syntax::Keyword carries the rename as
-        # `was:`, the same mechanism `then_set`/`sets` already uses), and it
-        # stays answered here forever — a renamed word's old era keeps
-        # booting.
-        def report(name, &block)
+        # `read_model` is the word (ADR 0025 reverts `report` — the IR
+        # construct, the registry API, and the docs filename all said
+        # `read_model` the whole time; no era was ever minted under
+        # `report`, so this is history and source agreeing again). `report`
+        # stays answered under `MetaValidator.shadow_parsing?` (S0a's own
+        # bridge) for the same reason `has_many` does — frozen era text
+        # that used it must keep booting; live source refuses it, naming
+        # the replacement.
+        def read_model(name, &block)
           # A read model gathers heads from SEVERAL aggregates, so no single head
           # declares it — the chapter does. Its owner is stamped in `build`, where
           # the chapter namespace exists.
           @read_models << ReadModelBuilder.build(name, &block)
         end
-        alias_method :read_model, :report
+
+        def report(name, &block)
+          return read_model(name, &block) if MetaValidator.shadow_parsing?
+
+          raise Malformed, "report is gone — read_model is the word now"
+        end
 
         def policy(name, &block)
           @policies << PolicyBuilder.build(name, &block)

@@ -488,13 +488,13 @@ Hecks.bluebook "ConsoleSettings" do
   # the SAME record, not two aggregates — and Overview's own stat cards,
   # which are read straight off Overview.find, a singleton needing
   # neither grouping nor unwrapping either).
-  report "Styles" do
+  read_model "Styles" do
     description "Every StateStyle row, nested by the aggregate and state it styles."
     include StateStyle
     group_by :agg, :state
   end
 
-  report "Curated" do
+  read_model "Curated" do
     description "Every Collection row, nested by the app aggregate it curates."
     include Collection
     group_by :agg

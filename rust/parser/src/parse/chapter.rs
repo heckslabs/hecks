@@ -271,8 +271,8 @@ fn parse_body_into(
                 let pol_name = super::positional_text(file, line, "policy", &gated.args, 1)?;
                 chapter_policies.push(policy::parse_body(file, lines, pos, &pol_name)?);
             }
-            "report" => {
-                let rm_name = super::positional_text(file, line, "report", &gated.args, 1)?;
+            "read_model" => {
+                let rm_name = super::positional_text(file, line, "read_model", &gated.args, 1)?;
                 bluebook.read_models.push(read_model::parse_body(file, lines, pos, &rm_name)?);
             }
             "process_manager" => {

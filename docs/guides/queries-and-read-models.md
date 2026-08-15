@@ -5,17 +5,16 @@ Reading that data back — accounts below a floor, every customer who
 isn't in good standing, a dashboard that gathers one account's status
 and the charges disputed against it in one read — is what `query` and
 `read_model` are for. This guide covers what the vocabulary can carry,
-what the build refuses before a report reaches an adapter that would
-otherwise silently disagree with itself, and the two-reading rule
-`contains` follows depending on the field it's asked about.
+what the build refuses before a read model reaches an adapter that
+would otherwise silently disagree with itself, and the two-reading
+rule `contains` follows depending on the field it's asked about.
 
 Both constructs are built on the same option vocabulary
 (`QuerySpecification::Common::DSL`) — `where`, `order_by`, `limit`, and
 `offset` are what you'll reach for first, and this guide runs every
 comparator `where` accepts against a real domain, plus
-`authorize`/`tenant:`, `consistency`, `freshness`, and `use_index`.
-`read_model` adds `reference_to`/`include` on top, for a report that
-gathers more than one aggregate at once.
+`authorize`/`tenant:`. `read_model` adds `reference_to`/`include` on
+top, for a read model that gathers more than one aggregate at once.
 
 ## The domain
 
@@ -225,11 +224,6 @@ query "Overdrawn" do
   where(balance: { lt: :floor })
   order_by :balance
   limit 100
-  # A MORNING REPORT DOES NOT NEED THE LEDGER MID-WRITE. Read against
-  # yesterday's close rather than blocking on whatever posted a second
-  # ago, and use the index the report always hits.
-  freshness :eventual, max_age: 300
-  use_index :balance_index
 end
 ```
 
@@ -240,25 +234,11 @@ runtime.query("Banking::Account.Overdrawn", floor: { cents: 500 }).map { |row| [
 
 `:floor` is not a value baked into the declaration — it's an argument
 named on the query (`attribute :floor, Money`) and resolved from
-whatever the caller passes at ask-time. `limit`, `order_by`, `freshness`,
-and `use_index` all sit on this one declaration: `order_by :balance`
-runs ascending first, `limit 100` never trims this seed (only two
-accounts qualify), and `freshness`/`use_index` are the two purely
-declarative options — more on those once `SafeDepositBox.Rented`
-introduces `authorize`/`tenant:`, the one option in this vocabulary that
-IS enforced.
-
-`freshness`/`use_index` round-trip into the IR and are read by nothing
-else — no adapter here actually serves a stale read or picks an index
-by name. Reach the declaration itself off the running domain to see
-that it is carried, not merely written and forgotten:
-
-```ruby
-overdrawn = runtime.registry.bluebooks.values.first.aggregate("Account").queries.find { |q| q.hecks_name == "Overdrawn" }
-
-overdrawn.freshness.to_h                    # => { mode: "eventual", max_age: "300" }
-overdrawn.index_hints.map(&:to_h)           # => [{ name: "balance_index" }]
-```
+whatever the caller passes at ask-time. `limit` and `order_by` both sit
+on this one declaration: `order_by :balance` runs ascending first, and
+`limit 100` never trims this seed (only two accounts qualify) — more on
+the vocabulary's one genuinely enforced option once `SafeDepositBox
+.Rented` introduces `authorize`/`tenant:`, below.
 
 `gte`, on the same field, the other direction:
 
@@ -368,10 +348,8 @@ query "Rented" do
   where(status: "rented")
   order_by :branch_code
   # A VAULT RECORD IS NOT A CASUAL READ. Named against the branch a caller
-  # is standing in, and snapshotted so the audit sees one consistent
-  # moment rather than a box that changed hands mid-read.
+  # is standing in.
   authorize :vault_access, tenant: :branch_code
-  consistency :snapshot
 end
 ```
 
@@ -390,7 +368,6 @@ per-adapter code, no way for one engine to forget it.
 rented = runtime.registry.bluebooks.values.first.aggregate("SafeDepositBox").queries.find { |q| q.hecks_name == "Rented" }
 
 rented.authorization.to_h   # => { policy: "vault_access", tenant: "branch_code" }
-rented.consistency.to_h     # => { mode: "snapshot", timeout: nil }
 ```
 
 Rent a box, then ask without naming a branch:
@@ -409,15 +386,12 @@ runtime.query("Banking::SafeDepositBox.Rented", branch_code: "DOWNTOWN").map { |
 # => ["DOWNTOWN:12"]
 ```
 
-`consistency :snapshot` on the same query is the other half of that
-comment — declared, carried in the IR, and read by nothing: no adapter
-here actually snapshots a read. Like `freshness`/`use_index` above, it
-is vocabulary for the day something reads it, and a signal to whoever
-reviews the bluebook next about what kind of read this is meant to be
-— not a promise this runtime keeps today. `tenant:` is the one
-exception in this whole family: it is the only option in
-`QuerySpecification::Common::DSL` enforced at dispatch time rather than
-merely carried.
+`:vault_access` above is the other half of that same shape — declared,
+carried in the IR, and checked by nothing, a signal to whoever reviews
+the bluebook next about what a caller is meant to hold, not a promise
+this runtime keeps today. `tenant:` is the one exception in this whole
+family: it is the only option in `QuerySpecification::Common::DSL`
+enforced at dispatch time rather than merely carried.
 
 ## The seal — what you don't have to catch by hand
 
@@ -552,12 +526,6 @@ read_model "ComplianceDashboard" do
   where(status: "disputed")
   order_by :amount, :desc
   limit 5
-
-  # A REVIEW WORKS FROM A SNAPSHOT, not a page reloaded mid-read while a
-  # dispute updates underneath it — the same reasoning as Overdrawn's own,
-  # a projection over on the read_model rather than a query.
-  freshness :eventual, max_age: 60
-  use_index :account_index
 end
 ```
 

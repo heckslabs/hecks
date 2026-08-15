@@ -650,9 +650,9 @@ RSpec.describe "the DSL surface" do
       ])
     end
 
-    it "report is the same word as read_model, just newer" do
-      build = ->(chapter, word) do
-        build_bluebook(chapter) do
+    it "report is gone — read_model is the word now (ADR 0025 reverts the rename)" do
+      expect do
+        build_bluebook("ReportGone") do
           aggregate "Customer" do
             identified_by :id
 
@@ -661,11 +661,9 @@ RSpec.describe "the DSL surface" do
               attribute :value, String
             end
           end
-          public_send(word, "CustomerPortfolio") { reference_to Customer, as: :reference }
-        end.read_models.first.to_h
-      end
-
-      expect(build.call("Portfolio", :report)).to eq(build.call("Portfolio2", :read_model))
+          report("CustomerPortfolio") { reference_to Customer, as: :reference }
+        end
+      end.to raise_error(Malformed, "report is gone — read_model is the word now")
     end
 
     it "gathers includes declared before the reference, in either order" do
@@ -751,10 +749,7 @@ RSpec.describe "the DSL surface" do
           offset 5
           nulls :last
           authorize :portfolio_access, tenant: :customer_id
-          consistency :snapshot
-          freshness :bounded, max_age: 60
           inspect_query :sql
-          use_index :customer_status
         end
       end.read_models.first
 
@@ -762,7 +757,6 @@ RSpec.describe "the DSL surface" do
       expect(model.aggregate_heads).to eq([{ aggregate: "Account", as: :accounts, many: true }])
       expect(model.offset.to_h).to eq(value: "5")
       expect(model.authorization.to_h).to eq(policy: "portfolio_access", tenant: "customer_id")
-      expect(model.freshness.to_h).to eq(mode: "bounded", max_age: "60")
     end
 
     it "read_model refuses cursor at build — no interpreter implements cursor pagination" do
@@ -1330,10 +1324,7 @@ RSpec.describe "the DSL surface" do
           offset 5
           nulls :last
           authorize :customer_access, tenant: :account_id
-          consistency :snapshot, timeout: 2
-          freshness :eventual, max_age: 30
           inspect_query :sql
-          use_index :status_name
         end
       end.queries.first
 
@@ -1344,10 +1335,7 @@ RSpec.describe "the DSL surface" do
       expect(found.offset.to_h).to eq({ value: "5" })
       expect(found.null_semantics.to_h).to eq({ mode: "last" })
       expect(found.authorization.to_h).to eq({ policy: "customer_access", tenant: "account_id" })
-      expect(found.consistency.to_h).to eq({ mode: "snapshot", timeout: "2" })
-      expect(found.freshness.to_h).to eq({ mode: "eventual", max_age: "30" })
       expect(found.inspection.to_h).to eq({ mode: "sql" })
-      expect(found.index_hints.map(&:to_h)).to eq([{ name: "status_name" }])
     end
 
     it "query refuses cursor at build — no interpreter implements cursor pagination" do

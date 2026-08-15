@@ -1,13 +1,11 @@
 //! The `Query` construct (`lib/hecksagain/bluebook/ir/query.rb`, built on
 //! `QuerySpecification::Common::Options`). `where`'s pairs comparator
 //! splitting (`build/query_derive.rs`), `order_by`. STAGE 4 adds `limit`
-//! and the eight open-map options (`offset`/`cursor`/`consistency`/
-//! `freshness`/`authorize`/`nulls`/`inspect_query`/`use_index`, all via
-//! the shared `build::query_options` — the SAME module `parse::read_model`
-//! uses, since both Ruby builders `include
-//! QuerySpecification::Common::DSL`) — confirmed real: `Account.Overdrawn`'s
-//! own `limit`/`freshness`/`use_index`, `SafeDepositBox.Rented`'s own
-//! `authorize`/`consistency`.
+//! and the five open-map options (`offset`/`cursor`/`authorize`/`nulls`/
+//! `inspect_query`, all via the shared `build::query_options` — the SAME
+//! module `parse::read_model` uses, since both Ruby builders `include
+//! QuerySpecification::Common::DSL`) — confirmed real: `Account
+//! .Overdrawn`'s own `limit`, `SafeDepositBox.Rented`'s own `authorize`.
 
 use crate::build::{query_derive, query_options};
 use crate::diag::{Diagnostic, ParseResult};
@@ -18,7 +16,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Query.{word}"))
 }
 
-const OPTION_WORDS: &[&str] = &["offset", "cursor", "consistency", "freshness", "authorize", "nulls", "inspect_query", "use_index"];
+const OPTION_WORDS: &[&str] = &["offset", "cursor", "authorize", "nulls", "inspect_query"];
 
 /// Parses a `query "Name" do ... end` body.
 pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::Query> {

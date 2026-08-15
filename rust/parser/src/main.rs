@@ -251,10 +251,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("where", "Query"),
     ("order_by", "Query"),
     ("limit", "Query"),       // STAGE 4
-    ("freshness", "Query"),   // STAGE 4
     ("authorize", "Query"),   // STAGE 4
-    ("consistency", "Query"), // STAGE 4
-    ("use_index", "Query"),   // STAGE 4
     ("on", "Policy"),
     ("trigger", "Policy"),
     ("across", "Policy"), // STAGE 4
@@ -269,7 +266,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
     ("emits", "PortOperation"),
-    ("report", "Bluebook"),       // STAGE 3
+    ("read_model", "Bluebook"),   // STAGE 3
     ("description", "ReadModel"), // STAGE 3
     ("include", "ReadModel"),     // STAGE 3
     ("group_by", "ReadModel"),    // STAGE 3
@@ -279,8 +276,6 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("where", "ReadModel"),        // STAGE 4
     ("order_by", "ReadModel"),     // STAGE 4
     ("limit", "ReadModel"),        // STAGE 4
-    ("freshness", "ReadModel"),    // STAGE 4
-    ("use_index", "ReadModel"),    // STAGE 4
     ("list_of", "Type"), // STAGE 6 (bookkeeping — see this const's own header)
     ("one_of", "Type"),  // STAGE 6 (bookkeeping — see this const's own header)
 ];

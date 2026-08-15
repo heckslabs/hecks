@@ -178,17 +178,17 @@ runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # =>
 BluebookReference::Postcode.record(code: { value: "N1" }).code.value  # => "N1"
 ```
 
-## report
+## read_model
 
-<!-- generated:begin word=report -->
-`report name do ... end` — opens a `ReadModel` body, was `read_model`
+<!-- generated:begin word=read_model -->
+`read_model name do ... end` — opens a `ReadModel` body, was `report`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a read that gathers heads from several aggregates around one spine — declared at the chapter's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest. Spelled `read_model` in every bluebook written before this word's rename — that spelling still boots, forever; `report` is the SME-facing word going forward.
+Opens a read that gathers heads from several aggregates around one spine — declared at the chapter's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest. `report` (ADR 0025 reverts it — the IR construct, the registry API, and the docs filename all said `read_model` the whole time) stays answered only for frozen era text still parsed by the legacy grammar; live source refuses it, naming this word.
 
 Banking declares five, and they sit on the chapter rather than under any
 aggregate — which is the whole reason the word exists at this level:

@@ -310,16 +310,6 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     if let Some(value) = &o.cursor {
         pairs.push(("cursor".to_string(), JsonValue::Object(vec![("value".to_string(), JsonValue::str(value.clone()))])));
     }
-    if let Some(c) = &o.consistency {
-        let mut fields = vec![("mode".to_string(), JsonValue::str(c.mode.clone()))];
-        fields.push(("timeout".to_string(), c.timeout.as_ref().map(|t| JsonValue::str(t.clone())).unwrap_or(JsonValue::Null)));
-        pairs.push(("consistency".to_string(), JsonValue::Object(fields)));
-    }
-    if let Some(f) = &o.freshness {
-        let mut fields = vec![("mode".to_string(), JsonValue::str(f.mode.clone()))];
-        fields.push(("max_age".to_string(), f.max_age.as_ref().map(|a| JsonValue::str(a.clone())).unwrap_or(JsonValue::Null)));
-        pairs.push(("freshness".to_string(), JsonValue::Object(fields)));
-    }
     if let Some(a) = &o.authorization {
         let mut fields = vec![("policy".to_string(), JsonValue::str(a.policy.clone()))];
         fields.push(("tenant".to_string(), a.tenant.as_ref().map(|t| JsonValue::str(t.clone())).unwrap_or(JsonValue::Null)));
@@ -330,10 +320,6 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     }
     if let Some(mode) = &o.inspection {
         pairs.push(("inspection".to_string(), JsonValue::Object(vec![("mode".to_string(), JsonValue::str(mode.clone()))])));
-    }
-    if !o.index_hints.is_empty() {
-        let hints = o.index_hints.iter().map(|h| JsonValue::Object(vec![("name".to_string(), JsonValue::str(h.name.clone()))])).collect();
-        pairs.push(("index_hints".to_string(), JsonValue::Array(hints)));
     }
     pairs
 }

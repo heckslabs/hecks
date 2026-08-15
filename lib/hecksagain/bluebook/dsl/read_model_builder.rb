@@ -13,11 +13,6 @@ module Hecksagain
           @description = value
         end
 
-        def use_index(name)
-          @index_hints ||= []
-          @index_hints << QuerySpecification::Common::IndexHint.new(name: name)
-        end
-
         def reference_to(type, as: nil)
           raise Malformed, "#{@name} already has a projection reference" if @reference_target
           @reference_target = Naming.demodulise(type)
@@ -101,11 +96,10 @@ module Hecksagain
           ReadModel.new(name: @name, description: @description, reference_name: @reference_name,
                             reference_target: @reference_target, aggregate_heads: @aggregate_heads || [],
                             wheres: @wheres || [], order_by: @order_by, limit: @limit, offset: @offset,
-                            cursor: @cursor, consistency: @consistency, freshness: @freshness,
+                            cursor: @cursor,
                             authorization: @authorization, null_semantics: @null_semantics,
                             inspection: @inspection, group_by: @group_by || [],
-                            count: @count, median_field: @median_field,
-                            index_hints: @index_hints || [])
+                            count: @count, median_field: @median_field)
         end
 
         def self.build(name, &block)

@@ -49,7 +49,7 @@ Hecks.bluebook "Reflex" do
     # THE SPECIFICATION OPTIONS, EXERCISED SOMEWHERE.
     #
     # The language holds every option an ask can carry — offset, nulls,
-    # authorize, consistency, freshness, inspect_query, use_index — as an open map,
+    # authorize, inspect_query — as an open map,
     # (`cursor` is declared syntax too, but refused unconditionally at build —
     # see QueryBuilder#seal_cursor / ReadModelBuilder#seal_cursor — so it is
     # never exercised here or anywhere else),
@@ -70,14 +70,7 @@ Hecks.bluebook "Reflex" do
       offset 5
       nulls :last
       authorize :operator_access, tenant: :condition
-      consistency :snapshot, timeout: 2
-      freshness :eventual, max_age: 30
       inspect_query :sql
-      # TWO HINTS, because `index_hints` is a list and one hint could never tell
-      # a list from a scalar. A hint is advisory — it cannot change an answer,
-      # only the work done to reach it — so a second one costs nothing to mean.
-      use_index :condition_index
-      use_index :recency_index
     end
   end
 
@@ -155,10 +148,9 @@ Hecks.bluebook "Reflex" do
   # A read model carrying the same options an ask does — the other half of the
   # coverage gap. `ReadModel.Option` is declared in the language and no corpus read
   # model exercised it, so the judge never offered it. Its filters (where, order_by,
-  # limit) are deliberately absent: `ReadModel#to_h` omits those,
-  # so declaring them here would claim a wire contract that does not
-  # exist. See spec/orchestration_spec's gap list.
-  report "Signals" do
+  # limit) are deliberately absent here — see the "Signals" read model itself for why
+  # they're covered elsewhere. See spec/orchestration_spec's gap list.
+  read_model "Signals" do
     description "Every echo gathered around a light, with the options a projection can carry"
     reference_to Light
 
@@ -167,8 +159,6 @@ Hecks.bluebook "Reflex" do
     offset 5
     nulls :last
     authorize :operator_access, tenant: :condition
-    freshness :bounded, max_age: 60
     inspect_query :sql
-    use_index :condition_index
   end
 end

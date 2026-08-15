@@ -45,13 +45,9 @@ module Hecksagain
 
       def self.badges(query)
         parts = []
-        parts << %(<span class="badge">consistency: #{Escape.html(fmt(query.consistency&.to_h))}</span>) if query.consistency
-        parts << %(<span class="badge">freshness: #{Escape.html(fmt(query.freshness&.to_h))}</span>) if query.freshness
         parts << %(<span class="badge">limit #{Escape.html(query.limit.to_h[:value])}</span>) if query.limit
         parts.join
       end
-
-      def self.fmt(hash) = (hash || {}).map { |k, v| "#{k}=#{v}" }.join(" ")
 
       def self.canonical_link(action, fields)
         paths = Params.paths(fields)

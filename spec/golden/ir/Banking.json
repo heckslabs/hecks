@@ -1319,15 +1319,6 @@
             }
           ],
           "description": "Accounts below a floor the caller supplies — the morning risk report.",
-          "freshness": {
-            "max_age": "300",
-            "mode": "eventual"
-          },
-          "index_hints": [
-            {
-              "name": "balance_index"
-            }
-          ],
           "limit": {
             "value": "100"
           },
@@ -4891,10 +4882,6 @@
             "policy": "vault_access",
             "tenant": "branch_code"
           },
-          "consistency": {
-            "mode": "snapshot",
-            "timeout": null
-          },
           "description": "Boxes currently assigned to a customer, for the annual access audit.",
           "limit": null,
           "name": "Rented",
@@ -6057,17 +6044,8 @@
         }
       ],
       "description": "One account, its own status, and any card charges disputed against it — the working set for a compliance review.",
-      "freshness": {
-        "max_age": "60",
-        "mode": "eventual"
-      },
       "group_by": [
 
-      ],
-      "index_hints": [
-        {
-          "name": "account_index"
-        }
       ],
       "limit": {
         "value": "5"

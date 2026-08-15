@@ -10,10 +10,9 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 Most of these run against `examples/banking`, whose `Account` and
-`SafeDepositBox` queries carry ordering, limits, index hints, freshness,
-consistency and a real tenant boundary. `reference_to`, `offset` and
-`nulls` are written nowhere in the corpus, so they get a chapter of
-their own:
+`SafeDepositBox` queries carry ordering, limits, and a real tenant
+boundary. `reference_to`, `offset` and `nulls` are written nowhere in
+the corpus, so they get a chapter of their own:
 
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
@@ -396,57 +395,6 @@ the word refuses where it is written, before anything can boot:
 Hecksagain::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :tag }  # ~> Malformed: no interpreter implements cursor pagination
 ```
 
-## consistency
-
-<!-- generated:begin word=consistency -->
-`consistency mode, timeout:` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | mode |
-| `timeout:` | number | false | timeout |
-<!-- generated:end -->
-
-Declares a consistency mode and an optional `timeout:`. It's captured
-on the specification and serialized for an adapter to see, but nothing
-in this codebase's adapters or reference interpreter reads it back —
-metadata you're handing downstream, not a guarantee this runtime
-enforces yet.
-
-`SafeDepositBox.Rented` declares `consistency :snapshot`, and it
-round-trips:
-
-```ruby
-rented = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").queries.find { |q| q.hecks_name == "Rented" }
-rented.consistency.mode  # => :snapshot
-```
-
-"Not a guarantee this runtime enforces yet" is the part to hold it to —
-declared or not, the same rows come back.
-
-## freshness
-
-<!-- generated:begin word=freshness -->
-`freshness mode, max_age:` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | mode |
-| `max_age:` | number | false | max_age |
-<!-- generated:end -->
-
-Declares a freshness mode and an optional `max_age:`. Same status as
-`consistency`: recorded on the specification, read by no adapter or
-interpreter here — declarative, not enforced.
-
-`Overdrawn` declares `freshness :eventual, max_age: 300`:
-
-```ruby
-overdrawn = runtime.registry.bluebook("Banking").aggregate("Account").queries.find { |q| q.hecks_name == "Overdrawn" }
-overdrawn.freshness.mode     # => :eventual
-overdrawn.freshness.max_age  # => 300
-```
-
 ## authorize
 
 <!-- generated:begin word=authorize -->
@@ -493,6 +441,7 @@ The policy name beside it is the half that is NOT checked — nothing in
 this runtime knows what `:vault_access` would mean:
 
 ```ruby
+rented = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").queries.find { |q| q.hecks_name == "Rented" }
 rented.authorization.policy  # => "vault_access"
 ```
 
@@ -547,26 +496,6 @@ behind it:
 
 ```ruby
 runtime.registry.bluebook("Banking").aggregate("Account").queries.map(&:inspection).compact  # => []
-```
-
-## use_index
-
-<!-- generated:begin word=use_index -->
-`use_index name` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | name |
-<!-- generated:end -->
-
-Names an index hint. It's recorded on the specification and
-round-trips through the IR, but no adapter here reads it back to
-influence the query plan — the store still picks its own index.
-
-`Overdrawn` names one, and it survives into the IR:
-
-```ruby
-overdrawn.index_hints.map(&:name)  # => [:balance_index]
 ```
 
 Which is the whole of what it does today. The rows are the same rows

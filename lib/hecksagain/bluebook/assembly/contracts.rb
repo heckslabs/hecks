@@ -118,10 +118,7 @@ module Hecksagain
             cursor:          [:cursor,          [:option, :cursor]],
             null_semantics:  [:null_semantics,  [:option, :null_semantics]],
             authorization:   [:authorization,   [:option, :authorization]],
-            consistency:     [:consistency,     [:option, :consistency]],
-            freshness:       [:freshness,       [:option, :freshness]],
-            inspection:      [:inspection,      [:option, :inspection]],
-            index_hints:     [:index_hints,     :index_hints]
+            inspection:      [:inspection,      [:option, :inspection]]
           },
           rows: { wheres: :where_rows, options: :option_rows },
           reads: { attributes: [:each, :shape_field], wheres: [:each, :where_clause],
@@ -130,8 +127,7 @@ module Hecksagain
             position: :walk,
             order_field: [:folded, :order_by, :field],
             order_way:   [:folded, :order_by, :direction],
-            options:     [:folded, %i[offset cursor null_semantics authorization
-                                       consistency freshness inspection index_hints], nil]
+            options:     [:folded, %i[offset cursor null_semantics authorization inspection], nil]
           }
         ),
 
@@ -243,10 +239,7 @@ module Hecksagain
             cursor:           [:cursor,           [:option, :cursor]],
             null_semantics:   [:null_semantics,   [:option, :null_semantics]],
             authorization:    [:authorization,    [:option, :authorization]],
-            consistency:      [:consistency,      [:option, :consistency]],
-            freshness:        [:freshness,        [:option, :freshness]],
-            inspection:       [:inspection,       [:option, :inspection]],
-            index_hints:      [:index_hints,      :index_hints]
+            inspection:       [:inspection,       [:option, :inspection]]
           },
           rows: { options: :read_model_option_rows },
           # `wheres` needs its own reader for the same reason Query's does — a
@@ -277,8 +270,7 @@ module Hecksagain
           derived: {
             position: :walk,
             query_name: [:computed, :query_name],
-            options:    [:folded, %i[offset cursor null_semantics authorization
-                                      consistency freshness inspection index_hints], nil]
+            options:    [:folded, %i[offset cursor null_semantics authorization inspection], nil]
           }
         ),
 

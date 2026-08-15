@@ -115,23 +115,7 @@
             "policy": "operator_access",
             "tenant": "condition"
           },
-          "consistency": {
-            "mode": "snapshot",
-            "timeout": "2"
-          },
           "description": "Lights that are on, most recent first, with every option a query can carry",
-          "freshness": {
-            "max_age": "30",
-            "mode": "eventual"
-          },
-          "index_hints": [
-            {
-              "name": "condition_index"
-            },
-            {
-              "name": "recency_index"
-            }
-          ],
           "inspection": {
             "mode": "sql"
           },
@@ -487,17 +471,8 @@
         "tenant": "condition"
       },
       "description": "Every echo gathered around a light, with the options a projection can carry",
-      "freshness": {
-        "max_age": "60",
-        "mode": "bounded"
-      },
       "group_by": [
 
-      ],
-      "index_hints": [
-        {
-          "name": "condition_index"
-        }
       ],
       "inspection": {
         "mode": "sql"

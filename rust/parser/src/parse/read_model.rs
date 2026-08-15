@@ -1,16 +1,17 @@
 //! The `ReadModel` construct (`lib/hecksagain/bluebook/ir/read_model.rb`,
-//! `report` the current spelling — `was: "read_model"`, both answered
-//! forever per the rename column). STAGE 3: `description`/`include`/
-//! `group_by` — console_settings.bluebook's own `Styles`/`Curated`
-//! reports, both ROOTLESS (no `reference_to`) with a single many-side
-//! `include` and a `group_by` naming that same head's own fields. STAGE 4
-//! adds `reference_to` (the single-root form: `CustomerPortfolio`/
-//! `ComplianceDashboard`) and the eight open-map option words PLUS
+//! `read_model` the current spelling — ADR 0025 reverts `report`, `was:
+//! "report"`, still answered for frozen era text under the legacy
+//! grammar). STAGE 3: `description`/`include`/`group_by` —
+//! console_settings.bluebook's own `Styles`/`Curated` read models, both
+//! ROOTLESS (no `reference_to`) with a single many-side `include` and a
+//! `group_by` naming that same head's own fields. STAGE 4 adds
+//! `reference_to` (the single-root form: `CustomerPortfolio`/
+//! `ComplianceDashboard`) and the five open-map option words PLUS
 //! `where`/`order_by`/`limit` — `ReadModelBuilder` `include
 //! QuerySpecification::Common::DSL`, the SAME module `parse::query`
 //! shares via `build::query_options`; confirmed real by
-//! `ComplianceDashboard`'s own filtered/ordered/capped/fresh/indexed
-//! shape (banking.bluebook's own comment names it "the one shape
+//! `ComplianceDashboard`'s own filtered/ordered/capped shape
+//! (banking.bluebook's own comment names it "the one shape
 //! seal_query_options allows").
 
 use crate::build::{naming, query_derive, query_options, read_model as build_read_model};
@@ -22,7 +23,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("ReadModel.{word}"))
 }
 
-const OPTION_WORDS: &[&str] = &["offset", "cursor", "consistency", "freshness", "authorize", "nulls", "inspect_query", "use_index"];
+const OPTION_WORDS: &[&str] = &["offset", "cursor", "authorize", "nulls", "inspect_query"];
 
 /// Parses a `report "Name" do ... end` body (`report`/`read_model`).
 /// `include`s are gathered raw and resolved into `aggregate_heads` at the

@@ -38,7 +38,7 @@ fn run(args: &[&str]) -> Output {
 fn now_implemented_fixtures_parse_for_real() {
     // Stage 2 taught `parse::command`/`parse::query`/`parse::value_object`/
     // `parse::policy`/`parse::lifecycle` to build real IR; STAGE 3 adds
-    // `parse::read_model` (`report`'s own `description`/`include`/
+    // `parse::read_model` (`read_model`'s own `description`/`include`/
     // `group_by`) — all six fixtures (unlike the ones above) now succeed
     // outright: exit 0, and stdout is real, non-empty `ir.json`, not a
     // diagnostic.
@@ -157,9 +157,10 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
     assert!(stdout.contains("[\"sets\", \"Command\"]"), "expected sets/Command covered (the canonical spelling, not 'then_set'), got: {stdout}");
     assert!(stdout.contains("[\"where\", \"Query\"]"), "expected where/Query covered, got: {stdout}");
     assert!(stdout.contains("[\"port\", \"Hecksagon\"]"), "expected port/Hecksagon covered, got: {stdout}");
-    // STAGE 3: `report`/ReadModel now has a real `parse::read_model` of
-    // its own (console_settings.bluebook's own `Styles`/`Curated`).
-    assert!(stdout.contains("[\"report\", \"Bluebook\"]"), "expected report/Bluebook covered, got: {stdout}");
+    // STAGE 3: `read_model` now has a real `parse::read_model` of its
+    // own (console_settings.bluebook's own `Styles`/`Curated`). ADR 0025
+    // reverts the word from `report`.
+    assert!(stdout.contains("[\"read_model\", \"Bluebook\"]"), "expected read_model/Bluebook covered, got: {stdout}");
     assert!(stdout.contains("[\"include\", \"ReadModel\"]"), "expected include/ReadModel covered, got: {stdout}");
     assert!(stdout.contains("[\"group_by\", \"ReadModel\"]"), "expected group_by/ReadModel covered, got: {stdout}");
     // STAGE 4: `entity`/`process_manager` now have real `parse_body`s of

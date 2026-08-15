@@ -1,9 +1,6 @@
 require_relative "authorization_spec"
 require_relative "comparators"
-require_relative "consistency_spec"
 require_relative "cursor_spec"
-require_relative "freshness_spec"
-require_relative "index_hint"
 require_relative "inspection_spec"
 require_relative "limit_spec"
 require_relative "null_semantics"
@@ -30,16 +27,9 @@ module Hecksagain
         def limit(value) = @limit = LimitSpec.new(value: value)
         def offset(value) = @offset = OffsetSpec.new(value: value)
         def cursor(value) = @cursor = CursorSpec.new(value: value)
-        def consistency(mode, timeout: nil) = @consistency = ConsistencySpec.new(mode: mode, timeout: timeout)
-        def freshness(mode, max_age: nil) = @freshness = FreshnessSpec.new(mode: mode, max_age: max_age)
         def authorize(policy, tenant: nil) = @authorization = AuthorizationSpec.new(policy: policy, tenant: tenant)
         def nulls(mode) = @null_semantics = NullSemantics.new(mode: mode)
         def inspect_query(mode = :sql) = @inspection = InspectionSpec.new(mode: mode)
-
-        def use_index(name)
-          @index_hints ||= []
-          @index_hints << IndexHint.new(name: name)
-        end
 
         private
 

@@ -13,7 +13,7 @@ Hecks.bluebook "Bluebook", version: "1" do
   #
   # Spined on Bluebook because a bluebook is what you ask for. Everything else
   # hangs off it, down to a Member's pairs and a Dispatch's bindings.
-  report "WholeBluebook" do
+  read_model "WholeBluebook" do
     description "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read."
     reference_to Bluebook
 
