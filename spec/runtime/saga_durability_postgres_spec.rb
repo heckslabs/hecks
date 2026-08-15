@@ -9,13 +9,14 @@ require_relative "../support/postgres_probe"
 # unconditional spec, matching every other Postgres-vs-everything-else
 # split in this suite (postgres_spec.rb itself, banking_matrix_spec.rb).
 RSpec.describe "durable saga/process-manager state, against Postgres",
-               io: true,
-               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
+               io: true do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
   POSTGRES_ADAPTER = InMemoryDomain::POSTGRES_ADAPTER
   SAGA_DURABILITY_SPEC_DB = "hecksagain_saga_durability_spec".freeze
 
   before(:all) do
+    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{SAGA_DURABILITY_SPEC_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{SAGA_DURABILITY_SPEC_DB}")

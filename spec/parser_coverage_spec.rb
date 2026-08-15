@@ -16,7 +16,13 @@ require "open3"
 # the same way keywords.rs itself is). The point is the allowlist is
 # VISIBLE and ITEMIZED, and it will shrink stage by stage as parse/*.rs and
 # build/*.rs stop being stubs — never silently grow.
-RSpec.describe "the Rust parser's own coverage" do
+# `io: true` — a `cargo build` subprocess spawn is real I/O by this
+# suite's own convention (see spec_helper.rb's `io: true` note). The build
+# lives in a `before(:context)` hook, not the `describe` body, because
+# RSpec still evaluates a group's top-level body while building the
+# example tree even when `io: true` excludes every example in it —
+# tagging the group alone doesn't stop plain body code from running.
+RSpec.describe "the Rust parser's own coverage", io: true do
   COVERAGE_RUST_PARSER_DIR = File.expand_path("../rust/parser", __dir__)
   COVERAGE_BINARY_PATH     = File.join(COVERAGE_RUST_PARSER_DIR, "target", "debug", "hecks-parse")
 
@@ -26,7 +32,7 @@ RSpec.describe "the Rust parser's own coverage" do
     raise "cargo build did not produce #{COVERAGE_BINARY_PATH}" unless File.executable?(COVERAGE_BINARY_PATH)
   end
 
-  build_parser!
+  before(:context) { self.class.build_parser! }
 
   # THE SAME `rows`/`live?` READING spec/syntax_conformance_spec.rb and
   # bin/project_parser_table both already use — the declared surface,

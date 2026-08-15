@@ -52,8 +52,13 @@ module Doctest
 
   # Shared with every other Postgres spec via support/postgres_probe.rb —
   # a real `PG.connect` round trip asking the identical question, not a
-  # copy of the probe itself.
-  POSTGRES_AVAILABLE = PostgresProbe::AVAILABLE
+  # copy of the probe itself. A METHOD, not a constant — this module gets
+  # `require_relative`d unconditionally by every doctest-running spec, so
+  # a constant here would connect on every `bundle exec rspec`, `io: true`
+  # excluded or not. Both callers below already only reach this from
+  # inside an example body (already deferred by RSpec), so a method call
+  # there triggers real I/O only when the example actually runs.
+  def self.postgres_available? = PostgresProbe.available?
 
   # schema-evolution.md's opening section is not a fixture — it reads
   # `examples/pizzas`' own real era-1→2 migration back out of whatever
@@ -64,17 +69,22 @@ module Doctest
   # actual pizza migration. A fresh database — CI's, or anyone else's
   # first `createdb hecks_pizzas` — has the schema and none of the
   # history, so this checks for the second era's own row rather than
-  # assume reachable Postgres means this specific guide can run.
-  PIZZAS_HISTORY_AVAILABLE =
-    POSTGRES_AVAILABLE &&
-    begin
-      db = PG.connect(dbname: "hecks_pizzas")
-      count = db.exec("SELECT count(*) FROM hecks_eras").getvalue(0, 0).to_i
-      db.close
-      count >= 2
-    rescue PG::Error
-      false
-    end
+  # assume reachable Postgres means this specific guide can run. Also a
+  # method, memoized, for the same reason `postgres_available?` is.
+  def self.pizzas_history_available?
+    return @pizzas_history_available if defined?(@pizzas_history_available)
+
+    @pizzas_history_available =
+      postgres_available? &&
+      begin
+        db = PG.connect(dbname: "hecks_pizzas")
+        count = db.exec("SELECT count(*) FROM hecks_eras").getvalue(0, 0).to_i
+        db.close
+        count >= 2
+      rescue PG::Error
+        false
+      end
+  end
 
   module_function
 

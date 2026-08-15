@@ -8,11 +8,12 @@ require_relative "../../support/postgres_probe"
 # probe itself lives in support/postgres_probe.rb, shared by every
 # Postgres spec — see that file for why.
 RSpec.describe Hecksagain::Adapters::Postgres,
-               io: true,
-               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
+               io: true do
   SPEC_DB = "hecksagain_adapter_spec".freeze
 
   before(:all) do
+    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{SPEC_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{SPEC_DB}")

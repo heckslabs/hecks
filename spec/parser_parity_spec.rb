@@ -29,7 +29,13 @@ require "open3"
 # member that no longer fails the way its own reason says it should, or a
 # REAL_PARITY_MEMBERS entry whose output doesn't byte-match — is a spec
 # FAILURE with the parser's own stderr inlined, never a silent skip.
-RSpec.describe "Rust parser parity (hecks-parse)" do
+# `io: true` — a `cargo build` subprocess spawn is real I/O by this
+# suite's own convention (see spec_helper.rb's `io: true` note). The build
+# lives in a `before(:context)` hook, not the `describe` body, because
+# RSpec still evaluates a group's top-level body while building the
+# example tree even when `io: true` excludes every example in it —
+# tagging the group alone doesn't stop plain body code from running.
+RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   PARITY_RUST_PARSER_DIR = File.expand_path("../rust/parser", __dir__)
   PARITY_BINARY_PATH     = File.join(PARITY_RUST_PARSER_DIR, "target", "debug", "hecks-parse")
 
@@ -39,7 +45,7 @@ RSpec.describe "Rust parser parity (hecks-parse)" do
     raise "cargo build did not produce #{PARITY_BINARY_PATH}" unless File.executable?(PARITY_BINARY_PATH)
   end
 
-  build_parser!
+  before(:context) { self.class.build_parser! }
 
   # THE SAME bluebook-lookup AND Dir.glob ENUMERATION spec/corpus_spec.rb
   # already uses — reused rather than re-derived, so this can never

@@ -7,8 +7,7 @@ require_relative "../../../support/postgres_probe"
 # when a Postgres server is reachable — the shared probe in
 # support/postgres_probe.rb, like every other Postgres spec here.
 RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
-               io: true,
-               skip: (PostgresProbe::AVAILABLE ? false : "no reachable Postgres — start one to run this spec") do
+               io: true do
   RENAME_DB = "hecksagain_domain_rename_spec".freeze
   RENAME_ROLE = "hecksagain_domain_rename_spec_app".freeze
 
@@ -79,6 +78,8 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
   BLUEBOOK
 
   before(:all) do
+    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{RENAME_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{RENAME_DB}")
