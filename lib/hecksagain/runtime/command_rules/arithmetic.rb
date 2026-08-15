@@ -142,6 +142,14 @@ module Hecksagain
         # one, per Part 3a's auto-synthesis).
         def clamp(current, bounds, target)
           min, max = bounds
+          # THE SAME `current ||= 0` #arithmetic/#multiply both give a
+          # PHANTOM (never-set) numeric field, one line up from each —
+          # this was the one arithmetic op that didn't, so a VO-typed
+          # attribute with no declared `default:` (genuinely absent,
+          # `Instance.defaults`/`#default_for`) hit TypeMismatch on the
+          # FIRST clamp, where increment/decrement/multiply would have
+          # silently treated the same absent field as zero.
+          current ||= 0
           if current.is_a?(Value)
             fields = current.to_h
             field  = fields.keys.find { |f| fields[f].is_a?(Numeric) } or

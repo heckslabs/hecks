@@ -54,6 +54,15 @@ RSpec.describe "mutation op clamp" do
           emits "OrganOpened"
         end
 
+        # NO :strength ARGUMENT AT ALL — a genuinely phantom (never-set)
+        # field, `Instance.defaults`'s own case for a VO-typed attribute
+        # with no declared `default:`, unlike Open above which always
+        # assigns one.
+        command "OpenBare" do
+          attribute :id, OrganId
+          emits "OrganOpenedBare"
+        end
+
         command "Bound" do
           reference_to Organ
 
@@ -100,5 +109,23 @@ RSpec.describe "mutation op clamp" do
 
     organ = repository_for(runtime).find("o3")
     expect(organ[:strength][:value]).to eq(0.42)
+  end
+
+  # THE PHANTOM-FIELD FIX (docs/fuzzer-property-expansion-plan.md
+  # summary, item 4): #arithmetic/#multiply both give a never-set
+  # numeric field `current ||= 0` — #clamp didn't, so it hit TypeMismatch
+  # on the FIRST clamp of a field OpenBare never assigned, where
+  # increment/decrement/multiply would have silently treated the same
+  # absence as zero. Clamping 0.0 into [0.0, 1.0] leaves it at the
+  # bottom of the range, untouched — the same "in range" outcome the
+  # previous example proves for an explicitly-set 0.42.
+  it "treats a phantom (never-set) numeric field as zero rather than refusing TypeMismatch" do
+    runtime = boot_mutation_clamp
+    runtime.dispatch("MutationClampGrowth::Organ.OpenBare", id: { value: "o4" })
+
+    expect { runtime.dispatch("MutationClampGrowth::Organ.Bound", id: "o4") }.not_to raise_error
+
+    organ = repository_for(runtime).find("o4")
+    expect(organ[:strength][:value]).to eq(0.0)
   end
 end
