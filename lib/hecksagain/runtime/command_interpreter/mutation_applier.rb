@@ -183,9 +183,43 @@ module Hecksagain
           if entity.identified_by && !fields.key?(entity.identified_by)
             attribute = entity.attribute(entity.identified_by)
             fields[entity.identified_by] = Value.from_identifier(aggregate, attribute, Array(current).size + 1)
+          else
+            check_entity_collision(aggregate, entity, current, fields)
           end
           fields[entity.lifecycle.field] ||= entity.lifecycle.default if entity.lifecycle
           fields
+        end
+
+        # THE SAME CHECK #hydrate GIVES EVERY CREATING AGGREGATE COMMAND
+        # (`repository.find(id)`, above this file in command_interpreter.rb),
+        # one level down. Reached only on the two branches #entity_element
+        # does NOT auto-mint: a CALLER-SUPPLIED identity (the field is
+        # already in the append's own field map, so the `if` above skips
+        # it) or a COMPOSITE one (`entity.identified_by` is nil for those —
+        # Runtime::Identified#derive_identity — so the `if` above is false
+        # unconditionally). Neither used to check the sibling list at all:
+        # a second LogVisit with the same date+sequence, or a second
+        # IssueKey with the same serial, appended a silent duplicate — worse
+        # than an ordinary duplicate row, because EntityInterpreter#element_of's
+        # `find_index` always matches the FIRST match, so the second becomes
+        # permanently unaddressable by any later command.
+        #
+        # Auto-minted entities never reach here — `identity_heads` for them
+        # is still checked at mint time by construction (`current.size + 1`
+        # can only repeat if something `remove:`s from the list between
+        # mints, which no real domain does today), so they can't be flagged
+        # by mistake.
+        def check_entity_collision(aggregate, entity, current, fields)
+          heads = entity.identity_heads
+          return if heads.empty?
+
+          collision = Array(current).find { |element| heads.all? { |head| element[head] == fields[head] } }
+          return unless collision
+
+          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "entity_duplicate",
+                                                       entity: entity.hecks_name, aggregate: aggregate.hecks_name,
+                                                       identity: Identity.reading(entity),
+                                                       offered: heads.map { |head| Rendering.describe(fields[head]) }.join(", ")))
         end
       end
     end

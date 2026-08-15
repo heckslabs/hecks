@@ -7348,6 +7348,20 @@
             [
               [
                 "refusal",
+                "AlreadyExists"
+              ],
+              [
+                "site",
+                "entity_duplicate"
+              ],
+              [
+                "template",
+                "a {entity} already exists on {aggregate} — {identity} {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
                 "NotFound"
               ],
               [

@@ -128,6 +128,50 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     expect(rows.first[:size].to_h).to eq(value: "medium")
   end
 
+  it "refuses a second LogVisit that collides on the composite date+sequence identity" do
+    runtime = boot_banking
+    rented_box(runtime)
+    runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
+
+    expect do
+      runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                                            date: { value: "2026-01-05" }, sequence: { value: 1 })
+    end.to raise_error(Hecksagain::Runtime::AlreadyExists, /Visit.*already exists/)
+
+    # THE ONE THAT DID LAND STANDS — a refused second write leaves the
+    # first exactly as it was, not doubled and not gone.
+    visits = Banking::SafeDepositBox.find("DOWNTOWN:12").visits
+    expect(visits.size).to eq(1)
+  end
+
+  it "refuses a second IssueKey that collides on the single serial identity" do
+    runtime = boot_banking
+    rented_box(runtime)
+    runtime.dispatch("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                                          serial: { value: "KEY-1" })
+
+    expect do
+      runtime.dispatch("Banking::SafeDepositBox.IssueKey", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                                            serial: { value: "KEY-1" })
+    end.to raise_error(Hecksagain::Runtime::AlreadyExists, /KeyIssuance.*already exists/)
+
+    keys = Banking::SafeDepositBox.find("DOWNTOWN:12").keys
+    expect(keys.size).to eq(1)
+  end
+
+  it "does not spuriously flag an auto-minted entity list — two visits on different days both land" do
+    runtime = boot_banking
+    rented_box(runtime)
+    runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                                          date: { value: "2026-01-05" }, sequence: { value: 1 })
+    runtime.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                                          date: { value: "2026-01-06" }, sequence: { value: 1 })
+
+    visits = Banking::SafeDepositBox.find("DOWNTOWN:12").visits
+    expect(visits.map { |v| v[:date].to_h }).to eq([{ value: "2026-01-05" }, { value: "2026-01-06" }])
+  end
+
   it "refuses a tenant-scoped query with no tenant, and scopes results away from another branch's box" do
     runtime = boot_banking
     rented_box(runtime)

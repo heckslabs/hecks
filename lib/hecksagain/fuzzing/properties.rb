@@ -82,13 +82,18 @@ module Hecksagain
       # NOT a place to hide a real gap — a feature belongs here only once
       # the SPECIFIC enforcing code path has been read and confirmed, the
       # same discipline `spec/fuzzing/meta_domain_coverage_spec.rb` demands
-      # of `KNOWN_GAPS` in the other direction. `Entity#identified_by`
-      # was checked FOR this category and found NOT to qualify — the same
-      # `AlreadyExists` refusal `command_interpreter.rb` gives every
-      # CREATING aggregate command uniformly has no matching check in
-      # `entity_interpreter.rb` this session could find — so it stays a
-      # real, honestly-uncertain `KNOWN_GAPS` entry instead of a claimed
-      # guarantee, on purpose.
+      # of `KNOWN_GAPS` in the other direction. `Entity#identified_by` was
+      # checked FOR this category once before and found NOT to qualify —
+      # `command_interpreter.rb`'s `AlreadyExists` refusal was given to
+      # every CREATING AGGREGATE command uniformly, and MutationApplier
+      # (command_interpreter/mutation_applier.rb) had no matching check on
+      # an entity's own append. It does now: #check_entity_collision runs
+      # unconditionally on both branches an entity identity can arrive by
+      # (caller-supplied, or composite — the two the auto-mint branch
+      # doesn't cover), the same way command_interpreter#hydrate's own
+      # check is unconditional for every creating aggregate command. Real,
+      # confirmed live before the fix (SafeDepositBox's Visit/KeyIssuance —
+      # see spec/runtime/safe_deposit_box_spec.rb).
       GUARANTEED_BY_CONSTRUCTION = {
         "Aggregate#attributes" => "every field's pattern/closed-set/type passes through Value.build's one coercion door " \
           "(value/coercion.rb#check_patterns, value/admission.rb) before it can exist — a stored value that violated " \
@@ -103,6 +108,12 @@ module Hecksagain
         "Aggregate#identified_by" => "CommandInterpreter's data-driven dispatch order refuses AlreadyExists " \
           "(command_interpreter.rb, command.creates?) for every creating command uniformly, before a duplicate id " \
           "can ever be stored — collision is refused at the door, not produced and later caught",
+        "Entity#identified_by" => "MutationApplier#check_entity_collision (command_interpreter/mutation_applier.rb) " \
+          "checks Array(current) against every part of the entity's own identity before an append can land, on " \
+          "both branches identity arrives by (caller-supplied, or composite) — the same AlreadyExists refusal " \
+          "Aggregate#identified_by gets above, one level down. Auto-minted entities never reach the check " \
+          "(current.size + 1 can't repeat unless something remove:s from the list between mints, which no real " \
+          "domain does today — see the comment on #entity_element itself)",
         "Command#attributes" => "command arguments are coerced through the SAME Value.build door as any other " \
           "attribute — an accepted dispatch's own args already passed pattern/admits/invariant checks",
         "Command#emits" => "CommandRules::Emission#emit iterates command.emits ITSELF to construct every announced " \

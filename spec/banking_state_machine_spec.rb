@@ -53,4 +53,29 @@ RSpec.describe "Banking's generated account machine" do
       end
     end
   end
+
+  # NEGATIVE CONTROL for MutationApplier#check_entity_collision — LedgerEntry
+  # is `identified_by :sequence`, but Credit/Debit's own `sets :ledger,
+  # append: { amount: ..., narrative: ... }` never names `sequence`, so it
+  # always takes the AUTO-MINT branch (`current.size + 1`), never the
+  # collision-checked one. Two IDENTICAL Credits (same amount, same
+  # narrative — everything but the auto-minted sequence collides) must both
+  # land, not be refused as duplicates.
+  it "never flags an auto-minted entity list as colliding, even with identical repeated writes" do
+    runtime = boot_banking
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
+                     name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+    runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
+                                              kind: { name: "current" }, daily_limit: { cents: 1_000 })
+
+    3.times do
+      runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
+                                                   narrative: { text: "same narrative every time" })
+    end
+
+    stored = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account"))
+                    .find("a1")
+    expect(stored[:ledger].size).to eq(3)
+    expect(stored[:ledger].map { |entry| entry[:sequence].to_h }).to eq([{ value: 1 }, { value: 2 }, { value: 3 }])
+  end
 end

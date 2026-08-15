@@ -18,6 +18,8 @@ module Hecksagain
           "{command} creates a {aggregate} — pass {identity}:",
         %w[AlreadyExists creating_duplicate] =>
           "{command} creates a {aggregate} that already exists — {identity} {offered}",
+        %w[AlreadyExists entity_duplicate] =>
+          "a {entity} already exists on {aggregate} — {identity} {offered}",
         %w[NotFound acting_no_identity] =>
           "{command} acts on an existing {aggregate} — pass {identity}:",
         %w[NotFound record_missing] =>

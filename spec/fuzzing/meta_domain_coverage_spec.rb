@@ -83,10 +83,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # names the candidate property a future session should write, so
   # "unclaimed" never has to mean "unnoticed."
   META_DOMAIN_KNOWN_GAPS = {
-    "Entity#identified_by" => "CHECKED against GUARANTEED_BY_CONSTRUCTION and found NOT to qualify — " \
-      "command_interpreter.rb's AlreadyExists refusal is given to every CREATING AGGREGATE command " \
-      "uniformly; entity_interpreter.rb has no matching check this session could find, so an entity's own " \
-      "identity-collision handling is a genuinely open question, not a guarantee this arc could claim",
     "Command#references" => "reference-typed command arguments are exercised constantly (guard dereferencing) but have no property of their own asking whether a dangling reference was ever silently accepted",
     "Command#mutations" => "sets's own field-level mutation semantics have no independent replay recomputation the way aggregation_matches_recompute gives count/median",
     "Query#options" => "the open-map query options (offset/cursor/tenant/consistency/...) have no property individually",

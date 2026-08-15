@@ -120,6 +120,7 @@ module Hecksagain
       "RefusalTemplate" => [
         {"refusal"=>"NotFound", "site"=>"creating_no_identity", "template"=>"{command} creates a {aggregate} — pass {identity}:"}.freeze,
         {"refusal"=>"AlreadyExists", "site"=>"creating_duplicate", "template"=>"{command} creates a {aggregate} that already exists — {identity} {offered}"}.freeze,
+        {"refusal"=>"AlreadyExists", "site"=>"entity_duplicate", "template"=>"a {entity} already exists on {aggregate} — {identity} {offered}"}.freeze,
         {"refusal"=>"NotFound", "site"=>"acting_no_identity", "template"=>"{command} acts on an existing {aggregate} — pass {identity}:"}.freeze,
         {"refusal"=>"NotFound", "site"=>"record_missing", "template"=>"no {aggregate} with {identity} {offered}"}.freeze,
         {"refusal"=>"NotFound", "site"=>"entity_parent_no_identity", "template"=>"{command} acts on a {aggregate}'s {entity} — pass {identity}:"}.freeze,
