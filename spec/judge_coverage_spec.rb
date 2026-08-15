@@ -38,9 +38,16 @@ RSpec.describe "the judge's coverage of the language" do
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
     end
     @banking = registry.bluebook("Banking")
+    # ADR 0026 — Paging is the one real chapter that ever calls
+    # `attaches_to`; nothing about Banking's own domain would call it for
+    # real, so `Bluebook::Bluebook.Attach` needs a second bluebook judged
+    # to be offered at all. Already loaded into the grammar registry
+    # itself (MetaValidator::ATTACHED_GRAMMAR_DIR) — no separate boot.
+    @paging = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
   end
 
   def banking = @banking
+  def paging  = @paging
 
   # Records what the judge asks for, without judging anything.
   class Spy
@@ -75,7 +82,7 @@ RSpec.describe "the judge's coverage of the language" do
   # `freshness`/`use_index`, `SafeDepositBox.Rented`'s
   # `authorize`/`consistency`, `ComplianceDashboard`'s own
   # `freshness`/`use_index` — so the union is gone with it.
-  def offered_verbs = offered_in_order
+  def offered_verbs = offered_in_order + offered_in_order(paging)
 
   # Every command on every aggregate of the meta-domain, spelled as the judge
   # would dispatch it. World and Wiring live in world.bluebook and are judged

@@ -333,6 +333,93 @@ high = runtime.registry.bluebook("Banking").aggregate("Account").queries.find { 
 high.order_by.direction  # => :desc
 ```
 
+## authorize
+
+<!-- generated:begin word=authorize -->
+`authorize policy, tenant:` — fills `options`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | policy |
+| `tenant:` | symbol | false | tenant |
+<!-- generated:end -->
+
+Declares a policy name (recorded, never checked — no caller-identity or
+grant system exists to check it against) and, when `tenant:` is given,
+a mandatory tenant boundary that IS enforced: a caller must pass that
+field as an argument or the ask refuses with `Unauthorized`
+(`Runtime::TenantScope`), and every returned row — on every engine,
+Memory, Sqlite, Postgres, and the entity/sub-list path alike — is
+scoped to the value given, regardless of what other filters were
+declared.
+
+`SafeDepositBox.Rented` declares `authorize :vault_access, tenant:
+:branch_code`. Two boxes, in two branches:
+
+```ruby
+Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
+Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
+```
+
+The tenant boundary is mandatory — an ask that does not say which branch
+it is standing in is refused rather than answered broadly:
+
+```ruby
+runtime.query("Banking::SafeDepositBox.Rented")  # ~> Unauthorized: pass branch_code:
+```
+
+Name it, and every row is scoped to it. The other branch's box is not
+in the answer, and no `where` said so:
+
+```ruby
+runtime.query("Banking::SafeDepositBox.Rented", branch_code: { value: "DT" }).map { |row| row[:branch_code][:value] }  # => ["DT"]
+```
+
+The policy name beside it is the half that is NOT checked — nothing in
+this runtime knows what `:vault_access` would mean:
+
+```ruby
+rented = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").queries.find { |q| q.hecks_name == "Rented" }
+rented.authorization.policy  # => "vault_access"
+```
+
+## inspect_query
+
+<!-- generated:begin word=inspect_query -->
+`inspect_query mode` — fills `options`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | false | mode |
+<!-- generated:end -->
+
+Asks to inspect the compiled query rather than (or alongside) its
+rows. In practice this is a capability gate more than a feature —
+`Ports::Query.validate!` only refuses when an adapter neither
+implements its own `inspect_query` hook nor exposes a native `query`
+method under the default `:sql` mode. No adapter in this codebase
+defines the former, so today declaring it never changes what comes
+back; it can only ever refuse.
+
+Nothing in the corpus declares it, and the reason is in the sentence
+above — against the Memory adapter it is a capability gate with nothing
+behind it:
+
+```ruby
+runtime.registry.bluebook("Banking").aggregate("Account").queries.map(&:inspection).compact  # => []
+```
+
+Which is the whole of what it does today. The rows are the same rows
+either way — a hint nobody reads is a comment with a syntax.
+
+**Written exemption (ADR 0025 principle 4)** — a real corpus use would
+be vacuous by construction: no adapter here implements the hook this
+declares, so declaring it on a real query would change nothing the
+query itself does and would not exercise any path this doctest above
+doesn't already. The honest gap is upstream of the DSL word — an
+adapter that actually implements `inspect_query` is what would give
+this a real corpus use worth having.
+
 ## limit
 
 <!-- generated:begin word=limit -->
@@ -410,56 +497,6 @@ this gets resolved for real — `cursor`/`offset`/`nulls`/`limit` leave
 the core grammar into their own attachment — landing a real corpus use
 here first would be work S15 immediately throws away.
 
-## authorize
-
-<!-- generated:begin word=authorize -->
-`authorize policy, tenant:` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | policy |
-| `tenant:` | symbol | false | tenant |
-<!-- generated:end -->
-
-Declares a policy name (recorded, never checked — no caller-identity or
-grant system exists to check it against) and, when `tenant:` is given,
-a mandatory tenant boundary that IS enforced: a caller must pass that
-field as an argument or the ask refuses with `Unauthorized`
-(`Runtime::TenantScope`), and every returned row — on every engine,
-Memory, Sqlite, Postgres, and the entity/sub-list path alike — is
-scoped to the value given, regardless of what other filters were
-declared.
-
-`SafeDepositBox.Rented` declares `authorize :vault_access, tenant:
-:branch_code`. Two boxes, in two branches:
-
-```ruby
-Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
-Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
-```
-
-The tenant boundary is mandatory — an ask that does not say which branch
-it is standing in is refused rather than answered broadly:
-
-```ruby
-runtime.query("Banking::SafeDepositBox.Rented")  # ~> Unauthorized: pass branch_code:
-```
-
-Name it, and every row is scoped to it. The other branch's box is not
-in the answer, and no `where` said so:
-
-```ruby
-runtime.query("Banking::SafeDepositBox.Rented", branch_code: { value: "DT" }).map { |row| row[:branch_code][:value] }  # => ["DT"]
-```
-
-The policy name beside it is the half that is NOT checked — nothing in
-this runtime knows what `:vault_access` would mean:
-
-```ruby
-rented = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").queries.find { |q| q.hecks_name == "Rented" }
-rented.authorization.policy  # => "vault_access"
-```
-
 ## nulls
 
 <!-- generated:begin word=nulls -->
@@ -486,41 +523,4 @@ runtime.query("QueryReference::Sighting.ByCount").map { |row| row[:tag][:value] 
 
 `s-2` is the one with no count, and it is last — the two real values
 sort among themselves first.
-
-## inspect_query
-
-<!-- generated:begin word=inspect_query -->
-`inspect_query mode` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | false | mode |
-<!-- generated:end -->
-
-Asks to inspect the compiled query rather than (or alongside) its
-rows. In practice this is a capability gate more than a feature —
-`Ports::Query.validate!` only refuses when an adapter neither
-implements its own `inspect_query` hook nor exposes a native `query`
-method under the default `:sql` mode. No adapter in this codebase
-defines the former, so today declaring it never changes what comes
-back; it can only ever refuse.
-
-Nothing in the corpus declares it, and the reason is in the sentence
-above — against the Memory adapter it is a capability gate with nothing
-behind it:
-
-```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").queries.map(&:inspection).compact  # => []
-```
-
-Which is the whole of what it does today. The rows are the same rows
-either way — a hint nobody reads is a comment with a syntax.
-
-**Written exemption (ADR 0025 principle 4)** — a real corpus use would
-be vacuous by construction: no adapter here implements the hook this
-declares, so declaring it on a real query would change nothing the
-query itself does and would not exercise any path this doctest above
-doesn't already. The honest gap is upstream of the DSL word — an
-adapter that actually implements `inspect_query` is what would give
-this a real corpus use worth having.
 

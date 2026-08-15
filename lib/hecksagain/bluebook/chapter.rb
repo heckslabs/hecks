@@ -39,14 +39,16 @@ module Hecksagain
         read_models:      many(:read_models),
         policies:         many(:policies),
         process_managers: many(:process_managers),
+        attaches_to:      :attaches_to,
         canonical_form:   -> { Expression::CanonicalForm.table }
       )
 
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                  :classification, :read_models, :ports, :formerly_known_as
+                  :classification, :read_models, :ports, :formerly_known_as, :attaches_to
 
       def initialize(name:, version: nil, vision: nil, aggregates: [], policies: [],
-                     process_managers: [], classification: nil, read_models: [], formerly_known_as: nil)
+                     process_managers: [], classification: nil, read_models: [], formerly_known_as: nil,
+                     attaches_to: [])
         @policies         = policies
         @process_managers = process_managers
         @name       = name.to_s
@@ -58,6 +60,7 @@ module Hecksagain
         @read_models = read_models
         @classification = classification&.to_s
         @formerly_known_as = formerly_known_as&.to_s
+        @attaches_to = Array(attaches_to).map(&:to_s)
         settle
       end
     end

@@ -1,0 +1,77 @@
+Hecks.bluebook "Paging" do
+  vision "The four words a page of results is read through — limit, offset, cursor, nulls — held as their own sub-language rather than as four more rows in the core's own grammar table. ADR 0026's own worked example: the core grammar does not name its extension points, so this chapter names ITSELF onto them, with `attaches_to`."
+  generic
+  attaches_to "Query", "ReadModel"
+
+  # A PLACE TO HOLD ROWS, AND NOTHING ELSE — the same shape `Vocabulary`
+  # (vocabulary.bluebook) already is: no commands, because nothing ever
+  # dispatches this aggregate for real. `SyntaxBoot`'s own generic
+  # discovery reads `KeywordSeed`/`ArgumentSeed`'s rows straight off the
+  # declared IR, the exact way it already reads the core's own — and
+  # dispatches them through the CORE's `Bluebook::Syntax.Keyword`/
+  # `.Argument` verbs, which is why these rows need no entity, no
+  # lifecycle, no creating command of their own here: the verb they ride
+  # already exists, and a second copy of it would be the core's own
+  # machinery duplicated for no reason.
+  aggregate "Syntax" do
+    description "The rows this sub-language contributes to the core's own grammar table."
+    identified_by :name
+
+    attribute :name, PagingSyntaxName
+
+    value_object "PagingSyntaxName" do
+      attribute :value, String
+      invariant("a syntax table is named") { !value.to_s.empty? }
+    end
+
+    # THE SAME EIGHT ROWS syntax.bluebook held directly until now — moved,
+    # not rewritten. `limit`/`offset`/`cursor`/`nulls`, on both `Query`
+    # and `ReadModel`. See syntax.bluebook's own comment at the old site
+    # for why `limit` fills a dedicated field while the other three land
+    # on the open `options` map.
+    value_object "KeywordSeed" do
+      attribute :word,    String
+      attribute :context, String
+      attribute :body,    String
+      attribute :inner,   String
+      attribute :opens,   String
+      attribute :fills,   String
+      attribute :was,     String, optional: true
+
+      member word: "limit",  context: "Query", body: "none", inner: "", opens: "", fills: "limit"
+      member word: "offset", context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "cursor", context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "nulls",  context: "Query", body: "none", inner: "", opens: "", fills: "options"
+
+      member word: "limit",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "offset", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "cursor", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "nulls",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,           String
+      attribute :context,           String
+      attribute :at,                String, optional: true
+      attribute :named,             String, optional: true
+      attribute :kind,               String
+      attribute :required,           String
+      attribute :fills,              String, optional: true
+      attribute :selects,            String, optional: true
+      attribute :pair_key_fills,     String, optional: true
+      attribute :pair_value_fills,   String, optional: true
+      attribute :pairs_shape,        String, optional: true
+      attribute :variadic,           String, optional: true
+
+      member keyword: "limit",  context: "Query", at: "1", named: "", kind: "number", required: "true", fills: "limit"
+      member keyword: "offset", context: "Query", at: "1", named: "", kind: "number", required: "true", fills: "value"
+      member keyword: "cursor", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "value"
+      member keyword: "nulls",  context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "mode"
+
+      member keyword: "limit",  context: "ReadModel", at: "1", named: "", kind: "number", required: "true", fills: "value"
+      member keyword: "offset", context: "ReadModel", at: "1", named: "", kind: "number", required: "true", fills: "value"
+      member keyword: "cursor", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "value"
+      member keyword: "nulls",  context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "mode"
+    end
+  end
+end

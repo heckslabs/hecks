@@ -43,6 +43,18 @@ module Hecksagain
       # so is a hecksagon — the same reasoning, one file over
       HECKSAGON_GRAMMAR = File.expand_path("../language/hecksagon.bluebook", __dir__).freeze
 
+      # ADR 0026's OWN SEAM: THE CORE DOES NOT NAME ITS EXTENSION POINTS.
+      #
+      # A sub-language chapter (Paging, so far the only one) is an ORDINARY
+      # bluebook — declared with the same `aggregate`/`value_object`/
+      # `attaches_to` words every domain has, judged through the language
+      # the normal way, not bootstrapped raw the way GRAMMAR_FILES is. What
+      # makes it special is only where it LIVES: any file in this directory
+      # is discovered and loaded here, by the directory's own existence,
+      # never by a name this file would have to know. Add a chapter here
+      # and it is attached ; nothing in this file changes.
+      ATTACHED_GRAMMAR_DIR = File.expand_path("../language/bluebook/attaches", __dir__).freeze
+
       # The chapters that ARE the language — loaded raw during bootstrap, then
       # judged through themselves and replaced by their own assembled graphs
       # (see grammar_registry). Each is named after its file : Bluebook describes
@@ -250,7 +262,21 @@ module Hecksagain
           # @bootstrapping, and call() must see bootstrapping? == false to do
           # anything at all.
           LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
+          load_attached_grammar_into(registry)
           registry
+        end
+      end
+
+      # ATTACHED CHAPTERS LOAD AFTER THE FIXPOINT, NOT DURING BOOTSTRAP —
+      # they are declared IN the language the language just finished
+      # judging itself through, so they are ordinary bluebooks, judged the
+      # ordinary way (`Hecks.bluebook` → `BluebookBuilder#build` →
+      # `MetaValidator.call`, `bootstrapping?` already false). A directory
+      # with nothing in it loads nothing ; this is a no-op until a chapter
+      # is added there.
+      def self.load_attached_grammar_into(registry)
+        Hecksagain.with_registry(registry) do
+          Dir.glob(File.join(ATTACHED_GRAMMAR_DIR, "*.bluebook")).sort.each { |file| Kernel.load(file) }
         end
       end
 

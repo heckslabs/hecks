@@ -112,6 +112,16 @@ RSpec.describe "every live DSL word, used somewhere real" do
       "and there is no real `asks` operation to carry one.",
     "refuses (PortOperation)" =>
       "same finding as asks (DomainPort) — an `asks` operation's own refused ending.",
+    "attaches_to (Bluebook)" =>
+      "genuinely, load-bearingly used for real — lib/hecksagain/language/bluebook/" \
+      "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \
+      "at every boot by SyntaxBoot's own generic discovery (ADR 0026, S15) — but that " \
+      "file sits inside lib/hecksagain/language/bluebook, excluded from CORPUS_GLOBS " \
+      "on purpose (the language describing itself is not what this corpus counts, the " \
+      "same reason every core grammar word's own name is not scanned as a use of " \
+      "itself). A sub-language chapter is caught by the same exclusion its own words " \
+      "are, even though — unlike formerly_known_as below — it is not a synthetic gap; " \
+      "it is a real declaration the scanner is not pointed at.",
     "formerly_known_as (Bluebook)" =>
       "no bluebook in THIS repository's own corpus renames itself — real, external " \
       "use is what this word is for: embryonautfoundersapp.bluebook (the sibling " \

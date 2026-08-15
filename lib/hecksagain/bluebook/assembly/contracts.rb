@@ -42,7 +42,8 @@ module Hecksagain
             version:        [:version,        :plain],
             vision:         [:vision,         :plain],
             classification: [:classification, :plain],
-            formerly_known_as: [:formerly_known_as, :plain]
+            formerly_known_as: [:formerly_known_as, :plain],
+            attaches_to:    [:attaches_to,    :plain]
           },
           rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }

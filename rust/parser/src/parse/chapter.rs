@@ -261,6 +261,17 @@ fn parse_body_into(
             "core" => bluebook.classification = Some("core".to_string()),
             "supporting" => bluebook.classification = Some("supporting".to_string()),
             "generic" => bluebook.classification = Some("generic".to_string()),
+            // ADR 0026, S15 — VARIADIC, same shape `group_by`'s own
+            // parsing is: as many positional TEXT arguments as the
+            // source gave (`positional_text`, not `positional_symbol` —
+            // these are quoted strings, "Query"/"ReadModel", not
+            // symbols), accumulating rather than overwriting since
+            // nothing here refuses a second `attaches_to` call.
+            "attaches_to" => {
+                for at in 1..=gated.args.positional.len() {
+                    bluebook.attaches_to.push(super::positional_text(file, line, "attaches_to", &gated.args, at)?);
+                }
+            }
             "aggregate" => {
                 let agg_name = super::positional_text(file, line, "aggregate", &gated.args, 1)?;
                 let (built, policies) = aggregate::parse_body(file, lines, pos, &agg_name)?;

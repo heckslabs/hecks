@@ -67,7 +67,7 @@ end
 ```ruby
 ir = Hecksagain::Projector::Exporter.call(runtime.registry).fetch("Banking")
 
-ir.keys # => [:ir_version, :name, :version, :vision, :classification, :aggregates, :read_models, :policies, :process_managers, :canonical_form]
+ir.keys # => [:ir_version, :name, :version, :vision, :classification, :aggregates, :read_models, :policies, :process_managers, :attaches_to, :canonical_form]
 ```
 
 Every key below is a real Ruby `Symbol`, not a JSON string — `Exporter.call`

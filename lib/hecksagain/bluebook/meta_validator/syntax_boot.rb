@@ -101,7 +101,7 @@ module Hecksagain
         end
 
         def admit_keywords(runtime, bluebook)
-          rows(bluebook, "KeywordSeed").each_with_index do |row, index|
+          all_rows(bluebook, "KeywordSeed").each_with_index do |row, index|
             runtime.dispatch("Bluebook::Syntax.Keyword",
                              name: v("Syntax"), position: v(index),
                              word: v(row[:word]), context: v(row[:context]), body: v(row[:body]),
@@ -115,7 +115,7 @@ module Hecksagain
         end
 
         def admit_arguments(runtime, bluebook)
-          rows(bluebook, "ArgumentSeed").each_with_index do |row, index|
+          all_rows(bluebook, "ArgumentSeed").each_with_index do |row, index|
             runtime.dispatch("Bluebook::Syntax.Argument",
                              name: v("Syntax"), position: v(index),
                              keyword: v(row[:keyword]), context: v(row[:context]),
@@ -131,13 +131,40 @@ module Hecksagain
           end
         end
 
+        # THE CORE'S OWN ROWS, THEN EVERY ATTACHED CHAPTER'S — ADR 0026's
+        # own seam. `attached_chapters` finds them by what they declared
+        # about THEMSELVES (`attaches_to`), never by name, so a new
+        # sub-language needs nothing added here to be found. Concatenated
+        # into ONE sequence, not dispatched chapter-by-chapter, because
+        # `position` is minted from the walk index below and every
+        # admitted row — wherever it came from — needs one that does not
+        # collide with any other.
+        def all_rows(bluebook, name)
+          rows(bluebook, name) + attached_chapters.flat_map { |chapter| rows(chapter, name) }
+        end
+
+        # EVERY OTHER CHAPTER THE GRAMMAR REGISTRY HOLDS that named a core
+        # context onto itself — the core never names Paging back; Paging
+        # named the core. `bluebook` itself is excluded by construction:
+        # it declares no `attaches_to` of its own to be found by.
+        def attached_chapters
+          MetaValidator.grammar_registry.bluebooks.values.select { |chapter| chapter.attaches_to.any? }
+        end
+
         # The seed rows themselves — plain hashes, string values, read
         # straight off the still-static `KeywordSeed`/`ArgumentSeed`
         # closed sets exactly the way `ParserTable`'s own OLD `rows`
-        # method always did.
+        # method always did. Absent from a chapter with no `Syntax`
+        # aggregate of that name at all (most attached chapters will
+        # only ever declare one, but nothing requires it).
         def rows(bluebook, name)
-          bluebook.aggregate("Syntax").value_objects.find { |vo| vo.hecks_name == name }
-                  .members.map { |row| row.to_h.transform_values(&:to_s) }
+          syntax = bluebook.aggregate("Syntax")
+          return [] unless syntax
+
+          value_object = syntax.value_objects.find { |vo| vo.hecks_name == name }
+          return [] unless value_object
+
+          value_object.members.map { |row| row.to_h.transform_values(&:to_s) }
         end
 
         # Reads the dispatched result back into the SAME shape `rows`

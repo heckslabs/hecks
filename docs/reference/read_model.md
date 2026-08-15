@@ -382,6 +382,70 @@ arbitrary two: the five biggest (4200, 900, 500, 400, 300) are the ones
 dashboard[:card_payments].map { |row| row[:amount][:cents] }  # => [200, 100]
 ```
 
+## authorize
+
+<!-- generated:begin word=authorize -->
+`authorize policy, tenant:` — fills `options`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | policy |
+| `tenant:` | symbol | false | tenant |
+<!-- generated:end -->
+
+Declares a policy name (recorded, never checked — no caller-identity or
+grant system exists to check it against) and, when `tenant:` is given,
+a mandatory tenant boundary that IS enforced: a caller must pass that
+field as an argument or the ask refuses with `Unauthorized`
+(`Runtime::TenantScope`), and every returned row is scoped to the
+value given, regardless of what other filters were declared. `tenant:`
+must name the same collection `where`/`order_by`/`limit`/`offset`
+would (`ReadModelBuilder#seal_query_options` holds it to the same
+"exactly one many-side head" rule).
+
+`DepotManifest` declares `authorize :depot_access, tenant: :region`, so
+naming the depot is not enough — an ask that does not say which region
+it is scoped to is refused:
+
+```ruby
+runtime.query("ReadModelReference.DepotManifest", depot: "dp-1")  # ~> Unauthorized: pass region:
+```
+
+Every ask further up this page passed one, which is why they answered
+at all. The policy name beside it is the half nothing checks:
+
+```ruby
+runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").authorization.policy  # => "depot_access"
+```
+
+## inspect_query
+
+<!-- generated:begin word=inspect_query -->
+`inspect_query mode` — fills `options`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | false | mode |
+<!-- generated:end -->
+
+Asks to inspect the compiled query. On the aggregate-`query` path this
+is a capability gate through `Ports::Query.validate!`; the read model
+runtime never reaches that code at all, so declaring it here has no
+effect, refusal or otherwise.
+
+`DepotManifest` declares it, and every ask above answered ordinary rows
+regardless — no inspection came back, and nothing refused either:
+
+```ruby
+runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").inspection.mode  # => :sql
+```
+
+**Written exemption (ADR 0025 principle 4)** — the sentence above is
+the reason: the read model runtime never reaches the code this word
+gates at all, so a real corpus declaration would be strictly inert —
+even less than `Query`'s own version, which is at least a live
+capability gate against `Ports::Query.validate!`.
+
 ## limit
 
 <!-- generated:begin word=limit -->
@@ -462,42 +526,6 @@ Hecksagain::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelRe
 build has no corpus use to give, and S15 removes it from the core
 grammar regardless.
 
-## authorize
-
-<!-- generated:begin word=authorize -->
-`authorize policy, tenant:` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | true | policy |
-| `tenant:` | symbol | false | tenant |
-<!-- generated:end -->
-
-Declares a policy name (recorded, never checked — no caller-identity or
-grant system exists to check it against) and, when `tenant:` is given,
-a mandatory tenant boundary that IS enforced: a caller must pass that
-field as an argument or the ask refuses with `Unauthorized`
-(`Runtime::TenantScope`), and every returned row is scoped to the
-value given, regardless of what other filters were declared. `tenant:`
-must name the same collection `where`/`order_by`/`limit`/`offset`
-would (`ReadModelBuilder#seal_query_options` holds it to the same
-"exactly one many-side head" rule).
-
-`DepotManifest` declares `authorize :depot_access, tenant: :region`, so
-naming the depot is not enough — an ask that does not say which region
-it is scoped to is refused:
-
-```ruby
-runtime.query("ReadModelReference.DepotManifest", depot: "dp-1")  # ~> Unauthorized: pass region:
-```
-
-Every ask further up this page passed one, which is why they answered
-at all. The policy name beside it is the half nothing checks:
-
-```ruby
-runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").authorization.policy  # => "depot_access"
-```
-
 ## nulls
 
 <!-- generated:begin word=nulls -->
@@ -527,32 +555,4 @@ here shaped for `where`/`order_by`/`limit`/`offset` at all
 is not optional; no read model in this corpus has an ordered single-
 collection view whose ordering field can genuinely be absent, so
 there is nothing real to demonstrate `nulls` sorting against yet.
-
-## inspect_query
-
-<!-- generated:begin word=inspect_query -->
-`inspect_query mode` — fills `options`
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | symbol | false | mode |
-<!-- generated:end -->
-
-Asks to inspect the compiled query. On the aggregate-`query` path this
-is a capability gate through `Ports::Query.validate!`; the read model
-runtime never reaches that code at all, so declaring it here has no
-effect, refusal or otherwise.
-
-`DepotManifest` declares it, and every ask above answered ordinary rows
-regardless — no inspection came back, and nothing refused either:
-
-```ruby
-runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").inspection.mode  # => :sql
-```
-
-**Written exemption (ADR 0025 principle 4)** — the sentence above is
-the reason: the read model runtime never reaches the code this word
-gates at all, so a real corpus declaration would be strictly inert —
-even less than `Query`'s own version, which is at least a live
-capability gate against `Ports::Query.validate!`.
 

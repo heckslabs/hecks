@@ -104,6 +104,7 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
         ("read_models".to_string(), JsonValue::Array(bb.read_models.iter().map(read_model_json).collect())),
         ("policies".to_string(), JsonValue::Array(bb.policies.iter().map(policy_json).collect())),
         ("process_managers".to_string(), JsonValue::Array(bb.process_managers.iter().map(process_manager_json).collect())),
+        ("attaches_to".to_string(), JsonValue::strings(&bb.attaches_to)),
         ("canonical_form".to_string(), canonical_form_table()),
     ])
 }

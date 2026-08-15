@@ -24,6 +24,15 @@ module Hecksagain
         # old name instead of minting a brand-new lineage from nothing.
         def formerly_known_as(value) = @formerly_known_as = value.to_s
 
+        # A SUB-LANGUAGE NAMES WHERE IT LANDS. ADR 0026's own seam: the core
+        # grammar does not name its extension points, so this chapter names
+        # ITSELF onto them instead — the core contexts (e.g. "Query",
+        # "ReadModel") whose own admitted words this chapter's `Syntax`
+        # aggregate contributes rows for. Variadic, and accumulating across
+        # calls the same reason `identified_by`/`group_by` are: nothing here
+        # requires one call to name every context at once.
+        def attaches_to(*contexts) = (@attaches_to ||= []).concat(contexts.map(&:to_s))
+
         def core       = @classification = :core
         def supporting = @classification = :supporting
         def generic    = @classification = :generic
@@ -85,7 +94,8 @@ module Hecksagain
                                       policies: policies,
                                       process_managers: @process_managers,
                                       classification: @classification,
-                                      formerly_known_as: @formerly_known_as)
+                                      formerly_known_as: @formerly_known_as,
+                                      attaches_to: @attaches_to || [])
 
           # Every hop AggregateBuilder#seal_query_field recognised and
           # deferred gets checked for real here — the earliest point a

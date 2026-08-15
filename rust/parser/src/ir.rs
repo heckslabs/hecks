@@ -420,6 +420,10 @@ pub struct Bluebook {
     pub read_models: Vec<ReadModel>,
     pub policies: Vec<Policy>,
     pub process_managers: Vec<ProcessManager>,
+    // ADR 0026, S15 — the core contexts this chapter names itself onto
+    // (`attaches_to "Query", "ReadModel"`), so far only Paging's own.
+    // Empty for every other chapter.
+    pub attaches_to: Vec<String>,
     // canonical_form: Expression::CanonicalForm.table — the two
     // normalisation rules canonical.rs already hand-mirrors; Stage 2's
     // emit.rs writes this the same way for every chapter, not per-domain
@@ -438,6 +442,7 @@ impl Default for Bluebook {
             read_models: Vec::new(),
             policies: Vec::new(),
             process_managers: Vec::new(),
+            attaches_to: Vec::new(),
         }
     }
 }

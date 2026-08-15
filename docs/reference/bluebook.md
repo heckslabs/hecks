@@ -42,6 +42,7 @@ end
 Hecks.bluebook "BluebookReference" do
   vision "Nothing anybody competes on — the kind of thing you would buy if you could."
   generic
+  attaches_to "Query", "ReadModel"
 
   aggregate "Postcode" do
     attribute :code, Code
@@ -135,6 +136,43 @@ repo, formerly `embryonaut.bluebook`) declares `formerly_known_as
 "Embryonaut"` on its own chapter, bridging real production journal/
 era/approval rows onto the renamed domain the day it deployed under
 the new name, zero data loss, real Member rows confirmed intact.
+
+## attaches_to
+
+<!-- generated:begin word=attaches_to -->
+`attaches_to attaches_to` — fills `attaches_to`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | attaches_to |
+<!-- generated:end -->
+
+ADR 0026's own seam for a sub-language chapter: the core grammar does
+not name its extension points, so a chapter that extends one names
+ITSELF onto it instead. `attaches_to "Query", "ReadModel"` names the
+core contexts this chapter's own `Syntax` aggregate contributes
+`Keyword`/`Argument` rows for — read at boot by `SyntaxBoot`'s own
+generic discovery (`MetaValidator::ATTACHED_GRAMMAR_DIR`), which merges
+every attached chapter's rows into the same grammar table the core's
+own rows populate, tagged by nothing more than having been found.
+Variadic — accumulates across calls the same reason `identified_by`/
+`group_by` do. Stored on the chapter and readable back after boot as
+`Chapter.attaches_to`. Most chapters attach to nothing, and ABSENT IS
+NOT EMPTY, the same reading `version`/`formerly_known_as` give.
+
+```ruby
+runtime.registry.bluebook("BluebookReference").attaches_to  # => ["Query", "ReadModel"]
+runtime.registry.bluebook("Ledgering").attaches_to  # => []
+```
+
+**The real, load-bearing use** (not synthetic, unlike the fixture
+above): `lib/hecksagain/language/bluebook/attaches/paging.bluebook`
+declares `attaches_to "Query", "ReadModel"` for real — the Paging
+sub-language, whose own `Syntax` aggregate holds the seed rows for
+`limit`/`offset`/`cursor`/`nulls` (see `docs/reference/query.md`/
+`read_model.md`'s own sections on each). Every boot merges them in;
+`ParserTable`/this doc generator/every conformance spec reads the
+merged table and cannot tell a core row from an attached one.
 
 ## core
 

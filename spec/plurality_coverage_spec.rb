@@ -60,6 +60,20 @@ RSpec.describe "every list the language declares, filled more than once" do
   # known-UNCHECKED, which is the honest word and the reason they are written
   # down rather than skipped.
   ALLOWED_SINGLETON = {
+    # ADR 0026, S15 — genuinely filled with two, for real, on the one
+    # chapter that calls it: lib/hecksagain/language/bluebook/attaches/
+    # paging.bluebook declares `attaches_to "Query", "ReadModel"`. Not
+    # visible to THIS check because it walks spec/golden/ir/*.json, and
+    # Paging carries no golden fixture of its own (it is a grammar
+    # chapter, judged through MetaValidator.grammar_registry the same
+    # as Bluebook/World, not a corpus member ir_golden_spec freezes) —
+    # so the plurality is real and already exercised at every boot by
+    # SyntaxBoot's own merge, just not on this particular list.
+    "attaches_to" =>
+      "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
+      "no golden IR fixture reaches it because Paging is a grammar " \
+      "chapter, not a frozen corpus member.",
+
     # EMPTY, and every entry that was here is now a corpus member instead.
     #
     #   emits             banking: SafeDepositBox.Surrender announces twice,

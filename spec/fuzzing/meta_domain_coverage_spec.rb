@@ -63,7 +63,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # feature a domain itself exercises).
   META_DOMAIN_STRUCTURAL_FEATURES = %w[
     Bluebook#name Bluebook#vision Bluebook#classification Bluebook#version
-    Bluebook#formerly_known_as Bluebook#normalisations
+    Bluebook#formerly_known_as Bluebook#normalisations Bluebook#attaches_to
     Aggregate#bluebook Aggregate#name Aggregate#description Aggregate#provenance
     Command#aggregate Command#entity_id Command#name Command#role Command#goal Command#provenance
     Query#aggregate Query#entity_id Query#name Query#description

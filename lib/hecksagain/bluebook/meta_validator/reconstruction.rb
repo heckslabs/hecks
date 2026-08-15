@@ -59,6 +59,7 @@ module Hecksagain
             vision:           text(@chapter[:vision]),
             classification:   text(@chapter[:classification]),
             formerly_known_as: text(@chapter[:formerly_known_as]),
+            attaches_to:      attached_contexts(@chapter),
             aggregates:       declared("Aggregate", chapter_id).map { |row| aggregate(row) },
             read_models:      declared("ReadModel", chapter_id).map { |row| read_model(row) },
             policies:         declared("Policy", chapter_id).map { |row| policy(row) },
@@ -128,6 +129,10 @@ module Hecksagain
         # THE PARTS, IN THE ORDER THEY WENT IN, because the identity is their join
         # and a join read out of order names a different record.
         def identity_paths(row) = Array(row[:identified_by]).map { |part| text(part[:value]).to_s }
+
+        # THE CONTEXTS ONE CHAPTER NAMES ITSELF ONTO, in the order they were
+        # attached — same shape identity_paths reads back, one level up.
+        def attached_contexts(row) = Array(row[:attaches_to]).map { |part| text(part[:value]).to_s }
 
         # Every cell of the meta-domain is a single-field value object, so a row
         # arrives holding Values rather than Strings.

@@ -67,6 +67,13 @@ Hecks.bluebook "Bluebook", version: "1" do
     # reading `version` above gives.
     attribute :formerly_known_as, FormerlyKnownAs
     attribute :normalisations, list_of(NormalisationRule)
+    # THE SEAM ADR 0026 ADDS. A sub-language chapter (Paging, so far the
+    # only one) names the core contexts its own `Syntax` aggregate
+    # contributes rows for — "Query", "ReadModel" — so SyntaxBoot's own
+    # discovery can find it without the core ever naming it back. Most
+    # chapters attach to nothing, and ABSENT IS NOT EMPTY, the same
+    # reading `version`/`formerly_known_as` above give.
+    attribute :attaches_to, list_of(AttachesToContext)
 
     value_object "RuleText" do
       # deliberately permissive : source_token and replacement are legitimately
@@ -109,6 +116,11 @@ Hecks.bluebook "Bluebook", version: "1" do
       invariant("a formerly_known_as says something") { !value.to_s.empty? }
     end
 
+    value_object "AttachesToContext" do
+      attribute :value, String
+      invariant("an attachment names a context") { !value.to_s.empty? }
+    end
+
     command "Declare" do
       role "Language"
       goal "Open a chapter"
@@ -120,6 +132,22 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :formerly_known_as, FormerlyKnownAs, optional: true
 
       emits "ChapterDeclared"
+    end
+
+    # ONE CONTEXT THE CHAPTER ATTACHES TO, appended the way one identity
+    # part is (Aggregate.Identify, above) — `attaches_to "Query",
+    # "ReadModel"` names any number at once, and a list is filled by a
+    # verb of its own here the same reason it is everywhere else in this
+    # language.
+    command "Attach" do
+      role "Language"
+      goal "Name one core context this chapter's own Syntax rows attach to"
+
+      reference_to Bluebook
+      attribute :context, AttachesToContext
+
+      sets :attaches_to, append: { value: :context }
+      emits "ChapterAttached"
     end
 
     # THE WAY BACK.

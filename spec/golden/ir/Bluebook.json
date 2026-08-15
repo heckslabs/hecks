@@ -55,6 +55,15 @@
           "optional": false,
           "pattern": null,
           "type": "NormalisationRule"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "attaches_to",
+          "optional": false,
+          "pattern": null,
+          "type": "AttachesToContext"
         }
       ],
       "commands": [
@@ -123,6 +132,43 @@
           "name": "Declare",
           "provenance": null,
           "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "type": "AttachesToContext"
+            }
+          ],
+          "emits": [
+            "ChapterAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Name one core context this chapter's own Syntax rows attach to",
+          "mutations": [
+            {
+              "fields": {
+                "value": ":context"
+              },
+              "op": "append",
+              "target": "attaches_to"
+            }
+          ],
+          "name": "Attach",
+          "provenance": null,
+          "references": "Bluebook",
           "role": "Language"
         },
         {
@@ -449,6 +495,30 @@
 
           ],
           "name": "FormerlyKnownAs"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "an attachment names a context"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AttachesToContext"
         }
       ]
     },
@@ -9226,6 +9296,32 @@
             [
               [
                 "word",
+                "attaches_to"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attaches_to"
+              ]
+            ],
+            [
+              [
+                "word",
                 "core"
               ],
               [
@@ -10910,111 +11006,7 @@
             [
               [
                 "word",
-                "limit"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "limit"
-              ]
-            ],
-            [
-              [
-                "word",
-                "offset"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "cursor"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "authorize"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "nulls"
               ],
               [
                 "context",
@@ -11274,111 +11266,7 @@
             [
               [
                 "word",
-                "limit"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "offset"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "cursor"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "authorize"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "nulls"
               ],
               [
                 "context",
@@ -12115,6 +12003,40 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attaches_to"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "attaches_to"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -15940,96 +15862,6 @@
             [
               [
                 "keyword",
-                "limit"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "limit"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "offset"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "cursor"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "authorize"
               ],
               [
@@ -16085,36 +15917,6 @@
               [
                 "fills",
                 "tenant"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "nulls"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
               ]
             ],
             [
@@ -16454,96 +16256,6 @@
             [
               [
                 "keyword",
-                "limit"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "offset"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "cursor"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "authorize"
               ],
               [
@@ -16599,36 +16311,6 @@
               [
                 "fills",
                 "tenant"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "nulls"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
               ]
             ],
             [
@@ -18234,6 +17916,9 @@
         }
       ]
     }
+  ],
+  "attaches_to": [
+
   ],
   "canonical_form": [
     {
