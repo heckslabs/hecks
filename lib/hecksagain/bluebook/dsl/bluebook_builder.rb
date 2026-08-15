@@ -421,12 +421,22 @@ module Hecksagain
         #
         # Only WHERE clauses ever reach here — a hop on ORDER BY is
         # refused outright, immediately, back in seal_query_field
-        # itself (that answer never needed the target's shape). An
-        # entity's own queries never reach here either, structurally:
-        # an entity has no `reference_to` at all, so
-        # HopPath.hop_head? can never answer true for one of its
-        # fields, and nothing about them was ever deferred to begin
-        # with.
+        # itself (that answer never needed the target's shape).
+        #
+        # AN ENTITY'S OWN QUERIES DID reach `EntityBuilder#reference_to`
+        # (added after this comment first claimed otherwise — S9, ADR
+        # 0025) without ever reaching HERE: tier-1 sealing
+        # (`AggregateBuilder#query_surfaces`) already recognises a hop
+        # on an entity's own field and DEFERS it exactly like an
+        # aggregate's, but nothing ever walked entity queries at tier 2
+        # to check the deferral — a bad hop, or even a well-formed one,
+        # built silently and then matched nothing at runtime
+        # (`QueryInterpreter#entity_rows` reads an element's fields by
+        # literal hash key, never follows a reference). Refused outright
+        # here instead of taught to follow the hop for real: no corpus
+        # member needs an entity query to cross a reference yet, and a
+        # named refusal beats a runtime that resolves nothing while
+        # looking like it might.
         def validate_query_hops!(bluebook)
           bluebook.aggregates.each do |aggregate|
             aggregate.queries.each do |query|
@@ -435,6 +445,22 @@ module Hecksagain
 
                 validate_hop_clause!(aggregate, query, clause)
               end
+            end
+
+            aggregate.entities.each { |entity| refuse_entity_query_hops!(aggregate, entity) }
+          end
+        end
+
+        def refuse_entity_query_hops!(aggregate, entity)
+          entity.queries.each do |query|
+            query.wheres.each do |clause|
+              next unless QuerySpecification::HopPath.hop_head?(clause.field, entity.attributes)
+
+              raise Malformed,
+                    "#{aggregate.hecks_name}::#{entity.hecks_name}.#{query.hecks_name} asks about " \
+                    "#{clause.field}, which hops through #{entity.hecks_name}'s own reference — " \
+                    "an entity query does not follow a hop the way an aggregate's own does; ask " \
+                    "through the aggregate's own query instead, or open the target directly"
             end
           end
         end

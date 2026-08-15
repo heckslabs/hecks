@@ -801,6 +801,41 @@ RSpec.describe "the DSL surface" do
       }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
     end
 
+    # S9, ADR 0025 — an OWNED PIECE's own reference_to used to feed no
+    # edge into this same check at all (only AggregateBuilder#reference_to
+    # ever populated @reference_targets), so a ring closing through a
+    # contained entity built cleanly, invisibly, the same shape this
+    # check already refuses when the ring is direct.
+    it "refuses a reference cycle that closes through an owned entity" do
+      expect {
+        build_bluebook("BackAndForthThroughAPiece") do
+          aggregate "Board" do
+            identified_by :tag
+            attribute :tag, BoardTag
+            value_object "BoardTag" do
+              attribute :value, String
+            end
+
+            entity "Card" do
+              identified_by :sequence
+              attribute :sequence, Integer
+              reference_to Product
+            end
+          end
+
+          aggregate "Product" do
+            identified_by :sku
+            attribute :sku, ProductSku
+            value_object "ProductSku" do
+              attribute :value, String
+            end
+            reference_to Board
+          end
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed,
+                        /reference cycle: (Board -> Product -> Board|Product -> Board -> Product)/)
+    end
+
     it "allows one aggregate to reference another in a single direction" do
       bluebook = build_bluebook("OneWay") do
         aggregate "Owner" do
@@ -1615,6 +1650,42 @@ RSpec.describe "the DSL surface" do
               query("Bad") { where(:"client/nonexistent" => "x") }
             end
           end.to raise_error(Malformed, /hops to Client and then asks about nonexistent, which Client never declares/)
+        end
+
+        # S9, ADR 0025 — an entity's own `reference_to` (EntityBuilder,
+        # added after `validate_query_hops!`'s own comment first claimed
+        # "an entity has no reference_to at all") went uncheckable at
+        # declaration and unresolved at runtime: tier-1 sealing deferred
+        # the hop the same way an aggregate's does, but nothing at tier 2
+        # ever walked an entity's own queries to check the deferral, and
+        # `QueryInterpreter#entity_rows` never follows a reference either
+        # — a where over a piece's own hop built cleanly and then matched
+        # nothing, forever, on every adapter. Refused outright now.
+        it "refuses a hop where-clause on an entity's own query" do
+          expect do
+            build_bluebook("PieceHop") do
+              aggregate "Board" do
+                identified_by :tag
+                attribute :tag, BoardTag
+                value_object("BoardTag") { attribute :value, String }
+
+                entity "Card" do
+                  identified_by :sequence
+                  attribute :sequence, Integer
+                  reference_to Product
+
+                  query("ForProduct") { where(:"product/sku" => "widget") }
+                end
+              end
+
+              aggregate "Product" do
+                identified_by :sku
+                attribute :sku, ProductSku
+                value_object("ProductSku") { attribute :value, String }
+              end
+            end
+          end.to raise_error(Malformed,
+                              %r{Board::Card\.ForProduct asks about product/sku, which hops through Card's own reference})
         end
 
         it "refuses a hop whose tail lands on a value object rather than a scalar" do

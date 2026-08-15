@@ -3,6 +3,7 @@ module Hecksagain
     module DSL
       class EntityBuilder
         include AttributeCollector
+        include IdentityDeclaration
 
         def initialize(name, owner_value_objects: [])
           @name     = name
@@ -26,34 +27,11 @@ module Hecksagain
         # A PIECE is known by a field, not by a whole value object.
         # `identified_by :sequence` names the SCALAR inside it, which is
         # what an id actually is — a LedgerEntry is entry 3, not entry
-        # {"value":3}. See `AggregateBuilder#identified_by`'s own comment —
-        # the two constructs cannot drift apart in how they spell an
-        # identity, including composite (`identified_by :branch_code,
-        # :box_number`), which a piece may declare for the same reason a
-        # head may.
-        def identified_by(*targets, as: nil, &path)
-          return legacy_identified_by(targets.first, as: as, &path) if MetaValidator.shadow_parsing?
-
-          raise Malformed,
-                "#{@name}.identified_by no longer takes a block — write identified_by :field, " \
-                "or identified_by :field_one, :field_two for a composite identity" if path
-          raise Malformed, "#{@name}.identified_by names no field" if targets.empty?
-
-          # See AggregateBuilder#identified_by's own comment — both forms
-          # arrive as plain Symbols/ScopedConstants here; distinguished by
-          # case the same way the rest of the language already does
-          # (PascalCase type, snake_case field).
-          if targets.size == 1 && targets.first.to_s[0] =~ /[A-Z]/
-            field = as || Naming.snake(targets.first)
-            raise Malformed,
-                  "#{@name}.identified_by no longer takes a value object — declare the attribute " \
-                  "first (attribute :#{field}, #{targets.first}) and write identified_by :#{field}"
-          end
-
-          raise Malformed, "#{@name}.identified_by takes no as: — name the declared field itself" if as
-
-          @identity_fields_pending = targets
-        end
+        # {"value":3}. `identified_by` itself is AttributeCollector's own
+        # shared method (S9) — the two constructs cannot drift apart in
+        # how they spell an identity, including composite
+        # (`identified_by :branch_code, :box_number`), which a piece may
+        # declare for the same reason a head may.
 
         def command(name, &block)
           @commands << CommandBuilder.build(name, owner: @name, &block)
@@ -88,42 +66,11 @@ module Hecksagain
 
         private
 
-        def resolve_pending_identity!
-          if @identity_type_pending
-            type, as, insert_at = @identity_type_pending
-            @identity_paths = resolve_identity_type!(type, as, insert_at, @owner_value_objects, @name)
-          elsif @identity_field_pending
-            @identity_paths = resolve_identity_field!(@identity_field_pending, @owner_value_objects, @name)
-          elsif @identity_fields_pending
-            @identity_paths = @identity_fields_pending.flat_map do |field|
-              resolve_identity_field!(field, @owner_value_objects, @name)
-            end
-          end
-        end
-
-        # LEGACY — see AggregateBuilder#legacy_identified_by's own
-        # comment; byte-identical shape, one level down.
-        def legacy_identified_by(target, as:, &path)
-          if target
-            raise Malformed, "#{@name}.identified_by takes a field name/value object or a block, not both" if path
-
-            if target.to_s[0] =~ /[A-Z]/
-              @identity_type_pending = [target, as, attributes.size]
-            else
-              raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
-
-              @identity_field_pending = target
-            end
-            return
-          end
-
-          raise Malformed, "#{@name}.identified_by names no field" unless path
-
-          paths = Ports::Extraction.canonical(path).to_s.split(" ").reject(&:empty?)
-          raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
-
-          @identity_paths = paths
-        end
+        # `identified_by`'s own resolution pool (AttributeCollector#resolve_
+        # pending_identity!'s hook, S9) — a piece mints no value objects of
+        # its own, so a bare field's own type resolves against its OWNER
+        # aggregate's, passed in at declaration (`AggregateBuilder#entity`).
+        def identity_pool = @owner_value_objects
       end
     end
   end

@@ -81,7 +81,11 @@ RSpec.describe "the DSL surface is fully covered" do
 
     it "#{label} declares nothing that has been removed" do
       actual = subject.public_instance_methods(false) + PLUMBING
-      stale = declared - actual - %i[attributes list_of attribute]
+      # `identified_by` (S9, ADR 0025) — shared by AggregateBuilder and
+      # EntityBuilder via IdentityDeclaration, the same reason
+      # attribute/list_of/attributes are already exempted here for
+      # AttributeCollector.
+      stale = declared - actual - %i[attributes list_of attribute identified_by]
 
       expect(stale).to be_empty,
                        "#{label} declares #{stale.inspect} which no longer exists — remove it"
@@ -91,6 +95,14 @@ RSpec.describe "the DSL surface is fully covered" do
   it "AttributeCollector has no method without a test" do
     actual = Hecksagain::Bluebook::DSL::AttributeCollector.public_instance_methods(false)
     expect(actual.sort).to eq(%i[attribute attributes closed_sets list_of one_of].sort)
+  end
+
+  # S9, ADR 0025 — `identified_by`, split out of AttributeCollector into
+  # its own module so only AggregateBuilder/EntityBuilder (its two real
+  # includers) answer it, not every attribute()-taking builder.
+  it "IdentityDeclaration has no method without a test" do
+    actual = Hecksagain::Bluebook::DSL::IdentityDeclaration.public_instance_methods(false)
+    expect(actual.sort).to eq(%i[identified_by].sort)
   end
 
   it "ConstShim has no method without a test" do
