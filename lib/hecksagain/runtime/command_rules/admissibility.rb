@@ -145,9 +145,20 @@ module Hecksagain
           current   = Value.scalar(subject[lifecycle.field]).to_s
           return if Array(command.from).include?(current)
 
+          # ROUTED THROUGH RefusalWording's OWN "transition_blocked"
+          # TEMPLATE — the same one #admissible_transition, right below,
+          # already raises LifecycleRefused through for the same
+          # refusal class. This used to hand-roll its own wording
+          # inline ("...only runs from..." vs. the template's "...moves
+          # it only from...") — two shapes for one refusal kind, so
+          # anything string-matching a LifecycleRefused message (a
+          # property, a spec, a caller) had to know both existed rather
+          # than one.
           raise LifecycleRefused,
-                "#{command.hecks_name} refused — #{lifecycle.field} is #{Rendering.describe(current)}, " \
-                "and #{command.hecks_name} only runs from #{Array(command.from).map(&:inspect).join(' or ')}"
+                RefusalWording.render("LifecycleRefused", "transition_blocked",
+                                      command: command.hecks_name, field: lifecycle.field,
+                                      current: Rendering.describe(current),
+                                      allowed: Array(command.from).map(&:inspect).join(" or "))
         end
 
         # The far side of the contract: evaluated against the SETTLED record

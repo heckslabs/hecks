@@ -66,7 +66,7 @@ The transition's own `from:` is enforced, not decorative — a second
 `freeze_account` is refused rather than silently repeated:
 
 ```ruby
-account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount only runs from "open"
+account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"
 ```
 
 The refusal names `FreezeAccount` itself, not the transition, because

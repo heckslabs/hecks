@@ -233,7 +233,7 @@ the fact your caller actually needs — the state the record is in, and
 every state the command would have accepted:
 
 ```ruby
-account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount only runs from "open"
+account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"
 ```
 
 `Debit` declares three givens — the referenced `"customer is active"`,

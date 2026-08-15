@@ -165,7 +165,7 @@ RSpec.describe "the rules a command obeys" do
       expect do
         runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
       end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
-                         'FreezeAccount refused — status is "frozen", and FreezeAccount only runs from "open"')
+                         'FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"')
     end
 
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do

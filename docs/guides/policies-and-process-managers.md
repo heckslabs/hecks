@@ -457,7 +457,7 @@ right there, not swallowed:
 
 ```ruby
 refused = runtime.sagas.select { |s| s[:instance] == "tr2" && s[:delivered] == false }
-refused.map { |s| s[:reason] }  # => ["Credit refused — status is \"frozen\", and Credit only runs from \"open\""]
+refused.map { |s| s[:reason] }  # => ["Credit refused — status is \"frozen\", and Credit moves it only from \"open\""]
 ```
 
 Without this compensation, a refusal like this would leave the money
