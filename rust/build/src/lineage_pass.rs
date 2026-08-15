@@ -157,10 +157,10 @@ fn declares_lineage_capable_true(text: &str) -> bool {
 }
 
 /// The first `class Name` line's own name — every adapter file in this
-/// corpus declares exactly one primary class this way (`class Postgres`
+/// corpus declares exactly one primary class this way (`class PostgresEra`
 /// under `module Hecksagain; module Adapters; ...; end; end`), so the
 /// first match is the adapter's own registration name, the same short
-/// spelling `persisted_by("Postgres")` itself uses.
+/// spelling `persisted_by("PostgresEra")` itself uses.
 fn top_level_class_name(text: &str) -> Option<String> {
     for line in text.lines() {
         let trimmed = line.trim_start();

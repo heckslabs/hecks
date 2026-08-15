@@ -5,7 +5,7 @@ require_relative "../../../../translation/scaffold"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       module LineageManager
         # The mint path: name the source era, find the one edge that
         # leaves it, hold the compute approval to what was actually

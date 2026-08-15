@@ -30,7 +30,7 @@ Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.blu
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.world"))
 Hecks.hecksagon("Pizzas") do
   uses_framework "Governance"
-  Pizzas::Order.persisted_by("Postgres")
+  Pizzas::Order.persisted_by("PostgresEra")
 end
 Hecks.hecksagon("Governance") do
   Governance::RoleAssignment.persisted_by("Memory")
@@ -140,14 +140,14 @@ BLUEBOOK
 
 File.write(File.join(GRANGE_DIR, "bluebook/grange.hecksagon"), <<~HECKSAGON)
   Hecks.hecksagon "Grange" do
-    Grange::Crate.persisted_by("Postgres")
+    Grange::Crate.persisted_by("PostgresEra")
   end
 HECKSAGON
 
 File.write(File.join(GRANGE_DIR, "bluebook/grange.world"), <<~WORLD)
   Hecks.world "Grange" do
     realm "Doctest"
-    persisted_by("Postgres") do
+    persisted_by("PostgresEra") do
       database "postgres://localhost/#{GRANGE_DB}"
     end
   end
@@ -202,7 +202,7 @@ BLUEBOOK
 
 File.write(File.join(GRANGE_DIR, "bluebook/grange.hecksagon"), <<~HECKSAGON)
   Hecks.hecksagon "Grange" do
-    Grange::Bin.persisted_by("Postgres")
+    Grange::Bin.persisted_by("PostgresEra")
   end
 HECKSAGON
 

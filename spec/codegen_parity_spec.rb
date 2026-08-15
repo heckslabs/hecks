@@ -106,7 +106,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
+      Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
       Kernel.load(bluebook_path)
     end
     json_shaped(Hecksagain::Projector::Exporter.call(registry).fetch(domain_name))

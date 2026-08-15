@@ -202,7 +202,7 @@ module Doctest
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ADAPTER) if @guide.postgres
+        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if @guide.postgres
 
         declarations.each do |block|
           if block.kind == :bluebook

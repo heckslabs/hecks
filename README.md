@@ -307,7 +307,7 @@ A domain's `bluebook/` folder holds only what is **its own**:
 examples/pizzas/
   bluebook/
     pizzas.bluebook        the domain
-    pizzas.hecksagon       the wiring — Pizzas::Order.persisted_by("Postgres")
+    pizzas.hecksagon       the wiring — Pizzas::Order.persisted_by("PostgresEra")
     pizzas.world           the per-deployment values
   data/
 ```

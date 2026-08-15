@@ -247,7 +247,7 @@ RSpec.describe "the DSL surface" do
     end
 
     # A real `Hecks.boot`, not `boot_in_memory` — examples/pizzas' own
-    # .world declares `persisted_by("Postgres")` unconditionally (see
+    # .world declares `persisted_by("PostgresEra")` unconditionally (see
     # support/postgres_probe.rb's own note on why that probe exists), so
     # this genuinely needs a reachable Postgres carrying the hecks_pizzas
     # database — same as every other real-Postgres spec, `io: true` and

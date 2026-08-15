@@ -7,11 +7,11 @@ require_relative "../support/postgres_probe"
 # `ExternalSettlement`, deployed on Lambda, Phase 1's own subject).
 # Kept as a SEPARATE, io:true-gated file rather than folded into the
 # unconditional spec, matching every other Postgres-vs-everything-else
-# split in this suite (postgres_spec.rb itself, banking_matrix_spec.rb).
+# split in this suite (postgres_era_spec.rb itself, banking_matrix_spec.rb).
 RSpec.describe "durable saga/process-manager state, against Postgres",
                io: true do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")
-  POSTGRES_ADAPTER = InMemoryDomain::POSTGRES_ADAPTER
+  POSTGRES_ERA_ADAPTER = InMemoryDomain::POSTGRES_ERA_ADAPTER
   SAGA_DURABILITY_SPEC_DB = "hecksagain_saga_durability_spec".freeze
 
   before(:all) do
@@ -43,11 +43,11 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
       Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
-      Kernel.load(POSTGRES_ADAPTER)
+      Kernel.load(POSTGRES_ERA_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
-      Hecks.hecksagon("Wire") { persisted_by "Postgres" }
-      Hecks.world("Wire") { persisted_by("Postgres") { database(SAGA_DURABILITY_SPEC_DB) } }
+      Hecks.hecksagon("Wire") { persisted_by "PostgresEra" }
+      Hecks.world("Wire") { persisted_by("PostgresEra") { database(SAGA_DURABILITY_SPEC_DB) } }
     end
 
     registry.verify!

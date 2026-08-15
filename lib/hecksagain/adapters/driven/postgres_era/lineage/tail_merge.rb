@@ -2,7 +2,7 @@ require_relative "../../../../runtime/registry"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module TailMerge
           # ── fork observability ─────────────────────────────────────────
@@ -91,7 +91,7 @@ module Hecksagain
 
                 # Same two-step append does for a live write — journal
                 # first, snapshot second — because this INSERT bypasses
-                # Postgres#append entirely (it writes through Lineage
+                # PostgresEra#append entirely (it writes through Lineage
                 # directly). Skipping the snapshot half here would mean a
                 # merge winner lands in the journal but head_view — which
                 # reads this era's live rows from the snapshot table, not

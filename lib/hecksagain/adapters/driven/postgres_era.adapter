@@ -1,0 +1,6 @@
+Hecks.adapter "PostgresEra" do
+  port  "persistence"
+  field :database
+  field :role
+  field :schema
+end

@@ -6,7 +6,7 @@ require_relative "../../../../translation/audit"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       module LineageManager
         # What a mint must prove before it may happen: the edge covers
         # the whole diff, no identity path was re-keyed, and the audit's

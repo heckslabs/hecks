@@ -2,13 +2,13 @@ require_relative "../../../../naming"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module HeadCompiler
           # ── head compilation ───────────────────────────────────────────
 
           # The snapshot table backing one aggregate's CURRENT era: one row
-          # per live id, upserted transactionally by Postgres#append
+          # per live id, upserted transactionally by PostgresEra#append
           # alongside the journal insert it belongs to, never derived by
           # scanning history thereafter. Idempotent and unguarded by
           # `provisioner?` — a plain per-aggregate table, the same
@@ -21,63 +21,98 @@ module Hecksagain
           # against an EXISTING deployment (any domain running before this
           # snapshot table existed at all) does, and an empty table would
           # silently erase every already-written record from every read
-          # the instant the head view starts pointing at it. Checked
-          # BEFORE the CREATE, not via ON CONFLICT or similar — this only
-          # ever needs to run once, at the exact moment the table is born.
+          # the instant the head view starts pointing at it.
+          #
+          # CREATION and BACKFILL are deliberately two separate steps now,
+          # not one nested transaction — principle 1 (docs/postgres-era-
+          # adapter-split-plan.md): no operation may hold a lock across a
+          # scan whose duration scales with table size, and
+          # `backfill_head_snapshot!` below is now a CHUNKED, resumable
+          # scan (see `ResumableBackfill`), the opposite of something that
+          # belongs inside one transaction. Creation alone (an empty
+          # table, nothing to scan) still needs the short-held lock
+          # unchanged from before. Backfill runs unconditionally after —
+          # cheap and correct whether the table was just created, already
+          # fully backfilled by a prior boot (one indexed point lookup via
+          # `hecks_backfill_progress`, see ResumableBackfill), or left
+          # mid-backfill by a crashed or still-racing concurrent boot
+          # (picks up exactly where the last COMMITTED chunk left off).
           def ensure_head_snapshot!(storage_name, era)
             name = head_snapshot(storage_name, era)
-            return if table_exists?(name)
+            unless table_exists?(name)
+              # Locked, not a bare CREATE TABLE IF NOT EXISTS — two
+              # processes booting this aggregate for the very first time
+              # concurrently must not race to CREATE (one wins, one gets a
+              # real Postgres error). Re-checked under the lock: the fast
+              # path above skips locking entirely once any boot has
+              # already finished this once, which is every boot after the
+              # first.
+              #
+              # NESTABLE — this runs both standalone (adapter boot, its
+              # own transaction) and from `compile_head!` while
+              # `mint_era!` is already mid-transaction (its manual
+              # `BEGIN`, held open for the era row, every aggregate's
+              # matview, and the advisory lock advance_era! relies on).
+              # `@db.transaction` is a bare BEGIN/COMMIT with no savepoint
+              # nesting (see H2 in docs/audits/2026-08-10-main-bug-
+              # audit.md) — called while already inside a transaction, its
+              # COMMIT would end THAT transaction early, releasing mint's
+              # advisory lock and letting a later step run uncommitted.
+              # `nested_transaction` tells the two cases apart and uses a
+              # SAVEPOINT for the second, so the surrounding mint stays
+              # one real transaction from BEGIN to its own COMMIT
+              # regardless of how deep this is called from.
+              nested_transaction("hecks_head_snapshot") do
+                @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
+                next if table_exists?(name)
 
-            # Locked, not a bare CREATE TABLE IF NOT EXISTS — two processes
-            # booting this aggregate for the very first time concurrently
-            # must not race to CREATE (one wins, one gets a real Postgres
-            # error) NOR both backfill (harmless but wasteful, a full
-            # journal scan twice). Re-checked under the lock: the fast
-            # path above skips locking entirely once any boot has already
-            # finished this once, which is every boot after the first.
-            #
-            # NESTABLE — this runs both standalone (adapter boot, its own
-            # transaction) and from `compile_head!` while `mint_era!` is
-            # already mid-transaction (its manual `BEGIN`, held open for
-            # the era row, every aggregate's matview, and the advisory
-            # lock advance_era! relies on). `@db.transaction` is a bare
-            # BEGIN/COMMIT with no savepoint nesting (see H2 in
-            # docs/audits/2026-08-10-main-bug-audit.md) — called while
-            # already inside a transaction, its COMMIT would end THAT
-            # transaction early, releasing mint's advisory lock and
-            # letting a later step run uncommitted. `nested_transaction`
-            # tells the two cases apart and uses a SAVEPOINT for the
-            # second, so the surrounding mint stays one real transaction
-            # from BEGIN to its own COMMIT regardless of how deep this is
-            # called from.
-            nested_transaction("hecks_head_snapshot") do
-              @db.exec_params("SELECT pg_advisory_xact_lock(hashtext('hecks_head_snapshot:' || $1))", [name])
-              next if table_exists?(name)
-
-              @db.exec(<<~SQL)
-                CREATE TABLE #{quote(name)} (
-                  id      text PRIMARY KEY,
-                  ordinal bigint NOT NULL,
-                  state   jsonb NOT NULL
-                )
-              SQL
-              backfill_head_snapshot!(name, storage_name, era)
+                @db.exec(<<~SQL)
+                  CREATE TABLE #{quote(name)} (
+                    id      text PRIMARY KEY,
+                    ordinal bigint NOT NULL,
+                    state   jsonb NOT NULL
+                  )
+                SQL
+              end
             end
+            backfill_head_snapshot!(name, storage_name, era)
           end
 
           # The exact reduction era 1's OLD live view used to run on every
-          # single read — DISTINCT ON latest-per-id, saves only — run
-          # here, once, as an INSERT instead of a view body.
+          # single read — DISTINCT ON latest-per-id, saves only — now
+          # chunked through `ResumableBackfill#chunked_backfill!` instead
+          # of one blocking `INSERT ... SELECT` over the whole journal:
+          # each chunk reads the next page of distinct ids (a plain SELECT,
+          # no lock held — an ordinary reader or writer is never blocked
+          # by this running), then upserts it under the same short-held
+          # advisory lock + ordinal guard every other upsert in this
+          # adapter already uses. See `ResumableBackfill`'s own header for
+          # why this is RESUMABLE, not merely safe-to-restart.
           def backfill_head_snapshot!(name, storage_name, era)
-            @db.exec(<<~SQL)
-              INSERT INTO #{quote(name)} (id, ordinal, state)
-              SELECT id, ordinal, state FROM (
-                SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, ordinal, operation, state
-                FROM #{quoted_journal}
-                WHERE era = #{era.to_i} AND aggregate = #{text_literal(storage_name)}
-                ORDER BY aggregate_id, ordinal DESC
-              ) latest WHERE operation = 'save'
-            SQL
+            chunked_backfill!(
+              name,
+              source_sql: lambda do |cursor|
+                <<~SQL
+                  SELECT id, ordinal, state FROM (
+                    SELECT DISTINCT ON (aggregate_id) aggregate_id AS id, ordinal, operation, state
+                    FROM #{quoted_journal}
+                    WHERE era = #{era.to_i} AND aggregate = #{text_literal(storage_name)}
+                    #{cursor ? "AND aggregate_id > #{text_literal(cursor)}" : ''}
+                    ORDER BY aggregate_id, ordinal DESC
+                  ) latest WHERE operation = 'save' ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
+                SQL
+              end,
+              upsert: lambda do |rows|
+                rows.each do |row|
+                  @db.exec_params(
+                    "INSERT INTO #{quote(name)} (id, ordinal, state) VALUES ($1, $2, $3) " \
+                    "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
+                    "WHERE #{quote(name)}.ordinal < EXCLUDED.ordinal",
+                    [row["id"], row["ordinal"], row["state"]]
+                  )
+                end
+              end
+            )
           end
 
           def table_exists?(name)
@@ -286,7 +321,7 @@ module Hecksagain
           # THE LIVE HALF used to be `WHERE era = era AND aggregate = name`
           # over the raw journal — a DISTINCT ON that re-reduced this era's
           # ENTIRE write history on every single read, the exact cost this
-          # snapshot table exists to avoid (Postgres#append keeps it
+          # snapshot table exists to avoid (PostgresEra#append keeps it
           # current, transactionally, as of every write). The union below
           # is bounded by LIVE RECORD COUNT for this era instead of its
           # write count; the ancestor side was already bounded that way
@@ -305,6 +340,17 @@ module Hecksagain
               CREATE MATERIALIZED VIEW #{quote(view)} AS
               #{body}
             SQL
+            # ADDITIVE, changes nothing about what can be pushed through
+            # the reduction (that wall is structural, an index doesn't
+            # move it — see this file's own module header) — only speeds
+            # up the reduction ITSELF, which every read still has to run
+            # regardless of a field cache's own two-phase shortcut (a
+            # multi-clause query with an uncached clause, an order_by-only
+            # query, or simply every read before Track C's cache tables
+            # exist for a given field all still hit this). Worth having
+            # on any supported server; genuinely skip-scan-usable once
+            # running on PG18+.
+            @db.exec("CREATE INDEX IF NOT EXISTS #{quote("#{view}_reduce_idx")} ON #{quote(view)} (aggregate_id, ordinal DESC)")
 
             # era-qualified, always a FRESH table for a newly-minted era —
             # no separate reset step needed; there is structurally nothing

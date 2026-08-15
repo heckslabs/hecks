@@ -5,7 +5,7 @@ Hecks.hecksagon "Pizzas" do
   # attaches AND binds Governance itself, the same sibling shape
   # banking.hecksagon uses.
   uses_framework "Governance"
-  Pizzas::Order.persisted_by("Postgres")
+  Pizzas::Order.persisted_by("PostgresEra")
 
   # THE PRIMARY PORT — called by an adapter outside this domain entirely (a
   # payment processor's webhook, in practice). No given, no sets: this

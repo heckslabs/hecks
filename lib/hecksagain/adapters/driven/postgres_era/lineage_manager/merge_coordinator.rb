@@ -4,14 +4,14 @@ require_relative "../../../../translation/audit"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       module LineageManager
         # Tail-merge, driven from bin/merge_tail: interleave the old
         # world's post-cut writes into the head by their recorded global
         # ordinals, under the full audit, in one transaction.
         module MergeCoordinator
           def merge!(registry:, bluebook:, settings:, winners: {})
-            db = Postgres.connect_for(bluebook.name, settings)
+            db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
             lineage.ensure_base!
 

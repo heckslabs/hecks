@@ -6,7 +6,7 @@ require_relative "../../../support/postgres_probe"
 # name instead of minting a brand-new lineage from nothing. Runs only
 # when a Postgres server is reachable — the shared probe in
 # support/postgres_probe.rb, like every other Postgres spec here.
-RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
+RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
                io: true do
   RENAME_DB = "hecksagain_domain_rename_spec".freeze
   RENAME_ROLE = "hecksagain_domain_rename_spec_app".freeze
@@ -120,7 +120,7 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
     bluebook = registry.bluebooks.values.first
     settings = { database: RENAME_DB }
     settings[:role] = role if role
-    Hecksagain::Adapters::Postgres::LineageManager.check!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
     registry
@@ -141,7 +141,7 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
 
   def adapter_for(registry, aggregate_name, domain:)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
+    Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
   end
 
   def reset_app_role!
@@ -224,7 +224,7 @@ RSpec.describe "domain rename (formerly_known_as) in the Postgres adapter",
   it "renames the domain column across hecks_eras, hecks_era_texts, hecks_approvals, and hecks_attestations" do
     check!(OLD_SOURCE)
     db = PG.connect(dbname: RENAME_DB)
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "OldName")
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "OldName")
     lineage.reattest!(1) # forces hecks_attestations into existence under the OLD name
     db.close
 

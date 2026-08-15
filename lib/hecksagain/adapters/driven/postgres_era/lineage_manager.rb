@@ -9,8 +9,8 @@ require_relative "../../../runtime/registry"
 
 module Hecksagain
   module Adapters
-    class Postgres
-      # The Postgres side of the boot-time era gate. Where every other
+    class PostgresEra
+      # The PostgresEra side of the boot-time era gate. Where every other
       # adapter's era check can only hold texts and refuse, this one
       # ACTS: a drifted shape whose translation edge exists, matches by
       # shape label, covers the whole diff, and passes the audit mints

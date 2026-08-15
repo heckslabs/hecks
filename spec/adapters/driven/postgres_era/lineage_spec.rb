@@ -1,12 +1,12 @@
 require "hecksagain"
 require_relative "../../../support/postgres_probe"
 
-# Lineage in the Postgres adapter: the partitioned journal, the
+# Lineage in the PostgresEra adapter: the partitioned journal, the
 # hecks_eras rows, the one-transaction mint, and the head compiled as a
 # chain of edges — old entries translated at inclusion, never rewritten.
 # Runs only when a Postgres server is reachable — the shared probe in
 # support/postgres_probe.rb, like every other Postgres spec here.
-RSpec.describe "lineage in the Postgres adapter",
+RSpec.describe "lineage in the PostgresEra adapter",
                io: true do
   LINEAGE_DB = "hecksagain_lineage_spec".freeze
 
@@ -165,7 +165,7 @@ RSpec.describe "lineage in the Postgres adapter",
     bluebook = registry.bluebooks.values.first
     settings = { database: owner_url }
     settings[:role] = role if role
-    Hecksagain::Adapters::Postgres::LineageManager.check!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
     registry
@@ -211,7 +211,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
   def adapter_for(registry, aggregate_name)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
+    Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
   end
 
   def write_v1_record(state = nil)
@@ -303,7 +303,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
     expect { check!(V1_SOURCE) }.to raise_error(Hecksagain::Runtime::WiringError, /edited after it was frozen/)
 
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     fresh = lineage.reattest!(1)
     expect(fresh).to eq(Digest::SHA256.hexdigest(V2_SOURCE))
 
@@ -448,7 +448,7 @@ RSpec.describe "lineage in the Postgres adapter",
     acct = registry.bluebooks.values.first.aggregate("Acct")
 
     db = PG.connect(dbname: LINEAGE_DB)
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger")
 
     db.exec("BEGIN")
     db.exec_params(
@@ -507,7 +507,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
     reg1 = check!(collide_v1)
     acct = reg1.bluebooks.values.first.aggregate("Acct")
-    Hecksagain::Adapters::Postgres.new(aggregate: acct, settings: { database: LINEAGE_DB, domain: "Collide" })
+    Hecksagain::Adapters::PostgresEra.new(aggregate: acct, settings: { database: LINEAGE_DB, domain: "Collide" })
                                    .save(Hecksagain::Runtime::Instance.new(
                                      aggregate: acct, id: "a1",
                                      state: { amount: { "cents" => 500 }, kind: { "value" => "biz" }, team: "team-1" }
@@ -560,7 +560,7 @@ RSpec.describe "lineage in the Postgres adapter",
       "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2) RETURNING ordinal",
       ["a9", state]
     )[0]["ordinal"]
-    # ...and the era-1 snapshot table Postgres#append would ALSO have
+    # ...and the era-1 snapshot table PostgresEra#append would ALSO have
     # written in the same transaction, a real race-condition write always
     # going through append() rather than raw SQL the way this stand-in
     # does — old_world.find below reads head_view, which for era 1 is
@@ -576,7 +576,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # ...a checkout still reading era 1 sees it (its own head view, keyed
     # to "Acct"'s storage name, is untouched by the mint that renamed
     # the aggregate to "Account")...
-    old_world = Hecksagain::Adapters::Postgres.new(
+    old_world = Hecksagain::Adapters::PostgresEra.new(
       aggregate: old_registry.bluebooks.values.first.aggregate("Acct"),
       settings: { database: owner_url, domain: "Ledger", era: 1 }
     )
@@ -585,7 +585,7 @@ RSpec.describe "lineage in the Postgres adapter",
     new_head = db.exec("SELECT count(*) FROM account_head WHERE id = 'a9'")[0]["count"]
     expect(new_head).to eq("0")
     # ...and the divergence is observable
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     expect(lineage.diverged_count(1)).to eq(1)
     db.close
   end
@@ -667,7 +667,7 @@ RSpec.describe "lineage in the Postgres adapter",
     new_registry = check!(V2_SOURCE, translation_source: edge)
 
     # the new world updates a1 after the cut
-    new_world = Hecksagain::Adapters::Postgres.new(
+    new_world = Hecksagain::Adapters::PostgresEra.new(
       aggregate: new_registry.bluebooks.values.first.aggregate("Account"),
       settings: { database: LINEAGE_DB, domain: "Ledger", era: 2 }
     )
@@ -680,7 +680,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # opens a9 (the mergeable tail)
     old_registry = check!(V1_SOURCE)
     acct = old_registry.bluebooks.values.first.aggregate("Acct")
-    old_world = Hecksagain::Adapters::Postgres.new(
+    old_world = Hecksagain::Adapters::PostgresEra.new(
       aggregate: acct, settings: { database: LINEAGE_DB, domain: "Ledger", era: 1 }
     )
     old_world.save(Hecksagain::Runtime::Instance.new(
@@ -698,7 +698,7 @@ RSpec.describe "lineage in the Postgres adapter",
     new_registry, = fork_worlds
 
     expect do
-      Hecksagain::Adapters::Postgres::LineageManager.merge!(
+      Hecksagain::Adapters::PostgresEra::LineageManager.merge!(
         registry: new_registry, bluebook: new_registry.bluebooks.values.first, settings: { database: LINEAGE_DB }
       )
     end.to raise_error(
@@ -712,7 +712,7 @@ RSpec.describe "lineage in the Postgres adapter",
     db = PG.connect(dbname: LINEAGE_DB)
     ancestor_before = db.exec("SELECT ordinal, state FROM hecks_journal_ledger_era_1 ORDER BY ordinal").values
 
-    Hecksagain::Adapters::Postgres::LineageManager.merge!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.merge!(
       registry: new_registry, bluebook: new_registry.bluebooks.values.first,
       settings: { database: LINEAGE_DB }, winners: { "a1" => "new" }
     )
@@ -725,7 +725,7 @@ RSpec.describe "lineage in the Postgres adapter",
     expect(head["a9"]["kind"]).to eq("label" => "personal")
     expect(head["a1"]["amount"]).to eq("cents" => 999)
 
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     expect(lineage.diverged_count(1)).to eq(0)
 
     ancestor_after = db.exec("SELECT ordinal, state FROM hecks_journal_ledger_era_1 ORDER BY ordinal").values
@@ -766,7 +766,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
     # and the raw race inside the lock: a direct second mint of the same
     # ordinal re-checks under the lock and stands down
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     stood_down = lineage.mint_era!(
       ordinal: 2, hash: "x", label: "x", held_text: "x",
       aggregates: [], edges: []
@@ -779,7 +779,7 @@ RSpec.describe "lineage in the Postgres adapter",
   it "tail-merge: winner=old restores the old world's translated state as the newest row" do
     new_registry, = fork_worlds
 
-    Hecksagain::Adapters::Postgres::LineageManager.merge!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.merge!(
       registry: new_registry, bluebook: new_registry.bluebooks.values.first,
       settings: { database: LINEAGE_DB }, winners: { "a1" => "old" }
     )
@@ -831,12 +831,12 @@ RSpec.describe "lineage in the Postgres adapter",
 
   it "evaluates a compute rule exclusively inside the compiled matview — its SQL is its only implementation" do
     registry = load_registry(PRICING_V1)
-    Hecksagain::Adapters::Postgres::LineageManager.check!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first,
       current_text: PRICING_V1, settings: { database: LINEAGE_DB }
     )
     quote = registry.bluebooks.values.first.aggregate("Quote")
-    adapter = Hecksagain::Adapters::Postgres.new(aggregate: quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
+    adapter = Hecksagain::Adapters::PostgresEra.new(aggregate: quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
     adapter.save(Hecksagain::Runtime::Instance.new(aggregate: quote, id: "q1", state: { price_cents: { "value" => 1250 } }))
 
     from = label_of(PRICING_V1)
@@ -855,7 +855,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # a compute's only verification is the audit's human-approved sample
     # — without the approval token the mint refuses, non-interactively
     expect do
-      Hecksagain::Adapters::Postgres::LineageManager.check!(
+      Hecksagain::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
         current_text: PRICING_V2, settings: { database: LINEAGE_DB }
       )
@@ -868,7 +868,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # the approval binds to the edge's content AND the journal's
     # high-water ordinal at review time, in the database itself
     db = PG.connect(dbname: LINEAGE_DB)
-    pricing_lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Pricing")
+    pricing_lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Pricing")
     pricing_lineage.record_approval!(
       from: from, to: to,
       edge_digest: Hecksagain::Translation::Audit.edge_digest(drifted.translations.first)
@@ -877,7 +877,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # ...so a journal that advances past the review invalidates it
     adapter.save(Hecksagain::Runtime::Instance.new(aggregate: quote, id: "q2", state: { price_cents: { "value" => 300 } }))
     expect do
-      Hecksagain::Adapters::Postgres::LineageManager.check!(
+      Hecksagain::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
         current_text: PRICING_V2, settings: { database: LINEAGE_DB }
       )
@@ -893,7 +893,7 @@ RSpec.describe "lineage in the Postgres adapter",
     )
     db.close
 
-    Hecksagain::Adapters::Postgres::LineageManager.check!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
       registry: drifted, bluebook: drifted.bluebooks.values.first,
       current_text: PRICING_V2, settings: { database: LINEAGE_DB }
     )
@@ -914,7 +914,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
     # the head serves the computed shape
     v2_quote = drifted.bluebooks.values.first.aggregate("Quote")
-    head = Hecksagain::Adapters::Postgres.new(aggregate: v2_quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
+    head = Hecksagain::Adapters::PostgresEra.new(aggregate: v2_quote, settings: { database: LINEAGE_DB, domain: "Pricing" })
     expect(head.find("q1").price_dollars.to_h).to eq(value: 12.5)
   end
 
@@ -963,12 +963,12 @@ RSpec.describe "lineage in the Postgres adapter",
 
   it "mints an era that rekeys an aggregate's identity, with an approved rekey rule" do
     registry = load_registry(ROSTER_V1)
-    Hecksagain::Adapters::Postgres::LineageManager.check!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first,
       current_text: ROSTER_V1, settings: { database: LINEAGE_DB }
     )
     person = registry.bluebooks.values.first.aggregate("Person")
-    adapter = Hecksagain::Adapters::Postgres.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
+    adapter = Hecksagain::Adapters::PostgresEra.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
     adapter.save(Hecksagain::Runtime::Instance.new(
                    aggregate: person, id: "Chris Young", state: { name: { "value" => "Chris Young" }, title: { "value" => "CEO" } }
                  ))
@@ -988,21 +988,21 @@ RSpec.describe "lineage in the Postgres adapter",
     # a rekey's only verification is the audit's human-approved sample,
     # same as compute — the mint refuses non-interactively without it
     expect do
-      Hecksagain::Adapters::Postgres::LineageManager.check!(
+      Hecksagain::Adapters::PostgresEra::LineageManager.check!(
         registry: drifted, bluebook: drifted.bluebooks.values.first,
         current_text: ROSTER_V2, settings: { database: LINEAGE_DB }
       )
     end.to raise_error(Hecksagain::Runtime::WiringError, /this edge carries a compute or rekey rule/)
 
     db = PG.connect(dbname: LINEAGE_DB)
-    roster_lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Roster")
+    roster_lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Roster")
     roster_lineage.record_approval!(
       from: from, to: to,
       edge_digest: Hecksagain::Translation::Audit.edge_digest(drifted.translations.first)
     )
     db.close
 
-    Hecksagain::Adapters::Postgres::LineageManager.check!(
+    Hecksagain::Adapters::PostgresEra::LineageManager.check!(
       registry: drifted, bluebook: drifted.bluebooks.values.first,
       current_text: ROSTER_V2, settings: { database: LINEAGE_DB }
     )
@@ -1022,7 +1022,7 @@ RSpec.describe "lineage in the Postgres adapter",
 
     # the head serves the record under its new id, name/title untouched
     v2_person = drifted.bluebooks.values.first.aggregate("Person")
-    head = Hecksagain::Adapters::Postgres.new(aggregate: v2_person, settings: { database: LINEAGE_DB, domain: "Roster" })
+    head = Hecksagain::Adapters::PostgresEra.new(aggregate: v2_person, settings: { database: LINEAGE_DB, domain: "Roster" })
     found = head.find("chris@example.com")
     expect(found.name.to_h).to eq(value: "Chris Young")
     expect(found.title.to_h).to eq(value: "CEO")
@@ -1042,7 +1042,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # nobody: ensure_base!'s ALTER TABLE and REVOKE are owner-only, and
     # a deployment's app role is deliberately not the owner.
     app = PG.connect(dbname: LINEAGE_DB, user: LINEAGE_ROLE)
-    expect { Hecksagain::Adapters::Postgres::Lineage.new(app, "Ledger").ensure_base! }.not_to raise_error
+    expect { Hecksagain::Adapters::PostgresEra::Lineage.new(app, "Ledger").ensure_base! }.not_to raise_error
     app.close
 
     append = lambda do |era|
@@ -1140,7 +1140,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # nothing is committed.
     blocker = PG.connect(dbname: LINEAGE_DB)
     blocker.exec("BEGIN")
-    Hecksagain::Adapters::Postgres::Lineage.new(blocker, "Ledger").ensure_partition!(3)
+    Hecksagain::Adapters::PostgresEra::Lineage.new(blocker, "Ledger").ensure_partition!(3)
 
     # the lock that attach took, named — ShareUpdateExclusive conflicts
     # with neither reads nor inserts; AccessExclusive (what
@@ -1174,7 +1174,7 @@ RSpec.describe "lineage in the Postgres adapter",
     writer.close
   end
 
-  # `Postgres#append` holds `pg_advisory_xact_lock(hashtext('hecks_ordinal:'
+  # `PostgresEra#append` holds `pg_advisory_xact_lock(hashtext('hecks_ordinal:'
   # || domain))` for its whole transaction now — a DIFFERENT key from the
   # mint/merge lock above, so it closes ordinal-vs-commit-order only among
   # PLAIN writes, never against a mint. Proven by holding that same lock by
@@ -1301,7 +1301,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # of its own to fold in
     registry = load_registry(V2_SOURCE)
     account = registry.bluebooks.values.first.aggregate("Account")
-    adapter = Hecksagain::Adapters::Postgres.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
+    adapter = Hecksagain::Adapters::PostgresEra.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
     adapter.save(Hecksagain::Runtime::Instance.new(
                    aggregate: account, id: "business",
                    state: { amount: { "cents" => 250 }, kind: { "label" => "business" },
@@ -1320,8 +1320,8 @@ RSpec.describe "lineage in the Postgres adapter",
     expect(definition).to include("account_lineage_2_#{l2}")
 
     # ...and it agrees with the from-scratch build, row for row
-    lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger")
-    chain = Hecksagain::Adapters::Postgres::LineageManager.edge_chain(
+    lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    chain = Hecksagain::Adapters::PostgresEra::LineageManager.edge_chain(
       load_registry(V3_SOURCE, translation_source: edges), load_registry(V3_SOURCE).bluebooks.values.first,
       lineage.eras[0..-2], l3
     )
@@ -1345,7 +1345,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # AFTER era 3 cut its watermark. The layer beneath era 3's matview
     # is era 2's matview — so if the cut were re-derived at query time
     # (or forgotten in the layer), this write would leak upward.
-    stale = Hecksagain::Adapters::Postgres.new(
+    stale = Hecksagain::Adapters::PostgresEra.new(
       aggregate: load_registry(V2_SOURCE).bluebooks.values.first.aggregate("Account"),
       settings: { database: LINEAGE_DB, domain: "Ledger", era: 2 }
     )
@@ -1364,7 +1364,7 @@ RSpec.describe "lineage in the Postgres adapter",
     # refresh, and hold it to that.
     db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("account_lineage_3_#{l3}")}")
     head = db.exec("SELECT id, state FROM account_head ORDER BY id").values
-    diverged = Hecksagain::Adapters::Postgres::Lineage.new(db, "Ledger").diverged_count(2)
+    diverged = Hecksagain::Adapters::PostgresEra::Lineage.new(db, "Ledger").diverged_count(2)
     db.close
 
     # the post-cut write is real and observable as divergence...

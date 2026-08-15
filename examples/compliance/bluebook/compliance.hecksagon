@@ -5,8 +5,8 @@ Hecks.hecksagon "Compliance" do
   # file's own header two files up), so this attaches AND binds
   # Governance itself, the same sibling shape banking.hecksagon uses.
   uses_framework "Governance"
-  Compliance::AccountFreezeReview.persisted_by("Postgres")
-  Compliance::BoxSurrenderReview.persisted_by("Postgres")
+  Compliance::AccountFreezeReview.persisted_by("PostgresEra")
+  Compliance::BoxSurrenderReview.persisted_by("PostgresEra")
 end
 
 Hecks.hecksagon "Governance" do

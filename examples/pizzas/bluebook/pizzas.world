@@ -1,6 +1,6 @@
 Hecks.world "Pizzas" do
   realm "Examples"
-  persisted_by("Postgres") do
+  persisted_by("PostgresEra") do
     database "postgres://localhost/hecks_pizzas"
   end
 end

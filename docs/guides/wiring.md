@@ -117,11 +117,11 @@ order.toppings.map(&:to_h)   # => [{ name: "Basil", amount: 3 }]
 This page binds `Order` to Memory above because that is what it needs
 to run without a database behind it. The exact same shape, unchanged,
 already ships against a real one: `pizzas.hecksagon` itself binds
-`Order` with `Pizzas::Order.persisted_by("Postgres")`, one line —
+`Order` with `Pizzas::Order.persisted_by("PostgresEra")`, one line —
 quoted here, not run, since this page does not require a database:
 
 ```ruby skip
-Pizzas::Order.persisted_by("Postgres")
+Pizzas::Order.persisted_by("PostgresEra")
 ```
 
 That is what "decided outside the domain" means in practice, not in
@@ -227,7 +227,7 @@ doctest boot path, only through a real `Hecks.boot`):
 ```ruby skip
 Hecks.world "Pizzas" do
   realm "Examples"
-  persisted_by("Postgres") do
+  persisted_by("PostgresEra") do
     database "postgres://localhost/hecks_pizzas"
   end
 end

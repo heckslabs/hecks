@@ -1,6 +1,6 @@
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module Provisioning
           # Provisioning is the OWNER's job, and a deployment's app role is
