@@ -65,7 +65,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
 
         command "Release" do
           reference_to Claim
-          then_set :state, to: { value: "released" }
+          sets :state, to: { value: "released" }
         end
       end
 
@@ -97,7 +97,7 @@ RSpec.describe "none_in_state, a cross-aggregate anti-join" do
         command "Assign" do
           reference_to Board
           attribute :claim_id, String
-          then_set :assignments, append: { claim_id: :claim_id }
+          sets :assignments, append: { claim_id: :claim_id }
           emits "Assigned"
         end
       end

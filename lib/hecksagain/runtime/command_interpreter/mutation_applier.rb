@@ -62,6 +62,15 @@ module Hecksagain
           # read straight.
           when :clamp
             instance[mutation.target] = @rules.clamp(instance[mutation.target], mutation.source, mutation.target)
+          else
+            # Every declared op has a `when` above — this is not a real
+            # runtime path today, only a backstop against the day one
+            # more mutation kind reaches the grammar and this method,
+            # unlike every other one it could reach, does not: applying
+            # nothing and refusing nothing would be the one silent
+            # no-op in a language that otherwise refuses what it cannot
+            # check.
+            raise Runtime::WiringError, "no mutation applier handles :#{mutation.op} — add one before declaring it"
           end
         end
 

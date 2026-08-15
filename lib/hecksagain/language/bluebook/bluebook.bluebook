@@ -151,7 +151,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :boundary,     RuleText
       attribute :position,     RuleText, optional: true
 
-      then_set :normalisations, append: {
+      sets :normalisations, append: {
         strategy: :strategy, source_token: :source_token,
         replacement: :replacement, boundary: :boundary, position: :position
       }

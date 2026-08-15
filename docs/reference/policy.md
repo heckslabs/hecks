@@ -40,8 +40,8 @@ Hecks.bluebook "PolicyReference" do
     command "Issue" do
       attribute :serial, Serial
       attribute :holder, Holder
-      then_set :serial, to: :serial
-      then_set :holder, to: :holder
+      sets :serial
+      sets :holder
       emits "RefCardIssued"
     end
 
@@ -81,9 +81,9 @@ Hecks.bluebook "PolicyReference" do
       attribute :ref,      AlertRef
       attribute :holder,   Holder
       attribute :severity, Severity
-      then_set :ref,      to: :ref
-      then_set :holder,   to: :holder
-      then_set :severity, to: :severity
+      sets :ref
+      sets :holder
+      sets :severity
       emits "RefAlertRaised"
     end
   end

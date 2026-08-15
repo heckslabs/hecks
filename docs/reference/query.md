@@ -40,7 +40,7 @@ Hecks.bluebook "QueryReference" do
 
     command "Appoint" do
       attribute :badge, Badge
-      sets :badge, to: :badge
+      sets :badge
       emits "WardenAppointed"
     end
 
@@ -67,9 +67,9 @@ Hecks.bluebook "QueryReference" do
       attribute :warden,    Warden
       attribute :species,   Species
       attribute :count,     Count, optional: true
-      sets :tag,     to: :tag
-      sets :species, to: :species
-      sets :count,   to: :count
+      sets :tag
+      sets :species
+      sets :count
       emits "SightingLogged"
     end
 

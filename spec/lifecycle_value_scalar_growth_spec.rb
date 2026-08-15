@@ -7,7 +7,7 @@ require "tempfile"
 # `current` came back as a raw object-pointer string that could never match
 # any declared `from` state. Bites on the SECOND transition specifically:
 # the field starts as a raw, unwrapped default, and only becomes a real
-# Value once the FIRST transition's `then_set` wraps it -- a subsequent
+# Value once the FIRST transition's `sets` wraps it -- a subsequent
 # transition attempt is where the bug shows.
 RSpec.describe "lifecycle transition on a VO-typed field" do
   def boot(source, hecksagon_name, &binds)
@@ -65,13 +65,13 @@ RSpec.describe "lifecycle transition on a VO-typed field" do
 
         command "Advance" do
           reference_to Task
-          then_set :status, to: "closed"
+          sets :status, to: "closed"
           emits "TaskAdvanced"
         end
 
         command "Finish" do
           reference_to Task
-          then_set :status, to: "done"
+          sets :status, to: "done"
           emits "TaskFinished"
         end
       end

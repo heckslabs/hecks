@@ -1,7 +1,7 @@
 
 require "spec_helper"
 
-RSpec.describe "then_set arithmetic" do
+RSpec.describe "sets arithmetic" do
   TILL_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
 
   def boot_till
@@ -75,12 +75,12 @@ RSpec.describe "then_set arithmetic" do
   # A mutation names a target — but must the target EXIST?
   #
   # The language says only `given("a mutation names a target") { !target.value
-  # .to_s.empty? }`. Non-emptiness, nothing more. So a then_set naming a field
+  # .to_s.empty? }`. Non-emptiness, nothing more. So a sets naming a field
   # the aggregate never declared is, as far as the language is concerned, well
   # formed — and at runtime it writes into nothing while every check stays green,
   # which is the signature of every defect this corpus has produced.
   #
-  # Found while giving CardPayment a `disputed_by` : the then_set was in place
+  # Found while giving CardPayment a `disputed_by` : the sets was in place
   # before the aggregate field was, and nothing said so.
   describe "a mutation into a void" do
     def in_registry
@@ -127,7 +127,7 @@ RSpec.describe "then_set arithmetic" do
               attribute :nickname, Label
 
               # :nickname is NOT an attribute of Widget — :label is the only one.
-              then_set :nickname, to: :nickname
+              sets :nickname
 
               emits "WidgetRenamed"
             end
@@ -136,7 +136,7 @@ RSpec.describe "then_set arithmetic" do
       end
     end
 
-    it "refuses a then_set naming a field the aggregate never declared" do
+    it "refuses a sets naming a field the aggregate never declared" do
       expect { build_void_target }
         .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /nickname/)
     end

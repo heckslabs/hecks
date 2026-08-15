@@ -186,7 +186,7 @@ module RustProjection
     # A `with:` binding's raw wire spelling — Hecksagain::Literal's, the
     # same one every other to_h-bound literal field rides. `Marks.read` is
     # the exact, already-proven inverse (mutations.rb's
-    # `append_field_source` is the identical round trip on a `then_set
+    # `append_field_source` is the identical round trip on a `sets
     # append:` field) — reused rather than re-derived.
     def with_value_parsed(raw)
       Hecksagain::Bluebook::Assembly::Marks.read(raw)

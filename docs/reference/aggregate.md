@@ -35,7 +35,7 @@ Hecks.bluebook "AggregateReference" do
 
     command "Found" do
       attribute :name, Name
-      sets :name, to: :name
+      sets :name
       emits "StudioFounded"
     end
   end
@@ -57,7 +57,7 @@ Hecks.bluebook "AggregateReference" do
       attribute :title, Title
       attribute :financier,      Studio
       attribute :distributor,    Studio, optional: true
-      sets :title, to: :title
+      sets :title
       emits "FilmGreenlit"
     end
   end

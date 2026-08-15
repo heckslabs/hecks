@@ -271,7 +271,7 @@ module RustProjection
         # struct field's real type; the aggregate's own `attr[:optional]`
         # is near-always true for an optional list attribute (Engagement
         # .use_cases, declared `optional: true`) whether or not any
-        # creating command's `then_set` actually threads a nullable
+        # creating command's `sets` actually threads a nullable
         # argument to it, so checking it here too would call `.as_ref()`
         # on a plain `Vec<T>` field that was never Option-wrapped in the
         # first place (a real bug, caught live: E0282 "type annotations
@@ -448,7 +448,7 @@ module RustProjection
     # can CONSTRUCT a fresh `&'static str` from a runtime-parsed JSON
     # string, so `from_json` here can only SELECT one of the table's own
     # fixed rows and clone it — the same match `literal_hash_bridgeable?`
-    # (bridging.rb) performs for a command's literal `then_set`/`append`
+    # (bridging.rb) performs for a command's literal `sets`/`append`
     # source, applied to the incoming JSON object instead of a literal Hash.
     def emit_closed_set_table_codec(vo)
       name = rust_ident(vo[:name])

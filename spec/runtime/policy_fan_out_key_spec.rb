@@ -52,9 +52,9 @@ RSpec.describe "a for_each policy's row id" do
           command "Issue" do
             attribute :serial, Serial
             attribute :holder, Holder
-            then_set :serial, to: :serial
-            then_set :holder, to: :holder
-            then_set :condition, to: { value: "live" }
+            sets :serial
+            sets :holder
+            sets :condition, to: { value: "live" }
             emits "Issued"
           end
 
@@ -63,7 +63,7 @@ RSpec.describe "a for_each policy's row id" do
             reference_to Chit
             attribute :holder, Holder,   optional: true
             attribute :alarm,  AlarmRef, optional: true
-            then_set :condition, to: { value: "void" }
+            sets :condition, to: { value: "void" }
             emits "Voided"
           end
 
@@ -85,7 +85,7 @@ RSpec.describe "a for_each policy's row id" do
           command "Record" do
             attribute :note,   Note
             attribute :holder, Holder, optional: true
-            then_set :note, to: :note
+            sets :note
             emits "Recorded"
           end
         end
@@ -101,8 +101,8 @@ RSpec.describe "a for_each policy's row id" do
           command "Raise" do
             attribute :alarm,  AlarmRef
             attribute :holder, Holder
-            then_set :alarm,  to: :alarm
-            then_set :holder, to: :holder
+            sets :alarm
+            sets :holder
             emits "Raised"
           end
         end

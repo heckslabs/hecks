@@ -3,7 +3,7 @@
 // (`record.field = ...;`, `record.field.push(...);`, one arithmetic
 // block) — the same single-line-statement risk class as constraints.rs's
 // `admits_check`/`pattern_check`, not the multi-branch structural risk
-// `fielded.rs`'s match arms carried. `then_set`'s RHS-computing helpers
+// `fielded.rs`'s match arms carried. `sets`'s RHS-computing helpers
 // (`mutation_set_rhs`, `append_field_rhs`, `arithmetic_amount_expr`,
 // mutations.rb) stay plain Ruby, same scoping call as json_codec.rb's
 // own scalar-accessor helpers — the structural risk lives in getting the

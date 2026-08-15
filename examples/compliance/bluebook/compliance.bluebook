@@ -65,7 +65,7 @@ Hecks.bluebook "Compliance" do
 
       attribute :number, AccountNumber
 
-      then_set :number, to: :number
+      sets :number
 
       emits "AccountFreezeReviewOpened"
     end
@@ -122,8 +122,8 @@ Hecks.bluebook "Compliance" do
       attribute :branch_code, BranchCode
       attribute :box_number,  BoxNumber
 
-      then_set :branch_code, to: :branch_code
-      then_set :box_number,  to: :box_number
+      sets :branch_code
+      sets :box_number
 
       emits "BoxSurrenderReviewOpened"
     end

@@ -47,7 +47,7 @@ RSpec.describe "an entity" do
     # Narrative carries a `pattern:` (the whitespace-only sweep) as well as
     # its "a movement explains itself" invariant — attribute coercion runs
     # before invariants, so a blank narrative is refused as a TypeMismatch,
-    # not an InvariantViolation, before then_set ever appends the entry.
+    # not an InvariantViolation, before sets ever appends the entry.
     expect do
       runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" }, narrative: { text: "" })
     end.to raise_error(Hecksagain::Runtime::TypeMismatch,

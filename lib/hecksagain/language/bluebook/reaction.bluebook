@@ -107,7 +107,7 @@ Hecks.bluebook "Bluebook" do
       attribute :key,   PolicyText
       attribute :value, PolicyText
 
-      then_set :with_spec, append: { key: :key, value: :value }
+      sets :with_spec, append: { key: :key, value: :value }
 
       emits "TriggerBindingAttached"
     end
@@ -187,7 +187,7 @@ Hecks.bluebook "Bluebook" do
       reference_to ProcessManager
       attribute :name, ProcessManagerText
 
-      then_set :states, append: { name: :name }
+      sets :states, append: { name: :name }
 
       emits "SagaStateAttached"
     end
@@ -323,7 +323,7 @@ Hecks.bluebook "Bluebook" do
       attribute :key,   DispatchText
       attribute :value, DispatchText
 
-      then_set :with_spec, append: { key: :key, value: :value }
+      sets :with_spec, append: { key: :key, value: :value }
 
       emits "BindingAttached"
     end

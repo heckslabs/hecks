@@ -378,7 +378,7 @@ pub async fn provision(
     // #append`'s own transactional, ordinal-tracked protocol instead --
     // the same journal INSERT + head_snapshot upsert every OTHER write
     // to this table already goes through, not a raw UPDATE bypassing
-    // it. LinkIdentity's own bluebook command is a single `then_set
+    // it. LinkIdentity's own bluebook command is a single `sets
     // :identity_id, to: :identity_id` with no other invariant beyond
     // "not already linked" -- already checked above -- so the new
     // state is just the current row with that one field replaced.
@@ -404,7 +404,7 @@ pub async fn grant_access(
 
     // Same real append protocol provision() uses -- see its own
     // comment. GrantAccess's own bluebook command is a single
-    // `then_set :role, to: :role`, no other invariant.
+    // `sets :role, to: :role`, no other invariant.
     let mut new_state = member;
     new_state["role"] = json!({"value": role});
     append_member_state(client, config, email, &new_state).await?;

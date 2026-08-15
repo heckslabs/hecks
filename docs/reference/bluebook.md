@@ -39,7 +39,7 @@ Hecks.bluebook "BluebookReference" do
 
     command "Record" do
       attribute :code, Code
-      then_set :code, to: :code
+      sets :code
       emits "PostcodeRecorded"
     end
   end
@@ -61,7 +61,7 @@ Hecks.bluebook "Ledgering" do
 
     command "OpenFolio" do
       attribute :number, Number
-      then_set :number, to: :number
+      sets :number
       emits "FolioOpened"
     end
   end

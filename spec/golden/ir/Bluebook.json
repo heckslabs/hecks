@@ -13080,40 +13080,6 @@
               ],
               [
                 "named",
-                "from"
-              ],
-              [
-                "kind",
-                "literal"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "source"
-              ],
-              [
-                "selects",
-                "op=set"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "sets"
-              ],
-              [
-                "context",
-                "Command"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
                 "multiply"
               ],
               [

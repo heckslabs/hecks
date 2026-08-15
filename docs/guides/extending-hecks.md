@@ -63,8 +63,8 @@ means live. `deprecated` means still read, on its way out. `retired`
 means gone — the row stays, as history, but no builder may answer it
 any more. There's a fifth thing a row can say, in its own column
 rather than its own status: `was:`, the rename column. `sets` carries
-`was: "then_set"` right now — the corpus itself, still full of
-`then_set`, is the proof that a rename never stops the old spelling
+`was: "sets"` right now — the corpus itself, still full of
+`sets`, is the proof that a rename never stops the old spelling
 from booting.
 
 The two value objects that carry all of this, read straight out of

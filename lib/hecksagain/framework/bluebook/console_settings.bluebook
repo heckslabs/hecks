@@ -115,7 +115,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to StateStyle
       attribute :tone, one_of("good", "warn", "danger", "muted", "accent")
 
-      then_set :tone, to: :tone
+      sets :tone
       emits "ToneSet"
     end
 
@@ -126,7 +126,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to StateStyle
       attribute :attention, Flag
 
-      then_set :attention, to: :attention
+      sets :attention
       emits "AttentionSet"
     end
 
@@ -137,7 +137,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to StateStyle
       attribute :extra_json, StateStyleExtra
 
-      then_set :extra_json, to: :extra_json
+      sets :extra_json
       emits "ExtraSet"
     end
   end
@@ -275,7 +275,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :label, SettingsText
 
-      then_set :label, to: :label
+      sets :label
       emits "LabelSet"
     end
 
@@ -286,7 +286,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :key, SettingsText
 
-      then_set :key, to: :key
+      sets :key
       emits "KeySet"
     end
 
@@ -297,7 +297,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :nav_order, SettingsNumber
 
-      then_set :nav_order, to: :nav_order
+      sets :nav_order
       emits "NavOrderSet"
     end
 
@@ -308,7 +308,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :primary_field, SettingsText
 
-      then_set :primary_field, to: :primary_field
+      sets :primary_field
       emits "PrimaryFieldSet"
     end
 
@@ -319,7 +319,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :list_query, SettingsText
 
-      then_set :list_query, to: :list_query
+      sets :list_query
       emits "ListQuerySet"
     end
 
@@ -334,11 +334,11 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :identity_prefix,      SettingsText,    optional: true
       attribute :identity_extra_json,  CollectionExtra, optional: true
 
-      then_set :identity_field,       to: :identity_field
-      then_set :identity_strategy,    to: :identity_strategy
-      then_set :identity_source,      to: :identity_source
-      then_set :identity_prefix,      to: :identity_prefix
-      then_set :identity_extra_json,  to: :identity_extra_json
+      sets :identity_field
+      sets :identity_strategy
+      sets :identity_source
+      sets :identity_prefix
+      sets :identity_extra_json
       emits "IdentitySet"
     end
 
@@ -349,7 +349,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :extra_json, CollectionExtra
 
-      then_set :extra_json, to: :extra_json
+      sets :extra_json
       emits "ExtraSet"
     end
 
@@ -360,7 +360,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :columns, list_of(Column)
 
-      then_set :columns, to: :columns
+      sets :columns
       emits "ColumnsReplaced"
     end
 
@@ -371,7 +371,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :detail_fields, list_of(DetailField)
 
-      then_set :detail_fields, to: :detail_fields
+      sets :detail_fields
       emits "DetailFieldsReplaced"
     end
 
@@ -382,7 +382,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :detail_field_columns, list_of(DetailFieldColumn)
 
-      then_set :detail_field_columns, to: :detail_field_columns
+      sets :detail_field_columns
       emits "DetailFieldColumnsReplaced"
     end
 
@@ -393,7 +393,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :preconditions, list_of(Precondition)
 
-      then_set :preconditions, to: :preconditions
+      sets :preconditions
       emits "PreconditionsReplaced"
     end
 
@@ -404,7 +404,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :field_formats, list_of(FieldFormat)
 
-      then_set :field_formats, to: :field_formats
+      sets :field_formats
       emits "FieldFormatsReplaced"
     end
   end
@@ -472,7 +472,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Overview
       attribute :stats, list_of(Stat)
 
-      then_set :stats, to: :stats
+      sets :stats
       emits "StatsReplaced"
     end
   end

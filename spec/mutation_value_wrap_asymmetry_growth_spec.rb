@@ -72,14 +72,14 @@ RSpec.describe "mutation Value-wrap asymmetry fix" do
         command "RecordFailure" do
           reference_to Breaker
 
-          then_set :count, increment: 1
+          sets :count, increment: 1
           emits "FailureRecorded"
         end
 
         command "Scale" do
           reference_to Breaker
 
-          then_set :count, multiply: 5
+          sets :count, multiply: 5
           emits "FailureScaled"
         end
       end

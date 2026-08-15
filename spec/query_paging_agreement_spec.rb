@@ -35,7 +35,7 @@ RSpec.describe "limit and offset on one query" do
 
           command "Draw" do
             attribute :number, Number
-            sets :number, to: :number
+            sets :number
             emits "TicketDrawn"
           end
 

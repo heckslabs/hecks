@@ -40,8 +40,8 @@ Hecks.bluebook "DispatchOrder" do
       attribute :part_sequence, PartSequence
       attribute :part_note,     Note
 
-      then_set :amount, to: :amount
-      then_set :parts,  append: { sequence: :part_sequence, note: :part_note }
+      sets :amount
+      sets :parts,  append: { sequence: :part_sequence, note: :part_note }
 
       ensures("the amount landed") { amount.cents == amount.cents }
 
@@ -80,7 +80,7 @@ Hecks.bluebook "DispatchOrder" do
 
         attribute :note, Note
 
-        then_set :note, to: :note
+        sets :note
 
         ensures("the note landed") { note.value == note.value }
 
@@ -97,7 +97,7 @@ Hecks.bluebook "DispatchOrder" do
 
         attribute :note, Note
 
-        then_set :note, to: :note
+        sets :note
 
         emits "PartTouched"
       end

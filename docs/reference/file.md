@@ -34,8 +34,8 @@ Hecks.bluebook "FileReference" do
     command "RaiseDispatch" do
       attribute :docket, Docket
       attribute :note,   Note
-      then_set :docket, to: :docket
-      then_set :note,   to: :note
+      sets :docket
+      sets :note
       emits "DispatchRaised"
     end
   end

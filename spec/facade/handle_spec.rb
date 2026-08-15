@@ -63,7 +63,7 @@ RSpec.describe Hecksagain::Facade::Handle do
 
           command "Build" do
             attribute :tag, Tag
-            then_set :tag, to: :tag
+            sets :tag
             emits "VaultBuilt"
           end
 

@@ -131,12 +131,12 @@ Hecks.bluebook "Deploy" do
       attribute :database, Database
       attribute :web,      Web
 
-      then_set :domain,   to: :domain
-      then_set :region,   to: :region
-      then_set :memory,   to: :memory
-      then_set :timeout,  to: :timeout
-      then_set :database, to: :database
-      then_set :web,      to: :web
+      sets :domain
+      sets :region
+      sets :memory
+      sets :timeout
+      sets :database
+      sets :web
 
       emits "LambdaTargetDeclared"
     end

@@ -19,7 +19,7 @@ declared in that file, executed against a real boot of it.
 
 A command is `role`, `goal`, one or more `attribute`s, an optional
 `reference_to`, zero or more `given`s, zero or more `ensures`, zero or
-more `then_set`s, and one or more `emits` — nothing else, no handler
+more `sets`s, and one or more `emits` — nothing else, no handler
 body to smuggle a side effect into. `Account`'s own commands carry
 every piece of that inventory at least once, quoted here directly from
 the bluebook (never run as shown — the boot below loads the real file
@@ -35,9 +35,9 @@ command "Open" do
   attribute :kind,        AccountKind
   attribute :daily_limit, DailyLimit
 
-  then_set :number,      to: :number
-  then_set :kind,        to: :kind
-  then_set :daily_limit, to: :daily_limit
+  sets :number
+  sets :kind
+  sets :daily_limit
 
   emits "AccountOpened"
 end
@@ -51,8 +51,8 @@ command "Credit" do
   attribute :narrative, Narrative
 
   given("the account is open")      { status == "open" }
-  then_set :balance, increment: :amount
-  then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
+  sets :balance, increment: :amount
+  sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
   emits "AccountCredited"
 end
@@ -69,8 +69,8 @@ command "Debit" do
   given("the balance covers it")     { balance.cents >= amount.cents }
   given("the daily limit allows it") { daily_limit.cents >= amount.cents }
 
-  then_set :balance, decrement: :amount
-  then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
+  sets :balance, decrement: :amount
+  sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
   ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
   ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
@@ -88,14 +88,15 @@ end
 ```
 
 `Open` takes in a customer and gives back a fresh account: a creating
-command, no `given`, three `then_set to:`. `Credit` and `Debit` are
-where the rest of the inventory earns its place — a `given` guarding
-mutation, `then_set increment:`/`decrement:` doing arithmetic,
-`then_set append:` growing the ledger, and, on `Debit` alone, two real
-`ensures`. `Freeze` is the floor of the inventory: `role`, `goal`,
-`reference_to`, `emits`, nothing more — a command needs no `given`, no
-`attribute`, no `then_set` to be a complete one, as long as something
-downstream (here, the account's own lifecycle) still gates it.
+command, no `given`, three bare `sets` (each one's `to:` would only
+repeat the target, so it's omitted). `Credit` and `Debit` are where the
+rest of the inventory earns its place — a `given` guarding mutation,
+`sets increment:`/`decrement:` doing arithmetic, `sets append:` growing
+the ledger, and, on `Debit` alone, two real `ensures`. `Freeze` is the
+floor of the inventory: `role`, `goal`, `reference_to`, `emits`, nothing
+more — a command needs no `given`, no `attribute`, no `sets` to be a
+complete one, as long as something downstream (here, the account's own
+lifecycle) still gates it.
 
 ## Wiring
 
@@ -294,23 +295,25 @@ it was quietly protecting. A `given` is a rule you remembered to write
 going in; an `ensures` is a guarantee that holds regardless of what a
 future you remembers.
 
-## `then_set` — one op per field, and the op is a real decision
+## `sets` — one op per field, and the op is a real decision
 
 Four operations, and which one you reach for is not stylistic — it is
 the difference between overwriting a field, growing a list, and doing
 arithmetic on one.
 
-**`to:`** replaces the field outright, from an argument or a literal.
-`Open` does it three times over, from arguments:
+**`to:`** replaces the field outright, from an argument or a literal —
+and is omittable when it would only repeat the target, which is why
+`Open`'s own three (above) never spell it out: `sets :number` alone
+already means `to: :number`.
 
 ```ruby
 account.kind.to_h  # => { name: "current" }
 ```
 
 A literal target is legal too — `Customer.Reinstate` sets its standing
-back with `then_set :standing, to: { value: "good" }` rather than
-reading it off an argument, because a reinstated customer's standing is
-always "good", not whatever the caller happened to pass.
+back with `sets :standing, to: { value: "good" }` rather than reading
+it off an argument, because a reinstated customer's standing is always
+"good", not whatever the caller happened to pass.
 
 **`append:`** grows a list attribute by one value object, built from
 the fields you name. `Credit` and `Debit` both append to `Account`'s
@@ -323,7 +326,7 @@ account.ledger.map { |entry| entry[:direction].to_h }    # => [{ value: "credit"
 
 `direction:` is not an argument at all in either command — `{ value:
 "credit" }` and `{ value: "debit" }` are literals baked into the
-`then_set` itself, the same way `append:` can take a literal alongside
+`sets` itself, the same way `append:` can take a literal alongside
 an argument-sourced field. Hand `append:` a value object with more than
 one member for a slot the target entity declares as a bare scalar and
 it has no single field to flatten to — that refusal is `TypeMismatch: …
@@ -338,7 +341,7 @@ share a name and a type, and that shared name is what lets the runtime
 know which field to add or subtract — already proven above, alongside
 the `ensures` that watches the result. `ScheduledPayment.Retry` does
 the same arithmetic on a bare Integer instead of a shared field name:
-`then_set :attempts, increment: { value: 1 }` moved `attempts` from 0
+`sets :attempts, increment: { value: 1 }` moved `attempts` from 0
 to 3 across the reflex proven in the `given` section above.
 
 ## `emits` — a promise made after the write, not before

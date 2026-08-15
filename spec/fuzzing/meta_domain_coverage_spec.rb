@@ -82,7 +82,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
       "uniformly; entity_interpreter.rb has no matching check this session could find, so an entity's own " \
       "identity-collision handling is a genuinely open question, not a guarantee this arc could claim",
     "Command#references" => "reference-typed command arguments are exercised constantly (guard dereferencing) but have no property of their own asking whether a dangling reference was ever silently accepted",
-    "Command#mutations" => "then_set's own field-level mutation semantics have no independent replay recomputation the way aggregation_matches_recompute gives count/median",
+    "Command#mutations" => "sets's own field-level mutation semantics have no independent replay recomputation the way aggregation_matches_recompute gives count/median",
     "Query#options" => "the open-map query options (offset/cursor/tenant/consistency/...) have no property individually",
     "Policy#on_event" => "which event a policy answers to is exercised by every reaction a generated sequence produces, but nothing asserts a policy NEVER fires on an event it doesn't declare",
     "Policy#trigger_command" => "a policy's own target command is exercised by dispatch itself; no property names a mismatch between declared trigger and what actually fired",
@@ -95,7 +95,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Dispatch#handler" => "a handler's own dispatch spec target has no independent replay property",
     "Dispatch#command_name" => "same as Dispatch#handler",
     "Dispatch#with_spec" => "argument-binding fidelity for a saga's own dispatched command has no property comparing bound args against the handler's own declared with_spec",
-    "ReadModel#query_name" => "the derived snake_case name is exercised by every report ask; no property names a drift between it and the declared name",
+    "ReadModel#query_name" => "the derived snake_case name is exercised by every read model ask; no property names a drift between it and the declared name",
     "ReadModel#reference_name" => "covered incidentally by aggregation_matches_recompute's own FK-join; not named on its own",
     "ReadModel#reference_target" => "same as ReadModel#reference_name",
     "ReadModel#aggregate_heads" => "multi-head `include` composition (beyond the single reduced head aggregation_matches_recompute checks) has no property of its own",

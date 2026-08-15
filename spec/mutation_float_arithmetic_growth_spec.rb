@@ -64,7 +64,7 @@ RSpec.describe "Float arithmetic on increment/decrement" do
           reference_to Organ
           attribute :amount, Strength
 
-          then_set :strength, increment: :amount
+          sets :strength, increment: :amount
           emits "OrganGrew"
         end
 
@@ -72,7 +72,7 @@ RSpec.describe "Float arithmetic on increment/decrement" do
           reference_to Organ
           attribute :amount, Strength
 
-          then_set :strength, decrement: :amount
+          sets :strength, decrement: :amount
           emits "OrganFatigued"
         end
       end

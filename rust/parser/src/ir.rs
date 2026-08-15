@@ -64,7 +64,7 @@ pub type Invariant = Given;
 // a LITERAL-sourced one renders `{kind: "literal", value: source}` with
 // `source` passed straight through, NOT through `Literal.render` — a real,
 // confirmed distinction found by reading `spec/golden/ir/Pizzas.json`
-// directly: `Purchase`'s `then_set :status, to: "sold"` renders
+// directly: `Purchase`'s `sets :status, to: "sold"` renders
 // `"value": "sold"` (a bare JSON string), never `"value": "\"sold\""` the
 // way a WHERE clause's own `Literal.render`-spelled value would. Only
 // `Mutation#appended_fields` (the APPEND op's own `fields:` map) goes

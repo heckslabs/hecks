@@ -24,7 +24,7 @@ Hecks.bluebook "Reflex" do
 
       attribute :name, LightName
 
-      then_set :condition, to: { value: "on" }
+      sets :condition, to: { value: "on" }
 
       emits "Flipped"
     end
@@ -38,7 +38,7 @@ Hecks.bluebook "Reflex" do
 
       reference_to Light
 
-      then_set :condition, to: { value: "logged" }
+      sets :condition, to: { value: "logged" }
     end
 
     policy "LogOnFlip" do

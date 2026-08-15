@@ -96,7 +96,7 @@ module RustProjection
 
       # Variable-arity rendering: renders `shape_id` once per entry in
       # `subs_list`, joined by `join_with` — the mechanism a caller with
-      # (say) one mutation line per `then_set` reaches for, matching how
+      # (say) one mutation line per `sets` reaches for, matching how
       # the ORIGINAL emit_* functions were already called once per
       # mutation/field/command by their own composite caller.
       def render_each(shape_id, subs_list, join_with: "\n")

@@ -125,7 +125,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   it "keeps the order that changes behaviour" do
     # Not all order is equal, and only one kind has to survive a round trip.
     #
-    # BEHAVIOUR-BEARING: mutations are applied in sequence, so a then_set reading a
+    # BEHAVIOUR-BEARING: mutations are applied in sequence, so a sets reading a
     # field an earlier one wrote depends on the order; a lifecycle takes the FIRST
     # transition that matches; a compensation credits the source before reversing
     # the transfer. Reorder any of those and the domain does something else.

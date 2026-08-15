@@ -264,7 +264,7 @@ pub fn optional_value_rhs(source_expr: &str, source_type: &str, target_type: &st
     format!("{source_expr}.clone().map(|v| {})", crate::bridging::value_rhs("v", source_type, target_type, value_objects_by_name))
 }
 
-/// `:append` and `:set` — the two `then_set` ops this slice generates.
+/// `:append` and `:set` — the two `sets` ops this slice generates.
 pub fn emit_mutation_line(exemplar: &Exemplar, mutation: &Json, aggregate: &Json, command: &Json, value_objects_by_name: &HashMap<String, &Json>, optional: bool) -> String {
     let target_field = naming::rust_ident_field(&mutation.get("target").map(Json::to_s).unwrap_or_default());
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);

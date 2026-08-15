@@ -63,7 +63,7 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level Memory query" do
 
         command "Release" do
           reference_to Claim
-          then_set :state, to: { value: "released" }
+          sets :state, to: { value: "released" }
         end
       end
 

@@ -50,7 +50,7 @@ Hecks.bluebook "EntityReference" do
 
     command "OpenManifest" do
       attribute :docket, Docket
-      then_set :docket, to: :docket
+      sets :docket
       emits "ManifestOpened"
     end
 
@@ -59,7 +59,7 @@ Hecks.bluebook "EntityReference" do
       attribute :slot,     Slot
       attribute :handler,  Handler
       attribute :depot_id, Depot
-      then_set :crates, append: { slot: :slot, handler: :handler, depot_id: :depot_id }
+      sets :crates, append: { slot: :slot, handler: :handler, depot_id: :depot_id }
       emits "CrateAdded"
     end
   end
@@ -72,7 +72,7 @@ Hecks.bluebook "EntityReference" do
 
     command "OpenDepot" do
       attribute :code, Code
-      then_set :code, to: :code
+      sets :code
       emits "DepotOpened"
     end
   end

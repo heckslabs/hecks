@@ -35,7 +35,7 @@ Hecks.bluebook "Wire" do
       reference_to Drawer
       attribute :amount, Money
       given("the drawer is open") { status == "open" }
-      then_set :cents, increment: :amount
+      sets :cents, increment: :amount
       emits "PutIn"
     end
 
@@ -46,7 +46,7 @@ Hecks.bluebook "Wire" do
       attribute :amount, Money
       given("the drawer is open")  { status == "open" }
       given("the cents cover it")  { cents.cents >= amount.cents }
-      then_set :cents, decrement: :amount
+      sets :cents, decrement: :amount
       emits "Taken"
     end
 
@@ -95,9 +95,9 @@ Hecks.bluebook "Wire" do
       reference_to Drawer, as: :source
       reference_to Drawer, as: :destination
       given("a wire moves something") { amount.cents.positive? }
-      then_set :amount,      to: :amount
-      then_set :source,      to: :source
-      then_set :destination, to: :destination
+      sets :amount
+      sets :source
+      sets :destination
       emits "WireAsked"
     end
 

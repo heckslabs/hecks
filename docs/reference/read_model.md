@@ -41,7 +41,7 @@ Hecks.bluebook "ReadModelReference" do
 
     command "OpenDepot" do
       attribute :code, Code
-      sets :code, to: :code
+      sets :code
       emits "DepotOpened"
     end
   end
@@ -63,9 +63,9 @@ Hecks.bluebook "ReadModelReference" do
       attribute :depot,    Depot
       attribute :region,   Region
       attribute :weight,   Weight, optional: true
-      sets :label,  to: :label
-      sets :region, to: :region
-      sets :weight, to: :weight
+      sets :label
+      sets :region
+      sets :weight
       emits "ParcelAccepted"
     end
   end

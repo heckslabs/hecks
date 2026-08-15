@@ -22,7 +22,7 @@ RSpec.describe "a port operation, dispatched" do
 
         # THE PRIMARY PORT — called by an adapter outside the bluebook
         # entirely (a Stripe webhook, in the design this came out of). No
-        # given, no then_set: this is the boundary translating an external
+        # given, no sets: this is the boundary translating an external
         # fact into our own vocabulary, not a place business rules live.
         # Those stay on ConfirmReceipt/RejectPayment, reached only through
         # a policy. Declared here, in the hecksagon, not the bluebook — the

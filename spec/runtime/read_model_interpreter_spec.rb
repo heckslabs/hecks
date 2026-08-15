@@ -186,7 +186,7 @@ RSpec.describe "a read model's query options" do
             end
             command "Add" do
               attribute :name, Name
-              then_set :name, to: :name
+              sets :name
             end
           end
 
@@ -200,8 +200,8 @@ RSpec.describe "a read model's query options" do
             command "Promote" do
               attribute :ref, Ref
               reference_to Item
-              then_set :ref, to: :ref
-              then_set :item, to: :item
+              sets :ref
+              sets :item
             end
           end
 
@@ -604,8 +604,8 @@ RSpec.describe "a rootless read model's own group_by" do
           command "Declare" do
             attribute :ref,   Ref
             attribute :group, Ref
-            then_set :ref,   to: :ref
-            then_set :group, to: :group
+            sets :ref
+            sets :group
           end
         end
 

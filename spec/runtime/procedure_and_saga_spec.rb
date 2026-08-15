@@ -47,7 +47,7 @@ RSpec.describe "a procedure, and when it is a saga" do
             goal "Read the application"
             reference_to Candidate
             attribute :stage, Stage
-            then_set :stage, to: :stage
+            sets :stage
             emits "CandidateScreened"
           end
         end

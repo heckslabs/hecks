@@ -41,7 +41,7 @@ module RustProjection
     # `"per_instance"` means the kind is generated in general, but THIS
     # declared instance individually failed a specific, named check this
     # generator already runs for every one of its siblings (an
-    # unsupported attribute type, a `then_set` shape this generator's
+    # unsupported attribute type, a `sets` shape this generator's
     # `apply` doesn't cover yet, an identity this generator's `extract_id`
     # can't resolve) — the dangerous kind, because nine siblings
     # generating correctly makes the tenth's silence easy to miss without

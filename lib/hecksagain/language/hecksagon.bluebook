@@ -45,7 +45,7 @@ Hecks.bluebook "Hecksagon" do
       reference_to Hecksagon
       attribute :event, Subscription
 
-      then_set :subscriptions, append: { value: :event }
+      sets :subscriptions, append: { value: :event }
 
       emits "SubscriptionAdded"
     end
@@ -57,7 +57,7 @@ Hecks.bluebook "Hecksagon" do
       reference_to Hecksagon
       attribute :member, FrameworkMember
 
-      then_set :framework_members, append: { value: :member }
+      sets :framework_members, append: { value: :member }
 
       emits "FrameworkMemberAttached"
     end
@@ -119,7 +119,7 @@ Hecks.bluebook "Hecksagon" do
   end
 
   aggregate "PortOperation" do
-    description "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/then_set : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits."
+    description "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/sets : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits."
 
     identified_by :name
 

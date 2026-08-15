@@ -5,7 +5,7 @@ Hecks.bluebook "FixtureCommand" do
   aggregate "Widget" do
     command "Rename" do
       attribute :name, String
-      sets :name, to: :name
+      sets :name
     end
   end
 end

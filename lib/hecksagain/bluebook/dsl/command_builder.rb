@@ -163,11 +163,11 @@ module Hecksagain
         # Value-coerced the same way increment/decrement/multiply already
         # coerce their own amount -- see MutationApplier#removed).
         #
-        # `then_set :field, true` -- vendored addition, not (yet) upstream
+        # `sets :field, true` -- vendored addition, not (yet) upstream
         # hecksagain (migration plan task 8): a bare positional literal
         # instead of `to:` -- 14 occurrences across hecks_nursury
         # (oceanography.bluebook/volcanology.bluebook and others),
-        # always a boolean shorthand (`then_set :deployed, true`, never
+        # always a boolean shorthand (`sets :deployed, true`, never
         # a string/number positional -- checked directly, zero non-
         # boolean occurrences of the bare-positional-second-arg shape
         # anywhere in the corpus). Folded into `to:` itself rather than
@@ -177,33 +177,60 @@ module Hecksagain
         # false," not "absent," same as the keyword form). Only applied
         # when `to:` itself was NOT also given, so an explicit `to:`
         # keyword always wins over a stray positional.
-        def then_set(target, positional_to = UNSET, to: UNSET, from: UNSET, append: UNSET,
-                     increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
+        #
+        # `sets` is the word (ADR 0025 reverts `then_set` — the grammar
+        # already declared `sets`, `was: "then_set"`, and 143 of 143 live
+        # call sites are `then_set`, so this method was the one thing
+        # still backwards). `to:` is OMITTABLE when it would only repeat
+        # the target — `sets :number` alone already means `to: :number`
+        # — and the REDUNDANT explicit spelling is refused outright
+        # (principle 1, "one idea, one spelling": `sets :number, to:
+        # :number` says nothing `sets :number` doesn't). `from:` — a
+        # pure synonym for `to:` the language's own refusal message had
+        # already forgotten about — is gone; write `to:`.
+        def sets(target, positional_to = UNSET, to: UNSET, append: UNSET,
+                 increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
           # moved to the language: given "a mutation names a target", on Verb.Change
 
           to = positional_to if to.equal?(UNSET) && !positional_to.equal?(UNSET)
-          set_source = to.equal?(UNSET) ? from : to
 
-          named = { set: set_source, append: append, increment: increment, decrement: decrement,
+          # `to:` only ever REPEATS the target when it's a Symbol naming a
+          # field — a literal (`to: false`, the bare positional-boolean
+          # shorthand, a String, ...) is a VALUE, never a redundant name,
+          # so it never has `.to_sym` to compare in the first place.
+          if to.is_a?(Symbol) && to == target.to_sym
+            raise Malformed,
+                  "#{@name}'s sets :#{target}, to: :#{target} repeats the target — " \
+                  "sets :#{target} alone already means the same"
+          end
+
+          named = { set: to, append: append, increment: increment, decrement: decrement,
                     multiply: multiply, clamp: clamp, remove: remove }
               .reject { |_, source| source.equal?(UNSET) }
 
-          if named.empty?
-            raise Malformed,
-                  "#{@name}'s then_set :#{target} names no operation — " \
-                  "give it to:, append:, increment:, decrement:, multiply:, clamp:, or remove:"
-          end
+          # THE OMITTABLE CASE. No operation was named at all — not even a
+          # bare `to:` — so this is `sets :field` alone, which means
+          # exactly what the redundant, refused spelling above would have.
+          named = { set: target } if named.empty?
 
           if named.size > 1
             raise Malformed,
-                  "#{@name}'s then_set :#{target} tries to #{named.keys.join(' and ')} " \
+                  "#{@name}'s sets :#{target} tries to #{named.keys.join(' and ')} " \
                   "at once — one mutation, one meaning"
           end
 
           op, source = named.first
           @mutations << Mutation.new(target: target.to_sym, op: op, source: source)
         end
-        alias_method :sets, :then_set
+
+        # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era text
+        # minted before this rename still parses; live source refuses it,
+        # naming the replacement.
+        def then_set(target, positional_to = UNSET, **kwargs)
+          return legacy_then_set(target, positional_to, **kwargs) if MetaValidator.shadow_parsing?
+
+          raise Malformed, "#{@name}'s then_set is gone — sets is the word now"
+        end
 
         # No raise here. "an event is named" is declared in the language itself —
         # language/bluebook/behavior.bluebook, on Command.Announce — and MetaValidator is what
@@ -233,6 +260,39 @@ module Hecksagain
           builder = new(name, owner: owner)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        # LEGACY — see `then_set`'s own comment. The ORIGINAL implementation,
+        # verbatim: `from:` still a synonym for `to:`, no omittable-`to:`
+        # shorthand, no refusal for the redundant `to: target` spelling —
+        # frozen era text was minted under this reading, and a legacy
+        # grammar exists precisely so re-parsing it never silently changes
+        # what it meant.
+        def legacy_then_set(target, positional_to = UNSET, to: UNSET, from: UNSET, append: UNSET,
+                            increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
+          to = positional_to if to.equal?(UNSET) && !positional_to.equal?(UNSET)
+          set_source = to.equal?(UNSET) ? from : to
+
+          named = { set: set_source, append: append, increment: increment, decrement: decrement,
+                    multiply: multiply, clamp: clamp, remove: remove }
+              .reject { |_, source| source.equal?(UNSET) }
+
+          if named.empty?
+            raise Malformed,
+                  "#{@name}'s then_set :#{target} names no operation — " \
+                  "give it to:, append:, increment:, decrement:, multiply:, clamp:, or remove:"
+          end
+
+          if named.size > 1
+            raise Malformed,
+                  "#{@name}'s then_set :#{target} tries to #{named.keys.join(' and ')} " \
+                  "at once — one mutation, one meaning"
+          end
+
+          op, source = named.first
+          @mutations << Mutation.new(target: target.to_sym, op: op, source: source)
         end
       end
     end

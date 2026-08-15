@@ -176,7 +176,7 @@ payment.tags   # => nil
 Worth sitting with: `tags` did not become `[]`. `optional:` only
 promises the argument gate won't refuse a missing key — it never
 promises a fallback value. `Authorize` reads the missing key straight
-through `then_set :tags, to: :tags`, and an absent key resolves to
+through `sets :tags`, and an absent key resolves to
 `nil` the same way any other unread hash key would — `DailyLimit`,
 above, only got its fallback because it declared one explicitly.
 

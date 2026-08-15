@@ -149,7 +149,7 @@ pub(crate) fn kind_matches(declared: &str, actual: &str) -> bool {
     // comment: "a default is written so its TYPE survives ... which is
     // why it is not `text`." A Hash/Array literal survives its own type
     // exactly the same way a bare number or symbol does — confirmed live:
-    // `then_set :toppings, append: { name: :topping, amount: :amount }`
+    // `sets :toppings, append: { name: :topping, amount: :amount }`
     // (pizzas.bluebook) declares `append:` as `kind: "literal"`, and the
     // value written there is a Hash, not a scalar. Only `constant` (a
     // bareword TYPE name, e.g. `PizzaName`) is excluded — a type name is

@@ -14,7 +14,7 @@ Hecks.bluebook "TillRoom" do
     # A clerk may say why a taking was unusual, or say nothing — the one OPTIONAL
     # fact in this fixture, and the only door left through which an absent
     # argument can still reach a mutation. A REQUIRED one is refused at the
-    # payload gate long before `then_set` ever resolves its source.
+    # payload gate long before `sets` ever resolves its source.
     attribute :note,    Note
 
     value_object "TillNumber" do
@@ -52,9 +52,9 @@ Hecks.bluebook "TillRoom" do
       attribute :amount, Money
       attribute :note,   Note, optional: true
 
-      then_set :balance, increment: :amount
-      then_set :marks,   append: { amount: :amount, direction: "in" }
-      then_set :note,    to: :note
+      sets :balance, increment: :amount
+      sets :marks,   append: { amount: :amount, direction: "in" }
+      sets :note
 
       emits "TakenIn"
     end
@@ -66,8 +66,8 @@ Hecks.bluebook "TillRoom" do
       reference_to Till
       attribute :amount, Money
 
-      then_set :balance, decrement: :amount
-      then_set :marks,   append: { amount: :amount, direction: "out" }
+      sets :balance, decrement: :amount
+      sets :marks,   append: { amount: :amount, direction: "out" }
 
       emits "PaidOut"
     end
@@ -77,7 +77,7 @@ Hecks.bluebook "TillRoom" do
       goal "Add the fixed float the branch always starts with"
 
       reference_to Till
-      then_set :balance, increment: { cents: 500 }
+      sets :balance, increment: { cents: 500 }
 
       emits "Bumped"
     end

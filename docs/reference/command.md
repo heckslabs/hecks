@@ -10,10 +10,9 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 Most of these run against `examples/banking`, whose `Account` commands
-carry roles, goals, givens, ensures and multi-fact `emits` for real.
-`sets` and a command-level `provenance` are written nowhere in the
-corpus — the corpus still spells the first `then_set` — so they get a
-chapter of their own:
+carry roles, goals, givens, ensures, multi-fact `emits`, and `sets`
+for real. A command-level `provenance` is written nowhere in the
+corpus, so it gets a chapter of its own:
 
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
@@ -42,9 +41,7 @@ Hecks.bluebook "CommandReference" do
 
     command "Install" do
       attribute :serial, Serial
-      # THE NEW SPELLING — `sets`, where every bluebook in this
-      # repository still writes `then_set`. Both boot.
-      sets :serial, to: :serial
+      sets :serial
       emits "MeterInstalled"
     end
 
@@ -207,7 +204,7 @@ written as a sentence a caller can act on rather than a name.
 ## sets
 
 <!-- generated:begin word=sets -->
-`sets target, to:, append:, increment:, decrement:, from:, multiply:, clamp:, remove:` — fills `mutations`, was `then_set`
+`sets target, to:, append:, increment:, decrement:, multiply:, clamp:, remove:` — fills `mutations`, was `then_set`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -216,13 +213,12 @@ written as a sentence a caller can act on rather than a name.
 | `append:` | literal | false | source |
 | `increment:` | literal | false | source |
 | `decrement:` | literal | false | source |
-| `from:` | literal | false | source |
 | `multiply:` | literal | false | source |
 | `clamp:` | literal | false | source |
 | `remove:` | literal | false | source |
 <!-- generated:end -->
 
-Still spelled `then_set` in every real bluebook in this codebase — `was: "then_set"` in the language's own rename table, and the old spelling keeps booting alongside the new one. One call, one op: `to:` overwrites the field, `append:` grows a list attribute by one value object built from the pairs you name, `increment:`/`decrement:` do arithmetic on a numeric field. See commands.md's "`then_set` — one op per field" for the flattening rule `append:` applies to a single-member value object.
+`sets` is the word — ADR 0025 reverts `then_set` (the language's own grammar already declared `sets`, `was: "then_set"`, before the DSL implementation caught up). `then_set` keeps booting only for frozen era text under the legacy grammar; live source refuses it, naming `sets`. One call, one op: `to:` overwrites the field, `append:` grows a list attribute by one value object built from the pairs you name, `increment:`/`decrement:` do arithmetic on a numeric field. `to:` is omittable when it would only repeat the target — `sets :serial` alone already means `to: :serial` — and writing the redundant form out is refused. See commands.md's "`sets` — one op per field" for the flattening rule `append:` applies to a single-member value object.
 
 `to:` overwrites, `increment:` does arithmetic, `append:` grows a list —
 one op per call, three calls across two commands here:

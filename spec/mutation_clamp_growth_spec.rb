@@ -57,7 +57,7 @@ RSpec.describe "mutation op clamp" do
         command "Bound" do
           reference_to Organ
 
-          then_set :strength, clamp: [0.0, 1.0]
+          sets :strength, clamp: [0.0, 1.0]
           emits "OrganBounded"
         end
       end

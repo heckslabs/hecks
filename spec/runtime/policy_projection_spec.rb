@@ -44,8 +44,8 @@ RSpec.describe "a policy's trigger projection" do
           command "Grant" do
             attribute :code,   Code
             attribute :holder, Holder
-            sets :code,   to: :code
-            sets :holder, to: :holder
+            sets :code
+            sets :holder
             sets :note,   to: { text: "granted" }
             emits "PermitGranted"
           end
@@ -62,7 +62,7 @@ RSpec.describe "a policy's trigger projection" do
           command "Annotate" do
             reference_to Permit
             attribute :note, Note
-            sets :note, to: :note
+            sets :note
             emits "PermitAnnotated"
           end
 
@@ -87,9 +87,9 @@ RSpec.describe "a policy's trigger projection" do
             attribute :ref,     Ref
             attribute :holder,  Holder
             attribute :summary, Summary
-            sets :ref,     to: :ref
-            sets :holder,  to: :holder
-            sets :summary, to: :summary
+            sets :ref
+            sets :holder
+            sets :summary
             emits "BreachReported"
           end
         end

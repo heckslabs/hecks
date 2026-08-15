@@ -30,8 +30,8 @@ Hecks.bluebook "PortOperationReference" do
     command "Grant" do
       attribute :serial, Serial
       attribute :holder, Holder
-      then_set :serial, to: :serial
-      then_set :holder, to: :holder
+      sets :serial
+      sets :holder
       emits "LicenceGranted"
     end
   end
@@ -127,7 +127,7 @@ An extra field the external fact carries, declared the same way a
 command's own `attribute` is.
 
 `inspector` is the fact's own detail, and it rides through onto the
-event unchanged — no `then_set` anywhere, because an operation stores
+event unchanged — no `sets` anywhere, because an operation stores
 nothing:
 
 ```ruby
@@ -153,7 +153,7 @@ runtime.dispatch("PortOperationReference::Licence.Registry.Inspected", serial: "
 
 The event this operation announces once called. `reference_to`,
 `attribute`, and `emits` are the whole of what a driving port's
-operation may declare — no `given`, no `then_set`; it translates an
+operation may declare — no `given`, no `sets`; it translates an
 external fact into the domain's own event vocabulary and stops there
 (see wiring.md).
 

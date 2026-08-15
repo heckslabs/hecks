@@ -412,7 +412,7 @@ RUNTIME.dispatch_port(
 )
 ```
 
-Note what a port operation does NOT do: no `given`, no `then_set`, no
+Note what a port operation does NOT do: no `given`, no `sets`, no
 save. `PortOperationInterpreter` is a trimmed `CommandInterpreter` —
 the same argument gate and coercion, but it never hydrates or mutates
 the aggregate record itself. It only translates an external call into
@@ -487,7 +487,7 @@ domain's own vocabulary — not `Purchase`'s own, and nothing on
 `OnPizzaPaymentReceived`, the policy `pizzas.bluebook` declares beside
 `Purchase` (quoted at the top of this section): it reacted to the
 event this port just emitted, in this same call, and drove `Purchase`
-itself — `given` clauses, `then_set`, all of it:
+itself — `given` clauses, `sets`, all of it:
 
 ```ruby
 sold = Pizzas::Order.find(NAME)

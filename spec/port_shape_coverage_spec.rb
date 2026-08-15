@@ -92,7 +92,7 @@ RSpec.describe "the shapes a port generator needs Banking to exercise" do
     expect(ir[:aggregates].map { |a| a[:lifecycle] }.compact).not_to be_empty
   end
 
-  it "declares every then_set op — set, append, increment, decrement" do
+  it "declares every sets op — set, append, increment, decrement" do
     ops = all_commands.flat_map { |c| c[:mutations] }.map { |m| m[:op] }.uniq
     expect(ops).to include(:set, :append, :increment, :decrement)
   end

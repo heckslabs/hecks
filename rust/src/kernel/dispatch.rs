@@ -73,7 +73,7 @@ pub struct TransitionCheck {
 pub enum Hydrate<'a, T> {
     /// A creating command: mint the identity, build a fresh record if
     /// nothing already answers to it. `build` is `assign_creation_attributes`
-    /// — implicit, name-matched — not a `then_set`.
+    /// — implicit, name-matched — not a `sets`.
     Create { id: String, build: Box<dyn FnOnce() -> T + 'a> },
     /// An acting command: the identity already names a record.
     Act { id: String },

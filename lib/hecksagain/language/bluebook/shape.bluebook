@@ -92,7 +92,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, ValueObjectText, optional: true
       attribute :admits,  ValueObjectText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "ShapeFieldAttached"
     end
@@ -110,7 +110,7 @@ Hecks.bluebook "Bluebook" do
 
       given("a closed set admits a member") { rows.value > 0 }
 
-      then_set :rows, to: :rows
+      sets :rows
 
       emits "ShapeClosed"
     end
@@ -126,7 +126,7 @@ Hecks.bluebook "Bluebook" do
       given("a rule says what it means")  { !description.value.to_s.empty? }
       given("a rule survives extraction") { !canonical.value.to_s.empty? }
 
-      then_set :invariants, append: { description: :description, canonical: :canonical }
+      sets :invariants, append: { description: :description, canonical: :canonical }
 
       emits "AssertionAttached"
     end
@@ -222,7 +222,7 @@ Hecks.bluebook "Bluebook" do
 
       given("an admitted row binds a named field") { !key.value.to_s.empty? }
 
-      then_set :pairs, append: { key: :key, value: :value }
+      sets :pairs, append: { key: :key, value: :value }
 
       emits "PairBound"
     end

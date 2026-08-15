@@ -42,12 +42,12 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
         }
     }
     if !unsupported_ops.is_empty() {
-        return Some(format!("then_set op(s) {} not generated yet (only append/set/increment/decrement are)", unsupported_ops.join(", ")));
+        return Some(format!("sets op(s) {} not generated yet (only append/set/increment/decrement are)", unsupported_ops.join(", ")));
     }
 
     let append_problems = mutations::append_field_problems(command, aggregate, value_objects_by_name);
     if !append_problems.is_empty() {
-        return Some(format!("then_set append field(s): {}", append_problems.join("; ")));
+        return Some(format!("sets append field(s): {}", append_problems.join("; ")));
     }
 
     let lifecycle_field = aggregate.get("lifecycle").and_then(|l| l.get("field")).map(Json::to_s);
@@ -70,7 +70,7 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !literal_set_targets.is_empty() {
-        return Some(format!("then_set to: a literal that doesn't bridge to the target's type ({}) — not generated yet", literal_set_targets.join(", ")));
+        return Some(format!("sets to: a literal that doesn't bridge to the target's type ({}) — not generated yet", literal_set_targets.join(", ")));
     }
 
     let mismatched_sets: Vec<String> = mutations_list
@@ -96,7 +96,7 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !mismatched_sets.is_empty() {
-        return Some(format!("then_set :{} sources an argument no single-field rewrap can bridge to the target's type — not generated yet", mismatched_sets.join(", ")));
+        return Some(format!("sets :{} sources an argument no single-field rewrap can bridge to the target's type — not generated yet", mismatched_sets.join(", ")));
     }
 
     let arithmetic_targets: Vec<&Json> = mutations_list.iter().filter(|m| ["increment", "decrement"].contains(&m.get("op").map(Json::to_s).unwrap_or_default().as_str())).collect();
@@ -112,7 +112,7 @@ pub fn command_skip_reason(command: &Json, aggregate: &Json, value_objects_by_na
         .map(|m| m.get("target").map(Json::to_s).unwrap_or_default())
         .collect();
     if !unsupported_arithmetic.is_empty() {
-        return Some(format!("then_set :{} increment/decrement amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", ")));
+        return Some(format!("sets :{} increment/decrement amount or target field isn't bridgeable — not generated yet", unsupported_arithmetic.join(", ")));
     }
 
     let optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name);
@@ -163,7 +163,7 @@ pub fn optional_source_mismatches(command: &Json, aggregate: &Json, value_object
                 }
 
                 if lifecycle_field.as_deref() == Some(target.as_str()) {
-                    problems.push(format!("then_set :{target} sources optional argument {} into the lifecycle field", crate::attr::name(source_attr)));
+                    problems.push(format!("sets :{target} sources optional argument {} into the lifecycle field", crate::attr::name(source_attr)));
                     continue;
                 }
 
@@ -173,7 +173,7 @@ pub fn optional_source_mismatches(command: &Json, aggregate: &Json, value_object
                     continue;
                 }
                 if !target_attr.map(crate::attr::optional).unwrap_or(false) {
-                    problems.push(format!("then_set :{target} sources optional argument {}", crate::attr::name(source_attr)));
+                    problems.push(format!("sets :{target} sources optional argument {}", crate::attr::name(source_attr)));
                 }
             }
             "append" => {
@@ -195,7 +195,7 @@ pub fn optional_source_mismatches(command: &Json, aggregate: &Json, value_object
                     }
                     let field_attr = element_attrs.iter().find(|a| crate::attr::name(a) == field_name.as_str());
                     if !field_attr.map(crate::attr::optional).unwrap_or(false) {
-                        problems.push(format!("then_set append {target}.{field_name} sources optional argument {}", crate::attr::name(source_attr)));
+                        problems.push(format!("sets append {target}.{field_name} sources optional argument {}", crate::attr::name(source_attr)));
                     }
                 }
             }
@@ -424,7 +424,7 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
 pub fn entity_command_skip_reason(command: &Json, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
     let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
     if mutations_list.iter().any(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "append") {
-        return Some("then_set append: on an entity's own command not generated yet (nested list)".to_string());
+        return Some("sets append: on an entity's own command not generated yet (nested list)".to_string());
     }
     command_skip_reason(command, entity, value_objects_by_name)
 }

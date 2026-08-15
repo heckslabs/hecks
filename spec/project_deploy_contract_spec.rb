@@ -48,7 +48,7 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
             end
             command "Create" do
               attribute :name, ThingName
-              then_set :name, to: :name
+              sets :name
               emits "ThingCreated"
             end
           end

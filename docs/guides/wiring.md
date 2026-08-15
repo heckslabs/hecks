@@ -130,7 +130,7 @@ processor's webhook confirming a charge, not a chef ringing one up on
 the menu. Read the inventory off `PaymentGateway`'s `Receive`
 operation above, because it is the whole inventory: a `reference_to`
 saying which record the fact is about, an `attribute` or two, an
-`emits`. No `given`. No `then_set`. Those are not omissions made at
+`emits`. No `given`. No `sets`. Those are not omissions made at
 the authoring level — `DomainPortBuilder`/`PortOperationBuilder`
 simply define no such methods, so there is nothing to reach for even
 by mistake. A port operation TRANSLATES an external fact into this
@@ -151,7 +151,7 @@ events = runtime.dispatch_port("Pizzas", "Order", "PaymentGateway", "Receive",
 events.map(&:name)   # => ["PizzaPaymentReceived"]
 ```
 
-And here is the "no `then_set`" claim, not just asserted but shown:
+And here is the "no `sets`" claim, not just asserted but shown:
 `events` above holds exactly the one event `PaymentGateway`'s `Receive`
 itself declares with `emits` — not `"PizzaPurchased"`, which belongs to
 `Purchase`, never to the port that led to it. The port's own return

@@ -463,7 +463,7 @@ fn trailing_do(rest: &str) -> Option<(&str, Option<String>)> {
 /// `source`-shaped block; only a `{` at paren-depth zero is even a
 /// candidate) — AND not a hash-literal argument written WITHOUT wrapping
 /// parens either, real corpus syntax confirmed live:
-/// `then_set :toppings, append: { name: :topping, amount: :amount }`
+/// `sets :toppings, append: { name: :topping, amount: :amount }`
 /// (pizzas.bluebook) has no parens around its own arguments at all, so
 /// paren-depth alone can't rule its trailing `{...}` out — `is_hash_
 /// literal_brace` is the second check that does.

@@ -134,7 +134,7 @@ Hecks.bluebook "Bluebook" do
       # given a name at all.
       given("an identity part names something") { !path.value.to_s.empty? }
 
-      then_set :identified_by, append: { value: :path }
+      sets :identified_by, append: { value: :path }
       emits "RootIdentified"
     end
 
@@ -189,7 +189,7 @@ Hecks.bluebook "Bluebook" do
       # already raises for the other things the language cannot say about itself.
       attribute :admits,  LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "AttributeAttached"
     end
@@ -227,7 +227,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, LiteralText, optional: true
       attribute :admits,  LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "ReferenceAttached"
     end
@@ -254,7 +254,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, LiteralText, optional: true
       attribute :admits,  LiteralText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "PieceHeld"
     end
@@ -308,8 +308,8 @@ Hecks.bluebook "Bluebook" do
       attribute :state_field, FieldName
       attribute :state_start, FieldName
 
-      then_set :state_field, to: :state_field
-      then_set :state_start, to: :state_start
+      sets :state_field
+      sets :state_start
 
       emits "LifecycleNamed"
     end
@@ -323,7 +323,7 @@ Hecks.bluebook "Bluebook" do
       attribute :from_state, FieldName, optional: true
       attribute :to_state,   FieldName
 
-      then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
+      sets :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
 
       emits "TransitionAttached"
     end
@@ -376,7 +376,7 @@ Hecks.bluebook "Bluebook" do
       reference_to Aggregate
       attribute :name, FieldName
 
-      then_set :value_objects, append: { name: :name }
+      sets :value_objects, append: { name: :name }
 
       emits "ValueDeclared"
     end

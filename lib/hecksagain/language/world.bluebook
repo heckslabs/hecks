@@ -89,7 +89,7 @@ Hecks.bluebook "World" do
 
       given("a setting names its key") { !key.value.to_s.empty? }
 
-      then_set :settings, append: { key: :key, value: :value }
+      sets :settings, append: { key: :key, value: :value }
 
       emits "SettingGiven"
     end

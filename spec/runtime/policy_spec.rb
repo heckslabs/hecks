@@ -160,8 +160,8 @@ RSpec.describe "a policy" do
               goal "flag a customer's risk level"
               attribute :customer_id, CustomerId
               attribute :risk,        RiskLevel
-              then_set :customer_id, to: :customer_id
-              then_set :risk,        to: :risk
+              sets :customer_id
+              sets :risk
               emits "Flagged"
             end
 
@@ -170,7 +170,7 @@ RSpec.describe "a policy" do
               goal "acknowledge a customer was reviewed"
               reference_to Customer
               attribute :risk, RiskLevel, optional: true
-              then_set :risk, to: { value: "acknowledged" }
+              sets :risk, to: { value: "acknowledged" }
               emits "Acknowledged"
             end
           end
@@ -190,9 +190,9 @@ RSpec.describe "a policy" do
               goal "open an account"
               attribute :account_id,  AccountId
               attribute :customer_id, AccountCustomerId
-              then_set :account_id,  to: :account_id
-              then_set :customer_id, to: :customer_id
-              then_set :status,      to: { value: "open" }
+              sets :account_id
+              sets :customer_id
+              sets :status,      to: { value: "open" }
               emits "Opened"
             end
 
@@ -202,7 +202,7 @@ RSpec.describe "a policy" do
               reference_to Account
               attribute :customer_id, AccountCustomerId, optional: true
               attribute :risk,        String,            optional: true
-              then_set :status, to: { value: "reviewing" }
+              sets :status, to: { value: "reviewing" }
               emits "Reviewed"
             end
 

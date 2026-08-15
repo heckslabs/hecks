@@ -254,7 +254,7 @@ An `append` entry carries `fields` instead of `source` — and here is
 the one real gotcha in the whole export: a field whose value is a bare
 argument name serializes as that name's plain string, but a field
 whose value is a LITERAL nested value object (as `Credit`'s own
-`then_set :ledger, append: { ..., direction: { value: "credit" } }`
+`sets :ledger, append: { ..., direction: { value: "credit" } }`
 does) serializes as that literal `Hash`'s `Kernel#inspect` string, not
 as structured JSON — because `IR::Command::Mutation#appended_fields`
 calls `.inspect` on anything that isn't a bare `Symbol`, not a second
@@ -366,7 +366,7 @@ an entity list, the one thing every entity-bearing aggregate's OWN
 creating/acting commands actually do (`Account.Credit`/`Debit` append
 a `LedgerEntry`; neither ever supplies its identity or its lifecycle
 field). Two fields on the element `MutationApplier#entity_element`
-fills in that a `then_set append:` binding never names, because Ruby
+fills in that a `sets append:` binding never names, because Ruby
 never asks the caller to:
 
 ```ruby
@@ -405,7 +405,7 @@ hydrate                    # creating: derive identity, refuse AlreadyExists; ac
 enforce_givens              # every given must read true against the hydrated instance + args
 admissible_transition       # if the command names a lifecycle transition, its from: must match the current state
 assign_creation_attributes  # creating commands only — see below
-apply_mutations              # every declared then_set, in declared order
+apply_mutations              # every declared sets, in declared order
 advance_lifecycle            # if a transition was found, write the target state
 enforce_ensures               # every ensures must read true, args merged with old: the pre-mutation state
 save                          # write the instance back through the aggregate's repository
@@ -420,9 +420,9 @@ a second runtime to know them:
 steps, and only the first is implicit.** A creating command's
 attributes are copied onto the fresh instance by NAME MATCH alone —
 every command attribute whose name matches one of the aggregate's own
-attribute names is assigned, unconditionally, with no `then_set`
+attribute names is assigned, unconditionally, with no `sets`
 required to say so. `Pizzas::Order.CreatePizza` never declares a
-single `then_set`, and its exported `mutations` array is empty — the
+single `sets`, and its exported `mutations` array is empty — the
 whole record is built by this implicit step alone:
 
 ```ruby
@@ -430,13 +430,13 @@ open[:mutations].map { |m| m[:target] }
 # => [:number, :kind, :daily_limit]
 ```
 
-`Account.Open` DOES declare `then_set :number, to: :number` and its
+`Account.Open` DOES declare `sets :number` and its
 siblings, even though every name already matches — legal, and not a
 no-op collision: `assign_creation_attributes` runs first and sets
 `number` from `args[:number]`; `apply_mutations` runs after and sets
 it again, from the identical source, to the identical value. Redundant
 in this specific case, but the two steps are not the same step wearing
-two names — a `then_set` whose source is NOT a plain pass-through (an
+two names — a `sets` whose source is NOT a plain pass-through (an
 `increment:`, a literal, a differently-named argument) only ever runs
 through the second step, never the first.
 
@@ -604,7 +604,7 @@ not N generated functions each hardcoding one shape's control flow.
 READING a named field generalizes cleanly — implement one small
 lookup/field-access interface per type, the identical shape for every
 type, and a generic interpreter can read anything through it. WRITING
-into a `then_set` target does not, in a statically-typed target
+into a `sets` target does not, in a statically-typed target
 language: appending a value object to a list means CONSTRUCTING one of
 a specific, differently-shaped type per aggregate, which has no
 generic equivalent without runtime reflection. That still needs a

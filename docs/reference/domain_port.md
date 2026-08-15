@@ -30,8 +30,8 @@ Hecks.bluebook "DomainPortReference" do
     command "Book" do
       attribute :waybill, Waybill
       attribute :note,    Note
-      then_set :waybill, to: :waybill
-      then_set :note,    to: :note
+      sets :waybill
+      sets :note
       emits "ShipmentBooked"
     end
   end
@@ -96,7 +96,7 @@ runtime.dispatch("DomainPortReference::Shipment.Book", waybill: { value: "wb-rem
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens one translation from an external fact into this domain's own event vocabulary — `reference_to`, `attribute`, and `emits`, nothing else: the builder behind it defines no `given` or `then_set`, so an operation cannot read aggregate state or mutate a record itself. A `port` declares `operation`s or a `verb` (below) — never both, and never neither. Pizzas' `PaymentGateway` port and its `Receive` operation (`examples/pizzas/bluebook/pizzas.hecksagon`) are the worked example — it only emits `PizzaPaymentReceived`; the actual rules (must have a topping, must still be available) stay on `Order`'s own `Purchase` command, reached through the `OnPizzaPaymentReceived` policy beside it. See the PortOperation reference page for the vocabulary inside.
+Opens one translation from an external fact into this domain's own event vocabulary — `reference_to`, `attribute`, and `emits`, nothing else: the builder behind it defines no `given` or `sets`, so an operation cannot read aggregate state or mutate a record itself. A `port` declares `operation`s or a `verb` (below) — never both, and never neither. Pizzas' `PaymentGateway` port and its `Receive` operation (`examples/pizzas/bluebook/pizzas.hecksagon`) are the worked example — it only emits `PizzaPaymentReceived`; the actual rules (must have a topping, must still be available) stay on `Order`'s own `Purchase` command, reached through the `OnPizzaPaymentReceived` policy beside it. See the PortOperation reference page for the vocabulary inside.
 
 An operation is addressed through its port, not directly off the
 aggregate — `Aggregate.Port.Operation`:

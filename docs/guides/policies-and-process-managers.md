@@ -61,7 +61,7 @@ command "Retry" do
 
   given("a retry is still allowed") { attempts.value < max_attempts.value }
 
-  then_set :attempts, increment: { value: 1 }
+  sets :attempts, increment: { value: 1 }
 
   ensures("a retry never lowers the attempt count") { attempts.value == old.attempts.value + 1 }
 

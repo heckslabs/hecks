@@ -44,10 +44,10 @@ module RustProjection
 
     def command_skip_reason(command, aggregate, value_objects_by_name)
       unsupported_ops = command[:mutations].reject { |m| %w[append set increment decrement].include?(m[:op].to_s) }.map { |m| m[:op] }.uniq
-      return "then_set op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
+      return "sets op(s) #{unsupported_ops.join(', ')} not generated yet (only append/set/increment/decrement are)" if unsupported_ops.any?
 
       append_problems = append_field_problems(command, aggregate, value_objects_by_name)
-      return "then_set append field(s): #{append_problems.join('; ')}" if append_problems.any?
+      return "sets append field(s): #{append_problems.join('; ')}" if append_problems.any?
 
       lifecycle_field = aggregate[:lifecycle] && aggregate[:lifecycle][:field].to_s
       target_type_for = ->(target) { target.to_s == lifecycle_field ? "String" : aggregate[:attributes].find { |a| a[:name].to_s == target.to_s }&.dig(:type) }
@@ -67,7 +67,7 @@ module RustProjection
 
         !literal_set_bridgeable?(m[:source][:value], target_type_for.call(m[:target]), value_objects_by_name)
       end.map { |m| m[:target] }
-      return "then_set to: a literal that doesn't bridge to the target's type (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
+      return "sets to: a literal that doesn't bridge to the target's type (#{literal_set_targets.join(', ')}) — not generated yet" if literal_set_targets.any?
 
       # Ruby's real `apply`, for `:set`, does `Value.for(aggregate, mutation.target,
       # value)` — it coerces whatever arrived into the TARGET attribute's OWN
@@ -85,7 +85,7 @@ module RustProjection
         source_type = command[:attributes].find { |a| a[:name].to_s == m[:source][:name] }&.dig(:type)
         target_type && source_type && !bridgeable_value_types?(source_type, target_type, value_objects_by_name)
       end.map { |m| m[:target] }
-      return "then_set :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
+      return "sets :#{mismatched_sets.join(', ')} sources an argument no single-field rewrap can bridge to the target's type — not generated yet" if mismatched_sets.any?
 
       # `:increment`/`:decrement` — Ruby's real `arithmetic_value_object`
       # (command_rules/arithmetic.rb, read directly) finds the ONE field
@@ -100,7 +100,7 @@ module RustProjection
         target = arithmetic_target_field(m, aggregate, value_objects_by_name)
         target && arithmetic_amount_expr(m[:source], command, value_objects_by_name, target[1])
       end.map { |m| m[:target] }
-      return "then_set :#{unsupported_arithmetic.join(', ')} increment/decrement amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
+      return "sets :#{unsupported_arithmetic.join(', ')} increment/decrement amount or target field isn't bridgeable — not generated yet" if unsupported_arithmetic.any?
 
       optional_problems = optional_source_mismatches(command, aggregate, value_objects_by_name)
       return "optional argument feeds a non-optional target: #{optional_problems.join('; ')} — not generated yet" if optional_problems.any?
@@ -140,7 +140,7 @@ module RustProjection
       # straight off the command's own arguments to build the record's
       # `id:` at creation time — never Option-wrapped, since a record has
       # no "identity absent" state. An optional argument feeding it
-      # (`Member.Declare`'s own `position`) isn't a `then_set` mutation at
+      # (`Member.Declare`'s own `position`) isn't a `sets` mutation at
       # all, so the checks below never see it; caught here instead.
       if command[:references].nil?
         aggregate[:identified_by].each do |path|
@@ -161,7 +161,7 @@ module RustProjection
           next unless source_attr && source_attr[:optional]
 
           if m[:target].to_s == lifecycle_field
-            problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]} into the lifecycle field"
+            problems << "sets :#{m[:target]} sources optional argument #{source_attr[:name]} into the lifecycle field"
             next
           end
 
@@ -175,7 +175,7 @@ module RustProjection
           # skip over either way.
           next if target_attr && target_attr[:list]
 
-          problems << "then_set :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
+          problems << "sets :#{m[:target]} sources optional argument #{source_attr[:name]}" unless target_attr && target_attr[:optional]
         when "append"
           target_attr = aggregate[:attributes].find { |a| a[:name].to_s == m[:target].to_s }
           element = target_attr && append_element(aggregate, target_attr[:type], value_objects_by_name)
@@ -189,7 +189,7 @@ module RustProjection
             next unless source_attr && source_attr[:optional]
 
             field_attr = element[:attributes].find { |a| a[:name].to_s == field_name.to_s }
-            problems << "then_set append #{m[:target]}.#{field_name} sources optional argument #{source_attr[:name]}" unless field_attr && field_attr[:optional]
+            problems << "sets append #{m[:target]}.#{field_name} sources optional argument #{source_attr[:name]}" unless field_attr && field_attr[:optional]
           end
         end
       end
@@ -314,9 +314,9 @@ module RustProjection
       # advance_lifecycle: unconditional once a transition applies at all —
       # see kernel/dispatch.rs's TransitionCheck comment for why this lives
       # here, as one more line in the SAME closure, rather than as its own
-      # dispatch() step. Covers commands with no explicit then_set on the
+      # dispatch() step. Covers commands with no explicit sets on the
       # lifecycle field (Banking's Freeze/Unfreeze have none) — Purchase's
-      # own explicit then_set above already covers itself, redundantly.
+      # own explicit sets above already covers itself, redundantly.
       mutation_lines << "        record.#{rust_ident_field(transition[:field])} = #{transition[:to_state].inspect}.to_string();" if transition
       mutation_lines = ["        let _ = record;"] if mutation_lines.empty? # nothing to apply — silence the unused-param warning
 
@@ -405,7 +405,7 @@ module RustProjection
     # a real, separate, still-open gap flagged loudly, not silently worked
     # around by the delegation below.
     def entity_command_skip_reason(command, entity, value_objects_by_name)
-      return "then_set append: on an entity's own command not generated yet (nested list)" if command[:mutations].any? { |m| m[:op].to_s == "append" }
+      return "sets append: on an entity's own command not generated yet (nested list)" if command[:mutations].any? { |m| m[:op].to_s == "append" }
 
       command_skip_reason(command, entity, value_objects_by_name)
     end

@@ -42,7 +42,7 @@ Hecks.bluebook "Payments" do
       reference_to Payment
       attribute :amount, Money
       given("payment is still pending") { status == "pending" }
-      then_set :status, to: "received"
+      sets :status, to: "received"
       emits "PaymentConfirmed"
     end
 
@@ -52,8 +52,8 @@ Hecks.bluebook "Payments" do
       reference_to Payment
       attribute :reason, DeclineReason
       given("payment is still pending") { status == "pending" }
-      then_set :status, to: "declined"
-      then_set :decline_reason, to: :reason
+      sets :status, to: "declined"
+      sets :decline_reason, to: :reason
       emits "PaymentRejected"
     end
   end

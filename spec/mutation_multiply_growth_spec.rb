@@ -57,7 +57,7 @@ RSpec.describe "mutation op multiply" do
           reference_to Organ
           attribute :factor, Strength
 
-          then_set :strength, multiply: :factor
+          sets :strength, multiply: :factor
           emits "OrganDecayed"
         end
       end

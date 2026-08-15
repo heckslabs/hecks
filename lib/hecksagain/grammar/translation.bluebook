@@ -87,7 +87,7 @@ Hecks.bluebook "Translation" do
 
       given("a retired rule takes no new executions") { status != "retired" }
 
-      then_set :executions, append: { target: :target, form: :form }
+      sets :executions, append: { target: :target, form: :form }
 
       emits "RuleExecuted"
     end
@@ -185,7 +185,7 @@ Hecks.bluebook "Translation" do
 
       given("a sealed edge takes no further declarations") { status == "drafted" }
 
-      then_set :declarations, append: { kind: :kind, source: :source, destination: :destination }
+      sets :declarations, append: { kind: :kind, source: :source, destination: :destination }
 
       emits "RuleDeclared"
     end

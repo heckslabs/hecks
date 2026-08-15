@@ -109,7 +109,7 @@ Hecks.bluebook "Bluebook" do
       # bare scalar) before a part ever reaches here.
       given("an identity part names something") { !path.value.to_s.empty? }
 
-      then_set :identified_by, append: { value: :path }
+      sets :identified_by, append: { value: :path }
       emits "PieceIdentified"
     end
 
@@ -139,7 +139,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, EntityText, optional: true
       attribute :admits,  EntityText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "PieceAttributeAttached"
     end
@@ -153,8 +153,8 @@ Hecks.bluebook "Bluebook" do
       attribute :state_field, EntityText
       attribute :state_start, EntityText
 
-      then_set :state_field, to: :state_field
-      then_set :state_start, to: :state_start
+      sets :state_field
+      sets :state_start
 
       emits "PieceLifecycleNamed"
     end
@@ -168,7 +168,7 @@ Hecks.bluebook "Bluebook" do
       attribute :from_state, EntityText, optional: true
       attribute :to_state,   EntityText
 
-      then_set :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
+      sets :transitions, append: { command: :command, from_state: :from_state, to_state: :to_state }
 
       emits "PieceTransitionAttached"
     end

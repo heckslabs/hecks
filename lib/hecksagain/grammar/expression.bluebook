@@ -144,7 +144,7 @@ Hecks.bluebook "Expression" do
 
       given("a retired operator takes no new renderings") { status != "retired" }
 
-      then_set :renderings, append: { target: :target, form: :form }
+      sets :renderings, append: { target: :target, form: :form }
 
       emits "OperatorRendered"
     end
@@ -275,7 +275,7 @@ Hecks.bluebook "Expression" do
 
       given("a retired rule takes no new readings") { status != "retired" }
 
-      then_set :readings, append: { target: :target, form: :form }
+      sets :readings, append: { target: :target, form: :form }
 
       emits "NormalisationRead"
     end
@@ -388,7 +388,7 @@ Hecks.bluebook "Expression" do
       attribute :name, ReferenceName
       attribute :kind, Kind
 
-      then_set :references, append: { name: :name, kind: :kind }
+      sets :references, append: { name: :name, kind: :kind }
 
       emits "ReferenceNoted"
     end

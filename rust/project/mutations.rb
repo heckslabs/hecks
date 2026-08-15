@@ -6,12 +6,12 @@ module RustProjection
     # under one precise condition (0019's/0014's own investigation, read
     # directly against `mutation_applier.rb`/`value/coercion.rb`, not
     # guessed): some CREATING command declares an explicit `:set`-op
-    # mutation (`then_set attr, to: source`) targeting it, sourced from a
+    # mutation (`sets attr, to: source`) targeting it, sourced from a
     # command argument the CALLER omitted. Every declared mutation runs
     # UNCONDITIONALLY during `apply_mutations` — `resolve_source`/`Value.
     # for_attribute` pass a missing argument through as a real `nil`,
     # overwriting `Instance.defaults`' own `[]` baseline every list
-    # attribute otherwise starts with. `CardPayment.tags` (`then_set
+    # attribute otherwise starts with. `CardPayment.tags` (`sets
     # :tags, to: :tags`, sourced from its own `optional: true` argument)
     # is the corpus's one live example; `Account.ledger` (touched only by
     # `Credit`/`Debit`'s own `append`, never a creating command's `:set`)
@@ -178,14 +178,14 @@ module RustProjection
       value_rhs("args.#{rust_ident_field(source[:name])}", source_attr[:type], target_type, value_objects_by_name)
     end
 
-    # `:append` and `:set` — the two `then_set` ops this slice generates.
+    # `:append` and `:set` — the two `sets` ops this slice generates.
     # `:set` has one real special case: the LIFECYCLE field is not one of
     # the aggregate's own `attributes` (see "Lifecycles" above), so it
     # can't be looked up there and isn't `Option`-wrapped on the record the
-    # way every other field is — `Purchase`'s own `then_set :status, to:
+    # way every other field is — `Purchase`'s own `sets :status, to:
     # "sold"` is a real, redundant instance of this (redundant with the
     # transition's own advance, harmless, same pattern as `Account.Open`'s
-    # redundant `then_set` on an already-implicit creation attribute).
+    # redundant `sets` on an already-implicit creation attribute).
     # THE IDENTITY IS THE JOIN OF ITS PARTS (Naming::IDENTITY_JOIN is ":",
     # read directly) — one component per `identified_by` entry, each
     # resolved the same way `Runtime::Identity.from` resolves it: a dotted
@@ -304,7 +304,7 @@ module RustProjection
     # `language/bluebook/behavior.bluebook`'s own `Query.Option` says so
     # directly ("AN OPTION MAY HAVE NO VALUE... a rule about the
     # LANGUAGE, not about the one spec that noticed"). So one optional-
-    # sourced `then_set append` is reason enough to make the field's own
+    # sourced `sets append` is reason enough to make the field's own
     # Rust type `Option<T>` for EVERY command that reaches it.
     #
     # Mutated onto the SAME attribute hash every other emitter here
@@ -412,7 +412,7 @@ module RustProjection
           source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
 
           if target_attr[:list] && optional && list_attr_creation_optional?(aggregate, target_attr[:name])
-            # `CardPayment.Authorize`'s own redundant `then_set :tags, to:
+            # `CardPayment.Authorize`'s own redundant `sets :tags, to:
             # :tags` (the same "re-set an already-implicit creation
             # attribute" pattern `Purchase`'s own status set already is) —
             # `list_attr_creation_optional?` (this file's own header) is
@@ -434,7 +434,7 @@ module RustProjection
           else
             # `target_attr[:optional]` — a PER-FIELD `Option<T>` target
             # (0014/0015's struct-field change: `SafeDepositBox::Visit.note`,
-            # written by `Visit.Annotate`'s `then_set :note, to: :note`) —
+            # written by `Visit.Annotate`'s `sets :note, to: :note`) —
             # not just `optional:`'s own whole-RECORD blanket wrap.
             #
             # `source_attr && source_attr[:optional]` — the SAME check

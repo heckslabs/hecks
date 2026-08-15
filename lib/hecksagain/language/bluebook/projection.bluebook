@@ -132,7 +132,7 @@ Hecks.bluebook "Bluebook" do
       # reference" from "declared rootless on purpose" — both look
       # identical (`reference_target` empty) by the time Gather is judged.
 
-      then_set :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
+      sets :aggregate_heads, append: { aggregate: :aggregate, as: :as, many: :many }
 
       emits "HeadGathered"
     end
@@ -146,7 +146,7 @@ Hecks.bluebook "Bluebook" do
 
       given("a group_by field is named") { !field.value.to_s.empty? }
 
-      then_set :group_by, append: { field: :field }
+      sets :group_by, append: { field: :field }
 
       emits "GroupByFieldAdded"
     end
@@ -154,7 +154,7 @@ Hecks.bluebook "Bluebook" do
     # `count`/`median` are LATE-SET scalars, the same shape `Lifecycle`'s
     # own `state_field`/`state_start` already are on `Aggregate`
     # (aggregate.bluebook) — a command carrying its own value and a bare
-    # `then_set field, to: field` copying it onto the record, rather
+    # `sets field, to: field` copying it onto the record, rather
     # than an `append:` (they are not lists, and there is only ever one
     # of each). `count`/`median_field` are declared here, not folded
     # into `Declare`, for the same reason `GroupBy` is its own command
@@ -166,7 +166,7 @@ Hecks.bluebook "Bluebook" do
       reference_to ReadModel
       attribute :count, ReadModelText
 
-      then_set :count, to: :count
+      sets :count
 
       emits "CountDeclared"
     end
@@ -180,7 +180,7 @@ Hecks.bluebook "Bluebook" do
 
       given("a median field is named") { !median_field.value.to_s.empty? }
 
-      then_set :median_field, to: :median_field
+      sets :median_field
 
       emits "MedianFieldSet"
     end
@@ -198,7 +198,7 @@ Hecks.bluebook "Bluebook" do
 
       given("an option is named") { !option.value.to_s.empty? }
 
-      then_set :options, append: { option: :option, key: :key, value: :value, at: :at }
+      sets :options, append: { option: :option, key: :key, value: :value, at: :at }
 
       emits "OptionAttached"
     end

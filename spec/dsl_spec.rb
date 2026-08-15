@@ -37,7 +37,7 @@ RSpec.describe "the DSL surface" do
       value_object("Size") { attribute :value, Integer }
       value_object("Tag") { attribute :value, String }
 
-      # The fields the then_set cases below mutate. A mutation must name a field
+      # The fields the sets cases below mutate. A mutation must name a field
       # the aggregate declares (AggregateBuilder#seal_mutation_targets), so the
       # fixture declares them instead of mutating into a void — which is what it
       # used to do, silently, while asserting the mutation had been recorded.
@@ -390,23 +390,31 @@ RSpec.describe "the DSL surface" do
                                               canonical: "old.balance.cents <= balance.cents" }])
     end
 
-    it "refuses a mutation that names no operation" do
-      expect { build_command("Inert") { then_set :status } }
-        .to raise_error(Malformed, /names no operation/)
+    it "sets alone, with no operation named at all, means to: the same field — the omittable case" do
+      # `to:` is omittable when it would only repeat the target (ADR 0025) —
+      # `sets :status` alone means exactly `sets :status, to: :status`.
+      mutation = build_command("Bare") { sets :status }.mutations.first
+
+      expect([mutation.target, mutation.op]).to eq([:status, :set])
+      expect(mutation.to_h[:source]).to eq(kind: "argument", name: "status")
     end
 
-    it "builds the same mutation under sets and then_set — a rename, not a fork" do
-      # `sets` is the word; `then_set` is the era every existing bluebook was
-      # written under (Syntax::Keyword carries the rename as `was:`). The two
-      # spellings must build byte-identical IR, or the rename column is a lie.
-      renamed = build_command("Spelled") { sets :balance, increment: :amount }
-      original = build_command("Spelled2") { then_set :balance, increment: :amount }
+    it "refuses the redundant explicit spelling — sets :field, to: :field says nothing sets :field doesn't" do
+      expect { build_command("Redundant") { sets :status, to: :status } }
+        .to raise_error(Malformed, /repeats the target/)
+    end
 
-      expect(renamed.mutations.map(&:to_h)).to eq(original.mutations.map(&:to_h))
+    it "then_set is gone — sets is the word now (ADR 0025 reverts the rename)" do
+      # `sets` is the word; `then_set` was the era every existing bluebook was
+      # written under (Syntax::Keyword still carries it as `was:`) — reachable
+      # only for frozen era text under EraGuard.shadow_parse now, the same
+      # bridge S2's has_* removal used.
+      expect { build_command("Spelled2") { then_set :balance, increment: :amount } }
+        .to raise_error(Malformed, "Do's then_set is gone — sets is the word now")
     end
 
     it "refuses a mutation that names two operations" do
-      expect { build_command("Torn") { then_set :balance, to: 5, increment: :amount } }
+      expect { build_command("Torn") { sets :balance, to: 5, increment: :amount } }
         .to raise_error(Malformed, /one mutation, one meaning/)
     end
 
@@ -1455,7 +1463,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    # THE QUERY SEAL — the same gate then_set gets, closing the same silence.
+    # THE QUERY SEAL — the same gate sets gets, closing the same silence.
     # Every case here used to build cleanly and answer wrongly forever: a
     # where over an undeclared field matches nothing on every adapter, an
     # ordered comparator over text is answered differently per adapter (the
@@ -2016,78 +2024,65 @@ RSpec.describe "the DSL surface" do
       expect(given.canonical).to eq('status == "open"')
     end
 
-    it "then_set to: a symbol reads a command argument" do
-      mutation = build_command("CmdSetArg") { then_set :status, to: :status }.mutations.first
+    it "sets to: a symbol reads a command argument — a genuine remap, a different field" do
+      mutation = build_command("CmdSetArg") { sets :status, to: :new_status }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:status, :set])
-      expect(mutation.to_h[:source]).to eq(kind: "argument", name: "status")
+      expect(mutation.to_h[:source]).to eq(kind: "argument", name: "new_status")
     end
 
-    it "then_set to: anything else is a literal" do
-      mutation = build_command("CmdSetLit") { then_set :status, to: "sold" }.mutations.first
+    it "sets to: anything else is a literal" do
+      mutation = build_command("CmdSetLit") { sets :status, to: "sold" }.mutations.first
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: "sold")
     end
 
     # Real coverage for item 12e's plumbing (migration plan task 4/7/8):
-    # then_set's UNSET-sentinel rewrite -- to: false no longer reads as
-    # absent, from: is a to:-equivalent alias, and a bare positional second
-    # argument is boolean shorthand for to:. remove:/multiply:/clamp: are
-    # covered by their own items' dispatch-level specs (13/15/16); this file
-    # only proves the DSL surface itself parses and records the right op.
-    it "then_set to: false is a real mutation, not an absent to:" do
-      mutation = build_command("CmdSetToFalse") { then_set :status, to: false }.mutations.first
+    # sets's UNSET-sentinel rewrite -- to: false no longer reads as
+    # absent, and a bare positional second argument is boolean shorthand
+    # for to:. remove:/multiply:/clamp: are covered by their own items'
+    # dispatch-level specs (13/15/16); this file only proves the DSL
+    # surface itself parses and records the right op.
+    it "sets to: false is a real mutation, not an absent to:" do
+      mutation = build_command("CmdSetToFalse") { sets :status, to: false }.mutations.first
 
       expect(mutation.op).to eq(:set)
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: false)
     end
 
-    it "then_set from: is a to:-equivalent alias" do
-      mutation = build_command("CmdSetFrom") { then_set :status, from: :status }.mutations.first
-
-      expect(mutation.op).to eq(:set)
-      expect(mutation.to_h[:source]).to eq(kind: "argument", name: "status")
-    end
-
-    it "then_set :field, true reads as to: true — a bare positional boolean shorthand" do
-      mutation = build_command("CmdSetPositional") { then_set :status, true }.mutations.first
+    it "sets :field, true reads as to: true — a bare positional boolean shorthand" do
+      mutation = build_command("CmdSetPositional") { sets :status, true }.mutations.first
 
       expect(mutation.op).to eq(:set)
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: true)
     end
 
-    it "then_set :field, true defers to an explicit to: when both are given" do
-      mutation = build_command("CmdSetPositionalLoses") { then_set :status, true, to: "explicit" }.mutations.first
+    it "sets :field, true defers to an explicit to: when both are given" do
+      mutation = build_command("CmdSetPositionalLoses") { sets :status, true, to: "explicit" }.mutations.first
 
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: "explicit")
     end
 
-    it "then_set still refuses two operations at once with the new keyword list named" do
-      expect { build_command("CmdSetTornNew") { then_set :status, to: "a", remove: :b } }
+    it "sets still refuses two operations at once with the new keyword list named" do
+      expect { build_command("CmdSetTornNew") { sets :status, to: "a", remove: :b } }
         .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /tries to set and remove/)
     end
 
-    it "then_set still refuses no operation, naming every keyword including the new ones" do
-      expect { build_command("CmdSetNoneNew") { then_set :status } }
-        .to raise_error(Hecksagain::Bluebook::DSL::Malformed,
-                         /give it to:, append:, increment:, decrement:, multiply:, clamp:, or remove:/)
-    end
-
-    it "then_set append: pushes a built value object onto a list" do
-      mutation = build_command("CmdAppend") { then_set :parts, append: { size: :size } }.mutations.first
+    it "sets append: pushes a built value object onto a list" do
+      mutation = build_command("CmdAppend") { sets :parts, append: { size: :size } }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:parts, :append])
       expect(mutation.to_h[:fields]).to eq(size: ":size")
     end
 
-    it "then_set increment: reads a command argument to add" do
-      mutation = build_command("CmdInc") { then_set :balance, increment: :amount }.mutations.first
+    it "sets increment: reads a command argument to add" do
+      mutation = build_command("CmdInc") { sets :balance, increment: :amount }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:balance, :increment])
       expect(mutation.to_h[:source]).to eq(kind: "argument", name: "amount")
     end
 
-    it "then_set decrement: takes a literal amount away" do
-      mutation = build_command("CmdDec") { then_set :lives, decrement: 1 }.mutations.first
+    it "sets decrement: takes a literal amount away" do
+      mutation = build_command("CmdDec") { sets :lives, decrement: 1 }.mutations.first
 
       expect([mutation.target, mutation.op]).to eq([:lives, :decrement])
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: 1)

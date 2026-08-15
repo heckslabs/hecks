@@ -120,7 +120,7 @@ Hecks.bluebook "Pizzas" do
       given("a sold pizza cannot be changed") { status == "available" }
       given("at most 10 toppings")            { toppings.size < 10 }
 
-      then_set :toppings, append: { name: :topping, amount: :amount }
+      sets :toppings, append: { name: :topping, amount: :amount }
 
       emits "ToppingAdded"
     end
@@ -137,8 +137,8 @@ Hecks.bluebook "Pizzas" do
       given("it must still be available")         { status == "available" }
       given("a payment was actually made")         { amount.cents.positive? }
 
-      then_set :customer_name, to: :customer_name
-      then_set :status,        to: "sold"
+      sets :customer_name
+      sets :status,        to: "sold"
 
       emits "PizzaPurchased"
     end

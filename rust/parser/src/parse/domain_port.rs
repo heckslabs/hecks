@@ -3,7 +3,7 @@
 //! way `spec/syntax_conformance_spec.rb`'s own `BUILDER` table pairs
 //! `PortOperationBuilder` with `DomainPortBuilder`. The PRIMARY/DRIVING
 //! half of hexagonal architecture: an operation carries no `given`/
-//! `ensures`/`then_set` (a port is the anti-corruption boundary, not a
+//! `ensures`/`sets` (a port is the anti-corruption boundary, not a
 //! second place business rules live), but it does need `identity_attribute`
 //! resolution — a reference attribute targeting the owning aggregate,
 //! required so a dispatched operation always names a record.

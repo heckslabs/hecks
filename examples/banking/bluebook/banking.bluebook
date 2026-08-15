@@ -135,9 +135,9 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :name,      PersonName
       attribute :email,     EmailAddress
 
-      then_set :reference, to: :reference
-      then_set :name,      to: :name
-      then_set :email,     to: :email
+      sets :reference
+      sets :name
+      sets :email
 
       emits "CustomerRegistered"
     end
@@ -150,7 +150,7 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :standing, CustomerStanding
       given("customer is active") { status == "active" }
 
-      then_set :standing, to: :standing
+      sets :standing
 
       emits "CustomerSuspended"
     end
@@ -161,7 +161,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
       reference_to Customer
       given("customer is suspended") { status == "suspended" }
-      then_set :standing, to: { value: "good" }
+      sets :standing, to: { value: "good" }
 
       emits "CustomerReinstated"
     end
@@ -295,8 +295,8 @@ Hecks.bluebook "Banking", version: "v1" do
 
         given("an amendment leaves a non-negative amount") { amount.cents + adjustment.cents >= 0 }
 
-        then_set :amount,    increment: :adjustment
-        then_set :narrative, to: :narrative
+        sets :amount,    increment: :adjustment
+        sets :narrative
 
         emits "LedgerEntryAmended"
       end
@@ -309,7 +309,7 @@ Hecks.bluebook "Banking", version: "v1" do
         given("customer is active") { parent.customer.status == "active" }
         given("account is open") { parent.status == "open" }
         given("entry is posted") { state == "posted" }
-        then_set :narrative, to: :narrative
+        sets :narrative
 
         emits "LedgerEntryReversed"
       end
@@ -336,9 +336,9 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :daily_limit, DailyLimit
       given("customer is active") { customer.status == "active" }
 
-      then_set :number,      to: :number
-      then_set :kind,        to: :kind
-      then_set :daily_limit, to: :daily_limit
+      sets :number
+      sets :kind
+      sets :daily_limit
 
       emits "AccountOpened"
     end
@@ -353,8 +353,8 @@ Hecks.bluebook "Banking", version: "v1" do
 
       given("customer is active") { customer.status == "active" }
       given("the account is open")      { status == "open" }
-      then_set :balance, increment: :amount
-      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
+      sets :balance, increment: :amount
+      sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
       emits "AccountCredited"
     end
@@ -372,8 +372,8 @@ Hecks.bluebook "Banking", version: "v1" do
       given("the balance covers it")     { balance.cents >= amount.cents }
       given("the daily limit allows it") { daily_limit.cents >= amount.cents }
 
-      then_set :balance, decrement: :amount
-      then_set :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
+      sets :balance, decrement: :amount
+      sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
       ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
       ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
@@ -440,8 +440,8 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { customer.status == "active" }
       given("account is open") { status == "open" }
       given("the balance covers a fee") { balance.cents >= amount.cents }
-      then_set :balance, decrement: :amount
-      then_set :fees_cents, increment: :amount
+      sets :balance, decrement: :amount
+      sets :fees_cents, increment: :amount
       emits "FeeApplied"
     end
 
@@ -451,8 +451,8 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { customer.status == "active" }
       given("account is open") { status == "open" }
       given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
-      then_set :balance, increment: :amount
-      then_set :fees_cents, decrement: :amount
+      sets :balance, increment: :amount
+      sets :fees_cents, decrement: :amount
       emits "FeeCorrected"
     end
 
@@ -461,8 +461,8 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :amount, PositiveMoney
       given("customer is active") { customer.status == "active" }
       given("account is open") { status == "open" }
-      then_set :balance, increment: :amount
-      then_set :interest_cents, increment: :amount
+      sets :balance, increment: :amount
+      sets :interest_cents, increment: :amount
       emits "InterestAccrued"
     end
 
@@ -473,8 +473,8 @@ Hecks.bluebook "Banking", version: "v1" do
       given("account is open") { status == "open" }
       given("a correction cannot exceed accrued interest") { interest_cents.cents >= amount.cents }
       given("the balance covers an interest correction") { balance.cents >= amount.cents }
-      then_set :balance, decrement: :amount
-      then_set :interest_cents, decrement: :amount
+      sets :balance, decrement: :amount
+      sets :interest_cents, decrement: :amount
       emits "InterestCorrected"
     end
 
@@ -636,7 +636,7 @@ Hecks.bluebook "Banking", version: "v1" do
         given("account is open") { parent.account.status == "open" }
         given("card is not retired") { status != "retired" }
         given("withdrawal is taken") { state == "taken" }
-        then_set :narrative, to: :narrative
+        sets :narrative
 
         emits "WithdrawalDisputed"
       end
@@ -663,8 +663,8 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
 
-      then_set :serial,    to: :serial
-      then_set :daily_fee, to: :daily_fee
+      sets :serial
+      sets :daily_fee
 
       emits "ATMCardIssued"
     end
@@ -677,7 +677,7 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :nickname, CardNickname
       given("customer is active") { account.customer.status == "active" }
       given("card is issued or active") { ["issued", "active"].include?(status) }
-      then_set :nickname, to: :nickname
+      sets :nickname
 
       emits "ATMCardRenamed"
     end
@@ -692,7 +692,7 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
 
-      then_set :withdrawals, append: { cents: :cents, narrative: :narrative }
+      sets :withdrawals, append: { cents: :cents, narrative: :narrative }
 
       emits "CashWithdrawn"
     end
@@ -796,10 +796,10 @@ Hecks.bluebook "Banking", version: "v1" do
       given("a transfer goes somewhere")    { !destination.empty? }
       given("a transfer moves BETWEEN accounts") { source != destination }
 
-      then_set :amount,      to: :amount
-      then_set :narrative,   to: :narrative
-      then_set :source,      to: :source
-      then_set :destination, to: :destination
+      sets :amount
+      sets :narrative
+      sets :source
+      sets :destination
 
       emits "TransferRequested"
     end
@@ -920,9 +920,9 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :tags, list_of(Tag), optional: true
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
-      then_set :amount, to: :amount
-      then_set :merchant, to: :merchant
-      then_set :tags, to: :tags
+      sets :amount
+      sets :merchant
+      sets :tags
       emits "CardAuthorized"
     end
 
@@ -981,7 +981,7 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { disputed_by.status == "active" }
       given("payment is captured or refunded") { ["captured", "refunded"].include?(status) }
 
-      then_set :disputed_by, to: :disputed_by
+      sets :disputed_by
 
       emits "CardDisputed"
     end
@@ -1070,9 +1070,9 @@ Hecks.bluebook "Banking", version: "v1" do
       # aggregate holds, this is where a caller hands one in, and a set that is
       # only named where it is stored is not refusing anybody.
       attribute :direction, MovementDirection, admits: "Account::LedgerDirection"
-      then_set :amount, to: :amount
-      then_set :beneficiary, to: :beneficiary
-      then_set :direction, to: :direction
+      sets :amount
+      sets :beneficiary
+      sets :direction
       emits "ExternalTransferRequested"
     end
 
@@ -1164,9 +1164,9 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :due_on, PaymentDueDate
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
-      then_set :amount, to: :amount
-      then_set :recipient, to: :recipient
-      then_set :due_on, to: :due_on
+      sets :amount
+      sets :recipient
+      sets :due_on
       emits "PaymentScheduled"
     end
 
@@ -1223,7 +1223,7 @@ Hecks.bluebook "Banking", version: "v1" do
 
       given("a retry is still allowed") { attempts.value < max_attempts.value }
 
-      then_set :attempts, increment: { value: 1 }
+      sets :attempts, increment: { value: 1 }
 
       ensures("a retry never lowers the attempt count") { attempts.value == old.attempts.value + 1 }
 
@@ -1338,7 +1338,7 @@ Hecks.bluebook "Banking", version: "v1" do
         given("box is rented") { parent.status == "rented" }
         given("visit is logged") { state == "logged" }
 
-        then_set :note, to: :note
+        sets :note
 
         emits "VisitAnnotated"
       end
@@ -1394,7 +1394,7 @@ Hecks.bluebook "Banking", version: "v1" do
       given("box is vacant") { status == "vacant" }
       given("customer is active") { customer.status == "active" }
 
-      then_set :size, to: :size
+      sets :size
 
       emits "BoxRented"
     end
@@ -1427,7 +1427,7 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { customer.status == "active" }
       given("only a rented box is opened") { status == "rented" }
 
-      then_set :visits, append: { date: :date, sequence: :sequence, note: :note }
+      sets :visits, append: { date: :date, sequence: :sequence, note: :note }
 
       emits "BoxOpened"
     end
@@ -1441,7 +1441,7 @@ Hecks.bluebook "Banking", version: "v1" do
       given("customer is active") { customer.status == "active" }
       given("box is rented") { status == "rented" }
 
-      then_set :keys, append: { serial: :serial }
+      sets :keys, append: { serial: :serial }
 
       emits "KeyIssued"
     end
@@ -1494,8 +1494,8 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :account_number, AccountNumber
       given("customer is active") { customer.status == "active" }
 
-      then_set :reference,      to: :reference
-      then_set :account_number, to: :account_number
+      sets :reference
+      sets :account_number
 
       emits "OnboardingOpened"
     end

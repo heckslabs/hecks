@@ -126,7 +126,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
               end
               command "Create" do
                 attribute :name, ThingName
-                then_set :name, to: :name
+                sets :name
                 emits "ThingCreated"
               end
             end

@@ -15,7 +15,7 @@ Hecks.bluebook "HopChain" do
 
     command "Register" do
       attribute :name, "Name"
-      then_set :name, to: :name
+      sets :name
       emits "Registered"
     end
 
@@ -38,7 +38,7 @@ Hecks.bluebook "HopChain" do
     command "Start" do
       reference_to Client
       attribute :reference, "Reference"
-      then_set :reference, to: :reference
+      sets :reference
       emits "Started"
     end
 
@@ -71,7 +71,7 @@ Hecks.bluebook "HopChain" do
     command "Draft" do
       reference_to Engagement, optional: true
       attribute :number, "Number"
-      then_set :number, to: :number
+      sets :number
       emits "Drafted"
     end
 
@@ -120,7 +120,7 @@ Hecks.bluebook "HopChain" do
     command "Plant" do
       reference_to Node, as: :parent, optional: true
       attribute :label, "Label"
-      then_set :label, to: :label
+      sets :label
       emits "Planted"
     end
 

@@ -2,7 +2,7 @@
 
 A `.bluebook` file declares a business domain — aggregates, value objects,
 commands, invariants — and the runtime boots it. Nothing in a domain is
-scripted: `given` guards, `then_set` mutates, `emits` announces, and no
+scripted: `given` guards, `sets` mutates, `emits` announces, and no
 handler body exists anywhere. That is the load-bearing choice everything else
 follows from: a domain that is entirely **data** can be diffed, stored,
 translated across versions, and projected into another language.
@@ -132,7 +132,7 @@ aggregate "Order" do
     given("a sold pizza cannot be changed") { status == "available" }
     given("at most 10 toppings")            { toppings.size < 10 }
 
-    then_set :toppings, append: { name: :topping, amount: :amount }
+    sets :toppings, append: { name: :topping, amount: :amount }
 
     emits "ToppingAdded"
   end
@@ -145,7 +145,7 @@ declared alongside it and read in full there.)
 
 A creating command is a module method; a mutating command is a method on the
 record it references, and never mutates without being asked to justify
-itself first — `given` refuses before `then_set` ever runs, and `PizzaName`'s
+itself first — `given` refuses before `sets` ever runs, and `PizzaName`'s
 `pattern:` refuses before either does — ahead of `PizzaName`'s own
 "a pizza is named" invariant, on the same booted domain from above:
 
@@ -153,8 +153,8 @@ itself first — `given` refuses before `then_set` ever runs, and `PizzaName`'s
 Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
-Pizzas' own mutations either replace a field (`then_set :status, to: "sold"`,
-on `Purchase`) or append to a list (`then_set :toppings, append: ...`,
+Pizzas' own mutations either replace a field (`sets :status, to: "sold"`,
+on `Purchase`) or append to a list (`sets :toppings, append: ...`,
 above) — this corpus never needed to increment a running total, so it never
 declared one. The banking corpus did: an account's balance is a number
 `Credit` raises rather than replaces. It is real too, so here it is, declared
@@ -201,7 +201,7 @@ Hecks.bluebook "Banking" do
 
       attribute :number, AccountNumber
 
-      then_set :number, to: :number
+      sets :number
 
       emits "AccountOpened"
     end
@@ -215,7 +215,7 @@ Hecks.bluebook "Banking" do
 
       given("the account is open") { status == "open" }
 
-      then_set :balance, increment: :amount
+      sets :balance, increment: :amount
 
       emits "AccountCredited"
     end
@@ -342,7 +342,7 @@ bluebook surface carries a lifecycle in `syntax.bluebook` — proposed,
 admitted, deprecated, retired — and a proposed or retired word reaches no
 projected parser table: to a projected reader it does not exist. A renamed
 word keeps its old spelling in `was:`, and the old spelling parses forever
-(`sets` is the word; `then_set` is the era the whole
+(`sets` is the word; `sets` is the era the whole
 corpus was written under, and the corpus still boots). The chapter declares
 its own version, and `bin/evolve` walks a change through the stations —
 snapshot, rewrite, regenerate, gate, restore-on-red.

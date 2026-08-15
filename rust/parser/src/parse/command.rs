@@ -103,9 +103,14 @@ fn apply_reference_to(
     Ok(())
 }
 
-/// `CommandBuilder#then_set`/`sets` — exactly one of `to:`/`append:`/
-/// `increment:`/`decrement:` names the operation (`Argument#selects`:
-/// `op=set`/`op=append`/`op=increment`/`op=decrement`).
+/// `CommandBuilder#sets` — `to:`/`append:`/`increment:`/`decrement:`
+/// names the operation (`Argument#selects`:
+/// `op=set`/`op=append`/`op=increment`/`op=decrement`), and `to:` is now
+/// OMITTABLE: `sets :status` alone means "set :status from the argument
+/// of the same name" — `CommandBuilder#sets`'s own omittable case
+/// (`named = { set: target } if named.empty?`). `to:` naming the SAME
+/// symbol as the target is refused as redundant — `sets :x` alone
+/// already says that.
 fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<ir::Mutation> {
     let target = super::positional_symbol(file, line, "sets", args, 1)?;
 
@@ -114,11 +119,14 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
         .filter_map(|(key, op)| super::named_raw(args, key).map(|raw| (op, raw)))
         .collect();
 
-    if named.is_empty() {
-        return Err(Diagnostic::new(file, line, format!("'sets :{target}' names no operation — give it to:, append:, increment:, or decrement:")));
-    }
     if named.len() > 1 {
         return Err(Diagnostic::new(file, line, format!("'sets :{target}' tries more than one operation at once — one mutation, one meaning")));
+    }
+
+    // THE OMITTABLE CASE — no named op at all: `sets :target` alone
+    // means "set :target from the argument of the same name".
+    if named.is_empty() {
+        return Ok(ir::Mutation::Other { target: target.clone(), op: "set".to_string(), source: Some(ir::MutationSource::Argument(target)) });
     }
 
     let (op, raw) = named[0];
@@ -128,6 +136,22 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
     }
 
     let value = ruby_value::read(raw.trim());
+    // `to:` REPEATING THE TARGET, ONLY WHEN IT'S A SYMBOL NAMING A
+    // FIELD — a literal (`to: false`, ...) is a VALUE, never a
+    // redundant name (`CommandBuilder#sets`'s own `to.is_a?(Symbol)`
+    // guard — a bare `false`/`0`/... must never be mistaken for the
+    // target's own name).
+    if op == "set" {
+        if let ruby_value::Value::Symbol(ref name) = value {
+            if *name == target {
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    format!("'sets :{target}, to: :{target}' repeats the target — sets :{target} alone already means the same"),
+                ));
+            }
+        }
+    }
     let source = match value {
         ruby_value::Value::Symbol(name) => ir::MutationSource::Argument(name),
         other => ir::MutationSource::Literal(other),

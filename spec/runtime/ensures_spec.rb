@@ -57,7 +57,7 @@ RSpec.describe "a command's ensures" do
           reference_to Box
           attribute :amount, Money
 
-          then_set :balance, increment: :amount
+          sets :balance, increment: :amount
 
           ensures("the balance grew by exactly the deposit") do
             balance.cents == old.balance.cents + amount.cents
@@ -73,7 +73,7 @@ RSpec.describe "a command's ensures" do
           reference_to Box
           attribute :amount, Money
 
-          then_set :balance, increment: :amount
+          sets :balance, increment: :amount
 
           ensures("the balance grew by exactly double the deposit") do
             balance.cents == old.balance.cents + amount.cents + amount.cents
@@ -180,8 +180,8 @@ RSpec.describe "a command's ensures" do
             attribute :label,  Label
             attribute :cents,  Money
 
-            then_set :coins, append: { serial: :serial, label: :label, cents: :cents }
-            then_set :total, increment: :cents
+            sets :coins, append: { serial: :serial, label: :label, cents: :cents }
+            sets :total, increment: :cents
 
             emits "CoinAdded"
           end
@@ -191,7 +191,7 @@ RSpec.describe "a command's ensures" do
             goal "Claim a total the mutation does not actually reach — refuses on purpose"
             reference_to Purse
 
-            then_set :total, increment: { cents: 1 }
+            sets :total, increment: { cents: 1 }
 
             ensures("the claimed total never holds") { total.cents == old.total.cents }
 
@@ -215,7 +215,7 @@ RSpec.describe "a command's ensures" do
               goal "Relabel a coin, but claim it did not move — refuses on purpose"
               attribute :new_label, Label
 
-              then_set :label, to: :new_label
+              sets :label, to: :new_label
 
               ensures("the claimed label never moves") { label.value == old.label.value }
 

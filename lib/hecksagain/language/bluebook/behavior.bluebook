@@ -160,7 +160,7 @@ Hecks.bluebook "Bluebook" do
       # Aggregate.Attribute, which carries the same word for a head's attributes.
       attribute :admits,  ArgType, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "ArgumentAttached"
     end
@@ -191,7 +191,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, ArgType, optional: true
       attribute :admits,  ArgType, optional: true
 
-      then_set :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "ArgumentReferenceAttached"
     end
@@ -217,7 +217,7 @@ Hecks.bluebook "Bluebook" do
       given("a rule says what it means")  { !description.value.to_s.empty? }
       given("a rule survives extraction") { !canonical.value.to_s.empty? }
 
-      then_set :givens, append: { description: :description, canonical: :canonical }
+      sets :givens, append: { description: :description, canonical: :canonical }
 
       emits "RuleAttached"
     end
@@ -233,7 +233,7 @@ Hecks.bluebook "Bluebook" do
       given("a rule says what it means")  { !description.value.to_s.empty? }
       given("a rule survives extraction") { !canonical.value.to_s.empty? }
 
-      then_set :ensures, append: { description: :description, canonical: :canonical }
+      sets :ensures, append: { description: :description, canonical: :canonical }
 
       emits "EnsureAttached"
     end
@@ -260,7 +260,7 @@ Hecks.bluebook "Bluebook" do
       given("a mutation names a target")     { !target.value.to_s.empty? }
       given("a mutation does something")     { !op.value.to_s.empty? }
 
-      then_set :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
+      sets :mutations, append: { target: :target, op: :op, field: :field, kind: :kind, source: :source }
 
       emits "ChangeAttached"
     end
@@ -291,7 +291,7 @@ Hecks.bluebook "Bluebook" do
       given("a command names what it acts on") { !root.value.to_s.empty? }
       given("a command acts on ONE root")      { references.value.to_s.empty? }
 
-      then_set :references, to: :root
+      sets :references, to: :root
 
       emits "ReferenceNamed"
     end
@@ -305,7 +305,7 @@ Hecks.bluebook "Bluebook" do
 
       given("an event is named") { !announces.value.to_s.empty? }
 
-      then_set :emits, append: { name: :announces }
+      sets :emits, append: { name: :announces }
 
       emits "AnnouncementNamed"
     end
@@ -434,7 +434,7 @@ Hecks.bluebook "Bluebook" do
       attribute :op,    QueryText, admits: "Vocabulary::QueryComparator"
       attribute :value, QueryText
 
-      then_set :wheres, append: { field: :field, op: :op, value: :value }
+      sets :wheres, append: { field: :field, op: :op, value: :value }
 
       emits "FilterAttached"
     end
@@ -456,7 +456,7 @@ Hecks.bluebook "Bluebook" do
 
       given("an option is named") { !option.value.to_s.empty? }
 
-      then_set :options, append: { option: :option, key: :key, value: :value, at: :at }
+      sets :options, append: { option: :option, key: :key, value: :value, at: :at }
 
       emits "OptionAttached"
     end
@@ -474,7 +474,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, QueryText, optional: true
       attribute :admits,  QueryText, optional: true
 
-      then_set :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
 
       emits "AskArgumentAttached"
     end

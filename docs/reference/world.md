@@ -25,7 +25,7 @@ Hecks.bluebook "WorldReference", version: "2" do
 
     command "Light" do
       attribute :callsign, Callsign
-      then_set :callsign, to: :callsign
+      sets :callsign
       emits "BeaconLit"
     end
   end
@@ -44,7 +44,7 @@ Hecks.bluebook "WorldReferenceUnpinned" do
 
     command "Light" do
       attribute :callsign, Callsign
-      then_set :callsign, to: :callsign
+      sets :callsign
       emits "LampLit"
     end
   end

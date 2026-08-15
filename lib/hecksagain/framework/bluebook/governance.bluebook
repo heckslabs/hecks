@@ -58,7 +58,7 @@ Hecks.bluebook "Governance" do
       reference_to RoleAssignment
       attribute :ends_at, Timestamp
 
-      then_set :ends_at, to: :ends_at
+      sets :ends_at
       emits "RoleRevoked"
     end
 
@@ -110,7 +110,7 @@ Hecks.bluebook "Governance" do
       reference_to RoleTransition
       attribute :ends_at, Timestamp
 
-      then_set :ends_at, to: :ends_at
+      sets :ends_at
       emits "RoleTransitionRevoked"
     end
 

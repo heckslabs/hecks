@@ -97,7 +97,7 @@ aggregate "SafeDepositBox" do
       attribute :sequence, VisitSequence
       attribute :note,     VisitNote
 
-      then_set :note, to: :note
+      sets :note
 
       emits "VisitAnnotated"
     end
@@ -146,7 +146,7 @@ aggregate "SafeDepositBox" do
     attribute :box_number,  BoxNumber
     attribute :size,        Size
 
-    then_set :size, to: :size
+    sets :size
 
     emits "BoxRented"
   end
@@ -162,7 +162,7 @@ aggregate "SafeDepositBox" do
 
     given("only a rented box is opened") { status == "rented" }
 
-    then_set :visits, append: { date: :date, sequence: :sequence, note: :note }
+    sets :visits, append: { date: :date, sequence: :sequence, note: :note }
 
     emits "BoxOpened"
   end
@@ -174,7 +174,7 @@ aggregate "SafeDepositBox" do
     reference_to SafeDepositBox
     attribute :serial, KeySerial
 
-    then_set :keys, append: { serial: :serial }
+    sets :keys, append: { serial: :serial }
 
     emits "KeyIssued"
   end
@@ -226,8 +226,8 @@ naming their own kind, anywhere. `Annotate` and `Return` need no
 reference back to their own entity — they're addressed through the
 parent, always, so there's nothing to reference. `LogVisit` and
 `IssueKey`, by contrast, are commands on the AGGREGATE, and they're
-the ones that grow the lists: `then_set :visits, append: { ... }` and
-`then_set :keys, append: { ... }` are how a `Visit` or a `KeyIssuance`
+the ones that grow the lists: `sets :visits, append: { ... }` and
+`sets :keys, append: { ... }` are how a `Visit` or a `KeyIssuance`
 comes into being at all. An entity is never created through its own
 command — only appended by one that acts on its parent.
 

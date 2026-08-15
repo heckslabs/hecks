@@ -58,7 +58,7 @@ RSpec.describe "mutation op remove" do
           reference_to Sprint
           attribute :dependency, Dependency
 
-          then_set :dependencies, append: { value: :dependency }
+          sets :dependencies, append: { value: :dependency }
           emits "DependencyAdded"
         end
 
@@ -66,7 +66,7 @@ RSpec.describe "mutation op remove" do
           reference_to Sprint
           attribute :dependency, Dependency
 
-          then_set :dependencies, remove: :dependency
+          sets :dependencies, remove: :dependency
           emits "DependencyRemoved"
         end
       end
