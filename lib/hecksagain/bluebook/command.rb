@@ -56,25 +56,34 @@ module Hecksagain
         ensures:    -> { ensures.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         mutations:  many(:mutations),
         emits:      :emits,
+        # THE LIFECYCLE STATE THIS COMMAND IS ADMISSIBLE FROM (S10, ADR
+        # 0025 — "lifecycle state becomes a command guard") — a GUARD,
+        # not a transition: `command "Debit", from: "open"` replaces
+        # `given("account is open") { status == "open" }`, checked
+        # against the owning construct's own lifecycle field the same
+        # way `admissible_transition` already checks a real state
+        # change, but names no target state and moves nothing. Nil for
+        # a command with no such guard — most commands.
+        from:       -> { from },
         provenance: :provenance
       )
 
       class << self
         attr_reader :role, :goal, :attributes, :givens, :ensures, :mutations, :emits, :references,
-                    :provenance
+                    :from, :provenance
 
         def declare(name:, role: nil, goal: nil, attributes: [], givens: [], ensures: [],
-                    mutations: [], emits: [], references: nil, provenance: nil)
+                    mutations: [], emits: [], references: nil, from: nil, provenance: nil)
           verb = Class.new(self)
           verb.hecks_name = name.to_s
           verb.absorb(role: role, goal: goal, attributes: attributes, givens: givens,
                       ensures: ensures, mutations: mutations, emits: emits, references: references&.to_s,
-                      provenance: provenance)
+                      from: from, provenance: provenance)
           verb
         end
 
         def absorb(role:, goal:, attributes:, givens:, ensures:, mutations:, emits:, references:,
-                   provenance: nil)
+                   from: nil, provenance: nil)
           @role       = role
           @goal       = goal
           @attributes = attributes
@@ -83,6 +92,7 @@ module Hecksagain
           @mutations  = mutations
           @emits      = emits
           @references = references
+          @from       = from
           @provenance = provenance
           settle
         end

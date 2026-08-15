@@ -141,8 +141,16 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "guard_refusals_are_declared passes a refusal quoting the command's own declared given through" do
+      # "customer is active" — S10, ADR 0025's named precondition, not
+      # typed on Credit directly any more (Account.given, referenced
+      # back) — but still a real entry in Credit.givens either way,
+      # which is the only thing this property reads. "the account is
+      # open" (this test's own text before S10) is GONE from Credit
+      # entirely now — S10 made it a lifecycle guard, `from: "open"`,
+      # which raises LifecycleRefused, never GivenNotMet, so it could
+      # not stand in for "a real given" here even unchanged.
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — the account is open",
+                  refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — customer is active",
                               kind: "Hecksagain::Runtime::GivenNotMet" }] }
 
       expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)

@@ -81,7 +81,7 @@ module Hecksagain
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) { @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, parent: ctx.instance) }
+        step(:enforce_givens) { @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance) }
       end
 
       def step_admissible_transition(ctx)
@@ -107,6 +107,17 @@ module Hecksagain
           settled = Instance.new(aggregate: ctx.entity, id: ctx.view.id, state: ctx.element)
           @rules.enforce_ensures(settled, ctx.command, ctx.args, old: ctx.old_element, domain: ctx.domain, parent: ctx.instance)
         end
+      end
+
+      # THE PARENT AGGREGATE's own invariants — `ctx.instance` is the
+      # parent record an entity mutation writes into (this file's own
+      # `Context` comment), the SAME boundary an aggregate-level
+      # invariant guards regardless of which interpreter changed it. No
+      # separate "entity invariant" exists (S10, ADR 0025 scopes
+      # `invariant` to the aggregate only) — see `Admissibility#
+      # enforce_invariants`'s own comment.
+      def step_enforce_invariants(ctx)
+        step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
       def step_save(ctx)

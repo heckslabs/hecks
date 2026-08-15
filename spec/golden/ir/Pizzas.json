@@ -67,6 +67,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -106,6 +107,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status == \"available\"",
@@ -159,6 +161,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "toppings.size.positive?",
@@ -205,6 +208,9 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "available",
         "field": "status",
@@ -218,6 +224,9 @@
       },
       "name": "Order",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

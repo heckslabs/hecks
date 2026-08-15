@@ -27,6 +27,19 @@ Hecks.bluebook "Bluebook" do
     attribute :state_field,   IdentityField
     attribute :state_start,   IdentityField
     attribute :transitions,   list_of(Transition)
+    # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — checked after
+    # every command, before save, the SAME Rule shape Command's own
+    # givens/ensures already carry (description+canonical), declared
+    # again here rather than shared: a closed set/value object is
+    # aggregate-scoped in this self-hosting domain, the same reason
+    # CommandText and LiteralText stay two separate, identically-
+    # shaped value objects rather than one reused across chapters.
+    attribute :invariants,    list_of(Rule)
+    # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+    # 0025) — the SAME Rule shape, the aggregate's own named `given`s
+    # that a referencing command's own (already-resolved) `given`
+    # entry came from.
+    attribute :preconditions, list_of(Rule)
 
     value_object "AggregateName" do
       attribute :value, String
@@ -82,6 +95,14 @@ Hecks.bluebook "Bluebook" do
       attribute :command,    String
       attribute :from_state, String
       attribute :to_state,   String
+    end
+
+    # THE SAME SHAPE Command's own "Rule" value object carries — see
+    # behavior.bluebook — declared again here rather than shared, per
+    # that value object's own comment.
+    value_object "Rule" do
+      attribute :description, String
+      attribute :canonical,   String
     end
 
     command "Declare" do
@@ -379,6 +400,43 @@ Hecks.bluebook "Bluebook" do
       sets :value_objects, append: { name: :name }
 
       emits "ValueDeclared"
+    end
+
+    # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — the same shape
+    # Command.Rule attaches a given with, one level up.
+    command "Invariant" do
+      role "Language"
+      goal "Attach one invariant to the aggregate"
+
+      reference_to Aggregate
+      attribute :description, LiteralText, optional: true
+      attribute :canonical,   LiteralText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      sets :invariants, append: { description: :description, canonical: :canonical }
+
+      emits "InvariantAttached"
+    end
+
+    # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+    # 0025) — the aggregate's own named `given`, referenced back by a
+    # command rather than re-typed.
+    command "Precondition" do
+      role "Language"
+      goal "Declare one precondition commands can reference by name"
+
+      reference_to Aggregate
+      attribute :description, LiteralText, optional: true
+      attribute :canonical,   LiteralText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      sets :preconditions, append: { description: :description, canonical: :canonical }
+
+      emits "PreconditionAttached"
     end
   end
 end

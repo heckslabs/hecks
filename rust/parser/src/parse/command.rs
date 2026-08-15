@@ -15,11 +15,106 @@ use crate::build::references;
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
-use crate::lex::SourceLine;
+use crate::lex::{self, LineShape, Opener, SourceLine};
 use crate::ruby_value;
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Command.{word}"))
+}
+
+/// LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command "Debit",
+/// from: "open"`, read off the CALLER's own argument gate (`aggregate::
+/// parse_body`'s / `entity::parse_body`'s own `command` arm — the
+/// `from:` keyword sits on the `command` CALL itself, one level above
+/// this function's own body-parsing loop, the same reason `owner` is a
+/// parameter here rather than something this function reads off its own
+/// body). `kind: "literal"` in syntax.bluebook (one state or several,
+/// `AggregateBuilder#command`'s own comment) — a bare quoted string or an
+/// array literal of them, `ruby_value::read` already distinguishes the
+/// two. `None` when the call gave no `from:` at all, matching
+/// `CommandBuilder#initialize`'s own `case from when Array ... when nil
+/// then nil else from.to_s end` default.
+pub fn parse_from(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<Option<ir::CommandFrom>> {
+    let Some(raw) = super::named_raw(args, "from") else { return Ok(None) };
+    match ruby_value::read(raw.trim()) {
+        ruby_value::Value::Str(s) => Ok(Some(ir::CommandFrom::Single(s))),
+        ruby_value::Value::Array(items) => {
+            let states: Vec<String> = items
+                .into_iter()
+                .map(|item| match item {
+                    ruby_value::Value::Str(s) => Ok(s),
+                    other => Err(Diagnostic::new(file, line, format!("'command's from: names a non-string state ({other:?})"))),
+                })
+                .collect::<ParseResult<_>>()?;
+            Ok(Some(ir::CommandFrom::Multiple(states)))
+        }
+        other => Err(Diagnostic::new(file, line, format!("'command's from: ({raw}) reads as {other:?}, neither a string nor an array of strings"))),
+    }
+}
+
+/// NO BLOCK IS A REFERENCE, NOT A FRESH DECLARATION (S10, ADR 0025 —
+/// `CommandBuilder#given`'s own comment: "the SAME word, the SAME shape
+/// ... minus the block"). `syntax.bluebook` declares exactly ONE keyword
+/// row for `given`/Command (`body: "source"`) — unlike `identified_by`,
+/// which gets a SECOND `body: "none"` row for its own no-block form —
+/// so this is a REAL, CONFIRMED grammar-table gap: the shared
+/// `word_gate`/`body_gate` in `parse::mod` would refuse a bare
+/// `given("customer is active")` outright ("was written with no body,
+/// expected: source"), confirmed live against banking.bluebook's own
+/// `Account.OpenAccount` before this function existed. Worked around
+/// HERE, locally, rather than by hand-patching the generated
+/// `keywords.rs` (which `bin/project_parser_table` would silently
+/// overwrite the next time anyone regenerates it from syntax.bluebook —
+/// the real fix belongs in that table, one row, mirroring
+/// `identified_by`'s own two-row precedent, and is out of this slice's
+/// scope: `syntax.bluebook` lives under `lib/`).
+///
+/// BYTE-EXACT PARITY NEEDS REAL RESOLUTION, not just "parses without
+/// erroring" — confirmed by reading `spec/golden/ir/Banking.json`
+/// directly: `Account.Credit`'s own bare `given("customer is active")`
+/// emits the SAME `canonical: "customer.status == \"active\""` text
+/// Account's own aggregate-level precondition declares, not an empty or
+/// placeholder canonical. `CommandBuilder#reference_named_given` (Ruby)
+/// duplicates the resolved `Given` verbatim into the command's own
+/// `givens`; this mirrors that, resolving by `description` against
+/// whatever the OWNING aggregate has declared `preconditions` SO FAR —
+/// the same textual-order dependency `AggregateBuilder#given`'s own
+/// comment names ("DECLARE BEFORE THE COMMANDS THAT REFERENCE IT"),
+/// automatically satisfied here since `aggregate::parse_body` hands in
+/// its own `preconditions` Vec mid-walk, already containing every
+/// `given` parsed earlier in the same source order. An ENTITY's own
+/// commands get `&[]` (`EntityBuilder#command` never forwards
+/// `named_givens:` at all — Ruby's own `reference_named_given` always
+/// raises there), so a bare `given` inside an entity's command fails
+/// resolution here too, matching Ruby's refusal.
+///
+/// Peeks the next physical line WITHOUT consuming it unless it actually
+/// matches (word `given`, `Opener::None`) — anything else (including a
+/// `given { ... }`/`given do ... end` fresh declaration, or any other
+/// word entirely) falls through untouched to the ordinary `next_line`
+/// gate below, which already handles it.
+fn try_reference_named_given(file: &str, lines: &[SourceLine], pos: &mut usize, preconditions: &[ir::Given]) -> ParseResult<Option<ir::Given>> {
+    let Some(&line) = lines.get(*pos) else { return Ok(None) };
+    let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
+    if call.word != "given" || !matches!(call.opener, Opener::None) {
+        return Ok(None);
+    }
+
+    let args = super::argument_gate(file, "given", "Command", &call.args, line.number)?;
+    let description = super::positional_text(file, line.number, "given", &args, 1)?;
+    let resolved = preconditions.iter().find(|given| given.description.as_deref() == Some(description.as_str())).cloned().ok_or_else(|| {
+        Diagnostic::new(
+            file,
+            line.number,
+            format!(
+                "'{description}' names no precondition the owning aggregate declares — declare it \
+                 once with a block, before the commands that reference it"
+            ),
+        )
+    })?;
+
+    *pos += 1;
+    Ok(Some(resolved))
 }
 
 /// Parses a `command "Name" do ... end` body. `owner` is the aggregate
@@ -28,11 +123,28 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// declared on — needed to tell `CommandBuilder#reference_to`'s SELF-
 /// reference branch (`reference_to Order` on a command owned by `Order`)
 /// from a genuine cross-reference (`as:` given, or the target isn't the
-/// owner).
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str, owner: &str) -> ParseResult<ir::Command> {
-    let mut command = ir::Command { name: name.to_string(), ..Default::default() };
+/// owner). `from` — see `parse_from`'s own header — is resolved by the
+/// CALLER (off the `command` call's own argument gate) and handed in
+/// already-built, the same way `owner` already is. `preconditions` — see
+/// `try_reference_named_given`'s own header — is the OWNING aggregate's
+/// own `given`s declared so far; always `&[]` for an entity's command.
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+    owner: &str,
+    from: Option<ir::CommandFrom>,
+    preconditions: &[ir::Given],
+) -> ParseResult<ir::Command> {
+    let mut command = ir::Command { name: name.to_string(), from, ..Default::default() };
 
     loop {
+        if let Some(given) = try_reference_named_given(file, lines, pos, preconditions)? {
+            command.givens.push(given);
+            continue;
+        }
+
         let Some(gated) = super::next_line(file, lines, pos, "Command")? else {
             return Ok(command);
         };

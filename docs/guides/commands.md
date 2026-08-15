@@ -17,15 +17,21 @@ declared in that file, executed against a real boot of it.
 
 ## The declaration
 
-A command is `role`, `goal`, one or more `attribute`s, an optional
-`reference_to`, zero or more `given`s, zero or more `ensures`, zero or
-more `sets`s, and one or more `emits` — nothing else, no handler
-body to smuggle a side effect into. `Account`'s own commands carry
-every piece of that inventory at least once, quoted here directly from
-the bluebook (never run as shown — the boot below loads the real file
-instead of retyping it):
+A command is `role`, `goal`, an optional `from:` lifecycle guard, one
+or more `attribute`s, an optional `reference_to`, zero or more
+`given`s, zero or more `ensures`, zero or more `sets`s, and one or more
+`emits` — nothing else, no handler body to smuggle a side effect into.
+`Account`'s own commands carry every piece of that inventory at least
+once, quoted here directly from the bluebook (never run as shown — the
+boot below loads the real file instead of retyping it), alongside the
+two named preconditions the aggregate itself declares once and its
+commands reference back rather than re-typing:
 
 ```ruby skip
+# Declared once, directly on Account, above its lifecycle and its commands:
+given("customer is active")     { customer.status == "active" }
+given("customer is not closed") { customer.status != "closed" }
+
 command "Open" do
   role "Branch clerk"
   goal "Give a customer somewhere to keep money"
@@ -34,6 +40,7 @@ command "Open" do
   attribute :number,      AccountNumber
   attribute :kind,        AccountKind
   attribute :daily_limit, DailyLimit
+  given("customer is active")
 
   sets :number
   sets :kind
@@ -42,7 +49,7 @@ command "Open" do
   emits "AccountOpened"
 end
 
-command "Credit" do
+command "Credit", from: "open" do
   role "Teller"
   goal "Put money in"
 
@@ -50,14 +57,14 @@ command "Credit" do
   attribute :amount,    PositiveMoney
   attribute :narrative, Narrative
 
-  given("the account is open")      { status == "open" }
+  given("customer is active")
   sets :balance, increment: :amount
   sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
   emits "AccountCredited"
 end
 
-command "Debit" do
+command "Debit", from: "open" do
   role "Teller"
   goal "Take money out, if it is there to take"
 
@@ -65,7 +72,7 @@ command "Debit" do
   attribute :amount,    PositiveMoney
   attribute :narrative, Narrative
 
-  given("the account is open")       { status == "open" }
+  given("customer is active")
   given("the balance covers it")     { balance.cents >= amount.cents }
   given("the daily limit allows it") { daily_limit.cents >= amount.cents }
 
@@ -73,30 +80,38 @@ command "Debit" do
   sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
   ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
-  ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
+  ensures("a ledger entry was posted")               { ledger.size == old.ledger.size + 1 }
 
   emits "AccountDebited"
 end
 
-command "Freeze" do
+command "FreezeAccount", from: "open" do
   role "Compliance officer"
   goal "Stop an account moving while something is investigated"
 
   reference_to Account
+  given("customer is not closed")
   emits "AccountFrozen"
 end
 ```
 
 `Open` takes in a customer and gives back a fresh account: a creating
-command, no `given`, three bare `sets` (each one's `to:` would only
-repeat the target, so it's omitted). `Credit` and `Debit` are where the
-rest of the inventory earns its place — a `given` guarding mutation,
-`sets increment:`/`decrement:` doing arithmetic, `sets append:` growing
-the ledger, and, on `Debit` alone, two real `ensures`. `Freeze` is the
-floor of the inventory: `role`, `goal`, `reference_to`, `emits`, nothing
-more — a command needs no `given`, no `attribute`, no `sets` to be a
-complete one, as long as something downstream (here, the account's own
-lifecycle) still gates it.
+command, one referenced `given`, three bare `sets` (each one's `to:`
+would only repeat the target, so it's omitted). `Credit` and `Debit`
+are where the rest of the inventory earns its place — `from:` guarding
+entry by lifecycle state, a `given` guarding mutation by a fact the
+lifecycle knows nothing about, `sets increment:`/`decrement:` doing
+arithmetic, `sets append:` growing the ledger, and, on `Debit` alone,
+two real `ensures`. `FreezeAccount` is the floor of the inventory once
+`from:` is counted alongside `given`: `role`, `goal`, `from:`,
+`reference_to`, one referenced `given`, `emits` — a command needs no
+free-text rule of its own, no `attribute`, no `sets`, to be a complete
+one, as long as the aggregate's own lifecycle and its own named
+preconditions already say what needs saying. Notice what is GONE from
+both `Credit` and `Debit`: no `given("the account is open") { status
+== "open" }` — that fact is now `from: "open"`, checked against the
+real state machine instead of a free-text copy of it (see `from:`,
+below).
 
 ## Wiring
 
@@ -127,10 +142,10 @@ dispatch; the rest of this page proves each row once, live, against
 
 | raises | when | shown |
 |---|---|---|
-| `GivenNotMet` | a declared `given` reads false | debiting a frozen account |
+| `GivenNotMet` | a declared `given` reads false | debiting more than the balance covers |
 | `EnsuresNotMet` | a declared `ensures` reads false, AFTER the mutation ran | `Debit`'s own two postconditions — discussed below |
 | `InvariantViolation` | a value object's own rule rejects the fields it was built from | an account opened with no number |
-| `LifecycleRefused` | the command names a transition the current state cannot take | discussed below, and in `lifecycles.md` — every transition in this corpus that would raise it also carries an overlapping `given` naming the same fact, which gets there first (see `given`, next) |
+| `LifecycleRefused` | a command's own `from:` names a state the record isn't in, or a `transition` target the lifecycle can't reach from here | discussed below, and in `lifecycles.md` — freezing an already-frozen account |
 | `AlreadyExists` | a creating command's identity already names a record | opening the same account number twice |
 | `NotFound` | an acting command's identity names no record | freezing an account that was never opened |
 | `AbsentArgument` | a required attribute never arrived | opening an account with no `kind` |
@@ -148,7 +163,7 @@ exists, and the DSL reads this off one fact: does the command
 `reference_to` its own aggregate. `Open` doesn't — it references
 `Customer`, a different aggregate, to say whose account this is — so
 `Open` creates, and the facade installs it as a method on the
-aggregate module itself. `Credit`, `Debit`, and `Freeze` all
+aggregate module itself. `Credit`, `Debit`, and `FreezeAccount` all
 `reference_to Account`, their own aggregate, so each is a method on
 the record in hand. Get this backwards in your own bluebook — add a
 stray `reference_to Self` to what should be a creating command — and
@@ -182,45 +197,53 @@ A `given` reads the record as it stands BEFORE any mutation and refuses
 if it doesn't like what it sees. The refusal is `GivenNotMet`, and the
 message is exactly the description you wrote — nothing templated, no
 translation between what you declared and what the caller reads.
-`Freeze` carries two: `given("customer is active")` and
-`given("account is open")` — the second names, in business language,
-exactly the fact its own `transition "FreezeAccount" => "frozen", from:
-"open"` already enforces structurally:
+
+A `given` can be declared two ways. INLINE, with a block, right where a
+command needs it — `Debit`'s own `given("the balance covers it") {
+balance.cents >= amount.cents }`. Or NAMED: declared once, directly on
+the aggregate (`given("customer is active") { customer.status ==
+"active" }`, above `Account`'s own commands), and referenced back by
+any command with no block of its own. `Open`, `Credit`, `Debit`, and
+`Unfreeze` all read the aggregate's `given("customer is active")` this
+way; `FreezeAccount` and `CloseAccount` read its other one,
+`given("customer is not closed")`. One description and one predicate,
+declared once, is one refusal message no matter which command a caller
+hits — the alternative, typed out fresh on every command, is how the
+same rule ends up worded three different ways across a corpus without
+anyone deciding that on purpose.
+
+`FreezeAccount` carries exactly one `given` — the referenced
+`"customer is not closed"`. What used to also live here as a SECOND
+`given`, `given("account is open") { status == "open" }`, duplicating a
+fact its own `transition "FreezeAccount" => "frozen", from: "open"`
+already enforced structurally, is gone: `from: "open"` says it once
+now, checked against the real lifecycle field instead of a free-text
+copy of it (see `from:`, below):
 
 ```ruby
 account.freeze_account
 account.status  # => "frozen"
 ```
 
-Call it again and both checks would refuse it — the account is no
-longer `"open"`, so neither the lifecycle transition nor the `given`
-admits this call. `enforce_givens` runs BEFORE `admissible_transition`
-in dispatch order, so the `given` is what your caller actually sees:
-`GivenNotMet`, not `LifecycleRefused`, even though it is the lifecycle
-that named `"open"` the only legal source state in the first place —
-see `lifecycles.md` for the full shape of that overlap:
+Call it again and the `given` still reads true — the customer is not
+closed, whatever the account's own status is — so this time nothing
+stops the dispatch until `from: "open"` gets its turn, AFTER every
+`given` already has. The refusal is `LifecycleRefused`, and it names
+the fact your caller actually needs — the state the record is in, and
+every state the command would have accepted:
 
 ```ruby
-account.freeze_account  # ~> GivenNotMet: FreezeAccount refused — account is open
+account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount only runs from "open"
 ```
 
-`Debit` declares three givens, and multiple givens run in the order you
-wrote them — the FIRST one that reads false is the one your caller
-sees, and the others never run at all. Its order is "the account is
-open", then "the balance covers it", then "the daily limit allows it",
-so a frozen account with an amount that would also blow both the
-balance and the limit still only reports the first:
-
-```ruby
-account.unfreeze
-account.freeze_account
-account.debit(amount: { cents: 999_999 }, narrative: { text: "frozen debit" })  # ~> GivenNotMet: the account is open
-```
-
-That account is also nowhere near covering that amount, which would
-fail `Debit`'s second given just as surely — but you will never see
-that message from this call, because the first refusal wins and the
-dispatch stops there. Unfreeze it and the second given gets its turn:
+`Debit` declares three givens — the referenced `"customer is active"`,
+then its own `"the balance covers it"` and `"the daily limit allows
+it"` — and multiple givens run in the order you wrote them: the FIRST
+one that reads false is the one your caller sees, and the others never
+run at all. `from: "open"` runs separately, only once every `given`
+already has, so an amount this account is nowhere near able to cover
+blows both its own remaining rules at once, and only the
+first-declared one is what you'll ever see:
 
 ```ruby
 account.unfreeze
@@ -230,6 +253,28 @@ account.debit(amount: { cents: 999_999 }, narrative: { text: "too much" })  # ~>
 Write your givens with the cheapest or most-likely-to-fail check first
 if you want your callers reading the most useful message; the runtime
 will not reorder them for you.
+
+## `from:` — lifecycle state as a command guard
+
+`command "Debit", from: "open"` (or, on `CloseAccount`, `from: ["open",
+"frozen"]`) is a precondition too, but checked against the owning
+aggregate's own lifecycle field rather than a predicate you write —
+`Account`'s `lifecycle :status` names `"open"` as the one state
+`Debit` may run from, and `from:` reads that same declaration rather
+than repeating it as text. It never transitions anything itself: no
+target state, no state change, nothing `step_advance_lifecycle` ever
+sees — a command can carry `from:` with no `lifecycle` block declaring
+a real `transition` for it at all, and often does (`Credit` and `Debit`
+both do). What `from: "open"` replaces is exactly the
+`given("account is open") { status == "open" }` shape `FreezeAccount`
+used to carry above — free text that could say `"open"` correctly the
+day it was written and drift out of sync with the lifecycle silently
+thereafter. `from:` cannot drift: it names a state the lifecycle
+itself has to recognize, checked by `enforce_lifecycle_guard`
+immediately after every `given` on the same command has already
+passed — see `lifecycles.md` for the full mechanism, and
+[the DSL reference](../reference/command.md) for the declaration
+itself.
 
 A `given` can also name the record ITSELF as the thing it refuses a
 second run of. `ScheduledPayment.Retry` declares `given("a retry is
@@ -288,17 +333,32 @@ account.balance.to_h  # => { cents: 300, currency: "USD" }
 ```
 
 Neither of `Debit`'s `ensures` has ever needed to fire here, and that
-is not an oversight — it is what the three `given`s above already
-bought. "the balance fell by exactly the amount" is arithmetic
-`decrement:` guarantees on its own; "no debit leaves the balance
-negative" can only be threatened by an amount the SECOND given, "the
-balance covers it", already refused before the mutation ran at all.
-Written down anyway, it is not a trap waiting to be tripped by THIS
-domain's own commands — it is what would catch a later edit that
-loosens or removes that given without anyone noticing the postcondition
-it was quietly protecting. A `given` is a rule you remembered to write
-going in; an `ensures` is a guarantee that holds regardless of what a
-future you remembers.
+is not an oversight — it is what its own two `given`s already bought.
+"the balance fell by exactly the amount" is arithmetic `decrement:`
+guarantees on its own; "a ledger entry was posted" is what `sets
+append:` already does on every successful call. Written down anyway,
+neither is a trap waiting to be tripped by THIS domain's own commands
+— each is what would catch a later edit that loosens or removes the
+rule it is quietly protecting.
+
+What is NOT here anymore is "no debit leaves the balance negative" —
+that used to be `Debit`'s own third `ensures`, and it was worded three
+different ways across the six commands on `Account` that can move
+`:balance` (`Debit` as both a `given` and an `ensures`,
+`ApplyFee`/`CorrectInterest` as differently-worded `given`s, and the
+commands that only ever increase it saying nothing at all).
+It is now `Account`'s own `invariant("the balance never goes
+negative")`, checked once, after EVERY command that touches the
+aggregate, not re-declared on each one that happens to decrease it — a
+value object's own `invariant` moved up one level, to the aggregate
+that owns the field. A `given` is a rule you remembered to write going
+in; an `ensures` is a guarantee that holds regardless of what a future
+you remembers about ONE command; an `invariant`, declared directly
+inside `aggregate` rather than `value_object`, is the identical
+guarantee moved up a level, so a NEW command on the same aggregate
+inherits it for free instead of needing its own copy — see
+[the DSL reference](../reference/aggregate.md) for the declaration
+itself.
 
 ## `sets` — one op per field, and the op is a real decision
 
@@ -359,7 +419,7 @@ back off the record — every attempt above that refused left no mark;
 only the ones that actually ran show up:
 
 ```ruby
-account.events.map(&:name)  # => ["AccountOpened", "AccountFrozen", "AccountUnfrozen", "AccountFrozen", "AccountUnfrozen", "AccountCredited", "AccountDebited"]
+account.events.map(&:name)  # => ["AccountOpened", "AccountFrozen", "AccountUnfrozen", "AccountCredited", "AccountDebited"]
 ```
 
 One command can announce more than one fact. `SafeDepositBox.Surrender`

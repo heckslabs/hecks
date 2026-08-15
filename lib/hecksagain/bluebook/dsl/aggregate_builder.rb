@@ -9,6 +9,8 @@ module Hecksagain
           @name          = name
           @value_objects = []
           @commands      = []
+          @invariants    = []
+          @named_givens  = {}
           @identity_paths = []
           @entities      = []
           @queries       = []
@@ -125,12 +127,67 @@ module Hecksagain
           @value_objects.concat(builder.closed_sets)
         end
 
-        def command(name, &block)
+        # `from:` — LIFECYCLE STATE BECOMES A COMMAND GUARD (S10, ADR
+        # 0025) — `command "Debit", from: "open"` replaces `given
+        # ("account is open") { status == "open" }`, written 35 times
+        # in two wordings across the corpus. Checked against THIS
+        # aggregate's own lifecycle field (`Admissibility#enforce_
+        # lifecycle_guard`) — never a target state, never a transition:
+        # the lifecycle already declares which states exist, so naming
+        # the legal ones is checkable against it, where a free-text
+        # given could drift out of sync with the state machine and did.
+        def command(name, from: nil, &block)
           # The verb is declared ON this aggregate — the owner `acts_on` answers
           # with — stamped by `Aggregate#initialize` once the aggregate
           # exists. An ENTITY's commands take the entity as their owner instead,
           # at the entity's own declaration.
-          @commands << CommandBuilder.build(name, owner: @name, &block)
+          @commands << CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens, &block)
+        end
+
+        # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+        # 0025) — an aggregate-level `given`, block required, stored by
+        # its own description rather than appended anywhere: a command
+        # names it back (`given("customer is active")`, no block of its
+        # own) rather than re-typing the predicate, so there is one
+        # description and therefore one refusal message no matter which
+        # command a caller hits. DECLARE BEFORE THE COMMANDS THAT
+        # REFERENCE IT — resolution happens at the referencing command's
+        # OWN build time (`CommandBuilder#given`), against whatever this
+        # aggregate has declared SO FAR, the one ordering constraint this
+        # word carries that `identified_by`/`attribute` do not.
+        def given(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s given #{description.inspect} did not survive " \
+                  "extraction — its source could not be read, so no other " \
+                  "runtime could ever evaluate it"
+          end
+
+          @named_givens[description] = Given.new(description: description, canonical: canonical, predicate: predicate)
+        end
+
+        # THE AGGREGATE BOUNDARY IS WHAT AN INVARIANT DEFINES (S10, ADR
+        # 0025 — "Rules") — checked after every command, before save,
+        # the same way a value object's already is
+        # (`ValueObjectBuilder#invariant`, whose own shape this mirrors
+        # exactly). Today `invariant` lived only inside `value_object`;
+        # an aggregate-level rule had nowhere to live, so "the balance
+        # never goes negative" was three different `given`/`ensures`
+        # texts across banking's six balance-moving commands, and the
+        # four that only increase it said nothing at all — completeness
+        # depended on someone noticing which commands could decrease it.
+        def invariant(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s invariant #{description.inspect} did not survive " \
+                  "extraction — it would be a rule the IR cannot carry"
+          end
+
+          @invariants << Invariant.new(description: description, canonical: canonical, predicate: predicate)
         end
 
         def build
@@ -138,6 +195,7 @@ module Hecksagain
           seal_mutation_targets
           seal_query_targets
           seal_defaults
+          seal_lifecycle_guards
 
           ir = Aggregate.new(
             name:          @name,
@@ -145,6 +203,8 @@ module Hecksagain
             attributes:    attributes,
             value_objects: @value_objects + closed_sets,
             commands:      @commands,
+            invariants:    @invariants,
+            preconditions: @named_givens.values,
             identified_by: @identity_paths,
             lifecycle:     @lifecycle,
             entities:      @entities,
@@ -272,6 +332,24 @@ module Hecksagain
                   "#{@name}.#{attribute.name} defaults to #{attribute.default.inspect}, but " \
                   "#{attribute.type} is a value object — a default fills its FIELDS " \
                   "(default: { ... }), and a bare value refuses every create instead"
+          end
+        end
+
+        # A command's `from:` guard needs a lifecycle field to check
+        # against — declared at BUILD time (S10, ADR 0025), the same
+        # point every other "does this actually resolve" check in this
+        # file runs, rather than left to crash `enforce_lifecycle_
+        # guard` the first time such a command is ever dispatched.
+        def seal_lifecycle_guards
+          return if @lifecycle
+
+          @commands.each do |command|
+            next unless command.from
+
+            raise Malformed,
+                  "#{@name}.#{command.hecks_name} guards from: #{Array(command.from).inspect}, but " \
+                  "#{@name} declares no lifecycle — from: checks a lifecycle field, and there is " \
+                  "none here to check"
           end
         end
 

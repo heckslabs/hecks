@@ -33,8 +33,12 @@ module Hecksagain
         # (`identified_by :branch_code, :box_number`), which a piece may
         # declare for the same reason a head may.
 
-        def command(name, &block)
-          @commands << CommandBuilder.build(name, owner: @name, &block)
+        # `from:` — see `AggregateBuilder#command`'s own comment; the
+        # SAME guard, checked against this PIECE's own lifecycle field
+        # (S10, ADR 0025 — a piece's own state machine is checkable the
+        # same way a head's is).
+        def command(name, from: nil, &block)
+          @commands << CommandBuilder.build(name, owner: @name, from: from, &block)
         end
 
         def query(name, &block)
@@ -47,6 +51,7 @@ module Hecksagain
 
         def build
           resolve_pending_identity!
+          seal_lifecycle_guards
           Entity.declare(
             name:          @name,
             description:   @description,
@@ -65,6 +70,21 @@ module Hecksagain
         end
 
         private
+
+        # See `AggregateBuilder#seal_lifecycle_guards`'s own comment —
+        # the identical check, one level down.
+        def seal_lifecycle_guards
+          return if @lifecycle
+
+          @commands.each do |command|
+            next unless command.from
+
+            raise Malformed,
+                  "#{@name}.#{command.hecks_name} guards from: #{Array(command.from).inspect}, but " \
+                  "#{@name} declares no lifecycle — from: checks a lifecycle field, and there is " \
+                  "none here to check"
+          end
+        end
 
         # `identified_by`'s own resolution pool (AttributeCollector#resolve_
         # pending_identity!'s hook, S9) — a piece mints no value objects of

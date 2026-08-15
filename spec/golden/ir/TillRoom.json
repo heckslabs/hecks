@@ -60,6 +60,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -99,6 +100,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -152,6 +154,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -189,6 +192,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -218,9 +222,15 @@
       "identified_by": [
         "number.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Till",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

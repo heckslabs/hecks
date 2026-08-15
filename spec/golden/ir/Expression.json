@@ -148,6 +148,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "grammar.value == \"outer\" || grammar.value == \"inner\"",
@@ -194,6 +195,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status != \"retired\"",
@@ -226,6 +228,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "renderings.size >= 1",
@@ -251,6 +254,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -271,6 +275,9 @@
       "identified_by": [
         "symbol.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "proposed",
         "field": "status",
@@ -289,6 +296,9 @@
       },
       "name": "Operator",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -675,6 +685,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "strategy.value == \"collapse_whitespace\" || strategy.value == \"replace\"",
@@ -721,6 +732,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status != \"retired\"",
@@ -753,6 +765,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "readings.size >= 1",
@@ -778,6 +791,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -798,6 +812,9 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "proposed",
         "field": "status",
@@ -816,6 +833,9 @@
       },
       "name": "Normalisation",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -1245,6 +1265,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1284,6 +1305,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1313,6 +1335,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!canonical.value.to_s.empty?",
@@ -1350,6 +1373,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1370,6 +1394,9 @@
       "identified_by": [
         "canonical.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "extracted",
         "field": "status",
@@ -1388,6 +1415,9 @@
       },
       "name": "Expression",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

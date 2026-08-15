@@ -29,6 +29,14 @@ module Hecksagain
         attributes:    many(:attributes),
         value_objects: many(:value_objects),
         commands:      many(:commands),
+        invariants:    -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+        # 0025) — the aggregate's OWN named `given`s, the declaration a
+        # referencing command's own (already-resolved) `givens` entry
+        # came from. Both sides of "declared once, referenced many"
+        # are real IR, the same shape a value object's TYPE and an
+        # attribute's own reference to it both are.
+        preconditions: -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         lifecycle:     one(:lifecycle),
         entities:      many(:entities),
         queries:       many(:queries),
@@ -41,7 +49,7 @@ module Hecksagain
         provenance:    :provenance
       )
 
-      attr_reader :name, :description, :attributes, :value_objects, :commands,
+      attr_reader :name, :description, :attributes, :value_objects, :commands, :invariants, :preconditions,
                   :identified_by, :identity_paths, :identity_heads, :lifecycle,
                   :entities, :queries, :policies, :ports, :reference_targets, :provenance
 
@@ -49,7 +57,7 @@ module Hecksagain
       # behaviour's own `settle` — derived identity, name indexes and
       # owner stamping, none of which the declaration states.
       def initialize(name:, description: nil, attributes: [], value_objects: [],
-                     commands: [], identified_by: [], lifecycle: nil,
+                     commands: [], invariants: [], preconditions: [], identified_by: [], lifecycle: nil,
                      entities: [], queries: [], policies: [], ports: [], reference_targets: [],
                      provenance: nil)
         @name              = name.to_s
@@ -58,6 +66,8 @@ module Hecksagain
         @attributes        = attributes
         @value_objects     = value_objects
         @commands          = commands
+        @invariants        = invariants
+        @preconditions     = preconditions
         @identified_by     = identified_by
         @lifecycle         = lifecycle
         @entities          = entities

@@ -356,11 +356,12 @@ runtime.registry.bluebook("Banking").aggregate("Account").value_objects.map(&:he
 ## command
 
 <!-- generated:begin word=command -->
-`command name do ... end` — opens a `Command` body
+`command name, from: do ... end` — opens a `Command` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `from:` | literal | false | from |
 <!-- generated:end -->
 
 Opens what this aggregate may be asked to do — what it needs, what it refuses, and what it emits. See the Command context page for the full vocabulary.
@@ -370,6 +371,23 @@ what it references:
 
 ```ruby
 runtime.registry.bluebook("Banking").aggregate("Account").commands.map(&:hecks_name).first(4)  # => ["Open", "Credit", "Debit", "FreezeAccount"]
+```
+
+`from:` — a single state or an array of them — is a lifecycle guard,
+checked against THIS aggregate's own `lifecycle` field right after
+every `given` on the command already has. It replaces what used to be
+a free-text `given("the account is open") { status == "open" }`,
+typed out fresh (and worded inconsistently) on command after command:
+naming the legal state checks it against the real state machine, where
+the free-text version could drift out of sync with it and did. It
+never transitions anything itself — no target state, nothing
+`step_advance_lifecycle` ever sees — so a command can carry `from:`
+with no matching `transition` at all:
+
+```ruby
+account_ir = runtime.registry.bluebook("Banking").aggregate("Account")
+account_ir.commands.find { |c| c.hecks_name == "Debit" }.from        # => "open"
+account_ir.commands.find { |c| c.hecks_name == "CloseAccount" }.from # => ["open", "frozen"]
 ```
 
 ## attribute
@@ -426,5 +444,75 @@ runtime.registry.bluebook("Banking").aggregate("ExternalTransfer").commands.find
 ```ruby
 box = Banking::SafeDepositBox.rent(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 9 }, size: { value: "small" })
 box.log_visit(date: { value: "2026-08-14" }, sequence: { value: 1 }).visits.size  # => 1
+```
+
+## invariant
+
+<!-- generated:begin word=invariant -->
+`invariant description do ... end` — fills `invariants`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | description |
+<!-- generated:end -->
+
+A rule that travels with the AGGREGATE, not with any one command — the
+same word `value_object` already carries (see value_object.md), moved
+up a level so it guards the SETTLED record as a whole rather than one
+value object's own fields. Checked at the same point a value object's
+own `invariant` is: after every command that runs against this
+aggregate, right before `save`, reading no `args` and no `old` the way
+`ensures` does — just whatever the mutation actually left behind.
+
+`Account` declares one. Six different commands can move `:balance` —
+`Credit`, `Debit`, `ApplyFee`, `CorrectFee`, `AccrueInterest`,
+`CorrectInterest` — and rather than guard each one with its own
+`given` or `ensures` (worded three different ways before this, and
+missing outright on the three that only ever increase it), the rule
+that the balance never goes negative is declared once, on the
+aggregate, and checked after every one of them:
+
+```ruby
+runtime.registry.bluebook("Banking").aggregate("Account").invariants.map(&:description)  # => ["the balance never goes negative"]
+```
+
+## given
+
+<!-- generated:begin word=given -->
+`given description do ... end` — fills `preconditions`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | description |
+<!-- generated:end -->
+
+Declares a NAMED precondition directly on the aggregate — block
+required here, exactly one canonical predicate per description, stored
+under that description rather than attached to any one command. A
+command's OWN `given(description)`, with no block of its own, then
+reads back the aggregate's predicate of that name instead of
+re-declaring it — same enforcement point, same `GivenNotMet` refusal,
+worded identically no matter which command a caller hits. Declare it
+before the commands that reference it: resolution happens at the
+referencing command's own build time, against whatever the aggregate
+has declared so far — the one ordering rule this word carries that
+`identified_by`/`attribute` do not.
+
+`Account` declares two — `"customer is active"` and `"customer is not
+closed"` — and most of its own commands read one back rather than
+retyping the predicate:
+
+```ruby
+account_ir = runtime.registry.bluebook("Banking").aggregate("Account")
+account_ir.preconditions.map(&:description)  # => ["customer is active", "customer is not closed"]
+account_ir.commands.find { |c| c.hecks_name == "Credit" }.givens.map(&:description)  # => ["customer is active"]
+```
+
+A referencing command's own `given` carries the SAME canonical
+predicate the aggregate declared, not a copy — one description, one
+refusal message, everywhere it's read:
+
+```ruby
+account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:canonical)  # => ["customer.status != \"closed\""]
 ```
 

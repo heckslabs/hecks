@@ -19,13 +19,22 @@ module Hecksagain
         UNSET = Object.new.freeze
         private_constant :UNSET
 
-        def initialize(name, owner: nil)
-          @name      = name
-          @owner     = owner
-          @givens    = []
-          @ensures   = []
-          @mutations = []
-          @emits     = []
+        def initialize(name, owner: nil, from: nil, named_givens: {})
+          @name          = name
+          @owner         = owner
+          @givens        = []
+          @ensures       = []
+          @mutations     = []
+          @emits         = []
+          @named_givens  = named_givens
+          # NORMALIZED the exact same way `StateTransition#from` already
+          # is — one state or several, a single spelling either way,
+          # both read back through `Array(...)` at check time.
+          @from = case from
+                  when Array then from.map(&:to_s)
+                  when nil   then nil
+                  else            from.to_s
+                  end
         end
 
         # A command carries ONE responsibility role — the language never
@@ -85,7 +94,20 @@ module Hecksagain
 
         public
 
+        # NO BLOCK is a REFERENCE, not a fresh declaration (S10, ADR
+        # 0025 — "a precondition shared across commands is declared
+        # once. An aggregate declares it by name and commands
+        # reference it"): the SAME word, the SAME shape
+        # (`AggregateBuilder#given`, block required there), so naming a
+        # precondition back is spelled exactly like declaring one would
+        # be, minus the block — one idea, one word, never a second
+        # spelling ("requires"/"precondition") for "use the one already
+        # named". Resolved against whatever the OWNING aggregate has
+        # declared so far — see `AggregateBuilder#command`'s own
+        # comment on why that means declaration order matters here.
         def given(description, &predicate)
+          return reference_named_given(description) unless predicate
+
           canonical = Ports::Extraction.canonical(predicate)
 
           # moved to the language: given "a rule says what it means", on Verb.Rule
@@ -103,6 +125,21 @@ module Hecksagain
             predicate:   predicate
           )
         end
+
+        private
+
+        def reference_named_given(description)
+          named = @named_givens[description] ||
+                  raise(Malformed,
+                        "#{@name}'s given #{description.inspect} names no precondition " \
+                        "#{@owner} declares — declare it once with a block " \
+                        "(#{@owner}'s own given(#{description.inspect}) { ... }), before " \
+                        "the commands that reference it")
+
+          @givens << named
+        end
+
+        public
 
         # The POSTCONDITION — a given for the far side of the mutations,
         # evaluated against the settled record with `old` naming the state
@@ -252,12 +289,13 @@ module Hecksagain
             mutations:  @mutations,
             emits:      @emits,
             references: @references,
+            from:       @from,
             provenance: @provenance
           )
         end
 
-        def self.build(name, owner: nil, &block)
-          builder = new(name, owner: owner)
+        def self.build(name, owner: nil, from: nil, named_givens: {}, &block)
+          builder = new(name, owner: owner, from: from, named_givens: named_givens)
           builder.instance_eval(&block) if block
           builder.build
         end

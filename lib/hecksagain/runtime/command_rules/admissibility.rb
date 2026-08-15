@@ -90,7 +90,7 @@ module Hecksagain
         # parent aggregate reaching ITS OWN customer) resolves the same
         # way `account.customer.status` does for a command-level reference.
         # nil for an aggregate command — CommandInterpreter never passes it.
-        def enforce_givens(subject, command, args, domain:, parent: nil)
+        def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil)
           state = GuardState.new(subject)
           owner = subject.aggregate if subject.respond_to?(:aggregate)
           attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
@@ -100,6 +100,29 @@ module Hecksagain
 
             raise GivenNotMet, "#{command.hecks_name} refused — #{given.description}"
           end
+
+          enforce_lifecycle_guard(declaring, command, subject) if declaring
+        end
+
+        # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command
+        # "Debit", from: "open"` checked here, folded into the SAME
+        # dispatch step `given` already runs at (both are preconditions,
+        # evaluated before any mutation) rather than earning its own
+        # DISPATCH_ORDER entry. A GUARD, never a transition: it names no
+        # target state and `step_advance_lifecycle` never sees it — see
+        # `admissible_transition`, right below, for the transition this
+        # is deliberately NOT reusing (its own `StateTransition#target`
+        # is required, and a guard-only command has none to give it).
+        def enforce_lifecycle_guard(declaring, command, subject)
+          return unless command.from
+
+          lifecycle = declaring.lifecycle
+          current   = Value.scalar(subject[lifecycle.field]).to_s
+          return if Array(command.from).include?(current)
+
+          raise LifecycleRefused,
+                "#{command.hecks_name} refused — #{lifecycle.field} is #{Rendering.describe(current)}, " \
+                "and #{command.hecks_name} only runs from #{Array(command.from).map(&:inspect).join(' or ')}"
         end
 
         # The far side of the contract: evaluated against the SETTLED record
@@ -129,6 +152,28 @@ module Hecksagain
             next if Bluebook::Expression::Evaluator.call(rule.canonical, state, attrs)
 
             raise EnsuresNotMet, "#{command.hecks_name} refused — #{rule.description}"
+          end
+        end
+
+        # THE AGGREGATE BOUNDARY, checked after every command, before
+        # save (S10, ADR 0025 — "Rules") — the same point `enforce_
+        # ensures` already checks at, and for the same reason: an
+        # invariant is a claim about the SETTLED record, not the
+        # command that produced it, so it reads no `args`/`old` at all,
+        # only the record's own (dereferenced) state. `subject` here is
+        # always the AGGREGATE's own instance — `CommandInterpreter`
+        # passes its own `ctx.instance`, and `EntityInterpreter` passes
+        # the PARENT record (`ctx.instance`, not the element), since an
+        # entity mutation changes data inside the SAME aggregate
+        # boundary the invariant guards; there is no separate "entity
+        # invariant" to check the piece's own view against.
+        def enforce_invariants(subject, aggregate, domain:)
+          state = GuardState.new(subject)
+          attrs = dereference(domain, aggregate, subject)
+          aggregate.invariants.each do |invariant|
+            next if Bluebook::Expression::Evaluator.call(invariant.canonical, state, attrs)
+
+            raise InvariantViolation, "#{aggregate.hecks_name} refused — #{invariant.description}"
           end
         end
 

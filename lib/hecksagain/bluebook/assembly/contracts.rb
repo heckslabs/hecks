@@ -55,10 +55,19 @@ module Hecksagain
             description:   [:description,   :plain],
             identified_by: [:identified_by, :plain],
             attributes:    [:attributes,    [:each, :attribute]],
+            # THE AGGREGATE BOUNDARY, and the precondition a command may
+            # reference by name (S10, ADR 0025 — "Rules"). Same reader
+            # shapes ValueObject's own `invariants`/Command's own
+            # `givens` already use — `invariant` builds an Invariant,
+            # `given` a Given, the same struct AggregateBuilder#given
+            # hands a referencing command's own resolved list.
+            invariants:    [:invariants,    [:each, :invariant]],
+            preconditions: [:preconditions, [:each, :given]],
             provenance:    [:provenance,    :plain]
           },
           rows: { transitions: :transition_rows, value_objects: :value_object_names, identified_by: :identity_rows },
-          reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute] },
+          reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute],
+                   invariants: [:each, :rule], preconditions: [:each, :rule] },
           derived: {
             position: :walk,
             state_field:   [:folded, :lifecycle, :field],
@@ -80,11 +89,16 @@ module Hecksagain
             ensures:    [:ensures,    [:each, :given]],
             mutations:  [:mutations,  [:each, :mutation]],
             emits:      [:emits,      :plain],
+            # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — a
+            # literal the same way `provenance`/`default:` already are;
+            # one state or an array of them, or nil for a command with
+            # no such guard.
+            from:       [:from,       :plain],
             provenance: [:provenance, :plain]
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
-                  mutations: [:call, :mutations], emits: :names, provenance: :provenance },
+                  mutations: [:call, :mutations], emits: :names, provenance: :provenance, from: :from },
           derived: { position: :walk }
         ),
 

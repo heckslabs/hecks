@@ -25,6 +25,7 @@ module Hecksagain
         {"step"=>"apply_mutations"}.freeze,
         {"step"=>"advance_lifecycle"}.freeze,
         {"step"=>"enforce_ensures"}.freeze,
+        {"step"=>"enforce_invariants"}.freeze,
         {"step"=>"save"}.freeze,
         {"step"=>"emit"}.freeze
       ].freeze,
@@ -62,6 +63,7 @@ module Hecksagain
         {"step"=>"apply_mutations"}.freeze,
         {"step"=>"advance_lifecycle"}.freeze,
         {"step"=>"enforce_ensures"}.freeze,
+        {"step"=>"enforce_invariants"}.freeze,
         {"step"=>"save"}.freeze,
         {"step"=>"emit"}.freeze
       ].freeze,

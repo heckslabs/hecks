@@ -8,5 +8,23 @@ Hecks.bluebook "FixtureAggregate" do
     description "a minimal aggregate fixture"
     identified_by :name
     attribute :name, String
+    attribute :status, String
+
+    # S10, ADR 0025 ("Rules") — `invariant`/`given` directly on an
+    # aggregate, and a command's `from:` lifecycle guard. Minimal on
+    # purpose, the same reasoning this fixture's own header gives — the
+    # real corpus (banking.bluebook's own Account) exercises all three
+    # at full size.
+    invariant("the name is never blank") { !name.empty? }
+    given("the widget is nameable") { !name.nil? }
+
+    lifecycle :status, default: "draft" do
+      transition "Publish" => "published", from: "draft"
+    end
+
+    command "Publish", from: "draft" do
+      given("the widget is nameable")
+      emits "WidgetPublished"
+    end
   end
 end

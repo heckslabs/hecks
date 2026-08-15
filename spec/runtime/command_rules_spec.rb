@@ -153,16 +153,19 @@ RSpec.describe "the rules a command obeys" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
 
-      # Freeze also carries its own explicit `given("account is open")` (a
-      # customer/account status guard, ported alongside this test's own
-      # dependency) — since `enforce_givens` runs BEFORE
-      # `admissible_transition` in DISPATCH_ORDER, an already-frozen
-      # account is refused there first: GivenNotMet, not the lifecycle's
-      # own LifecycleRefused. The command is still refused either way;
-      # only which check gets there first, and what it's named, changed.
+      # Freeze used to carry its own explicit `given("account is open")`
+      # for this; S10 (ADR 0025) replaced it with a real lifecycle guard
+      # (`command "FreezeAccount", from: "open"`), checked in the SAME
+      # dispatch step `enforce_givens` already runs (`Admissibility#
+      # enforce_lifecycle_guard`, folded in right after a command's own
+      # givens) — an already-frozen account is refused there, by name,
+      # naming the ACTUAL reason (the state it's in and the one state it
+      # runs from) rather than a free-text sentence that could drift out
+      # of sync with the state machine and did.
       expect do
         runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" }, id: "a1")
-      end.to raise_error(Hecksagain::Runtime::GivenNotMet, "FreezeAccount refused — account is open")
+      end.to raise_error(Hecksagain::Runtime::LifecycleRefused,
+                         'FreezeAccount refused — status is "frozen", and FreezeAccount only runs from "open"')
     end
 
     it "refuses a move an ENTITY's own machine does not admit, in the same shape" do

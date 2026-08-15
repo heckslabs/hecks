@@ -75,7 +75,7 @@ module Hecksagain
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) { @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain) }
+        step(:enforce_givens) { @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.aggregate) }
       end
 
       def step_admissible_transition(ctx)
@@ -105,6 +105,10 @@ module Hecksagain
 
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) { @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state, domain: ctx.domain) }
+      end
+
+      def step_enforce_invariants(ctx)
+        step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
       def step_save(ctx)

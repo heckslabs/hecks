@@ -149,11 +149,12 @@ entity's own.
 ## command
 
 <!-- generated:begin word=command -->
-`command name do ... end` — opens a `Command` body
+`command name, from: do ... end` — opens a `Command` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `from:` | literal | false | from |
 <!-- generated:end -->
 
 Same vocabulary as a command on an aggregate — see command.md — but this one never gets a door of its own: nothing installs a module for an entity, so it's reached only as `Aggregate.Entity.Command`, never independently. It also never declares `reference_to`; the parent qualifier in the dotted call already supplies both identities.

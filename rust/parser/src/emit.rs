@@ -117,6 +117,8 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ("attributes".to_string(), JsonValue::Array(a.attributes.iter().map(attribute_json).collect())),
         ("value_objects".to_string(), JsonValue::Array(a.value_objects.iter().map(value_object_json).collect())),
         ("commands".to_string(), JsonValue::Array(a.commands.iter().map(command_json).collect())),
+        ("invariants".to_string(), JsonValue::Array(a.invariants.iter().map(given_json).collect())),
+        ("preconditions".to_string(), JsonValue::Array(a.preconditions.iter().map(given_json).collect())),
         ("lifecycle".to_string(), a.lifecycle.as_ref().map(lifecycle_json).unwrap_or(JsonValue::Null)),
         ("entities".to_string(), JsonValue::Array(a.entities.iter().map(entity_json).collect())),
         ("queries".to_string(), JsonValue::Array(a.queries.iter().map(query_json).collect())),
@@ -188,8 +190,21 @@ fn command_json(c: &ir::Command) -> JsonValue {
         ("ensures".to_string(), JsonValue::Array(c.ensures.iter().map(given_json).collect())),
         ("mutations".to_string(), JsonValue::Array(c.mutations.iter().map(mutation_json).collect())),
         ("emits".to_string(), JsonValue::strings(&c.emits)),
+        ("from".to_string(), command_from_json(&c.from)),
         ("provenance".to_string(), c.provenance.as_ref().map(ruby_value_json).unwrap_or(JsonValue::Null)),
     ])
+}
+
+/// `ir::CommandFrom` — see that type's own header: a plain captured
+/// value (never `Literal.render`-ed), a bare JSON string for ONE state or
+/// a JSON array of strings for several, `null` for a command with no
+/// `from:` guard.
+fn command_from_json(from: &Option<ir::CommandFrom>) -> JsonValue {
+    match from {
+        None => JsonValue::Null,
+        Some(ir::CommandFrom::Single(state)) => JsonValue::str(state.clone()),
+        Some(ir::CommandFrom::Multiple(states)) => JsonValue::strings(states),
+    }
 }
 
 /// `IR::Mutation#to_h` (lib/hecksagain/bluebook/ir/command.rb) — see

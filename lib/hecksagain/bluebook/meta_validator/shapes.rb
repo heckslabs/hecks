@@ -102,6 +102,12 @@ module Hecksagain
         # `default:`.
         def provenance(row) = decode_literal(text(row[:provenance]))
 
+        # `command "Debit", from: "open"` — the SAME literal encoding
+        # `provenance`/`default:` already ride (S10, ADR 0025), one
+        # state or an array of them, or nil for a command with no
+        # lifecycle guard.
+        def from(row) = decode_literal(text(row[:from]))
+
         # THE OPTION ROWS, GATHERED BACK into the shapes `extra_options_to_h` spells.
         #
         # One row per part, so a compound option is several rows and a repeated one is

@@ -162,7 +162,7 @@ Hecks.bluebook "Bluebook" do
                 one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
                          "refuse_role_mismatch", "resolve_references", "hydrate", "enforce_givens",
                          "admissible_transition", "assign_creation_attributes", "apply_mutations",
-                         "advance_lifecycle", "enforce_ensures", "save", "emit"]
+                         "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"]
     end
 
     # EntityInterpreter#call — the same shape
@@ -179,7 +179,7 @@ Hecks.bluebook "Bluebook" do
       attribute :step, String,
                 one_of: ["normalize_args", "refuse_role_mismatch", "resolve_references", "hydrate_parent",
                          "locate_element", "enforce_givens", "admissible_transition", "apply_mutations",
-                         "advance_lifecycle", "enforce_ensures", "save", "emit"]
+                         "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"]
     end
 
     # Runtime::Errors::DOMAIN_REFUSALS — what counts as the domain judging,

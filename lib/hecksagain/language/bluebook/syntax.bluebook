@@ -276,6 +276,18 @@ Hecks.bluebook "Bluebook" do
       member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
       member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: ""
       member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      # THE AGGREGATE BOUNDARY IS WHAT AN INVARIANT DEFINES (S10, ADR
+      # 0025 — "Rules") — the same word `value_object` already carries,
+      # one level up: checked after every command, before save, rather
+      # than at coercion. `invariant` existed only inside `value_object`
+      # before this; an aggregate-level rule had nowhere to live.
+      member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants"
+      # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+      # 0025) — the SAME word `given` already carries inside `command`,
+      # one level up: block required here (a declaration, never a bare
+      # reference at the aggregate's own level — only a COMMAND's own
+      # `given` can omit the block to name one of these back).
+      member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions"
 
       # A PIECE SAYS LESS THAN A HEAD, and the table is where that stops being
       # folklore : an entity admits no `value_object`, no `policy` and no
@@ -664,6 +676,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "policy",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "value_object",    context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "command",         context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `command
+      # "Debit", from: "open"` checked against THIS aggregate's own
+      # lifecycle field, a precondition rather than a transition (it
+      # names no target state — see `Command`'s own `from` field
+      # comment). `literal`, not `text`: one state or several
+      # (`from: ["open", "frozen"]`), the same flexible shape `sets`'s
+      # own `to:`/`append:`/... rows already admit.
+      member keyword: "command",         context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "false", fills: "from"
       # THE TYPE IS ALWAYS A BARE CONSTANT, ALWAYS REQUIRED (S3, ADR 0025) —
       # no default, no quoted-text form. A forward reference to a value
       # object declared later in the same block already resolves as a
@@ -686,6 +706,14 @@ Hecks.bluebook "Bluebook" do
       # "one_of"` names the ARGUMENT's own role rather than a field
       # `Attribute`'s contract declares.
       member keyword: "attribute",       context: "Aggregate", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      # See ValueObject's own row above — the same shape, one level up.
+      member keyword: "invariant",       context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # See Command's own row below — the same shape, one level up; a
+      # command's OWN `given` reuses this row too when it takes a block
+      # (a fresh declaration), and reaches a different one entirely
+      # (the `at: "1"` row alone, no `required` on a block it never
+      # takes) when it names one of THESE back instead.
+      member keyword: "given",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
 
       member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       # See Aggregate's own three rows above — the same method, one level down.
@@ -693,6 +721,9 @@ Hecks.bluebook "Bluebook" do
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
       member keyword: "identified_by",   context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
       member keyword: "command",         context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      # See Aggregate's own row above — the same guard, checked against
+      # this piece's own lifecycle field (S10, ADR 0025).
+      member keyword: "command",         context: "Entity", at: "",  named: "from",     kind: "literal",  required: "false", fills: "from"
       member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
       member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
       member keyword: "lifecycle",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"

@@ -59,6 +59,21 @@ pub struct Given {
 pub type Ensures = Given;
 pub type Invariant = Given;
 
+// `CommandBuilder#from`'s own normalization (`case from when Array then
+// from.map(&:to_s) when nil then nil else from.to_s end`) — ONE state or
+// SEVERAL, never wrapped in a `Rule`-shaped `{description:, canonical:}`
+// struct the way `given`/`ensures`/`invariant` are: `IR::Command#to_h`'s
+// own `from: -> { from }` embeds the plain Ruby value (a bare String or
+// an Array of Strings) straight into `JSON.generate`, exactly the same
+// "raw captured value, not `Literal.render`-ed" shape `provenance`
+// already carries — see `ir::Literal`'s own header. A command with no
+// `from:` guard (most commands) carries `None`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum CommandFrom {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
 // `IR::Mutation#classified_source` (lib/hecksagain/bluebook/ir/command.rb)
 // — an ARGUMENT-sourced mutation renders `{kind: "argument", name: ...}`;
 // a LITERAL-sourced one renders `{kind: "literal", value: source}` with
@@ -93,6 +108,10 @@ pub struct Command {
     pub ensures: Vec<Ensures>,
     pub mutations: Vec<Mutation>,
     pub emits: Vec<String>,
+    // THE LIFECYCLE STATE THIS COMMAND IS ADMISSIBLE FROM (S10, ADR 0025
+    // — "lifecycle state becomes a command guard") — see `CommandFrom`'s
+    // own header for why this is a plain captured value, not a `Given`.
+    pub from: Option<CommandFrom>,
     // `CommandBuilder#provenance` — the RAW captured Hash (`provenance
     // from: { ... }`), same "Origin, not runtime identity" shape
     // `AggregateBuilder#provenance` carries one level up. NOT run through
@@ -207,6 +226,20 @@ pub struct Aggregate {
     pub attributes: Vec<Attribute>,
     pub value_objects: Vec<ValueObject>,
     pub commands: Vec<Command>,
+    // THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — `invariant`,
+    // checked after every command, before save, the same `{description:,
+    // canonical:}` shape a value object's own `invariants` already uses
+    // (`ir::ValueObject.invariants`, same `ir::Invariant` type).
+    pub invariants: Vec<Invariant>,
+    // A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+    // 0025) — the aggregate's OWN named `given`s; a referencing command's
+    // own (already-resolved, Ruby-side-only) `givens` entry comes from
+    // one of these. DECLARATION-ONLY here — Rust never resolves a
+    // command's block-less `given("...")` back against this list (see
+    // `parse::command`'s own header on why that cross-construct
+    // resolution stays Ruby-DSL-builder-only, the same as S9's cycle
+    // detection).
+    pub preconditions: Vec<Given>,
     pub lifecycle: Option<Lifecycle>,
     pub entities: Vec<Entity>,
     pub queries: Vec<Query>,

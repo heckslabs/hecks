@@ -112,6 +112,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -178,6 +179,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -208,9 +210,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Bluebook",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -536,6 +544,24 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "invariants",
+          "optional": false,
+          "pattern": null,
+          "type": "Rule"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "preconditions",
+          "optional": false,
+          "pattern": null,
+          "type": "Rule"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "position",
           "optional": false,
@@ -598,6 +624,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -628,6 +655,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!path.value.to_s.empty?",
@@ -721,6 +749,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -817,6 +846,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -913,6 +943,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -964,6 +995,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1027,6 +1059,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1057,6 +1090,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!identified_by.empty?",
@@ -1090,6 +1124,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1107,6 +1142,114 @@
           "provenance": null,
           "references": "Aggregate",
           "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "LiteralText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "LiteralText"
+            }
+          ],
+          "emits": [
+            "InvariantAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Attach one invariant to the aggregate",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": ":canonical",
+                "description": ":description"
+              },
+              "op": "append",
+              "target": "invariants"
+            }
+          ],
+          "name": "Invariant",
+          "provenance": null,
+          "references": "Aggregate",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "LiteralText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "LiteralText"
+            }
+          ],
+          "emits": [
+            "PreconditionAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Declare one precondition commands can reference by name",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": ":canonical",
+                "description": ":description"
+              },
+              "op": "append",
+              "target": "preconditions"
+            }
+          ],
+          "name": "Precondition",
+          "provenance": null,
+          "references": "Aggregate",
+          "role": "Language"
         }
       ],
       "description": "One aggregate inside a chapter — the head a domain's declarations attach to.",
@@ -1117,9 +1260,15 @@
         "bluebook",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Aggregate",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -1384,6 +1533,36 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "description",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Rule"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "value",
               "optional": false,
               "pattern": null,
@@ -1608,6 +1787,15 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "from",
+          "optional": true,
+          "pattern": null,
+          "type": "CommandText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "position",
           "optional": false,
           "pattern": null,
@@ -1675,6 +1863,15 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "from",
+              "optional": true,
+              "pattern": null,
+              "type": "CommandText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -1687,6 +1884,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1771,6 +1969,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1867,6 +2066,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -1918,6 +2118,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!description.value.to_s.empty?",
@@ -1971,6 +2172,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!description.value.to_s.empty?",
@@ -2051,6 +2253,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!target.value.to_s.empty?",
@@ -2098,6 +2301,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!root.value.to_s.empty?",
@@ -2142,6 +2346,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!announces.value.to_s.empty?",
@@ -2172,9 +2377,15 @@
         "owner_id",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Command",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -2814,6 +3025,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -2862,6 +3074,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -2927,6 +3140,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!option.value.to_s.empty?",
@@ -3023,6 +3237,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -3056,9 +3271,15 @@
         "owner_id",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Query",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -3416,6 +3637,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -3500,6 +3722,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -3542,6 +3765,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "rows.value > 0",
@@ -3591,6 +3815,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!description.value.to_s.empty?",
@@ -3626,9 +3851,15 @@
         "aggregate",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "ValueObject",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -3950,6 +4181,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -3989,6 +4221,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!key.value.to_s.empty?",
@@ -4020,9 +4253,15 @@
         "value_object",
         "position.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Member",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -4281,6 +4520,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -4311,6 +4551,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!path.value.to_s.empty?",
@@ -4342,6 +4583,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!identified_by.empty?",
@@ -4429,6 +4671,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -4480,6 +4723,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -4543,6 +4787,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -4572,9 +4817,15 @@
         "aggregate",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Entity",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -4995,6 +5246,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5034,6 +5286,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5062,9 +5315,15 @@
         "bluebook",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Policy",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -5326,6 +5585,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5356,6 +5616,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5383,9 +5644,15 @@
         "bluebook",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "ProcessManager",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -5611,6 +5878,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5632,9 +5900,15 @@
         "process_manager",
         "event_type.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Handler",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -5788,6 +6062,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5827,6 +6102,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -5855,9 +6131,15 @@
         "handler",
         "command_name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Dispatch",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -5987,9 +6269,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Vocabulary",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -6781,6 +7069,12 @@
             [
               [
                 "step",
+                "enforce_invariants"
+              ]
+            ],
+            [
+              [
+                "step",
                 "save"
               ]
             ],
@@ -6868,6 +7162,12 @@
               [
                 "step",
                 "enforce_ensures"
+              ]
+            ],
+            [
+              [
+                "step",
+                "enforce_invariants"
               ]
             ],
             [
@@ -7725,9 +8025,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Syntax",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -8871,6 +9177,58 @@
               [
                 "fills",
                 "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
+                "invariant"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "invariants"
+              ]
+            ],
+            [
+              [
+                "word",
+                "given"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "preconditions"
               ]
             ],
             [
@@ -11956,6 +12314,36 @@
             [
               [
                 "keyword",
+                "command"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "attribute"
               ],
               [
@@ -12166,6 +12554,66 @@
             [
               [
                 "keyword",
+                "invariant"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "given"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "description"
               ],
               [
@@ -12323,6 +12771,36 @@
               [
                 "fills",
                 "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "command"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from"
               ]
             ],
             [
@@ -16438,6 +16916,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -16486,6 +16965,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -16524,6 +17004,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!field.value.to_s.empty?",
@@ -16563,6 +17044,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -16600,6 +17082,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!median_field.value.to_s.empty?",
@@ -16667,6 +17150,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!option.value.to_s.empty?",
@@ -16700,9 +17184,15 @@
         "bluebook",
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "ReadModel",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

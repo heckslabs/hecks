@@ -67,6 +67,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -87,9 +88,15 @@
       "identified_by": [
         "domain.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "World",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -265,6 +272,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!verb.value.to_s.empty?",
@@ -307,6 +315,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!key.value.to_s.empty?",
@@ -338,9 +347,15 @@
         "world.value",
         "verb.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Wiring",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

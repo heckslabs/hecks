@@ -18,6 +18,7 @@
 
 use super::{command, entity, lifecycle, policy, query, value_object};
 use crate::build::{identity, naming, references};
+use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::SourceLine;
@@ -140,6 +141,29 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 let as_name = super::named_symbol(&gated.args, "as").unwrap_or_else(|| naming::snake(&plural));
                 aggregate.attributes.push(references::reference_attribute(&target, Some(&as_name), false));
             }
+            // THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — the same
+            // `source`-body capture `value_object::parse_body`'s own
+            // `invariant` arm already does, one level up (that module's
+            // own header explains the two legal spellings).
+            "invariant" => {
+                let description = super::positional_text(file, line, "invariant", &gated.args, 1)?;
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                aggregate.invariants.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+            }
+            // A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10,
+            // ADR 0025) — block REQUIRED here (`syntax.bluebook`'s own
+            // row: only ONE row for `given`/Aggregate, `body: "source"`)
+            // — a fresh declaration, never a bare reference; only a
+            // COMMAND's own `given` can omit the block (`parse::command`'s
+            // own header explains why that form needs no Rust code of its
+            // own). DECLARATION-ONLY — Rust never resolves a command's
+            // own block-less `given` back against this list; see
+            // `ir::Aggregate.preconditions`'s own comment.
+            "given" => {
+                let description = super::positional_text(file, line, "given", &gated.args, 1)?;
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                aggregate.preconditions.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+            }
             "value_object" => {
                 let vo_name = super::positional_text(file, line, "value_object", &gated.args, 1)?;
                 let vo = super::parse_nested_body(file, lines, pos, &gated.call.opener, line, |f, l, p| value_object::parse_body(f, l, p, &vo_name))?;
@@ -167,7 +191,12 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
-                aggregate.commands.push(command::parse_body(file, lines, pos, &c_name, name)?);
+                let from = command::parse_from(file, line, &gated.args)?;
+                // `aggregate.preconditions` AS DECLARED SO FAR (textual
+                // order) — see `command::try_reference_named_given`'s own
+                // header on why a command's own block-less `given` needs
+                // this, not just `&[]`.
+                aggregate.commands.push(command::parse_body(file, lines, pos, &c_name, name, from, &aggregate.preconditions)?);
             }
             // `AggregateBuilder#policy` — see this function's own header
             // on why the built `ir::Policy` is returned rather than

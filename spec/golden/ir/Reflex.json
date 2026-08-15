@@ -40,6 +40,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -71,6 +72,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -100,9 +102,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Light",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -227,6 +235,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -249,6 +258,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -269,9 +279,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Echo",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -346,6 +362,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -366,9 +383,15 @@
       "identified_by": [
         "signal.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Beacon",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

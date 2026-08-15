@@ -1303,6 +1303,65 @@ RSpec.describe "the DSL surface" do
       expect(machine.target_for("Purchase")).to eq("sold")
     end
 
+    it "invariant declares an aggregate-level rule, checked after every command" do
+      built = build_aggregate("Invarianted") do
+        value_object("Balance") { attribute :cents, Integer }
+        attribute :balance, Balance
+
+        invariant("the balance never goes negative") { balance.cents >= 0 }
+      end
+
+      expect(built.invariants.map(&:description)).to eq(["the balance never goes negative"])
+      expect(built.invariants.first.canonical).to include("cents")
+    end
+
+    it "given at the aggregate level declares a precondition once, and a command names it back" do
+      built = build_aggregate("Preconditioned") do
+        value_object("Status") { attribute :value, String }
+        attribute :status, Status
+
+        given("the record is open") { status.value == "open" }
+
+        command("Close") { given("the record is open") }
+      end
+
+      expect(built.preconditions.map(&:description)).to eq(["the record is open"])
+      expect(built.commands.first.givens.map(&:description)).to eq(["the record is open"])
+      expect(built.commands.first.givens.first.canonical).to eq(built.preconditions.first.canonical)
+    end
+
+    it "given refuses a command that names a precondition the aggregate never declared" do
+      expect do
+        build_aggregate("Unpreconditioned") do
+          command("Close") { given("the record is open") }
+        end
+      end.to raise_error(Malformed, /names no precondition Thing declares/)
+    end
+
+    it "command's from: guards against the lifecycle field, without transitioning it" do
+      bluebook = build_bluebook("Guarding") do
+        aggregate("Door") do
+          identified_by :id
+
+          lifecycle :status, default: "open" do
+            transition "Shut" => "shut", from: "open"
+          end
+
+          command("Peek", from: "open")
+        end
+      end
+
+      command = bluebook.aggregate("Door").command("Peek")
+      expect(command.from).to eq("open")
+      expect(command.mutations).to be_empty
+    end
+
+    it "command's from: refuses when the aggregate declares no lifecycle to check it against" do
+      expect do
+        build_aggregate("Lifecycleless") { command("Go", from: "open") }
+      end.to raise_error(Malformed, /guards from: \["open"\], but Thing declares no lifecycle/)
+    end
+
     it "lifecycle keeps a from: list as written, and flattens it only when dumped" do
       machine = build_aggregate("Guarded") do
         lifecycle :status, default: "draft" do

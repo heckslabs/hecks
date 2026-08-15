@@ -309,6 +309,40 @@ Hecks.bluebook "Banking", version: "v1" do
       end
     end
 
+    # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — checked after
+    # every command, before save, the same way a value object's already
+    # is. Six commands move :balance, and "the balance never goes
+    # negative" used to be expressed three ways: Debit stated it as
+    # both a given and an ensures, ApplyFee/CorrectInterest as
+    # differently-worded givens, and the commands that only increase it
+    # (Credit, CorrectFee, AccrueInterest) said nothing at all —
+    # completeness depended on someone noticing which commands could
+    # decrease it. One rule, checked for all of them, said once.
+    invariant("the balance never goes negative") { balance.cents >= 0 }
+
+    # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+    # 0025) — "customer is active" was the single most duplicated given
+    # in the whole corpus (44% of all 183, per the ADR's own count,
+    # between this and its sibling below). Every command on Account
+    # itself that reads its own `customer` reference names this back
+    # rather than re-typing the predicate — one description, and
+    # therefore one refusal message, no matter which command a caller
+    # hits. FreezeAccount/CloseAccount are NOT among them — they check
+    # "customer is not closed", a different rule for a different
+    # reason (see FreezeAccount's own comment, below). LedgerEntry's
+    # own Amend/Reverse read `parent.customer.status` instead — a
+    # different relative path, so they keep their own given rather
+    # than reference this one; unifying across that boundary is S12's
+    # job, not this one's.
+    given("customer is active") { customer.status == "active" }
+
+    # A SECOND PRECONDITION, DECLARED ONCE (S10, ADR 0025) — the exact
+    # same text, and the exact same predicate, independently typed on
+    # both FreezeAccount and CloseAccount before this: two compliance-
+    # adjacent commands agreeing on one rule by coincidence, not by
+    # declaration.
+    given("customer is not closed") { customer.status != "closed" }
+
     lifecycle :status, default: "open" do
       transition "FreezeAccount" => "frozen", from: "open"
       transition "Unfreeze" => "open",  from: "frozen"
@@ -323,7 +357,7 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :number,      AccountNumber
       attribute :kind,        AccountKind
       attribute :daily_limit, DailyLimit
-      given("customer is active") { customer.status == "active" }
+      given("customer is active")
 
       sets :number
       sets :kind
@@ -332,7 +366,14 @@ Hecks.bluebook "Banking", version: "v1" do
       emits "AccountOpened"
     end
 
-    command "Credit" do
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from: "open"`
+    # replaces `given("the account is open") { status == "open" }`,
+    # written in two wordings across the corpus. The lifecycle already
+    # declares which states exist, so naming the legal one is checkable
+    # against it, where the free-text given could drift out of sync
+    # with the state machine and did (this one and "account is open"
+    # elsewhere on this same aggregate).
+    command "Credit", from: "open" do
       role "Teller"
       goal "Put money in"
 
@@ -340,15 +381,14 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :amount,    PositiveMoney
       attribute :narrative, Narrative
 
-      given("customer is active") { customer.status == "active" }
-      given("the account is open")      { status == "open" }
+      given("customer is active")
       sets :balance, increment: :amount
       sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
 
       emits "AccountCredited"
     end
 
-    command "Debit" do
+    command "Debit", from: "open" do
       role "Teller"
       goal "Take money out, if it is there to take"
 
@@ -356,21 +396,23 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :amount,    PositiveMoney
       attribute :narrative, Narrative
 
-      given("customer is active") { customer.status == "active" }
-      given("the account is open")       { status == "open" }
+      given("customer is active")
       given("the balance covers it")     { balance.cents >= amount.cents }
       given("the daily limit allows it") { daily_limit.cents >= amount.cents }
 
       sets :balance, decrement: :amount
       sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
 
+      # "no debit leaves the balance negative" — GONE, not reworded: the
+      # aggregate's own invariant above says it now, checked the same
+      # way after every command that can move :balance, not just this one.
       ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
-      ensures("no debit leaves the balance negative")   { balance.cents >= 0 }
+      ensures("a ledger entry was posted") { ledger.size == old.ledger.size + 1 }
 
       emits "AccountDebited"
     end
 
-    command "FreezeAccount" do
+    command "FreezeAccount", from: "open" do
       role "Compliance officer"
       goal "Stop an account moving while something is investigated"
 
@@ -394,72 +436,65 @@ Hecks.bluebook "Banking", version: "v1" do
       # time and so exposed the Rust kernel's own missing `for_each` —
       # closed in this same change; see FreezeAccountsOnSuspension's own
       # comment below.
-      given("customer is not closed") { customer.status != "closed" }
-      given("account is open") { status == "open" }
+      given("customer is not closed")
       emits "AccountFrozen"
     end
 
-    command "Unfreeze" do
+    command "Unfreeze", from: "frozen" do
       role "Compliance officer"
       goal "Release a cleared account"
 
       reference_to Account
-      given("customer is active") { customer.status == "active" }
-      given("account is frozen") { status == "frozen" }
+      given("customer is active")
       emits "AccountUnfrozen"
     end
 
-    command "CloseAccount" do
+    command "CloseAccount", from: ["open", "frozen"] do
       role "Branch clerk"
       goal "Close an account that has been emptied"
 
       reference_to Account
-      given("customer is not closed") { customer.status != "closed" }
-      given("account is open or frozen") { ["open", "frozen"].include?(status) }
+      given("customer is not closed")
 
       given("an account closes empty") { balance.cents.zero? }
 
       emits "AccountClosed"
     end
 
-    command "ApplyFee" do
+    command "ApplyFee", from: "open" do
       reference_to Account
       attribute :amount, PositiveMoney
       attribute :narrative, Narrative
-      given("customer is active") { customer.status == "active" }
-      given("account is open") { status == "open" }
+      given("customer is active")
       given("the balance covers a fee") { balance.cents >= amount.cents }
       sets :balance, decrement: :amount
       sets :fees_cents, increment: :amount
       emits "FeeApplied"
     end
 
-    command "CorrectFee" do
+    command "CorrectFee", from: "open" do
       reference_to Account
       attribute :amount, PositiveMoney
-      given("customer is active") { customer.status == "active" }
-      given("account is open") { status == "open" }
+      given("customer is active")
       given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
       sets :balance, increment: :amount
       sets :fees_cents, decrement: :amount
       emits "FeeCorrected"
     end
 
-    command "AccrueInterest" do
+    command "AccrueInterest", from: "open" do
       reference_to Account
       attribute :amount, PositiveMoney
-      given("customer is active") { customer.status == "active" }
-      given("account is open") { status == "open" }
+      given("customer is active")
       sets :balance, increment: :amount
       sets :interest_cents, increment: :amount
       emits "InterestAccrued"
     end
 
-    command "CorrectInterest" do
+    command "CorrectInterest", from: "open" do
       reference_to Account
       attribute :amount, PositiveMoney
-      given("customer is active") { customer.status == "active" }
-      given("account is open") { status == "open" }
+      given("customer is active")
       given("a correction cannot exceed accrued interest") { interest_cents.cents >= amount.cents }
       given("the balance covers an interest correction") { balance.cents >= amount.cents }
       sets :balance, decrement: :amount

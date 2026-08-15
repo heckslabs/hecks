@@ -56,30 +56,33 @@ when a transition can never fire.
 from: "open"`. Nothing assigns `:status` — firing the command IS the
 assignment:
 
-The command is dispatched by name rather than through the door's
-`account.freeze_account` sugar — `Freeze` snake-cases to `freeze`, which is
-also `Object`'s, and an example is a poor place to lean on a collision
-even though `Handle#define_verb_methods` resolves it:
-
 ```ruby
 account.status  # => "open"
-runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "lc-a1" })
-Banking::Account.find("lc-a1").status  # => "frozen"
+account.freeze_account
+account.status  # => "frozen"
 ```
 
-`from:` is enforced, not decorative — a second `Freeze` is refused
-rather than silently repeated:
+The transition's own `from:` is enforced, not decorative — a second
+`freeze_account` is refused rather than silently repeated:
 
 ```ruby
-runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "lc-a1" })  # ~> GivenNotMet: FreezeAccount refused — account is open
+account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount only runs from "open"
 ```
 
-The refusal names a `given`, not the transition, and that is not an
-accident: banking states the rule twice on purpose. `Freeze` carries
-its own `given("account is open") { status == "open" }` alongside
-`from: "open"`, so the given answers first and says so in business
-language. The transition is still the enforcement of last resort — see
-lifecycles.md, which walks the same overlap on `CardPayment`.
+The refusal names `FreezeAccount` itself, not the transition, because
+this corpus declares the command as `command "FreezeAccount", from:
+"open"` (a Command-context word — see command.md — added by S10, ADR
+0025). That guard is checked in the SAME dispatch step every `given`
+already runs at, which is BEFORE `admissible_transition` — the
+transition's own check — ever gets a turn, so it is what a caller
+actually sees. It used to take two independent declarations to say
+"open" here: a free-text `given("account is open") { status == "open"
+}` alongside the transition's own `from: "open"`, each able to drift
+out of sync with the other. Now there is one: the command's `from:`
+names the SAME lifecycle field the transition does, so there is
+nothing left to disagree. `CardPayment`, elsewhere in this corpus,
+still carries the older, given-shaped guard on every one of its own
+commands — see lifecycles.md, which walks that overlap in full.
 
 Given a list, the command may fire from any of several states —
 `transition "CloseAccount" => "closed", from: ["open", "frozen"]`

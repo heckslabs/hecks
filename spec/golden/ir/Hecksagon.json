@@ -49,6 +49,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -79,6 +80,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -115,6 +117,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -141,9 +144,15 @@
       "identified_by": [
         "domain.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Hecksagon",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -337,6 +346,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "!verb.value.to_s.empty?",
@@ -362,9 +372,15 @@
         "aggregate.value",
         "verb.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "AdapterBinding",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -426,9 +442,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "DomainPort",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -544,9 +566,15 @@
       "identified_by": [
         "name.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "PortOperation",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

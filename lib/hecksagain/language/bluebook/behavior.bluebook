@@ -41,6 +41,14 @@ Hecks.bluebook "Bluebook" do
     attribute :ensures,    list_of(Rule)
     attribute :mutations,  list_of(Change)
     attribute :provenance, CommandText
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — a LITERAL,
+    # the same shape `provenance`/`default:` already carry (`from:
+    # "open"` or `from: ["open", "frozen"]`, encoded and decoded the
+    # same way any other Ruby literal on this construct is), not a
+    # dedicated list-of-value-object the way `givens` is — the guard
+    # names no target state and moves nothing, so it needs no Rule-
+    # shaped predicate at all, only the states it admits.
+    attribute :from,       CommandText, optional: true
 
     value_object "CommandName" do
       attribute :value, String
@@ -140,6 +148,8 @@ Hecks.bluebook "Bluebook" do
       # See Aggregate.Declare's own `provenance` — identical shape, one
       # level down.
       attribute :provenance, CommandText, optional: true
+      # See this aggregate's own `from` field comment, above.
+      attribute :from,       CommandText, optional: true
 
       attribute :position, Position, optional: true
       emits "VerbDeclared"

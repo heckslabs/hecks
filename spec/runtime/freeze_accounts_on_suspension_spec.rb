@@ -138,6 +138,10 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     runtime = build
     freeze = runtime.registry.bluebook("Banking").aggregate("Account").command("FreezeAccount")
 
-    expect(freeze.givens.map(&:description)).to eq(["customer is not closed", "account is open"])
+    # "account is open" — S10, ADR 0025 — is now a lifecycle guard
+    # (command "FreezeAccount", from: "open"), not a given; the given
+    # list carries only the rule no lifecycle field can check.
+    expect(freeze.givens.map(&:description)).to eq(["customer is not closed"])
+    expect(freeze.from).to eq("open")
   end
 end

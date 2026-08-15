@@ -56,7 +56,13 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
             }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
-                entity.commands.push(command::parse_body(file, lines, pos, &c_name, name)?);
+                let from = command::parse_from(file, line, &gated.args)?;
+                // AN ENTITY OFFERS NO PRECONDITIONS OF ITS OWN
+                // (`EntityBuilder#command` never forwards `named_givens:`
+                // — see `command::try_reference_named_given`'s own
+                // header) — a bare `given(...)` here always fails
+                // resolution, matching Ruby's own refusal.
+                entity.commands.push(command::parse_body(file, lines, pos, &c_name, name, from, &[])?);
             }
             "query" => {
                 let q_name = super::positional_text(file, line, "query", &gated.args, 1)?;

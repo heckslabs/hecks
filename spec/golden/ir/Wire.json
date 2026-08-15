@@ -42,6 +42,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -72,6 +73,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status == \"open\"",
@@ -112,6 +114,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status == \"open\"",
@@ -148,6 +151,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -170,6 +174,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -190,6 +195,9 @@
       "identified_by": [
         "number.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "open",
         "field": "status",
@@ -208,6 +216,9 @@
       },
       "name": "Drawer",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -346,6 +357,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "amount.cents.positive?",
@@ -394,6 +406,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -416,6 +429,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -438,6 +452,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -457,6 +472,9 @@
       ],
       "identified_by": [
         "reference.value"
+      ],
+      "invariants": [
+
       ],
       "lifecycle": {
         "default": "asked",
@@ -481,6 +499,9 @@
       },
       "name": "Wire",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

@@ -76,6 +76,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
 
           ],
@@ -129,6 +130,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status == \"active\"",
@@ -161,6 +163,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status == \"suspended\"",
@@ -195,6 +198,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "[\"active\", \"suspended\"].include?(status)",
@@ -217,6 +221,9 @@
       ],
       "identified_by": [
         "reference.value"
+      ],
+      "invariants": [
+
       ],
       "lifecycle": {
         "default": "active",
@@ -246,6 +253,9 @@
       },
       "name": "Customer",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -545,6 +555,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -610,14 +621,11 @@
           "ensures": [
 
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "the account is open"
             }
           ],
           "goal": "Put money in",
@@ -675,18 +683,15 @@
               "description": "the balance fell by exactly the amount"
             },
             {
-              "canonical": "balance.cents >= 0",
-              "description": "no debit leaves the balance negative"
+              "canonical": "ledger.size == old.ledger.size + 1",
+              "description": "a ledger entry was posted"
             }
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "the account is open"
             },
             {
               "canonical": "balance.cents >= amount.cents",
@@ -732,14 +737,11 @@
           "ensures": [
 
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status != \"closed\"",
               "description": "customer is not closed"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "account is open"
             }
           ],
           "goal": "Stop an account moving while something is investigated",
@@ -761,14 +763,11 @@
           "ensures": [
 
           ],
+          "from": "frozen",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"frozen\"",
-              "description": "account is frozen"
             }
           ],
           "goal": "Release a cleared account",
@@ -790,14 +789,14 @@
           "ensures": [
 
           ],
+          "from": [
+            "open",
+            "frozen"
+          ],
           "givens": [
             {
               "canonical": "customer.status != \"closed\"",
               "description": "customer is not closed"
-            },
-            {
-              "canonical": "[\"open\", \"frozen\"].include?(status)",
-              "description": "account is open or frozen"
             },
             {
               "canonical": "balance.cents.zero?",
@@ -840,14 +839,11 @@
           "ensures": [
 
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "account is open"
             },
             {
               "canonical": "balance.cents >= amount.cents",
@@ -896,14 +892,11 @@
           "ensures": [
 
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "account is open"
             },
             {
               "canonical": "fees_cents.cents >= amount.cents",
@@ -952,14 +945,11 @@
           "ensures": [
 
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "account is open"
             }
           ],
           "goal": null,
@@ -1004,14 +994,11 @@
           "ensures": [
 
           ],
+          "from": "open",
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
               "description": "customer is active"
-            },
-            {
-              "canonical": "status == \"open\"",
-              "description": "account is open"
             },
             {
               "canonical": "interest_cents.cents >= amount.cents",
@@ -1116,6 +1103,7 @@
               "ensures": [
 
               ],
+              "from": null,
               "givens": [
                 {
                   "canonical": "parent.customer.status == \"active\"",
@@ -1176,6 +1164,7 @@
               "ensures": [
 
               ],
+              "from": null,
               "givens": [
                 {
                   "canonical": "parent.customer.status == \"active\"",
@@ -1251,6 +1240,12 @@
       "identified_by": [
         "number.value"
       ],
+      "invariants": [
+        {
+          "canonical": "balance.cents >= 0",
+          "description": "the balance never goes negative"
+        }
+      ],
       "lifecycle": {
         "default": "open",
         "field": "status",
@@ -1280,6 +1275,16 @@
       "name": "Account",
       "ports": [
 
+      ],
+      "preconditions": [
+        {
+          "canonical": "customer.status == \"active\"",
+          "description": "customer is active"
+        },
+        {
+          "canonical": "customer.status != \"closed\"",
+          "description": "customer is not closed"
+        }
       ],
       "provenance": {
         "source": "HecksCanonical",
@@ -1816,6 +1821,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -1868,6 +1874,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -1921,6 +1928,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -1957,6 +1965,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -1986,6 +1995,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -2057,6 +2067,7 @@
               "ensures": [
 
               ],
+              "from": null,
               "givens": [
                 {
                   "canonical": "parent.account.customer.status == \"active\"",
@@ -2133,6 +2144,9 @@
       "identified_by": [
         "serial.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "issued",
         "field": "status",
@@ -2156,6 +2170,9 @@
       },
       "name": "ATMCard",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -2448,6 +2465,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "source.customer.status == \"active\"",
@@ -2520,6 +2538,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "source.customer.status == \"active\"",
@@ -2553,6 +2572,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "destination.customer.status == \"active\"",
@@ -2586,6 +2606,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "destination.customer.status == \"active\"",
@@ -2619,6 +2640,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "source.customer.status == \"active\"",
@@ -2652,6 +2674,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "source.customer.status == \"active\"",
@@ -2682,6 +2705,9 @@
       ],
       "identified_by": [
         "reference.value"
+      ],
+      "invariants": [
+
       ],
       "lifecycle": {
         "default": "requested",
@@ -2716,6 +2742,9 @@
       },
       "name": "Transfer",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -2927,6 +2956,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -2979,6 +3009,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3012,6 +3043,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3045,6 +3077,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3078,6 +3111,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3119,6 +3153,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.status == \"open\"",
@@ -3159,6 +3194,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3192,6 +3228,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3222,6 +3259,9 @@
       ],
       "identified_by": [
         "authorisation.value"
+      ],
+      "invariants": [
+
       ],
       "lifecycle": {
         "default": "authorized",
@@ -3271,6 +3311,9 @@
       },
       "name": "CardPayment",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -3523,6 +3566,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3575,6 +3619,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3608,6 +3653,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3641,6 +3687,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3672,6 +3719,9 @@
       "identified_by": [
         "end_to_end.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "requested",
         "field": "status",
@@ -3695,6 +3745,9 @@
       },
       "name": "ExternalTransfer",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -3930,6 +3983,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -3982,6 +4036,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -4015,6 +4070,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -4048,6 +4104,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -4084,6 +4141,7 @@
               "description": "a retry never lowers the attempt count"
             }
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -4130,6 +4188,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -4165,6 +4224,9 @@
       "identified_by": [
         "instruction.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "scheduled",
         "field": "status",
@@ -4198,6 +4260,9 @@
       },
       "name": "ScheduledPayment",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -4471,6 +4536,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "status == \"vacant\"",
@@ -4508,6 +4574,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -4563,6 +4630,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -4608,6 +4676,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -4703,6 +4772,7 @@
               "ensures": [
 
               ],
+              "from": null,
               "givens": [
                 {
                   "canonical": "parent.customer.status == \"active\"",
@@ -4803,6 +4873,7 @@
               "ensures": [
 
               ],
+              "from": null,
               "givens": [
                 {
                   "canonical": "parent.customer.status == \"active\"",
@@ -4852,6 +4923,9 @@
         "branch_code.value",
         "box_number.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "vacant",
         "field": "status",
@@ -4870,6 +4944,9 @@
       },
       "name": "SafeDepositBox",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -5147,6 +5224,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -5187,6 +5265,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -5216,6 +5295,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "customer.status == \"active\"",
@@ -5243,6 +5323,9 @@
       "identified_by": [
         "reference.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": {
         "default": "screening",
         "field": "status",
@@ -5261,6 +5344,9 @@
       },
       "name": "OnboardingCase",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,
@@ -5457,6 +5543,7 @@
           "ensures": [
 
           ],
+          "from": null,
           "givens": [
             {
               "canonical": "account.customer.status == \"active\"",
@@ -5485,9 +5572,15 @@
         "account",
         "period.value"
       ],
+      "invariants": [
+
+      ],
       "lifecycle": null,
       "name": "Statement",
       "ports": [
+
+      ],
+      "preconditions": [
 
       ],
       "provenance": null,

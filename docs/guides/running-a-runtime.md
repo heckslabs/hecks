@@ -100,14 +100,27 @@ never comes up.
 
 ## The shape: bluebook → aggregate → attribute
 
-An aggregate carries eight keys. `lifecycle` is `nil` when the
+An aggregate carries thirteen keys. `lifecycle` is `nil` when the
 aggregate declares none; `entities`, `queries`, `commands`,
-`value_objects` are always arrays, empty when there's nothing to say:
+`value_objects`, `invariants`, `preconditions` are always arrays, empty
+when there's nothing to say:
 
 ```ruby
 account = ir.fetch(:aggregates).find { |a| a[:name] == "Account" }
 
-account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :lifecycle, :entities, :queries, :ports, :provenance]
+account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :lifecycle, :entities, :queries, :ports, :provenance]
+```
+
+`invariants` and `preconditions` are the aggregate-level rules (S10,
+ADR 0025 — see [commands.md](commands.md#given--the-rule-you-enforce-going-in)):
+`invariants` is checked after every command, before save, the same way
+a value object's own `invariants` are; `preconditions` holds the
+aggregate's own NAMED `given`s — the ones a command references back by
+description rather than re-declaring:
+
+```ruby
+account[:invariants].map { |i| i[:description] }    # => ["the balance never goes negative"]
+account[:preconditions].map { |p| p[:description] } # => ["customer is active", "customer is not closed"]
 ```
 
 `identified_by` is always an array of dotted paths, even for a single
@@ -237,10 +250,10 @@ next section walks in full:
 debit = account[:commands].find { |c| c[:name] == "Debit" }
 
 debit[:givens].map { |g| g[:canonical] }
-# => ["status == \"open\"", "balance.cents >= amount.cents", "daily_limit.cents >= amount.cents"]
+# => ["customer.status == \"active\"", "balance.cents >= amount.cents", "daily_limit.cents >= amount.cents"]
 
 debit[:ensures].map { |e| e[:canonical] }
-# => ["old.balance.cents == balance.cents + amount.cents", "balance.cents >= 0"]
+# => ["old.balance.cents == balance.cents + amount.cents", "ledger.size == old.ledger.size + 1"]
 ```
 
 `mutations` is the one worth being careful with, because its shape

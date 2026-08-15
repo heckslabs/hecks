@@ -167,6 +167,14 @@ module Hecksagain
             attributes:    Array(row[:attributes]).map { |field| attribute(field, id) },
             value_objects: declared("ValueObject", id).map { |shape| value_object(shape) },
             commands:      own("Command", id).map { |verb| command(verb) },
+            # THE AGGREGATE BOUNDARY, and the precondition a command may
+            # reference by name (S10, ADR 0025 — "Rules") — the same
+            # `rule` reader `command`'s own givens/ensures already use
+            # (Assembly::Contracts' generic `declaration()` path), read
+            # here by hand because `aggregate(row)` itself is hand-typed,
+            # unlike `command`/`value_object`/`query` below.
+            invariants:    Array(row[:invariants]).map { |held| rule(held) },
+            preconditions: Array(row[:preconditions]).map { |held| rule(held) },
             lifecycle:     lifecycle(row),
             entities:      declared("Entity", id).map { |piece| entity(piece) },
             queries:       own("Query", id).map { |ask| query(ask) },
