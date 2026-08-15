@@ -51,6 +51,7 @@ module Hecksagain
         saga_advances_follow_declared_handlers: %w[Handler#from_state Handler#to_state Handler#event_type],
         query_answers_match_reference: %w[Query#wheres Query#order_field Query#order_way Query#limit],
         paging_offset_partitions_correctly: %w[Query#options],
+        authorize_scopes_or_refuses: %w[Query#options],
         guard_refusals_are_declared: %w[Command#givens Command#ensures],
         lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions],
         sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
@@ -340,6 +341,75 @@ module Hecksagain
       # the caller supplied.
       def resolve_paging_value(value, args)
         value.is_a?(Symbol) ? args[value] : value
+      end
+
+      # `Query#options`' OTHER HALF — TenantScope.apply's own contract
+      # (tenant_scope.rb), independently restated as a property rather
+      # than exercised only through whatever the generator happens to
+      # try. NOT closed by the generator here on purpose: SafeDepositBox.
+      # Rented — the only real corpus query declaring `authorize` at
+      # all — declares ZERO attributes of its own, so StepBuilder#args_for
+      # always hands it `{}` and TenantScope.apply refuses every
+      # generated attempt, unconditionally (confirmed: no successful ask
+      # against an authorize-bearing query reaches this property via the
+      # standard battery today). Extending the generator to invent a
+      # `tenant:` value ran into a separate, real finding along the way —
+      # SafeDepositBox is COMPOSITE-identified (`identified_by` is nil
+      # for it — Runtime::Identified#derive_identity), so the generator's
+      # existing `known_ids` pool (keyed by `aggregate.identified_by ||
+      # "id"`) tracks a stray, never-real scalar for it rather than its
+      # true `branch_code`+`box_number` pair — a second, narrower
+      # generator gap this property does not attempt to fix, since fixing
+      # it well enough to trust a generated `tenant:` value would be the
+      # heavier, "benefits every future property" path the plan itself
+      # names as the alternative. Hand-built fixtures close the real
+      # claim directly instead: faster, narrower, and correct either way,
+      # since TenantScope.apply's contract is identical regardless of
+      # where a `tenant:` arg came from.
+      #
+      # Two claims, matching TenantScope.apply's own two branches: every
+      # SUCCESSFUL answer's own tenant field agrees with the tenant arg
+      # given (the WhereClause TenantScope injects is a Symbol reference
+      # into args, resolved dynamically — this checks the OUTCOME, not
+      # re-deriving that resolution) ; every ask MISSING a required
+      # tenant: refuses with the declared wording, never succeeds. A
+      # refusal for an unrelated reason with the tenant arg present is
+      # not this property's claim either way — skipped, not graded.
+      def authorize_scopes_or_refuses(history)
+        bluebooks = history.fetch(:bluebooks)
+
+        offenders = history.fetch(:queries).filter_map do |asked|
+          next unless asked[:query].is_a?(String) && asked[:query].include?("::")
+
+          declared = query_for_verb(bluebooks, asked[:query])
+          tenant = declared&.authorization&.tenant&.to_sym
+          next unless tenant
+
+          args = asked[:args] || {}
+          tenant_given = args.key?(tenant)
+
+          if asked[:error]
+            next if tenant_given
+            next if asked[:error].to_s.include?("declares authorize with tenant: #{tenant}")
+
+            "#{asked[:query]} #{args.inspect} refused with no #{tenant}: given, but not with the declared " \
+              "tenant_required wording (#{asked[:error]})"
+          elsif !tenant_given
+            "#{asked[:query]} #{args.inspect} answered successfully with no #{tenant}: given, but #{declared.name} " \
+              "declares authorize with tenant: #{tenant}"
+          else
+            wanted = args[tenant].to_s
+            mismatched = asked[:rows].find do |row|
+              Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, tenant)).to_s != wanted
+            end
+            next unless mismatched
+
+            "#{asked[:query]} #{args.inspect} answered a row whose #{tenant} disagrees with the given " \
+              "#{wanted.inspect}: #{mismatched.inspect}"
+          end
+        end
+
+        offenders.empty? || offenders.join("; ")
       end
 
       # EVERY GIVEN/ENSURES REFUSAL A RUN ACTUALLY RAISED NAMES A RULE
@@ -762,7 +832,8 @@ module Hecksagain
           stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history),
           group_by_matches_recompute: group_by_matches_recompute(history),
           paging_offset_partitions_correctly: paging_offset_partitions_correctly(history),
-          lifecycle_guard_and_given_violations_are_refused: lifecycle_guard_and_given_violations_are_refused(history) }
+          lifecycle_guard_and_given_violations_are_refused: lifecycle_guard_and_given_violations_are_refused(history),
+          authorize_scopes_or_refuses: authorize_scopes_or_refuses(history) }
       end
     end
   end

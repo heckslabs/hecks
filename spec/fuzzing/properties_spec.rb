@@ -167,6 +167,53 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       expect(Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)).to eq(true)
     end
 
+    # SafeDepositBox.Rented — real corpus, `where(status: "rented"); order_by
+    # :branch_code; authorize :vault_access, tenant: :branch_code`.
+    it "authorize_scopes_or_refuses names a successful answer whose tenant field disagrees with the given arg" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  queries: [{ query: "Banking::SafeDepositBox.Rented", args: { branch_code: "DOWNTOWN" },
+                             rows: [{ id: "UPTOWN:1", branch_code: { value: "UPTOWN" }, box_number: { value: 1 },
+                                      status: "rented" }] }] }
+
+      result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::SafeDepositBox.Rented").and include("UPTOWN")
+    end
+
+    it "authorize_scopes_or_refuses names a successful answer with no tenant arg given at all" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  queries: [{ query: "Banking::SafeDepositBox.Rented", args: {},
+                             rows: [{ id: "DOWNTOWN:12", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                                      status: "rented" }] }] }
+
+      result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::SafeDepositBox.Rented")
+    end
+
+    it "authorize_scopes_or_refuses names a refusal with no tenant given that used the wrong wording" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  queries: [{ query: "Banking::SafeDepositBox.Rented", args: {}, error: "a made up refusal" }] }
+
+      result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::SafeDepositBox.Rented").and include("a made up refusal")
+    end
+
+    it "authorize_scopes_or_refuses passes a successful answer whose tenant field matches the given arg, and a correctly-worded refusal with no tenant" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
+                  queries: [
+                    { query: "Banking::SafeDepositBox.Rented", args: { branch_code: "DOWNTOWN" },
+                      rows: [{ id: "DOWNTOWN:12", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+                               status: "rented" }] },
+                    { query: "Banking::SafeDepositBox.Rented", args: {},
+                      error: "Rented declares authorize with tenant: branch_code — pass branch_code: to name " \
+                             "which branch_code this ask is scoped to" }
+                  ] }
+
+      expect(Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)).to eq(true)
+    end
+
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
