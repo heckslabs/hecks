@@ -13,6 +13,11 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
   ROOT_DIR = InMemoryDomain::ROOT
   PROPERTIES_PIZZAS  = File.join(ROOT_DIR, "examples/pizzas")
   PROPERTIES_BANKING = File.join(ROOT_DIR, "examples/banking")
+  # S17's own fixture, now a real bootable domain (no .hecksagon at all
+  # — Memory by construction) rather than the raw-Kernel.load-only
+  # fixture it was — the only real corpus site anywhere using entity-
+  # owned append/remove/multiply/clamp, item 9's own real target.
+  PROPERTIES_ENTITY_MUTATIONS = File.join(ROOT_DIR, "spec/fixtures/entity_list_mutations")
   # The self-hosted META-domain — Expression + Translation, in that load
   # order — used ONLY to pin the multi-bluebook regression below. A real
   # `bin/fuzz` run against this domain (Expression loads first) is what
@@ -27,7 +32,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
   end
 
   describe "the standard battery, over real generated sequences" do
-    [[PROPERTIES_PIZZAS, 5], [PROPERTIES_BANKING, 5]].each do |domain, seed_count|
+    [[PROPERTIES_PIZZAS, 5], [PROPERTIES_BANKING, 5], [PROPERTIES_ENTITY_MUTATIONS, 10]].each do |domain, seed_count|
       it "holds for #{File.basename(domain)} across #{seed_count} seeds" do
         (1..seed_count).each do |seed|
           history = generated_history(domain, seed)
@@ -261,6 +266,58 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       }
 
       expect(Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)).to eq(true)
+    end
+
+    it "mutations_match_recompute names an append whose after-state disagrees with the recomputed element" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
+                  mutation_traces: [
+                    { verb: "EntityListMutations::Board.TaggedList.AddTag",
+                      before: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
+                      after: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
+                      args: { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } }
+                  ] }
+
+      result = Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("AddTag").and include("append")
+    end
+
+    it "mutations_match_recompute names a clamp whose after-state disagrees with the recomputed bound" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
+                  mutation_traces: [
+                    { verb: "EntityListMutations::Board.TaggedList.Clamp",
+                      before: { label: { value: "l1" }, count: { value: 15 } },
+                      after: { label: { value: "l1" }, count: { value: 15 } },
+                      args: { name: { value: "b1" }, label: { value: "l1" } } }
+                  ] }
+
+      result = Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Clamp").and include("clamp")
+    end
+
+    it "mutations_match_recompute passes append/remove/multiply/clamp all correctly recomputed" do
+      history = { bluebooks: bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
+                  mutation_traces: [
+                    { verb: "EntityListMutations::Board.TaggedList.AddTag",
+                      before: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
+                      after: { label: { value: "l1" }, count: { value: 0 }, tags: [{ key: "k1", value: "v1" }] },
+                      args: { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } },
+                    { verb: "EntityListMutations::Board.TaggedList.RemoveTag",
+                      before: { label: { value: "l1" }, count: { value: 0 }, tags: [{ key: "k1", value: "v1" }] },
+                      after: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
+                      args: { tag: { "key" => "k1", "value" => "v1" }, name: { value: "b1" }, label: { value: "l1" } } },
+                    { verb: "EntityListMutations::Board.TaggedList.Scale",
+                      before: { label: { value: "l1" }, count: { value: 4 } },
+                      after: { label: { value: "l1" }, count: { value: 12 } },
+                      args: { factor: 3, name: { value: "b1" }, label: { value: "l1" } } },
+                    { verb: "EntityListMutations::Board.TaggedList.Clamp",
+                      before: { label: { value: "l1" }, count: { value: 15 } },
+                      after: { label: { value: "l1" }, count: { value: 10 } },
+                      args: { name: { value: "b1" }, label: { value: "l1" } } }
+                  ] }
+
+      expect(Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)).to eq(true)
     end
 
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do

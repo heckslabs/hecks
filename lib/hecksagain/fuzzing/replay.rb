@@ -60,10 +60,11 @@ module Hecksagain
         IsolatedBoot.call(domain_path) do |copy|
           runtime = Hecks.boot(copy)
 
-          refusals     = []
-          queries      = []
-          fan_outs     = []
-          guard_checks = []
+          refusals        = []
+          queries         = []
+          fan_outs        = []
+          guard_checks    = []
+          mutation_traces = []
 
           # EVERY AGGREGATE A `for_each` COULD EVER QUERY, resolved ONCE —
           # `[domain, aggregate_name]` pairs, gleaned from every loaded
@@ -169,6 +170,18 @@ module Hecksagain
               # itself observes.
               guard_check = build_guard_check(runtime, step["verb"], args)
 
+              # THE MUTATION ORACLE'S OWN PRE-DISPATCH READ — same
+              # idiom again: an ENTITY-DISPATCHED command's own
+              # `append`/`remove`/`multiply`/`clamp` mutations (S17's
+              # fixture, spec/fixtures/entity_list_mutations, now a real
+              # bootable domain) act on the entity's OWN attributes, so
+              # the element addressed by this step's own identity args
+              # is snapshotted BEFORE dispatch, materialized to plain
+              # data — `nil` for anything out of scope (an aggregate-
+              # level command, an entity command with no mutations at
+              # all, or one whose identity args don't resolve).
+              mutation_trace = build_mutation_trace(runtime, step["verb"], args)
+
               # `role:` — an OPTIONAL per-step key, absent on every one of
               # the 231 existing `spec/corpus/*.json` steps (their own
               # unwrapped `runtime.dispatch` call, unchanged, so nothing
@@ -186,6 +199,13 @@ module Hecksagain
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
               guard_checks << guard_check.merge(actual_refused: false, actual_kind: nil) if guard_check
+              # AFTER — only on SUCCESS ; a refused step mutated nothing,
+              # so there is no "after" to compare (and #build_mutation_
+              # trace already skipped anything with no mutations to
+              # trace in the first place).
+              if mutation_trace
+                mutation_traces << mutation_trace.merge(after: read_mutation_after(runtime, mutation_trace))
+              end
             rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
               # `kind:` — the RAISED CLASS, not re-derived from the message.
               # `GivenNotMet`/`EnsuresNotMet` share their exact wording
@@ -268,6 +288,7 @@ module Hecksagain
           { instances: instances, events: events, refusals: refusals,
             reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
             queries: queries, fan_outs: fan_outs, guard_checks: guard_checks,
+            mutation_traces: mutation_traces,
             saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
             bluebook: runtime.registry.bluebooks.values.first,
             bluebooks: runtime.registry.bluebooks.dup }
@@ -327,6 +348,85 @@ module Hecksagain
 
         { verb: verb, domain: domain_name, aggregate: aggregate_name, command: command_name, id: id,
           recomputed_refused: !recomputed_kind.nil?, recomputed_kind: recomputed_kind }
+      rescue StandardError
+        nil
+      end
+
+      # THE MUTATION ORACLE'S OWN PRE-DISPATCH READ — scoped, on
+      # purpose, to ENTITY-DISPATCHED commands only (a dotted
+      # command_name): the one place `append`/`remove`/`multiply`/
+      # `clamp` are known to act on an entity's OWN attributes
+      # (spec/fixtures/entity_list_mutations' own TaggedList — `tags`
+      # a value-object list, `count` a VO-typed scalar), never on
+      # ANOTHER nested entity list — so this never needs to reproduce
+      # `MutationApplier#entity_element`'s own auto-mint/collision logic
+      # (item 1's own fix) at all. An aggregate-level command whose OWN
+      # mutation appends an ENTITY (`Board.AddList`, `SafeDepositBox.
+      # LogVisit`) is a DIFFERENT, already-covered case — item 1's own
+      # collision property, not this one.
+      #
+      # `nil` for anything out of scope: an aggregate-level command, an
+      # entity command with no mutations at all, or one whose identity
+      # args (parent OR element) don't resolve.
+      def build_mutation_trace(runtime, verb, args)
+        domain_name, aggregate_name, command_name = Naming.split_verb(verb)
+        return nil unless command_name && command_name.include?(".")
+
+        aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
+        return nil unless aggregate
+
+        entity_name, entity_command_name = command_name.split(".", 2)
+        entity  = aggregate.entities.find { |candidate| candidate.hecks_name == entity_name }
+        command = entity&.command(entity_command_name)
+        return nil unless command && command.mutations.any?
+
+        reference_key = command.references.to_s.empty? ? nil : Naming.reference_key(command.references)
+        parent_id = Runtime::Identity.of(aggregate, args) ||
+                    Runtime::Identity.from(aggregate, args, :id) ||
+                    (reference_key && Runtime::Identity.from(aggregate, args, reference_key))
+        return nil unless parent_id
+
+        record = runtime.registry.repository(domain_name, aggregate).find(parent_id)
+        return nil unless record
+
+        list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity.hecks_name }
+        return nil unless list_attr
+
+        wants = entity.identity_paths.map do |path|
+          head = path.to_s.split(".").first.to_sym
+          raw  = args[head]
+          return nil if raw.nil?
+
+          [head, Runtime::Value.for_attribute(aggregate, entity.attribute(head), raw)]
+        end
+
+        element = Array(record.state[list_attr.name]).find { |el| wants.all? { |head, want| el[head] == want } }
+        return nil unless element
+
+        { verb: verb, domain: domain_name, aggregate: aggregate_name, command: command_name,
+          parent_id: parent_id, list_attr: list_attr.name, element_wants: wants,
+          before: Runtime::Value.materialize(element), args: args }
+      rescue StandardError
+        nil
+      end
+
+      # THE SAME ELEMENT, RE-LOCATED, AFTER dispatch — by identity, not
+      # position (an append could have changed the array's own length
+      # or order relative to it). `nil` if it somehow vanished (not
+      # expected for any op this fixture declares — none of them
+      # remove the acted-on element itself — but a property comparing
+      # against `nil` fails loudly rather than crashing this replay).
+      def read_mutation_after(runtime, trace)
+        aggregate = runtime.registry.bluebook(trace[:domain])&.aggregate(trace[:aggregate])
+        return nil unless aggregate
+
+        record = runtime.registry.repository(trace[:domain], aggregate).find(trace[:parent_id])
+        return nil unless record
+
+        element = Array(record.state[trace[:list_attr]]).find do |el|
+          trace[:element_wants].all? { |head, want| el[head] == want }
+        end
+        element && Runtime::Value.materialize(element)
       rescue StandardError
         nil
       end

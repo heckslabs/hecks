@@ -84,7 +84,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # "unclaimed" never has to mean "unnoticed."
   META_DOMAIN_KNOWN_GAPS = {
     "Command#references" => "reference-typed command arguments are exercised constantly (guard dereferencing) but have no property of their own asking whether a dangling reference was ever silently accepted",
-    "Command#mutations" => "sets's own field-level mutation semantics have no independent replay recomputation the way aggregation_matches_recompute gives count/median",
     "Policy#on_event" => "which event a policy answers to is exercised by every reaction a generated sequence produces, but nothing asserts a policy NEVER fires on an event it doesn't declare",
     "Policy#trigger_command" => "a policy's own target command is exercised by dispatch itself; no property names a mismatch between declared trigger and what actually fired",
     "Policy#target_domain" => "cross-domain `across` policies have no property of their own — none of the example domains declare one yet",
