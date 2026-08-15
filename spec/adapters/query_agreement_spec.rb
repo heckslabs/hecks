@@ -59,9 +59,16 @@ module QueryAgreementD1Probe
   end
 end
 
-RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, Postgres, and D1",
+RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, PostgresEra, plain Postgres, and D1",
                io: true do
   AGREEMENT_DB = "hecksagain_query_agreement_spec".freeze
+  # A SEPARATE scratch database from PostgresEra's own AGREEMENT_DB above
+  # — both engines run against the same live server in the same test
+  # run, and PostgresEra's own journal/head-view machinery and plain
+  # Postgres's own flat table shape have nothing to share; one database
+  # per engine keeps a `DROP SCHEMA public CASCADE` on one from ever
+  # touching the other's tables.
+  PLAIN_POSTGRES_AGREEMENT_DB = "hecksagain_query_agreement_spec_plain".freeze
 
   # Instance methods, not `def self.` — `PostgresProbe`/`QueryAgreementD1Probe`
   # already memoize the real check once at the module level, so every call
@@ -75,6 +82,8 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{AGREEMENT_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{AGREEMENT_DB}")
+    admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_AGREEMENT_DB} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{PLAIN_POSTGRES_AGREEMENT_DB}")
     admin.close
   end
 
@@ -83,6 +92,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{AGREEMENT_DB} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_AGREEMENT_DB} WITH (FORCE)")
     admin.close
   end
 
@@ -93,6 +103,11 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     scrub.exec("DROP SCHEMA public CASCADE")
     scrub.exec("CREATE SCHEMA public")
     scrub.close
+
+    scrub_plain = PG.connect(dbname: PLAIN_POSTGRES_AGREEMENT_DB)
+    scrub_plain.exec("DROP SCHEMA public CASCADE")
+    scrub_plain.exec("CREATE SCHEMA public")
+    scrub_plain.close
   end
 
   # D1 has no throwaway-database-per-run the way Postgres does here (one
@@ -265,6 +280,9 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   let(:memory)   { Hecksagain::Adapters::Memory.new(aggregate: aggregate) }
   let(:sqlite)   { Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
   let(:postgres) { postgres_available? ? Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
+  let(:plain_postgres) do
+    postgres_available? ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_AGREEMENT_DB }) : nil
+  end
   let(:d1) do
     next nil unless d1_available?
 
@@ -311,6 +329,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       memory.save(instance(id, **fields))
       sqlite.save(instance(id, **fields))
       postgres&.save(instance(id, **fields))
+      plain_postgres&.save(instance(id, **fields))
       d1&.save(instance(id, **fields))
     end
   end
@@ -326,6 +345,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     expect(memory.query(declared, args).map(&:id)).to eq(expected)
     expect(sqlite.query(declared, args).map(&:id)).to eq(expected)
     expect(postgres.query(declared, args).map(&:id)).to eq(expected) if postgres_available?
+    expect(plain_postgres.query(declared, args).map(&:id)).to eq(expected) if postgres_available?
     expect(d1.query(declared, args).map(&:id)).to eq(expected) if d1_available?
   end
 
