@@ -57,10 +57,7 @@ RSpec.describe "a procedure, and when it is a saga" do
           starts_on "CandidateApplied"
           ends_on   "OfferAccepted"
 
-          state "applied"
-          state "screened"
-
-          on "CandidateApplied", transition: { "applied" => "screened" } do
+          transition "CandidateApplied" => "screened", from: "applied" do
             dispatch Candidate::Screen, with: { candidate: :candidate }
           end
         end

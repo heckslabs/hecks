@@ -10018,33 +10018,7 @@
             [
               [
                 "word",
-                "state"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "states"
-              ]
-            ],
-            [
-              [
-                "word",
-                "on"
+                "transition"
               ],
               [
                 "context",
@@ -10070,7 +10044,7 @@
             [
               [
                 "word",
-                "on"
+                "transition"
               ],
               [
                 "context",
@@ -14564,109 +14538,19 @@
             [
               [
                 "keyword",
-                "state"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "states"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "event_type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "event_type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
                 "transition"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
               ],
               [
                 "kind",
@@ -14682,7 +14566,7 @@
               ],
               [
                 "pair_key_fills",
-                "from_state"
+                "event_type"
               ],
               [
                 "pair_value_fills",
@@ -14691,6 +14575,66 @@
               [
                 "pairs_shape",
                 "fields"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "from_state"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from_state"
               ]
             ],
             [

@@ -60,9 +60,7 @@ RSpec.describe "a saga leg that never declares the correlation key at all" do
           starts_on "SightingRaised"
           ends_on   "AlarmOpened"
 
-          state "watching"
-
-          on "SightingRaised", transition: { "watching" => "watching" } do
+          transition "SightingRaised" => "watching", from: "watching" do
             # A LITERAL, wholly unconnected to the sighting's code — this leg
             # passes nothing correlation-shaped at all. AlarmOpened's payload
             # carries `label`, never `code`, so the payload-lookup tier finds

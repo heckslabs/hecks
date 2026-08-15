@@ -334,37 +334,38 @@ which conversation a later event belongs to.
 process_manager "Settlement" do
   # THE FIELD, NAMED — Transfer.Request declares `attribute :reference,
   # TransferReference`, which is also what Transfer's own `identified_by
-  # { reference.value }` derives its id from, so this reads the exact same
-  # scalar the old bare `:transfer` reached only by coincidence (the
-  # aggregate's own reference key happening to spell the same as the
-  # correlation name). Named, not guessed.
+  # :reference` derives its id from, so this reads the exact same scalar
+  # the old bare `:transfer` reached only by coincidence (the aggregate's
+  # own reference key happening to spell the same as the correlation
+  # name). Named, not guessed.
   correlates_by :"reference.value"
   starts_on "TransferRequested"
   ends_on   "TransferSettled"
 
-  state "requested"
-  state "awaiting_credit"
-  state "settled"
-  state "reversed"
-
-  on "TransferRequested", transition: { "requested" => "requested" } do
+  # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025) — the SAME word
+  # `lifecycle`'s own `transition` already carries, one level over;
+  # `state "x"` lines are gone, since every state here is already
+  # named by some transition's own `from:`/target — declaring them
+  # again said nothing the transitions below didn't already say.
+  transition "TransferRequested" => "requested", from: "requested" do
     dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
   end
 
-  on "AccountDebited", transition: { "requested" => "awaiting_credit" } do
+  transition "AccountDebited" => "awaiting_credit", from: "requested" do
     dispatch Transfer::Debited, with: { transfer: :reference }
     dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
   end
 
-  on "AccountCredited", transition: { "awaiting_credit" => "awaiting_credit" } do
+  transition "AccountCredited" => "awaiting_credit", from: "awaiting_credit" do
     dispatch Transfer::Credited, with: { transfer: :reference }
   end
 
-  on "TransferCredited", transition: { "awaiting_credit" => "settled" } do
+  transition "TransferCredited" => "settled", from: "awaiting_credit" do
     dispatch Transfer::Settle, with: { transfer: :reference }
   end
 
-  on :refused, transition: { "awaiting_credit" => "reversed" } do
+  # The compensating leg, triggered by a REFUSAL rather than an event.
+  transition :refused => "reversed", from: "awaiting_credit" do
     dispatch Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
     dispatch Transfer::Reverse, with: { transfer: :reference }
   end
@@ -375,10 +376,20 @@ end
 dotted path to one scalar, never a bare value object, for the same
 reason `identified_by :reference` already holds `Transfer`'s
 own identity to: a value object has no single unambiguous rendering to
-key on. `starts_on`/`ends_on` bound the conversation, `state`
-enumerates what it may be in, and each `on ..., transition:` block is
-one leg — an event that must arrive in one state before the saga
-dispatches whatever that leg does next and moves to the one named.
+key on. `starts_on`/`ends_on` bound the conversation; `transition` is
+the SAME word `lifecycle`'s own `transition` already carries one level
+over — `"EventType" => "to_state", from: "from_state"`, differing only
+in what triggers it (a command there, an event here) — and each block
+is one leg: an event that must arrive while the instance is in `from:`
+before the saga dispatches whatever that leg does next and moves it to
+the state named. `state "x"` lines don't exist any more — every state a
+saga can be in is derived from the transitions that name it, first-seen
+order, the same way an aggregate's own lifecycle states already are.
+`from:` is mandatory here, unlike `Lifecycle#transition`'s own optional
+`from:` — a saga's admission check tests a running instance's current
+state by plain equality, with no "matches any state" fallback, so a
+transition naming no `from:` is refused at declaration rather than
+silently matching nothing at runtime.
 
 Open two accounts under one customer, fund the source, and ask for a
 transfer between them:
@@ -437,8 +448,8 @@ Banking::Transfer.find("tr2").status        # => "reversed"
 
 1000, not 800 — the money is back where it started, because a refused
 leg unwinds on its own. Nobody dispatched `Reverse` by hand, and nobody
-had to notice the transfer had stalled: `on :refused, transition: {
-"awaiting_credit" => "reversed" }` is the leg that fires the moment
+had to notice the transfer had stalled: `transition :refused =>
+"reversed", from: "awaiting_credit"` is the leg that fires the moment
 `Account.Credit` declines, and it dispatches exactly the pair that
 restores consistency — the amount back into the source, the transfer
 marked reversed. Read the saga log and the refusal that triggered it is
@@ -480,11 +491,7 @@ process_manager "Onboarding" do
   starts_on "OnboardingOpened"
   ends_on   "AccountOpened"
 
-  state "screening"
-  state "cleared"
-  state "declined"
-
-  on "OnboardingCleared", transition: { "screening" => "cleared" } do
+  transition "OnboardingCleared" => "cleared", from: "screening" do
     dispatch Account::Open, with: {
       customer:    :customer,
       number:      :account_number,
@@ -495,7 +502,7 @@ process_manager "Onboarding" do
 
   # THE NON-COMPENSATING LEG — no dispatch, because nothing was ever
   # created to undo.
-  on "OnboardingDeclined", transition: { "screening" => "declined" }
+  transition "OnboardingDeclined" => "declined", from: "screening"
 end
 ```
 
@@ -534,8 +541,8 @@ Banking::Account.find("acct2")              # => nil
 ```
 
 Two log entries — the saga being born, and the one transition to
-`"declined"` — and neither one is a `dispatch`, because `on
-"OnboardingDeclined"` names no block at all. No account was minted for
+`"declined"` — and neither one is a `dispatch`, because `transition
+"OnboardingDeclined" => "declined"` names no block at all. No account was minted for
 `"acct2"` because nothing ever asked for one. And notice what did NOT
 happen: `runtime.registry.saga_instances["Onboarding"]` still holds
 `"ob2"` —
@@ -610,16 +617,19 @@ require "hecksagain/bluebook/model_check"
 findings = Hecksagain::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
 errors = findings.select { |f| f.severity == :error }
 
-errors.size          # => 1
-errors.first.kind     # => :unreachable_pm_state
-errors.first.subject  # => "ExternalSettlement"
+errors.size  # => 0
 ```
 
-One finding, and it is the same one `verification.md` names and
-`ModelCheck::ALLOWED_FINDINGS` allows on purpose: `ExternalSettlement`
-leaves its own `"sent"` state unreachable through the handler chain the
-checker walks, even though the underlying transfer genuinely sends —
-the SAGA's own bookkeeping just never closes on it, the same class of
-gap `Onboarding`'s declined leg leaves on its saga tracking above,
-caught here by the checker rather than by a customer noticing a
-transfer that never seems to finish.
+Zero, and `ModelCheck::ALLOWED_FINDINGS` is empty too — not because
+nobody looked, but because a finding this checker used to allowlist on
+purpose stopped being possible. `ExternalSettlement` used to declare a
+`state "sent"` line no handler's own `from:`/target ever named — a pure
+declaration-drift artifact, the SAGA's own bookkeeping never closing on
+a state its own protocol never reached, even though the underlying
+transfer genuinely sends. Since `transition` (the one word this page
+now uses throughout) DERIVES a saga's states from the transitions that
+name them, the same way an aggregate's own lifecycle states already
+are, there is no longer a way to declare a state and then forget to
+wire a handler that reaches it — the finding this used to catch cannot
+occur any more, by construction, so `verification.md`'s own allowlist
+has nothing left to name.

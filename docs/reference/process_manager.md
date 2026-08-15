@@ -20,18 +20,14 @@ process_manager "Onboarding" do
   starts_on "OnboardingOpened"
   ends_on   "AccountOpened"
 
-  state "screening"
-  state "cleared"
-  state "declined"
-
-  on "OnboardingCleared", transition: { "screening" => "cleared" } do
+  transition "OnboardingCleared" => "cleared", from: "screening" do
     dispatch Account::Open, with: {
       customer: :customer, number: :account_number,
       kind: { name: "current" }, daily_limit: { cents: 0 }
     }
   end
 
-  on "OnboardingDeclined", transition: { "screening" => "declined" }
+  transition "OnboardingDeclined" => "declined", from: "screening"
 end
 ```
 
@@ -129,56 +125,63 @@ carries what happened:
 runtime.registry.saga_log.map { |row| row[:on] }.compact  # => ["OnboardingOpened", "OnboardingCleared", "AccountOpened"]
 ```
 
-## state
+## transition
 
-<!-- generated:begin word=state -->
-`state states` — fills `states`
+<!-- generated:begin word=transition -->
+`transition pairs, from:, from: do ... end` / `transition pairs, from:, from:` — opens a `Handler` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
-| positional 1 | text | true | states |
+| positional 1 | pairs | true |  |
+| `from:` | text | true | from_state |
+| `from:` | list | false | from_state |
 <!-- generated:end -->
 
-Declares one state this saga's instances may be in, repeated once per
-state. Every `from`/`to` a handler's `transition:` names must appear
-here, or the declaration is refused at load time.
+The SAME word `Lifecycle`'s own `transition` already carries (see
+lifecycle.md), one level over — `"EventType" => "to_state", from:
+"from_state"` — differing only in what fires it: a command on an
+aggregate, an event here. `event_type` is usually an event name;
+`:refused` is the one exception, matching a dispatched command's own
+refusal rather than any event an aggregate emits — the
+compensating-leg mechanics live in policies-and-process-managers.md.
 
-The instance starts in the first state declared and moves only where a
-handler's `transition:` sends it — both moves are in the log:
+Unlike `Lifecycle#transition`, `from:` is MANDATORY — a saga's own
+admission check tests a running instance's current state by plain
+equality, with no "matches any state" fallback the way an aggregate's
+unconstrained transition has, so a transition naming no `from:` would
+match no instance ever, silently, and is refused at declaration
+instead:
+
+```ruby skip
+Hecks.bluebook("Gone") { process_manager("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidProcessManager: Nowhere's transition {"Opened"=>"open"} names no from: — a process manager's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
+```
+
+Given a list, a leg may fire from any of several states, the same
+`from:` shape a lifecycle transition already accepts — see
+`Banking::Account`'s own `transition "CloseAccount" => "closed", from:
+["open", "frozen"]` on lifecycle.md.
+
+There is no `state "x"` line any more — every state a saga's instances
+can hold is DERIVED from the transitions that name it, first-seen
+order, the same way an aggregate's own lifecycle states already
+derive from theirs. The instance starts in the first state any
+transition names and moves only where a leg sends it — both moves are
+in the log:
 
 ```ruby
 runtime.registry.saga_log.map { |row| [row[:from], row[:to]] }.compact.uniq  # => [[nil, nil], ["screening", "cleared"]]
 ```
 
-## on
-
-<!-- generated:begin word=on -->
-`on event_type, event_type, transition: do ... end` / `on event_type, event_type, transition:` — opens a `Handler` body
-
-| argument | kind | required | fills |
-|---|---|---|---|
-| positional 1 | text | true | event_type |
-| positional 1 | symbol | false | event_type |
-| `transition:` | pairs | true |  |
-<!-- generated:end -->
-
-Opens one handler: a leg that must arrive while the instance is in
-`transition:`'s `from` state, and moves it to `to` once its `dispatch`es
-run. `event_type` is usually an event name; `:refused` is the one
-exception, matching a dispatched command's own refusal rather than any
-event an aggregate emits — the compensating-leg mechanics live in
-policies-and-process-managers.md.
-
-`on "OnboardingCleared"` is the leg that opened the account — the
-`Account.Open` its body dispatches ran for real, against a customer
-nobody named at the call site:
+`transition "OnboardingCleared" => "cleared", from: "screening"` is
+the leg that opened the account — the `Account.Open` its body
+dispatches ran for real, against a customer nobody named at the call
+site:
 
 ```ruby
 Banking::Account.find("pm-a1").kind.name  # => "current"
 ```
 
-A handler with no body is still a handler: `on "OnboardingDeclined",
-transition: { "screening" => "declined" }` moves the instance and
-dispatches nothing, because a case that never cleared opened no account
-to undo.
+A leg with no block is still a leg: `transition "OnboardingDeclined"
+=> "declined", from: "screening"` moves the instance and dispatches
+nothing, because a case that never cleared opened no account to undo.
 

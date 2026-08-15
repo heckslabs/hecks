@@ -38,11 +38,15 @@ module Hecksagain
       # never closes it. Real domain activity is unaffected; the saga's
       # OWN tracking of it is not. Left named rather than redesigning a
       # corpus fixture that is not this checker's to redesign.
-      ALLOWED_FINDINGS = {
-        "banking" => [
-          [:unreachable_pm_state, "ExternalSettlement"]
-        ]
-      }.freeze
+      # S7, ADR 0025 — the ExternalSettlement finding this used to
+      # allowlist is GONE, not just quieted: its "sent" state was a
+      # `state "x"` line never named by any handler's own from:/to:, a
+      # pure declaration-drift artifact. States are DERIVED from the
+      # transitions that name them now (ProcessManagerBuilder#derived_
+      # states), so a state nothing ever transitions into or out of no
+      # longer exists to be unreachable — the finding this allowlisted
+      # cannot occur any more, by construction.
+      ALLOWED_FINDINGS = {}.freeze
 
       module_function
 

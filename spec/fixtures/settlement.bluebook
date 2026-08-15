@@ -133,18 +133,13 @@ Hecks.bluebook "Wire" do
     starts_on "WireAsked"
     ends_on   "WireLanded"
 
-    state "asked"
-    state "carrying"
-    state "landed"
-    state "returned"
-
-    on "WireAsked", transition: { "asked" => "asked" } do
+    transition "WireAsked" => "asked", from: "asked" do
       # `reference:` carries the correlation forward — Drawer does not
       # reference Wire, so this is pure passthrough, not an addressing key.
       dispatch Drawer::Take, with: { number: :source, amount: :amount, reference: :reference }
     end
 
-    on "Taken", transition: { "asked" => "carrying" } do
+    transition "Taken" => "carrying", from: "asked" do
       # `wire:` HERE IS DIFFERENT — Wire.Moved references Wire itself, so
       # `wire:` is its own reference key (Naming.reference_key("Wire::Wire")
       # == "wire"), addressing which record to act on. The VALUE stays
@@ -154,7 +149,7 @@ Hecks.bluebook "Wire" do
       dispatch Drawer::Put,  with: { number: :destination, amount: :amount, reference: :reference }
     end
 
-    on "PutIn", transition: { "carrying" => "landed" } do
+    transition "PutIn" => "landed", from: "carrying" do
       dispatch Wire::Landed, with: { wire: :reference }
     end
 
@@ -163,7 +158,7 @@ Hecks.bluebook "Wire" do
     # hang off "WireReturned", which meant a human had to notice the wire had
     # stalled and dispatch Wire.Returned by hand ; until they did, the money was
     # out of the source drawer and nowhere else.
-    on :refused, transition: { "carrying" => "returned" } do
+    transition :refused => "returned", from: "carrying" do
       dispatch Drawer::Put,    with: { number: :source, amount: :amount, reference: :reference }
       dispatch Wire::Returned, with: { wire: :reference }
     end

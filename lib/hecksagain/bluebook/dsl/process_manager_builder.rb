@@ -6,26 +6,78 @@ module Hecksagain
 
         def initialize(name)
           @name     = name
-          @states   = []
           @handlers = []
         end
 
         def correlates_by(field) = @correlates_by = field.to_sym
         def starts_on(event)     = @starts_on = event.to_s
         def ends_on(event)       = @ends_on = event.to_s
-        def state(name)          = @states << name.to_s
 
-        def on(event_type, transition:, &block)
-          from, to = single_transition(event_type, transition)
-          handler  = HandlerBuilder.new
+        # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025 — "events and
+        # reactions"): the SAME word `Lifecycle#transition` already
+        # carries, one level over — `transition "AccountDebited" =>
+        # "awaiting_credit", from: "requested" do ... end` replaces `on
+        # "AccountDebited", transition: { "requested" => "awaiting_
+        # credit" } do ... end`. Same bare rocket-pair argument shape
+        # (not a NAMED `transition:` kwarg wrapping a second Hash), same
+        # `from:` — including the array form Lifecycle's own commands
+        # could already take and a process manager's own events could
+        # not — and the states a procedure runs on are DERIVED from the
+        # transitions that name them, the same way `Behaviour::Lifecycle
+        # #states` already derives an aggregate's ; `state "x"` lines
+        # duplicated exactly what the transition list already said,
+        # and could drift from it (`validate!`'s own "undeclared state"
+        # check existed only because they could).
+        #
+        # `starts_on`/`ends_on` are NOT unified into this — verified
+        # against the real corpus rather than assumed: Settlement's own
+        # `ends_on "TransferSettled"` names an event NONE of its own
+        # transitions ever handle (`Transfer.Settle`'s own emission, a
+        # full step downstream of the transition that dispatches it),
+        # so "the terminal state's own event" is not a fact the
+        # transition graph carries — deriving it would either be wrong
+        # for this exact corpus member or need a second new word to
+        # cover the case, which is not less vocabulary than keeping the
+        # one that already says it correctly.
+        #
+        # EXPANDS IMMEDIATELY, unlike `Lifecycle#transition` (which
+        # defers to `Behaviour::Lifecycle#expand`, called at emission
+        # time) — `ProcessManager`'s own IR constructor takes `states:`/
+        # `handlers:` exactly as it always has, so the runtime
+        # (`Behaviour::ProcessManager`, `SagaInterpreter`, saga
+        # persistence/rehydration) needs no change at all: what changed
+        # is how the DECLARATION reaches that same shape, not the shape
+        # a real run ever sees or persists.
+        def transition(mapping, &block)
+          mapping = mapping.dup
+          from    = mapping.delete(:from)
+
+          # ALWAYS REQUIRED, unlike `Lifecycle#transition`'s own `from:`
+          # — an aggregate's unconstrained transition is admitted from
+          # ANY current state (`Behaviour::Lifecycle#applies_from?`
+          # returns true for a nil `from`), a reading `SagaInterpreter#
+          # advance_saga`'s own admission check does not share: it tests
+          # `instance[:state] == handler.from_state` by plain equality,
+          # nothing softer. Leaving that check unchanged (this slice's
+          # own scope decision — see the class-level comment on why the
+          # runtime stays untouched) means an unconstrained PM
+          # transition would build cleanly and then match no instance
+          # ever, silently — refused here instead, at the one point that
+          # can still see the mistake.
+          if from.nil?
+            raise InvalidProcessManager,
+                  "#{@name}'s transition #{mapping.inspect} names no from: — a process manager's own " \
+                  "admission checks a saga instance's CURRENT state exactly, so a transition with no " \
+                  "from: would match no instance ever, silently"
+          end
+
+          handler = HandlerBuilder.new
           handler.instance_eval(&block) if block
 
-          @handlers << ProcessManagerHandler.new(
-            event_type: event_type.to_s,
-            from_state: from,
-            to_state:   to,
-            dispatches: handler.dispatches
-          )
+          mapping.each do |event_type, target|
+            state_transition = StateTransition.new(target: target, from: from)
+            expand(event_type.to_s, state_transition, handler.dispatches).each { |row| @handlers << row }
+          end
         end
 
         def build
@@ -36,7 +88,7 @@ module Hecksagain
             correlates_by: @correlates_by,
             starts_on:     @starts_on,
             ends_on:       @ends_on,
-            states:        @states,
+            states:        derived_states,
             handlers:      @handlers
           )
         end
@@ -49,15 +101,36 @@ module Hecksagain
 
         private
 
-        def single_transition(event_type, transition)
-          unless transition.is_a?(Hash) && transition.size == 1
-            raise InvalidProcessManager,
-                  "#{@name}.on(#{event_type.inspect}) needs exactly one " \
-                  "from => to transition, got #{transition.inspect}"
-          end
+        # ONE DECLARED TRANSITION IS SEVERAL ROWS when `from` names more
+        # than one source state — `Behaviour::Lifecycle#expand`'s own
+        # comment, the identical fan-out, one level over: a
+        # `ProcessManagerHandler` only ever carries a single `from_state`,
+        # so a `from: [...]` transition mints one row per source, each
+        # carrying the SAME dispatches.
+        def expand(event_type, transition, dispatches)
+          sources = transition.from.nil? ? [nil] : Array(transition.from)
 
-          from, to = transition.first
-          [from.to_s, to.to_s]
+          sources.map do |source|
+            ProcessManagerHandler.new(
+              event_type: event_type,
+              from_state: source.to_s,
+              to_state:   transition.target,
+              dispatches: dispatches
+            )
+          end
+        end
+
+        # DERIVED, not declared (S7) — every state this procedure ever
+        # runs on is already named by some transition's own `from_state`
+        # or `to_state`; a state nothing transitions into or out of is
+        # not a state this procedure has, the same reading
+        # `Behaviour::Lifecycle#states` already gives an aggregate's own
+        # field. FIRST-SEEN ORDER, walking declaration order — `begin_
+        # saga`'s own `pm.states.first` is what a fresh instance starts
+        # in, so the order has to survive the derivation, not just the
+        # membership.
+        def derived_states
+          @handlers.flat_map { |h| [h.from_state, h.to_state] }.reject(&:empty?).uniq
         end
 
         def validate!
@@ -81,19 +154,8 @@ module Hecksagain
           raise InvalidProcessManager, "#{@name} declares no starts_on — " \
             "nothing would ever begin it" if @starts_on.to_s.empty?
 
-          raise InvalidProcessManager, "#{@name} declares no states" if @states.empty?
-
-          raise InvalidProcessManager, "#{@name} declares no handlers — " \
+          raise InvalidProcessManager, "#{@name} declares no transitions — " \
             "it would start and then ignore every event" if @handlers.empty?
-
-          undeclared = @handlers.flat_map { |h| [h.from_state, h.to_state] }
-                                .uniq
-                                .reject { |s| @states.include?(s) }
-          return if undeclared.empty?
-
-          raise InvalidProcessManager,
-                "#{@name} transitions through #{undeclared.map(&:inspect).join(', ')} " \
-                "which #{undeclared.size == 1 ? 'is' : 'are'} never declared as a state"
         end
 
         class HandlerBuilder

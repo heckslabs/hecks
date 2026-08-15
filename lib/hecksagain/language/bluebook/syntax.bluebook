@@ -368,19 +368,29 @@ Hecks.bluebook "Bluebook" do
       member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
       member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
       member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
-      member word: "state",           context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "states"
-      member word: "on",              context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: ""
-      # THE BLOCKLESS FORM — `ProcessManagerBuilder#on(event_type,
-      # transition:, &block)` takes an OPTIONAL block ("handler.
-      # instance_eval(&block) if block"), so a leg with nothing to
-      # dispatch is legal with no `do ... end` at all: banking.bluebook's
-      # own `Onboarding` saga has no answer to "OnboardingDeclined" —
-      # nothing was ever created to undo, so the leg is a bare state
-      # transition and the SAME word needs a second row, the same
-      # reason `identified_by` carries two — `body` is the only column
-      # that tells them apart, and the argument rows below already join
-      # by (word, context) alone, so they serve both.
-      member word: "on",              context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
+      # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025) — the SAME word
+      # `Lifecycle#transition` already carries under `context:
+      # "Aggregate"`/`"Entity"`, one level over: `states` is DERIVED
+      # from the transitions that name them (`ProcessManagerBuilder
+      # #derived_states`, the same reading `Behaviour::Lifecycle
+      # #states` already gives an aggregate's own field), so the old
+      # `state "x"` word declaring them by hand — duplicating exactly
+      # what the transition list already said, and able to drift from
+      # it — is gone; `on ..., transition: {...}` — a NAMED kwarg
+      # wrapping a second Hash — is gone too, replaced by the bare
+      # rocket-pair `Lifecycle`'s own `transition` already takes.
+      member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: ""
+      # THE BLOCKLESS FORM — `ProcessManagerBuilder#transition(mapping,
+      # &block)` takes an OPTIONAL block ("handler.instance_eval(&block)
+      # if block"), so a leg with nothing to dispatch is legal with no
+      # `do ... end` at all: banking.bluebook's own `Onboarding` saga
+      # has no answer to "OnboardingDeclined" — nothing was ever created
+      # to undo, so the leg is a bare state transition and the SAME word
+      # needs a second row, the same reason `identified_by` carries two
+      # — `body` is the only column that tells them apart, and the
+      # argument rows below already join by (word, context) alone, so
+      # they serve both.
+      member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
 
       member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: ""
 
@@ -844,24 +854,29 @@ Hecks.bluebook "Bluebook" do
       member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
       member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
       member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
-      member keyword: "state",           context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "states"
       # TWO FORMS, THE SAME SLOT — a real corpus finding (M4 of the
-      # generic-bluebook-reader arc), not a guess. `on "SightingRaised"`
-      # names an announced event ; `on :refused` is the procedure noticing
-      # a leg it dispatched was declined, and no aggregate announces THAT,
-      # so it is spelled as the sentinel symbol rather than a quoted name.
-      # UNLIKE `transition`'s own `from:` (genuinely optional — a
-      # transition may name no `from:` at all), this SLOT is mandatory :
-      # every `on` line names one or the other. `required` stays on the
-      # `text` row alone (the common case, and the one the builder's own
-      # positional parameter is checked against) rather than on both —
-      # marking both `false` would let a bluebook that names NEITHER form
-      # parse here and still refuse to load in Ruby, the exact gap
-      # spec/syntax_conformance_spec's "never calls an argument optional
-      # that the builder demands" exists to catch.
-      member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "event_type"
-      member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "false", fills: "event_type"
-      member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields"
+      # generic-bluebook-reader arc), not a guess. `transition
+      # "SightingRaised" => ...` names an announced event ; `transition
+      # :refused => ...` is the procedure noticing a leg it dispatched
+      # was declined, and no aggregate announces THAT, so it is spelled
+      # as the sentinel symbol rather than a quoted name. `required`
+      # stays on the `text` row alone (the common case) rather than on
+      # both — see `on`'s own former comment here (S7 renamed this word
+      # but the reasoning survives verbatim) for why marking both
+      # `false` would be the wrong direction.
+      member keyword: "transition",      context: "ProcessManager", at: "1", named: "",           kind: "pairs",  required: "true", fills: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields"
+      # UNLIKE `Lifecycle#transition`'s own `from:` (genuinely optional
+      # — a lifecycle transition may name no `from:` at all, admitted
+      # from any state) — a process manager's own admission
+      # (`SagaInterpreter#advance_saga`) checks a saga instance's
+      # CURRENT state by plain equality, nothing softer, so `from:` is
+      # MANDATORY here (`ProcessManagerBuilder#transition`'s own
+      # refusal for a nil `from:`). Same two-kind shape Lifecycle's own
+      # `from:` rows already have (a single state or a list of them),
+      # `required` on the `text` row alone, same reasoning as `event_type`
+      # just above.
+      member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "text",   required: "true",  fills: "from_state"
+      member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "list",   required: "false", fills: "from_state"
 
       # Same two-row shape as Policy's own `trigger`, above — a bare
       # constant live, the old quoted-text row kept for shadow-parsing.

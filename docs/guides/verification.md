@@ -177,16 +177,23 @@ bin/model_check                  # everything
 bin/model_check examples/banking # one domain
 ```
 
-One finding in this repo's own corpus is allowed on purpose rather
-than fixed: banking's `ExternalSettlement` saga leaves its own
-`"sent"` state unreachable through the handler chain the checker
-walks, even though the underlying transfer genuinely settles — the
-SAGA's own bookkeeping just never closes on it.
-`ModelCheck::ALLOWED_FINDINGS` names that entry explicitly, and the
+`ModelCheck::ALLOWED_FINDINGS` is empty — this repo's own corpus ships
+with zero findings, none allowed on purpose. It wasn't always: banking's
+`ExternalSettlement` saga used to leave its own `"sent"` state
+unreachable through the handler chain the checker walks, even though
+the underlying transfer genuinely settles, because a `state "sent"`
+line named no handler's own `from:`/target — declaration drift the
+process manager's own `state` word could carry and this checker caught.
+S7 (ADR 0025) retired `state` in favor of one shared `transition` word
+that DERIVES a saga's states from the transitions that name them, the
+same way an aggregate's own lifecycle states already are — a state
+nothing transitions into or out of no longer exists to be declared,
+so the finding that used to be allowlisted here cannot occur any more,
+by construction, and the entry was deleted rather than left stale. The
 coverage gate in `spec/model_check_spec.rb` — reading the same table
-`bin/model_check` does — fails in both directions: a new error nothing
-names is a regression, and an allowlisted entry the checker stops
-finding is stale and has to be deleted. A finding gets shipped by
+`bin/model_check` does — still fails in both directions: a new error
+nothing names is a regression, and an allowlisted entry the checker
+stops finding is stale and has to be deleted. A finding gets shipped by
 being named, never by being silenced.
 
 ## `bin/fuzz` and the properties that must hold of any run

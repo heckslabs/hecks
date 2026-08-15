@@ -35,26 +35,24 @@ Hecks.bluebook "SagaFindings" do
     # DEAF TRIGGER: nothing in this domain ever emits "LegFinished".
     ends_on   "LegFinished"
 
-    state "requested"
-    # UNREACHABLE PM STATE: nothing transitions into "advanced" — the
-    # only handler below is a self-loop on "requested".
-    state "advanced"
-    # DEAD COMPENSATION: the refused leg leaves "advanced", which the
-    # handler chain above already never reaches.
-    state "compensated"
-
-    on "LegRequested", transition: { "requested" => "requested" } do
+    # "advanced"/"compensated" are DERIVED (S7) from the transitions
+    # below, not declared — UNREACHABLE PM STATE (nothing transitions
+    # INTO "advanced" from "requested" via any handler this domain's
+    # own events actually fire) and DEAD COMPENSATION (the refused leg
+    # leaves "advanced", already unreached) still hold: derivation only
+    # says a state is NAMED, never that it is reached.
+    transition "LegRequested" => "requested", from: "requested" do
       # UNKNOWN DISPATCH: no aggregate in this domain answers to this
       # spelling — "Leg.Launch" does not exist ("Leg.Request" does).
       dispatch Leg::Launch, with: { reference: :reference }
     end
 
     # DEAF HANDLER: nothing ever emits "LegAdvanced" either.
-    on "LegAdvanced", transition: { "requested" => "advanced" } do
+    transition "LegAdvanced" => "advanced", from: "requested" do
       dispatch Leg::Advance, with: { reference: :reference }
     end
 
-    on :refused, transition: { "advanced" => "compensated" } do
+    transition :refused => "compensated", from: "advanced" do
       dispatch Leg::Advance, with: { reference: :reference }
     end
   end

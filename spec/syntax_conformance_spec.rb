@@ -160,7 +160,7 @@ RSpec.describe "the declared syntax" do
   # language declares the SPELLING, which is what a parser reads, so it declares
   # `from` as named — and this is the exception that lets the signature check
   # agree.
-  RESERVED_KEY = { %w[transition Lifecycle] => %w[from] }.freeze
+  RESERVED_KEY = { %w[transition Lifecycle] => %w[from], %w[transition ProcessManager] => %w[from] }.freeze
 
   def self.words_answered_by(context)
     builder = BUILDER.fetch(context)

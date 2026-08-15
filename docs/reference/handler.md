@@ -1,7 +1,7 @@
 # Handler
 
 <!-- generated:begin id=page -->
-Words available inside `on do ... end`.
+Words available inside `transition do ... end`.
 
 *The tables on this page are generated from the language's own
 Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
@@ -51,7 +51,7 @@ supplies itself:
 
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
-on "OnboardingCleared", transition: { "screening" => "cleared" } do
+transition "OnboardingCleared" => "cleared", from: "screening" do
   dispatch Account::Open, with: {
     customer: :customer, number: :account_number,
     kind: { name: "current" }, daily_limit: { cents: 0 }

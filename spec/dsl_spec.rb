@@ -881,22 +881,24 @@ RSpec.describe "the DSL surface" do
         .to eq(["NotifyOnPlacement", "OrderPlaced", "Notifications"])
     end
 
-    it "process_manager declares a correlated conversation with its own states" do
+    it "process_manager declares a correlated conversation with states DERIVED from its own transitions" do
       checkout = build_bluebook("Converse") do
         process_manager "Checkout" do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           ends_on   "OrderCompleted"
-          state "awaiting_payment"
-          state "paid"
 
-          on "PaymentAuthorized", transition: { "awaiting_payment" => "paid" } do
+          transition "PaymentAuthorized" => "paid", from: "awaiting_payment" do
             dispatch Order::Confirm, with: { order: :order_id }
           end
         end
       end.process_managers.first
 
       expect([checkout.correlates_by, checkout.starts_on]).to eq([:"order.id", "OrderPlaced"])
+      # DERIVED (S7), not declared — no `state "x"` lines exist any more;
+      # every state a transition names IS a state this procedure has,
+      # first-seen order, the same reading Behaviour::Lifecycle#states
+      # already gives an aggregate's own field.
       expect(checkout.states).to eq(["awaiting_payment", "paid"])
 
       handler = checkout.handler_for("PaymentAuthorized")
@@ -905,33 +907,37 @@ RSpec.describe "the DSL surface" do
         .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]] })
     end
 
-    it "process_manager refuses a machine that could never advance" do
+    it "process_manager refuses a machine with no transitions at all" do
       expect do
         build_bluebook("Stateless") do
           process_manager "Broken" do
             correlates_by :"id.value"
             starts_on "Started"
-            on "Next", transition: { "a" => "b" } do
-              dispatch X::Y
-            end
           end
         end
-      end.to raise_error(/declares no states/)
+      end.to raise_error(/declares no transitions/)
     end
 
-    it "process_manager refuses a transition through an undeclared state" do
+    # S7, ADR 0025 — ONE STATE-MACHINE VOCABULARY: states are DERIVED
+    # from the transitions that name them now, so "a transition through
+    # an undeclared state" is no longer a mistake a bluebook CAN make —
+    # every from:/to: a transition names automatically becomes a state
+    # this procedure has, by construction. What replaces it: a
+    # transition naming no from: at all, which `advance_saga`'s own
+    # plain-equality admission check would never match — refused here
+    # instead of building a handler nothing could ever reach.
+    it "process_manager refuses a transition naming no from: — it would match no instance ever" do
       expect do
-        build_bluebook("Undeclared") do
+        build_bluebook("Unguarded") do
           process_manager "Broken" do
             correlates_by :"id.value"
             starts_on "Started"
-            state "a"
-            on "Next", transition: { "a" => "nowhere" } do
+            transition "Next" => "b" do
               dispatch X::Y
             end
           end
         end
-      end.to raise_error(/never declared as a state/)
+      end.to raise_error(/names no from:/)
     end
 
     it "process_manager refuses correlates_by that resolves to a value object, not a scalar" do
@@ -970,9 +976,7 @@ RSpec.describe "the DSL surface" do
           process_manager "Broken" do
             correlates_by :"ref.amount"
             starts_on "Started"
-            state "a"
-            state "b"
-            on "Started", transition: { "a" => "b" } do
+            transition "Started" => "b", from: "a" do
               dispatch Thing::Start
             end
           end
@@ -1009,9 +1013,7 @@ RSpec.describe "the DSL surface" do
           process_manager "Broken" do
             correlates_by :"ref.currency"
             starts_on "Started"
-            state "a"
-            state "b"
-            on "Started", transition: { "a" => "b" } do
+            transition "Started" => "b", from: "a" do
               dispatch Thing::Start
             end
           end

@@ -6,7 +6,7 @@ Hecks.bluebook "FixtureProcessManager" do
     correlates_by :widget_id
     starts_on "Widget.Created"
 
-    on "Widget.Created", transition: { "start" => "started" } do
+    transition "Widget.Created" => "started", from: "start" do
       dispatch Widget::Notify
     end
   end

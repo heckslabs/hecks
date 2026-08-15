@@ -6016,7 +6016,6 @@
       "starts_on": "ExternalTransferRequested",
       "states": [
         "requested",
-        "sent",
         "returned"
       ]
     },
