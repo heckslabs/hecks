@@ -358,26 +358,21 @@ none of them had to restate a thing — every one of them was written
 after `Credit` and `Debit` already existed, and every one of them
 inherited the rule for free.
 
-## Closed vocabularies, and the one that will not nest
+## Closed vocabularies, three ways to spell one
 
 `one_of` ships a fixed vocabulary — a field that can only ever be one
-of the values named, refused at the door for anything else. It has two
-spellings, and using the wrong one in the wrong place produces a crash
-while the bluebook is still being written, rather than a clean
-declaration.
+of the values named, refused at the door for anything else. Three
+spellings, picked by what the set is FOR: named and reusable, single
+field or many; or anonymous and local to one attribute.
 
-The block form lives ON the value object — `Account::AccountKind` is
-one:
+A NAMED, single-field set is the field's own `one_of:` keyword, sitting
+beside `pattern:`/`admits:` where value constraints already live —
+`Account::AccountKind` is one:
 
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 value_object "AccountKind" do
-  attribute :name, String
-  one_of do
-    member name: "current"
-    member name: "savings"
-    member name: "reserve"
-  end
+  attribute :name, String, one_of: ["current", "savings", "reserve"]
 end
 ```
 
@@ -385,31 +380,47 @@ end
 Banking::Account.open(customer: customer.id, number: { value: "ACC-BAD" }, kind: { name: "gold" }, daily_limit: { cents: 0 })   # ~> InvariantViolation: got "gold"
 ```
 
-The inline shorthand skips the ceremony — `SafeDepositBox`'s `size`,
-seen already above, synthesises a `Size` value object without you
-naming it anywhere else:
+A NAMED, MULTI-field set — each member carrying more than one
+attribute — writes bare `member` lines instead, no `one_of:` (that
+keyword only ever names one field, by construction):
+
+```ruby skip
+# lib/hecksagain/language/bluebook/vocabulary.bluebook
+value_object "Comparison" do
+  attribute :symbol,             String
+  attribute :compares_less_than, String
+  attribute :compares_equal,     String
+  attribute :negated,            String
+
+  member symbol: ">=", compares_less_than: "true",  compares_equal: "false", negated: "true"
+  member symbol: "<=", compares_less_than: "true",  compares_equal: "true",  negated: "false"
+  ...
+end
+```
+
+The inline shorthand skips naming a value object at all — `SafeDepositBox`'s
+`size`, seen already above, synthesises one for you:
 
 ```ruby
 Banking::SafeDepositBox.rent(customer: customer.id, branch_code: { value: "uptown" }, box_number: { value: 99 }, size: { value: "huge" })   # ~> InvariantViolation: got "huge"
 ```
 
 Reach for this one when the set is small, local, and not worth a name
-anyone else will ever reuse.
-
-The trap: the inline shorthand desugars by calling `one_of` on
-whichever builder currently has `self` — and a nested `value_object`
-block already defines its own `one_of`, for closed-set members. Writing
-the shorthand inside a `value_object` block does not synthesize a
-closed set — it calls the wrong `one_of`, with the wrong arity, and the
-bluebook does not load:
+anyone else will ever reuse — including, now, right inside a
+`value_object` block itself. That used to crash with the wrong-arity
+`one_of` a nested value object's own closed-set builder defined; that
+collision is gone along with the `one_of do ... end` wrapper it came
+from, so the shorthand nests cleanly, synthesising its own anonymous
+value object onto the SAME aggregate the nesting one belongs to (a
+value object holds no `value_objects` of its own to nest inside):
 
 ```ruby
-def banking_bad_one_of
+def banking_nested_one_of
   Hecksagain.with_registry(Hecksagain::Runtime::Registry.new) do
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
     code = <<~RUBY
-      Hecks.bluebook("BankingBadOneOf") do
+      Hecks.bluebook("BankingNestedOneOf") do
         aggregate "Thing" do
           identified_by :thing_id
           attribute :box, Box
@@ -420,14 +431,16 @@ def banking_bad_one_of
         end
       end
     RUBY
-    file = Tempfile.new(["banking-bad-one-of-", ".bluebook"])
+    file = Tempfile.new(["banking-nested-one-of-", ".bluebook"])
     file.write(code)
     file.flush
     Kernel.eval(code, TOPLEVEL_BINDING, file.path, 1)
   end
 end
 
-banking_bad_one_of   # ~> ArgumentError: wrong number of arguments
+thing = banking_nested_one_of.aggregate("Thing")
+thing.value_objects.map(&:hecks_name)     # => ["Box", "Size"]
+thing.value_object("Size").members        # => [{ value: "small" }, { value: "large" }]
 ```
 
 ## A field that grows

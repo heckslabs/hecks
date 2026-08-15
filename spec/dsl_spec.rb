@@ -460,7 +460,7 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /did not survive extraction/)
     end
 
-    it "one_of declares a closed set of members, in declaration order" do
+    it "bare member lines declare a closed set of members, in declaration order" do
       registry = in_registry do
         Hecks.bluebook("Coins") do
           aggregate("Coin") do
@@ -472,10 +472,8 @@ RSpec.describe "the DSL surface" do
               attribute :code,        String
               attribute :minor_units, Integer
 
-              one_of do
-                member code: "USD", minor_units: 2
-                member code: "JPY", minor_units: 0
-              end
+              member code: "USD", minor_units: 2
+              member code: "JPY", minor_units: 0
             end
           end
         end
@@ -492,7 +490,7 @@ RSpec.describe "the DSL surface" do
         in_registry do
           Hecks.bluebook("Empty") do
             aggregate("Thing") do
-              value_object("V") { one_of { member } }
+              value_object("V") { member }
             end
           end
         end
@@ -526,7 +524,7 @@ RSpec.describe "the DSL surface" do
             end
           end
         end
-      end.to raise_error(Malformed, /a closed set admits a member/)
+      end.to raise_error(Malformed, /names no values/)
     end
   end
 
@@ -1555,7 +1553,7 @@ RSpec.describe "the DSL surface" do
           build_bluebook(name) do
             aggregate "Client" do
               identified_by :name
-              attribute :name, "ClientName"
+              attribute :name, ClientName
               value_object("ClientName") { attribute :value, String }
               lifecycle :status, default: "active" do
                 transition "Churn" => "churned", from: "active"
@@ -1566,7 +1564,7 @@ RSpec.describe "the DSL surface" do
             aggregate "Proposal" do
               identified_by :number
               reference_to Client
-              attribute :number, "ProposalNumber"
+              attribute :number, ProposalNumber
               value_object("ProposalNumber") { attribute :value, String }
               instance_eval(&proposal_query)
             end
@@ -1583,7 +1581,7 @@ RSpec.describe "the DSL surface" do
 
         it "admits a WHERE hop with an ordered comparator — the target's own field decides, not the ask" do
           expect do
-            build_hop_bluebook(client: proc { value_object("Balance") { attribute :cents, Integer }; attribute :balance, "Balance" }) do
+            build_hop_bluebook(client: proc { value_object("Balance") { attribute :cents, Integer }; attribute :balance, Balance }) do
               query("HighValue") { where(:"client/balance.cents" => { gt: 500 }) }
             end
           end.not_to raise_error
@@ -1603,7 +1601,7 @@ RSpec.describe "the DSL surface" do
               aggregate "Proposal" do
                 identified_by :number
                 reference_to Client
-                attribute :number, "ProposalNumber"
+                attribute :number, ProposalNumber
                 value_object("ProposalNumber") { attribute :value, String }
                 query("Bad") { where(:"client/status" => "active") }
               end
@@ -1630,8 +1628,8 @@ RSpec.describe "the DSL surface" do
           # own Pizza -> Price shape above.
           client = proc do
             value_object("Price") { attribute :cents, Integer }
-            value_object("Box")   { attribute :price, "Price" }
-            attribute :box, "Box"
+            value_object("Box")   { attribute :price, Price }
+            attribute :box, Box
           end
 
           expect do
@@ -1661,7 +1659,7 @@ RSpec.describe "the DSL surface" do
           bluebook = build_bluebook("MultiHop") do
             aggregate "Client" do
               identified_by :name
-              attribute :name, "ClientName"
+              attribute :name, ClientName
               value_object("ClientName") { attribute :value, String }
               lifecycle :status, default: "active" do
                 transition "Churn" => "churned", from: "active"
@@ -1671,14 +1669,14 @@ RSpec.describe "the DSL surface" do
             aggregate "Engagement" do
               identified_by :reference
               reference_to Client
-              attribute :reference, "EngagementRef"
+              attribute :reference, EngagementRef
               value_object("EngagementRef") { attribute :value, String }
             end
 
             aggregate "Proposal" do
               identified_by :number
               reference_to Engagement
-              attribute :number, "ProposalNumber"
+              attribute :number, ProposalNumber
               value_object("ProposalNumber") { attribute :value, String }
               query("AwaitingReply") { where(:"engagement/client/status" => "active") }
             end
@@ -1694,7 +1692,7 @@ RSpec.describe "the DSL surface" do
               aggregate "Node" do
                 identified_by :label
                 reference_to Node, as: :parent
-                attribute :label, "NodeLabel"
+                attribute :label, NodeLabel
                 value_object("NodeLabel") { attribute :value, String }
                 query("GrandparentLabel") { where(:"parent/parent/label" => "root") }
               end
@@ -1708,7 +1706,7 @@ RSpec.describe "the DSL surface" do
               aggregate "Node" do
                 identified_by :label
                 reference_to Node
-                attribute :label, "NodeLabel"
+                attribute :label, NodeLabel
                 value_object("NodeLabel") { attribute :value, String }
                 nine = (["node"] * 9 + ["label"]).join("/")
                 query("TooFar") { where(nine.to_sym => "root") }
@@ -1728,14 +1726,14 @@ RSpec.describe "the DSL surface" do
             build_bluebook("NoDotHop") do
               aggregate "Studio" do
                 identified_by :name
-                attribute :name, "StudioName"
+                attribute :name, StudioName
                 value_object("StudioName") { attribute :value, String }
               end
 
               aggregate "Piece" do
                 identified_by :tag
                 reference_to Studio, as: :studio
-                attribute :tag, "PieceTag"
+                attribute :tag, PieceTag
                 value_object("PieceTag") { attribute :value, String }
                 query("Bad") { where(:"studio.name" => "x") }
               end
@@ -1747,14 +1745,14 @@ RSpec.describe "the DSL surface" do
           bluebook = build_bluebook("SlashHop") do
             aggregate "Studio" do
               identified_by :name
-              attribute :name, "StudioName"
+              attribute :name, StudioName
               value_object("StudioName") { attribute :value, String }
             end
 
             aggregate "Piece" do
               identified_by :tag
               reference_to Studio, as: :studio
-              attribute :tag, "PieceTag"
+              attribute :tag, PieceTag
               value_object("PieceTag") { attribute :value, String }
               query("Good") { where(:"studio/name.value" => "x") }
             end

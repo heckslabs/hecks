@@ -228,12 +228,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "LedgerDirection" do
-      attribute :value, String
-
-      one_of do
-        member value: "credit"
-        member value: "debit"
-      end
+      attribute :value, String, one_of: ["credit", "debit"]
     end
 
     value_object "Money" do
@@ -252,13 +247,7 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     value_object "AccountKind" do
-      attribute :name, String
-
-      one_of do
-        member name: "current"
-        member name: "savings"
-        member name: "reserve"
-      end
+      attribute :name, String, one_of: ["current", "savings", "reserve"]
     end
 
     value_object "Narrative" do
@@ -1566,9 +1555,12 @@ Hecks.bluebook "Banking", version: "v1" do
     end
 
     # A CLOSED SET WITH MORE THAN ONE FIELD PER MEMBER — ordinary, public
-    # `one_of do member ... end` syntax (Vocabulary::Comparison in the
-    # self-hosted grammar uses the identical form), not a self-hosted-
-    # grammar exclusive. `admit_member` (Runtime::Value::Admission) only
+    # bare `member` lines (Vocabulary::Comparison in the self-hosted
+    # grammar uses the identical shape), not a self-hosted-grammar
+    # exclusive. A single-field set gets the shorter `one_of:` keyword
+    # instead (LedgerDirection/AccountKind, above) — this one can't,
+    # since a member row needs to name every field, not just one.
+    # `admit_member` (Runtime::Value::Admission) only
     # ever validates the DISCRIMINANT field a caller offers (`cadence`
     # here) against the members table — it does not fill the other
     # fields in for you, so a command dispatching this always states
@@ -1578,11 +1570,9 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :retention_months, Integer
       attribute :paper_fee_cents,  Integer
 
-      one_of do
-        member cadence: "monthly",   retention_months: 84,  paper_fee_cents: 0
-        member cadence: "quarterly", retention_months: 120, paper_fee_cents: 0
-        member cadence: "annual",    retention_months: 240, paper_fee_cents: 500
-      end
+      member cadence: "monthly",   retention_months: 84,  paper_fee_cents: 0
+      member cadence: "quarterly", retention_months: 120, paper_fee_cents: 0
+      member cadence: "annual",    retention_months: 240, paper_fee_cents: 500
     end
 
     command "Generate" do

@@ -9,8 +9,9 @@ module Hecksagain
     # Text, not IR, on purpose: the syntax table is source, its comments
     # and grouping are part of the declaration, and a rewrite that
     # round-tripped it through the IR would flatten both. Everything
-    # here touches only `member ` lines inside Keyword's one_of block
-    # and leaves every other byte alone.
+    # here touches only bare `member ` lines inside Keyword's own body
+    # (S3, ADR 0025 — no `one_of do ... end` wrapper anymore) and leaves
+    # every other byte alone.
     module Evolve
       class Refusal < StandardError; end
 
@@ -105,14 +106,17 @@ module Hecksagain
         line =~ /^\s*member / && line.include?(%(word: "#{word}")) && line.include?(%(context: "#{context}"))
       end
 
-      # From `value_object "Keyword"` to the end of its one_of block —
-      # the only region this module may touch.
+      # From `value_object "Keyword"` to ITS OWN closing `end` — `member`
+      # rows sit bare now (S3, ADR 0025 — the `one_of do ... end` wrapper
+      # is gone), so the first bare `end` line after the opener already
+      # IS the value object's own, the same fact the original one_of-
+      # nested version of this method leaned on (nothing else nested
+      # inside it either, before or after).
       def keyword_block(source)
         start = source.index(/^\s*value_object "Keyword" do$/)
         raise Refusal, "syntax.bluebook declares no Keyword value object" unless start
 
-        one_of = source.index(/^\s*one_of do$/, start)
-        closing = source.index(/^\s*end\s*$/, one_of)
+        closing = source.index(/^\s*end\s*$/, start)
         closing = source.index(/\n/, closing) + 1
         source[start...closing]
       end
@@ -206,14 +210,15 @@ module Hecksagain
         File.write(path, source.sub(block, updated))
       end
 
-      # From `value_object "Argument"` to the end of its one_of block —
-      # the only region these methods may touch.
+      # From `value_object "Argument"` to ITS OWN closing `end` — see
+      # `keyword_block`'s own comment for why the first bare `end` after
+      # the opener is already the right one, now that `member` rows sit
+      # bare (S3, ADR 0025).
       def argument_block(source)
         start = source.index(/^\s*value_object "Argument" do$/)
         raise Refusal, "syntax.bluebook declares no Argument value object" unless start
 
-        one_of = source.index(/^\s*one_of do$/, start)
-        closing = source.index(/^\s*end\s*$/, one_of)
+        closing = source.index(/^\s*end\s*$/, start)
         closing = source.index(/\n/, closing) + 1
         source[start...closing]
       end

@@ -82,12 +82,7 @@ Hecks.bluebook "Pizzas" do
     end
 
     value_object "Size" do
-      attribute :value, String
-
-      one_of do
-        member value: "small"
-        member value: "large"
-      end
+      attribute :value, String, one_of: ["small", "large"]
     end
 
     value_object "Pizza" do

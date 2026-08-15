@@ -37,17 +37,17 @@ account = Banking::Account.open(customer: "vo-1", number: { value: "vo-a1" },
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, type, default:, optional:, pattern:, admits:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, admits:, one_of:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | name |
-| positional 2 | constant | false | type |
-| positional 2 | text | false | type |
+| positional 2 | constant | true | type |
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |
 | `admits:` | text | false | admits |
+| `one_of:` | list | false | one_of |
 <!-- generated:end -->
 
 Declares a field on the value object: a name, a type (scalar or another
@@ -76,41 +76,29 @@ account.balance.cents     # => 2500
 account.balance.currency  # => "USD"
 ```
 
+Nothing at the call site names a direction — `Credit` and `Debit` each
+append their own, and the closed set (`LedgerDirection`'s own
+`one_of:`, above) is what makes the two readable apart:
+
+```ruby
+account.debit(amount: { cents: 500 }, narrative: { text: "lunch" })
+account.ledger.map { |entry| entry[:direction][:value] }  # => ["credit", "debit"]
+```
+
 ## one_of
 
 <!-- generated:begin word=one_of -->
 `one_of do ... end` — fills `rows`
 <!-- generated:end -->
 
-Opens the closed-set block form: a value object whose only legal values
-are the `member`s declared inside. This is a DIFFERENT `one_of` from the
-inline type-position shorthand documented on type.md — calling that
-shorthand from inside a nested `value_object` block reaches THIS `one_of`
-instead, with the wrong arity, and crashes. See type.md's `one_of`
-section and aggregates-and-value-objects.md for the full trap.
-
-`Account`'s own `LedgerDirection` is the block form, and it is what
-decides whether a movement reads as a credit or a debit:
-
-```ruby skip
-# examples/banking/bluebook/banking.bluebook
-value_object "LedgerDirection" do
-  attribute :value, String
-
-  one_of do
-    member value: "credit"
-    member value: "debit"
-  end
-end
-```
-
-Nothing at the call site names a direction — `Credit` and `Debit` each
-append their own, and the closed set is what makes the two readable
-apart:
+The block form is gone — a single-field closed set is `attribute`'s own
+`one_of:` keyword now, and a multi-field one is bare `member` lines,
+both shown above. This row stays admitted only because frozen era text
+still writes it (`EraGuard.shadow_parse`'s own S0a bridge reads it);
+writing it in live source refuses:
 
 ```ruby
-account.debit(amount: { cents: 500 }, narrative: { text: "lunch" })
-account.ledger.map { |entry| entry[:direction][:value] }  # => ["credit", "debit"]
+Hecks.bluebook("LedgerDirectionAgain") { aggregate("Thing") { identified_by :thing_id; value_object("Kind") { attribute :value, String; one_of { member value: "a" } } } }  # ~> Malformed: one_of do ... end wrapper is gone
 ```
 
 ## invariant
@@ -146,5 +134,46 @@ rules, and gets both anyway because it takes a `PositiveMoney` too:
 
 ```ruby
 account.debit(amount: { cents: -1 }, narrative: { text: "negative" })  # ~> InvariantViolation: an amount is positive
+```
+
+## member
+
+<!-- generated:begin word=member -->
+`member members` — opens a `Member` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | pairs | true | members |
+<!-- generated:end -->
+
+One legal row of a closed set, written directly in the value object's
+own body — no wrapper around it. A single-field set has the shorter
+`one_of:` keyword (see `attribute`, above); `member` is for when each
+admitted value carries MORE than one field, so there is no single field
+`one_of:` could name.
+
+`StatementFrequency` is three fields per member — a cadence names both
+how long records are kept and what a paper copy costs:
+
+```ruby skip
+# examples/banking/bluebook/banking.bluebook
+value_object "StatementFrequency" do
+  attribute :cadence,          String
+  attribute :retention_months, Integer
+  attribute :paper_fee_cents,  Integer
+
+  member cadence: "monthly",   retention_months: 84,  paper_fee_cents: 0
+  member cadence: "quarterly", retention_months: 120, paper_fee_cents: 0
+  member cadence: "annual",    retention_months: 240, paper_fee_cents: 500
+end
+```
+
+Each `member` line stays exactly that — three named fields together,
+never split across rows the way a single-field `one_of:` array is:
+
+```ruby
+frequency = runtime.registry.bluebook("Banking").aggregate("Statement").value_object("StatementFrequency")
+frequency.closed_set?  # => true
+frequency.members      # => [{ cadence: "monthly", retention_months: 84, paper_fee_cents: 0 }, { cadence: "quarterly", retention_months: 120, paper_fee_cents: 0 }, { cadence: "annual", retention_months: 240, paper_fee_cents: 500 }]
 ```
 

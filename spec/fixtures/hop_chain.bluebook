@@ -6,7 +6,7 @@ Hecks.bluebook "HopChain" do
   # declared query instead).
   aggregate "Client" do
     identified_by :name
-    attribute :name, "Name"
+    attribute :name, Name
     value_object("Name") { attribute :value, String }
 
     lifecycle :status, default: "active" do
@@ -14,7 +14,7 @@ Hecks.bluebook "HopChain" do
     end
 
     command "Register" do
-      attribute :name, "Name"
+      attribute :name, Name
       sets :name
       emits "Registered"
     end
@@ -28,7 +28,7 @@ Hecks.bluebook "HopChain" do
   aggregate "Engagement" do
     identified_by :reference
     reference_to Client
-    attribute :reference, "Reference"
+    attribute :reference, Reference
     value_object("Reference") { attribute :value, String }
 
     lifecycle :stage, default: "started" do
@@ -37,7 +37,7 @@ Hecks.bluebook "HopChain" do
 
     command "Start" do
       reference_to Client
-      attribute :reference, "Reference"
+      attribute :reference, Reference
       sets :reference
       emits "Started"
     end
@@ -55,7 +55,7 @@ Hecks.bluebook "HopChain" do
   aggregate "Proposal" do
     identified_by :number
     reference_to Engagement
-    attribute :number, "Number"
+    attribute :number, Number
     value_object("Number") { attribute :value, String }
 
     lifecycle :status, default: "drafted" do
@@ -70,7 +70,7 @@ Hecks.bluebook "HopChain" do
     # itself be declared optional.
     command "Draft" do
       reference_to Engagement, optional: true
-      attribute :number, "Number"
+      attribute :number, Number
       sets :number
       emits "Drafted"
     end
@@ -114,19 +114,19 @@ Hecks.bluebook "HopChain" do
     # without it, a command referencing its own aggregate's type reads
     # as a second self-reference, refused as naming two roots.
     reference_to Node, as: :parent
-    attribute :label, "Label"
+    attribute :label, Label
     value_object("Label") { attribute :value, String }
 
     command "Plant" do
       reference_to Node, as: :parent, optional: true
-      attribute :label, "Label"
+      attribute :label, Label
       sets :label
       emits "Planted"
     end
 
     query "GrandparentLabelled" do
       where :"parent/parent/label" => :label
-      attribute :label, "Label"
+      attribute :label, Label
     end
   end
 end

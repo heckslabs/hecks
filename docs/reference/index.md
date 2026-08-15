@@ -10,7 +10,7 @@ survives regeneration.
 - [Aggregate](aggregate.md) — 14 words
 - [Entity](entity.md) — 7 words
 - [Command](command.md) — 9 words
-- [ValueObject](value_object.md) — 3 words
+- [ValueObject](value_object.md) — 4 words
 - [OneOf](one_of.md) — 1 word
 - [Lifecycle](lifecycle.md) — 1 word
 - [Policy](policy.md) — 5 words

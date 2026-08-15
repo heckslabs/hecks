@@ -77,7 +77,14 @@ module Hecksagain
             owner_attr = owner_attributes.find { |a| a.name == param_name }
             next unless owner_attr
 
-            attribute(param_name, owner_attr.type, optional: owner_attr.optional?)
+            # `Attribute.new` DIRECTLY, not the public `attribute(...)` DSL
+            # entry — `owner_attr.type` is already SPELLED (a demodulised
+            # String, `Attribute#spell`'s own doing), not a bareword the
+            # bluebook author typed, so it must not run through
+            # `AttributeCollector#attribute`'s quoted-type refusal (ADR
+            # 0025, "Attributes") — that refusal exists for DSL source
+            # text, not for a type already resolved elsewhere and copied.
+            attributes << Attribute.new(name: param_name, type: owner_attr.type, optional: owner_attr.optional?)
           end
         end
 

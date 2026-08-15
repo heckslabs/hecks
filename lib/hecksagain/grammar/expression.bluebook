@@ -231,10 +231,8 @@ Hecks.bluebook "Expression" do
       attribute :boundary,     String
       attribute :position,     Integer
 
-      one_of do
-        member strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1
-        member strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2
-      end
+      member strategy: "collapse_whitespace", source_token: "", replacement: "", boundary: "none", position: 1
+      member strategy: "replace", source_token: ".length", replacement: ".size", boundary: "word", position: 2
     end
 
     value_object "Reading" do

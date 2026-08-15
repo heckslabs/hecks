@@ -47,23 +47,20 @@ Hecks.bluebook "Pizzas" do
       attribute :amount, Integer
     end
 
-    # A closed set written the long way (`one_of do member ... end`), not the
-    # inline `attribute :size, one_of(...)` shorthand — the shorthand desugars
-    # by calling `one_of` on the ENCLOSING builder, and here that builder is a
-    # nested `value_object`, which already has its own `one_of` (a value
-    # object's OWN closed-set members, e.g. LedgerDirection in the banking
-    # corpus). Calling the shorthand inside `value_object "Pizza"` would reach
-    # THAT `one_of` instead and crash with a wrong-arity ArgumentError — a real
-    # collision, hit while writing this, not a hypothetical one. So `Size` is
-    # declared as its own sibling value object, the same pattern LedgerDirection
-    # and AccountKind already use, and `Pizza` below just holds one by name.
+    # A NAMED, REUSABLE closed set — its own sibling value object, the same
+    # shape LedgerDirection/AccountKind use in the banking corpus, not the
+    # `attribute :size, one_of(...)` shorthand (which synthesises an
+    # ANONYMOUS value object and only reads naturally directly on an
+    # aggregate/entity/command attribute, unchanged by S3). `one_of:` is
+    # the field's own keyword here (ADR 0025's "closed sets lose the
+    # wrapper block") — before it existed, the inline shorthand genuinely
+    # could not be spelled inside a `value_object` block at all: it
+    # desugars by calling `one_of` on the enclosing builder, and a nested
+    # `value_object` already had its OWN differently-shaped `one_of`
+    # (the now-removed `one_of do member ... end` wrapper), so the two
+    # collided with a wrong-arity ArgumentError.
     value_object "Size" do
-      attribute :value, String
-
-      one_of do
-        member value: "small"
-        member value: "large"
-      end
+      attribute :value, String, one_of: ["small", "large"]
     end
 
     # WHAT WAS ORDERED, not who ordered it or whether it's been paid for —

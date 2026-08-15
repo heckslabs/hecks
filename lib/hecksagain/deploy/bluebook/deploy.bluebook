@@ -62,12 +62,7 @@ Hecks.bluebook "Deploy" do
     # here: which domain owns the instance is a deploy-time fact, not
     # a business invariant this validated aggregate's job to hold.
     value_object "Database" do
-      attribute :value, String
-      one_of do
-        member value: "Postgres"
-        member value: "Aurora"
-        member value: "Shared"
-      end
+      attribute :value, String, one_of: ["Postgres", "Aurora", "Shared"]
     end
 
     # "None" (the default — nothing changes for a domain that names
@@ -85,11 +80,7 @@ Hecks.bluebook "Deploy" do
     # declares `web "Rust"` AND has a `lambda_handler.rb`, rather than
     # silently picking one.
     value_object "Web" do
-      attribute :value, String
-      one_of do
-        member value: "None"
-        member value: "Rust"
-      end
+      attribute :value, String, one_of: ["None", "Rust"]
     end
 
     # 128-10240 MB — AWS Lambda's own real ceiling and floor, not a

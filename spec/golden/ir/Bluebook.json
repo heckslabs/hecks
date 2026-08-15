@@ -9378,6 +9378,32 @@
               ],
               [
                 "context",
+                "ValueObject"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                "Member"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "member"
+              ],
+              [
+                "context",
                 "OneOf"
               ],
               [
@@ -11980,37 +12006,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Aggregate"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -12135,6 +12131,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -12442,37 +12468,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Entity"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -12597,6 +12593,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -13250,37 +13276,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Command"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -13405,6 +13401,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -13460,37 +13486,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "ValueObject"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -13620,6 +13616,36 @@
             [
               [
                 "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "ValueObject"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "invariant"
               ],
               [
@@ -13645,6 +13671,40 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "member"
+              ],
+              [
+                "context",
+                "ValueObject"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "members"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
               ]
             ],
             [
@@ -14272,37 +14332,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -14427,6 +14457,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -15788,37 +15848,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "PortOperation"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -15943,6 +15973,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [

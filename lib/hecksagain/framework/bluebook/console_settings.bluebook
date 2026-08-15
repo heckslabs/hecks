@@ -196,15 +196,11 @@ Hecks.bluebook "ConsoleSettings" do
 
     # A list/table column. `sortable`/`sort_default` are optional — most
     # columns take the frontend's own default (sortable, no forced order).
-    # `sort_default` stays a plain String, not an inline `one_of` — a
-    # `one_of(...)` written INSIDE a `value_object do ... end` block
-    # collides with the value object's OWN bare `one_of do member ... end`
-    # closed-set DSL (same method name, different arity — confirmed by
-    # trying it: `wrong number of arguments (given 2, expected 0)`).
-    # `admits:` (a closed set declared elsewhere) is the way around that
-    # collision, but for a field this narrow it isn't worth the extra
-    # sibling value object — PresentationConfig.validate! keeps checking
-    # membership in Ruby, same as it always has.
+    # `sort_default` stays a plain String, not a closed set — narrow
+    # enough (and PresentationConfig.validate! already checks it in
+    # Ruby) that a dedicated `one_of: [...]` (S3, ADR 0025 — the field's
+    # own keyword now, no sibling value object or `admits:` indirection
+    # needed) still isn't worth it for this one field.
     value_object "Column" do
       attribute :field,        String
       attribute :sortable,     String, optional: true  # "true"/"false" — see StateStyle.attention's own comment

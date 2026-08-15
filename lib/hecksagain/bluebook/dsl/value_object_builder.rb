@@ -10,16 +10,56 @@ module Hecksagain
           @members    = []
         end
 
-        # moved to the language: a closed set admits a member, on Shape.Close.
+        # THE WRAPPER BLOCK IS GONE (ADR 0025, "Attributes" — "closed sets
+        # lose the wrapper block"). `member` lines are bare now, written
+        # directly in the `value_object` body with no `one_of do ... end`
+        # around them — `build`'s own `closed_set: @closed_set ||
+        # !@members.empty?` already treats a non-empty `@members` as closed,
+        # so nothing else has to change for that to work. A single-field set
+        # has an even shorter spelling: `attribute`'s own `one_of:` keyword
+        # (`AttributeCollector#install_inline_closed_set`, overridden below).
         #
-        # This was called unportable because an empty one_of and no one_of are
-        # both `members: []` in the IR. That was a MODELLING choice, not a law —
-        # an empty attribute NAME survives into the IR and is judged there. So
-        # the IR now records that a closed set was declared, and the language
-        # judges it like everything else.
-        def one_of(&block)
+        # This also removes a real, documented landmine: the block form
+        # collided with `AttributeCollector#one_of`'s own type-position
+        # method (`one_of("a", "b")`, different arity) the moment both were
+        # mixed into the same builder — a value_object could never actually
+        # use the inline form on one of its own attributes. One `one_of`
+        # method now, not two.
+        #
+        # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era text
+        # still writes the block form (2 locations in
+        # `examples/banking/data/eras/banking/1.bluebook`, duplicated once
+        # more in that era's own archive copy), so `EraGuard.shadow_parse`
+        # still needs to read it. `block_given?` is what tells the two
+        # calling shapes apart: the type-position form
+        # (`one_of("a", "b")`) never passes a block, only the wrapper does.
+        def one_of(*values, &block)
+          unless block
+            # NO VALUES, NO BLOCK is the SCALAR spelling — nonsensical, not
+            # merely inert: it names a closed set with nothing in it. The
+            # original block form caught this by a side effect (`@closed_set
+            # = true` ran unconditionally, before the `if block`), and this
+            # keeps the same refusal rather than letting the call fall
+            # through and silently do nothing.
+            if values.empty?
+              raise Malformed,
+                    "#{@name}'s one_of names no values — one_of(\"a\", \"b\") takes at least one, or " \
+                    "give the attribute its own one_of: [...] for a named closed set"
+            end
+
+            # AttributeCollector's own `one_of(*values)` — Ruby's normal
+            # `super` reaches the included module's method from here.
+            return super(*values)
+          end
+
+          unless MetaValidator.shadow_parsing?
+            raise Malformed,
+                  "#{@name}'s one_of do ... end wrapper is gone — give the single attribute its " \
+                  "own one_of: [...], or write bare member lines with no wrapper for a multi-field set"
+          end
+
           @closed_set = true
-          instance_eval(&block) if block
+          instance_eval(&block)
         end
 
         def member(**fields)
@@ -47,6 +87,13 @@ module Hecksagain
         end
 
         def build
+          if @inline_closed_set_field && attributes.size > 1
+            raise Malformed,
+                  "#{@name}'s one_of: on :#{@inline_closed_set_field} only works when it is the " \
+                  "value object's only attribute — #{attributes.size} declared here; write bare " \
+                  "member lines instead for a multi-field set"
+          end
+
           ValueObject.declare(
             name: @name, attributes: attributes,
             invariants: @invariants, members: @members,
@@ -58,6 +105,31 @@ module Hecksagain
           builder = new(name)
           builder.instance_eval(&block) if block
           builder.build
+        end
+
+        private
+
+        # THE NEW SPELLING — `attribute :name, String, one_of: %w[...]`,
+        # overriding `AttributeCollector`'s own refusal (every OTHER
+        # includer has no meaningful use for this). PRIVATE, like the
+        # module's own version it overrides — it is a callback `attribute`
+        # invokes on itself, never a word a bluebook author calls by name.
+        # Refuses a SECOND attribute naming one_of: on the same value
+        # object outright — a single-field set names exactly one field, by
+        # construction; two would be structurally ambiguous about which
+        # field each member line belongs to. `build` refuses the OTHER
+        # half of that same rule (this attribute coexisting with unrelated
+        # ones on a multi-field object).
+        def install_inline_closed_set(field, values)
+          if @inline_closed_set_field && @inline_closed_set_field != field
+            raise Malformed,
+                  "#{@name} declares one_of: on more than one attribute (:#{@inline_closed_set_field} " \
+                  "and :#{field}) — a single-field closed set names exactly one"
+          end
+
+          @inline_closed_set_field = field
+          @closed_set = true
+          values.each { |value| member(field => value.to_s) }
         end
       end
     end

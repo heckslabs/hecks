@@ -9,27 +9,25 @@ by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
-Both examples run against `examples/banking`'s `Account`, whose closed
-sets are written the long way — a `value_object` with a `one_of` block:
+This whole context is legacy now (S3, ADR 0025 — "closed sets lose the
+wrapper block"): `OneOf` used to be what `value_object do ... end`
+opened by writing `one_of do ... end`, and `member` was only ever legal
+nested inside it. Live source spells a single-field closed set with
+`attribute`'s own `one_of:` keyword instead, and a multi-field one with
+bare `member` lines directly in the value object's own body — both
+documented on value_object.md, which is also where `AccountKind`
+(banking's own worked example, quoted below in its CURRENT form) and
+`StatementFrequency` actually live now.
 
-```ruby boot
-Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+This context still exists only because frozen era text still writes the
+old shape — `EraGuard.shadow_parse`'s own S0a bridge reads it — and
+writing it in live source refuses (see `member`'s own example, below).
 
-Hecks.hecksagon("Banking") do
-  uses_framework "Governance"
-  Banking::Customer.persisted_by("Memory")
-  Banking::Account.persisted_by("Memory")
+```ruby skip
+# examples/banking/bluebook/banking.bluebook, as it reads today
+value_object "AccountKind" do
+  attribute :name, String, one_of: ["current", "savings", "reserve"]
 end
-Hecks.hecksagon("Governance") do
-  Governance::RoleAssignment.persisted_by("Memory")
-  Governance::RoleTransition.persisted_by("Memory")
-end
-```
-
-```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "oo-1" },
-                 name: { given: "Mary", family: "Jackson" },
-                 email: { address: "mary@example.com" })
 ```
 
 ## member
@@ -42,38 +40,12 @@ runtime.dispatch("Banking::Customer.Register", reference: { value: "oo-1" },
 | positional 1 | pairs | true | members |
 <!-- generated:end -->
 
-One legal value of the closed set, e.g. `member value: "small"`. Every
-`member` inside a `one_of do ... end` block adds one more admitted value;
-a value not named by any `member` is refused at the door.
-
-`AccountKind` declares three, and an account may be opened as any of
-them:
-
-```ruby skip
-# examples/banking/bluebook/banking.bluebook
-value_object "AccountKind" do
-  attribute :name, String
-
-  one_of do
-    member name: "current"
-    member name: "savings"
-    member name: "reserve"
-  end
-end
-```
+One legal value of the closed set, only ever legal nested inside the
+now-legacy `one_of do ... end` wrapper (see value_object.md's own
+`member` section for the live, bare spelling). Writing the wrapper in
+live source refuses before any `member` line inside it is even read:
 
 ```ruby
-account = Banking::Account.open(customer: "oo-1", number: { value: "oo-a1" },
-                                kind: { name: "savings" }, daily_limit: { cents: 50_000 })
-account.kind.name  # => "savings"
-```
-
-A fourth value is refused where it arrives, naming the whole admitted
-set rather than only the offending value — the refusal is the closed
-set read back:
-
-```ruby
-gold = { customer: "oo-1", number: { value: "oo-a2" }, kind: { name: "gold" }, daily_limit: { cents: 1 } }
-Banking::Account.open(**gold)  # ~> InvariantViolation: AccountKind admits "current", "savings", "reserve"
+Hecks.bluebook("MemberGone") { aggregate("Thing") { identified_by :thing_id; value_object("Kind") { attribute :value, String; one_of { member value: "a" } } } }  # ~> Malformed: one_of do ... end wrapper is gone
 ```
 

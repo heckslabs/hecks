@@ -36,14 +36,12 @@ Hecks.bluebook "Bluebook" do
       attribute :compares_equal,     String
       attribute :negated,            String
 
-      one_of do
-        member symbol: ">=", compares_less_than: "true",  compares_equal: "false", negated: "true"
-        member symbol: "<=", compares_less_than: "true",  compares_equal: "true",  negated: "false"
-        member symbol: "<",  compares_less_than: "true",  compares_equal: "false", negated: "false"
-        member symbol: ">",  compares_less_than: "true",  compares_equal: "true",  negated: "true"
-        member symbol: "==", compares_less_than: "false", compares_equal: "true",  negated: "false"
-        member symbol: "!=", compares_less_than: "false", compares_equal: "true",  negated: "true"
-      end
+      member symbol: ">=", compares_less_than: "true",  compares_equal: "false", negated: "true"
+      member symbol: "<=", compares_less_than: "true",  compares_equal: "true",  negated: "false"
+      member symbol: "<",  compares_less_than: "true",  compares_equal: "false", negated: "false"
+      member symbol: ">",  compares_less_than: "true",  compares_equal: "true",  negated: "true"
+      member symbol: "==", compares_less_than: "false", compares_equal: "true",  negated: "false"
+      member symbol: "!=", compares_less_than: "false", compares_equal: "true",  negated: "true"
     end
 
     # Expression::Resolver::SIGN_TESTS
@@ -55,11 +53,10 @@ Hecks.bluebook "Bluebook" do
     value_object "SignTest" do
       attribute :name,         String
       attribute :compares_via, String
-      one_of do
-        member name: "positive?", compares_via: ">"
-        member name: "negative?", compares_via: "<"
-        member name: "zero?",     compares_via: "=="
-      end
+
+      member name: "positive?", compares_via: ">"
+      member name: "negative?", compares_via: "<"
+      member name: "zero?",     compares_via: "=="
     end
 
     # `.include?`'s haystack type decides its behaviour : Array does
@@ -70,10 +67,9 @@ Hecks.bluebook "Bluebook" do
     value_object "IncludeHaystack" do
       attribute :type,     String
       attribute :strategy, String
-      one_of do
-        member type: "Array",  strategy: "membership"
-        member type: "String", strategy: "substring"
-      end
+
+      member type: "Array",  strategy: "membership"
+      member type: "String", strategy: "substring"
     end
 
     # `.to_s` admits exactly these scalar types, and every one of them uses
@@ -81,15 +77,7 @@ Hecks.bluebook "Bluebook" do
     # number its digits, a string itself) — a closed set to admit into, not a
     # table of different rules per type.
     value_object "ToStringType" do
-      attribute :type, String
-      one_of do
-        member type: "String"
-        member type: "Integer"
-        member type: "Float"
-        member type: "TrueClass"
-        member type: "FalseClass"
-        member type: "NilClass"
-      end
+      attribute :type, String, one_of: ["String", "Integer", "Float", "TrueClass", "FalseClass", "NilClass"]
     end
 
     # `.size` and `.empty?` admit exactly the same closed set — a list, a
@@ -97,33 +85,17 @@ Hecks.bluebook "Bluebook" do
     # already named for it. One declaration for both, since the set itself is
     # the only thing either needed to say.
     value_object "SizedType" do
-      attribute :type, String
-      one_of do
-        member type: "Array"
-        member type: "String"
-        member type: "Hash"
-      end
+      attribute :type, String, one_of: ["Array", "String", "Hash"]
     end
 
     # Attribute::PRIMITIVES — the scalars a value object may bottom out in
     value_object "Primitive" do
-      attribute :name, String
-      one_of do
-        member name: "String"
-        member name: "Integer"
-        member name: "Float"
-        member name: "TrueClass"
-        member name: "FalseClass"
-      end
+      attribute :name, String, one_of: ["String", "Integer", "Float", "TrueClass", "FalseClass"]
     end
 
     # Expression::CanonicalForm::STRATEGIES
     value_object "NormalisationStrategy" do
-      attribute :name, String
-      one_of do
-        member name: "collapse_whitespace"
-        member name: "replace"
-      end
+      attribute :name, String, one_of: ["collapse_whitespace", "replace"]
     end
 
     # the ops Runtime::CommandInterpreter applies. `sign` is the arithmetic
@@ -135,23 +107,22 @@ Hecks.bluebook "Bluebook" do
     value_object "MutationOp" do
       attribute :name, String
       attribute :sign, String
-      one_of do
-        member name: "set",       sign: ""
-        member name: "append",    sign: ""
-        member name: "increment", sign: "1"
-        member name: "decrement", sign: "-1"
-        # Vendored addition, not (yet) upstream hecksagain (migration plan
-        # task 4, i106 in-DSL math — CommandRules::Arithmetic#multiply/
-        # #clamp): multiply scales (`current * amount`), clamp bounds
-        # (`current.clamp(min, max)`) — neither is an add/subtract, so
-        # neither carries a sign, same reading as set/append above.
-        member name: "multiply",  sign: ""
-        member name: "clamp",     sign: ""
-        # Vendored addition, not (yet) upstream hecksagain (migration plan
-        # task 4): remove — the list-removal counterpart to append,
-        # matching an element by value. No sign, same reading as append.
-        member name: "remove",    sign: ""
-      end
+
+      member name: "set",       sign: ""
+      member name: "append",    sign: ""
+      member name: "increment", sign: "1"
+      member name: "decrement", sign: "-1"
+      # Vendored addition, not (yet) upstream hecksagain (migration plan
+      # task 4, i106 in-DSL math — CommandRules::Arithmetic#multiply/
+      # #clamp): multiply scales (`current * amount`), clamp bounds
+      # (`current.clamp(min, max)`) — neither is an add/subtract, so
+      # neither carries a sign, same reading as set/append above.
+      member name: "multiply",  sign: ""
+      member name: "clamp",     sign: ""
+      # Vendored addition, not (yet) upstream hecksagain (migration plan
+      # task 4): remove — the list-removal counterpart to append,
+      # matching an element by value. No sign, same reading as append.
+      member name: "remove",    sign: ""
     end
 
     # QuerySpecification::Common::Comparators::COMPARATORS — a where-clause's
@@ -159,38 +130,21 @@ Hecks.bluebook "Bluebook" do
     # boolean algebra (eq/ne compare values, gt/gte/lt/lte order them, in/contains
     # test membership in opposite directions), so this stays a flat closed set —
     # the same shape MutationOp had before it grew a sign.
+    # `none_in_state` (the last member) is a vendored addition, not (yet)
+    # upstream hecksagain (migration plan task 4) — see
+    # query_specification/common/comparators.rb's own comment on
+    # none_in_state. Both closed sets (the Ruby COMPARATORS constant and
+    # this self-hosted grammar entry) must agree, the same two-places-
+    # must-agree discipline MutationOp/multiply/clamp already required
+    # earlier this pass.
     value_object "QueryComparator" do
-      attribute :name, String
-      one_of do
-        member name: "eq"
-        member name: "ne"
-        member name: "gt"
-        member name: "gte"
-        member name: "lt"
-        member name: "lte"
-        member name: "in"
-        member name: "contains"
-        # Vendored addition, not (yet) upstream hecksagain (migration plan
-        # task 4) — see query_specification/common/comparators.rb's own
-        # comment on none_in_state. Both closed sets (the Ruby COMPARATORS
-        # constant and this self-hosted grammar entry) must agree, the
-        # same two-places-must-agree discipline MutationOp/multiply/clamp
-        # already required earlier this pass.
-        member name: "none_in_state"
-      end
+      attribute :name, String, one_of: ["eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "none_in_state"]
     end
 
     # Adapters::Driven::Folder::DOMAIN_ORDER — declarations load in this order
     value_object "LoadOrder" do
-      attribute :glob, String
-      one_of do
-        member glob: "*.port"
-        member glob: "*.adapter"
-        member glob: "*.bluebook"
-        member glob: "translations/*.bluebook"
-        member glob: "*.hecksagon"
-        member glob: "*.world"
-      end
+      attribute :glob, String,
+                one_of: ["*.port", "*.adapter", "*.bluebook", "translations/*.bluebook", "*.hecksagon", "*.world"]
     end
 
     # CommandInterpreter#call — an aggregate command's
@@ -204,23 +158,11 @@ Hecks.bluebook "Bluebook" do
     # applies — so this is the order a command that does both follows,
     # confirmed by tracing a real dispatch, not read off the source.
     value_object "AggregateDispatchOrder" do
-      attribute :step, String
-      one_of do
-        member step: "refuse_unknown_arguments"
-        member step: "refuse_absent_arguments"
-        member step: "normalize_args"
-        member step: "refuse_role_mismatch"
-        member step: "resolve_references"
-        member step: "hydrate"
-        member step: "enforce_givens"
-        member step: "admissible_transition"
-        member step: "assign_creation_attributes"
-        member step: "apply_mutations"
-        member step: "advance_lifecycle"
-        member step: "enforce_ensures"
-        member step: "save"
-        member step: "emit"
-      end
+      attribute :step, String,
+                one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
+                         "refuse_role_mismatch", "resolve_references", "hydrate", "enforce_givens",
+                         "admissible_transition", "assign_creation_attributes", "apply_mutations",
+                         "advance_lifecycle", "enforce_ensures", "save", "emit"]
     end
 
     # EntityInterpreter#call — the same shape
@@ -234,43 +176,20 @@ Hecks.bluebook "Bluebook" do
     # an aggregate command can (CommandRules#resolve_references is shared by
     # both interpreters), even though nothing in the real corpus does yet.
     value_object "EntityDispatchOrder" do
-      attribute :step, String
-      one_of do
-        member step: "normalize_args"
-        member step: "refuse_role_mismatch"
-        member step: "resolve_references"
-        member step: "hydrate_parent"
-        member step: "locate_element"
-        member step: "enforce_givens"
-        member step: "admissible_transition"
-        member step: "apply_mutations"
-        member step: "advance_lifecycle"
-        member step: "enforce_ensures"
-        member step: "save"
-        member step: "emit"
-      end
+      attribute :step, String,
+                one_of: ["normalize_args", "refuse_role_mismatch", "resolve_references", "hydrate_parent",
+                         "locate_element", "enforce_givens", "admissible_transition", "apply_mutations",
+                         "advance_lifecycle", "enforce_ensures", "save", "emit"]
     end
 
     # Runtime::Errors::DOMAIN_REFUSALS — what counts as the domain judging,
     # as opposed to the runtime breaking. Anything outside this set that reaches
     # a refusal list is a bug wearing a refusal's clothes.
     value_object "DomainRefusal" do
-      attribute :name, String
-      one_of do
-        member name: "AbsentArgument"
-        member name: "AlreadyExists"
-        member name: "AttributeAbsent"
-        member name: "EnsuresNotMet"
-        member name: "GivenNotMet"
-        member name: "InvariantViolation"
-        member name: "LifecycleRefused"
-        member name: "NotFound"
-        member name: "RemoteRefusal"
-        member name: "TypeMismatch"
-        member name: "Unauthorized"
-        member name: "UnknownArgument"
-        member name: "UnknownVerb"
-      end
+      attribute :name, String,
+                one_of: ["AbsentArgument", "AlreadyExists", "AttributeAbsent", "EnsuresNotMet", "GivenNotMet",
+                         "InvariantViolation", "LifecycleRefused", "NotFound", "RemoteRefusal", "TypeMismatch",
+                         "Unauthorized", "UnknownArgument", "UnknownVerb"]
     end
 
     # THE WORDING ITSELF, for every DomainRefusal site that is not already
@@ -296,92 +215,90 @@ Hecks.bluebook "Bluebook" do
       attribute :site,     String
       attribute :template, String
 
-      one_of do
-        member refusal: "NotFound", site: "creating_no_identity",
-               template: "{command} creates a {aggregate} — pass {identity}:"
-        member refusal: "AlreadyExists", site: "creating_duplicate",
-               template: "{command} creates a {aggregate} that already exists — {identity} {offered}"
-        member refusal: "NotFound", site: "acting_no_identity",
-               template: "{command} acts on an existing {aggregate} — pass {identity}:"
-        member refusal: "NotFound", site: "record_missing",
-               template: "no {aggregate} with {identity} {offered}"
-        member refusal: "NotFound", site: "entity_parent_no_identity",
-               template: "{command} acts on a {aggregate}'s {entity} — pass {identity}:"
-        member refusal: "UnknownVerb", site: "entity_unknown",
-               template: "{aggregate} has no entity {entity}"
-        member refusal: "NotFound", site: "entity_element_no_identity",
-               template: "{command} acts on one {entity} — pass {identity}:"
-        member refusal: "NotFound", site: "entity_element_missing",
-               template: "no {entity} with {identity} {wants} on {aggregate} {parent_id}"
-        member refusal: "NotFound", site: "reference_target_missing",
-               template: "no {target} with {heads} {key}"
-        member refusal: "NotFound", site: "read_model_reference_missing",
-               template: "no {aggregate} with reference {offered}"
-        member refusal: "TypeMismatch", site: "read_model_object_reference",
-               template: "{query} refused — a reference is an id, and {field} arrived as an object"
-        member refusal: "UnknownVerb", site: "no_query",
-               template: "{aggregate} has no query {query}"
-        member refusal: "UnknownVerb", site: "entity_query_missing",
-               template: "{entity} has no query {query}"
-        member refusal: "UnknownVerb", site: "entity_holds_no_list",
-               template: "{aggregate} holds no list of {entity}"
-        member refusal: "UnknownVerb", site: "entity_no_command",
-               template: "{entity} has no command {command}"
-        member refusal: "UnknownVerb", site: "aggregate_no_command",
-               template: "{aggregate} has no command {command}"
-        member refusal: "UnknownVerb", site: "port_no_operation",
-               template: "{port} has no operation {operation}"
-        member refusal: "UnknownVerb", site: "no_domain",
-               template: "no domain {domain} loaded (verb {verb})"
-        member refusal: "UnknownVerb", site: "no_read_model",
-               template: "{domain} has no read model {query}"
-        member refusal: "UnknownVerb", site: "not_fully_qualified",
-               template: "{verb} is not a fully-qualified verb (Domain::Aggregate.Command)"
-        member refusal: "UnknownVerb", site: "no_aggregate",
-               template: "{domain} has no aggregate {aggregate}"
-        member refusal: "LifecycleRefused", site: "transition_blocked",
-               template: "{command} refused — {field} is {current}, and {command} moves it only from {allowed}"
-        member refusal: "TypeMismatch", site: "value_object_shape",
-               template: "{name} is a {type} — pass its fields as an object, not {offered}"
-        member refusal: "TypeMismatch", site: "reference_as_object",
-               template: "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"
-        member refusal: "TypeMismatch", site: "multi_field_scalar",
-               template: "{type} has multiple fields and cannot stand in for a scalar"
-        member refusal: "TypeMismatch", site: "composite_identity",
-               template: "{type} is a composite identity — an identity must have exactly one field"
-        member refusal: "TypeMismatch", site: "numeric_field",
-               template: "{type}.{field} expects {expected}, got {offered}"
-        member refusal: "TypeMismatch", site: "pattern_mismatch",
-               template: "{type}.{field} must match {pattern}, got {offered}"
-        member refusal: "TypeMismatch", site: "arithmetic_amount",
-               template: "{op} of {target} needs an Integer, got {offered}"
-        member refusal: "TypeMismatch", site: "arithmetic_current",
-               template: "{op} of {target} needs an Integer {target}, got {offered}"
-        member refusal: "TypeMismatch", site: "arithmetic_shared_field",
-               template: "{op} of {target} needs a value object with one shared Integer field"
-        member refusal: "UnknownArgument", site: "unknown_args",
-               template: "{command} does not declare {unknown} — it takes {declared}"
-        member refusal: "AbsentArgument", site: "absent_args",
-               template: "{command} was not given {absent} — it takes {declared}"
-        member refusal: "InvariantViolation", site: "closed_set_member",
-               template: "{type} admits {admitted} — got {offered}"
-        member refusal: "InvariantViolation", site: "value_object_invariant",
-               template: "{name} invariant violated — {description} (given {offered})"
-        member refusal: "InvariantViolation", site: "admits_declared_set",
-               template: "{name} admits {admits} — {admitted} — got {offered}"
-        member refusal: "InvariantViolation", site: "undeclared_set",
-               template: "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
-                         "Aggregate::SetName, and it must be one the bluebook actually holds"
-        member refusal: "Unauthorized", site: "tenant_required",
-               template: "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
-                         "{field} this ask is scoped to"
-        member refusal: "Unauthorized", site: "role_mismatch",
-               template: "{command} refused — role: {role}, and the caller stated {caller_role}"
-        member refusal: "AttributeAbsent", site: "absent_read",
-               template: "{aggregate} {field} is absent on this record — declared, not optional, and " \
-                         "added since it was written. Backfill it in a translation (backfill :{field}, " \
-                         "default: ...), or declare it optional: true"
-      end
+      member refusal: "NotFound", site: "creating_no_identity",
+             template: "{command} creates a {aggregate} — pass {identity}:"
+      member refusal: "AlreadyExists", site: "creating_duplicate",
+             template: "{command} creates a {aggregate} that already exists — {identity} {offered}"
+      member refusal: "NotFound", site: "acting_no_identity",
+             template: "{command} acts on an existing {aggregate} — pass {identity}:"
+      member refusal: "NotFound", site: "record_missing",
+             template: "no {aggregate} with {identity} {offered}"
+      member refusal: "NotFound", site: "entity_parent_no_identity",
+             template: "{command} acts on a {aggregate}'s {entity} — pass {identity}:"
+      member refusal: "UnknownVerb", site: "entity_unknown",
+             template: "{aggregate} has no entity {entity}"
+      member refusal: "NotFound", site: "entity_element_no_identity",
+             template: "{command} acts on one {entity} — pass {identity}:"
+      member refusal: "NotFound", site: "entity_element_missing",
+             template: "no {entity} with {identity} {wants} on {aggregate} {parent_id}"
+      member refusal: "NotFound", site: "reference_target_missing",
+             template: "no {target} with {heads} {key}"
+      member refusal: "NotFound", site: "read_model_reference_missing",
+             template: "no {aggregate} with reference {offered}"
+      member refusal: "TypeMismatch", site: "read_model_object_reference",
+             template: "{query} refused — a reference is an id, and {field} arrived as an object"
+      member refusal: "UnknownVerb", site: "no_query",
+             template: "{aggregate} has no query {query}"
+      member refusal: "UnknownVerb", site: "entity_query_missing",
+             template: "{entity} has no query {query}"
+      member refusal: "UnknownVerb", site: "entity_holds_no_list",
+             template: "{aggregate} holds no list of {entity}"
+      member refusal: "UnknownVerb", site: "entity_no_command",
+             template: "{entity} has no command {command}"
+      member refusal: "UnknownVerb", site: "aggregate_no_command",
+             template: "{aggregate} has no command {command}"
+      member refusal: "UnknownVerb", site: "port_no_operation",
+             template: "{port} has no operation {operation}"
+      member refusal: "UnknownVerb", site: "no_domain",
+             template: "no domain {domain} loaded (verb {verb})"
+      member refusal: "UnknownVerb", site: "no_read_model",
+             template: "{domain} has no read model {query}"
+      member refusal: "UnknownVerb", site: "not_fully_qualified",
+             template: "{verb} is not a fully-qualified verb (Domain::Aggregate.Command)"
+      member refusal: "UnknownVerb", site: "no_aggregate",
+             template: "{domain} has no aggregate {aggregate}"
+      member refusal: "LifecycleRefused", site: "transition_blocked",
+             template: "{command} refused — {field} is {current}, and {command} moves it only from {allowed}"
+      member refusal: "TypeMismatch", site: "value_object_shape",
+             template: "{name} is a {type} — pass its fields as an object, not {offered}"
+      member refusal: "TypeMismatch", site: "reference_as_object",
+             template: "{command} refused — a reference is an id, and {attribute} arrived as an object{known_by}"
+      member refusal: "TypeMismatch", site: "multi_field_scalar",
+             template: "{type} has multiple fields and cannot stand in for a scalar"
+      member refusal: "TypeMismatch", site: "composite_identity",
+             template: "{type} is a composite identity — an identity must have exactly one field"
+      member refusal: "TypeMismatch", site: "numeric_field",
+             template: "{type}.{field} expects {expected}, got {offered}"
+      member refusal: "TypeMismatch", site: "pattern_mismatch",
+             template: "{type}.{field} must match {pattern}, got {offered}"
+      member refusal: "TypeMismatch", site: "arithmetic_amount",
+             template: "{op} of {target} needs an Integer, got {offered}"
+      member refusal: "TypeMismatch", site: "arithmetic_current",
+             template: "{op} of {target} needs an Integer {target}, got {offered}"
+      member refusal: "TypeMismatch", site: "arithmetic_shared_field",
+             template: "{op} of {target} needs a value object with one shared Integer field"
+      member refusal: "UnknownArgument", site: "unknown_args",
+             template: "{command} does not declare {unknown} — it takes {declared}"
+      member refusal: "AbsentArgument", site: "absent_args",
+             template: "{command} was not given {absent} — it takes {declared}"
+      member refusal: "InvariantViolation", site: "closed_set_member",
+             template: "{type} admits {admitted} — got {offered}"
+      member refusal: "InvariantViolation", site: "value_object_invariant",
+             template: "{name} invariant violated — {description} (given {offered})"
+      member refusal: "InvariantViolation", site: "admits_declared_set",
+             template: "{name} admits {admits} — {admitted} — got {offered}"
+      member refusal: "InvariantViolation", site: "undeclared_set",
+             template: "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
+                       "Aggregate::SetName, and it must be one the bluebook actually holds"
+      member refusal: "Unauthorized", site: "tenant_required",
+             template: "{query} declares authorize with tenant: {field} — pass {field}: to name which " \
+                       "{field} this ask is scoped to"
+      member refusal: "Unauthorized", site: "role_mismatch",
+             template: "{command} refused — role: {role}, and the caller stated {caller_role}"
+      member refusal: "AttributeAbsent", site: "absent_read",
+             template: "{aggregate} {field} is absent on this record — declared, not optional, and " \
+                       "added since it was written. Backfill it in a translation (backfill :{field}, " \
+                       "default: ...), or declare it optional: true"
     end
 
     # SagaInterpreter::REFUSED.
@@ -393,10 +310,7 @@ Hecks.bluebook "Bluebook" do
     # and a reader of the language could not discover the
     # trigger existed.
     value_object "Trigger" do
-      attribute :name, String
-      one_of do
-        member name: "refused"
-      end
+      attribute :name, String, one_of: ["refused"]
     end
 
     # Hecksagain::Forms::FieldShape's own EMAIL_HINT/URL_HINT/
@@ -423,12 +337,10 @@ Hecks.bluebook "Bluebook" do
       attribute :pattern,     String
       attribute :resolves_to, String
 
-      one_of do
-        member name: "email",    pattern: 'email',                                                 resolves_to: "html_type"
-        member name: "url",      pattern: '\b(url|uri|website|link)\b',                             resolves_to: "html_type"
-        member name: "tel",      pattern: 'phone|\btel(ephone)?\b',                                 resolves_to: "html_type"
-        member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
-      end
+      member name: "email",    pattern: 'email',                                                 resolves_to: "html_type"
+      member name: "url",      pattern: '\b(url|uri|website|link)\b',                             resolves_to: "html_type"
+      member name: "tel",      pattern: 'phone|\btel(ephone)?\b',                                 resolves_to: "html_type"
+      member name: "textarea", pattern: '\b(text|body|note|notes|description|message|comment)\b', resolves_to: "kind"
     end
   end
 end

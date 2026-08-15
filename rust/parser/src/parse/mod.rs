@@ -1038,10 +1038,15 @@ fn paths_from_source(file: &str, line: usize, raw: &str) -> ParseResult<PendingI
 
 pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &ArgumentGateResult) -> ParseResult<(ir::Attribute, Option<ir::ValueObject>)> {
     let name = positional_symbol(file, line, word, args, 1)?;
-    let (type_name, list, closed_set) = match args.positional.iter().find(|(idx, _)| *idx == 2) {
-        None => ("String".to_string(), false, None),
-        Some((_, text)) => resolve_type_expression(file, line, word, &name, text)?,
-    };
+    // THE TYPE POSITION IS ALWAYS A BARE CONSTANT, ALWAYS REQUIRED (S3,
+    // ADR 0025) — no mint default, refused rather than silently filled
+    // with "String".
+    let (_, text) = args
+        .positional
+        .iter()
+        .find(|(idx, _)| *idx == 2)
+        .ok_or_else(|| Diagnostic::new(file, line, format!("'{name}' declares no type — attribute :{name}, SomeType is required, there is no default")))?;
+    let (type_name, list, closed_set) = resolve_type_expression(file, line, word, &name, text)?;
     let default = named_raw(args, "default").map(ruby_value::read);
     let optional = named_flag(args, "optional");
     let pattern = named_text(args, "pattern");
@@ -1111,22 +1116,20 @@ fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str
             Ok((type_name, false, Some(vo)))
         }
         Some(other) => Err(Diagnostic::not_yet_implemented(file, line, format!("{word}'s inline {other}(...) type"))),
-        // A QUOTED STRING NAMING THE TYPE — real, confirmed live:
-        // `spec/fixtures/hop_chain.bluebook`'s own `attribute :name,
-        // "Name"`, forward-referencing a `value_object("Name") do ... end`
-        // declared later in the same aggregate (a bareword `Name` would
-        // hit Ruby's own `const_missing` before that value object exists —
-        // see syntax.bluebook's own comment on this row for the full
-        // reasoning). Unquoted here the same way `positional_text` reads
-        // any other quoted argument — `IR::Attribute#to_h`'s own
-        // `type.to_s` renders a String and a Class identically, so the
-        // TYPE NAME must survive unwrapped, not as a JSON string carrying
-        // literal quote characters (confirmed live: without this,
-        // `"type": "Name"` came out as `"type": "\"Name\""`).
-        None if classify_lexical_kind(trimmed) == "text" => match ruby_value::read(trimmed) {
-            ruby_value::Value::Str(s) => Ok((s, false, None)),
-            other => Ok((ruby_value::to_s(&other), false, None)),
-        },
+        // THE QUOTED-TEXT FORM IS GONE (S3, ADR 0025 — "the type position
+        // takes a bare constant, always required"). It existed only as a
+        // forward-reference workaround (`attribute :name, "Name"`, ahead
+        // of `value_object("Name") do ... end` declared later in the same
+        // aggregate) — `ConstShim`'s S0b bridge already resolves a bare,
+        // not-yet-declared constant identically, so the workaround is
+        // redundant. Not era-locked (checked directly, live and frozen
+        // corpus alike), so refused outright rather than kept for a
+        // shadow-parse Rust never runs anyway.
+        None if classify_lexical_kind(trimmed) == "text" => Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{field_name}'s type {trimmed} is quoted text — give the bare constant instead"),
+        )),
         None => Ok((trimmed.to_string(), false, None)),
     }
 }

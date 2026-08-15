@@ -145,8 +145,24 @@ module Hecksagain
           @policies << reaction
         end
 
+        # `builder.closed_sets` TOO, not only `builder.build` — a REAL,
+        # previously-unreachable gap this exact fix exposed: a
+        # value_object's own INLINE `attribute :x, one_of(...)` (now legal
+        # — S3, ADR 0025 removed the wrong-arity collision that used to
+        # make this crash before it could ever matter) synthesises its own
+        # anonymous value object via the SAME `AttributeCollector#closed_
+        # sets` mechanism an aggregate's own attributes already use — and
+        # nothing installed it anywhere. `Box.attributes` said `size:
+        # "Size"` while no "Size" value object existed in the whole
+        # domain: a dangling type name, not a working closed set. Flattened
+        # into THIS aggregate's own `@value_objects`, the identical move
+        # `@value_objects + closed_sets` already makes for the aggregate's
+        # own direct attributes (see this file's other 5 call sites).
         def value_object(name, &block)
-          @value_objects << ValueObjectBuilder.build(name, &block)
+          builder = ValueObjectBuilder.new(name)
+          builder.instance_eval(&block) if block
+          @value_objects << builder.build
+          @value_objects.concat(builder.closed_sets)
         end
 
         def command(name, &block)

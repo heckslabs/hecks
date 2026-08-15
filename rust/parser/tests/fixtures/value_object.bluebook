@@ -4,11 +4,7 @@
 Hecks.bluebook "FixtureValueObject" do
   aggregate "Widget" do
     value_object "Color" do
-      attribute :value, String
-      one_of do
-        member value: "red"
-        member value: "blue"
-      end
+      attribute :value, String, one_of: ["red", "blue"]
     end
   end
 end

@@ -76,27 +76,10 @@ Hecks.bluebook "Bluebook" do
     # `Type` is the second argument of `attribute`, which is a place words are
     # spelled (`list_of`, `one_of`) and so is a context like any other.
     value_object "Context" do
-      attribute :name, String
-      one_of do
-        member name: "File"
-        member name: "Bluebook"
-        member name: "Aggregate"
-        member name: "Entity"
-        member name: "Command"
-        member name: "Query"
-        member name: "ValueObject"
-        member name: "OneOf"
-        member name: "Lifecycle"
-        member name: "Policy"
-        member name: "ProcessManager"
-        member name: "Handler"
-        member name: "ReadModel"
-        member name: "Type"
-        member name: "Hecksagon"
-        member name: "World"
-        member name: "DomainPort"
-        member name: "PortOperation"
-      end
+      attribute :name, String,
+                one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
+                         "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon",
+                         "World", "DomainPort", "PortOperation"]
     end
 
     # WHAT A WORD'S BLOCK IS, and the three answers are genuinely different
@@ -114,13 +97,7 @@ Hecks.bluebook "Bluebook" do
     # rule's canonical text, `identified_by`'s body is the identity paths. A
     # `keywords` or `rows` body fills the record the word opens.
     value_object "Body" do
-      attribute :name, String
-      one_of do
-        member name: "none"
-        member name: "keywords"
-        member name: "source"
-        member name: "rows"
-      end
+      attribute :name, String, one_of: ["none", "keywords", "source", "rows"]
     end
 
     # WHERE A WORD STANDS IN ITS OWN LIFE. The same shape the expression
@@ -134,13 +111,7 @@ Hecks.bluebook "Bluebook" do
     # every projected reader it simply does not exist — the operator rule,
     # at the syntax layer.
     value_object "Status" do
-      attribute :name, String
-      one_of do
-        member name: "proposed"
-        member name: "admitted"
-        member name: "deprecated"
-        member name: "retired"
-      end
+      attribute :name, String, one_of: ["proposed", "admitted", "deprecated", "retired"]
     end
 
     # WHAT AN ARGUMENT LOOKS LIKE WHEN IT IS TYPED. Lexical, not semantic — two
@@ -151,17 +122,8 @@ Hecks.bluebook "Bluebook" do
     # rather than `"0"`, `0.0` rather than `"0.0"` — which is what LiteralText is
     # about, and why it is not `text`.
     value_object "ArgumentKind" do
-      attribute :name, String
-      one_of do
-        member name: "text"
-        member name: "symbol"
-        member name: "number"
-        member name: "flag"
-        member name: "literal"
-        member name: "constant"
-        member name: "pairs"
-        member name: "list"
-      end
+      attribute :name, String,
+                one_of: ["text", "symbol", "number", "flag", "literal", "constant", "pairs", "list"]
     end
 
     # WHAT A `pairs` ARGUMENT'S OWN PAIR(S) DO. Found by tracing every real
@@ -194,13 +156,7 @@ Hecks.bluebook "Bluebook" do
     #             domain) — named here so a reader knows to resolve
     #             dynamically rather than assume an omission.
     value_object "PairsShape" do
-      attribute :name, String
-      one_of do
-        member name: "fields"
-        member name: "elements"
-        member name: "verbatim"
-        member name: "sibling"
-      end
+      attribute :name, String, one_of: ["fields", "elements", "verbatim", "sibling"]
     end
 
     # EVERY WORD THE BLUEBOOK SURFACE ADMITS.
@@ -253,303 +209,305 @@ Hecks.bluebook "Bluebook" do
       # until the language grows real eras for its own words.
       attribute :was,     String
 
-      one_of do
-        # The outside of every body. `Hecks.bluebook` is reached through the
-        # `Hecks` receiver rather than an enclosing builder, which is the only
-        # thing that makes File different from the contexts below it.
-        member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: ""
+      # The outside of every body. `Hecks.bluebook` is reached through the
+      # `Hecks` receiver rather than an enclosing builder, which is the only
+      # thing that makes File different from the contexts below it.
+      member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: ""
 
-        # `.hecksagon` and `.world` are SIBLING artifacts, and only their
-        # ENTRY POINTS and their few genuinely FIXED words are here — see
-        # hecksagon.bluebook/world.bluebook's own AdapterBinding/Wiring
-        # aggregates for why the rest of each body cannot be. `Aggregate.
-        # persisted_by("MemoryAdapter")` and `posted_by("Carrier") { office
-        # "EC1" }` are OPEN vocabulary: the verb is whichever port a domain
-        # happens to declare (`Hecks.port("post") { verb "posted_by" }`),
-        # not a closed set this table could enumerate without inventing a
-        # ceiling on how many ports a domain may ever declare. That is a
-        # real grammar boundary, named rather than half-covered.
-        member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
-        member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
+      # `.hecksagon` and `.world` are SIBLING artifacts, and only their
+      # ENTRY POINTS and their few genuinely FIXED words are here — see
+      # hecksagon.bluebook/world.bluebook's own AdapterBinding/Wiring
+      # aggregates for why the rest of each body cannot be. `Aggregate.
+      # persisted_by("MemoryAdapter")` and `posted_by("Carrier") { office
+      # "EC1" }` are OPEN vocabulary: the verb is whichever port a domain
+      # happens to declare (`Hecks.port("post") { verb "posted_by" }`),
+      # not a closed set this table could enumerate without inventing a
+      # ceiling on how many ports a domain may ever declare. That is a
+      # real grammar boundary, named rather than half-covered.
+      member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
+      member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
 
-        member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
-        member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
-        # THREE WORDS FOR ONE FIELD. `core`, `supporting` and `generic` are the
-        # three values Classification admits, spelled as bare words rather than
-        # as an argument to one — the only place in the language where the VALUE
-        # is the keyword.
-        member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-        member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-        member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-        member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: ""
-        member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report"
-        member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
-        member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
+      member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
+      member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
+      # THREE WORDS FOR ONE FIELD. `core`, `supporting` and `generic` are the
+      # three values Classification admits, spelled as bare words rather than
+      # as an argument to one — the only place in the language where the VALUE
+      # is the keyword.
+      member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
+      member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
+      member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
+      member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: ""
+      member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report"
+      member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
+      member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
 
-        member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
-        member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance"
-        member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
-        # A SECOND ROW BECAUSE THE BODY IS WHAT DIFFERS. `identified_by
-        # :name` and `identified_by PizzaName, as: :name` take an argument
-        # and NO block ; the original takes a block and no argument. `body`
-        # is the only column that separates them, and a reader that gates on
-        # it — the fourth of a projected parser's four gates — would refuse
-        # `pizzas.bluebook` line 8 against the source row alone. The
-        # argument rows below join by (word, context) and so belong to both
-        # rows; which form is being read is decided by the body that
-        # follows, not by the arguments, which is the join's own limit
-        # showing again rather than a fact left out.
-        member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
-        member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
-        # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
-        # already grew in the wild, declared in this table
-        # only once it existed to declare it by. All three FILL the
-        # same field `reference_to` does : each builds one Reference-typed
-        # attribute, so a judge reading the built IR cannot tell which word
-        # declared it, and does not need to. The naming DIFFERENCE from
-        # `reference_to` — no minted `_id` suffix, and `has_many`'s target is
-        # the singular of what was written — is a Ruby-builder default, not a
-        # fact this table can carry ; the ATTRIBUTE it lands on is the whole
-        # of what a projected parser needs to know.
-        member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
-        member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
-        member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
-        member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field"
-        member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: ""
-        member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: ""
-        member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: ""
-        member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
-        member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: ""
-        member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
+      member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance"
+      member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
+      # A SECOND ROW BECAUSE THE BODY IS WHAT DIFFERS. `identified_by
+      # :name` and `identified_by PizzaName, as: :name` take an argument
+      # and NO block ; the original takes a block and no argument. `body`
+      # is the only column that separates them, and a reader that gates on
+      # it — the fourth of a projected parser's four gates — would refuse
+      # `pizzas.bluebook` line 8 against the source row alone. The
+      # argument rows below join by (word, context) and so belong to both
+      # rows; which form is being read is decided by the body that
+      # follows, not by the arguments, which is the join's own limit
+      # showing again rather than a fact left out.
+      member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
+      member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
+      # already grew in the wild, declared in this table
+      # only once it existed to declare it by. All three FILL the
+      # same field `reference_to` does : each builds one Reference-typed
+      # attribute, so a judge reading the built IR cannot tell which word
+      # declared it, and does not need to. The naming DIFFERENCE from
+      # `reference_to` — no minted `_id` suffix, and `has_many`'s target is
+      # the singular of what was written — is a Ruby-builder default, not a
+      # fact this table can carry ; the ATTRIBUTE it lands on is the whole
+      # of what a projected parser needs to know.
+      member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field"
+      member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: ""
+      member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: ""
+      member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: ""
+      member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
+      member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: ""
+      member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
 
-        # A PIECE SAYS LESS THAN A HEAD, and the table is where that stops being
-        # folklore : an entity admits no `value_object`, no `policy` and no
-        # nested `entity`. `reference_to` is the one exception — a piece can
-        # point at another ROOT the same way its own head can (Card.assignee_id),
-        # just never at another piece, since there's no cross-piece addressing
-        # anywhere in this language to resolve one against. Seven words,
-        # against an aggregate's eleven.
-        member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
-        member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
-        # The same two rows an aggregate carries, for the same reason — a
-        # piece is identified exactly the way a head is, and EntityBuilder's
-        # own `identified_by` is the aggregate's method line for line.
-        member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by"
-        member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
-        member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
-        member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
-        member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
-        member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
+      # A PIECE SAYS LESS THAN A HEAD, and the table is where that stops being
+      # folklore : an entity admits no `value_object`, no `policy` and no
+      # nested `entity`. `reference_to` is the one exception — a piece can
+      # point at another ROOT the same way its own head can (Card.assignee_id),
+      # just never at another piece, since there's no cross-piece addressing
+      # anywhere in this language to resolve one against. Seven words,
+      # against an aggregate's eleven.
+      member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
+      member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
+      # The same two rows an aggregate carries, for the same reason — a
+      # piece is identified exactly the way a head is, and EntityBuilder's
+      # own `identified_by` is the aggregate's method line for line.
+      member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by"
+      member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
+      member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
+      member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
+      member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
+      member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
 
-        member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
-        member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
-        member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
-        member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
-        member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens"
-        # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
-        # spelling; `then_set` is the era every existing bluebook was written
-        # under, and every one of them still boots — the corpus itself is the
-        # proof the rename machinery is safe.
-        member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set"
-        member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
-        member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes"
+      member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
+      member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
+      member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
+      member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
+      member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens"
+      # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
+      # spelling; `then_set` is the era every existing bluebook was written
+      # under, and every one of them still boots — the corpus itself is the
+      # proof the rename machinery is safe.
+      member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set"
+      member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
+      member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes"
 
-        member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes"
-        # `one_of` fills the COUNT, not the rows. A member is its own root (an
-        # open map of pairs cannot be a list element), so ValueObject keeps
-        # `rows` and the rows themselves live one category down.
-        member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows"
-        member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants"
+      member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes"
+      # `one_of` fills the COUNT, not the rows. A member is its own root (an
+      # open map of pairs cannot be a list element), so ValueObject keeps
+      # `rows` and the rows themselves live one category down.
+      member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows"
+      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants"
 
-        # `member` is typed inside `one_of` and NOTHING ENFORCES THAT. `one_of`
-        # instance_evals its block on the ValueObjectBuilder itself, so a bare
-        # `member` in a value-object body is accepted and still closes the set
-        # (`closed_set: @closed_set || !@members.empty?`). The nesting is a
-        # convention of the spelling, which is exactly the kind of thing this
-        # table is for — a projected parser reading these rows would enforce
-        # what the host-language builder cannot.
-        member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: ""
+      # BARE NOW, DIRECTLY IN A VALUE_OBJECT'S OWN BODY (S3, ADR 0025 —
+      # "closed sets lose the wrapper block"). Used to be typed only
+      # INSIDE `one_of do ... end`, with nothing enforcing the nesting —
+      # `one_of` instance_evals its block on the ValueObjectBuilder
+      # itself, so a bare `member` already worked even then, closing the
+      # set the same way (`closed_set: @closed_set || !@members.empty?`).
+      # That's exactly what removing the wrapper turns into the live
+      # spelling — the OTHER row, below, is what `one_of do ... end`
+      # still admits under shadow-parsing (S0a's bridge), for the two
+      # frozen era occurrences that still write it.
+      member word: "member",          context: "ValueObject", body: "none", inner: "", opens: "Member", fills: ""
+      member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: ""
 
-        member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions"
+      member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions"
 
-        member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
-        member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command"
-        member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
-        # `where { ... }` — a guard on whether the policy fires at all, read
-        # against the triggering EVENT's own payload. Same extraction as
-        # `given`/`invariant` above (`body: "source"`, no runtime `eval` of
-        # live Ruby) — but no description argument the way those two carry
-        # one: a `given`'s description becomes a refusal message, and a
-        # `where` that does not hold refuses nothing, it just means this
-        # policy does not apply to this event (PolicyInterpreter#policies_for
-        # filters it out silently, the same as an `event_qualifier` miss) —
-        # so there is no message for a description to become.
-        member word: "where",           context: "Policy",    body: "source", inner: "", opens: "",       fills: "where"
-        # `for_each "Aggregate.query_name"` — fan-out: the policy's `trigger`
-        # fires once per row a declared query answers, instead of once for
-        # the event. The query runs against the SAME domain the event
-        # belongs to unless the verb is itself domain-qualified
-        # (`"Domain::Aggregate.query_name"`) — mirrors how a saga's own
-        # `dispatch` verb defaults to its process manager's domain
-        # (`SagaInterpreter#qualified`).
-        member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "",       fills: "for_each"
+      member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
+      member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command"
+      member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
+      # `where { ... }` — a guard on whether the policy fires at all, read
+      # against the triggering EVENT's own payload. Same extraction as
+      # `given`/`invariant` above (`body: "source"`, no runtime `eval` of
+      # live Ruby) — but no description argument the way those two carry
+      # one: a `given`'s description becomes a refusal message, and a
+      # `where` that does not hold refuses nothing, it just means this
+      # policy does not apply to this event (PolicyInterpreter#policies_for
+      # filters it out silently, the same as an `event_qualifier` miss) —
+      # so there is no message for a description to become.
+      member word: "where",           context: "Policy",    body: "source", inner: "", opens: "",       fills: "where"
+      # `for_each "Aggregate.query_name"` — fan-out: the policy's `trigger`
+      # fires once per row a declared query answers, instead of once for
+      # the event. The query runs against the SAME domain the event
+      # belongs to unless the verb is itself domain-qualified
+      # (`"Domain::Aggregate.query_name"`) — mirrors how a saga's own
+      # `dispatch` verb defaults to its process manager's domain
+      # (`SagaInterpreter#qualified`).
+      member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "",       fills: "for_each"
 
-        member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
-        member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
-        member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
-        member word: "state",           context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "states"
-        member word: "on",              context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: ""
-        # THE BLOCKLESS FORM — `ProcessManagerBuilder#on(event_type,
-        # transition:, &block)` takes an OPTIONAL block ("handler.
-        # instance_eval(&block) if block"), so a leg with nothing to
-        # dispatch is legal with no `do ... end` at all: banking.bluebook's
-        # own `Onboarding` saga has no answer to "OnboardingDeclined" —
-        # nothing was ever created to undo, so the leg is a bare state
-        # transition and the SAME word needs a second row, the same
-        # reason `identified_by` carries two — `body` is the only column
-        # that tells them apart, and the argument rows below already join
-        # by (word, context) alone, so they serve both.
-        member word: "on",              context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
+      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
+      member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
+      member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
+      member word: "state",           context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "states"
+      member word: "on",              context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: ""
+      # THE BLOCKLESS FORM — `ProcessManagerBuilder#on(event_type,
+      # transition:, &block)` takes an OPTIONAL block ("handler.
+      # instance_eval(&block) if block"), so a leg with nothing to
+      # dispatch is legal with no `do ... end` at all: banking.bluebook's
+      # own `Onboarding` saga has no answer to "OnboardingDeclined" —
+      # nothing was ever created to undo, so the leg is a bare state
+      # transition and the SAME word needs a second row, the same
+      # reason `identified_by` carries two — `body` is the only column
+      # that tells them apart, and the argument rows below already join
+      # by (word, context) alone, so they serve both.
+      member word: "on",              context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
 
-        member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: ""
+      member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: ""
 
-        member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
-        member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
-        # ONLY THE CROSS-reference HALF `Command`'s own `reference_to`
-        # has two of (line 324, above) — a query has no root of its
-        # own to act on, so there's no "acts on itself" case here, just
-        # a plain attribute typed as a reference (Item.ByOwner's
-        # `owner`, filtering by which Camper owns it, not a free string
-        # that only happens to look like one).
-        member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
-        member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres"
-        member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field"
-        member word: "limit",           context: "Query", body: "none", inner: "", opens: "", fills: "limit"
-        # THE FIVE AN ASK HOLDS AS AN OPEN MAP. `wheres`, `order_field`,
-        # `order_way` and `limit` are fields of the category ; everything else a
-        # specification can carry is an option row keyed by the word itself, so
-        # a sixth option needs no new field — see Readings#option_rows, which
-        # reads `extra_options_to_h` rather than naming them.
-        member word: "offset",          context: "Query", body: "none", inner: "", opens: "", fills: "options"
-        member word: "cursor",          context: "Query", body: "none", inner: "", opens: "", fills: "options"
-        member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options"
-        member word: "nulls",           context: "Query", body: "none", inner: "", opens: "", fills: "options"
-        member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
+      member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
+      # ONLY THE CROSS-reference HALF `Command`'s own `reference_to`
+      # has two of (line 324, above) — a query has no root of its
+      # own to act on, so there's no "acts on itself" case here, just
+      # a plain attribute typed as a reference (Item.ByOwner's
+      # `owner`, filtering by which Camper owns it, not a free string
+      # that only happens to look like one).
+      member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
+      member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres"
+      member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field"
+      member word: "limit",           context: "Query", body: "none", inner: "", opens: "", fills: "limit"
+      # THE FIVE AN ASK HOLDS AS AN OPEN MAP. `wheres`, `order_field`,
+      # `order_way` and `limit` are fields of the category ; everything else a
+      # specification can carry is an option row keyed by the word itself, so
+      # a sixth option needs no new field — see Readings#option_rows, which
+      # reads `extra_options_to_h` rather than naming them.
+      member word: "offset",          context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "cursor",          context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "nulls",           context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
 
-        member word: "description",     context: "ReadModel", body: "none", inner: "", opens: "", fills: "description"
-        member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target"
-        member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
-        member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
-        # `count`/`median` are the OTHER two reductions `group_by` has
-        # siblings in — see `seal_aggregation`'s own comment
-        # (read_model_builder.rb) for why the three cannot combine.
-        # `count` is a BARE WORD, no argument at all — the same shape
-        # `generic` (Bluebook context, above) already is — so it has no
-        # matching row in the Argument table below; its own presence in
-        # a read model's source IS the value, exactly the way `generic`
-        # calling ReadModelBuilder#count sets `@count = true` with
-        # nothing to read an argument out of.
-        member word: "count",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "count"
-        member word: "median",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field"
-        # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
-        # three words, same builder module, different landing — `fills:
-        # "options"` here, `fills: "field"`/`"direction"`/`"value"` etc. on
-        # `Query`'s own rows above. Until 2026-08-11, `ReadModel#to_h` omitted
-        # wheres/order_by/limit entirely, so the language held them ONLY as
-        # option rows (Readings#option_rows, `filters: true`) — never in the
-        # IR contract at all. `ReadModel#to_h` now spells all three
-        # explicitly, the same mechanism `Query#to_h` already used (purely
-        # additive — `extra_options_to_h` still excludes them by name, so
-        # `option_rows`'s own reconstruction path, which reads `wheres`/
-        # `order_by`/`limit` straight off the live node rather than off
-        # `to_h`, is untouched). The `fills` column is still where the
-        # landing difference stops being a comment in one file — a read
-        # SAME FIELD, SAME NAME AS Query's OWN ROWS BELOW (ADR 0025,
-        # "reads" — the DSL builder is one shared vocabulary now
-        # (`QuerySpecification::Common::DSL`, included by both
-        # `QueryBuilder` and `ReadModelBuilder` — @wheres/@order_by/
-        # @limit, the same instance variables, one implementation).
-        # `where`/`order_by`/`limit` still land on `options` HERE
-        # because the self-hosting META-DOMAIN describes ReadModel
-        # differently from Query on purpose — `projection.bluebook`'s
-        # own `ReadModel` gives every specification option ONE open
-        # map (`attribute :options, list_of(ProjectionOption)`), never
-        # Query's four dedicated fields, so there is no separate
-        # `wheres` meta-attribute for this row to name. `ReadModel
-        # #emits_ir` still spells `wheres`/`order_by`/`limit` on the
-        # WIRE, the same shape `Query#emits_ir` does — `Readings
-        # #option_rows(filters: true)` is the bridge between the two,
-        # reading them off the live object and folding them into the
-        # same options rows the meta-domain already walks.
-        member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "limit",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "offset",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "cursor",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "authorize",       context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "nulls",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-        member word: "inspect_query",   context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "description",     context: "ReadModel", body: "none", inner: "", opens: "", fills: "description"
+      member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target"
+      member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
+      member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
+      # `count`/`median` are the OTHER two reductions `group_by` has
+      # siblings in — see `seal_aggregation`'s own comment
+      # (read_model_builder.rb) for why the three cannot combine.
+      # `count` is a BARE WORD, no argument at all — the same shape
+      # `generic` (Bluebook context, above) already is — so it has no
+      # matching row in the Argument table below; its own presence in
+      # a read model's source IS the value, exactly the way `generic`
+      # calling ReadModelBuilder#count sets `@count = true` with
+      # nothing to read an argument out of.
+      member word: "count",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "count"
+      member word: "median",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field"
+      # A READ MODEL'S FILTERS ARE OPTIONS, WHERE AN ASK'S ARE FIELDS. Same
+      # three words, same builder module, different landing — `fills:
+      # "options"` here, `fills: "field"`/`"direction"`/`"value"` etc. on
+      # `Query`'s own rows above. Until 2026-08-11, `ReadModel#to_h` omitted
+      # wheres/order_by/limit entirely, so the language held them ONLY as
+      # option rows (Readings#option_rows, `filters: true`) — never in the
+      # IR contract at all. `ReadModel#to_h` now spells all three
+      # explicitly, the same mechanism `Query#to_h` already used (purely
+      # additive — `extra_options_to_h` still excludes them by name, so
+      # `option_rows`'s own reconstruction path, which reads `wheres`/
+      # `order_by`/`limit` straight off the live node rather than off
+      # `to_h`, is untouched). The `fills` column is still where the
+      # landing difference stops being a comment in one file — a read
+      # SAME FIELD, SAME NAME AS Query's OWN ROWS BELOW (ADR 0025,
+      # "reads" — the DSL builder is one shared vocabulary now
+      # (`QuerySpecification::Common::DSL`, included by both
+      # `QueryBuilder` and `ReadModelBuilder` — @wheres/@order_by/
+      # @limit, the same instance variables, one implementation).
+      # `where`/`order_by`/`limit` still land on `options` HERE
+      # because the self-hosting META-DOMAIN describes ReadModel
+      # differently from Query on purpose — `projection.bluebook`'s
+      # own `ReadModel` gives every specification option ONE open
+      # map (`attribute :options, list_of(ProjectionOption)`), never
+      # Query's four dedicated fields, so there is no separate
+      # `wheres` meta-attribute for this row to name. `ReadModel
+      # #emits_ir` still spells `wheres`/`order_by`/`limit` on the
+      # WIRE, the same shape `Query#emits_ir` does — `Readings
+      # #option_rows(filters: true)` is the bridge between the two,
+      # reading them off the live object and folding them into the
+      # same options rows the meta-domain already walks.
+      member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "limit",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "offset",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "cursor",          context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "authorize",       context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "nulls",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "inspect_query",   context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
 
-        # THE TYPE POSITION. `list_of` and `one_of` are the two words an
-        # attribute's type may be instead of a constant, and they do opposite
-        # things : `list_of` names cardinality, `one_of` SYNTHESISES a value
-        # object named for the attribute. `one_of` is spelled the same here and
-        # in a value-object body and is not the same word — one takes a body of
-        # rows, this one takes its rows as arguments.
-        member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: ""
-        member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: ""
-        member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
+      # THE TYPE POSITION. `list_of` and `one_of` are the two words an
+      # attribute's type may be instead of a constant, and they do opposite
+      # things : `list_of` names cardinality, `one_of` SYNTHESISES a value
+      # object named for the attribute. `one_of` is spelled the same here and
+      # in a value-object body and is not the same word — one takes a body of
+      # rows, this one takes its rows as arguments.
+      member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: ""
+      member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: ""
+      member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
 
-        # THE ONE FIXED WORD .hecksagon'S BODY HAS. Everything else in a
-        # hecksagon is the open Const.verb("Adapter") form named above.
-        member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
+      # THE ONE FIXED WORD .hecksagon'S BODY HAS. Everything else in a
+      # hecksagon is the open Const.verb("Adapter") form named above.
+      member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
 
-        # A `framework/bluebook/` MEMBER THIS DOMAIN ATTACHES — Governance,
-        # Identity, whatever else lands beside them. Same shape as
-        # `subscribe` beside it: a fact recorded onto THIS hecksagon's own
-        # `framework_members`, AND a load — the same kind `Kernel.load`
-        # itself is — that the record alone could not carry.
-        member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
+      # A `framework/bluebook/` MEMBER THIS DOMAIN ATTACHES — Governance,
+      # Identity, whatever else lands beside them. Same shape as
+      # `subscribe` beside it: a fact recorded onto THIS hecksagon's own
+      # `framework_members`, AND a load — the same kind `Kernel.load`
+      # itself is — that the record alone could not carry.
+      member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
 
-        # THE PRIMARY PORT — the boundary between a domain and its adapters,
-        # in hexagonal terms, is exactly what a hecksagon already IS for
-        # every other port ; this is the one word beyond the open
-        # Const.verb("Adapter") bind form and `subscribe` that a hecksagon's
-        # body admits. Root-level (`context: "Hecksagon"`, no owner) or
-        # aggregate-scoped (the SAME open Const.verb(...) door `persisted_by`
-        # already reaches, so it carries no row of its own here — a real
-        # method on BindingProxy/AggregateDoor, not a fixed word the language
-        # could enumerate against an open aggregate name).
-        member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
-        member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
-        # THE TWO DIRECTIONS THROUGH ONE DOOR. `tells` is `operation` under
-        # the name that says which way it points — an external fact arriving.
-        # `asks` is the direction this language did not have until now: the
-        # domain wanting something from outside, and naming both endings.
-        member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
-        member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
-        # THE DRIVEN HALF OF THE SAME `port` call — a swappable resource
-        # port (`registry.add_port`, the same target `Hecks.port`'s own
-        # top-level word reaches) rather than an operation translating an
-        # inbound fact. One or the other, never both — DomainPortBuilder#build
-        # enforces it.
-        member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
-        member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
-        member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
-        member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
-        # AN ASK NAMES BOTH ENDINGS. Separate words rather than two `emits`
-        # because a reader has to tell them apart without opening the
-        # adapter: one is the thing you wanted, the other is the thing you
-        # have to handle.
-        member word: "answers",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "answers"
-        member word: "refuses",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "refuses"
+      # THE PRIMARY PORT — the boundary between a domain and its adapters,
+      # in hexagonal terms, is exactly what a hecksagon already IS for
+      # every other port ; this is the one word beyond the open
+      # Const.verb("Adapter") bind form and `subscribe` that a hecksagon's
+      # body admits. Root-level (`context: "Hecksagon"`, no owner) or
+      # aggregate-scoped (the SAME open Const.verb(...) door `persisted_by`
+      # already reaches, so it carries no row of its own here — a real
+      # method on BindingProxy/AggregateDoor, not a fixed word the language
+      # could enumerate against an open aggregate name).
+      member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
+      member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+      # THE TWO DIRECTIONS THROUGH ONE DOOR. `tells` is `operation` under
+      # the name that says which way it points — an external fact arriving.
+      # `asks` is the direction this language did not have until now: the
+      # domain wanting something from outside, and naming both endings.
+      member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+      member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+      # THE DRIVEN HALF OF THE SAME `port` call — a swappable resource
+      # port (`registry.add_port`, the same target `Hecks.port`'s own
+      # top-level word reaches) rather than an operation translating an
+      # inbound fact. One or the other, never both — DomainPortBuilder#build
+      # enforces it.
+      member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
+      member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
+      member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
+      member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
+      # AN ASK NAMES BOTH ENDINGS. Separate words rather than two `emits`
+      # because a reader has to tell them apart without opening the
+      # adapter: one is the thing you wanted, the other is the thing you
+      # have to handle.
+      member word: "answers",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "answers"
+      member word: "refuses",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "refuses"
 
-        # THE TWO FIXED WORDS .world'S BODY HAS, beyond the same open
-        # verb-settings form (`posted_by("Carrier") { office "EC1" }`) named
-        # above.
-        member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm"
-        member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest"
-      end
+      # THE TWO FIXED WORDS .world'S BODY HAS, beyond the same open
+      # verb-settings form (`posted_by("Carrier") { office "EC1" }`) named
+      # above.
+      member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm"
+      member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest"
     end
 
     # WHAT EACH WORD TAKES.
@@ -626,343 +584,340 @@ Hecks.bluebook "Bluebook" do
       # for every other argument, which is every one of them but this.
       attribute :variadic,  String
 
-      one_of do
-        member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-        member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
+      member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
 
-        member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
-        member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
-        member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-        member keyword: "read_model",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-        member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-        member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
+      member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
+      member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "read_model",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
-        member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
-        # ORIGIN, not identity — captured raw, the exact same shape
-        # `attribute ..., default:` already uses for a literal Hash
-        # (`kind: "literal"`, see that row below): no structure imposed
-        # beyond "whatever the author wrote."
-        member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
-        # THE BLOCKLESS FORMS, AND NEITHER IS REQUIRED. `identified_by` takes
-        # an argument or a block and refuses both together, so the slot is
-        # genuinely omissible and both rows say so — the difference from
-        # `on`'s own two-kinds-at-one-position rows below, where the slot is
-        # mandatory and `required` sits on one row alone. Nothing here can
-        # say "an argument or a body, one of the two" ; the `body: "none"`
-        # keyword row beside the source one is as close as the table gets.
-        #
-        # A SYMBOL NAMES AN ATTRIBUTE ALREADY DECLARED and derives the path
-        # out of its own value object's single field, so the whole of what
-        # it fills is `identified_by` itself — the LIVE form (ADR 0025,
-        # "Identity"). VARIADIC, the same column `group_by`'s own row
-        # documents in full below: `identified_by :branch_code,
-        # :box_number` names a composite identity as any number of bare
-        # fields, not just one — confirmed real, not hypothetical:
-        # compliance.bluebook's own `BoxSurrenderReview`, banking.bluebook's
-        # `SafeDepositBox`/`Visit`/`Statement`.
-        #
-        # A CONSTANT MINTS THE ATTRIBUTE FIRST — LEGACY, admitted only
-        # while `MetaValidator.shadow_parsing?` (S0a's own bridge): no
-        # live corpus member spells it any more, but frozen era text
-        # minted before this removal still does, and that text must keep
-        # parsing. Its two rows are `reference_to`'s two rows — a target
-        # and an optional alias, filling `type` and `name`. Both arrive as
-        # plain Ruby Symbols/ScopedConstants and are told apart by the
-        # FIRST CHARACTER's case, the same reading the language already
-        # leans on everywhere else; `kind` is where that stops being
-        # implicit.
-        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
-        member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
-        member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
-        # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
-        # Customer` attaches an attribute spelled `customer_id` — the language
-        # mints the `_id` ending itself, which is why Identify's rule can read it
-        # as the language's own spelling rather than as a convention.
-        member keyword: "reference_to",    context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
-        member keyword: "reference_to",    context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
-        # AN AGGREGATE MAY POINT AT ONE OF SEVERAL TARGETS, NEVER BOTH —
-        # `optional: true` on two sibling `reference_to` calls (Item's
-        # own `personal_list_id`/`camping_list_id`) is how that's said:
-        # each field genuinely absent, not present-but-empty, whenever
-        # the OTHER one is set instead.
-        member keyword: "reference_to",    context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        # THE SAME TWO ARGUMENTS `reference_to` TAKES — a target and an
-        # optional alias. What `as:` fills differs in the Ruby builder (no
-        # `_id` mint), but that default-naming rule is not a fact this table
-        # carries for `reference_to` either ; `fills` names the FIELD an
-        # argument lands on, and for all four words that field is the same.
-        member keyword: "has_many",        context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
-        member keyword: "has_many",        context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
-        member keyword: "has_many",        context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "has_one",         context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
-        member keyword: "has_one",         context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
-        member keyword: "has_one",         context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "belongs_to",      context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
-        member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
-        member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "lifecycle",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
-        member keyword: "lifecycle",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
-        member keyword: "entity",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        member keyword: "query",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        member keyword: "policy",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        member keyword: "value_object",    context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        member keyword: "command",         context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        # THE TYPE IS OPTIONAL AND DEFAULTS TO String, which is how a value
-        # object's own `attribute :value, String` reads and why a bare
-        # `attribute :value` would too.
-        member keyword: "attribute",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
-        member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
-        # A SECOND ROW FOR THE SAME POSITION, same shape as `identified_by`'s
-        # own two `at: "1"` rows just above — one word, two lexical kinds at
-        # the SAME slot. `AttributeCollector#attribute`'s `type` parameter
-        # takes ANY object with no runtime check at all, so a plain quoted
-        # string naming a value object BY NAME (not yet defined as a Ruby
-        # constant at the point `attribute` is called) is real, confirmed
-        # live syntax: `spec/fixtures/hop_chain.bluebook`'s own `attribute
-        # :name, "Name"`, forward-referencing a `value_object("Name") do
-        # ... end` declared a few lines later in the same aggregate — a
-        # bareword `Name` would hit Ruby's own `const_missing` before the
-        # value object exists, but a quoted string sidesteps that
-        # entirely, the exact same reason `admits:` is written as text
-        # rather than a constant path (see that column's own comment,
-        # above). Renders identically to the bareword form either way —
-        # `Attribute#to_h`'s own `type.to_s` doesn't care which
-        # spelling minted it.
-        member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
-        member keyword: "attribute",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
-        member keyword: "attribute",       context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "attribute",       context: "Aggregate", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
-        member keyword: "attribute",       context: "Aggregate", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # ORIGIN, not identity — captured raw, the exact same shape
+      # `attribute ..., default:` already uses for a literal Hash
+      # (`kind: "literal"`, see that row below): no structure imposed
+      # beyond "whatever the author wrote."
+      member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
+      # THE BLOCKLESS FORMS, AND NEITHER IS REQUIRED. `identified_by` takes
+      # an argument or a block and refuses both together, so the slot is
+      # genuinely omissible and both rows say so — the difference from
+      # `on`'s own two-kinds-at-one-position rows below, where the slot is
+      # mandatory and `required` sits on one row alone. Nothing here can
+      # say "an argument or a body, one of the two" ; the `body: "none"`
+      # keyword row beside the source one is as close as the table gets.
+      #
+      # A SYMBOL NAMES AN ATTRIBUTE ALREADY DECLARED and derives the path
+      # out of its own value object's single field, so the whole of what
+      # it fills is `identified_by` itself — the LIVE form (ADR 0025,
+      # "Identity"). VARIADIC, the same column `group_by`'s own row
+      # documents in full below: `identified_by :branch_code,
+      # :box_number` names a composite identity as any number of bare
+      # fields, not just one — confirmed real, not hypothetical:
+      # compliance.bluebook's own `BoxSurrenderReview`, banking.bluebook's
+      # `SafeDepositBox`/`Visit`/`Statement`.
+      #
+      # A CONSTANT MINTS THE ATTRIBUTE FIRST — LEGACY, admitted only
+      # while `MetaValidator.shadow_parsing?` (S0a's own bridge): no
+      # live corpus member spells it any more, but frozen era text
+      # minted before this removal still does, and that text must keep
+      # parsing. Its two rows are `reference_to`'s two rows — a target
+      # and an optional alias, filling `type` and `name`. Both arrive as
+      # plain Ruby Symbols/ScopedConstants and are told apart by the
+      # FIRST CHARACTER's case, the same reading the language already
+      # leans on everywhere else; `kind` is where that stops being
+      # implicit.
+      member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
+      member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
+      member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
+      # THE TARGET IS A CONSTANT AND THE FIELD IT MAKES IS MINTED. `reference_to
+      # Customer` attaches an attribute spelled `customer_id` — the language
+      # mints the `_id` ending itself, which is why Identify's rule can read it
+      # as the language's own spelling rather than as a convention.
+      member keyword: "reference_to",    context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      # AN AGGREGATE MAY POINT AT ONE OF SEVERAL TARGETS, NEVER BOTH —
+      # `optional: true` on two sibling `reference_to` calls (Item's
+      # own `personal_list_id`/`camping_list_id`) is how that's said:
+      # each field genuinely absent, not present-but-empty, whenever
+      # the OTHER one is set instead.
+      member keyword: "reference_to",    context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      # THE SAME TWO ARGUMENTS `reference_to` TAKES — a target and an
+      # optional alias. What `as:` fills differs in the Ruby builder (no
+      # `_id` mint), but that default-naming rule is not a fact this table
+      # carries for `reference_to` either ; `fills` names the FIELD an
+      # argument lands on, and for all four words that field is the same.
+      member keyword: "has_many",        context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "has_many",        context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "has_many",        context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "has_one",         context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "has_one",         context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "has_one",         context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "belongs_to",      context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "lifecycle",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
+      member keyword: "lifecycle",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
+      member keyword: "entity",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "query",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "policy",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "value_object",    context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "command",         context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      # THE TYPE IS ALWAYS A BARE CONSTANT, ALWAYS REQUIRED (S3, ADR 0025) —
+      # no default, no quoted-text form. A forward reference to a value
+      # object declared later in the same block already resolves as a
+      # bareword (`ConstShim`'s own S0b bridge), which is what made both
+      # the old default and the old quoted form redundant.
+      member keyword: "attribute",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      # A SINGLE-FIELD CLOSED SET, NAMED BY THE FIELD IT CONSTRAINS (S3,
+      # ADR 0025 — "closed sets lose the wrapper block"). Meaningful only
+      # inside a `value_object` — `AttributeCollector#install_inline_
+      # closed_set`'s default refuses it everywhere else, the same
+      # runtime-not-grammar split `admits:` already has for ITS OWN
+      # cross-context validity. Consumed, not carried — it lands on the
+      # ENCLOSING value object's own `members`/`closed_set`, never on this
+      # Attribute's own IR the way `pattern`/`admits` do, so `fills:
+      # "one_of"` names the ARGUMENT's own role rather than a field
+      # `Attribute`'s contract declares.
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
 
-        member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
-        # See Aggregate's own three rows above — the same method, one level down.
-        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
-        member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
-        member keyword: "identified_by",   context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
-        member keyword: "command",         context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
-        member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
-        member keyword: "lifecycle",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
-        member keyword: "attribute",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
-        member keyword: "attribute",       context: "Entity", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
-        # See Aggregate's own second `attribute` row above — the same
-        # forward-reference-by-string form, one level down.
-        member keyword: "attribute",       context: "Entity", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
-        member keyword: "attribute",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
-        member keyword: "attribute",       context: "Entity", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "attribute",       context: "Entity", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
-        member keyword: "attribute",       context: "Entity", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
-        member keyword: "reference_to",    context: "Entity", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
-        member keyword: "reference_to",    context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # See Aggregate's own three rows above — the same method, one level down.
+      member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
+      member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"
+      member keyword: "identified_by",   context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name", status: "deprecated"
+      member keyword: "command",         context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "query",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "lifecycle",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
+      member keyword: "lifecycle",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
+      member keyword: "attribute",       context: "Entity", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      # See Aggregate's own `attribute` rows above — bare constant, always
+      # required, and its own `one_of:` — the same shape one level down.
+      member keyword: "attribute",       context: "Entity", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "Entity", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "Entity", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "Entity", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Entity", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "Entity", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      member keyword: "reference_to",    context: "Entity", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
 
-        member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
-        member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal"
-        # See Aggregate's own `provenance` row — identical shape, one level down.
-        member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
-        # A COMMAND'S REFERENCE MAY BE OPTIONAL AND AN AGGREGATE'S MAY NOT — a
-        # head either points at another head or does not, while an argument
-        # carrying an id can legitimately be omitted at dispatch.
-        member keyword: "reference_to",    context: "Command", at: "1", named: "",          kind: "constant", required: "true",  fills: "type"
-        member keyword: "reference_to",    context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "name"
-        member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
-        member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
-        # THE MISSING TWIN — `ensures`'s own Keyword row (`body: "source"`,
-        # above) has carried `fills: "ensures"` since `ensures` was first
-        # declared, but this Argument row — `given`'s own, one line up —
-        # was never written beside it. A parser gating on the Argument
-        # table alone (this file's WHOLE point) refused every real
-        # `ensures("...")  { ... }` outright: "'ensures' takes no
-        # arguments." Found by Stage 4 while getting banking.bluebook's
-        # own `Account.Debit`/`ScheduledPayment.Retry` to parse — both
-        # already loaded fine in Ruby (`CommandBuilder#ensures` never
-        # consulted this table at all), which is exactly the kind of
-        # staleness this file exists to make impossible to miss.
-        member keyword: "ensures",         context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
-        member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
-        # `to:`/`increment:`/`decrement:`/`append:` ALL SHARE ONE KIND NOW
-        # (generic-bluebook-reader arc, M7) — every one of them fills
-        # `Mutation.source`, which the runtime reads downstream, not at
-        # parse time : a leading `:` means "read this argument from the
-        # dispatch payload" (`resolve_source`), anything else is a literal
-        # value (`parse_literal`) or, for `append:`, a hash of further
-        # per-field references (`append_field_value`). `symbol` would strip
-        # that leading colon — the one bit `resolve_source` tests to tell
-        # "argument reference" from "literal" apart — so these were never a
-        # bare Ruby symbol the way `correlates_by`'s own `symbol` rows are ;
-        # `literal` already means "raw text, read downstream", `default:`'s
-        # own reading, which is precisely what all four need.
-        member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "literal",  required: "false", fills: "source", selects: "op=set"
-        member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "literal",  required: "false", fills: "source", selects: "op=append"
-        member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "literal",  required: "false", fills: "source", selects: "op=increment"
-        member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "literal",  required: "false", fills: "source", selects: "op=decrement"
-        member keyword: "sets",            context: "Command", at: "",  named: "multiply",  kind: "literal",  required: "false", fills: "source", selects: "op=multiply"
-        member keyword: "sets",            context: "Command", at: "",  named: "clamp",     kind: "literal",  required: "false", fills: "source", selects: "op=clamp"
-        member keyword: "sets",            context: "Command", at: "",  named: "remove",    kind: "literal",  required: "false", fills: "source", selects: "op=remove"
-        member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
-        member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
-        member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "false", fills: "type"
-        # See Aggregate's own second `attribute` row, above — same shape.
-        member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "text",     required: "false", fills: "type"
-        member keyword: "attribute",       context: "Command", at: "",  named: "default",   kind: "literal",  required: "false", fills: "default"
-        member keyword: "attribute",       context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
-        member keyword: "attribute",       context: "Command", at: "",  named: "pattern",   kind: "text",     required: "false", fills: "pattern"
-        member keyword: "attribute",       context: "Command", at: "",  named: "admits",    kind: "text",     required: "false", fills: "admits"
+      member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
+      member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal"
+      # See Aggregate's own `provenance` row — identical shape, one level down.
+      member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
+      # A COMMAND'S REFERENCE MAY BE OPTIONAL AND AN AGGREGATE'S MAY NOT — a
+      # head either points at another head or does not, while an argument
+      # carrying an id can legitimately be omitted at dispatch.
+      member keyword: "reference_to",    context: "Command", at: "1", named: "",          kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "name"
+      member keyword: "reference_to",    context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
+      member keyword: "given",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
+      # THE MISSING TWIN — `ensures`'s own Keyword row (`body: "source"`,
+      # above) has carried `fills: "ensures"` since `ensures` was first
+      # declared, but this Argument row — `given`'s own, one line up —
+      # was never written beside it. A parser gating on the Argument
+      # table alone (this file's WHOLE point) refused every real
+      # `ensures("...")  { ... }` outright: "'ensures' takes no
+      # arguments." Found by Stage 4 while getting banking.bluebook's
+      # own `Account.Debit`/`ScheduledPayment.Retry` to parse — both
+      # already loaded fine in Ruby (`CommandBuilder#ensures` never
+      # consulted this table at all), which is exactly the kind of
+      # staleness this file exists to make impossible to miss.
+      member keyword: "ensures",         context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "description"
+      member keyword: "sets",            context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "target"
+      # `to:`/`increment:`/`decrement:`/`append:` ALL SHARE ONE KIND NOW
+      # (generic-bluebook-reader arc, M7) — every one of them fills
+      # `Mutation.source`, which the runtime reads downstream, not at
+      # parse time : a leading `:` means "read this argument from the
+      # dispatch payload" (`resolve_source`), anything else is a literal
+      # value (`parse_literal`) or, for `append:`, a hash of further
+      # per-field references (`append_field_value`). `symbol` would strip
+      # that leading colon — the one bit `resolve_source` tests to tell
+      # "argument reference" from "literal" apart — so these were never a
+      # bare Ruby symbol the way `correlates_by`'s own `symbol` rows are ;
+      # `literal` already means "raw text, read downstream", `default:`'s
+      # own reading, which is precisely what all four need.
+      member keyword: "sets",            context: "Command", at: "",  named: "to",        kind: "literal",  required: "false", fills: "source", selects: "op=set"
+      member keyword: "sets",            context: "Command", at: "",  named: "append",    kind: "literal",  required: "false", fills: "source", selects: "op=append"
+      member keyword: "sets",            context: "Command", at: "",  named: "increment", kind: "literal",  required: "false", fills: "source", selects: "op=increment"
+      member keyword: "sets",            context: "Command", at: "",  named: "decrement", kind: "literal",  required: "false", fills: "source", selects: "op=decrement"
+      member keyword: "sets",            context: "Command", at: "",  named: "multiply",  kind: "literal",  required: "false", fills: "source", selects: "op=multiply"
+      member keyword: "sets",            context: "Command", at: "",  named: "clamp",     kind: "literal",  required: "false", fills: "source", selects: "op=clamp"
+      member keyword: "sets",            context: "Command", at: "",  named: "remove",    kind: "literal",  required: "false", fills: "source", selects: "op=remove"
+      member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
+      member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
+      # See Aggregate's own `attribute` rows, above — same shape.
+      member keyword: "attribute",       context: "Command", at: "2", named: "",          kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "Command", at: "",  named: "default",   kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "Command", at: "",  named: "optional",  kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "Command", at: "",  named: "pattern",   kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Command", at: "",  named: "admits",    kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "Command", at: "",  named: "one_of",    kind: "list",     required: "false", fills: "one_of"
 
-        member keyword: "attribute",       context: "ValueObject", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
-        member keyword: "attribute",       context: "ValueObject", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
-        # See Aggregate's own second `attribute` row, above — same shape.
-        member keyword: "attribute",       context: "ValueObject", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
-        member keyword: "attribute",       context: "ValueObject", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
-        member keyword: "attribute",       context: "ValueObject", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "attribute",       context: "ValueObject", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
-        member keyword: "attribute",       context: "ValueObject", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
-        member keyword: "invariant",       context: "ValueObject", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # See Aggregate's own `attribute` rows, above — same shape. `one_of:`
+      # is the one that actually MEANS something here — this is the
+      # context it exists for (S3, ADR 0025).
+      member keyword: "attribute",       context: "ValueObject", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "attribute",       context: "ValueObject", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      member keyword: "invariant",       context: "ValueObject", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
 
-        # RECLASSIFIED FROM `sibling` (generic-bluebook-reader arc, M7) —
-        # `ValueObject.members: Vec<Vec<(String, String)>>` stores each
-        # `member` row as a flat, UNVALIDATED list of pairs ; nothing
-        # cross-references the enclosing value object's own attributes at
-        # PARSE time (any admission-checking happens later, at dispatch, off
-        # `admitted_sets` — a separate, already-typed mechanism). So this
-        # needs no sibling-schema resolution at all, only the same flat
-        # capture `dispatch`'s own `with:` already uses.
-        member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
+      # RECLASSIFIED FROM `sibling` (generic-bluebook-reader arc, M7) —
+      # `ValueObject.members: Vec<Vec<(String, String)>>` stores each
+      # `member` row as a flat, UNVALIDATED list of pairs ; nothing
+      # cross-references the enclosing value object's own attributes at
+      # PARSE time (any admission-checking happens later, at dispatch, off
+      # `admitted_sets` — a separate, already-typed mechanism). So this
+      # needs no sibling-schema resolution at all, only the same flat
+      # capture `dispatch`'s own `with:` already uses.
+      member keyword: "member",          context: "ValueObject", at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
+      member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
 
-        member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
-        # SPELLED LIKE A KEYWORD ARGUMENT, RECEIVED AS DATA. `transition` takes
-        # ONE Hash and deletes `:from` out of it, so `from:` is a reserved key of
-        # the pairs argument rather than a Ruby keyword parameter — the one place
-        # in the language where those two differ. A parser that did not know
-        # `from` is reserved would read it as a transition named "from", which is
-        # exactly why it is declared.
-        member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "text",  required: "false", fills: "from_state"
-        member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "list",  required: "false", fills: "from_state"
+      member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
+      # SPELLED LIKE A KEYWORD ARGUMENT, RECEIVED AS DATA. `transition` takes
+      # ONE Hash and deletes `:from` out of it, so `from:` is a reserved key of
+      # the pairs argument rather than a Ruby keyword parameter — the one place
+      # in the language where those two differ. A parser that did not know
+      # `from` is reserved would read it as a transition named "from", which is
+      # exactly why it is declared.
+      member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "text",  required: "false", fills: "from_state"
+      member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "list",  required: "false", fills: "from_state"
 
-        member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event"
-        member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command"
-        member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"
-        # `where` has no Argument row — its only argument is the block
-        # `body: "source"` already captures (see its own Keyword-row
-        # comment above); there is no positional/named text argument
-        # beside it the way `given`/`invariant` each carry a description.
-        member keyword: "for_each",        context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each"
+      member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event"
+      member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command"
+      member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"
+      # `where` has no Argument row — its only argument is the block
+      # `body: "source"` already captures (see its own Keyword-row
+      # comment above); there is no positional/named text argument
+      # beside it the way `given`/`invariant` each carry a description.
+      member keyword: "for_each",        context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each"
 
-        member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
-        member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
-        member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
-        member keyword: "state",           context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "states"
-        # TWO FORMS, THE SAME SLOT — a real corpus finding (M4 of the
-        # generic-bluebook-reader arc), not a guess. `on "SightingRaised"`
-        # names an announced event ; `on :refused` is the procedure noticing
-        # a leg it dispatched was declined, and no aggregate announces THAT,
-        # so it is spelled as the sentinel symbol rather than a quoted name.
-        # UNLIKE `transition`'s own `from:` (genuinely optional — a
-        # transition may name no `from:` at all), this SLOT is mandatory :
-        # every `on` line names one or the other. `required` stays on the
-        # `text` row alone (the common case, and the one the builder's own
-        # positional parameter is checked against) rather than on both —
-        # marking both `false` would let a bluebook that names NEITHER form
-        # parse here and still refuse to load in Ruby, the exact gap
-        # spec/syntax_conformance_spec's "never calls an argument optional
-        # that the builder demands" exists to catch.
-        member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "event_type"
-        member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "false", fills: "event_type"
-        member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields"
+      member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
+      member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
+      member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
+      member keyword: "state",           context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "states"
+      # TWO FORMS, THE SAME SLOT — a real corpus finding (M4 of the
+      # generic-bluebook-reader arc), not a guess. `on "SightingRaised"`
+      # names an announced event ; `on :refused` is the procedure noticing
+      # a leg it dispatched was declined, and no aggregate announces THAT,
+      # so it is spelled as the sentinel symbol rather than a quoted name.
+      # UNLIKE `transition`'s own `from:` (genuinely optional — a
+      # transition may name no `from:` at all), this SLOT is mandatory :
+      # every `on` line names one or the other. `required` stays on the
+      # `text` row alone (the common case, and the one the builder's own
+      # positional parameter is checked against) rather than on both —
+      # marking both `false` would let a bluebook that names NEITHER form
+      # parse here and still refuse to load in Ruby, the exact gap
+      # spec/syntax_conformance_spec's "never calls an argument optional
+      # that the builder demands" exists to catch.
+      member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "event_type"
+      member keyword: "on",              context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "false", fills: "event_type"
+      member keyword: "on",              context: "ProcessManager", at: "",  named: "transition", kind: "pairs",  required: "true", fills: "", pair_key_fills: "from_state", pair_value_fills: "to_state", pairs_shape: "fields"
 
-        member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
-        member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
+      member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
+      member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 
-        member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
-        member keyword: "attribute",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
-        member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "constant", required: "false", fills: "type"
-        # See Aggregate's own second `attribute` row, above — same shape.
-        member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "text",     required: "false", fills: "type"
-        member keyword: "attribute",       context: "Query", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
-        member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
-        member keyword: "attribute",       context: "Query", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
-        # THE SAME THREE ARGUMENTS `Command`'s own `reference_to` takes
-        # (line 590, above) — a target, an optional alias, and whether
-        # the field it mints may be absent. Query has no self-reference
-        # case to distinguish (query.md's own prose explains why), so
-        # this is the whole shape, not a subset of it.
-        member keyword: "reference_to",    context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
-        member keyword: "reference_to",    context: "Query", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
-        member keyword: "reference_to",    context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: "wheres", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements"
-        # THE DIRECTION IS A SECOND POSITIONAL AND DEFAULTS TO :asc — the only
-        # two-positional word in the language, and the reason `second` had to be
-        # a column rather than an assumption of arity one.
-        member keyword: "order_by",        context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "order_field"
-        member keyword: "order_by",        context: "Query", at: "2", named: "",         kind: "symbol",   required: "false", fills: "order_way"
-        member keyword: "limit",           context: "Query", at: "1", named: "",         kind: "number",   required: "true",  fills: "limit"
-        member keyword: "offset",          context: "Query", at: "1", named: "",         kind: "number",   required: "true",  fills: "value"
-        member keyword: "cursor",          context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "value"
-        member keyword: "authorize",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "policy"
-        member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
-        member keyword: "nulls",           context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "mode"
-        member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
+      member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "attribute",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      # See Aggregate's own `attribute` rows, above — same shape.
+      member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "Query", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Query", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "Query", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      # THE SAME THREE ARGUMENTS `Command`'s own `reference_to` takes
+      # (line 590, above) — a target, an optional alias, and whether
+      # the field it mints may be absent. Query has no self-reference
+      # case to distinguish (query.md's own prose explains why), so
+      # this is the whole shape, not a subset of it.
+      member keyword: "reference_to",    context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "Query", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "reference_to",    context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: "wheres", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements"
+      # THE DIRECTION IS A SECOND POSITIONAL AND DEFAULTS TO :asc — the only
+      # two-positional word in the language, and the reason `second` had to be
+      # a column rather than an assumption of arity one.
+      member keyword: "order_by",        context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "order_field"
+      member keyword: "order_by",        context: "Query", at: "2", named: "",         kind: "symbol",   required: "false", fills: "order_way"
+      member keyword: "limit",           context: "Query", at: "1", named: "",         kind: "number",   required: "true",  fills: "limit"
+      member keyword: "offset",          context: "Query", at: "1", named: "",         kind: "number",   required: "true",  fills: "value"
+      member keyword: "cursor",          context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "value"
+      member keyword: "authorize",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "policy"
+      member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
+      member keyword: "nulls",           context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "mode"
+      member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
 
-        member keyword: "description",     context: "ReadModel", at: "1", named: "",        kind: "text",     required: "true",  fills: "description"
-        member keyword: "reference_to",    context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "reference_target"
-        member keyword: "reference_to",    context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "reference_name"
-        member keyword: "include",         context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "aggregate"
-        member keyword: "include",         context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "as"
-        # VARIADIC — `group_by :agg, :state` (ReadModelBuilder#group_by,
-        # `def group_by(*fields)`) names any number of bare symbol
-        # fields, not just one. `variadic: "true"` is this table's own
-        # column for exactly that shape (see `Argument`'s own comment on
-        # it, above) — confirmed real, not hypothetical:
-        # console_settings.bluebook's `Styles` report groups by TWO
-        # fields (`:agg, :state`), `Curated` by one (`:agg`), and
-        # banking.bluebook's own `Account` report groups by two more
-        # (`:kind, :number`) — a fixed `at: "1"`/`at: "2"` pair would
-        # have papered over the real cardinality rather than declaring it.
-        member keyword: "group_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "group_by", variadic: "true"
-        # `count` has NO row here — `def count = @count = true` takes no
-        # argument at all, so there is nothing at position 1 to gate
-        # (see this word's own Keyword-table comment, above).
-        member keyword: "median",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "median_field"
-        member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
-        member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
-        member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"
-        member keyword: "limit",           context: "ReadModel", at: "1", named: "",        kind: "number",   required: "true",  fills: "value"
-        member keyword: "offset",          context: "ReadModel", at: "1", named: "",        kind: "number",   required: "true",  fills: "value"
-        member keyword: "cursor",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "value"
-        member keyword: "authorize",       context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "policy"
-        member keyword: "authorize",       context: "ReadModel", at: "",  named: "tenant",  kind: "symbol",   required: "false", fills: "tenant"
-        member keyword: "nulls",           context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "mode"
-        member keyword: "inspect_query",   context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "false", fills: "mode"
+      member keyword: "description",     context: "ReadModel", at: "1", named: "",        kind: "text",     required: "true",  fills: "description"
+      member keyword: "reference_to",    context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "reference_target"
+      member keyword: "reference_to",    context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "reference_name"
+      member keyword: "include",         context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "aggregate"
+      member keyword: "include",         context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "as"
+      # VARIADIC — `group_by :agg, :state` (ReadModelBuilder#group_by,
+      # `def group_by(*fields)`) names any number of bare symbol
+      # fields, not just one. `variadic: "true"` is this table's own
+      # column for exactly that shape (see `Argument`'s own comment on
+      # it, above) — confirmed real, not hypothetical:
+      # console_settings.bluebook's `Styles` report groups by TWO
+      # fields (`:agg, :state`), `Curated` by one (`:agg`), and
+      # banking.bluebook's own `Account` report groups by two more
+      # (`:kind, :number`) — a fixed `at: "1"`/`at: "2"` pair would
+      # have papered over the real cardinality rather than declaring it.
+      member keyword: "group_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "group_by", variadic: "true"
+      # `count` has NO row here — `def count = @count = true` takes no
+      # argument at all, so there is nothing at position 1 to gate
+      # (see this word's own Keyword-table comment, above).
+      member keyword: "median",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "median_field"
+      member keyword: "where",           context: "ReadModel", at: "1", named: "",        kind: "pairs",    required: "true",  fills: ""
+      member keyword: "order_by",        context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "field"
+      member keyword: "order_by",        context: "ReadModel", at: "2", named: "",        kind: "symbol",   required: "false", fills: "direction"
+      member keyword: "limit",           context: "ReadModel", at: "1", named: "",        kind: "number",   required: "true",  fills: "value"
+      member keyword: "offset",          context: "ReadModel", at: "1", named: "",        kind: "number",   required: "true",  fills: "value"
+      member keyword: "cursor",          context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "value"
+      member keyword: "authorize",       context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "policy"
+      member keyword: "authorize",       context: "ReadModel", at: "",  named: "tenant",  kind: "symbol",   required: "false", fills: "tenant"
+      member keyword: "nulls",           context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "mode"
+      member keyword: "inspect_query",   context: "ReadModel", at: "1", named: "",        kind: "symbol",   required: "false", fills: "mode"
 
-        member keyword: "list_of",         context: "Type", at: "1", named: "", kind: "constant", required: "true", fills: ""
-        member keyword: "one_of",          context: "Type", at: "1", named: "", kind: "literal",  required: "true", fills: ""
+      member keyword: "list_of",         context: "Type", at: "1", named: "", kind: "constant", required: "true", fills: ""
+      member keyword: "one_of",          context: "Type", at: "1", named: "", kind: "literal",  required: "true", fills: ""
 
-        member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
-        member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
-        member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
-        member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
-        member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
-        member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
-        member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
-        member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
-        member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
-        member keyword: "reference_to",    context: "PortOperation", at: "1", named: "",     kind: "constant", required: "true",  fills: "type"
-        member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
-        member keyword: "attribute",       context: "PortOperation", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "name"
-        member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "constant", required: "false", fills: "type"
-        # See Aggregate's own second `attribute` row, above — same shape.
-        member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "text",     required: "false", fills: "type"
-        member keyword: "attribute",       context: "PortOperation", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
-        member keyword: "attribute",       context: "PortOperation", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
-        member keyword: "attribute",       context: "PortOperation", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
-        member keyword: "attribute",       context: "PortOperation", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
-        member keyword: "emits",           context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits"
-        member keyword: "answers",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "answers"
-        member keyword: "refuses",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses"
-        member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
-        member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
-        member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
-      end
+      member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
+      member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
+      member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
+      member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
+      member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
+      member keyword: "reference_to",    context: "PortOperation", at: "1", named: "",     kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
+      member keyword: "attribute",       context: "PortOperation", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "name"
+      # See Aggregate's own `attribute` rows, above — same shape.
+      member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "PortOperation", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "PortOperation", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "PortOperation", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "PortOperation", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "PortOperation", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      member keyword: "emits",           context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits"
+      member keyword: "answers",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "answers"
+      member keyword: "refuses",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses"
+      member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
+      member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
+      member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
     end
   end
 end

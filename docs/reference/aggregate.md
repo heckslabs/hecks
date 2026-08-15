@@ -211,7 +211,7 @@ One direction only: if the target aggregate also references this one back, the b
 GONE (ADR 0025, "References") — `reference_to` mints the same bare, `_id`-less name on its own now, so the sugar had no work left. It also LIED while it existed: despite the plural name and plural argument it singularised its target and minted one scalar, not a list, so a `has_many Studios` field read `nil` until set and never `[]`. Refuses live, unconditionally:
 
 ```ruby
-Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attribute :name, "StudioName"; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, "Title"; value_object("Title") { attribute :value, String }; has_many Studio } }  # ~> Malformed: has_many is gone
+Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attribute :name, StudioName; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, Title; value_object("Title") { attribute :value, String }; has_many Studio } }  # ~> Malformed: has_many is gone
 ```
 
 ## has_one
@@ -229,7 +229,7 @@ Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attri
 GONE (ADR 0025, "References") — it existed only to drop the `_id` suffix `reference_to` used to mint by default; `reference_to` drops it on its own now. Refuses live:
 
 ```ruby
-Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; attribute :name, "StudioName"; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, "Title"; value_object("Title") { attribute :value, String }; has_one Studio } }  # ~> Malformed: has_one is gone
+Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; attribute :name, StudioName; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, Title; value_object("Title") { attribute :value, String }; has_one Studio } }  # ~> Malformed: has_one is gone
 ```
 
 ## belongs_to
@@ -254,7 +254,7 @@ kase[:customer]  # => "ag-1"
 Written the retired way, it refuses:
 
 ```ruby
-Hecks.bluebook("CaseGone") { aggregate("Customer") { identified_by :name; attribute :name, "N"; value_object("N") { attribute :value, String } }; aggregate("Case") { identified_by :ref; attribute :ref, "R"; value_object("R") { attribute :value, String }; belongs_to Customer } }  # ~> Malformed: belongs_to is gone
+Hecks.bluebook("CaseGone") { aggregate("Customer") { identified_by :name; attribute :name, N; value_object("N") { attribute :value, String } }; aggregate("Case") { identified_by :ref; attribute :ref, R; value_object("R") { attribute :value, String }; belongs_to Customer } }  # ~> Malformed: belongs_to is gone
 ```
 
 ## lifecycle
@@ -375,17 +375,17 @@ runtime.registry.bluebook("Banking").aggregate("Account").commands.map(&:hecks_n
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, type, default:, optional:, pattern:, admits:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, admits:, one_of:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | name |
-| positional 2 | constant | false | type |
-| positional 2 | text | false | type |
+| positional 2 | constant | true | type |
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |
 | `admits:` | text | false | admits |
+| `one_of:` | list | false | one_of |
 <!-- generated:end -->
 
 Declares a field, scalar or value object. `pattern:` checks a String attribute against a regex the moment the bluebook loads, not the day a bad value reaches production — and only admits regexes every engine reads identically (no lookahead, no `\d`/`\w`). `admits:` points a field at a closed vocabulary declared elsewhere (a `one_of` on another value object) rather than restating its members, so two fields can't drift out of sync on what's allowed. `default:` fills the field when the record is built; for a value-object-typed attribute the default must fill that type's own fields (`default: { cents: 0 }`), not a bare scalar — a bare scalar loads cleanly and then refuses every create at dispatch. `optional:` lets a caller omit the argument entirely with no refusal, distinct from `default:`, which still fills the field either way.

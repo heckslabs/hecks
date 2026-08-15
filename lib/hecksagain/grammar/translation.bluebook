@@ -25,20 +25,9 @@ Hecks.bluebook "Translation" do
     # the edge-level declaration (TranslationBuilder#retired), in the set
     # because it is one admitted way a shape survives — by not surviving.
     value_object "Kind" do
-      attribute :value, String
-
-      one_of do
-        member value: "rename"
-        member value: "move"
-        member value: "convert"
-        member value: "drop"
-        member value: "retype"
-        member value: "retired"
-        member value: "compute"
-        member value: "rekey"
-        member value: "backfill"
-        member value: "unresolved"
-      end
+      attribute :value, String,
+                one_of: ["rename", "move", "convert", "drop", "retype", "retired", "compute", "rekey",
+                         "backfill", "unresolved"]
     end
 
     value_object "SourcePath" do

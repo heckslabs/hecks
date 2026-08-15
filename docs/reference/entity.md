@@ -223,17 +223,17 @@ Banking::Account.find("en-a1").status  # => "open"
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, type, default:, optional:, pattern:, admits:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, admits:, one_of:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | name |
-| positional 2 | constant | false | type |
-| positional 2 | text | false | type |
+| positional 2 | constant | true | type |
 | `default:` | literal | false | default |
 | `optional:` | flag | false | optional |
 | `pattern:` | text | false | pattern |
 | `admits:` | text | false | admits |
+| `one_of:` | list | false | one_of |
 <!-- generated:end -->
 
 Declares a field on the entity, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.

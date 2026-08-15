@@ -116,7 +116,21 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # that lands on a value object instead of a scalar, or an ordered
   # comparator over a non-numeric field all refuse at build time — this
   # fixture exercises none of those refusals, only the answering side).
+  # `ConstShim.with` — this fixture calls the builder API directly
+  # (`Hecksagain::Bluebook::DSL::AggregateBuilder.new(...).tap { |b| ... }`),
+  # outside any `Hecks.bluebook do ... end`/`instance_eval` a real bluebook
+  # loads through, so `Object.const_missing`'s own global hook (S0b) is
+  # never installed unless this does it directly — without it, a bare
+  # `Money`/`Name`/... below would raise `NameError`, not resolve the
+  # forward reference the way it would inside a real bluebook. The
+  # resolver just hands the const back (`bluebook_builder.rb`'s own
+  # bareword resolver) — `Attribute#spell`'s `type.to_s` renders a Symbol
+  # identically to the quoted String this replaces.
   def build_aggregate
+    Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) { build_thing_aggregate }
+  end
+
+  def build_thing_aggregate
     Hecksagain::Bluebook::DSL::AggregateBuilder.new("Thing").tap do |builder|
       builder.lifecycle(:status, default: "open") do
         transition "Close" => "closed", from: "open"
@@ -125,7 +139,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.value_object("Money") { attribute :cents, Integer }
       builder.value_object("Name")  { attribute :value, String }
       builder.value_object("Price") { attribute :cents, Integer }
-      builder.value_object("Box")   { attribute :price, "Price" }
+      builder.value_object("Box")   { attribute :price, Price }
       builder.value_object("Tag")   { attribute :name, String }
       builder.value_object("Note")  { attribute :value, String }
       # THE NULLABLE AXIS. Every field above is present on every record,
@@ -138,13 +152,13 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.value_object("Rating") { attribute :value, Integer }
       builder.value_object("Label")  { attribute :value, String }
 
-      builder.attribute :name,    "Name"
-      builder.attribute :balance, "Money"
-      builder.attribute :box,     "Box"
-      builder.attribute :tags,    builder.list_of("Tag")
-      builder.attribute :note,    "Note"
-      builder.attribute :rating,  "Rating", optional: true
-      builder.attribute :label,   "Label",  optional: true
+      builder.attribute :name,    Name
+      builder.attribute :balance, Money
+      builder.attribute :box,     Box
+      builder.attribute :tags,    builder.list_of(Tag)
+      builder.attribute :note,    Note
+      builder.attribute :rating,  Rating, optional: true
+      builder.attribute :label,   Label,  optional: true
 
       builder.query("OpenOnes")       { where(status: "open") }
       builder.query("NotClosed")      { where(status: { ne: "closed" }) }
@@ -167,7 +181,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
       builder.query("InNoStatuses") { where(status: { in: "" }) }
 
       builder.query("BelowFloor") do
-        attribute :floor, "Money"
+        attribute :floor, Money
         where(balance: { lt: :floor })
         order_by :balance
       end

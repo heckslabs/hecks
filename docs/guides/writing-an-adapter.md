@@ -91,10 +91,12 @@ class IncompleteStore
   attr_reader :aggregate
 end
 
-aggregate = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
-  b.value_object("Label") { attribute :value, String }
-  b.attribute :label, "Label"
-end.build
+aggregate = Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) do
+  Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
+    b.value_object("Label") { attribute :value, String }
+    b.attribute :label, Label
+  end.build
+end
 
 Hecksagain::Ports::Persistence::AppendOnly.new(IncompleteStore.new(aggregate: aggregate))  # ~> WiringError: does not implement append-only persistence: append, project, entries
 ```
@@ -261,12 +263,14 @@ interpreter and let it do the walking. That fallback can be shown to
 answer correctly, live, against a declared query:
 
 ```ruby
-queryable = Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
-  b.value_object("Label") { attribute :value, String }
-  b.attribute :label, "Label"
-  b.lifecycle(:status, default: "stored") { transition "Move" => "moved", from: "stored" }
-  b.query("Stored") { where(status: "stored") }
-end.build
+queryable = Hecksagain::Bluebook::DSL::ConstShim.with(->(const) { const }) do
+  Hecksagain::Bluebook::DSL::AggregateBuilder.new("Crate").tap do |b|
+    b.value_object("Label") { attribute :value, String }
+    b.attribute :label, Label
+    b.lifecycle(:status, default: "stored") { transition "Move" => "moved", from: "stored" }
+    b.query("Stored") { where(status: "stored") }
+  end.build
+end
 
 qmemory = Hecksagain::Adapters::Memory.new(aggregate: queryable)
 qmemory.save(crate(queryable, "crate-1", label: { value: "wool blankets" }, status: "stored"))

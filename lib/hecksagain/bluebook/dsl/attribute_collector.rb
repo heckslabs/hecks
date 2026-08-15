@@ -5,6 +5,9 @@ module Hecksagain
         ListOf = Struct.new(:type)
         OneOf  = Struct.new(:values)
 
+        UNSET = Object.new.freeze
+        private_constant :UNSET
+
         def attributes = @attributes ||= []
 
         # Value objects synthesised from inline closed sets, collected here and
@@ -31,9 +34,37 @@ module Hecksagain
         # TOP-LEVEL constant, so the moment any facade exists, `Vocabulary`
         # resolves to that module and the shim is never asked. A spelling that
         # works only until a facade is built is worse than a quoted one.
-        def attribute(name, type = String, default: nil, optional: false, pattern: nil,
-                      admits: nil)
+        #
+        # THE TYPE POSITION TAKES A BARE CONSTANT, ALWAYS REQUIRED (ADR 0025,
+        # "Attributes") — omitting it (a mint default of String) and quoting
+        # it as text both refuse now. Neither had a real reason left: no
+        # corpus attribute ever omitted the type, and `ConstShim#const_missing`
+        # (S0b) already resolves a bare, not-yet-declared constant to the
+        # SAME forward reference the quoted form existed for — a bareword
+        # `Name` reaches a value object named "Name" declared later in the
+        # same block exactly as `"Name"` used to, `spell`'s own `to_s`
+        # renders either one identically. Neither form appears in any frozen
+        # era text (checked directly), so both are refused unconditionally —
+        # nothing for `MetaValidator.shadow_parsing?` to answer for.
+        def attribute(name, type = UNSET, default: nil, optional: false, pattern: nil,
+                      admits: nil, one_of: nil)
           # moved to the language: FieldName invariant, on Root.Attribute
+
+          if type.equal?(UNSET)
+            raise Malformed, "#{name} declares no type — attribute :#{name}, SomeType is required, " \
+                              "there is no default"
+          end
+
+          # `list_of("X")` carries the same quoted text one level down — a
+          # bare constant is required there too, checked before it unwraps
+          # below, not after (once unwrapped, a plain String in the `type:`
+          # slot looks identical to one that legitimately belongs there).
+          quoted = type.is_a?(ListOf) ? type.type : type
+          if quoted.is_a?(::String)
+            raise Malformed, "#{name}'s type #{quoted.inspect} is quoted text — give the bare constant " \
+                              "(#{quoted}) instead; a forward reference to a value object declared later " \
+                              "in the same block already resolves without quoting"
+          end
 
           refuse_unshared_pattern(name, pattern) if pattern
 
@@ -48,6 +79,8 @@ module Hecksagain
             pattern:  pattern,
             admits:   admits
           )
+
+          install_inline_closed_set(name, one_of) if one_of
         end
 
         def list_of(type) = ListOf.new(type)
@@ -92,6 +125,24 @@ module Hecksagain
         def one_of(*values) = OneOf.new(values)
 
         private
+
+        # `one_of:` NAMES A CLOSED SET ON THE FIELD ITSELF (ADR 0025,
+        # "Attributes") — joining `pattern:`/`admits:` where value
+        # constraints already live, for the one context where it means
+        # anything: a `value_object` block, where it replaces the old
+        # `one_of do member ... end` wrapper for a SINGLE-FIELD set (a
+        # multi-field set still writes bare `member` lines, unwrapped).
+        # `ValueObjectBuilder` overrides this; every other includer
+        # (Aggregate/Entity/Command/Query/PortOperation) inherits this
+        # refusal — those contexts already have the unchanged type-position
+        # form (`attribute :status, one_of("open", "shut")`) for an
+        # anonymous inline set, so `one_of:` naming a *field* there would be
+        # a second spelling of the same idea, not a new one.
+        def install_inline_closed_set(name, _values)
+          raise Malformed,
+                "#{name}'s one_of: only means something inside a value_object — name a closed set " \
+                "with the type-position one_of(...) instead"
+        end
 
         # A pattern is refused AT DECLARATION, not when a value first meets it :
         # a regex whose meaning depends on which engine reads it is a defect in
@@ -210,7 +261,15 @@ module Hecksagain
           end
 
           field = (as || Naming.snake(target)).to_sym
-          attribute(field, target)
+          # `Attribute.new` DIRECTLY, not the public `attribute(...)` DSL
+          # entry — `target` is `Naming.demodulise`'d TEXT, not a bareword
+          # the bluebook author typed (the type position's own quoted-text
+          # refusal is about DSL source, not internal minting), and `vo`
+          # ITSELF can't be passed either: it is the real, already-built
+          # `ValueObject` subclass, permanently anonymous from Ruby's own
+          # `to_s` (only `hecks_name` carries its name) — `Attribute#spell`
+          # would demodulise it to "#<Class:0x...>", not "PizzaName".
+          attributes << Attribute.new(name: field, type: target)
           # MOVED to `insert_at` — the attribute count AT THE MOMENT
           # `identified_by` was actually called, captured by the caller —
           # not left where `attribute` just appended it. Resolution happens
