@@ -447,7 +447,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "bluebook_id",
+          "name": "bluebook",
           "optional": false,
           "pattern": null,
           "type": "Reference<Bluebook>"
@@ -550,7 +550,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "Reference<Bluebook>"
@@ -1114,7 +1114,7 @@
 
       ],
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "lifecycle": null,
@@ -1130,7 +1130,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "IdentityField"
@@ -1145,9 +1145,9 @@
           },
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ]
         }
@@ -1500,7 +1500,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "aggregate_id",
+          "name": "aggregate",
           "optional": false,
           "pattern": null,
           "type": "Reference<Aggregate>"
@@ -1621,7 +1621,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "Reference<Aggregate>"
@@ -2185,7 +2185,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "CommandText"
@@ -2200,9 +2200,9 @@
           },
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ]
         }
@@ -2636,7 +2636,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "aggregate_id",
+          "name": "aggregate",
           "optional": false,
           "pattern": null,
           "type": "Reference<Aggregate>"
@@ -2739,7 +2739,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "Reference<Aggregate>"
@@ -3069,7 +3069,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "QueryText"
@@ -3084,9 +3084,9 @@
           },
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ]
         }
@@ -3328,7 +3328,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "aggregate_id",
+          "name": "aggregate",
           "optional": false,
           "pattern": null,
           "type": "Reference<Aggregate>"
@@ -3386,7 +3386,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "Reference<Aggregate>"
@@ -3623,7 +3623,7 @@
 
       ],
       "identified_by": [
-        "aggregate_id",
+        "aggregate",
         "name.value"
       ],
       "lifecycle": null,
@@ -3639,7 +3639,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "ValueObjectText"
@@ -3654,9 +3654,9 @@
           },
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ]
         }
@@ -3880,7 +3880,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "value_object_id",
+          "name": "value_object",
           "optional": false,
           "pattern": null,
           "type": "Reference<ValueObject>"
@@ -3920,7 +3920,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "value_object_id",
+              "name": "value_object",
               "optional": false,
               "pattern": null,
               "type": "Reference<ValueObject>"
@@ -4017,7 +4017,7 @@
 
       ],
       "identified_by": [
-        "value_object_id",
+        "value_object",
         "position.value"
       ],
       "lifecycle": null,
@@ -4033,7 +4033,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "value_object_id",
+              "name": "value_object",
               "optional": false,
               "pattern": null,
               "type": "MemberText"
@@ -4048,9 +4048,9 @@
           },
           "wheres": [
             {
-              "field": "value_object_id",
+              "field": "value_object",
               "op": "eq",
-              "value": ":value_object_id"
+              "value": ":value_object"
             }
           ]
         }
@@ -4139,7 +4139,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "aggregate_id",
+          "name": "aggregate",
           "optional": false,
           "pattern": null,
           "type": "Reference<Aggregate>"
@@ -4233,7 +4233,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "Reference<Aggregate>"
@@ -4569,7 +4569,7 @@
 
       ],
       "identified_by": [
-        "aggregate_id",
+        "aggregate",
         "name.value"
       ],
       "lifecycle": null,
@@ -4585,7 +4585,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "aggregate_id",
+              "name": "aggregate",
               "optional": false,
               "pattern": null,
               "type": "EntityText"
@@ -4600,9 +4600,9 @@
           },
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ]
         }
@@ -4817,7 +4817,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "bluebook_id",
+          "name": "bluebook",
           "optional": false,
           "pattern": null,
           "type": "Reference<Bluebook>"
@@ -4911,7 +4911,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "Reference<Bluebook>"
@@ -5059,7 +5059,7 @@
 
       ],
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "lifecycle": null,
@@ -5075,7 +5075,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "PolicyText"
@@ -5090,9 +5090,9 @@
           },
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ]
         }
@@ -5202,7 +5202,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "bluebook_id",
+          "name": "bluebook",
           "optional": false,
           "pattern": null,
           "type": "Reference<Bluebook>"
@@ -5269,7 +5269,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "Reference<Bluebook>"
@@ -5380,7 +5380,7 @@
 
       ],
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "lifecycle": null,
@@ -5396,7 +5396,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "ProcessManagerText"
@@ -5411,9 +5411,9 @@
           },
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ]
         }
@@ -5514,7 +5514,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "process_manager_id",
+          "name": "process_manager",
           "optional": false,
           "pattern": null,
           "type": "Reference<ProcessManager>"
@@ -5563,7 +5563,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "process_manager_id",
+              "name": "process_manager",
               "optional": false,
               "pattern": null,
               "type": "Reference<ProcessManager>"
@@ -5629,7 +5629,7 @@
 
       ],
       "identified_by": [
-        "process_manager_id",
+        "process_manager",
         "event_type.value"
       ],
       "lifecycle": null,
@@ -5645,7 +5645,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "process_manager_id",
+              "name": "process_manager",
               "optional": false,
               "pattern": null,
               "type": "HandlerText"
@@ -5660,9 +5660,9 @@
           },
           "wheres": [
             {
-              "field": "process_manager_id",
+              "field": "process_manager",
               "op": "eq",
-              "value": ":process_manager_id"
+              "value": ":process_manager"
             }
           ]
         }
@@ -5718,19 +5718,10 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "handler_id",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<Handler>"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
           "name": "handler",
           "optional": false,
           "pattern": null,
-          "type": "DispatchText"
+          "type": "Reference<Handler>"
         },
         {
           "admits": null,
@@ -5767,19 +5758,10 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "handler_id",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<Handler>"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
               "name": "handler",
               "optional": false,
               "pattern": null,
-              "type": "DispatchText"
+              "type": "Reference<Handler>"
             },
             {
               "admits": null,
@@ -5870,7 +5852,7 @@
 
       ],
       "identified_by": [
-        "handler_id",
+        "handler",
         "command_name.value"
       ],
       "lifecycle": null,
@@ -5886,7 +5868,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "handler_id",
+              "name": "handler",
               "optional": false,
               "pattern": null,
               "type": "DispatchText"
@@ -5901,9 +5883,9 @@
           },
           "wheres": [
             {
-              "field": "handler_id",
+              "field": "handler",
               "op": "eq",
-              "value": ":handler_id"
+              "value": ":handler"
             }
           ]
         }
@@ -16648,7 +16630,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "bluebook_id",
+          "name": "bluebook",
           "optional": false,
           "pattern": null,
           "type": "Reference<Bluebook>"
@@ -16760,7 +16742,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "Reference<Bluebook>"
@@ -17085,7 +17067,7 @@
 
       ],
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "lifecycle": null,
@@ -17101,7 +17083,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "bluebook_id",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "type": "ReadModelText"
@@ -17116,9 +17098,9 @@
           },
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ]
         }

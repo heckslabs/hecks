@@ -141,11 +141,11 @@ namespace — two aggregates may each declare a `Money`), or
 identity:
 
 ```ruby
-account[:attributes].find { |a| a[:name] == :customer_id }[:type] # => "Reference<Customer>"
+account[:attributes].find { |a| a[:name] == :customer }[:type] # => "Reference<Customer>"
 ```
 
-`list` marks a repeated attribute (an aggregate's `has_many`-shaped
-field, or a command's `list_of`) — a `Vec`/array of `type`, never
+`list` marks a repeated attribute (a command's `list_of` field) — a
+`Vec`/array of `type`, never
 `Option`-wrapped the way a scalar attribute might be in a language
 that distinguishes the two. `pattern` is a regex string when a value
 object's field was declared with `pattern:` (an email address, for

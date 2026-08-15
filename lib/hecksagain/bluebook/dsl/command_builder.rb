@@ -80,7 +80,7 @@ module Hecksagain
         private
 
         def cross_reference(target, as, optional = false)
-          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target), optional: optional)
+          attribute(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
         public

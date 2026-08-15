@@ -3,7 +3,7 @@ Hecks.bluebook "Shaped" do
   aggregate "Account" do
     identified_by :number
 
-    reference_to Customer
+    reference_to Customer, as: :customer
 
     attribute :tags,    list_of(Tag)
     attribute :balance, Money

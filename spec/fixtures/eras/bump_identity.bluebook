@@ -10,7 +10,7 @@ Hecks.bluebook "Shaped" do
   end
 
   aggregate "Account" do
-    reference_to Customer
+    reference_to Customer, as: :customer
 
     attribute :number,  AccountNumber
     attribute :balance, Money

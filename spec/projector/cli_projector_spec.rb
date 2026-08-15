@@ -75,7 +75,7 @@ RSpec.describe Hecksagain::Projector::CliProjector do
     end
 
     it "makes a cross-aggregate reference a plain id" do
-      customer = option(banking, "account.open", "customer_id")
+      customer = option(banking, "account.open", "customer")
       expect(customer[:type]).to eq("String")
       expect(customer[:note]).to include("Customer")
     end

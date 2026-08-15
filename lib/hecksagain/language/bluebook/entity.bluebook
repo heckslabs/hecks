@@ -7,7 +7,7 @@ Hecks.bluebook "Bluebook" do
     # THE AGGREGATE IT IS IN, AND ITS NAME. Note this is the identity of the RECORD
     # describing a piece, which is a different thing from the identity that piece
     # itself declares (`identified_by`, the list below).
-    identified_by :aggregate_id, :name
+    identified_by :aggregate, :name
 
     attribute :owner,         EntityText
     attribute :name,          EntityName
@@ -68,8 +68,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :aggregate_id, EntityText
-      where(aggregate_id: :aggregate_id)
+      attribute :aggregate, EntityText
+      where(aggregate: :aggregate)
       order_by :position
     end
     command "Declare" do

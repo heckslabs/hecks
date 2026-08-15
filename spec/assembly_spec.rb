@@ -101,13 +101,17 @@ RSpec.describe "a graph assembled from declarations" do
        declared.appends.keys.map(&:to_sym) +
        declared.setters.flat_map { |setter| setter.targets.keys.map(&:to_sym) })
         .uniq
-        # A PARENT POINTER is derived by structure, not by a contract. Every `*_id`
-        # here is the reference to whatever declares the construct — an aggregate's
-        # chapter, a verb's head, a piece's head, a member's shape — and the
-        # containment tree already knows it, which is precisely how the assembly
-        # walks. Requiring thirteen contracts to each restate one would be a list
+        # A PARENT POINTER is derived by structure, not by a contract. The
+        # bare field `declared.parent_key` names is the reference to
+        # whatever declares the construct — an aggregate's chapter, a
+        # verb's head, a piece's head, a member's shape — and the
+        # containment tree already knows it, which is precisely how the
+        # assembly walks. An explicit `as:` still keeps its `_id` (Command's
+        # own `entity_id`, kept as data — never the parent link itself,
+        # which mints bare now, ADR 0025) and is excluded the same way.
+        # Requiring thirteen contracts to each restate one would be a list
         # nobody reads, and the day one went stale it would say nothing.
-        .reject { |field| field.to_s.end_with?("_id") }
+        .reject { |field| field.to_s.end_with?("_id") || field == declared.parent_key&.to_sym }
     end
 
     it "consumes or explicitly derives every field the language declares" do
@@ -351,7 +355,7 @@ RSpec.describe "a graph assembled from declarations" do
     assembled = Hecksagain::Bluebook::Assembly.call(built.to_h)
     account   = assembled.aggregate("Account")
 
-    expect(account.attribute(:customer_id).type.resolve)
+    expect(account.attribute(:customer).type.resolve)
       .to be(assembled.aggregate("Customer"))
   end
 end

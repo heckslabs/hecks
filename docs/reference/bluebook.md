@@ -131,7 +131,7 @@ runtime.registry.bluebook("Banking").classification  # => "core"
 dispatches exactly like any other:
 
 ```ruby
-Banking::Account.open(customer_id: "bb-1", number: { value: "bb-a1" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> NotFound: bb-1
+Banking::Account.open(customer: "bb-1", number: { value: "bb-a1" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> NotFound: bb-1
 ```
 
 ## supporting

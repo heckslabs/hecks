@@ -133,7 +133,7 @@
         "daily_limit": {
           "cents": 50000
         },
-        "customer_id": "CUST-0001"
+        "customer": "CUST-0001"
       }
     },
     {
@@ -148,7 +148,7 @@
         "daily_limit": {
           "cents": -1
         },
-        "customer_id": "CUST-0001"
+        "customer": "CUST-0001"
       }
     },
     {
@@ -163,7 +163,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": "CUST-0001"
+        "customer": "CUST-0001"
       }
     },
     {
@@ -178,7 +178,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": "CUST-0001"
+        "customer": "CUST-0001"
       }
     },
     {
@@ -240,7 +240,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": "CUST-0001"
+        "customer": "CUST-0001"
       }
     },
     {
@@ -787,7 +787,7 @@
         "daily_fee": {
           "amount": 2.5
         },
-        "account_id": "acct-1"
+        "account": "acct-1"
       }
     },
     {
@@ -799,7 +799,7 @@
         "daily_fee": {
           "amount": 0.75
         },
-        "account_id": "acct-1"
+        "account": "acct-1"
       }
     },
     {
@@ -811,7 +811,7 @@
         "daily_fee": {
           "amount": 10
         },
-        "account_id": "acct-1"
+        "account": "acct-1"
       }
     },
     {
@@ -823,7 +823,7 @@
         "daily_fee": {
           "amount": 1.5
         },
-        "account_id": "acct-1"
+        "account": "acct-1"
       }
     },
     {
@@ -835,7 +835,7 @@
         "daily_fee": {
           "amount": 1
         },
-        "account_id": "acct-1"
+        "account": "acct-1"
       }
     },
     {
@@ -1148,7 +1148,7 @@
         "daily_limit": {
           "cents": 1000
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1344,7 +1344,7 @@
         "daily_limit": {
           "cents": 99
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1359,7 +1359,7 @@
         "daily_limit": {
           "cents": 100
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1398,7 +1398,7 @@
         "daily_limit": {
           "cents": -1
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1443,7 +1443,7 @@
         "daily_limit": {
           "cents": "lots"
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1458,7 +1458,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1473,7 +1473,7 @@
         "daily_limit": {
           "cents": 10000
         },
-        "customer_id": "CUST-0002"
+        "customer": "CUST-0002"
       }
     },
     {
@@ -1676,7 +1676,7 @@
         "daily_fee": {
           "amount": 3.25
         },
-        "account_id": "acct-8"
+        "account": "acct-8"
       }
     },
     {
@@ -1712,7 +1712,7 @@
         "daily_fee": {
           "amount": 9.99
         },
-        "account_id": "acct-8"
+        "account": "acct-8"
       }
     },
     {
@@ -1947,7 +1947,7 @@
         "merchant": {
           "value": "Grocer"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "authorisation": {
           "value": "pay-refund"
         }
@@ -1986,7 +1986,7 @@
         "merchant": {
           "value": "Hotel"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "authorisation": {
           "value": "pay-void"
         }
@@ -2017,7 +2017,7 @@
         "merchant": {
           "value": "Airline"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "authorisation": {
           "value": "pay-chargeback"
         }
@@ -2065,7 +2065,7 @@
         "merchant": {
           "value": "Books"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "authorisation": {
           "value": "pay-reversal"
         }
@@ -2104,7 +2104,7 @@
         "merchant": {
           "value": ""
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "authorisation": {
           "value": "pay-bad"
         }
@@ -2127,7 +2127,7 @@
         "beneficiary": {
           "value": "Other Bank"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "end_to_end": {
           "value": "ext-recall"
         },
@@ -2169,7 +2169,7 @@
         "beneficiary": {
           "value": "Closed destination"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "end_to_end": {
           "value": "ext-return"
         },
@@ -2211,7 +2211,7 @@
         "beneficiary": {
           "value": ""
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "end_to_end": {
           "value": "ext-bad"
         },
@@ -2229,7 +2229,7 @@
         "beneficiary": {
           "value": "Sideways Bank"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "end_to_end": {
           "value": "ext-admits"
         },
@@ -2254,7 +2254,7 @@
         "due_on": {
           "value": "2026-08-01"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "instruction": {
           "value": "schedule-execute"
         }
@@ -2288,7 +2288,7 @@
         "due_on": {
           "value": "2026-08-02"
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "instruction": {
           "value": "schedule-cancel"
         }
@@ -2322,7 +2322,7 @@
         "due_on": {
           "value": ""
         },
-        "account_id": "acct-8",
+        "account": "acct-8",
         "instruction": {
           "value": "schedule-bad"
         }
@@ -2350,7 +2350,7 @@
         "size": {
           "value": "medium"
         },
-        "customer_id": "CUST-0001"
+        "customer": "CUST-0001"
       }
     },
     {
@@ -2508,7 +2508,7 @@
     {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
-        "account_id": "acct-1",
+        "account": "acct-1",
         "authorisation": {
           "value": "auth-tagged"
         },
@@ -2590,7 +2590,7 @@
     {
       "verb": "Banking::ScheduledPayment.Schedule",
       "args": {
-        "account_id": "acct-onboard-1",
+        "account": "acct-onboard-1",
         "instruction": {
           "value": "sched-retry-1"
         },
@@ -2626,7 +2626,7 @@
     {
       "verb": "Banking::ScheduledPayment.Schedule",
       "args": {
-        "account_id": "acct-onboard-1",
+        "account": "acct-onboard-1",
         "instruction": {
           "value": "sched-retry-2"
         },
@@ -2656,7 +2656,7 @@
     {
       "verb": "Banking::Statement.Generate",
       "args": {
-        "account_id": "acct-1",
+        "account": "acct-1",
         "period": {
           "value": "2026-08"
         },
@@ -2679,7 +2679,7 @@
     {
       "verb": "Banking::Statement.Generate",
       "args": {
-        "account_id": "acct-1",
+        "account": "acct-1",
         "period": {
           "value": "2026-08"
         },
@@ -2726,7 +2726,7 @@
         "daily_limit": {
           "cents": 1000
         },
-        "customer_id": "CUST-GUARD-A"
+        "customer": "CUST-GUARD-A"
       }
     },
     {
@@ -2741,7 +2741,7 @@
         "daily_limit": {
           "cents": 1000
         },
-        "customer_id": "CUST-GUARD-A"
+        "customer": "CUST-GUARD-A"
       }
     },
     {
@@ -2771,7 +2771,7 @@
         "daily_limit": {
           "cents": 1000
         },
-        "customer_id": "CUST-GUARD-B"
+        "customer": "CUST-GUARD-B"
       }
     },
     {
@@ -2783,7 +2783,7 @@
         "daily_fee": {
           "amount": 1
         },
-        "account_id": "acct-guard-b"
+        "account": "acct-guard-b"
       }
     },
     {
@@ -2795,7 +2795,7 @@
         "daily_fee": {
           "amount": 1
         },
-        "account_id": "acct-guard-b"
+        "account": "acct-guard-b"
       }
     },
     {
@@ -2825,7 +2825,7 @@
         "daily_limit": {
           "cents": 100000
         },
-        "customer_id": "CUST-GUARD-C"
+        "customer": "CUST-GUARD-C"
       }
     },
     {
@@ -2888,7 +2888,7 @@
         "daily_limit": {
           "cents": 100000
         },
-        "customer_id": "CUST-GUARD-D"
+        "customer": "CUST-GUARD-D"
       }
     },
     {
@@ -2942,7 +2942,7 @@
         "daily_limit": {
           "cents": 100000
         },
-        "customer_id": "CUST-GUARD-E"
+        "customer": "CUST-GUARD-E"
       }
     },
     {
@@ -2957,7 +2957,7 @@
         "daily_limit": {
           "cents": 100000
         },
-        "customer_id": "CUST-GUARD-E"
+        "customer": "CUST-GUARD-E"
       }
     },
     {
@@ -3026,13 +3026,13 @@
         "daily_limit": {
           "cents": 100000
         },
-        "customer_id": "CUST-GUARD-F"
+        "customer": "CUST-GUARD-F"
       }
     },
     {
       "verb": "Banking::Statement.Generate",
       "args": {
-        "account_id": "acct-guard-f",
+        "account": "acct-guard-f",
         "period": {
           "value": "2026-08"
         },
@@ -3055,7 +3055,7 @@
     {
       "verb": "Banking::Statement.Generate",
       "args": {
-        "account_id": "acct-guard-f",
+        "account": "acct-guard-f",
         "period": {
           "value": "2026-08"
         },

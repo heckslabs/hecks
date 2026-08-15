@@ -58,7 +58,7 @@ end
 ```
 
 ```ruby
-account = Banking::Account.open(customer_id: "oo-1", number: { value: "oo-a1" },
+account = Banking::Account.open(customer: "oo-1", number: { value: "oo-a1" },
                                 kind: { name: "savings" }, daily_limit: { cents: 50_000 })
 account.kind.name  # => "savings"
 ```
@@ -68,7 +68,7 @@ set rather than only the offending value — the refusal is the closed
 set read back:
 
 ```ruby
-gold = { customer_id: "oo-1", number: { value: "oo-a2" }, kind: { name: "gold" }, daily_limit: { cents: 1 } }
+gold = { customer: "oo-1", number: { value: "oo-a2" }, kind: { name: "gold" }, daily_limit: { cents: 1 } }
 Banking::Account.open(**gold)  # ~> InvariantViolation: AccountKind admits "current", "savings", "reserve"
 ```
 

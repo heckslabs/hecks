@@ -12,7 +12,15 @@ Hecks.bluebook "Shaped" do
   aggregate "Account" do
     identified_by :number
 
-    reference_to Customer
+    # `as:` DELIBERATELY, not the bare default — these fixtures get
+    # parsed BOTH live (minting the shape a real boot stores) AND under
+    # EraGuard.shadow_parse (re-attestation's own mechanism for reading
+    # HELD text), and a bare `reference_to`'s default name forks on
+    # `MetaValidator.shadow_parsing?` (ADR 0025) — bare would mint
+    # `customer` live and `customer_id` under shadow, a spurious shape
+    # drift these era tests must not see. An explicit `as:` is stable
+    # either way.
+    reference_to Customer, as: :customer
 
     attribute :number,  AccountNumber
     attribute :balance, Money

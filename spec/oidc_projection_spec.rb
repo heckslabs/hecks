@@ -46,7 +46,7 @@ RSpec.describe "the OIDC client projection's integration layer" do
   def link_external(runtime, identity_id:, key:, issuer:, subject:)
     runtime.dispatch(
       "Identity::ExternalIdentifier.Link",
-      identity_id: identity_id, key: { value: key }, issuer: { value: issuer }, subject: { value: subject }
+      identity: identity_id, key: { value: key }, issuer: { value: issuer }, subject: { value: subject }
     )
   end
 
@@ -129,6 +129,6 @@ RSpec.describe "the OIDC client projection's integration layer" do
 
     expect(bluebook.aggregate("Identity").attributes.map(&:name)).to eq([:identity_id])
     expect(bluebook.aggregate("ExternalIdentifier").attributes.map(&:name))
-      .to eq(%i[identity_id key issuer subject])
+      .to eq(%i[identity key issuer subject])
   end
 end

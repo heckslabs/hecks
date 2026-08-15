@@ -155,16 +155,21 @@ module Hecksagain
 
         # A piece's commands and queries, addressed under the PIECE so two commands
         # of the same name on an aggregate and on one of its entities cannot collide,
-        # while `aggregate_id` still names the aggregate the reference resolves
-        # against and `entity_id` says which piece declared it.
-        def within_entity(category, node, id, aggregate_id)
+        # while `aggregate` still names the aggregate the reference resolves
+        # against and `entity_id` says which piece declared it. `entity_id`
+        # keeps its own `_id` — an EXPLICIT `as:` on `reference_to Entity`,
+        # never touched by ADR 0025's rename (only the DEFAULT, un-aliased
+        # mint dropped the suffix; `aggregate` did precisely because
+        # `Command#reference_to Aggregate`/`Query#reference_to Aggregate`
+        # carry no `as:` of their own).
+        def within_entity(category, node, id, aggregate)
           return unless category == "Entity"
 
           WITHIN_ENTITY.each do |child|
             plan = @plan.category(child)
             walk_all(child, node, id,
-                     aggregate_id: carried(plan, plan&.declare, "aggregate_id", aggregate_id),
-                     entity_id:    carried(plan, plan&.declare, "entity_id", id))
+                     aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
+                     entity_id: carried(plan, plan&.declare, "entity_id", id))
           end
         end
 

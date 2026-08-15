@@ -28,7 +28,7 @@ RSpec.describe "Banking's generated account machine" do
     20.times do |seed|
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c#{seed}" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer_id: "c#{seed}", number: { value: "a#{seed}" },
+      runtime.dispatch("Banking::Account.Open", customer: "c#{seed}", number: { value: "a#{seed}" },
                                                 kind: { name: "current" }, daily_limit: { cents: 1_000 })
       model = 0
       random = Random.new(seed)

@@ -130,7 +130,7 @@ RSpec.describe Hecksagain::Facade::Handle do
 
     Banking::Customer.register(reference: { value: "c1" }, name: { given: "Ada", family: "Lovelace" },
                                 email: { address: "ada@example.com" })
-    box = Banking::SafeDepositBox.rent(customer_id: "c1", branch_code: { value: "BR01" },
+    box = Banking::SafeDepositBox.rent(customer: "c1", branch_code: { value: "BR01" },
                                         box_number: { value: 12 }, size: { value: "small" })
 
     box.log_visit(date: { value: "2026-08-04" }, sequence: { value: 1 })

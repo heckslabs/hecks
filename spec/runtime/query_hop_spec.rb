@@ -33,14 +33,14 @@ RSpec.describe "cross-aggregate query filtering" do
     runtime.dispatch("HopChain::Client.Register", name: { value: "Zombie Corp" })
     runtime.dispatch("HopChain::Client.Churn", name: { value: "Zombie Corp" })
 
-    runtime.dispatch("HopChain::Engagement.Start", client_id: "Acme", reference: { value: "e-1" })
+    runtime.dispatch("HopChain::Engagement.Start", client: "Acme", reference: { value: "e-1" })
     runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-1" })
-    runtime.dispatch("HopChain::Engagement.Start", client_id: "Zombie Corp", reference: { value: "e-2" })
+    runtime.dispatch("HopChain::Engagement.Start", client: "Zombie Corp", reference: { value: "e-2" })
     runtime.dispatch("HopChain::Engagement.Demo", reference: { value: "e-2" })
 
-    runtime.dispatch("HopChain::Proposal.Draft", engagement_id: "e-1", number: { value: "P-1" })
+    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-1", number: { value: "P-1" })
     runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-1" })
-    runtime.dispatch("HopChain::Proposal.Draft", engagement_id: "e-2", number: { value: "P-2" })
+    runtime.dispatch("HopChain::Proposal.Draft", engagement: "e-2", number: { value: "P-2" })
     runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-2" })
     # No engagement at all — the command's own reference_to is optional
     # precisely so this state is reachable through the door.

@@ -15,9 +15,13 @@ module Hecksagain
       # to be emitted rather than typed into the output.
       module Deviations
         # The grammar is relational — a Command points UP at its
-        # Aggregate — where the model composes. Every `*_id` is the edge
-        # the model spells `hecks_owner`; Entity spells it `owner`.
-        PARENT_REF = ->(field) { field.to_s.match?(/_id\z/) || field == :owner }
+        # Aggregate — where the model composes. An explicit `as:` still
+        # keeps its `_id` (Command's own `entity_id`, kept as data); the
+        # parent link itself mints bare now (ADR 0025) — `aggregate` or
+        # `bluebook`, whichever this category's creating command declares
+        # first — so both spellings are checked. Entity spells its own
+        # (separate, non-colliding) text twin of the parent link `owner`.
+        PARENT_REF = ->(field) { field.to_s.match?(/_id\z/) || %i[owner aggregate bluebook].include?(field) }
 
         # The judge's own field, never the model's — contracts.rb already
         # says so with `derived: { position: :walk }`.

@@ -9,7 +9,7 @@ Hecks.bluebook "Bluebook" do
     # context around it. This is the derivation `MetaValidator::Judge#identify`
     # spelled by hand as "#{parent_id}::#{name}" for as long as the language could
     # not say it.
-    identified_by :bluebook_id, :name
+    identified_by :bluebook, :name
 
     # SPELLED AS THE IR SPELLS THEM — see the note on Command's fields.
     attribute :name,          AggregateName
@@ -157,8 +157,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :bluebook_id, IdentityField
-      where(bluebook_id: :bluebook_id)
+      attribute :bluebook, IdentityField
+      where(bluebook: :bluebook)
       order_by :position
     end
 

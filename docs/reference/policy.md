@@ -124,7 +124,7 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "po-1" },
                  name: { given: "Dorothy", family: "Vaughan" },
                  email: { address: "dorothy@example.com" })
-account = Banking::Account.open(customer_id: "po-1", number: { value: "po-a1" },
+account = Banking::Account.open(customer: "po-1", number: { value: "po-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -282,8 +282,8 @@ event's own payload as the query's arguments, unless the verb is
 itself domain-qualified (`"Domain::Aggregate.query_name"`) — the same
 default a saga's own `dispatch` command name already takes. Each
 matching row's own id is merged into the forwarded payload under the
-iterated aggregate's own reference-key convention (`account_id` for
-`Account` — the same name a bare `reference_to Account` would mint), so
+iterated aggregate's own reference-key convention (`account` for
+`Account` — the same bare name `reference_to Account` mints), so
 `trigger`'s target command addresses the right record without either
 side having to say the argument's name twice. `where`, above, still
 gates the whole fan-out, evaluated once against the event, not once

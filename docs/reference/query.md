@@ -65,7 +65,7 @@ Hecks.bluebook "QueryReference" do
 
     command "Log" do
       attribute :tag,       Tag
-      attribute :warden_id, Warden
+      attribute :warden,    Warden
       attribute :species,   Species
       attribute :count,     Count, optional: true
       sets :tag,     to: :tag
@@ -77,7 +77,7 @@ Hecks.bluebook "QueryReference" do
     query "ByWarden" do
       description "Every sighting one warden logged."
       reference_to Warden, as: :warden
-      where(warden_id: :warden)
+      where(warden: :warden)
       order_by :tag
     end
 
@@ -94,10 +94,10 @@ Hecks.bluebook "QueryReference" do
       nulls :last
     end
 
-    # A DOTTED HOP — a field on the warden, not on the sighting.
+    # A HOP — a field on the warden, not on the sighting.
     query "ByOffDutyWarden" do
       description "Sightings still filed against a warden who has stood down."
-      where(:"warden.status" => "off_duty")
+      where(:"warden/status" => "off_duty")
       order_by :tag
     end
   end
@@ -115,15 +115,15 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "qy-1" },
                  name: { given: "Nancy", family: "Roman" },
                  email: { address: "nancy@example.com" })
-account = Banking::Account.open(customer_id: "qy-1", number: { value: "qy-a1" },
+account = Banking::Account.open(customer: "qy-1", number: { value: "qy-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 account.credit(amount: { cents: 9_000 }, narrative: { text: "funding" })
 
 runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-1" })
 runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-2" })
-runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-1" }, warden_id: "w-1", species: { value: "heron" }, count: { value: 3 })
-runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-2" }, warden_id: "w-1", species: { value: "egret" })
-runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-3" }, warden_id: "w-2", species: { value: "ibis" }, count: { value: 1 })
+runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-1" }, warden: "w-1", species: { value: "heron" }, count: { value: 3 })
+runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-2" }, warden: "w-1", species: { value: "egret" })
+runtime.dispatch("QueryReference::Sighting.Log", tag: { value: "s-3" }, warden: "w-2", species: { value: "ibis" }, count: { value: 1 })
 ```
 
 ## description
@@ -230,19 +230,23 @@ ordered comparators additionally require that scalar to hold a number.
 substring on anything else — identically on every engine, including a
 field whose own text carries a comma.
 
-A dotted path's HEAD may also hop through a `reference_to` attribute
-— `where(:"customer.status" => "suspended")` on an aggregate that
-`reference_to Customer` filters on Customer's own field, not
-anything the querying aggregate declares itself. The hop's own
-segment name is the same one `Facade::Handle`'s reference accessors
-answer to (`account.customer` in Ruby, `:"customer.status"` in a
-query — one name, both places), multi-hop chains read left to right
-(`:"engagement.client.status"`), and a hop is `where`-only — `order_by`
-through a hop is refused outright, since an ask is ordered by what its
-own rows hold and a hop answers with a candidate set, not a sort key.
-See the queries-and-read-models guide for the exact refusal wording,
-including the existential-negation case (a nil or dangling reference
-never satisfies a hop clause, whatever the comparator).
+`/` CROSSES INTO ANOTHER RECORD through a `reference_to` attribute, `.`
+WALKS FIELDS INSIDE THIS ONE (ADR 0025, "References") — the operator
+alone says which kind of path this is. `where(:"customer/status" =>
+"suspended")` on an aggregate that `reference_to Customer` filters on
+Customer's own field, not anything the querying aggregate declares
+itself; `where(:"customer.status" => ...)` never hops, whatever
+`customer` names — it dead-ends the same way any dotted path onto a
+non-value-object does. The hop's own segment name is the same one
+`Facade::Handle`'s reference accessors answer to (`account.customer` in
+Ruby, `:"customer/status"` in a query — one name, both places),
+multi-hop chains read left to right (`:"engagement/client/status"`),
+and a hop is `where`-only — `order_by` through a hop is refused
+outright, since an ask is ordered by what its own rows hold and a hop
+answers with a candidate set, not a sort key. See the
+queries-and-read-models guide for the exact refusal wording, including
+the existential-negation case (a nil or dangling reference never
+satisfies a hop clause, whatever the comparator).
 
 A bare value is `eq` — `Open` is `where(status: "open")`:
 
@@ -272,7 +276,7 @@ Nothing about the sightings changed — the hop read the warden, and the
 sightings filed against the warden still on duty are not in the answer:
 
 ```ruby
-runtime.query("QueryReference::Sighting.ByOffDutyWarden").map { |row| row[:warden_id] }.uniq  # => ["w-1"]
+runtime.query("QueryReference::Sighting.ByOffDutyWarden").map { |row| row[:warden] }.uniq  # => ["w-1"]
 ```
 
 Banking carries the same shape in `OpenForSuspendedCustomers` — open
@@ -467,8 +471,8 @@ declared.
 :branch_code`. Two boxes, in two branches:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer_id: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
-Banking::SafeDepositBox.rent(customer_id: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
+Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
+Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
 ```
 
 The tenant boundary is mandatory — an ask that does not say which branch

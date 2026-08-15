@@ -40,7 +40,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     # corners a floor/cap comparator family needs: strictly below, exactly at,
     # strictly above, and the zero balance closure requires.
     [["a", 300], ["b", 500], ["c", 1000], ["d", 0]].each do |number, cents|
-      runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: number },
+      runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: number },
                                                  kind: { name: "current" }, daily_limit: { cents: 100_000 })
       next unless cents.positive?
 
@@ -50,10 +50,10 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
     runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "c" })
     runtime.dispatch("Banking::Account.CloseAccount", number: { value: "d" })
 
-    runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a", authorisation: { value: "auth-1" },
+    runtime.dispatch("Banking::CardPayment.Authorize", account: "a", authorisation: { value: "auth-1" },
                                                         amount: { cents: 4200 }, merchant: { value: "Risky Co" },
                                                         tags: [{ value: "high_risk" }])
-    runtime.dispatch("Banking::CardPayment.Authorize", account_id: "b", authorisation: { value: "auth-2" },
+    runtime.dispatch("Banking::CardPayment.Authorize", account: "b", authorisation: { value: "auth-2" },
                                                         amount: { cents: 1500 }, merchant: { value: "Ordinary Co" })
 
     runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" }, standing: { value: "chargeback investigation" })

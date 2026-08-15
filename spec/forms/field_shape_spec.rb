@@ -57,9 +57,9 @@ RSpec.describe Hecksagain::Forms::FieldShape do
     # Account's own cross-reference is declared via `reference_to Customer`
     # at the aggregate level, not as a plain `attribute` — a command that
     # addresses a new Account by its customer carries the reference as an
-    # ordinary argument instead (Open's customer_id), which is what this checks.
+    # ordinary argument instead (Open's customer), which is what this checks.
     open = account.command("Open")
-    field = described_class.resolve(open.attribute(:customer_id), aggregate: account)
+    field = described_class.resolve(open.attribute(:customer), aggregate: account)
     expect(field.kind).to eq(:reference)
     expect(field.target_aggregate.hecks_name).to eq("Customer")
   end

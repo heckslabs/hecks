@@ -71,7 +71,7 @@ Hecks.hecksagon("CommandReference") { CommandReference::Meter.persisted_by("Memo
 runtime.dispatch("Banking::Customer.Register", reference: { value: "cm-1" },
                  name: { given: "Annie", family: "Cannon" },
                  email: { address: "annie@example.com" })
-account = Banking::Account.open(customer_id: "cm-1", number: { value: "cm-a1" },
+account = Banking::Account.open(customer: "cm-1", number: { value: "cm-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -262,7 +262,7 @@ accumulates the events of every command run through it, so the rent that
 created this box is still in the list — the last two are `Surrender`'s.)
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer_id: "cm-1", branch_code: { value: "DT" },
+box = Banking::SafeDepositBox.rent(customer: "cm-1", branch_code: { value: "DT" },
                                    box_number: { value: 4 }, size: { value: "small" })
 box.surrender.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
 ```

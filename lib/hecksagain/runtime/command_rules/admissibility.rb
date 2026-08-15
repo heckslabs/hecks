@@ -81,16 +81,20 @@ module Hecksagain
         # record", its own doc comment) — the entity's containment, not a
         # declared reference attribute, so it doesn't come from
         # `dereference`'s attribute scan the way `owner`'s do. Hydrated
-        # the same shape regardless: the parent's own state, plus ITS OWN
-        # references dereferenced one level in, so `parent.customer.status`
-        # (a parent aggregate reaching ITS OWN customer) resolves the same
+        # the same shape regardless: the parent's own state, MERGED so
+        # the dereferenced hash wins over the raw reference it replaces
+        # (ADR 0025 dropped the `_id` suffix that used to keep the two
+        # apart by name, so `parent.state.merge(dereference(...))` is
+        # now load-bearing, not redundant) — plus ITS OWN references
+        # dereferenced one level in, so `parent.customer.status` (a
+        # parent aggregate reaching ITS OWN customer) resolves the same
         # way `account.customer.status` does for a command-level reference.
         # nil for an aggregate command — CommandInterpreter never passes it.
         def enforce_givens(subject, command, args, domain:, parent: nil)
           state = GuardState.new(subject)
           owner = subject.aggregate if subject.respond_to?(:aggregate)
           attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
-          attrs = attrs.merge(parent: dereference(domain, parent.aggregate, parent.state).merge(parent.state)) if parent
+          attrs = attrs.merge(parent: parent.state.merge(dereference(domain, parent.aggregate, parent.state))) if parent
           command.givens.each do |given|
             next if Bluebook::Expression::Evaluator.call(given.canonical, state, attrs)
 
@@ -119,7 +123,7 @@ module Hecksagain
           # id argument, not the other way round. `old` still wins over
           # everything, unchanged.
           attrs = dereference(domain, owner, subject).merge(args).merge(dereference(domain, command, args))
-          attrs = attrs.merge(parent: dereference(domain, parent.aggregate, parent.state).merge(parent.state)) if parent
+          attrs = attrs.merge(parent: parent.state.merge(dereference(domain, parent.aggregate, parent.state))) if parent
           attrs = attrs.merge(old: old)
           command.ensures.each do |rule|
             next if Bluebook::Expression::Evaluator.call(rule.canonical, state, attrs)

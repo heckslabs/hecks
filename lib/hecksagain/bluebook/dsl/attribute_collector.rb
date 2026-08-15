@@ -52,6 +52,30 @@ module Hecksagain
 
         def list_of(type) = ListOf.new(type)
 
+        # `reference_to Account` MINTS `:account` — no `_id` — the default
+        # every `reference_to`-shaped word (`AggregateBuilder`,
+        # `EntityBuilder`, `CommandBuilder#cross_reference`,
+        # `QueryBuilder`, `PortOperationBuilder`, all `include
+        # AttributeCollector`) shares, since dropping the suffix is what
+        # makes `/` a real traversal operator possible at all (ADR 0025,
+        # "References" — a hop crosses at `/`, a field walk crosses at
+        # `.`; deriving the hop name from `account_id` is what made an
+        # explicit operator impossible before).
+        #
+        # LEGACY UNDER SHADOW-PARSING (S0a's own bridge): frozen era text
+        # was minted under the OLD default, and `EraGuard.shadow_parse`
+        # reconstructs a held aggregate's shape to DIFF against the
+        # current one — reading that text through the NEW default would
+        # silently reconstruct the WRONG historical name, not merely
+        # refuse a spelling the way S1's `identified_by` legacy forms do.
+        # This is a mint DEFAULT changing, not a syntax being removed, so
+        # there is nothing to refuse here — only a fork in what gets
+        # minted when `as:` is omitted.
+        private def default_reference_name(target)
+          suffix = MetaValidator.shadow_parsing? ? "_id" : ""
+          :"#{Naming.snake(target)}#{suffix}"
+        end
+
         # A closed set declared INLINE on the attribute:
         #
         #   attribute :status, one_of("open", "shut")

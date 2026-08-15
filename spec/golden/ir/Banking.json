@@ -430,7 +430,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "customer_id",
+          "name": "customer",
           "optional": false,
           "pattern": null,
           "type": "Reference<Customer>"
@@ -506,7 +506,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "customer_id",
+              "name": "customer",
               "optional": false,
               "pattern": null,
               "type": "Reference<Customer>"
@@ -1462,7 +1462,7 @@
               "value": "\"open\""
             },
             {
-              "field": "customer.status",
+              "field": "customer/status",
               "op": "eq",
               "value": "\"suspended\""
             }
@@ -1489,7 +1489,7 @@
           },
           "wheres": [
             {
-              "field": "customer_id",
+              "field": "customer",
               "op": "eq",
               "value": ":reference"
             },
@@ -1746,7 +1746,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "account_id",
+          "name": "account",
           "optional": false,
           "pattern": null,
           "type": "Reference<Account>"
@@ -1795,7 +1795,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "account_id",
+              "name": "account",
               "optional": false,
               "pattern": null,
               "type": "Reference<Account>"
@@ -2830,7 +2830,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "account_id",
+          "name": "account",
           "optional": false,
           "pattern": null,
           "type": "Reference<Account>"
@@ -2888,7 +2888,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "account_id",
+              "name": "account",
               "optional": false,
               "pattern": null,
               "type": "Reference<Account>"
@@ -3435,7 +3435,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "account_id",
+          "name": "account",
           "optional": false,
           "pattern": null,
           "type": "Reference<Account>"
@@ -3484,7 +3484,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "account_id",
+              "name": "account",
               "optional": false,
               "pattern": null,
               "type": "Reference<Account>"
@@ -3824,7 +3824,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "account_id",
+          "name": "account",
           "optional": false,
           "pattern": null,
           "type": "Reference<Account>"
@@ -3891,7 +3891,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "account_id",
+              "name": "account",
               "optional": false,
               "pattern": null,
               "type": "Reference<Account>"
@@ -4381,7 +4381,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "customer_id",
+          "name": "customer",
           "optional": false,
           "pattern": null,
           "type": "Reference<Customer>"
@@ -4441,7 +4441,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "customer_id",
+              "name": "customer",
               "optional": false,
               "pattern": null,
               "type": "Reference<Customer>"
@@ -5355,7 +5355,7 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "account_id",
+          "name": "account",
           "optional": false,
           "pattern": null,
           "type": "Reference<Account>"
@@ -5413,7 +5413,7 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "account_id",
+              "name": "account",
               "optional": false,
               "pattern": null,
               "type": "Reference<Account>"
@@ -5495,7 +5495,7 @@
 
       ],
       "identified_by": [
-        "account_id",
+        "account",
         "period.value"
       ],
       "lifecycle": null,
@@ -5950,7 +5950,7 @@
               "command_name": "Banking::Account.Open",
               "with_spec": [
                 [
-                  "customer_id",
+                  "customer",
                   ":customer"
                 ],
                 [

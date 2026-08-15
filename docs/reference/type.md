@@ -47,7 +47,7 @@ single `Tag` would be.
 starts empty and each `append:` adds one more, in the order posted:
 
 ```ruby
-account = Banking::Account.open(customer_id: "ty-1", number: { value: "ty-a1" },
+account = Banking::Account.open(customer: "ty-1", number: { value: "ty-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 account.ledger  # => []
 
@@ -87,7 +87,7 @@ value object. Full story in aggregates-and-value-objects.md.
 `value_object "Size"` anywhere in the chapter, the type synthesises one:
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer_id: "ty-1", branch_code: { value: "DT" },
+box = Banking::SafeDepositBox.rent(customer: "ty-1", branch_code: { value: "DT" },
                                    box_number: { value: 12 }, size: { value: "large" })
 box.size.value  # => "large"
 ```
@@ -96,7 +96,7 @@ The set is closed, and a value outside it is refused at the door rather
 than stored and discovered later:
 
 ```ruby
-huge = { customer_id: "ty-1", branch_code: { value: "DT" }, box_number: { value: 13 }, size: { value: "enormous" } }
+huge = { customer: "ty-1", branch_code: { value: "DT" }, box_number: { value: 13 }, size: { value: "enormous" } }
 Banking::SafeDepositBox.rent(**huge)  # ~> InvariantViolation: Size admits "small", "medium", "large"
 ```
 

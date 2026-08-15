@@ -61,7 +61,7 @@ Hecks.bluebook "ReadModelReference" do
 
     command "Accept" do
       attribute :label,    Label
-      attribute :depot_id, Depot
+      attribute :depot,    Depot
       attribute :region,   Region
       attribute :weight,   Weight, optional: true
       sets :label,  to: :label
@@ -98,26 +98,26 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "rm-1" },
                  name: { given: "Sofia", family: "Kovalevskaya" },
                  email: { address: "sofia@example.com" })
-account = Banking::Account.open(customer_id: "rm-1", number: { value: "rm-a1" },
+account = Banking::Account.open(customer: "rm-1", number: { value: "rm-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
-Banking::Account.open(customer_id: "rm-1", number: { value: "rm-a2" },
+Banking::Account.open(customer: "rm-1", number: { value: "rm-a2" },
                       kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
-payment = Banking::CardPayment.authorize(account_id: "rm-a1", authorisation: { value: "auth-1" },
+payment = Banking::CardPayment.authorize(account: "rm-a1", authorisation: { value: "auth-1" },
                                          amount: { cents: 4_200 }, merchant: { value: "Corner Shop" })
 payment.capture
 payment.dispute(disputed_by: "rm-1")
 
-second = Banking::CardPayment.authorize(account_id: "rm-a1", authorisation: { value: "auth-2" },
+second = Banking::CardPayment.authorize(account: "rm-a1", authorisation: { value: "auth-2" },
                                         amount: { cents: 900 }, merchant: { value: "Kiosk" })
 second.capture
 second.dispute(disputed_by: "rm-1")
 
 runtime.dispatch("ReadModelReference::Depot.OpenDepot", code: { value: "dp-1" })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-1" }, depot_id: "dp-1", region: { value: "north" }, weight: { value: 30 })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-2" }, depot_id: "dp-1", region: { value: "north" }, weight: { value: 20 })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-3" }, depot_id: "dp-1", region: { value: "north" }, weight: { value: 10 })
-runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-4" }, depot_id: "dp-1", region: { value: "north" })
+runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 })
+runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 })
+runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-3" }, depot: "dp-1", region: { value: "north" }, weight: { value: 10 })
+runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-4" }, depot: "dp-1", region: { value: "north" })
 ```
 
 ## description

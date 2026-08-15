@@ -89,7 +89,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
   end
 
   it "gives back every aggregate declared in it" do
-    rows = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook_id: { value: "Pizzas" })
+    rows = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook: { value: "Pizzas" })
 
     expect(rows.map { |row| text(row[:name]) }).to eq(pizzas.aggregates.map(&:name))
   end
@@ -115,8 +115,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # bluebook declares its commands in is a fact about the source. `DeclaredIn`
     # preserves it.
     # "Pizzas:Order" — the Aggregate-within-Bluebook record's OWN derived id
-    # (bluebook_id:name.value), not the real "Pizzas::Order" Ruby constant path.
-    rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate_id: { value: "Pizzas:Order" })
+    # (bluebook:name.value), not the real "Pizzas::Order" Ruby constant path.
+    rows = runtime.query("Bluebook::Command.DeclaredIn", aggregate: { value: "Pizzas:Order" })
 
     expect(rows.map { |row| text(row[:name]) })
       .to eq(pizzas.aggregate("Order").commands.map(&:hecks_name))
@@ -202,7 +202,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
       raise "banking refused: #{judge.instance_variable_get(:@refusals).inspect}" unless
         judge.instance_variable_get(:@refusals).empty?
 
-      account = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook_id: { value: "Banking" })
+      account = runtime.query("Bluebook::Aggregate.DeclaredIn", bluebook: { value: "Banking" })
                        .find { |row| text(row[:name]) == "Account" }
       account[:attributes].to_h { |a| [text(a[:name]), text(a[:type])] }
     end
@@ -219,7 +219,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     held = held_account_attributes
 
     expect(held["number"]).to     eq("Banking:Account:AccountNumber")  # a value object
-    expect(held["customer_id"]).to eq("Banking:Customer")              # another head
+    expect(held["customer"]).to eq("Banking:Customer")              # another head
     expect(held["ledger"]).to     eq("Banking:Account:LedgerEntry")    # a piece it holds
   end
 
@@ -230,8 +230,8 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     reader = Object.new.extend(Hecksagain::Bluebook::MetaValidator::Readings)
 
     expect(reader.reference_type("Banking::Customer")).to eq("Reference<Customer>")
-    expect(reader.reference_type(held_account_attributes["customer_id"]))
-      .to eq(banking.aggregate("Account").attribute(:customer_id).type.to_s)
+    expect(reader.reference_type(held_account_attributes["customer"]))
+      .to eq(banking.aggregate("Account").attribute(:customer).type.to_s)
   end
 
   it "reads through the aggregate's own query, not a repository" do

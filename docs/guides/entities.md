@@ -263,15 +263,15 @@ customer.reference.to_h   # => { value: "CUST-0001" }
 
 ```ruby
 box = Banking::SafeDepositBox.rent(branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
-                                    size: { value: "medium" }, customer_id: "CUST-0001")
+                                    size: { value: "medium" }, customer: "CUST-0001")
 box.status         # => "rented"
 box.size.to_h       # => { value: "medium" }
 ```
 
-`customer_id` is `reference_to Customer` minting its own argument name
-— no `as:` was given, so it defaults to the target's name plus `_id`,
-carrying the customer's own identity as a bare string, never a nested
-object (see [aggregates-and-value-objects.md](aggregates-and-value-objects.md) for the full shape of a
+`customer` is `reference_to Customer` minting its own argument name —
+no `as:` was given, so it defaults to the target's own bare name, no
+`_id` suffix (ADR 0025) — carrying the customer's own identity as a
+bare string, never a nested object (see [aggregates-and-value-objects.md](aggregates-and-value-objects.md) for the full shape of a
 reference).
 
 Everything past `Rent` — the box's own `LogVisit`, `IssueKey`, and

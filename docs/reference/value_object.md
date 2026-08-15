@@ -25,7 +25,7 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "vo-1" },
                  name: { given: "Melba", family: "Roy" },
                  email: { address: "melba@example.com" })
-account = Banking::Account.open(customer_id: "vo-1", number: { value: "vo-a1" },
+account = Banking::Account.open(customer: "vo-1", number: { value: "vo-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 

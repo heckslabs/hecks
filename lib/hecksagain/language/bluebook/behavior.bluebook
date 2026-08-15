@@ -120,8 +120,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :aggregate_id, CommandText
-      where(aggregate_id: :aggregate_id)
+      attribute :aggregate, CommandText
+      where(aggregate: :aggregate)
       order_by :position
     end
     command "Declare" do
@@ -403,8 +403,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :aggregate_id, QueryText
-      where(aggregate_id: :aggregate_id)
+      attribute :aggregate, QueryText
+      where(aggregate: :aggregate)
       order_by :position
     end
     command "Declare" do

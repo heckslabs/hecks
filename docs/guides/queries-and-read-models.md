@@ -56,19 +56,19 @@ runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
                   name: { given: "Bo", family: "Reyes" }, email: { address: "bo@example.com" })
 
-runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a" },
+runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 300, currency: "USD" },
                   narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "b" },
+runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "b" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Account.Credit", number: { value: "b" }, amount: { cents: 500, currency: "USD" },
                   narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "c" },
+runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "c" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Account.Credit", number: { value: "c" }, amount: { cents: 1000, currency: "USD" },
                   narrative: { text: "Opening" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "d" },
+runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "d" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 
 runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "c" })
@@ -113,7 +113,7 @@ One more account, opened for `c2` WHILE `c2` is still active —
 has to happen before what comes next, not after:
 
 ```ruby
-runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "e" },
+runtime.dispatch("Banking::Account.Open", customer: "c2", number: { value: "e" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c2" },
                   standing: { value: "chargeback investigation" })
@@ -137,9 +137,10 @@ runtime.query("Banking::Customer.NotGoodStanding").map { |row| row[:reference].v
 
 ## Hopping through a reference
 
-Every field so far has been the querying aggregate's own. A dotted
-path's HEAD may instead hop through a `reference_to` attribute, and
-ask about the field on whatever it points AT — `Account` already
+Every field so far has been the querying aggregate's own. `/` CROSSES
+INTO ANOTHER RECORD through a `reference_to` attribute, where `.`
+WALKS FIELDS INSIDE THIS ONE (ADR 0025, "References") — the operator
+alone says which kind of path it is. `Account` already
 `reference_to Customer`, so a live account can be filtered by a fact
 about its OWN customer, not anything `Account` declares itself:
 
@@ -148,7 +149,7 @@ about its OWN customer, not anything `Account` declares itself:
 query "OpenForSuspendedCustomers" do
   description "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now."
   where(status: "open")
-  where(:"customer.status" => "suspended")
+  where(:"customer/status" => "suspended")
   order_by :number
 end
 ```
@@ -201,7 +202,7 @@ seal_hop = lambda do
         reference_to Client
         value_object("ProposalNumber") { attribute :value, String }
         attribute :number, ProposalNumber
-        query("Bad") { order_by :"client.status" }
+        query("Bad") { order_by :"client/status" }
       end
     end
   end
@@ -343,9 +344,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a", authorisation: { value: "auth-1" },
+runtime.dispatch("Banking::CardPayment.Authorize", account: "a", authorisation: { value: "auth-1" },
                   amount: { cents: 4200 }, merchant: { value: "Risky Co" }, tags: [{ value: "high_risk" }])
-runtime.dispatch("Banking::CardPayment.Authorize", account_id: "b", authorisation: { value: "auth-2" },
+runtime.dispatch("Banking::CardPayment.Authorize", account: "b", authorisation: { value: "auth-2" },
                   amount: { cents: 1500 }, merchant: { value: "Ordinary Co" })
 
 runtime.query("Banking::CardPayment.Flagged").map { |row| row[:authorisation].value }
@@ -395,7 +396,7 @@ rented.consistency.to_h     # => { mode: "snapshot", timeout: nil }
 Rent a box, then ask without naming a branch:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: "c1", branch_code: { value: "DOWNTOWN" },
+runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c1", branch_code: { value: "DOWNTOWN" },
                   box_number: { value: 12 }, size: { value: "medium" })
 
 runtime.query("Banking::SafeDepositBox.Rented")   # ~> Unauthorized: declares authorize with tenant: branch_code — pass branch_code: to name which branch_code this ask is scoped to
@@ -581,7 +582,7 @@ something:
 ```ruby
 [["auth-10", 9000], ["auth-11", 7000], ["auth-12", 5000],
  ["auth-13", 3000], ["auth-14", 2000], ["auth-15", 1000]].each do |auth, cents|
-  runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a", authorisation: { value: auth },
+  runtime.dispatch("Banking::CardPayment.Authorize", account: "a", authorisation: { value: auth },
                     amount: { cents: cents }, merchant: { value: "Merchant #{auth}" })
   runtime.dispatch("Banking::CardPayment.Capture", authorisation: { value: auth })
   runtime.dispatch("Banking::CardPayment.Dispute", authorisation: { value: auth }, disputed_by: "c1")

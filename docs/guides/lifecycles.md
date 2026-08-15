@@ -64,7 +64,7 @@ walkthrough needs one first:
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
                  name: { given: "Odile", family: "Payer" }, email: { address: "odile@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a1" },
+runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
                  kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -75,7 +75,7 @@ transition sets it, because `Authorize` is the creating command and
 `"authorized"` is simply where a payment is born:
 
 ```ruby
-payment = Banking::CardPayment.authorize(account_id: "a1",
+payment = Banking::CardPayment.authorize(account: "a1",
   authorisation: { value: "auth-742" }, amount: { cents: 4200 },
   merchant: { value: "Corner Shop" })
 payment.status  # => "authorized"

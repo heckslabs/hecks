@@ -71,7 +71,7 @@ Hecks.bluebook "Hecksagon" do
     # THE HECKSAGON IT IS IN, THE AGGREGATE IT NAMES, THE VERB IT ANSWERS.
     # One hecksagon binds one adapter per (aggregate, verb) pair — that is
     # what a binding IS — so the triple identifies it.
-    identified_by :hecksagon_id, :aggregate, :verb
+    identified_by :hecksagon, :aggregate, :verb
 
     attribute :hecksagon, BindingText
     attribute :aggregate, BindingText

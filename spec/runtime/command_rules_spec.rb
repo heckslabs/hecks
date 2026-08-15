@@ -26,7 +26,7 @@ RSpec.describe "the rules a command obeys" do
   def funded_account(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a1" },
+    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
     runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
     runtime
@@ -185,11 +185,11 @@ RSpec.describe "the rules a command obeys" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: "c-src",
+      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer: "c-src",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: "c-dst",
+      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer: "c-dst",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
                        reference: { value: "x1" }, source: "src", destination: "dst",
@@ -210,11 +210,11 @@ RSpec.describe "the rules a command obeys" do
       runtime = boot_banking
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-src" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer_id: "c-src",
+      runtime.dispatch("Banking::Account.Open", number: { value: "src" }, customer: "c-src",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c-dst" },
                        name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer_id: "c-dst",
+      runtime.dispatch("Banking::Account.Open", number: { value: "dst" }, customer: "c-dst",
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Transfer.Request",
                        reference: { value: "x1" }, source: "src", destination: "dst",
@@ -271,7 +271,7 @@ RSpec.describe "the rules a command obeys" do
       runtime = funded_account(boot_banking)
 
       expect do
-        runtime.dispatch("Banking::ATMCard.Issue", account_id: "a1",
+        runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
                          serial: { value: "s1" }, daily_fee: { cents: 100 })
       end.not_to raise_error
     end
@@ -280,7 +280,7 @@ RSpec.describe "the rules a command obeys" do
       runtime = funded_account(boot_banking)
 
       expect do
-        runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
+        runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
                          authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
                          merchant: { value: "Merchant" })
       end.not_to raise_error
@@ -289,7 +289,7 @@ RSpec.describe "the rules a command obeys" do
                        standing: { value: "chargeback investigation" })
 
       expect do
-        runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
+        runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
                          authorisation: { value: "auth2" }, amount: { cents: 500, currency: "USD" },
                          merchant: { value: "Merchant" })
       end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Authorize refused — customer is active")
@@ -387,7 +387,7 @@ RSpec.describe "the rules a command obeys" do
                        standing: { value: "chargeback investigation" })
 
       expect do
-        runtime.dispatch("Banking::ATMCard.Issue", account_id: "a1",
+        runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
                          serial: { value: "s1" }, daily_fee: { cents: 100 })
       end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Issue refused — customer is active")
     end
@@ -397,7 +397,7 @@ RSpec.describe "the rules a command obeys" do
       runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" })
 
       expect do
-        runtime.dispatch("Banking::CardPayment.Authorize", account_id: "a1",
+        runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
                          authorisation: { value: "auth1" }, amount: { cents: 500, currency: "USD" },
                          merchant: { value: "Merchant" })
       end.to raise_error(Hecksagain::Runtime::GivenNotMet, "Authorize refused — account is open")
@@ -405,7 +405,7 @@ RSpec.describe "the rules a command obeys" do
 
     it "refuses on an ALIASED cross-aggregate reference's status guard — Transfer.Request from a frozen source" do
       runtime = funded_account(boot_banking)
-      runtime.dispatch("Banking::Account.Open", customer_id: "c", number: { value: "a2" },
+      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a2" },
                        kind: { name: "current" }, daily_limit: { cents: 50_000 })
       runtime.dispatch("Banking::Account.FreezeAccount", number: { value: "a1" })
 
@@ -418,7 +418,7 @@ RSpec.describe "the rules a command obeys" do
 
     it "refuses on an OTHER (own-record) status guard, unrelated to customer/account — ATMCard.Retire on an already-retired card" do
       runtime = funded_account(boot_banking)
-      runtime.dispatch("Banking::ATMCard.Issue", account_id: "a1",
+      runtime.dispatch("Banking::ATMCard.Issue", account: "a1",
                        serial: { value: "s1" }, daily_fee: { cents: 100 })
       runtime.dispatch("Banking::ATMCard.Retire", serial: { value: "s1" })
 

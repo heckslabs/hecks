@@ -79,7 +79,7 @@ end
 ```
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer_id: customer.id,
+box = Banking::SafeDepositBox.rent(customer: customer.id,
                                     branch_code: { value: "downtown" },
                                     box_number: { value: 12 },
                                     size: { value: "small" })
@@ -93,7 +93,7 @@ same record, and a second `Rent` against that pair is not a fresh box,
 it is a duplicate:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer_id: customer.id, branch_code: { value: "downtown" }, box_number: { value: 12 }, size: { value: "medium" })   # ~> AlreadyExists: already exists
+Banking::SafeDepositBox.rent(customer: customer.id, branch_code: { value: "downtown" }, box_number: { value: 12 }, size: { value: "medium" })   # ~> AlreadyExists: already exists
 ```
 
 That refusal is the whole reason `identified_by` exists. If two records
@@ -141,7 +141,7 @@ is required, but nothing says `cents` has to be in it, and `default:`
 fills that gap the moment the record is built:
 
 ```ruby
-account = Banking::Account.open(customer_id: customer.id, number: { value: "ACC-1000" },
+account = Banking::Account.open(customer: customer.id, number: { value: "ACC-1000" },
                                  kind: { name: "current" }, daily_limit: {})
 
 account.daily_limit.to_h   # => { cents: 0 }
@@ -166,7 +166,7 @@ Authorize a payment without ever mentioning `tags` — the command
 accepts the call, no refusal for one missing:
 
 ```ruby
-payment = Banking::CardPayment.authorize(account_id: account.id,
+payment = Banking::CardPayment.authorize(account: account.id,
                                           authorisation: { value: "AUTH-1000" },
                                           amount: { cents: 500 }, merchant: { value: "Cafe" })
 
@@ -293,13 +293,13 @@ attribute :direction, MovementDirection, admits: "Account::LedgerDirection"
 ```
 
 ```ruby
-ext = Banking::ExternalTransfer.request(account_id: account.id, end_to_end: { value: "E2E-1000" },
+ext = Banking::ExternalTransfer.request(account: account.id, end_to_end: { value: "E2E-1000" },
                                          amount: { cents: 1000 }, beneficiary: { value: "Someone" },
                                          direction: { value: "debit" })
 
 ext.direction.to_h   # => { value: "debit" }
 
-Banking::ExternalTransfer.request(account_id: account.id, end_to_end: { value: "E2E-1001" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "sideways" })   # ~> InvariantViolation: got "sideways"
+Banking::ExternalTransfer.request(account: account.id, end_to_end: { value: "E2E-1001" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "sideways" })   # ~> InvariantViolation: got "sideways"
 ```
 
 ## Where a rule actually belongs
@@ -329,7 +329,7 @@ end
 ```
 
 ```ruby
-funded = Banking::Account.open(customer_id: customer.id, number: { value: "ACC-2000" },
+funded = Banking::Account.open(customer: customer.id, number: { value: "ACC-2000" },
                                 kind: { name: "current" }, daily_limit: { cents: 5000 })
 
 funded.credit(amount: { cents: 0 }, narrative: { text: "bad" })   # ~> InvariantViolation: an amount is positive
@@ -377,7 +377,7 @@ end
 ```
 
 ```ruby
-Banking::Account.open(customer_id: customer.id, number: { value: "ACC-BAD" }, kind: { name: "gold" }, daily_limit: { cents: 0 })   # ~> InvariantViolation: got "gold"
+Banking::Account.open(customer: customer.id, number: { value: "ACC-BAD" }, kind: { name: "gold" }, daily_limit: { cents: 0 })   # ~> InvariantViolation: got "gold"
 ```
 
 The inline shorthand skips the ceremony — `SafeDepositBox`'s `size`,
@@ -385,7 +385,7 @@ seen already above, synthesises a `Size` value object without you
 naming it anywhere else:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer_id: customer.id, branch_code: { value: "uptown" }, box_number: { value: 99 }, size: { value: "huge" })   # ~> InvariantViolation: got "huge"
+Banking::SafeDepositBox.rent(customer: customer.id, branch_code: { value: "uptown" }, box_number: { value: 99 }, size: { value: "huge" })   # ~> InvariantViolation: got "huge"
 ```
 
 Reach for this one when the set is small, local, and not worth a name
@@ -442,7 +442,7 @@ end
 ```
 
 ```ruby
-card = Banking::ATMCard.issue(account_id: account.id, serial: { value: "CARD-1000" },
+card = Banking::ATMCard.issue(account: account.id, serial: { value: "CARD-1000" },
                                daily_fee: { amount: 0.0 })
 
 card.withdrawals   # => []
@@ -487,7 +487,7 @@ end
 ```
 
 ```ruby
-ext.account_id   # => "ACC-1000"
+ext[:account]   # => "ACC-1000"
 ```
 
 That is a bare id — a String — not a nested object. A reference IS an
@@ -498,7 +498,7 @@ refuses it at the door, by name, rather than let a wrapped reference
 travel quietly into storage:
 
 ```ruby
-Banking::ExternalTransfer.request(account_id: { value: account.id }, end_to_end: { value: "E2E-1002" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "debit" })   # ~> TypeMismatch: arrived as an object
+Banking::ExternalTransfer.request(account: { value: account.id }, end_to_end: { value: "E2E-1002" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "debit" })   # ~> TypeMismatch: arrived as an object
 ```
 
 `as:` renames what the base form would otherwise mint. `CardPayment`'s
@@ -517,19 +517,21 @@ end
 ```ruby
 disputed = payment.capture.dispute(disputed_by: customer.id)
 
-disputed.disputed_by   # => "CUST-1000"
+disputed[:disputed_by]   # => "CUST-1000"
 ```
 
-`has_one` and its alias `belongs_to` are sugar over the same
-`reference_to` — the only difference is the attribute name: no `_id`
-suffix, because the field already reads as a relationship. `OnboardingCase`
-is banking's only user of the sugar, and it reaches for `belongs_to`:
+`has_one` and its alias `belongs_to` were sugar over the same
+`reference_to` — the only difference was the attribute name: no `_id`
+suffix, because the field already read as a relationship. They are
+GONE now (ADR 0025, "References") — `reference_to` mints that same
+bare name on its own, so the sugar had no work left. `OnboardingCase`
+was banking's only user, and reaches for `reference_to` directly now:
 
 ```ruby skip
 # examples/banking/bluebook/banking.bluebook
 aggregate "OnboardingCase" do
   identified_by :reference
-  belongs_to Customer
+  reference_to Customer
   ...
 end
 ```
@@ -538,7 +540,7 @@ end
 onboarding = Banking::OnboardingCase.open(customer: customer.id, reference: { value: "ONB-1000" },
                                            account_number: { value: "ACC-3000" })
 
-onboarding.customer   # => "CUST-1000"
+onboarding[:customer]   # => "CUST-1000"
 ```
 
 Not `customer_id` — `customer`. And it is bound by the same rule as
@@ -559,14 +561,16 @@ refusal is proven; not reproduced here, since demonstrating it live
 would mean breaking this very domain to show it.
 
 One case to note in particular, absent from banking entirely — no
-aggregate here reaches for `has_many`, so this is a small ad hoc
-domain rather than the real corpus. `has_many` reads like it should
-produce a list — it is spelled with the plural of the target — but it
-singularizes the target back down to the aggregate it actually names
-and mints a single scalar reference under the plural attribute name. It
-is sugar for exactly one relationship, not a one-to-many: a real list
-of references has no precedent in this language, because `list_of` is
-checked everywhere as a list of value objects, not references:
+aggregate here ever reached for `has_many`, so this is a small ad hoc
+domain rather than the real corpus. `has_many` READ like it should
+produce a list — it was spelled with the plural of the target — but it
+singularized the target back down to the aggregate it actually named
+and minted a single scalar reference under the plural attribute name.
+It was sugar for exactly one relationship, never a one-to-many — a
+real list of references still has no precedent in this language,
+because `list_of` is checked everywhere as a list of value objects,
+not references — and now it is simply gone (ADR 0025), refusing live
+rather than going on quietly minting a name that lied about its shape:
 
 ```ruby
 def banking_has_many_demo
@@ -597,29 +601,17 @@ def banking_has_many_demo
     file.write(code)
     file.flush
     Kernel.eval(code, TOPLEVEL_BINDING, file.path, 1)
-    Hecks.hecksagon("HasManyDemo") do
-      HasManyDemo::Slip.persisted_by("Memory")
-      HasManyDemo::Vault.persisted_by("Memory")
-    end
-
-    registry = Hecksagain.current_registry
-    registry.verify!
-    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
-    HasManyDemo::Vault.install(tag: { value: "v1" })
   end
 end
-
-vault = banking_has_many_demo
-
-vault.slips   # => nil
 ```
 
-`has_many` looks like the collection form and is not one — the field it
-produces is `nil` until set, the same as any other unset reference,
-never `[]`. If what you actually need is a one-to-many, `has_many` will
-not give it to you — that is a real relationship this language does
-not have a direct spelling for yet, and reaching for the sugar here
-just hides the gap behind a name that sounds right.
+`has_many` refuses the moment it is reached, naming the live
+replacement — `Vault.has_many is gone — reference_to Slip mints the
+same bare name now`:
+
+```ruby
+banking_has_many_demo   # ~> Malformed: Vault.has_many is gone — reference_to Slip mints the same bare name now
+```
 
 ## A value object holding a value object
 

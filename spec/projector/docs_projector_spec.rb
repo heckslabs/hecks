@@ -101,7 +101,7 @@ RSpec.describe Hecksagain::Projector::DocsProjector do
       end
 
       it "names a reference that has to resolve" do
-        expect(banking).to match(/no `Customer` exists for the id given as `customer_id`/)
+        expect(banking).to match(/no `Customer` exists for the id given as `customer`/)
       end
 
       it "quotes a given in the chapter's own words" do

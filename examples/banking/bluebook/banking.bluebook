@@ -541,7 +541,7 @@ Hecks.bluebook "Banking", version: "v1" do
     query "OpenForSuspendedCustomers" do
       description "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now."
       where(status: "open")
-      where(:"customer.status" => "suspended")
+      where(:"customer/status" => "suspended")
       order_by :number
     end
 
@@ -570,7 +570,7 @@ Hecks.bluebook "Banking", version: "v1" do
       # this query's own aggregate (Account) could never satisfy for a VO
       # declared under a DIFFERENT aggregate (Customer).
       attribute :reference, String
-      where(customer_id: :reference, status: "open")
+      where(customer: :reference, status: "open")
       order_by :number
     end
 
@@ -1472,12 +1472,10 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "OnboardingCase" do
     description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
 
-    # THE FIRST `belongs_to` IN THE CORPUS — sugar over `reference_to` that
-    # mints `customer` rather than `customer_id` (AggregateBuilder's own
-    # comment gives the naming split : no `_id` suffix, matching Hecks' own
-    # reading of the word). Real here for the same reason the relationship
-    # is : a case belongs to exactly one customer, one at a time.
-    belongs_to Customer
+    # `reference_to` mints `customer`, no `_id` suffix (ADR 0025) — the
+    # same bare name `belongs_to` used to mint as sugar, before `belongs_to`
+    # itself was retired for having no work left to do.
+    reference_to Customer
 
     attribute :reference, OnboardingReference
 
@@ -1559,12 +1557,12 @@ Hecks.bluebook "Banking", version: "v1" do
     # unwraps two single-field value objects (branch_code, box_number);
     # this is the other real shape the language allows.
     # `AttributeCollector#resolve_identity_field!` reads each field's
-    # OWN declared type to decide how to reach it: `account_id` here is
-    # `reference_to Account`'s own minted attribute, already a scalar id,
-    # so it resolves bare — no value object to open, the same way
-    # `Runtime::Identity.from` resolves any identity head that IS a
-    # declared attribute directly.
-    identified_by :account_id, :period
+    # OWN declared type to decide how to reach it: `account` here is
+    # `reference_to Account`'s own minted attribute (bare, no `_id` —
+    # ADR 0025), already a scalar id, so it resolves bare — no value
+    # object to open, the same way `Runtime::Identity.from` resolves
+    # any identity head that IS a declared attribute directly.
+    identified_by :account, :period
 
     value_object "StatementPeriod" do
       attribute :value, String, pattern: '[^ \t\n\r]'
@@ -1835,7 +1833,7 @@ Hecks.bluebook "Banking", version: "v1" do
       # onboarding negotiates; a customer who wants something else changes it
       # afterward through Account's own commands.
       dispatch "Banking::Account.Open", with: {
-        customer_id: :customer,
+        customer:    :customer,
         number:      :account_number,
         kind:        { name: "current" },
         daily_limit: { cents: 0 }

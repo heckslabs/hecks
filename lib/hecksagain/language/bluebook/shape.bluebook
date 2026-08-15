@@ -7,7 +7,7 @@ Hecks.bluebook "Bluebook" do
     # THE AGGREGATE IT BELONGS TO, AND ITS NAME. A value object belongs to one
     # aggregate by rule, and `Name` or `Amount` is spelled in half the chapters
     # there are.
-    identified_by :aggregate_id, :name
+    identified_by :aggregate, :name
 
     attribute :name,       ValueObjectName
     attribute :attributes, list_of(ShapeField)
@@ -59,8 +59,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :aggregate_id, ValueObjectText
-      where(aggregate_id: :aggregate_id)
+      attribute :aggregate, ValueObjectText
+      where(aggregate: :aggregate)
       order_by :position
     end
     command "Declare" do
@@ -150,7 +150,7 @@ Hecks.bluebook "Bluebook" do
     # a mint — it is read straight out of the source file, the same fact the
     # language already holds deliberately so that an ask ordered any other way
     # cannot take declaration order away.
-    identified_by :value_object_id, :position
+    identified_by :value_object, :position
 
     attribute :shape, MemberText
     attribute :pairs, list_of(Pair)
@@ -183,8 +183,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :value_object_id, MemberText
-      where(value_object_id: :value_object_id)
+      attribute :value_object, MemberText
+      where(value_object: :value_object)
       order_by :position
     end
     command "Declare" do

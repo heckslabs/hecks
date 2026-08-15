@@ -38,7 +38,7 @@ separate `across` here, the qualified name carries it.
 
 `examples/banking`'s `Onboarding` saga carries one dispatching leg, and
 `with:` is where the saga's own memory of the opening event becomes the
-command's arguments — `customer_id: :customer` reads the field the
+command's arguments — `customer: :customer` reads the field the
 saga remembered, and `kind:`/`daily_limit:` are literals the saga
 supplies itself:
 
@@ -46,7 +46,7 @@ supplies itself:
 # examples/banking/bluebook/banking.bluebook
 on "OnboardingCleared", transition: { "screening" => "cleared" } do
   dispatch "Banking::Account.Open", with: {
-    customer_id: :customer, number: :account_number,
+    customer: :customer, number: :account_number,
     kind: { name: "current" }, daily_limit: { cents: 0 }
   }
 end
@@ -63,7 +63,7 @@ kase = Banking::OnboardingCase.open(customer: "hd-1", reference: { value: "hd-c1
                                     account_number: { value: "hd-a1" })
 kase.clear
 
-Banking::Account.find("hd-a1").customer_id  # => "hd-1"
+Banking::Account.find("hd-a1")[:customer]  # => "hd-1"
 ```
 
 The delivery is recorded, so a leg that fired and a leg that never ran

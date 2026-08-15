@@ -93,15 +93,16 @@ module Hecksagain
 
         def read(aggregate)
           declare    = creating_command(aggregate)
-          parent_key = parent_key_of(declare)
+          parent     = parent_reference_of(declare)
+          parent_key = parent&.name&.to_s
           rest       = aggregate.commands - [declare].compact
 
           Category.new(
             name:       aggregate.hecks_name,
             declare:    declare&.hecks_name,
-            parent:     parent_key && categorise(parent_key),
+            parent:     parent&.type&.target_name,
             parent_key: parent_key,
-            fields:     declared_fields(declare, parent_key),
+            fields:     declared_fields(declare),
             appends:    appends_in(rest),
             alternates: alternates_in(rest),
             setters:    setters_in(rest),
@@ -136,29 +137,30 @@ module Hecksagain
           aggregate.commands.find { |command| command.references.nil? }
         end
 
-        # The parent link is the creating command's `*_id` argument, left there by
-        # `reference_to Parent`. A category without one is a root (Bluebook).
-        def parent_key_of(declare)
+        # The parent link is the creating command's FIRST reference-typed
+        # argument, left there by `reference_to Parent`. Declaration
+        # ORDER is what this always actually relied on — ADR 0025
+        # dropped the `_id` suffix that used to also flag it, but that
+        # suffix never carried the real signal; `reference_to`'s own
+        # attribute order does, and always did (the parent link is
+        # declared first, before any other reference a command takes).
+        # A category without one is a root (Bluebook).
+        def parent_reference_of(declare)
           return nil unless declare
 
-          declare.attributes.map { |attribute| attribute.name.to_s }.find { |name| name.end_with?("_id") }
+          declare.attributes.find(&:reference?)
         end
 
-        # bluebook_id -> Bluebook, process_manager_id -> ProcessManager
-        def categorise(parent_key)
-          parent_key.sub(/_id\z/, "").split("_").map(&:capitalize).join
-        end
-
-        # What the creating command sets directly. EVERY `*_id` argument is dropped,
-        # not just the parent link: they are references, and a reference is not a
-        # field. Command.Declare carries `entity_id` as well as `aggregate_id`,
-        # because an entity declares commands too, and offering it as a field would
-        # have the walk hand it a name instead of a head.
-        def declared_fields(declare, _parent_key)
+        # What the creating command sets directly. EVERY reference
+        # argument is dropped, not just the parent link: a reference is
+        # not a field. Command.Declare carries `entity_id` as well as
+        # the parent `aggregate` reference, because an entity declares
+        # commands too, and offering either as a field would have the
+        # walk hand it a name instead of a head.
+        def declared_fields(declare)
           return [] unless declare
 
-          declare.attributes.map { |attribute| attribute.name.to_s }
-                 .reject { |name| name.end_with?("_id") }
+          declare.attributes.reject(&:reference?).map { |attribute| attribute.name.to_s }
         end
 
         # list attribute -> the command that appends to it, and how its arguments map.

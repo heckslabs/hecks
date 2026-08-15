@@ -136,45 +136,79 @@ module Hecksagain
                 "an entity command is addressed through its aggregate; #{violations.uniq.join('; ')}"
         end
 
-        # TWO AGGREGATES REFERENCING EACH OTHER IS NOT A MODELLING CHOICE,
-        # IT IS A MISSING ONE — a DDD aggregate is a consistency boundary
-        # precisely because something outside it can only ever point IN,
-        # by id, never the other way. A caller must be able to reason about
-        # one aggregate alone ; a reference back the other way means
-        # neither one is a boundary anyone can reason about without the
-        # other, and the two are really one aggregate wearing two names.
+        # A REFERENCE RING IS NOT A MODELLING CHOICE, IT IS A MISSING ONE
+        # — a DDD aggregate is a consistency boundary precisely because
+        # something outside it can only ever point IN, by id, never the
+        # other way. A caller must be able to reason about one aggregate
+        # alone ; a ring back to where it started means no aggregate in
+        # it is a boundary anyone can reason about without the rest of
+        # the ring, and the whole ring is really one aggregate wearing
+        # several names.
         #
         # Checked at the bluebook level, not inside `AggregateBuilder`
-        # itself, because seeing a cycle needs BOTH ends declared — an
-        # aggregate finishes building long before it can know whether some
-        # later aggregate in the same file points back at it.
+        # itself, because seeing a cycle needs every end declared — an
+        # aggregate finishes building long before it can know whether
+        # some later aggregate in the same file points back at it.
         #
-        # This catches the direct pair (A -> B -> A) only, not a longer
-        # cycle (A -> B -> C -> A) — a chain that returns to its start
-        # after passing through a third aggregate is a different, murkier
-        # question this does not take a position on.
+        # ACYCLIC WITHIN A CHAPTER (ADR 0025, "References") — widened
+        # from the direct pair (A -> B -> A) this used to catch alone to
+        # any ring, however long (A -> B -> C -> A), the same DFS
+        # coloring a reference graph needs for any cycle. A cross-chapter
+        # reference is UNREACHABLE here rather than unchecked:
+        # `Reference#resolve` is scoped to its own chapter by
+        # construction, so a target this chapter never declares is a
+        # dangling name, not an edge — `edges.key?` below is what keeps
+        # the walk from ever leaving this chapter's own aggregates.
+        # Self-reference stays legal (`parent.parent.name` for a
+        # hierarchy is real and safe) — excluded the same way the
+        # direct-pair check already excluded it.
         def validate_no_bidirectional_references!
-          by_name = @aggregates.each_with_object({}) { |aggregate, index| index[aggregate.hecks_name] = aggregate }
+          edges = @aggregates.each_with_object({}) do |aggregate, index|
+            index[aggregate.hecks_name] = aggregate.reference_targets.uniq.reject { |target| target == aggregate.hecks_name }
+          end
 
-          violations = @aggregates.flat_map do |aggregate|
-            aggregate.reference_targets.uniq.filter_map do |target|
-              next if target == aggregate.hecks_name
+          cycle = find_reference_cycle(edges)
+          return unless cycle
 
-              other = by_name[target]
-              next unless other&.reference_targets&.include?(aggregate.hecks_name)
-
-              [aggregate.hecks_name, target].sort
-            end
-          end.uniq
-
-          return if violations.empty?
-
-          pairs = violations.map { |a, b| "#{a} <-> #{b}" }.join(", ")
+          ring = "#{cycle.join(' -> ')} -> #{cycle.first}"
           raise Malformed,
-                "bidirectional aggregate reference(s): #{pairs} — an aggregate points at " \
-                "another by id in one direction only ; decide which one owns the " \
-                "relationship, and let the other side be found through a query instead " \
-                "of a reference pointing back"
+                "reference cycle: #{ring} — an aggregate points at another by id, and a " \
+                "ring back to where it started means no aggregate in it is a boundary " \
+                "anyone can reason about alone ; break the ring, or let one side be found " \
+                "through a query instead of a reference pointing back"
+        end
+
+        # Plain DFS with a visiting/done coloring, over the reference
+        # graph THIS chapter's own aggregates declare. Returns the ring
+        # itself (in the order it closes), or nil.
+        def find_reference_cycle(edges)
+          state = {}
+
+          edges.each_key do |start|
+            cycle = reference_cycle_from(start, edges, state, [])
+            return cycle if cycle
+          end
+
+          nil
+        end
+
+        def reference_cycle_from(node, edges, state, path)
+          return nil if state[node] == :done
+          return path[path.index(node)..] if state[node] == :visiting
+
+          state[node] = :visiting
+          path.push(node)
+
+          edges[node].each do |target|
+            next unless edges.key?(target) # a name this chapter never declares is dangling, not an edge
+
+            found = reference_cycle_from(target, edges, state, path)
+            return found if found
+          end
+
+          path.pop
+          state[node] = :done
+          nil
         end
 
         # THE OTHER HALF OF A HOP — AggregateBuilder#seal_query_field

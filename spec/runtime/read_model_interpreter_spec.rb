@@ -47,17 +47,17 @@ RSpec.describe "a read model's query options" do
   def seed_disputed_card_payments
     Banking::Customer.register(reference: { value: "c1" }, name: { given: "A", family: "B" },
                                 email: { address: "a@example.com" })
-    Banking::Account.open(customer_id: "c1", number: { value: "acct-1" },
+    Banking::Account.open(customer: "c1", number: { value: "acct-1" },
                            kind: { name: "current" }, daily_limit: { cents: 10_000 })
 
     DISPUTED_AMOUNTS.each_with_index do |cents, index|
-      pay = Banking::CardPayment.authorize(account_id: "acct-1", authorisation: { value: "auth-#{index}" },
+      pay = Banking::CardPayment.authorize(account: "acct-1", authorisation: { value: "auth-#{index}" },
                                             amount: { cents: cents }, merchant: { value: "Shop#{index}" })
       pay.capture
       pay.dispute(disputed_by: "c1")
     end
 
-    Banking::CardPayment.authorize(account_id: "acct-1", authorisation: { value: "auth-undisputed" },
+    Banking::CardPayment.authorize(account: "acct-1", authorisation: { value: "auth-undisputed" },
                                     amount: { cents: 999 }, merchant: { value: "Undisputed Shop" })
   end
 
@@ -201,7 +201,7 @@ RSpec.describe "a read model's query options" do
               attribute :ref, Ref
               reference_to Item
               then_set :ref, to: :ref
-              then_set :item, to: :item_id
+              then_set :item, to: :item
             end
           end
 
@@ -225,7 +225,7 @@ RSpec.describe "a read model's query options" do
 
     runtime = build_reversed.call
     Reordered::Item.add(name: { value: "headlamp" })
-    Reordered::Promotion.promote(ref: { value: "p1" }, item_id: "headlamp")
+    Reordered::Promotion.promote(ref: { value: "p1" }, item: "headlamp")
 
     rows = runtime.query("Reordered.search", item: "headlamp")
 
@@ -325,12 +325,12 @@ RSpec.describe "a read model's query options" do
     def open_account(runtime, customer:, account:)
       Banking::Customer.register(reference: { value: customer }, name: { given: "A", family: "B" },
                                   email: { address: "#{customer}@example.com" })
-      Banking::Account.open(customer_id: customer, number: { value: account },
+      Banking::Account.open(customer: customer, number: { value: account },
                              kind: { name: "current" }, daily_limit: { cents: 10_000 })
     end
 
     def dispute(account:, index:, cents:)
-      pay = Banking::CardPayment.authorize(account_id: account, authorisation: { value: "auth-#{account}-#{index}" },
+      pay = Banking::CardPayment.authorize(account: account, authorisation: { value: "auth-#{account}-#{index}" },
                                             amount: { cents: cents }, merchant: { value: "Shop#{index}" })
       pay.capture
       pay.dispute(disputed_by: "c-#{account}")
@@ -342,7 +342,7 @@ RSpec.describe "a read model's query options" do
       [100, 200, 300].each_with_index { |cents, i| dispute(account: "acct-count", index: i, cents: cents) }
       # An UNDISPUTED payment too, so a count of 3 (not 4) proves `where`
       # actually filtered rather than the read model counting everything.
-      Banking::CardPayment.authorize(account_id: "acct-count", authorisation: { value: "auth-undisputed" },
+      Banking::CardPayment.authorize(account: "acct-count", authorisation: { value: "auth-undisputed" },
                                       amount: { cents: 999 }, merchant: { value: "Undisputed" })
 
       rows = runtime.query("Banking.disputed_payment_count", account: "acct-count")
@@ -531,9 +531,9 @@ RSpec.describe "a rootless read model's own group_by" do
   def open_accounts(runtime)
     Banking::Customer.register(reference: { value: "c1" }, name: { given: "A", family: "B" },
                                 email: { address: "a@example.com" })
-    Banking::Account.open(customer_id: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 0 })
-    Banking::Account.open(customer_id: "c1", number: { value: "a2" }, kind: { name: "savings" },  daily_limit: { cents: 0 })
-    Banking::Account.open(customer_id: "c1", number: { value: "a3" }, kind: { name: "current" }, daily_limit: { cents: 0 })
+    Banking::Account.open(customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 0 })
+    Banking::Account.open(customer: "c1", number: { value: "a2" }, kind: { name: "savings" },  daily_limit: { cents: 0 })
+    Banking::Account.open(customer: "c1", number: { value: "a3" }, kind: { name: "current" }, daily_limit: { cents: 0 })
   end
 
   # THE REAL CORPUS MEMBER, not a synthetic fixture — `AccountsByKind`,

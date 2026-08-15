@@ -19,7 +19,7 @@ module Hecksagain
           issuer: { value: issuer.to_s }, subject: { value: subject.to_s }
         )
 
-        rows.first&.fetch(:identity_id)
+        rows.first&.fetch(:identity)
       end
     end
   end

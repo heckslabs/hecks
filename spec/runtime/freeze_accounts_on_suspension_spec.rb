@@ -61,10 +61,10 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
                                                      name: { given: "Ada", family: "Lovelace" },
                                                      email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
-    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0001", number: { value: "acct-2" },
+    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-2" },
                                                kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
     runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
@@ -88,7 +88,7 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0001" },
                                                      name: { given: "Ada", family: "Lovelace" },
                                                      email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     runtime.dispatch("Banking::Customer.Suspend", reference: { value: "CUST-0001" },
@@ -106,9 +106,9 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     runtime.dispatch("Banking::Customer.Register", reference: { value: "CUST-0002" },
                                                      name: { given: "Grace", family: "Hopper" },
                                                      email: { address: "grace@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0001", number: { value: "acct-1" },
+    runtime.dispatch("Banking::Account.Open", customer: "CUST-0001", number: { value: "acct-1" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Open", customer_id: "CUST-0002", number: { value: "acct-2" },
+    runtime.dispatch("Banking::Account.Open", customer: "CUST-0002", number: { value: "acct-2" },
                                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
     rows = runtime.query("Banking::Account.OpenForCustomer", reference: { value: "CUST-0001" })

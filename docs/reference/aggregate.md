@@ -10,9 +10,7 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 Most of these run against `examples/banking`'s `Account`, which carries
-every structural word an aggregate has. `has_many` and `has_one` appear
-nowhere in the corpus — `belongs_to` appears exactly once — so the
-relationship sugar gets a chapter of its own:
+every structural word an aggregate has.
 
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
@@ -27,7 +25,7 @@ end
 
 ```ruby bluebook
 Hecks.bluebook "AggregateReference" do
-  vision "The three spellings of a reference, side by side."
+  vision "reference_to, with as: as the only spelling — has_many/has_one/belongs_to are gone (ADR 0025)."
 
   aggregate "Studio" do
     attribute :name, Name
@@ -48,18 +46,17 @@ Hecks.bluebook "AggregateReference" do
     identified_by :title
     value_object("Title") { attribute :value, String }
 
-    # THREE WORDS, THREE FIELD NAMES, ONE MECHANISM. `reference_to`
-    # mints `studio_id`; the other two drop the suffix; and `has_many`
-    # singularises rather than minting a list.
+    # ONE WORD, ONE MECHANISM. `reference_to` mints the bare target
+    # name (`studio`, no `_id`) by default, or whatever `as:` names —
+    # the same field either way, so two references to the same target
+    # need `as:` to tell them apart.
     reference_to Studio, as: :financier
-    has_one  Studio, as: :distributor
-    has_many Studio, as: :backers
+    reference_to Studio, as: :distributor
 
     command "Greenlight" do
       attribute :title, Title
-      attribute :financier_id,   Studio
+      attribute :financier,      Studio
       attribute :distributor,    Studio, optional: true
-      attribute :backers,        Studio, optional: true
       sets :title, to: :title
       emits "FilmGreenlit"
     end
@@ -78,7 +75,7 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "ag-1" },
                  name: { given: "Jean", family: "Bartik" },
                  email: { address: "jean@example.com" })
-account = Banking::Account.open(customer_id: "ag-1", number: { value: "ag-a1" },
+account = Banking::Account.open(customer: "ag-1", number: { value: "ag-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -154,7 +151,7 @@ Opening a second account on the same number refuses as a duplicate
 rather than quietly replacing the first:
 
 ```ruby
-Banking::Account.open(customer_id: "ag-1", number: { value: "ag-a1" }, kind: { name: "savings" }, daily_limit: { cents: 1 })  # ~> AlreadyExists: Account
+Banking::Account.open(customer: "ag-1", number: { value: "ag-a1" }, kind: { name: "savings" }, daily_limit: { cents: 1 })  # ~> AlreadyExists: Account
 ```
 
 A composite identity joins its paths in declaration order —
@@ -176,22 +173,23 @@ runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").identity_heads 
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-Points at another aggregate by id, not by object — the attribute holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named `target_id` by default, or whatever `as:` names.
+Points at another aggregate by id, not by object — the STORED field holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named for the target's own bare name by default (`customer`, no `_id` — ADR 0025), or whatever `as:` names. The door's own accessor of the same name hydrates it — reads the bare id and finds the record it names — which is why a reference needs no separate "get me the real one" method.
 
-`Account` references `Customer`, so it carries a `customer_id` holding a
-bare id — not a nested customer:
+`Account` references `Customer`; the raw id lives under the same name in
+state, and the accessor hydrates it into the real record:
 
 ```ruby
-account.customer_id  # => "ag-1"
+account[:customer]     # => "ag-1"
+account.customer.id    # => "ag-1"
 ```
 
 Handing it the object instead is refused where it arrives:
 
 ```ruby
-Banking::Account.open(customer_id: { value: "ag-1" }, number: { value: "ag-a3" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> TypeMismatch: a reference is an id
+Banking::Account.open(customer: { value: "ag-1" }, number: { value: "ag-a3" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> TypeMismatch: a reference is an id
 ```
 
-One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are sugar over this same call and are held to the same rule.
+One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are GONE (ADR 0025) — `reference_to` covers everything they did.
 
 ## has_many
 
@@ -205,19 +203,11 @@ One direction only: if the target aggregate also references this one back, the b
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-Sugar over `reference_to` — despite the plural name and plural argument, it singularizes its target and mints one scalar reference, not a list. A `has_many Studios` field reads `nil` until set, never `[]`; this language has no direct spelling for a real one-to-many yet, and reaching for `has_many` to get one just hides the gap.
-
-That is worth seeing rather than taking on trust. `Film` declares
-`has_many Studio, as: :backers`, and what lands is one scalar field:
+GONE (ADR 0025, "References") — `reference_to` mints the same bare, `_id`-less name on its own now, so the sugar had no work left. It also LIED while it existed: despite the plural name and plural argument it singularised its target and minted one scalar, not a list, so a `has_many Studios` field read `nil` until set and never `[]`. Refuses live, unconditionally:
 
 ```ruby
-runtime.dispatch("AggregateReference::Studio.Found", name: { value: "Pinewood" })
-film = AggregateReference::Film.greenlight(title: { value: "The Reference" }, financier_id: "Pinewood")
-film.backers  # => nil
+Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attribute :name, "StudioName"; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, "Title"; value_object("Title") { attribute :value, String }; has_many Studio } }  # ~> Malformed: has_many is gone
 ```
-
-Not `[]`, and not a collection — a second studio cannot be added to it,
-because there is nowhere for a second one to go.
 
 ## has_one
 
@@ -231,13 +221,10 @@ because there is nowhere for a second one to go.
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-Sugar over `reference_to` that drops the `_id` suffix, so the field reads as a relationship (`studio`, not `studio_id`).
-
-The suffix is the whole difference. `Film` declares all three against
-the same target, and only the plain `reference_to` keeps `_id`:
+GONE (ADR 0025, "References") — it existed only to drop the `_id` suffix `reference_to` used to mint by default; `reference_to` drops it on its own now. Refuses live:
 
 ```ruby
-AggregateReference::Film.greenlight(title: { value: "Two" }, financier_id: "Pinewood", distributor: "Pinewood").distributor  # => "Pinewood"
+Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; attribute :name, "StudioName"; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, "Title"; value_object("Title") { attribute :value, String }; has_one Studio } }  # ~> Malformed: has_one is gone
 ```
 
 ## belongs_to
@@ -252,14 +239,17 @@ AggregateReference::Film.greenlight(title: { value: "Two" }, financier_id: "Pine
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-An alias for `has_one` — same attribute, same `_id`-less naming, whichever name reads better at the call site.
-
-`OnboardingCase` is the corpus's one use, and it reads as the
-relationship it is — `customer`, not `customer_id`:
+GONE (ADR 0025, "References") — an alias for `has_one`, gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
 
 ```ruby
 kase = Banking::OnboardingCase.open(customer: "ag-1", reference: { value: "ag-c1" }, account_number: { value: "ag-a2" })
-kase.customer  # => "ag-1"
+kase[:customer]  # => "ag-1"
+```
+
+Written the retired way, it refuses:
+
+```ruby
+Hecks.bluebook("CaseGone") { aggregate("Customer") { identified_by :name; attribute :name, "N"; value_object("N") { attribute :value, String } }; aggregate("Case") { identified_by :ref; attribute :ref, "R"; value_object("R") { attribute :value, String }; belongs_to Customer } }  # ~> Malformed: belongs_to is gone
 ```
 
 ## lifecycle
@@ -429,7 +419,7 @@ runtime.registry.bluebook("Banking").aggregate("ExternalTransfer").commands.find
 `SafeDepositBox.LogVisit`'s note, omitted here without refusal:
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer_id: "ag-1", branch_code: { value: "DT" }, box_number: { value: 9 }, size: { value: "small" })
+box = Banking::SafeDepositBox.rent(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 9 }, size: { value: "small" })
 box.log_visit(date: { value: "2026-08-14" }, sequence: { value: 1 }).visits.size  # => 1
 ```
 

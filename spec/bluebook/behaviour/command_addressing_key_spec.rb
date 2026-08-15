@@ -50,13 +50,13 @@ RSpec.describe "Behaviour::Command#addressing_key_for" do
     open = bluebook.aggregate("Account").command("Open")
 
     # `Account.Open` is declared on Account but references Customer — a
-    # real, minted foreign-key attribute (`customer_id`), not a
-    # self-reference. The key is the ATTRIBUTE's own name, exactly as
-    # declared, never re-derived from the target's own name (which
+    # real, minted foreign-key attribute (`customer`, bare — ADR 0025),
+    # not a self-reference. The key is the ATTRIBUTE's own name, exactly
+    # as declared, never re-derived from the target's own name (which
     # matters the moment an `as:` reference's name legitimately differs
     # from the target's snake case, e.g. Transfer's own `source`/
     # `destination`, both `Reference<Account>`).
-    expect(open.addressing_key_for("Customer")).to eq(:customer_id)
+    expect(open.addressing_key_for("Customer")).to eq(:customer)
   end
 
   it "answers nil for a creating command — there is no existing row yet to address" do

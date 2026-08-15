@@ -113,7 +113,7 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
           aggregate "Tag" do
             reference_to Item
 
-            identified_by :item_id
+            identified_by :item
             command "Attach" do
               reference_to Item
             end
@@ -138,7 +138,7 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
 
       args = described_class.args_for(chapter, tag, tag.command("Attach"), { "Item" => "headlamp" })
 
-      expect(args[:item_id]).to eq("headlamp")
+      expect(args[:item]).to eq("headlamp")
     end
 
     it "falls back to a placeholder id when the referenced target was never created" do
@@ -146,7 +146,7 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
 
       args = described_class.args_for(chapter, tag, tag.command("Attach"), {})
 
-      expect(args[:item_id]).to eq("smoke-test-id")
+      expect(args[:item]).to eq("smoke-test-id")
     end
   end
 end

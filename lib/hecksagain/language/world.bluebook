@@ -41,12 +41,15 @@ Hecks.bluebook "World" do
   aggregate "Wiring" do
     description "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold."
 
-    reference_to World
+    # `as:` is required here — Wiring ALSO holds an ordinary `world` text
+    # attribute below (the same string, but a value rather than a reference),
+    # so the bare reference name would collide with it.
+    reference_to World, as: :world_ref
 
     # THE WORLD IT IS IN, AND THE VERB IT ANSWERS. One world binds one adapter per
     # verb — that is what a binding IS — so the verb names the wiring, and the
     # world says whose.
-    identified_by :world_id, :verb
+    identified_by :world, :verb
 
     attribute :world,    WiringText
     attribute :verb,     WiringText
@@ -66,7 +69,7 @@ Hecks.bluebook "World" do
       role "Deployment"
       goal "Bind one adapter in a world"
 
-      reference_to World
+      reference_to World, as: :world_ref
       attribute :world,   WiringText
       attribute :verb,    WiringText
       attribute :adapter, WiringText

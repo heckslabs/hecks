@@ -56,17 +56,16 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   META_DOMAIN_STRUCTURAL_FEATURES = %w[
     Bluebook#name Bluebook#vision Bluebook#classification Bluebook#version
     Bluebook#formerly_known_as Bluebook#normalisations
-    Aggregate#bluebook_id Aggregate#name Aggregate#description Aggregate#provenance
-    Command#aggregate_id Command#entity_id Command#name Command#role Command#goal Command#provenance
-    Query#aggregate_id Query#entity_id Query#name Query#description
-    ValueObject#aggregate_id ValueObject#name
-    Member#value_object_id
-    Entity#aggregate_id Entity#owner Entity#name Entity#description
-    Policy#bluebook_id Policy#name Policy#aggregate
-    ProcessManager#bluebook_id ProcessManager#name
-    Handler#process_manager_id
-    Dispatch#handler_id
-    ReadModel#bluebook_id ReadModel#name ReadModel#description
+    Aggregate#bluebook Aggregate#name Aggregate#description Aggregate#provenance
+    Command#aggregate Command#entity_id Command#name Command#role Command#goal Command#provenance
+    Query#aggregate Query#entity_id Query#name Query#description
+    ValueObject#aggregate ValueObject#name
+    Member#value_object
+    Entity#aggregate Entity#owner Entity#name Entity#description
+    Policy#bluebook Policy#name Policy#aggregate
+    ProcessManager#bluebook ProcessManager#name
+    Handler#process_manager
+    ReadModel#bluebook ReadModel#name ReadModel#description
     Vocabulary#name Syntax#name
   ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
 

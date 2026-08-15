@@ -52,18 +52,18 @@ module Hecksagain
 
         def judge_wiring(domain, verb, values)
           # THE SAME JOIN THE LANGUAGE ITSELF DERIVES. Wiring is
-          # `identified_by do world_id; verb.value end` now — `Wiring.Declare`
+          # `identified_by do world; verb.value end` — `Wiring.Declare`
           # (a creating command) ignores this `id:` entirely and computes its OWN
-          # from `world_id`/`verb`, so a locally minted "#{domain}.#{verb}" named a
+          # from `world`/`verb`, so a locally minted "#{domain}.#{verb}" named a
           # record `Wiring.Set` could never find : the id passed here has to be
           # the SAME derivation, not a second guess at what it must be.
           id = Naming.identity([domain, verb])
-          # `world_id` is the WORLD's id and goes bare, the way every reference
-          # does now ; `world` beside it is an ordinary text attribute that happens
-          # to hold the same string, and stays a value object. The two look alike
-          # and are not — which is exactly why the judge asks the type rather than
-          # the name.
-          send_to("World::Wiring.Declare", id, id: id, world_id: domain,
+          # `world_ref` is the WORLD's id and goes bare, the way every reference
+          # does now ; the language gives it that explicit `as:` because `world`
+          # beside it is an ordinary text attribute that happens to hold the same
+          # string, and stays a value object. The two look alike and are not —
+          # which is exactly why the judge asks the type rather than the name.
+          send_to("World::Wiring.Declare", id, id: id, world_ref: domain,
                   world: v(domain), verb: v(verb), adapter: v(Hash(values)[:adapter]))
 
           Hash(values).each do |key, value|

@@ -127,7 +127,7 @@ RSpec.describe "a construct's identity" do
         # `number:` was written TWICE — the first a copy of the customer id — and
         # Ruby warned on every run while silently keeping the second. What this
         # test is about is the CUSTOMER pointing at nothing, not the number.
-        banking.dispatch("Banking::Account.Open", customer_id: "nobody-registered-this",
+        banking.dispatch("Banking::Account.Open", customer: "nobody-registered-this",
                                                   number: { value: "ACC-1" },
                                                   kind: { name: "current" },
                                                   daily_limit: { cents: 100 })
@@ -145,10 +145,10 @@ RSpec.describe "a construct's identity" do
 
     it "keeps spelling the old reference string in the export, whose spelling is contract" do
       account = banking.registry.bluebook("Banking").aggregate("Account")
-      customer_id = account.attribute(:customer_id)
+      customer = account.attribute(:customer)
 
-      expect(customer_id.type).to be_a(Hecksagain::Bluebook::Reference)
-      expect(customer_id.to_h[:type]).to eq("Reference<Customer>")
+      expect(customer.type).to be_a(Hecksagain::Bluebook::Reference)
+      expect(customer.to_h[:type]).to eq("Reference<Customer>")
     end
   end
 

@@ -5,7 +5,7 @@ Hecks.bluebook "Bluebook" do
     reference_to Bluebook
 
     # THE CHAPTER IT IS IN, AND ITS NAME.
-    identified_by :bluebook_id, :name
+    identified_by :bluebook, :name
 
     attribute :name,             ReadModelName
     attribute :description,      ProjectionPurpose
@@ -83,8 +83,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :bluebook_id, ReadModelText
-      where(bluebook_id: :bluebook_id)
+      attribute :bluebook, ReadModelText
+      where(bluebook: :bluebook)
       order_by :position
     end
     command "Declare" do

@@ -157,7 +157,7 @@ Banking::Account.respond_to?(:credit)  # => false
 customer = Banking::Customer.register(reference: { value: "C-1" },
                                        name: { given: "Ada", family: "Lovelace" },
                                        email: { address: "ada@example.com" })
-account  = Banking::Account.open(customer_id: customer.id, number: { value: "AC-1" },
+account  = Banking::Account.open(customer: customer.id, number: { value: "AC-1" },
                                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 account.number.to_h  # => { value: "AC-1" }
 ```
@@ -167,7 +167,7 @@ again with a number you already used and there is no second account,
 only a collision with the one you have:
 
 ```ruby
-Banking::Account.open(customer_id: customer.id, number: { value: "AC-1" }, kind: { name: "current" }, daily_limit: { cents: 100_000 })  # ~> AlreadyExists: Open creates a Account that already exists
+Banking::Account.open(customer: customer.id, number: { value: "AC-1" }, kind: { name: "current" }, daily_limit: { cents: 100_000 })  # ~> AlreadyExists: Open creates a Account that already exists
 ```
 
 ## `given` — the rule you enforce going in
@@ -235,7 +235,7 @@ already re-enters itself, live, up to its own limit, before your code
 ever gets control back:
 
 ```ruby
-sp = Banking::ScheduledPayment.schedule(account_id: account.id, instruction: { value: "I-1" },
+sp = Banking::ScheduledPayment.schedule(account: account.id, instruction: { value: "I-1" },
                                          amount: { cents: 5000 }, recipient: { value: "Landlord" },
                                          due_on: { value: "2026-09-01" })
 sp.fail
@@ -362,7 +362,7 @@ first. A composite identity like this one — `branch_code` and
 rather than through the single-argument facade sugar used above:
 
 ```ruby
-runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: customer.id,
+runtime.dispatch("Banking::SafeDepositBox.Rent", customer: customer.id,
                   branch_code: { value: "DT" }, box_number: { value: 12 }, size: { value: "small" })
 runtime.dispatch("Banking::SafeDepositBox.Surrender", branch_code: { value: "DT" }, box_number: { value: 12 })
 Banking::SafeDepositBox.find("DT:12").events.last(2).map(&:name)  # => ["BoxSurrendered", "KeyReturnDue"]
@@ -378,7 +378,7 @@ A required attribute that never arrives refuses before anything else
 happens — no partial record, no half-run mutation:
 
 ```ruby
-Banking::Account.open(customer_id: customer.id, number: { value: "AC-2" }, daily_limit: { cents: 0 })  # ~> AbsentArgument: Open was not given kind
+Banking::Account.open(customer: customer.id, number: { value: "AC-2" }, daily_limit: { cents: 0 })  # ~> AbsentArgument: Open was not given kind
 ```
 
 An argument the command never declared at all refuses just as early,
@@ -399,7 +399,7 @@ blank number is refused as a `TypeMismatch`, not the more specific
 `InvariantViolation` its own invariant would otherwise raise:
 
 ```ruby
-Banking::Account.open(customer_id: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: AccountNumber.value must match [^ \t\n\r], got ""
+Banking::Account.open(customer: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: AccountNumber.value must match [^ \t\n\r], got ""
 ```
 
 A value object arrives as its fields, plainly — `{ name: "current" }`,
@@ -408,7 +408,7 @@ another aggregate, by contrast, arrives as a bare id — the string
 `customer.id`, not an object describing the customer:
 
 ```ruby
-Banking::Account.open(customer_id: { reference: customer.id }, number: { value: "AC-4" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: a reference is an id, and customer_id arrived as an object
+Banking::Account.open(customer: { reference: customer.id }, number: { value: "AC-4" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: a reference is an id, and customer arrived as an object
 ```
 
 `CardPayment.Dispute` is the one command in this chapter carrying BOTH
@@ -420,12 +420,12 @@ account raised the dispute. The same rule about a bare id applies to
 that second reference exactly as it did to `Open`'s:
 
 ```ruby
-cp = Banking::CardPayment.authorize(account_id: account.id, authorisation: { value: "AUTH-1" },
+cp = Banking::CardPayment.authorize(account: account.id, authorisation: { value: "AUTH-1" },
                                      amount: { cents: 4200 }, merchant: { value: "Cafe" })
 cp.capture
 cp.dispute(disputed_by: { reference: customer.id })  # ~> TypeMismatch: a reference is an id, and disputed_by arrived as an object
 cp.dispute(disputed_by: customer.id)
-cp.disputed_by  # => "C-1"
+cp[:disputed_by]  # => "C-1"
 ```
 
 And a command acting on an identity that names no record refuses with

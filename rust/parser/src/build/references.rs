@@ -1,26 +1,25 @@
-//! Mirrors `reference_to`/`has_many`/`has_one`/`belongs_to` attribute
-//! minting (`attribute_collector.rb` and its `AggregateBuilder`/
-//! `EntityBuilder` callers). All four FILL the same field
-//! (`reference_to` — see syntax.bluebook's own comment on why
-//! `has_many`/`has_one`/`belongs_to` share it): each builds one
-//! `Reference`-typed attribute. `has_many`'s target is the SINGULAR of
-//! what was written and mints no `_id` suffix — a Ruby-builder naming
-//! default this module has to reproduce exactly, not just the edge (which
-//! ATTRIBUTE gets built) a projected parser needs.
+//! Mirrors `reference_to` attribute minting
+//! (`AttributeCollector#default_reference_name` and its
+//! `AggregateBuilder`/`EntityBuilder` callers). `has_many`/`has_one`/
+//! `belongs_to` are GONE (ADR 0025, "References") — `reference_to`
+//! mints the same bare name they used to on its own now, so there is
+//! no separate sugar left for this module to mirror.
 
 use crate::ir;
 
-/// The ONE shape every `reference_to` (and, on an aggregate,
-/// `has_many`/`has_one`/`belongs_to` — not exercised by pizzas.bluebook,
-/// left unbuilt here per this module's own header) attribute-mint reduces
-/// to: `attribute(as || "#{snake(target)}_id", Reference(target))`.
-/// Shared verbatim by every builder that includes `AttributeCollector`
-/// (`AggregateBuilder#reference_to`, `CommandBuilder#cross_reference`,
-/// `QueryBuilder#reference_to`, `PortOperationBuilder#reference_to`) —
-/// confirmed identical across all four Ruby call sites.
+/// The ONE shape every `reference_to` attribute-mint reduces to:
+/// `attribute(as || snake(target), Reference(target))` — bare, no
+/// `_id` suffix (ADR 0025; the live parser never needs the
+/// shadow-parsing fork `AttributeCollector#default_reference_name`
+/// carries for frozen era text, since this parser only ever reads
+/// current, live source). Shared verbatim by every builder that
+/// includes `AttributeCollector` (`AggregateBuilder#reference_to`,
+/// `CommandBuilder#cross_reference`, `QueryBuilder#reference_to`,
+/// `PortOperationBuilder#reference_to`) — confirmed identical across
+/// all four Ruby call sites.
 pub fn reference_attribute(target: &str, as_name: Option<&str>, optional: bool) -> ir::Attribute {
     let target = crate::build::naming::demodulise(target);
-    let name = as_name.map(|s| s.to_string()).unwrap_or_else(|| format!("{}_id", crate::build::naming::snake(&target)));
+    let name = as_name.map(|s| s.to_string()).unwrap_or_else(|| crate::build::naming::snake(&target));
     ir::Attribute { name, type_name: format!("Reference<{target}>"), list: false, optional, ..Default::default() }
 }
 
@@ -38,7 +37,7 @@ mod tests {
     #[test]
     fn defaults_the_name_from_the_target_when_as_is_absent() {
         let attr = reference_attribute("Customer", None, false);
-        assert_eq!(attr.name, "customer_id");
+        assert_eq!(attr.name, "customer");
         assert_eq!(attr.type_name, "Reference<Customer>");
     }
 }

@@ -6,7 +6,7 @@ Hecks.bluebook "Bluebook" do
 
     # THE CHAPTER IT IS IN, AND ITS NAME. A policy hangs off the chapter rather
     # than an aggregate, so the chapter is the part above it.
-    identified_by :bluebook_id, :name
+    identified_by :bluebook, :name
 
     attribute :name,            PolicyName
     # WHICH HEAD DECLARED IT, empty for a reaction the chapter owns.
@@ -78,8 +78,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :bluebook_id, PolicyText
-      where(bluebook_id: :bluebook_id)
+      attribute :bluebook, PolicyText
+      where(bluebook: :bluebook)
       order_by :position
     end
     command "Declare" do
@@ -120,7 +120,7 @@ Hecks.bluebook "Bluebook" do
 
     # THE CHAPTER IT IS IN, AND ITS NAME — the same shape a policy takes, and for
     # the same reason.
-    identified_by :bluebook_id, :name
+    identified_by :bluebook, :name
 
     attribute :name,      ProcessManagerName
     attribute :correlates_by, ProcessManagerText
@@ -156,8 +156,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :bluebook_id, ProcessManagerText
-      where(bluebook_id: :bluebook_id)
+      attribute :bluebook, ProcessManagerText
+      where(bluebook: :bluebook)
       order_by :position
     end
     command "Declare" do
@@ -202,7 +202,7 @@ Hecks.bluebook "Bluebook" do
     # event once, so the event names the leg. The judge keyed this by POSITION
     # ("#{parent}##{index}"), which is a mint : insert a leg above and every leg
     # below is renamed. The event does not move.
-    identified_by :process_manager_id, :event_type
+    identified_by :process_manager, :event_type
 
     # No `saga` field. It named the old word for a process manager, held nothing —
     # ProcessManagerHandler has no such reader, so every Handler record's saga
@@ -235,8 +235,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :process_manager_id, HandlerText
-      where(process_manager_id: :process_manager_id)
+      attribute :process_manager, HandlerText
+      where(process_manager: :process_manager)
       order_by :position
     end
     command "Declare" do
@@ -266,10 +266,13 @@ Hecks.bluebook "Bluebook" do
     reference_to Handler
 
     # THE HANDLER IT IS IN, AND THE COMMAND IT SENDS — keyed by position before,
-    # for the same want of a way to say this.
-    identified_by :handler_id, :command_name
+    # for the same want of a way to say this. `handler` resolves through the
+    # reference above, the same way Handler's own `process_manager` does —
+    # not a duplicate text attribute (that collided with the bare reference's
+    # own mint under ADR 0025, and clobbered it in the args hash: the two
+    # shared one key, and whichever attribute's coercion ran last won).
+    identified_by :handler, :command_name
 
-    attribute :handler,      DispatchText
     attribute :command_name, DispatchText
     attribute :with_spec,    list_of(Binding)
 
@@ -297,8 +300,8 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :handler_id, DispatchText
-      where(handler_id: :handler_id)
+      attribute :handler, DispatchText
+      where(handler: :handler)
       order_by :position
     end
     command "Declare" do
@@ -306,7 +309,6 @@ Hecks.bluebook "Bluebook" do
       goal "Open a dispatch inside a handler"
 
       reference_to Handler
-      attribute :handler,      DispatchText
       attribute :command_name, DispatchText
 
       attribute :position, Position, optional: true

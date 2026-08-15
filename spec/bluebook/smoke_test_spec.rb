@@ -81,7 +81,7 @@ RSpec.describe Hecksagain::Bluebook::SmokeTest do
       aggregate "Tag" do
         reference_to Item
 
-        identified_by :item_id
+        identified_by :item
         command "Attach" do
           reference_to Item
         end

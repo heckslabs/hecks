@@ -105,9 +105,9 @@ A scheduled payment needs an account to stand against:
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c3" },
                   name: { given: "Kofi", family: "Mensah" }, email: { address: "kofi@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c3", number: { value: "a3" },
+runtime.dispatch("Banking::Account.Open", customer: "c3", number: { value: "a3" },
                   kind: { name: "current" }, daily_limit: { cents: 50_000 })
-runtime.dispatch("Banking::ScheduledPayment.Schedule", account_id: "a3",
+runtime.dispatch("Banking::ScheduledPayment.Schedule", account: "a3",
                   instruction: { value: "instr1" }, amount: { cents: 500 },
                   recipient: { value: "Landlord Realty" }, due_on: { value: "2026-09-01" })
 
@@ -236,9 +236,9 @@ reaches every open account that customer holds:
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
                   name: { given: "Nadia", family: "Osei" }, email: { address: "nadia@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "sus-1" },
+runtime.dispatch("Banking::Account.Open", customer: "c2", number: { value: "sus-1" },
                   kind: { name: "current" }, daily_limit: { cents: 50_000 })
-runtime.dispatch("Banking::Account.Open", customer_id: "c2", number: { value: "sus-2" },
+runtime.dispatch("Banking::Account.Open", customer: "c2", number: { value: "sus-2" },
                   kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
 before = runtime.reactions.size
@@ -294,7 +294,7 @@ reaching for a domain that genuinely is not loaded HERE:
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c1" },
                   name: { given: "Théo", family: "Lindqvist" }, email: { address: "theo@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c1", number: { value: "a1" },
+runtime.dispatch("Banking::Account.Open", customer: "c1", number: { value: "a1" },
                   kind: { name: "current" }, daily_limit: { cents: 50_000 })
 
 before = runtime.reactions.size
@@ -381,9 +381,9 @@ transfer between them:
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c4" },
                   name: { given: "Rosa", family: "Klein" }, email: { address: "rosa@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c4", number: { value: "src1" },
+runtime.dispatch("Banking::Account.Open", customer: "c4", number: { value: "src1" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
-runtime.dispatch("Banking::Account.Open", customer_id: "c4", number: { value: "dst1" },
+runtime.dispatch("Banking::Account.Open", customer: "c4", number: { value: "dst1" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Account.Credit", number: "src1", amount: { cents: 1000 }, narrative: { text: "opening balance" })
 
@@ -416,9 +416,9 @@ source:
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "c5" },
                   name: { given: "Iris", family: "Falk" }, email: { address: "iris@example.com" })
-runtime.dispatch("Banking::Account.Open", customer_id: "c5", number: { value: "src2" },
+runtime.dispatch("Banking::Account.Open", customer: "c5", number: { value: "src2" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
-runtime.dispatch("Banking::Account.Open", customer_id: "c5", number: { value: "dst2" },
+runtime.dispatch("Banking::Account.Open", customer: "c5", number: { value: "dst2" },
                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 runtime.dispatch("Banking::Account.Credit", number: "src2", amount: { cents: 1000 }, narrative: { text: "opening balance" })
 runtime.dispatch("Banking::Account.FreezeAccount", number: "dst2")
@@ -481,7 +481,7 @@ process_manager "Onboarding" do
 
   on "OnboardingCleared", transition: { "screening" => "cleared" } do
     dispatch "Banking::Account.Open", with: {
-      customer_id: :customer,
+      customer:    :customer,
       number:      :account_number,
       kind:        { name: "current" },
       daily_limit: { cents: 0 }

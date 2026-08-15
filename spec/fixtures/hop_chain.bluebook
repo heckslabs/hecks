@@ -48,7 +48,7 @@ Hecks.bluebook "HopChain" do
     end
 
     query "WithActiveClient" do
-      where :"client.status" => "active"
+      where :"client/status" => "active"
     end
   end
 
@@ -82,7 +82,7 @@ Hecks.bluebook "HopChain" do
 
     query "AwaitingReplyFromActiveClients" do
       where status: "sent"
-      where :"engagement.client.status" => "active"
+      where :"engagement/client/status" => "active"
       order_by :number
     end
 
@@ -90,11 +90,11 @@ Hecks.bluebook "HopChain" do
     # client that is churned," not "nil/dangling reference also counts."
     query "SentButNotFromActiveClients" do
       where status: "sent"
-      where :"engagement.client.status" => { ne: "active" }
+      where :"engagement/client/status" => { ne: "active" }
     end
 
     query "PricedAboveViaEngagement" do
-      where :"engagement.client.status" => "active"
+      where :"engagement/client/status" => "active"
       order_by :number
       limit 1
     end
@@ -125,7 +125,7 @@ Hecks.bluebook "HopChain" do
     end
 
     query "GrandparentLabelled" do
-      where :"parent_node.parent_node.label" => :label
+      where :"parent/parent/label" => :label
       attribute :label, "Label"
     end
   end

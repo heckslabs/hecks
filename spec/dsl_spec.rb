@@ -303,7 +303,7 @@ RSpec.describe "the DSL surface" do
     # ("Primitive:Thing" and "String"); now the message says so.
     it "refuses an aggregate attribute that is not a value object" do
       expect { build_aggregate("Primitive") { attribute :code, String } }
-        .to raise_error(Malformed, %r{no ValueObject with aggregate_id, name "Primitive:Thing:String"})
+        .to raise_error(Malformed, %r{no ValueObject with aggregate, name "Primitive:Thing:String"})
     end
 
     # A PIECE IS REACHED THROUGH ITS AGGREGATE, so a command on one addresses
@@ -346,7 +346,7 @@ RSpec.describe "the DSL surface" do
           end
         end
       end.to raise_error(Malformed,
-                         /UseCode#attributes\[0\]: no Aggregate with bluebook_id, name "HeadOnly:Code"/)
+                         /UseCode#attributes\[0\]: no Aggregate with bluebook, name "HeadOnly:Code"/)
     end
 
     # A DEFAULT FILLS THE SHAPE IT IS DECLARED ON. `default: "open"` on a
@@ -798,7 +798,7 @@ RSpec.describe "the DSL surface" do
             reference_to Rider
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /bidirectional aggregate reference.*Bicycle <-> Rider/)
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
     end
 
     it "allows one aggregate to reference another in a single direction" do
@@ -1554,7 +1554,7 @@ RSpec.describe "the DSL surface" do
         end.to raise_error(Malformed, /compares pizza\.label\.text with gt.*holds no number/m)
       end
 
-      describe "a dotted path that hops through a reference" do
+      describe "a slash path that hops through a reference" do
         def build_hop_bluebook(name = "Hopping", client: nil, &proposal_query)
           build_bluebook(name) do
             aggregate "Client" do
@@ -1579,16 +1579,16 @@ RSpec.describe "the DSL surface" do
 
         it "admits a hop that lands on a scalar the target declares" do
           bluebook = build_hop_bluebook do
-            query("AwaitingReply") { where(:"client.status" => "active") }
+            query("AwaitingReply") { where(:"client/status" => "active") }
           end
 
-          expect(bluebook.aggregate("Proposal").queries.first.wheres.first.field.to_s).to eq("client.status")
+          expect(bluebook.aggregate("Proposal").queries.first.wheres.first.field.to_s).to eq("client/status")
         end
 
         it "admits a WHERE hop with an ordered comparator — the target's own field decides, not the ask" do
           expect do
             build_hop_bluebook(client: proc { value_object("Balance") { attribute :cents, Integer }; attribute :balance, "Balance" }) do
-              query("HighValue") { where(:"client.balance.cents" => { gt: 500 }) }
+              query("HighValue") { where(:"client/balance.cents" => { gt: 500 }) }
             end
           end.not_to raise_error
         end
@@ -1596,9 +1596,9 @@ RSpec.describe "the DSL surface" do
         it "refuses ORDER BY through a hop outright — an ask is ordered by its own rows, not a candidate set" do
           expect do
             build_hop_bluebook do
-              query("BadOrder") { order_by :"client.status" }
+              query("BadOrder") { order_by :"client/status" }
             end
-          end.to raise_error(Malformed, /orders by client\.status, which hops through a reference/)
+          end.to raise_error(Malformed, %r{orders by client/status, which hops through a reference})
         end
 
         it "refuses a hop into an aggregate this chapter never declares" do
@@ -1609,16 +1609,16 @@ RSpec.describe "the DSL surface" do
                 reference_to Client
                 attribute :number, "ProposalNumber"
                 value_object("ProposalNumber") { attribute :value, String }
-                query("Bad") { where(:"client.status" => "active") }
+                query("Bad") { where(:"client/status" => "active") }
               end
             end
-          end.to raise_error(Malformed, /asks about client\.status, which hops to Client, which this chapter never declares/)
+          end.to raise_error(Malformed, %r{asks about client/status, which hops to Client, which this chapter never declares})
         end
 
         it "refuses a hop whose tail names nothing the target declares" do
           expect do
             build_hop_bluebook do
-              query("Bad") { where(:"client.nonexistent" => "x") }
+              query("Bad") { where(:"client/nonexistent" => "x") }
             end
           end.to raise_error(Malformed, /hops to Client and then asks about nonexistent, which Client never declares/)
         end
@@ -1640,7 +1640,7 @@ RSpec.describe "the DSL surface" do
 
           expect do
             build_hop_bluebook(client: client) do
-              query("Bad") { where(:"client.box.price" => { gt: 500 }) }
+              query("Bad") { where(:"client/box.price" => { gt: 500 }) }
             end
           end.to raise_error(Malformed, /hops to Client and then asks about box\.price, which lands on a value object, not a scalar/)
         end
@@ -1648,17 +1648,17 @@ RSpec.describe "the DSL surface" do
         it "refuses an ordered comparator on a hop's tail when it holds no number" do
           expect do
             build_hop_bluebook do
-              query("Bad") { where(:"client.status" => { gt: "active" }) }
+              query("Bad") { where(:"client/status" => { gt: "active" }) }
             end
-          end.to raise_error(Malformed, /compares client\.status with gt after hopping to Client.*is the lifecycle field, which holds text/m)
+          end.to raise_error(Malformed, %r{compares client/status with gt after hopping to Client.*is the lifecycle field, which holds text}m)
         end
 
         it "refuses an ordered comparator on a hop's tail that's a real attribute holding no number" do
           expect do
             build_hop_bluebook(client: proc { attribute :note, String }) do
-              query("Bad") { where(:"client.note" => { gt: "z" }) }
+              query("Bad") { where(:"client/note" => { gt: "z" }) }
             end
-          end.to raise_error(Malformed, /compares client\.note with gt after hopping to Client.*holds no number/m)
+          end.to raise_error(Malformed, %r{compares client/note with gt after hopping to Client.*holds no number}m)
         end
 
         it "a multi-hop chain reads left to right, outward to inward" do
@@ -1684,12 +1684,12 @@ RSpec.describe "the DSL surface" do
               reference_to Engagement
               attribute :number, "ProposalNumber"
               value_object("ProposalNumber") { attribute :value, String }
-              query("AwaitingReply") { where(:"engagement.client.status" => "active") }
+              query("AwaitingReply") { where(:"engagement/client/status" => "active") }
             end
           end
 
           expect(bluebook.aggregate("Proposal").queries.first.wheres.first.field.to_s)
-            .to eq("engagement.client.status")
+            .to eq("engagement/client/status")
         end
 
         it "admits a self-referential hop chain — revisiting the same aggregate TYPE is not a cycle" do
@@ -1700,7 +1700,7 @@ RSpec.describe "the DSL surface" do
                 reference_to Node, as: :parent
                 attribute :label, "NodeLabel"
                 value_object("NodeLabel") { attribute :value, String }
-                query("GrandparentLabel") { where(:"parent_node.parent_node.label" => "root") }
+                query("GrandparentLabel") { where(:"parent/parent/label" => "root") }
               end
             end
           end.not_to raise_error
@@ -1714,25 +1714,22 @@ RSpec.describe "the DSL surface" do
                 reference_to Node
                 attribute :label, "NodeLabel"
                 value_object("NodeLabel") { attribute :value, String }
-                nine = (["node"] * 9 + ["label"]).join(".")
+                nine = (["node"] * 9 + ["label"]).join("/")
                 query("TooFar") { where(nine.to_sym => "root") }
               end
             end
           end.to raise_error(Malformed, /whose hop chain reaches 8 references deep/)
         end
 
-        # THE NON-COLLAPSE EDGE CASE — Facade::Handle#reference_accessor_name
-        # never lets an `as:` name that already equals the target's own
-        # snake case collapse onto the bare name (`piece.studio` stays the
-        # raw id reader). Naming.reference_hop is the same rule now, so the
-        # query DSL has to agree: `studio` is the REFERENCE ATTRIBUTE's own
-        # raw name here (a real local attribute wins before HopPath is ever
-        # asked), so `:"studio.x"` dead-ends the same way any dotted path
-        # onto a bare reference always has — refused as "never declares,"
-        # not recognised as a hop at all. `:"studio_studio.x"` is the hop.
-        it "never reads an as:-named self-collision as the hop — only the suffixed spelling" do
+        # `/` CROSSES INTO ANOTHER RECORD, `.` WALKS FIELDS INSIDE THIS ONE
+        # (ADR 0025, "References") — the operator alone answers which kind
+        # of path this is, whatever the reference happens to be named. A
+        # reference declared `as: :studio` gets no special-cased spelling
+        # either way: `studio.x` never hops, no matter what `studio` names,
+        # and `studio/x` always does.
+        it "a dot onto a reference attribute never hops — it dead-ends the same way any dotted path onto a non-value-object does" do
           expect do
-            build_bluebook("NonCollapse") do
+            build_bluebook("NoDotHop") do
               aggregate "Studio" do
                 identified_by :name
                 attribute :name, "StudioName"
@@ -1750,8 +1747,8 @@ RSpec.describe "the DSL surface" do
           end.to raise_error(Malformed, /asks about studio\.name, which Piece never declares/)
         end
 
-        it "the suffixed spelling IS the hop, for the same as:-named reference" do
-          bluebook = build_bluebook("NonCollapseHop") do
+        it "a slash onto the same reference IS the hop" do
+          bluebook = build_bluebook("SlashHop") do
             aggregate "Studio" do
               identified_by :name
               attribute :name, "StudioName"
@@ -1763,11 +1760,11 @@ RSpec.describe "the DSL surface" do
               reference_to Studio, as: :studio
               attribute :tag, "PieceTag"
               value_object("PieceTag") { attribute :value, String }
-              query("Good") { where(:"studio_studio.name.value" => "x") }
+              query("Good") { where(:"studio/name.value" => "x") }
             end
           end
 
-          expect(bluebook.aggregate("Piece").queries.first.wheres.first.field.to_s).to eq("studio_studio.name.value")
+          expect(bluebook.aggregate("Piece").queries.first.wheres.first.field.to_s).to eq("studio/name.value")
         end
       end
 
@@ -1813,8 +1810,11 @@ RSpec.describe "the DSL surface" do
       # `Reference` carried an `==` that compared equal to the string it
       # replaced — so they went on affirming the pre-crossing truth for a whole
       # commit. The shim is gone ; they say what is actually there.
-      expect(command.attribute(:customer_id).type.target_name).to eq("Customer")
-      expect(command.attribute(:customer_id).to_h[:type]).to eq("Reference<Customer>")
+      #
+      # `customer`, not `customer_id` (ADR 0025, "References") — `reference_to`
+      # mints the bare name now.
+      expect(command.attribute(:customer).type.target_name).to eq("Customer")
+      expect(command.attribute(:customer).to_h[:type]).to eq("Reference<Customer>")
     end
 
     it "reference_to its OWN root makes the command act on an existing one" do
@@ -1862,7 +1862,7 @@ RSpec.describe "the DSL surface" do
       expect([aggregate.attribute(:parts).type, aggregate.attribute(:parts).list?]).to eq(["Part", true])
     end
 
-    it "reference_to points at another root by its identity" do
+    it "reference_to points at another root by its identity, minting the bare name — no _id" do
       aggregate = build_bluebook("Referring") do
         aggregate("Pizza") do
           identified_by :id
@@ -1873,63 +1873,61 @@ RSpec.describe "the DSL surface" do
           reference_to Pizza
         end
       end.aggregate("Thing")
-      expect(aggregate.attribute(:pizza_id).type.target_name).to eq("Pizza")
-      expect(aggregate.attribute(:pizza_id).to_h[:type]).to eq("Reference<Pizza>")
+      expect(aggregate.attribute(:pizza).type.target_name).to eq("Pizza")
+      expect(aggregate.attribute(:pizza).to_h[:type]).to eq("Reference<Pizza>")
     end
 
-    # `has_many`, `has_one`, `belongs_to` — sugar Hecks already grew,
-    # ported here for the first time. Each
-    # builds exactly the Reference-typed attribute `reference_to` does ; what
-    # differs is the DEFAULT NAME, which carries no `_id` mint.
-    it "has_one is a single reference, named for the target with no _id mint" do
-      aggregate = build_bluebook("Owning") do
-        aggregate("Profile") do
-          identified_by :id
-          description "A profile"
+    # `has_many`, `has_one`, `belongs_to` — GONE (ADR 0025, "References").
+    # All three were sugar over `reference_to`, differing from its default
+    # only in the attribute name they minted — no `_id` suffix. `reference_to`
+    # mints that same bare name now, so the three have no work left to do,
+    # and refuse live rather than silently double as `reference_to`'s alias.
+    it "has_one is gone — reference_to mints the same bare name, no _id" do
+      expect do
+        build_bluebook("Owning") do
+          aggregate("Profile") do
+            identified_by :id
+            description "A profile"
+          end
+          aggregate("Account") do
+            identified_by :id
+            has_one Profile
+          end
         end
-        aggregate("Account") do
-          identified_by :id
-          has_one Profile
-        end
-      end.aggregate("Account")
-
-      expect(aggregate.attribute(:profile).type.target_name).to eq("Profile")
-      expect(aggregate.attribute(:profile).to_h[:type]).to eq("Reference<Profile>")
+      end.to raise_error(Malformed, /Account\.has_one is gone — reference_to Profile mints the same bare name now/)
     end
 
-    it "belongs_to reads identically to has_one" do
-      aggregate = build_bluebook("Dependent") do
-        aggregate("Team") do
-          identified_by :id
-          description "A team"
+    it "belongs_to is gone — same refusal, same replacement" do
+      expect do
+        build_bluebook("Dependent") do
+          aggregate("Team") do
+            identified_by :id
+            description "A team"
+          end
+          aggregate("Player") do
+            identified_by :id
+            belongs_to Team
+          end
         end
-        aggregate("Player") do
-          identified_by :id
-          belongs_to Team
-        end
-      end.aggregate("Player")
-
-      expect(aggregate.attribute(:team).type.target_name).to eq("Team")
-      expect(aggregate.attribute(:team).to_h[:type]).to eq("Reference<Team>")
+      end.to raise_error(Malformed, /Player\.belongs_to is gone — reference_to Team mints the same bare name now/)
     end
 
-    it "has_many singularizes the target and names the attribute for the plural written" do
-      aggregate = build_bluebook("Holding") do
-        aggregate("Invoice") do
-          identified_by :id
-          description "An invoice"
+    it "has_many is gone — it also LIED, singularising the target into one scalar rather than a list" do
+      expect do
+        build_bluebook("Holding") do
+          aggregate("Invoice") do
+            identified_by :id
+            description "An invoice"
+          end
+          aggregate("Ledger") do
+            identified_by :id
+            has_many Invoices
+          end
         end
-        aggregate("Ledger") do
-          identified_by :id
-          has_many Invoices
-        end
-      end.aggregate("Ledger")
-
-      expect(aggregate.attribute(:invoices).type.target_name).to eq("Invoice")
-      expect(aggregate.attribute(:invoices).to_h[:type]).to eq("Reference<Invoice>")
+      end.to raise_error(Malformed, /Ledger\.has_many is gone — reference_to Invoice mints the same bare name now/)
     end
 
-    it "has_many, has_one, and belongs_to all take as: to override the default name" do
+    it "reference_to still takes as: to override the default name, the way has_* used to" do
       aggregate = build_bluebook("Aliased") do
         aggregate("Warehouse") do
           identified_by :id
@@ -1937,14 +1935,12 @@ RSpec.describe "the DSL surface" do
         end
         aggregate("Shipment") do
           identified_by :id
-          has_many Warehouses, as: :origins
-          has_one  Warehouse,  as: :dispatch_point
-          belongs_to Warehouse, as: :destination
+          reference_to Warehouse, as: :origin
+          reference_to Warehouse, as: :destination
         end
       end.aggregate("Shipment")
 
-      expect(aggregate.attribute(:origins).type.target_name).to eq("Warehouse")
-      expect(aggregate.attribute(:dispatch_point).type.target_name).to eq("Warehouse")
+      expect(aggregate.attribute(:origin).type.target_name).to eq("Warehouse")
       expect(aggregate.attribute(:destination).type.target_name).to eq("Warehouse")
     end
 

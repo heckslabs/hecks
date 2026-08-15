@@ -139,7 +139,7 @@ module Hecksagain
         end
 
         # An aggregate's OWN verbs and asks — the ones no entity declared. Both carry
-        # `aggregate_id` either way, because that is the head the reference resolves
+        # the parent link either way, because that is the head the reference resolves
         # against, so the entity ones have to be told apart by `entity_id`. Rejecting
         # from an ORDERED read keeps the order.
         def own(category, aggregate_id)
@@ -148,9 +148,12 @@ module Hecksagain
 
         # A piece's own verbs and asks. There is no `DeclaredIn` keyed by entity, so
         # this reads the aggregate's — in declaration order — and keeps the ones that
-        # name this piece.
+        # name this piece. `row[:aggregate]` — an ENTITY row's own `reference_to
+        # Aggregate` (bare, no `_id` since ADR 0025) — not `entity_id`, which
+        # STAYS suffixed below : that one is Command/Query's own EXPLICIT `as:`,
+        # never touched by the rename.
         def within(category, row)
-          declared(category, text(row[:aggregate_id]))
+          declared(category, text(row[:aggregate]))
             .select { |held| text(held[:entity_id]).to_s == row[:id].to_s }
         end
 

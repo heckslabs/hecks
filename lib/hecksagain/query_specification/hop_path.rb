@@ -46,51 +46,52 @@ module Hecksagain
       # to refuse a chain nobody meant to write this long.
       MAX_HOPS = 8
 
-      # The segment name a Reference answers to in a dotted query path
-      # — Naming.reference_hop, the same rule
-      # Facade::Handle#define_reference_accessors already hydrates its
-      # own accessors from, so `proposal.client` (the Ruby accessor)
-      # and `:"client.status"` (the query hop) name one concept
-      # identically.
-      def hop_name(attribute)
-        Naming.reference_hop(attribute.name, Naming.snake(attribute.type.target_name))
-      end
+      # The segment name a Reference answers to in a hop path — its own
+      # declared attribute name, unchanged (ADR 0025, "References":
+      # `reference_to` mints that bare name now, no `_id`, so there is
+      # no derivation left to apply). `proposal/client` (a query hop)
+      # and `proposal.client` (the Ruby accessor,
+      # `Facade::Handle#define_reference_accessors`) name the same
+      # concept the same way.
+      def hop_name(attribute) = attribute.name.to_s
 
-      # Does this path's HEAD name one of `attributes`' own references?
-      # A real LOCAL attribute of that name wins first, whatever it
-      # is — a hop is spelled by its accessor name, never its storage
-      # name, so `client_id` (the raw attribute) is never read as a
-      # hop even though `client` (its accessor) is. Answerable from
-      # `attributes` alone — a Reference knows its own `target_name`
-      # at declaration, before it can `resolve` it — which is what
-      # lets the AGGREGATE seal recognise a hop it cannot yet check.
+      # Does this path's HEAD cross into another record via `/`? THE
+      # OPERATOR IS THE ANSWER NOW, not a name collision to arbitrate —
+      # `.` walks fields inside this record, `/` crosses into another
+      # one, so a path with no `/` is never a hop, full stop, and the
+      # OLD "a real local attribute wins first" rule (needed only
+      # because `.` was overloaded for both meanings, and `client_id`
+      # vs `client` was how the two were told apart) has nothing left
+      # to arbitrate. Answerable from `attributes` alone — a Reference
+      # knows its own `target_name` at declaration, before it can
+      # `resolve` it — which is what lets the AGGREGATE seal recognise
+      # a hop it cannot yet check.
       def hop_head?(field, attributes)
-        head, *rest = field.to_s.split(".")
-        return false if rest.empty?
-        return false if attributes.any? { |candidate| candidate.name.to_s == head }
+        head, rest = field.to_s.split("/", 2)
+        return false unless rest
 
         attributes.any? { |candidate| candidate.reference? && hop_name(candidate) == head }
       end
 
       # ONE STEP: does `field`'s head hop through one of `attributes`'
-      # own references? Answers the resolved `Hop` plus the dotted
-      # string still left to walk (itself possibly another hop,
-      # against the TARGET's own attributes) — or nil, when the head
-      # is a real local attribute or names nothing at all. This is
-      # the one primitive Runtime::ReferenceHop needs: it recurses hop
-      # by hop through its own `apply`, one ordinary same-aggregate
-      # query at a time, and never needs the whole chain resolved up
-      # front the way a seal does.
+      # own references? Answers the resolved `Hop` plus the string
+      # still left to walk (itself possibly another `/`-hop, against
+      # the TARGET's own attributes, or a plain `.`-dotted field walk
+      # once the hops run out) — or nil, when the head names nothing or
+      # the path has no `/` at all. This is the one primitive
+      # Runtime::ReferenceHop needs: it recurses hop by hop through its
+      # own `apply`, one ordinary same-aggregate query at a time, and
+      # never needs the whole chain resolved up front the way a seal
+      # does.
       def next_hop(field, attributes)
-        head, *rest = field.to_s.split(".")
-        return nil if rest.empty?
-        return nil if attributes.any? { |candidate| candidate.name.to_s == head }
+        head, rest = field.to_s.split("/", 2)
+        return nil unless rest
 
         attribute = attributes.find { |candidate| candidate.reference? && hop_name(candidate) == head }
         return nil unless attribute
 
         hop = Hop.new(attribute: attribute, target_name: attribute.type.target_name, target: attribute.type.resolve)
-        [hop, rest.join(".")]
+        [hop, rest]
       end
 
       # The WHOLE chain, resolved — every hop's target found, in

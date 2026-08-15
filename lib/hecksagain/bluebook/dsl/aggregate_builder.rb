@@ -83,34 +83,41 @@ module Hecksagain
         def reference_to(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
-          attribute(as || :"#{Naming.snake(target)}_id", Reference.new(target), optional: optional)
+          attribute(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
-        # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
-        # already grew (README's cherry-pick note) but this DSL never
-        # declared: a bluebook using one simply failed to load here. All
-        # three are sugar over `reference_to`, differing
-        # from its default only in the attribute name they mint : no `_id`
-        # suffix (matching Hecks' own reading of them, not
-        # `reference_to`'s own `_id` mint), and `has_many`'s target is the
-        # SINGULAR of what was written (`has_many Invoices` points at Invoice).
-        #
-        # `has_many` keeps the EXISTING shape — a single reference, not a
-        # list. `list_of(Reference<X>)` has no precedent anywhere in this IR :
-        # `list_of` is checked everywhere as a list of VALUE OBJECTS
-        # (the mutation and read paths alike). A real one-to-many is a
-        # separate arc, not a rename of what
-        # already parses.
+        # `has_many`, `has_one`, `belongs_to` — LEGACY (ADR 0025,
+        # "References"): all three were sugar over `reference_to`,
+        # differing from its default only in the attribute name they
+        # minted — no `_id` suffix. `reference_to` mints that same bare
+        # name now (`default_reference_name`, `AttributeCollector`'s own
+        # comment), so the three have no work left; `reference_to` alone
+        # says everything they did. `has_many` additionally LIED — it
+        # singularised its target and minted one scalar, so `film.backers`
+        # read `nil` and never `[]` — one more reason it earns no live
+        # replacement, in addition to `reference_to` already covering it.
+        # Kept here, refusing live, ONLY so `MetaValidator.shadow_parsing?`
+        # (S0a's own bridge) can still make sense of frozen era text that
+        # used one — real, if rare: "Combined corpus uses: one."
         def has_many(type, as: nil, optional: false)
-          plural = Naming.demodulise(type)
-          reference_to(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym, optional: optional)
+          return legacy_has_many(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
+
+          raise Malformed,
+                "#{@name}.has_many is gone — reference_to #{Naming.singularize(Naming.demodulise(type))} " \
+                "mints the same bare name now"
         end
 
         def has_one(type, as: nil, optional: false)
-          reference_to(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym, optional: optional)
+          return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
+
+          raise Malformed, "#{@name}.has_one is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"
         end
 
-        def belongs_to(type, as: nil, optional: false) = has_one(type, as: as, optional: optional)
+        def belongs_to(type, as: nil, optional: false)
+          return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
+
+          raise Malformed, "#{@name}.belongs_to is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"
+        end
 
         def lifecycle(field, default:, &block)
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
@@ -224,6 +231,17 @@ module Hecksagain
           raise Malformed, "#{@name}.identified_by names no field" if paths.empty?
 
           @identity_paths = paths
+        end
+
+        # LEGACY — see `has_many`/`has_one`/`belongs_to`'s own comment;
+        # byte-identical to what those three did before this slice.
+        def legacy_has_many(type, as:, optional: false)
+          plural = Naming.demodulise(type)
+          reference_to(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym, optional: optional)
+        end
+
+        def legacy_has_one(type, as:, optional: false)
+          reference_to(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym, optional: optional)
         end
 
         # Every reference is told which Aggregate declares it, so it can
@@ -350,7 +368,15 @@ module Hecksagain
             @entities.map { |entity| ["#{@name}::#{entity.hecks_name}", entity.attributes, entity.lifecycle, entity.queries] }
         end
 
+        # `/` CROSSES INTO ANOTHER RECORD, `.` WALKS FIELDS INSIDE THIS
+        # ONE (ADR 0025, "References") — the operator answers which
+        # kind of path this is now, not a name collision to arbitrate,
+        # so a hop is routed to its own method before any `.`-splitting
+        # runs at all; `seal_query_hop` below never sees a field this
+        # one would also have tried to resolve as a local dotted walk.
         def seal_query_field(owner, query, fields, lifecycle, field, ordering: false)
+          return seal_query_hop(owner, query, fields, field, ordering: ordering) if field.to_s.include?("/")
+
           name, *nested = field.to_s.split(".")
           attribute = fields.find { |candidate| candidate.name.to_s == name }
           if nested.empty? && attribute
@@ -367,49 +393,49 @@ module Hecksagain
                   "member, or the engines answer it differently"
           end
 
-          if nested.any? && QuerySpecification::HopPath.hop_head?(field, fields)
-            # ORDER BY refuses a hop OUTRIGHT, right here — unlike a
-            # WHERE hop (deferred below), this doesn't need the
-            # target's shape to answer: an ask is ordered by what its
-            # own answering rows hold, and a hop answers with a
-            # candidate set, not a sort key (see Runtime::ReferenceHop).
-            if ordering
-              raise Malformed,
-                    "#{owner}.#{query.hecks_name} orders by #{field}, which hops through " \
-                    "a reference — an ask is ordered by what its own answering rows " \
-                    "hold, and a hop answers with a candidate set, not a sort key"
-            end
-
-            # RECOGNISED HERE, CHECKED LATER. The head names one of
-            # this aggregate's own references, which is answerable
-            # now — a Reference knows its own target_name at
-            # declaration. What it points AT is not: stamp_references
-            # has already run by this point, but the chapter
-            # (Bluebook, and the owning aggregate's OWN place in
-            # it) does not exist yet, so Reference#resolve would
-            # answer nil for every target in the file, including ones
-            # declared above this one. The tail, and whether the
-            # target even exists, are BluebookBuilder's business —
-            # see validate_query_hops!, which runs once the chapter is
-            # real, for exactly the reason
-            # validate_no_bidirectional_references! already gives for
-            # living at that same later point.
-            return
-          end
-
           raise Malformed,
                 "#{owner}.#{query.hecks_name} asks about #{field}, which #{owner} " \
                 "never declares — a query over a field that does not exist " \
                 "matches nothing and refuses nothing"
         end
 
+        # ORDER BY refuses a hop OUTRIGHT, right here — unlike a WHERE
+        # hop (deferred below), this doesn't need the target's shape to
+        # answer: an ask is ordered by what its own answering rows
+        # hold, and a hop answers with a candidate set, not a sort key
+        # (see Runtime::ReferenceHop).
+        #
+        # A WHERE hop is only RECOGNISED here, and CHECKED LATER. The
+        # head names one of this aggregate's own references, which is
+        # answerable now — a Reference knows its own target_name at
+        # declaration. What it points AT is not: stamp_references has
+        # already run by this point, but the chapter (Bluebook, and the
+        # owning aggregate's OWN place in it) does not exist yet, so
+        # Reference#resolve would answer nil for every target in the
+        # file, including ones declared above this one. The tail, and
+        # whether the target even exists, are BluebookBuilder's
+        # business — see validate_query_hops!, which runs once the
+        # chapter is real, for exactly the reason
+        # validate_no_bidirectional_references! already gives for
+        # living at that same later point.
+        def seal_query_hop(owner, query, fields, field, ordering:)
+          unless QuerySpecification::HopPath.hop_head?(field, fields)
+            raise Malformed,
+                  "#{owner}.#{query.hecks_name} asks about #{field}, which #{owner} " \
+                  "never declares — a query over a field that does not exist " \
+                  "matches nothing and refuses nothing"
+          end
+
+          return unless ordering
+
+          raise Malformed,
+                "#{owner}.#{query.hecks_name} orders by #{field}, which hops through " \
+                "a reference — an ask is ordered by what its own answering rows " \
+                "hold, and a hop answers with a candidate set, not a sort key"
+        end
+
         def seal_ordered_comparator(owner, query, fields, clause)
           return unless ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
-
-          name, *nested = clause.field.to_s.split(".")
-          attribute = fields.find { |candidate| candidate.name.to_s == name }
-          return if attribute &&
-                    QuerySpecification::FieldPath.numeric?(attribute, nested) { |type| declared_value_object(type) }
 
           # A WHERE clause hopping through a reference with an ordered
           # comparator is legitimate ("client whose balance > 500") —
@@ -419,7 +445,12 @@ module Hecksagain
           # same reason any other hop is: whether the tail is even
           # numeric is BluebookBuilder#validate_query_hops!'s question
           # to ask of the TARGET's shape, not this aggregate's own.
-          return if nested.any? && QuerySpecification::HopPath.hop_head?(clause.field, fields)
+          return if clause.field.to_s.include?("/") && QuerySpecification::HopPath.hop_head?(clause.field, fields)
+
+          name, *nested = clause.field.to_s.split(".")
+          attribute = fields.find { |candidate| candidate.name.to_s == name }
+          return if attribute &&
+                    QuerySpecification::FieldPath.numeric?(attribute, nested) { |type| declared_value_object(type) }
 
           held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
           raise Malformed,

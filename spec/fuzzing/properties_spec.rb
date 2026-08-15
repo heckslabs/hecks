@@ -241,9 +241,9 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     it "aggregation_matches_recompute names a count that disagrees with the recomputed eligible rows" do
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
                   instances: {
-                    "Banking::CardPayment#p1" => { account_id: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p2" => { account_id: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p3" => { account_id: "acct-1", status: "authorized" }
+                    "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" }
                   },
                   queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              rows: [{ account: {}, card_payments: 99 }] }] }
@@ -256,10 +256,10 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     it "aggregation_matches_recompute passes a count that matches the recomputed eligible rows" do
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
                   instances: {
-                    "Banking::CardPayment#p1" => { account_id: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p2" => { account_id: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p3" => { account_id: "acct-1", status: "authorized" },
-                    "Banking::CardPayment#p4" => { account_id: "acct-2", status: "disputed" }
+                    "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed" },
+                    "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" },
+                    "Banking::CardPayment#p4" => { account: "acct-2", status: "disputed" }
                   },
                   queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              rows: [{ account: {}, card_payments: 2 }] }] }
@@ -270,8 +270,8 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     it "aggregation_matches_recompute passes a median matching the interpreter's own even/odd convention" do
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
                   instances: {
-                    "Banking::CardPayment#p1" => { account_id: "acct-1", status: "disputed", amount: { cents: 100 } },
-                    "Banking::CardPayment#p2" => { account_id: "acct-1", status: "disputed", amount: { cents: 300 } }
+                    "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed", amount: { cents: 100 } },
+                    "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed", amount: { cents: 300 } }
                   },
                   queries: [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
                              rows: [{ account: {}, card_payments: 200.0 }] }] }

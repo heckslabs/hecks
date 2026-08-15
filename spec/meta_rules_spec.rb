@@ -38,7 +38,7 @@ RSpec.describe "the language's own rules" do
     # name.value }), so the lookup collision is gone rather than ducked.
     @bluebook_id = id_of("Bluebook::Bluebook.Declare", name: v("D"),
                          vision: v("a vision"), classification: v("core"))
-    @aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
+    @aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                           name: v("A"), description: v("an aggregate"))
     # Fully declared, so tests that dispatch further commands against it (an
     # attribute, a command, a seal) are exercising ONE well-formed aggregate,
@@ -54,7 +54,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an aggregate whose description says nothing" do
-    expect { @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
+    expect { @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                                name: v("B"), description: v("")) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a description says something/)
   end
@@ -79,7 +79,7 @@ RSpec.describe "the language's own rules" do
     # an InvariantViolation. The invariant still guards whitespace-only names
     # that would otherwise slip past `!value.to_s.empty?` alone, but can no
     # longer be reached by a plain empty string.
-    expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("")) }
+    expect { @runtime.dispatch("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("")) }
       .to raise_error(Hecksagain::Runtime::TypeMismatch, /ValueObjectName\.value must match/)
   end
 
@@ -88,7 +88,7 @@ RSpec.describe "the language's own rules" do
       # OWNED DIRECTLY BY THE AGGREGATE, so owner_id (what the identity is
       # built from) is the aggregate's own id — the same fact `aggregate_id`
       # carries here, since nothing about this command comes from an entity.
-      @command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate_id: @aggregate_id,
+      @command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
                           name: v("C"), role: v("Someone"), goal: v("do a thing"))
     end
 
@@ -153,7 +153,7 @@ RSpec.describe "the language's own rules" do
   # never has one, permanently, on purpose). Gathering with an empty
   # reference_target is now the legitimate rootless case, not a defect.
   it "allows a rootless read model (no reference_target at all) to gather heads" do
-    read_model_id = id_of("Bluebook::ReadModel.Declare", bluebook_id: @bluebook_id, name: v("P"),
+    read_model_id = id_of("Bluebook::ReadModel.Declare", bluebook: @bluebook_id, name: v("P"),
                           description: v("a projection"), query_name: v("p"),
                           reference_name: v(""), reference_target: v(""))
 
@@ -172,7 +172,7 @@ RSpec.describe "the language's own rules" do
   # "says what it is known by" is Seal's rule now : Declare alone leaves the
   # list empty, and Seal is what notices.
   it "refuses an entity that does not say what it is known by" do
-    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Seal", id: entity_id) }
@@ -192,7 +192,7 @@ RSpec.describe "the language's own rules" do
   # fires on EACH PART as it is appended (`Entity.Identify`), not once at
   # Declare.
   it "admits a bare scalar identity part — the builder resolves its shape, not this rule" do
-    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence")) }
@@ -200,7 +200,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "admits a dotted identity part naming the field inside a value object" do
-    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence.value")) }
@@ -208,7 +208,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an entity identity part with no name at all" do
-    entity_id = id_of("Bluebook::Entity.Declare", aggregate_id: @aggregate_id, owner: v("A"),
+    entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("")) }
@@ -219,7 +219,7 @@ RSpec.describe "the language's own rules" do
   # and "says what it is known by AT ALL" is Seal's, since Seal is the only
   # command dispatched once every part has had its chance to arrive.
   it "admits a bare scalar aggregate identity part" do
-    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
+    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                          name: v("C"), description: v("an aggregate"))
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number")) }
@@ -227,7 +227,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "admits an aggregate known by the field inside its value object" do
-    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
+    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                          name: v("E"), description: v("an aggregate"))
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number.value")) }
@@ -235,7 +235,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an aggregate identity part with no name at all" do
-    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook_id: @bluebook_id,
+    aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                          name: v("F"), description: v("an aggregate"))
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("")) }
@@ -248,7 +248,7 @@ RSpec.describe "the language's own rules" do
   # judge held a command's reference as the STRING "Reference<Customer>" and a
   # `raise Malformed` beside the builder was the only thing checking it.
   it "refuses an argument that references a head nobody declared" do
-    command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate_id: @aggregate_id,
+    command_id = id_of("Bluebook::Command.Declare", owner_id: @aggregate_id, aggregate: @aggregate_id,
                        name: v("C"), role: v("Clerk"), goal: v("do a thing"))
 
     expect do
@@ -258,8 +258,8 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an admitted row that binds no named field" do
-    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("X"))
-    member_id = id_of("Bluebook::Member.Declare", value_object_id: value_object_id, shape: v("X"), position: { value: 0 })
+    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
+    member_id = id_of("Bluebook::Member.Declare", value_object: value_object_id, shape: v("X"), position: { value: 0 })
 
     expect { @runtime.dispatch("Bluebook::Member.Pair", id: member_id, key: v(""), value: v("q")) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
@@ -275,7 +275,7 @@ RSpec.describe "the language's own rules" do
   # saw the rule refuse the case it was written beside is not evidence the rule is
   # true.
   it "seals an aggregate that is fully declared" do
-    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate_id: @aggregate_id, name: v("X"))
+    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
     @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"), type: value_object_id, list: v("false"))
 
     expect { @runtime.dispatch("Bluebook::Aggregate.Seal", id: @aggregate_id) }.not_to raise_error

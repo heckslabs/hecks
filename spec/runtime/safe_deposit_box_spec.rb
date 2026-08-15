@@ -22,7 +22,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
   def rented_box(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: "c", branch_code: { value: "DOWNTOWN" },
+    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
                                                      box_number: { value: 12 }, size: { value: "medium" })
   end
 
@@ -81,7 +81,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     runtime = boot_banking
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: "c", branch_code: { value: "DOWNTOWN" },
+    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
                                                      box_number: { value: 12 }, size: { value: "medium" })
     runtime.dispatch("Banking::SafeDepositBox.Surrender", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 })
 
@@ -133,7 +133,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     rented_box(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c2" },
                      name: { given: "B", family: "Customer" }, email: { address: "b@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer_id: "c2", branch_code: { value: "UPTOWN" },
+    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c2", branch_code: { value: "UPTOWN" },
                                                      box_number: { value: 1 }, size: { value: "small" })
 
     expect { runtime.query("Banking::SafeDepositBox.Rented") }

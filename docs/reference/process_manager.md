@@ -26,7 +26,7 @@ process_manager "Onboarding" do
 
   on "OnboardingCleared", transition: { "screening" => "cleared" } do
     dispatch "Banking::Account.Open", with: {
-      customer_id: :customer, number: :account_number,
+      customer: :customer, number: :account_number,
       kind: { name: "current" }, daily_limit: { cents: 0 }
     }
   end

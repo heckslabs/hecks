@@ -70,7 +70,7 @@ Hecks.bluebook "Identity" do
     # THE OIDC-SHAPED LOOKUP — a token hands over `(issuer, subject)`,
     # never the `key` this aggregate is actually identified by (`key`
     # is a caller-side derivation, deliberately not reproduced here —
-    # see `Link`'s own comment). `identity_id` rides the row already,
+    # see `Link`'s own comment). `identity` rides the row already,
     # from `reference_to Identity` above, so a caller reads it straight
     # off the match rather than needing a second query.
     query "ResolvedBy" do
