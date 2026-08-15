@@ -147,6 +147,11 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :context, AttachesToContext
 
       sets :attaches_to, append: { value: :context }
+      # S16, ADR 0026 — the language's own self-use gate: an append is
+      # exactly the shape banking's own ensures already checks ("a
+      # ledger entry was posted") { ledger.size == old.ledger.size + 1
+      # } — one more row than before, never fewer, never the same.
+      ensures("the list grew by exactly one") { attaches_to.size == old.attaches_to.size + 1 }
       emits "ChapterAttached"
     end
 

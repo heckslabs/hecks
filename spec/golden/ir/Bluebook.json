@@ -150,7 +150,10 @@
             "ChapterAttached"
           ],
           "ensures": [
-
+            {
+              "canonical": "attaches_to.size == old.attaches_to.size + 1",
+              "description": "the list grew by exactly one"
+            }
           ],
           "from": null,
           "givens": [
