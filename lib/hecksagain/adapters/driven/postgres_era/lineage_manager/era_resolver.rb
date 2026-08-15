@@ -3,7 +3,7 @@ require_relative "../../../../runtime/storage_shape"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       module LineageManager
         # The boot-time resolution: which era IS this checkout? First
         # boot holds era 1; a quiet reboot changes nothing; a
@@ -11,7 +11,7 @@ module Hecksagain
         # unheld shape goes to the minter.
         module EraResolver
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
-            db = Postgres.connect_for(bluebook.name, settings)
+            db = PostgresEra.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
             lineage.ensure_base!
             role = settings[:role] || settings["role"]
@@ -56,7 +56,7 @@ module Hecksagain
             matched, = shapes.find { |_, shape| shape == current_shape }
             if matched
               # A held-but-superseded era — an old checkout still running.
-              # It may keep BOOTING and READING (Postgres is the one
+              # It may keep BOOTING and READING (PostgresEra is the one
               # adapter that recognizes this rather than refusing), but it
               # may not keep WRITING: the shared era fence was already
               # advanced past this ordinal by whichever mint superseded

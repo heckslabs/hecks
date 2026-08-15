@@ -1,6 +1,6 @@
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module TransformInstaller
           # The jsonb rule transforms — installed once, idempotently. Kept

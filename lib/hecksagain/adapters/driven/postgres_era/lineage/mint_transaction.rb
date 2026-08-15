@@ -3,7 +3,7 @@ require_relative "../../../../runtime/storage_shape"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module MintTransaction
           # ── the mint transaction ───────────────────────────────────────
@@ -93,7 +93,7 @@ module Hecksagain
           # `aggregates:`/`era:` cover the read-cache side of the same
           # story: unlike the journal (immutable, owner-provisioned once),
           # each aggregate's head_snapshot table is a table an app role
-          # must itself INSERT/UPDATE/DELETE into — Postgres#append writes
+          # must itself INSERT/UPDATE/DELETE into — PostgresEra#append writes
           # it directly, not through a view — so it needs real DML grants,
           # not just the SELECT a derived read surface would need. `era:`
           # is the ordinal THIS role is about to write under (the one

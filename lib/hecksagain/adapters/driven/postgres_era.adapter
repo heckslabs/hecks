@@ -1,4 +1,4 @@
-Hecks.adapter "Postgres" do
+Hecks.adapter "PostgresEra" do
   port  "persistence"
   field :database
   field :role

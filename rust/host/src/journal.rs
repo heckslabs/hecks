@@ -343,8 +343,8 @@ pub async fn delete_saga<C: GenericClient>(
 // the sole source `dispatch::handle` rehydrates from; the functions
 // below write each accepted command's own mutations (the kernel's new
 // "mutations" output field, adf38fd) into the SAME per-aggregate,
-// era-partitioned schema Ruby's own Postgres adapter uses
-// (lib/hecksagain/adapters/driven/postgres.rb + postgres/lineage.rb) —
+// era-partitioned schema Ruby's own PostgresEra adapter uses
+// (lib/hecksagain/adapters/driven/postgres_era.rb + postgres_era/lineage.rb) —
 // same table names, same era fence — so the two runtimes can point at
 // the SAME database and a human/Ruby tooling reading it sees this
 // runtime's writes the same way Ruby's own `head_view` already
@@ -502,7 +502,7 @@ pub struct Mutation<'a> {
     pub state: &'a serde_json::Value,
 }
 
-/// The SAME two-step append `Postgres#append` (postgres.rb:141-166)
+/// The SAME two-step append `PostgresEra#append` (postgres_era.rb:176-201)
 /// does for a live Ruby write: journal INSERT first (era-tagged,
 /// `RETURNING ordinal`), then a head-snapshot upsert guarded by
 /// `WHERE ordinal < EXCLUDED.ordinal` (never regress a snapshot from

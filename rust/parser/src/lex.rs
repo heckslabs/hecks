@@ -567,7 +567,7 @@ fn matching_brace_body(text: &str) -> Option<(String, &str)> {
     None
 }
 
-/// `Pizzas::Order.persisted_by("Postgres")` / `Pizzas::Order.port
+/// `Pizzas::Order.persisted_by("PostgresEra")` / `Pizzas::Order.port
 /// "PaymentGateway" do` — a HECKSAGON body line addressed to one already-
 /// declared aggregate, via Ruby's own `BindingProxy`
 /// (`lib/hecksagain/bluebook/dsl/binding_proxy.rb`): `<Domain>::

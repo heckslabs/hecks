@@ -4,7 +4,7 @@ require_relative "../../../../runtime/storage_shape"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module EraStore
           # Every held text is verified against its raw-byte digest on the

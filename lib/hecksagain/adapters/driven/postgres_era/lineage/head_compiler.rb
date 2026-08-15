@@ -2,13 +2,13 @@ require_relative "../../../../naming"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       class Lineage
         module HeadCompiler
           # ── head compilation ───────────────────────────────────────────
 
           # The snapshot table backing one aggregate's CURRENT era: one row
-          # per live id, upserted transactionally by Postgres#append
+          # per live id, upserted transactionally by PostgresEra#append
           # alongside the journal insert it belongs to, never derived by
           # scanning history thereafter. Idempotent and unguarded by
           # `provisioner?` — a plain per-aggregate table, the same
@@ -286,7 +286,7 @@ module Hecksagain
           # THE LIVE HALF used to be `WHERE era = era AND aggregate = name`
           # over the raw journal — a DISTINCT ON that re-reduced this era's
           # ENTIRE write history on every single read, the exact cost this
-          # snapshot table exists to avoid (Postgres#append keeps it
+          # snapshot table exists to avoid (PostgresEra#append keeps it
           # current, transactionally, as of every write). The union below
           # is bounded by LIVE RECORD COUNT for this era instead of its
           # write count; the ancestor side was already bounded that way

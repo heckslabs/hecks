@@ -204,13 +204,13 @@ pub fn resolve_identity(instances: &Value, issuer: &str, subject: &str) -> Optio
 }
 
 // `Embryonaut::Member` is NOT in `dispatch::read`'s own `instances` --
-// it's permanently `persisted_by("Postgres")` (its rekey/translation
+// it's permanently `persisted_by("PostgresEra")` (its rekey/translation
 // history needs real SQL, embryonaut.hecksagon's own comment), so it
 // was never migrated into rust/host's flat `hecks_lambda_journal` at
 // all (bin/bootstrap_lambda_data's own header: "Member is dispatched
 // LOCALLY ... against whatever DATABASE_URL names"). Queried straight
 // off `member_head` instead -- the SAME era-scoped read view Ruby's
-// own `Adapters::Postgres#all`/`#find` already read from
+// own `Adapters::PostgresEra#all`/`#find` already read from
 // (`SELECT id, state FROM #{lineage.head_view(table)}`,
 // `head_view(name) = "#{name}_head"`, `table = aggregate.storage_name`
 // = "member") -- confirmed live against the real deployed database. A
@@ -238,7 +238,7 @@ async fn member_rows(client: &Mutex<Client>) -> anyhow::Result<Vec<(String, Valu
     journal::read_lineage_head_all(&*guard, "member").await
 }
 
-// `Adapters::Postgres#append`, ported verbatim (postgres.rb:141-166) --
+// `Adapters::PostgresEra#append`, ported verbatim (postgres_era.rb:176-201) --
 // confirmed against the real deployed schema, not just source reading.
 // The SAME transactional, ordinal-tracked write EVERY OTHER field-set
 // on member_head already goes through (`Member.Admit`,

@@ -6,7 +6,7 @@ RSpec.describe Hecksagain::Projector::Exporter do
     # Memory — `Exporter.lineage`'s whole job is answering "which
     # adapter is this aggregate actually bound to," so a spec that
     # rebinds Order to Memory first would only ever prove the empty
-    # case. `POSTGRES_ADAPTER` (the DSL declaration, InMemoryDomain's
+    # case. `POSTGRES_ERA_ADAPTER` (the DSL declaration, InMemoryDomain's
     # own constant) plus a plain `require` of the Ruby class — the same
     # pairing bin/project_rust's own header explains — is enough:
     # `lineage_capable?`'s `require "pg"` stays lazy, inside `Postgres.
@@ -19,7 +19,7 @@ RSpec.describe Hecksagain::Projector::Exporter do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
+        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
         Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.hecksagon"))
       end

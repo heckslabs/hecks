@@ -38,7 +38,7 @@ RSpec.describe "every refusal the corpus provokes" do
     # `rm_rf(data/)` isolates a Heki-backed copy ("banking") for real —
     # copying the DIRECTORY copies the store, and wiping `data/` resets
     # it. It isolates nothing for "pizzas": examples/pizzas' own .world
-    # declares `persisted_by("Postgres")` unconditionally (a fixed
+    # declares `persisted_by("PostgresEra")` unconditionally (a fixed
     # connection string, not a path inside the copied tree — see
     # support/postgres_probe.rb's own note), so the copy still boots
     # against the real, shared hecks_pizzas database. `io: true` and

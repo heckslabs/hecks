@@ -1,8 +1,8 @@
 require "json"
 
 require_relative "sql_query_builder"
-require_relative "postgres/lineage"
-require_relative "postgres/lineage_manager"
+require_relative "postgres_era/lineage"
+require_relative "postgres_era/lineage_manager"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../query_specification/common/order_by"
 require_relative "../../runtime/errors"
@@ -12,12 +12,16 @@ require_relative "../../runtime/registry"
 
 module Hecksagain
   module Adapters
-    # The first enforcement-grade persistence adapter — and the only one
-    # that declares the LINEAGE capability: it may act on shape drift
+    # The enforcement-grade persistence adapter — and the only one that
+    # declares the LINEAGE capability: it may act on shape drift
     # (translate, fork, merge) where every other adapter can only refuse
-    # toward it.
+    # toward it. Sibling to the plain `Postgres` adapter (postgres.rb),
+    # which is the same database with none of this machinery — pick
+    # PostgresEra only once a domain actually needs to survive a shape
+    # change live. See docs/postgres-era-adapter-split-plan.md for why
+    # the two are split and what each one carries.
     #
-    # Storage model (see postgres/lineage.rb for the DDL):
+    # Storage model (see postgres_era/lineage.rb for the DDL):
     # - One journal per DOMAIN, list-partitioned by era, one ordinal
     #   sequence spanning partitions. Appends go there; nothing updates
     #   or deletes a journal row (immutability by privilege — UPDATE and
@@ -34,13 +38,13 @@ module Hecksagain
     #   why the gate survives this normalization.
     # - Query pushdown is the shared SqlQueryBuilder: every declared
     #   operator compiles fully into SQL, or the query refuses loudly.
-    class Postgres
+    class PostgresEra
       include SqlQueryBuilder
 
       attr_reader :aggregate
 
-      # The capability idiom: only Postgres answers true, and only
-      # Postgres carries an era_check! for the boot gate to delegate to.
+      # The capability idiom: only PostgresEra answers true, and only
+      # PostgresEra carries an era_check! for the boot gate to delegate to.
       def self.lineage_capable? = true
 
       def self.era_check!(registry:, bluebook:, current_text:, settings:, directory: nil)
@@ -52,13 +56,13 @@ module Hecksagain
 
       def self.connect_for(name, settings)
         # LAZY, ON PURPOSE — same reasoning as Sqlite's own initialize:
-        # a domain that never wires Postgres should never need the gem.
+        # a domain that never wires PostgresEra should never need the gem.
         require "pg"
 
         declared = settings[:database] || settings["database"]
         if declared.to_s.empty?
           raise Runtime::WiringError,
-                "#{name} binds Postgres, which needs a database connection, " \
+                "#{name} binds PostgresEra, which needs a database connection, " \
                 "but its world declares no \"database\"."
         end
 
@@ -92,7 +96,7 @@ module Hecksagain
         connection
       rescue PG::Error => error
         raise Runtime::WiringError,
-              "cannot bind Postgres at #{declared} for #{name}: #{error.message.strip}"
+              "cannot bind PostgresEra at #{declared} for #{name}: #{error.message.strip}"
       end
 
       def initialize(aggregate:, settings: {}, root: nil)
@@ -304,7 +308,7 @@ module Hecksagain
 
       def select_list = "id, state"
       def from_relation = quoted_head
-      def dialect_name = "Postgres"
+      def dialect_name = "PostgresEra"
       def empty_in_clause = "FALSE"
 
       def placeholder(binds, value)

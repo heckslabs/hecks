@@ -11,7 +11,7 @@ require_relative "../../../naming"
 
 module Hecksagain
   module Adapters
-    class Postgres
+    class PostgresEra
       # The lineage topology inside one Postgres database: one journal
       # per domain, LIST-partitioned by era, with a single ordinal
       # sequence spanning partitions (total order across eras is
@@ -57,7 +57,7 @@ module Hecksagain
       # single autocommit INSERT statement stops a slower one from finishing
       # after a faster one that started later — so "ordinal order" and
       # "commit order" were formally two different total orders even with no
-      # mint anywhere near either write. `Postgres#append` now holds
+      # mint anywhere near either write. `PostgresEra#append` now holds
       # `pg_advisory_xact_lock(hashtext('hecks_ordinal:' || domain))` for the
       # length of its own transaction, a DIFFERENT key from `mint_era!` and
       # `merge_tail!`'s `hecks_eras:domain` — so plain writes serialize
