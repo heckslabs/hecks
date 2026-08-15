@@ -8,6 +8,17 @@ Hecks.hecksagon "Banking" do
   # override here; none of Banking's own aggregates need one.
   persisted_by "Heki"
   projected_by "SqliteProjection"
+
+  # S13, ADR 0025 (coverage standard) — `subscribe` is declarative
+  # only (its own reference page says so plainly: nothing routes a
+  # subscribed event by itself), but the fact it names is real:
+  # Compliance really does emit this, across the same cross-Lambda
+  # boundary the two `across "Compliance"` policies below already
+  # cross, and Banking really does care when it happens. Whatever
+  # actually reacts is still one of those two `policy`s, wired the
+  # ordinary way — this line only records that the fact is expected
+  # to arrive from outside.
+  subscribe "Compliance.AccountFreezeReviewOpened"
 end
 
 # A FRAMEWORK MEMBER BRINGS ITS OWN SHAPE, NOT ITS OWN PERSISTENCE —

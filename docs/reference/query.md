@@ -400,6 +400,16 @@ the word refuses where it is written, before anything can boot:
 Hecksagain::Bluebook::DSL::QueryBuilder.build("Paged") { cursor :tag }  # ~> Malformed: no interpreter implements cursor pagination
 ```
 
+**Written exemption (ADR 0025 principle 4)** — ADR 0025's own table
+asked for corpus use here, with no exemption listed, but a WORD that
+refuses unconditionally at build has no corpus use to give: any
+declaration anywhere would refuse the bluebook that carried it, so
+"a real chapter uses `cursor`" and "the corpus builds" are mutually
+exclusive claims. S15 (ADR 0026, "the Paging sub-language") is where
+this gets resolved for real — `cursor`/`offset`/`nulls`/`limit` leave
+the core grammar into their own attachment — landing a real corpus use
+here first would be work S15 immediately throws away.
+
 ## authorize
 
 <!-- generated:begin word=authorize -->
@@ -505,4 +515,12 @@ runtime.registry.bluebook("Banking").aggregate("Account").queries.map(&:inspecti
 
 Which is the whole of what it does today. The rows are the same rows
 either way — a hint nobody reads is a comment with a syntax.
+
+**Written exemption (ADR 0025 principle 4)** — a real corpus use would
+be vacuous by construction: no adapter here implements the hook this
+declares, so declaring it on a real query would change nothing the
+query itself does and would not exercise any path this doctest above
+doesn't already. The honest gap is upstream of the DSL word — an
+adapter that actually implements `inspect_query` is what would give
+this a real corpus use worth having.
 

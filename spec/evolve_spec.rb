@@ -25,7 +25,16 @@ RSpec.describe "the evolve surgery" do
     with_copy do |path|
       rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
       expect(rows.size).to be > 70
-      expect(rows.map { |row| row[:status] }.uniq).to eq(["admitted"])
+      # S13, ADR 0025 — has_many/has_one/belongs_to now carry a real
+      # `status: "deprecated"` (they refuse unconditionally outside
+      # shadow_parse; the doc table said "admitted" while the builder
+      # already refused every live use). The claim this test actually
+      # holds — a row with NO status: column reads back as "admitted",
+      # never blank — survives that: every value present is one of the
+      # two real statuses, never the empty string a missing column
+      # would leave unfilled.
+      expect(rows.map { |row| row[:status] }.uniq.sort).to eq(["admitted", "deprecated"])
+      expect(rows.map { |row| row[:status] }).to all(satisfy { |status| !status.to_s.empty? })
     end
   end
 

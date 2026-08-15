@@ -266,9 +266,17 @@ Hecks.bluebook "Bluebook" do
       # the singular of what was written — is a Ruby-builder default, not a
       # fact this table can carry ; the ATTRIBUTE it lands on is the whole
       # of what a projected parser needs to know.
-      member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
-      member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
-      member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      # S13, ADR 0025 (coverage standard) — all three refuse UNCONDITIONALLY
+      # outside `MetaValidator.shadow_parsing?` (AggregateBuilder#has_many/
+      # #has_one/#belongs_to each raise `Malformed` naming reference_to's
+      # own replacement) — the doc table said "admitted" while the builder
+      # already refused every live use, which is exactly the drift this
+      # column exists to prevent. `deprecated` here is documentation
+      # catching up to a fact the runtime already enforced; it changes
+      # nothing about what admits or refuses.
+      member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated"
+      member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated"
+      member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated"
       member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field"
       member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: ""
       member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: ""

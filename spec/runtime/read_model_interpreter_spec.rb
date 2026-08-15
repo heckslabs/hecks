@@ -43,11 +43,14 @@ RSpec.describe "a read model's query options" do
     Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
   end
 
-  # SIX disputed amounts — one more than ComplianceDashboard's `limit 5` —
-  # so the cap actually trims something, not just fits everything given.
-  # A seventh, undisputed payment proves `where(status: "disputed")`
-  # actually filters, not just "everything CardPayment holds".
-  DISPUTED_AMOUNTS = [100, 600, 300, 500, 200, 400].freeze
+  # ELEVEN disputed amounts (S13, ADR 0025 — coverage standard,
+  # ComplianceDashboard gained a real `offset 5` alongside its own
+  # `limit 5`) — enough for TWO full pages (the top 5, then the next
+  # 5) plus one beyond both, so the cap trims something on EACH page,
+  # not just the first. A twelfth, undisputed payment proves
+  # `where(status: "disputed")` actually filters, not just "everything
+  # CardPayment holds".
+  DISPUTED_AMOUNTS = [100, 600, 300, 500, 200, 400, 150, 550, 250, 450, 50].freeze
 
   def seed_disputed_card_payments
     Banking::Customer.register(reference: { value: "c1" }, name: { given: "A", family: "B" },
@@ -73,7 +76,9 @@ RSpec.describe "a read model's query options" do
     rows = runtime.query("Banking.compliance_dashboard", account: "acct-1")
     payments = rows.first[:card_payments]
 
-    expect(payments.map { |p| p[:amount][:cents] }).to eq([600, 500, 400, 300, 200])
+    # `offset 5` (S13, ADR 0025) skips the top 5 — the SECOND page, not
+    # the first, still ordered and still capped at 5.
+    expect(payments.map { |p| p[:amount][:cents] }).to eq([300, 250, 200, 150, 100])
   end
 
   it "refuses at build with zero many-side heads" do
@@ -158,7 +163,7 @@ RSpec.describe "a read model's query options" do
 
     rows = runtime.query("Banking.customer_portfolio", customer: "c1")
     expect(rows.first[:card_payments].map { |p| p[:amount][:cents] })
-      .to contain_exactly(100, 600, 300, 500, 200, 400, 999)
+      .to contain_exactly(100, 600, 300, 500, 200, 400, 150, 550, 250, 450, 50, 999)
   end
 
   # ADVERSARIAL, not incidental: read_model_builder.rb's own `include`
@@ -268,7 +273,8 @@ RSpec.describe "a read model's query options" do
       seed_disputed_card_payments
 
       rows = runtime.query("Banking.compliance_dashboard", account: "acct-1")
-      expect(rows.first[:card_payments].map { |p| p[:amount][:cents] }).to eq([600, 500, 400, 300, 200])
+      # `offset 5` — see the in-memory version of this same assertion above.
+      expect(rows.first[:card_payments].map { |p| p[:amount][:cents] }).to eq([300, 250, 200, 150, 100])
     end
   end
 

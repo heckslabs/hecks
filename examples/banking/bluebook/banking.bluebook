@@ -33,6 +33,11 @@ Hecks.bluebook "Banking", version: "v1" do
     where(status: "disputed")
     order_by :amount, :desc
     limit 5
+    # `offset` (S13, ADR 0025, coverage standard) — the SIXTH-through-
+    # tenth worst disputes, a real second page a reviewer reaches for
+    # once the first five are cleared, skip-then-take the same as a
+    # `query`'s own.
+    offset 5
   end
 
   # TWO MORE SHAPES — REDUCTIONS, not gathered rows. A compliance
@@ -621,7 +626,11 @@ Hecks.bluebook "Banking", version: "v1" do
 
     identified_by :serial
 
-    attribute :nickname,    CardNickname
+    # OPTIONAL, genuinely (S13, ADR 0025, coverage standard) — a card
+    # issued the same day it's handed over often carries no nickname
+    # yet; `Active`'s own query below relies on this to demonstrate
+    # `nulls` for real, not on an empty string standing in for absent.
+    attribute :nickname,    CardNickname, optional: true
     attribute :daily_fee,   DailyFee
     attribute :withdrawals, list_of(Withdrawal)
 
@@ -759,17 +768,28 @@ Hecks.bluebook "Banking", version: "v1" do
       emits "ATMCardRetired"
     end
 
+    # `nulls :last` (S13, ADR 0025, coverage standard) — an unnamed
+    # card is real, not a gap to guess about: it sorts after every
+    # named one instead of wherever a bare comparison would leave it
+    # (a nil losing every "<" against a real String is the OLD,
+    # accidental behavior nothing here declared on purpose).
     query "Active" do
-      description "Live cards in nickname order — a card nobody named sorts before every card that has one."
+      description "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first."
       where(status: "active")
       order_by :nickname
+      nulls :last
     end
 
+    # `offset 1` (S13, ADR 0025, coverage standard) — the second-
+    # cheapest three, skipping the very cheapest: the same skip-then-
+    # take `Sighting.Paged` demonstrates on the Query reference page,
+    # now for real.
     query "ByFee" do
       description "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical."
       where(status: "active")
       order_by :daily_fee
       limit 3
+      offset 1
     end
   end
 

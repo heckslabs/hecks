@@ -175,6 +175,38 @@ on the list:
 Banking::Account.find("en-a1").ledger[0][:state]  # => "posted"
 ```
 
+### Reading through `parent`
+
+Not a grammar word — `parent` is a plain Ruby method
+(`Runtime::EntityInterpreter#parent`), reachable only INSIDE a `given`/
+`ensures` expression written on an entity's own command. An entity has
+no life apart from the aggregate holding it, so its own rules
+routinely need to ask about THAT record, one level up — `LedgerEntry`'s
+own `Amend`/`Reverse` both check the owning `Account`'s customer and
+the account's own lifecycle state before touching one entry:
+
+```ruby
+reverse = runtime.registry.bluebook("Banking").aggregate("Account")
+                  .entities.find { |e| e.hecks_name == "LedgerEntry" }
+                  .commands.find { |c| c.hecks_name == "Reverse" }
+reverse.givens.map(&:canonical)  # => ["parent.customer.status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
+```
+
+Enforced, not decorative — a fresh account whose customer is
+suspended refuses an entry-level command through exactly this
+reading, before `state == "posted"` (the entry's OWN field, no
+`parent.` needed) is ever reached:
+
+```ruby
+runtime.dispatch("Banking::Customer.Register", reference: { value: "pa-1" },
+                 name: { given: "Parent", family: "Reader" }, email: { address: "pa@example.com" })
+account = Banking::Account.open(customer: "pa-1", number: { value: "pa-a1" },
+                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+account.credit(amount: { cents: 1_000 }, narrative: { text: "opening deposit" })
+runtime.dispatch("Banking::Customer.Suspend", reference: "pa-1", standing: { value: "under review" })
+runtime.dispatch("Banking::Account.LedgerEntry.Reverse", number: { value: "pa-a1" }, sequence: { value: 1 }, narrative: { text: "reversing" })  # ~> GivenNotMet: customer is active
+```
+
 ## query
 
 <!-- generated:begin word=query -->

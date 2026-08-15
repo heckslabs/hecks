@@ -199,7 +199,7 @@ One direction only: if the target aggregate also references this one back, the b
 ## has_many
 
 <!-- generated:begin word=has_many -->
-`has_many type, as:, optional:` — fills `attributes`
+`has_many type, as:, optional:` — fills `attributes`, **status: deprecated**
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -217,7 +217,7 @@ Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attri
 ## has_one
 
 <!-- generated:begin word=has_one -->
-`has_one type, as:, optional:` — fills `attributes`
+`has_one type, as:, optional:` — fills `attributes`, **status: deprecated**
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -235,7 +235,7 @@ Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; a
 ## belongs_to
 
 <!-- generated:begin word=belongs_to -->
-`belongs_to type, as:, optional:` — fills `attributes`
+`belongs_to type, as:, optional:` — fills `attributes`, **status: deprecated**
 
 | argument | kind | required | fills |
 |---|---|---|---|

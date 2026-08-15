@@ -1,5 +1,10 @@
 Hecks.world "Banking" do
   realm "Examples"
+  # S13, ADR 0025 (coverage standard) — the chapter itself already
+  # pins `version: "v1"`; this is that same pin restated on the
+  # world, so an unversioned FQN dispatched against this deployment
+  # resolves to it rather than the boot refusing to guess.
+  latest "v1"
   persisted_by("Heki") do
     dir "data"
   end

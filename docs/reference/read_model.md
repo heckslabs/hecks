@@ -116,6 +116,18 @@ second = Banking::CardPayment.authorize(account: "rm-a1", authorisation: { value
 second.capture
 second.dispute(disputed_by: "rm-1")
 
+# SEVEN, on the OTHER account (S13, ADR 0025 — ComplianceDashboard
+# gained a real `offset 5` alongside its own `limit 5`) — enough for
+# the `where`/`order_by`/`offset` sections below to demonstrate a
+# genuine second page, without disturbing "rm-a1"'s own two disputes
+# that `count`/`median` already rely on above.
+[4_200, 900, 500, 400, 300, 200, 100].each_with_index do |cents, index|
+  card = Banking::CardPayment.authorize(account: "rm-a2", authorisation: { value: "auth-page-#{index}" },
+                                        amount: { cents: cents }, merchant: { value: "Shop#{index}" })
+  card.capture
+  card.dispute(disputed_by: "rm-1")
+end
+
 runtime.dispatch("ReadModelReference::Depot.OpenDepot", code: { value: "dp-1" })
 runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-1" }, depot: "dp-1", region: { value: "north" }, weight: { value: 30 })
 runtime.dispatch("ReadModelReference::Parcel.Accept", label: { value: "p-2" }, depot: "dp-1", region: { value: "north" }, weight: { value: 20 })
@@ -339,7 +351,7 @@ confines itself to the one many-side head — the account it is rooted on
 comes back whatever its own status:
 
 ```ruby
-dashboard = runtime.query("Banking.ComplianceDashboard", account: "rm-a1").first
+dashboard = runtime.query("Banking.ComplianceDashboard", account: "rm-a2").first
 dashboard[:card_payments].map { |row| row[:status] }  # => ["disputed", "disputed"]
 dashboard[:account][:status]  # => "open"
 ```
@@ -362,10 +374,12 @@ optional, but because the underlying fetch has to answer in SOME
 order, and id is the fallback every engine agrees on.
 
 `ComplianceDashboard` orders its disputes by amount, largest first —
-the five that cost the bank most:
+which is what makes `dashboard` (above) the SECOND page rather than an
+arbitrary two: the five biggest (4200, 900, 500, 400, 300) are the ones
+`offset 5` skips, and 200/100 are what's left:
 
 ```ruby
-dashboard[:card_payments].map { |row| row[:amount][:cents] }  # => [4200, 900]
+dashboard[:card_payments].map { |row| row[:amount][:cents] }  # => [200, 100]
 ```
 
 ## limit
@@ -414,6 +428,14 @@ Skip-then-take, the same reading SQL gives `LIMIT n OFFSET m`. Taking
 first and skipping after would have answered a single parcel here, and
 nothing at all one page further on.
 
+Real, not only synthetic — banking's own `ComplianceDashboard`
+declares it for the same reason: the sixth-through-tenth worst
+disputes, a genuine second page once the first five are reviewed:
+
+```ruby
+runtime.registry.bluebook("Banking").read_model("ComplianceDashboard").offset.value  # => 5
+```
+
 ## cursor
 
 <!-- generated:begin word=cursor -->
@@ -434,6 +456,11 @@ the word refuses where it is written:
 ```ruby
 Hecksagain::Bluebook::DSL::ReadModelBuilder.build("Paged") { include ReadModelReference::Parcel; cursor :label }  # ~> Malformed: no interpreter implements cursor pagination
 ```
+
+**Written exemption (ADR 0025 principle 4)** — same reasoning as
+`Query`'s own `cursor` section: a word that refuses unconditionally at
+build has no corpus use to give, and S15 removes it from the core
+grammar regardless.
 
 ## authorize
 
@@ -494,6 +521,13 @@ the same thing twice running:
 runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").null_semantics.mode  # => :last
 ```
 
+**Written exemption (ADR 0025 principle 4)** — the one real read model
+here shaped for `where`/`order_by`/`limit`/`offset` at all
+(`ComplianceDashboard`, above) orders by `CardPayment#amount`, which
+is not optional; no read model in this corpus has an ordered single-
+collection view whose ordering field can genuinely be absent, so
+there is nothing real to demonstrate `nulls` sorting against yet.
+
 ## inspect_query
 
 <!-- generated:begin word=inspect_query -->
@@ -515,4 +549,10 @@ regardless — no inspection came back, and nothing refused either:
 ```ruby
 runtime.registry.bluebook("ReadModelReference").read_model("DepotManifest").inspection.mode  # => :sql
 ```
+
+**Written exemption (ADR 0025 principle 4)** — the sentence above is
+the reason: the read model runtime never reaches the code this word
+gates at all, so a real corpus declaration would be strictly inert —
+even less than `Query`'s own version, which is at least a live
+capability gate against `Ports::Query.validate!`.
 

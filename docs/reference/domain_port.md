@@ -136,6 +136,16 @@ told = runtime.dispatch("DomainPortReference::Shipment.Carrier.Delivered", waybi
 told.events.map(&:name)  # => ["DeliveryReported"]
 ```
 
+**Written exemption (ADR 0025 principle 4)** — no real corpus member
+declares `tells`; pizzas' `PaymentGateway.Receive` (the one real
+inbound port operation this corpus has) still spells it `operation`.
+The MECHANISM `tells` names is proven for real by that call — the two
+words fill the same `PortOperation` construct, identically — what is
+unproven is only the SPELLING, and giving `tells` its own separate
+corpus member would mean inventing a second inbound integration this
+codebase does not otherwise need, for a word that changes nothing
+about how the runtime behaves once declared.
+
 Nothing goes back. The event is the whole of it, and what happens next
 is a `policy`'s business:
 
@@ -225,4 +235,13 @@ runtime.registry.ports.keys.sort  # => ["Ledger", "extraction", "persistence"]
 Which is the difference the prose above is drawing. A driving port is
 part of the domain's own surface; a resource port is a socket an
 adapter plugs into, and it has no operations of its own to address.
+
+**Written exemption (ADR 0025 principle 4)** — every resource port a
+real domain here actually needs (`persisted_by`, `projected_by`,
+`opened_by`) is a FRAMEWORK-level default (`hecksagon_builder.rb`'s
+own settings words), never a project declaring its own `port "X" do
+verb "..." end` line — so nothing in `examples/` or
+`lib/hecksagain/framework/` exercises the bare construct this section
+documents. `writing-an-adapter.md`'s own worked example is the closest
+this repo has to a real one, and it is a guide, not a corpus member.
 

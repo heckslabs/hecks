@@ -1,6 +1,13 @@
 Hecks.bluebook "Identity" do
   vision "Authentication proves an identifier; the organization decides what that identity means."
-  supporting
+  # S13, ADR 0025 (coverage standard) — GENERIC, not `supporting`: an
+  # OIDC-shaped external identifier is the textbook generic subdomain
+  # (Vernon's own example of one), off-the-shelf and buyable —
+  # `Governance` (role/scope RBAC beside it) stays `supporting`
+  # instead, since ITS OWN model is bespoke to this codebase's actor/
+  # role/scope shape, not a drop-in replaceable concept the way an
+  # identity provider is.
+  generic
 
   aggregate "Identity" do
     description "A stable organizational identity, independent of how it was authenticated."

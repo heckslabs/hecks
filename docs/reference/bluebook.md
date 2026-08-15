@@ -127,6 +127,15 @@ Nothing about the domain's own shape depends on it:
 Ledgering::Folio.open_folio(number: { value: "f-1" }).number.value  # => "f-1"
 ```
 
+**Written exemption (ADR 0025 principle 4)** — no bluebook in THIS
+repository's own corpus renames itself, so the doctest above is
+necessarily synthetic. The word is real, and used for real, outside
+it: `embryonautfoundersapp.bluebook` (the sibling `embryonaut_console`
+repo, formerly `embryonaut.bluebook`) declares `formerly_known_as
+"Embryonaut"` on its own chapter, bridging real production journal/
+era/approval rows onto the renamed domain the day it deployed under
+the new name, zero data loss, real Member rows confirmed intact.
+
 ## core
 
 <!-- generated:begin word=core -->

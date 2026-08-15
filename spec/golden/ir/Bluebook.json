@@ -9118,6 +9118,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -9144,6 +9148,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -9170,6 +9178,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [

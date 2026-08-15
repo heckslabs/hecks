@@ -1771,7 +1771,7 @@
           "default": null,
           "list": false,
           "name": "nickname",
-          "optional": false,
+          "optional": true,
           "pattern": null,
           "type": "CardNickname"
         },
@@ -2194,9 +2194,12 @@
           "attributes": [
 
           ],
-          "description": "Live cards in nickname order — a card nobody named sorts before every card that has one.",
+          "description": "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.",
           "limit": null,
           "name": "Active",
+          "null_semantics": {
+            "mode": "last"
+          },
           "order_by": {
             "direction": "asc",
             "field": "nickname"
@@ -2218,6 +2221,9 @@
             "value": "3"
           },
           "name": "ByFee",
+          "offset": {
+            "value": "1"
+          },
           "order_by": {
             "direction": "asc",
             "field": "daily_fee"
@@ -6190,6 +6196,9 @@
         "value": "5"
       },
       "name": "ComplianceDashboard",
+      "offset": {
+        "value": "5"
+      },
       "order_by": {
         "direction": "desc",
         "field": "amount"
