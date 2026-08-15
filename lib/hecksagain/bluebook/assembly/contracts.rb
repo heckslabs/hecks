@@ -298,11 +298,19 @@ module Hecksagain
         # A member's pairs are an OPEN MAP, which is why Member is its own root in
         # the language. The IR keeps them as a plain hash on the value object, so
         # they are assembled with their shape rather than as a construct.
+        # S17, ADR 0026 — Member is a genuine entity now, nested under
+        # ValueObject (`entity "Member"`, shape.bluebook). It no longer
+        # holds a `shape` field at all (that was the free-text, un-parsed
+        # spelling a standalone root once needed ; an entity's element is
+        # never serialized as text) — only `position` (walk-minted, see
+        # `entity_own_identity`, judge.rb) and `pairs` (still an open map,
+        # still one row per entry, still why a value object cannot hold it
+        # directly).
         "Member" => Contract.new(
           holder: nil, make: nil,
           fields: {},
           rows: { pairs: :pair_rows },
-          derived: { position: :walk, shape: :parent, pairs: [:folded, %i[members], nil] }
+          derived: { position: :walk, pairs: [:folded, %i[members], nil] }
         )
       }.freeze
     end

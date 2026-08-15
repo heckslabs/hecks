@@ -112,7 +112,15 @@ module Hecksagain
           "that pattern-checks a VO's fields — a VO whose invariant did not hold could not finish being built",
         "ValueObject#rows" => "closed-set membership is checked in value/admission.rb, the second half of the same " \
           "one construction door",
-        "Member#shape" => "one level into ValueObject#rows — same door",
+        # S17, ADR 0026 — Member is a genuine entity now (nested under
+        # ValueObject), so this reads "Member#pairs", not "Member#shape" —
+        # the free-text, un-parsed spelling a standalone root once needed
+        # no longer exists at all, an entity's own element is never
+        # serialized as text. "ValueObject#members" is the SAME fact
+        # "ValueObject#rows" already counts, seen from the other side — a
+        # value object cannot declare admitted rows without a members list
+        # to hold them, and vice versa.
+        "ValueObject#members" => "the members list IS what ValueObject#rows counts — same door, same guarantee",
         "Member#pairs" => "one level into ValueObject#rows — same door"
       }.freeze
 

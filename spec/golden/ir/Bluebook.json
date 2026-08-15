@@ -3721,6 +3721,15 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "members",
+          "optional": false,
+          "pattern": null,
+          "type": "Member"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "position",
           "optional": false,
@@ -3969,11 +3978,130 @@
           "provenance": null,
           "references": "ValueObject",
           "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "MemberPosition"
+            }
+          ],
+          "emits": [
+            "MemberDeclared"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Open one admitted row on a value object",
+          "mutations": [
+            {
+              "fields": {
+                "position": ":position"
+              },
+              "op": "append",
+              "target": "members"
+            }
+          ],
+          "name": "Member",
+          "provenance": null,
+          "references": "ValueObject",
+          "role": "Language"
         }
       ],
       "description": "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can.",
       "entities": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "position",
+              "optional": false,
+              "pattern": null,
+              "type": "MemberPosition"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": true,
+              "name": "pairs",
+              "optional": false,
+              "pattern": null,
+              "type": "Pair"
+            }
+          ],
+          "commands": [
+            {
+              "attributes": [
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "key",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "MemberText"
+                },
+                {
+                  "admits": null,
+                  "default": null,
+                  "list": false,
+                  "name": "value",
+                  "optional": false,
+                  "pattern": null,
+                  "type": "MemberText"
+                }
+              ],
+              "emits": [
+                "PairBound"
+              ],
+              "ensures": [
 
+              ],
+              "from": null,
+              "givens": [
+                {
+                  "canonical": "!key.value.to_s.empty?",
+                  "description": "an admitted row binds a named field"
+                }
+              ],
+              "goal": "Bind one field of the admitted row",
+              "mutations": [
+                {
+                  "fields": {
+                    "key": ":key",
+                    "value": ":value"
+                  },
+                  "op": "append",
+                  "target": "pairs"
+                }
+              ],
+              "name": "Pair",
+              "provenance": null,
+              "references": null,
+              "role": "Language"
+            }
+          ],
+          "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Nested under the value object because a row is a list of pairs inside a list of rows.",
+          "identified_by": [
+            "position.value"
+          ],
+          "lifecycle": null,
+          "name": "Member",
+          "queries": [
+
+          ]
+        }
       ],
       "identified_by": [
         "aggregate",
@@ -4211,224 +4339,8 @@
           "members": [
 
           ],
-          "name": "Position"
+          "name": "MemberPosition"
         },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-
-          ],
-          "members": [
-
-          ],
-          "name": "ValueObjectText"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "value_object",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<ValueObject>"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "shape",
-          "optional": false,
-          "pattern": null,
-          "type": "MemberText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "pairs",
-          "optional": false,
-          "pattern": null,
-          "type": "Pair"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "position",
-          "optional": false,
-          "pattern": null,
-          "type": "Position"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value_object",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<ValueObject>"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "shape",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "position",
-              "optional": false,
-              "pattern": null,
-              "type": "Position"
-            }
-          ],
-          "emits": [
-            "MemberDeclared"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Open one admitted row on a value object",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "provenance": null,
-          "references": null,
-          "role": "Language"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "key",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            }
-          ],
-          "emits": [
-            "PairBound"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-            {
-              "canonical": "!key.value.to_s.empty?",
-              "description": "an admitted row binds a named field"
-            }
-          ],
-          "goal": "Bind one field of the admitted row",
-          "mutations": [
-            {
-              "fields": {
-                "key": ":key",
-                "value": ":value"
-              },
-              "op": "append",
-              "target": "pairs"
-            }
-          ],
-          "name": "Pair",
-          "provenance": null,
-          "references": "Member",
-          "role": "Language"
-        }
-      ],
-      "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "value_object",
-        "position.value"
-      ],
-      "invariants": [
-
-      ],
-      "lifecycle": null,
-      "name": "Member",
-      "ports": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
-      "provenance": null,
-      "queries": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value_object",
-              "optional": false,
-              "pattern": null,
-              "type": "MemberText"
-            }
-          ],
-          "description": null,
-          "limit": null,
-          "name": "DeclaredIn",
-          "order_by": {
-            "direction": "asc",
-            "field": "position"
-          },
-          "wheres": [
-            {
-              "field": "value_object",
-              "op": "eq",
-              "value": ":value_object"
-            }
-          ]
-        }
-      ],
-      "value_objects": [
         {
           "attributes": [
             {
@@ -4503,6 +4415,27 @@
 
           ],
           "name": "Position"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ValueObjectText"
         }
       ]
     },

@@ -13,6 +13,11 @@ Hecks.bluebook "Bluebook" do
     attribute :attributes, list_of(ShapeField)
     attribute :invariants, list_of(Assertion)
     attribute :rows,       RowCount
+    # S17, ADR 0026 — Member NESTED here, an entity rather than its own
+    # root aggregate (see `entity "Member"`, below). `list_of(Member)`
+    # forward-references it the same way banking's own `attribute :ledger,
+    # list_of(LedgerEntry)` names LedgerEntry before it is declared.
+    attribute :members,    list_of(Member)
 
     value_object "RowCount" do
       attribute :value, Integer
@@ -42,6 +47,35 @@ Hecks.bluebook "Bluebook" do
       attribute :canonical,   String, pattern: '[^ \t\n\r]'
       invariant("an assertion description is present") { !description.to_s.empty? }
       invariant("an assertion canonical form is present") { !canonical.to_s.empty? }
+    end
+
+    # S17, ADR 0026 — MemberPosition/MemberText/Pair, hoisted up from the
+    # old standalone `aggregate "Member"`. An entity cannot declare its own
+    # `value_object` (EntityBuilder has no such method — a piece borrows its
+    # owning aggregate's, the same way LedgerEntry borrows Account's Money),
+    # so these live here now, one level up, where `entity "Member"` below
+    # can still reach them.
+    #
+    # Named MemberPosition rather than reusing ValueObject's own `Position`
+    # two lines above — that one orders value objects among an AGGREGATE's
+    # siblings ; this one orders admitted rows within ONE value object. Same
+    # shape, different fact, so a shared name would have let one silently
+    # answer for the other.
+    value_object "MemberPosition" do
+      attribute :value, Integer
+    end
+
+    value_object "MemberText" do
+      attribute :value, String
+      # MemberText is free-form serialized text from member definitions,
+      # which can include empty strings and numeric literals — not restricted
+    end
+
+    value_object "Pair" do
+      attribute :key,   String, pattern: '[^ \t\n\r]'
+      attribute :value, String
+      # Pair keys must be named, but values can be empty strings or numeric literals
+      invariant("a pair key is present") { !key.to_s.empty? }
     end
 
     # The way back: everything DECLARED IN the aggregate above. The parent
@@ -136,95 +170,65 @@ Hecks.bluebook "Bluebook" do
       # ValueObjectText is free-form serialized text from member definitions,
       # which can include empty strings and numeric literals — not restricted
     end
-  end
 
-  aggregate "Member" do
-    description "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows."
-
-    reference_to ValueObject
-
-    # THE VALUE OBJECT IT IS ADMITTED BY, AND WHERE IT SITS AMONG THE ROWS.
-    #
-    # A member has no other distinguishing fact : its pairs are an OPEN MAP, which
-    # is the whole reason it is a root, and a map cannot be a path. Position is not
-    # a mint — it is read straight out of the source file, the same fact the
-    # language already holds deliberately so that an ask ordered any other way
-    # cannot take declaration order away.
-    identified_by :value_object, :position
-
-    attribute :shape, MemberText
-    attribute :pairs, list_of(Pair)
-
-    value_object "MemberText" do
-      attribute :value, String
-      # MemberText is free-form serialized text from member definitions,
-      # which can include empty strings and numeric literals — not restricted
-    end
-
-    value_object "Pair" do
-      attribute :key,   String, pattern: '[^ \t\n\r]'
-      attribute :value, String
-      # Pair keys must be named, but values can be empty strings or numeric literals
-      invariant("a pair key is present") { !key.to_s.empty? }
-    end
-
-    # The way back: everything DECLARED IN the value object above. The parent
-    # reference IS the query.
-    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
-    # SOURCE — the IR is a contract read straight from this file,
-    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
-    # inheriting it from whatever order a store happens to iterate: an ask that
-    # does not say how it is ordered is answered in identity order, which is
-    # right for every other ask and fatal for the one that is the SOURCE.
-    value_object "Position" do
-      attribute :value, Integer
-    end
-
-    attribute :position, Position
-
-    query "DeclaredIn" do
-      attribute :value_object, MemberText
-      where(value_object: :value_object)
-      order_by :position
-    end
-    command "Declare" do
+    # THE MEMBER'S OWN CREATION. S17, ADR 0026 — Member is a genuine ENTITY
+    # now (`entity "Member"`, below), and an entity is never created through
+    # its own dotted verb — banking's own LedgerEntry is created by
+    # `Account.LogEntry`, an ordinary append on the OWNER, never by a
+    # `LedgerEntry.Declare` of its own (EntityInterpreter#element_of only
+    # LOCATES an element already on the list — see entity_interpreter.rb —
+    # it has no path that creates one). So Member's creation moved here,
+    # onto ValueObject, mirroring `Field`/`Close`/`Assert` beside it :
+    # a bare, aggregate-level append. What it creates is empty — pairs fill
+    # in afterward, one at a time, through the entity's own `Pair`.
+    command "Member" do
       role "Language"
       goal "Open one admitted row on a value object"
 
       reference_to ValueObject
-      attribute :shape, MemberText
+      attribute :position, MemberPosition
 
-      # NOT `optional: true`, unlike every sibling `Declare`'s own
-      # `position:` (Aggregate/Entity/Command/Query/ValueObject) — those
-      # are all genuinely omittable because declaration order is a fact
-      # ABOUT them, never a fact that NAMES them. A Member has no other
-      # distinguishing fact (this aggregate's own header, above: "its
-      # pairs are an OPEN MAP... position is not a mint"), so IT is one of
-      # `identified_by`'s two parts. Omitting it here doesn't leave a
-      # Member merely un-ordered — `Runtime::Identity.of` (identity.rb)
-      # refuses the WHOLE identity the instant one part reads `nil`, so
-      # dispatching without `position:` always, unconditionally, refuses
-      # ("creates a Member — pass position.value"), never partially
-      # succeeds. Marking it optional there was cargo-culted from the
-      # sibling `Declare`s rather than reasoned about — the caller was
-      # never actually free to omit it, so this says what was already true.
-      attribute :position, Position
+      sets :members, append: { position: :position }
+
       emits "MemberDeclared"
     end
 
-    command "Pair" do
-      role "Language"
-      goal "Bind one field of the admitted row"
+    # S17, ADR 0026 — ONE ADMITTED ROW, nested rather than its own root
+    # aggregate. A member has no other distinguishing fact : its pairs are
+    # an OPEN MAP, which is the whole reason it used to need a root of its
+    # own, and a map cannot be a path — but that was always a reason it
+    # could not be a VALUE OBJECT, never a reason it could not be an
+    # ENTITY, which is what it structurally always was: a nested, ordered,
+    # separately-mutated element of ValueObject's own list. `ValueObject.
+    # Member` (above) creates it ; `Pair` (below) fills it in, one field
+    # at a time, exactly the way `Command.Rule` fills in a precondition.
+    entity "Member" do
+      description "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Nested under the value object because a row is a list of pairs inside a list of rows."
 
-      reference_to Member
-      attribute :key,   MemberText
-      attribute :value, MemberText
+      # Position is not a mint — it is read straight out of the source
+      # file, the same fact the language already holds deliberately so
+      # that an ask ordered any other way cannot take declaration order
+      # away. `ValueObject.Member` mints it as the walk index at creation
+      # (the same way `declare`'s own `position` field always has), and
+      # every later `Pair` locates the element by it.
+      attribute :position, MemberPosition
+      identified_by :position
 
-      given("an admitted row binds a named field") { !key.value.to_s.empty? }
+      attribute :pairs, list_of(Pair)
 
-      sets :pairs, append: { key: :key, value: :value }
+      command "Pair" do
+        role "Language"
+        goal "Bind one field of the admitted row"
 
-      emits "PairBound"
+        attribute :key,   MemberText
+        attribute :value, MemberText
+
+        given("an admitted row binds a named field") { !key.value.to_s.empty? }
+
+        sets :pairs, append: { key: :key, value: :value }
+
+        emits "PairBound"
+      end
     end
   end
 end

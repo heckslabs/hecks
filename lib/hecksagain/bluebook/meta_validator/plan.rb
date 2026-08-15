@@ -43,7 +43,7 @@ module Hecksagain
 
         Category = Struct.new(:name, :declare, :parent, :parent_key, :fields,
                               :appends, :alternates, :setters, :sealers, :references,
-                              :identity_paths,
+                              :identity_paths, :entity_owned,
                               keyword_init: true) do
           # Every verb this category declares, in declaration order. `alternates`
           # matters here: two commands can append to one list, and a verb missing
@@ -78,29 +78,91 @@ module Hecksagain
             next if aggregate.commands.empty?
 
             plan[aggregate.hecks_name] = read(aggregate)
+
+            # S17, ADR 0026 — Member/Handler/Dispatch are ENTITIES now
+            # (`entity "Member" do ... end`, nested under `ValueObject`/
+            # `ProcessManager`/`Handler`), not their own top-level
+            # aggregates — so `meta.aggregates` alone no longer finds
+            # them the way it always found a standalone `aggregate
+            # "Member"`. Each STILL needs its own named category here:
+            # `Assembly::Contracts` keeps a bespoke entry for each
+            # (Member's own open-map `pairs`, Dispatch's own open-map
+            # `with_spec`), distinct from the single generic "Entity"
+            # category every ORDINARY real-corpus entity (LedgerEntry,
+            # Withdrawal, ...) is described through instead. Safe to
+            # walk EVERY meta-domain aggregate's own `.entities`
+            # unconditionally — `Plan` only ever reads the META-
+            # DOMAIN'S OWN self-description (`Plan.for(MetaValidator.
+            # grammar_registry)`), which never declares a generic,
+            # nameless entity of its own the way a REAL domain's
+            # `LedgerEntry` is; the only entities the meta-domain
+            # itself ever declares are exactly the three this ADR
+            # names. `entity_owned: true` records WHY this is a
+            # category at all — the real runtime has no top-level
+            # aggregate named "Member" to dispatch a BARE verb into
+            # any more, so the judge has to build a DOTTED one instead
+            # (see `Judge#verb_for`).
+            aggregate.entities.each do |entity|
+              next if entity.commands.empty?
+
+              plan[entity.hecks_name] = read(entity, owner: aggregate.hecks_name, entity_owned: true)
+            end
           end.freeze
         end
 
         def category(name) = @categories[name.to_s]
         def names          = @categories.keys
 
-        # Every verb the language declares, spelled as the judge would dispatch it.
+        # Every verb the language declares, spelled as the judge would
+        # dispatch it. S17, ADR 0026 — an ENTITY-OWNED category (its
+        # own `entity_owned` flag) has no real top-level aggregate the
+        # runtime can route a BARE verb into any more, so it is
+        # spelled DOTTED here too — `Bluebook::ValueObject.Member.
+        # Declare`, matching `Judge#verb_for`'s own build exactly, so
+        # this stays what it already is: the judge's own coverage
+        # promise, not a second guess at it.
         def verbs
-          @categories.flat_map { |name, category| category.verbs.map { |verb| "Bluebook::#{name}.#{verb}" } }
+          @categories.flat_map do |name, category|
+            prefix = category.entity_owned ? "#{category.parent}.#{name}" : name
+            category.verbs.map { |verb| "Bluebook::#{prefix}.#{verb}" }
+          end
         end
 
         private
 
-        def read(aggregate)
-          declare    = creating_command(aggregate)
+        # `owner:`/`entity_owned:` — S17, ADR 0026. An AGGREGATE-level
+        # creating command carries its own parent as a `reference_to`
+        # argument (read via `parent_reference_of` below), the same
+        # way it always has. An ENTITY-level one never does — `entity
+        # "Member" do ... end`'s own creating command reaches its
+        # parent through the DOTTED CALL itself (`ValueObject.Member.
+        # Declare`), the same reason an ordinary entity's own commands
+        # never declare `reference_to` either (entity.md's own
+        # reference page states this). So the OWNING aggregate's name
+        # is passed in directly here, by the caller who already knows
+        # it (the same `.entities` walk that found this node), rather
+        # than derived from an argument that was never going to be
+        # there.
+        def read(aggregate, owner: nil, entity_owned: false)
+          # An ENTITY-OWNED category has no creating command of its own to find.
+          # `creating_command` tests `command.references.nil?` — the same test
+          # a REAL entity's own commands pass too, since `entity "Member" do
+          # command "Pair" ... end end` never writes `reference_to` (an
+          # entity's commands never do — banking's own LedgerEntry.Amend
+          # doesn't either). Calling it here would have it seize on Member's
+          # own "Pair" and call THAT the creating command, which it is not:
+          # a Member is created by `ValueObject.Member`, its OWNER's own bare
+          # append command, the same way a real LedgerEntry is created by
+          # `Account.LogEntry`, never by a dotted verb of its own.
+          declare    = entity_owned ? nil : creating_command(aggregate)
           parent     = parent_reference_of(declare)
-          parent_key = parent&.name&.to_s
+          parent_key = owner ? "aggregate" : parent&.name&.to_s
           rest       = aggregate.commands - [declare].compact
 
           Category.new(
             name:       aggregate.hecks_name,
             declare:    declare&.hecks_name,
-            parent:     parent&.type&.target_name,
+            parent:     owner || parent&.type&.target_name,
             parent_key: parent_key,
             fields:     declared_fields(declare),
             appends:    appends_in(rest),
@@ -116,7 +178,8 @@ module Hecksagain
             # parent — so it derives the same join the runtime will, off the same
             # declaration. It used to be a branch per category, and a branch that
             # disagreed with the runtime by one separator was a broken reference.
-            identity_paths: aggregate.identity_paths
+            identity_paths: aggregate.identity_paths,
+            entity_owned:   entity_owned
           )
         end
 

@@ -104,9 +104,18 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
   end
 
   it "names every verb the language declares, and no others" do
+    # S17, ADR 0026 — Member is a genuine entity now, nested under
+    # ValueObject, so its own commands show up under `.entities`, not
+    # `.commands`, and the judge reaches them through a DOTTED verb.
     declared = Hecksagain::Bluebook::MetaValidator.grammar_registry
                  .bluebook("Bluebook").aggregates
-                 .flat_map { |a| a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } }
+                 .flat_map do |a|
+                   own = a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" }
+                   entities = a.entities.flat_map do |entity|
+                     entity.commands.map { |c| "Bluebook::#{a.name}.#{entity.hecks_name}.#{c.hecks_name}" }
+                   end
+                   own + entities
+                 end
 
     expect(plan.verbs).to match_array(declared)
   end

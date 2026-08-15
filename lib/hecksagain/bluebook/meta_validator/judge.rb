@@ -129,19 +129,106 @@ module Hecksagain
           declare(plan, category, node, identify(category, parent_id, node, index), parent_id, index, extra)
         end
 
-        def detail_node(category, node, parent_id, index, _extra = {})
+        def detail_node(category, node, parent_id, index, extra = {})
           plan = @plan.category(category)
           return unless plan
 
           id           = identify(category, parent_id, node, index)
+          # `extra` carries THIS node's OWNER's identity, handed down by
+          # `walk_all` (see `entity_child_extra`) — an entity-owned category's
+          # own verbs are dotted, so the owner it hangs off has to be
+          # addressed by every dispatch, not only the (nonexistent) creating
+          # one. `own` adds THIS node's own positional identity on top —
+          # Member's "Pair" locates the element it mutates the same way
+          # `EntityInterpreter#element_of` does, off `position`, which is
+          # never a stored field : it IS the walk index, the same fact
+          # `declare`'s own field loop already mints it from.
+          # Only an ENTITY-OWNED category's own sub-appends need this — an
+          # ordinary category's (Command's own "Rule"/"Argument", offered
+          # through the SAME `extra` slot for a DIFFERENT reason, see
+          # `within_entity` below) locate the record they attach to through
+          # the parent id `id:` already carries, and merging unrecognized
+          # `aggregate:`/`entity_id:` into THEIR payload would have the
+          # runtime refuse them for an argument they never declared.
+          own          = plan.entity_owned ? extra.merge(entity_own_identity(plan, index)) : {}
           eager, later = children_of(category).partition { |child| eager?(category, child) }
 
-          eager.each { |child| walk_all(child, node, id) }
-          setters(plan, category, node, id)
-          appends(plan, category, node, id)
-          later.each { |child| walk_all(child, node, id) }
+          eager.each { |child| walk_all(child, node, id, entity_child_extra(child, category, node, parent_id)) }
+          setters(plan, category, node, id, own)
+          appends(plan, category, node, id, own)
+          later.each { |child| walk_all(child, node, id, entity_child_extra(child, category, node, parent_id)) }
           within_entity(category, node, id, parent_id)
-          sealers(plan, category, id)
+          sealers(plan, category, id, own)
+        end
+
+        # S17, ADR 0026 — Member/Handler/Dispatch are ENTITY-OWNED
+        # categories now (see `Plan#initialize`'s own comment): the
+        # real runtime routes their own "Declare" through `Bluebook::
+        # #{owner}.#{category}.Declare`, a DOTTED verb, and
+        # `EntityInterpreter#parent` resolves the OWNER record from
+        # its own DECOMPOSED identity fields (`Identity.of`) — never
+        # from a single joined id string the way `plan.parent_key`'s
+        # ordinary single-field convention hands `within_entity`'s own
+        # "aggregate"/"entity_id". So an entity-owned child's own
+        # payload needs the owner's own identity fields, individually,
+        # under their own declared names — read off the OWNER node
+        # (`node` here) the same way `declare`'s own field loop reads
+        # ANY field, reused rather than re-derived.
+        # `owner_parent_id` is the OWNER'S OWN parent — what `field_value`
+        # hands back for the owner's `:parent`-kind identity part (ValueObject's
+        # own `aggregate`), so the owner's identity is re-derived here from the
+        # very same inputs `identify` derived it from one level up.
+        def entity_child_extra(child, owner_category, owner_node, owner_parent_id)
+          plan = @plan.category(child)
+          return {} unless plan&.entity_owned
+
+          owner_identity(owner_category, owner_node, owner_parent_id)
+        end
+
+        # A NODE'S OWN POSITIONAL IDENTITY, for an entity-owned category only.
+        # `position` is never a stored field — Member's own header says why
+        # ("position is not a mint — it is read straight out of the source
+        # file") — so it cannot come from `field_value`. It comes from the
+        # SAME walk index `identify`/`declare` already mint it from, merged
+        # into `Pair`'s own dispatch payload so `EntityInterpreter#element_of`
+        # (which reads `args[:position]` — see entity_interpreter.rb) can
+        # locate the element `ValueObject.Member` already created.
+        def entity_own_identity(plan, index)
+          return {} unless plan.entity_owned
+
+          plan.identity_paths.each_with_object({}) do |path, fields|
+            head = path.to_s.split(".").first.to_sym
+            fields[head] = v(index) if head.to_s == POSITION
+          end
+        end
+
+        # ENTITY-OWNED categories have no top-level aggregate for the runtime
+        # to route a bare verb into any more — `Member`'s own "Pair" reaches
+        # the runtime as `ValueObject.Member.Pair`, the dotted shape
+        # `EntityInterpreter#call` already splits any real entity's own verb
+        # into (`Naming.split_dotted`, entity_interpreter.rb). An ordinary
+        # category stays bare, exactly as it always dispatched.
+        def verb_for(plan, verb)
+          plan.entity_owned ? "#{plan.parent}.#{plan.name}.#{verb}" : "#{plan.name}.#{verb}"
+        end
+
+        def owner_identity(category, node, parent_id)
+          plan = @plan.category(category)
+          return {} unless plan
+
+          plan.identity_paths.each_with_object({}) do |path, fields|
+            head = path.to_s.split(".").first
+            next if head == OWNER || head == POSITION
+
+            # The parent-reference part of the owner's OWN identity (a
+            # ValueObject's "aggregate") is never a readable field on the
+            # node — `identify`/`identity_part` never read it through
+            # `field_value` either, they read it off the walk's own
+            # `parent_id` directly, so this does too rather than asking
+            # `field_value` to answer for something it was never given.
+            value = head == plan.parent_key.to_s ? parent_id : field_value(category, node, head.to_sym, parent_id)
+            fields[head.to_sym] = carried(plan, plan.declare, head, value)
+          end
         end
 
         def walk_all(category, node, parent_id, extra = {})
@@ -203,42 +290,50 @@ module Hecksagain
                                     end
           end
 
-          send_to("Bluebook::#{category}.#{plan.declare}", id, **payload.merge(extra))
+          send_to("Bluebook::#{verb_for(plan, plan.declare)}", id, **payload.merge(extra))
         end
 
         # A setter whose every source is absent is not dispatched. An aggregate
         # with no lifecycle has no Lifecycle to offer, and a creating command has
         # no root to act on — offering either as "" would make a rule refuse a
         # bluebook that is perfectly well formed.
-        def setters(plan, category, node, id)
+        def setters(plan, category, node, id, extra = {})
           plan.setters.each do |setter|
             payload = setter.targets.to_h do |target, argument|
               [argument.to_sym, v(setter_value(category, node, target))]
             end
             next if payload.values.all?(&:nil?)
 
-            send_to("Bluebook::#{category}.#{setter.verb}", id, id: id, **payload)
+            send_to("Bluebook::#{verb_for(plan, setter.verb)}", id, id: id, **payload.merge(extra))
           end
         end
 
-        def appends(plan, category, node, id)
+        def appends(plan, category, node, id, extra = {})
           plan.appends.each do |list_name, append|
             rows_for(category, list_name, node).each_with_index do |row, index|
               chosen = append_for(category, list_name, append, row, node)
+              # `position` IS THE WALK INDEX here exactly as it is in `declare` —
+              # an appended element that names its position (ValueObject.Member,
+              # S17) is ordered by where the walk found it, never by a field the
+              # row happens to hold.
               payload = chosen.map.to_h do |field, argument|
-                [argument.to_sym,
-                 carried(@plan.category(category), chosen.verb, argument,
-                       cell(category, list_name, row, field, id, chosen))]
+                value = if field.to_s == POSITION
+                          v(index)
+                        else
+                          carried(@plan.category(category), chosen.verb, argument,
+                                  cell(category, list_name, row, field, id, chosen))
+                        end
+                [argument.to_sym, value]
               end
 
-              send_to("Bluebook::#{category}.#{chosen.verb}", "#{id}##{list_name}[#{index}]",
-                      id: id, **payload)
+              send_to("Bluebook::#{verb_for(plan, chosen.verb)}", "#{id}##{list_name}[#{index}]",
+                      id: id, **payload.merge(extra))
             end
           end
         end
 
-        def sealers(plan, category, id)
-          plan.sealers.each { |verb| send_to("Bluebook::#{category}.#{verb}", id, id: id) }
+        def sealers(plan, category, id, extra = {})
+          plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, id: id, **extra) }
         end
 
         # An aggregate's attribute names its value object by TYPE, and the language

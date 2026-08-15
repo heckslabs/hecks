@@ -188,13 +188,22 @@ module Hecksagain
         def value_object(row) = declaration("ValueObject", row)
 
         def closed_set_of(row) = !text(row[:rows]).nil?
-        def members_row(row)   = members_of(row[:id])
 
-        # A closed set's admitted rows. Each Member is its own root because its pairs
-        # are an OPEN MAP, which no value object can hold — so they come back the way
-        # they went in, one pair at a time.
-        def members_of(value_object_id)
-          declared("Member", value_object_id).map do |member|
+        # A closed set's admitted rows. S17, ADR 0026 — Member is a genuine
+        # ENTITY now (`entity "Member" do ... end`, nested under
+        # ValueObject), created by `ValueObject.Member` (an ordinary append,
+        # the same way `Account.LogEntry` creates a LedgerEntry) and mutated
+        # by its own dotted `ValueObject.Member.Pair`. Its data therefore
+        # lives INLINE on the value object's own dispatched state — same as
+        # any other entity list — not behind a separate `DeclaredIn` query:
+        # there is no such query any more, because there is no top-level
+        # "Member" aggregate left to hold one. Pairs are still an OPEN MAP,
+        # which no value object can hold, so they still come back one pair
+        # at a time.
+        def members_row(row) = members_of(row)
+
+        def members_of(value_object_row)
+          Array(value_object_row[:members]).map do |member|
             Array(member[:pairs]).map { |pair| [text(pair[:key]).to_s, text(pair[:value]).to_s] }
           end
         end

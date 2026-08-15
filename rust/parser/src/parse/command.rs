@@ -215,18 +215,39 @@ fn apply_reference_to(
     Ok(())
 }
 
-/// `CommandBuilder#sets` — `to:`/`append:`/`increment:`/`decrement:`
-/// names the operation (`Argument#selects`:
-/// `op=set`/`op=append`/`op=increment`/`op=decrement`), and `to:` is now
+/// `CommandBuilder#sets` — `to:`/`append:`/`increment:`/`decrement:`/
+/// `multiply:`/`clamp:`/`remove:` names the operation (`Argument#selects`:
+/// `op=set`/`op=append`/`op=increment`/`op=decrement`/`op=multiply`/
+/// `op=clamp`/`op=remove` — `keywords.rs`'s own ArgumentRow table already
+/// declares all seven ; this list is the piece that actually reads them,
+/// so it has to stay in step by hand), and `to:` is now
 /// OMITTABLE: `sets :status` alone means "set :status from the argument
 /// of the same name" — `CommandBuilder#sets`'s own omittable case
 /// (`named = { set: target } if named.empty?`). `to:` naming the SAME
 /// symbol as the target is refused as redundant — `sets :x` alone
 /// already says that.
+///
+/// `multiply:`/`clamp:`/`remove:` — vendored additions (command_builder.rb's
+/// own header comment: "not (yet) upstream hecksagain"). `multiply:` reads
+/// exactly like `increment:`/`decrement:` (an argument reference, resolved
+/// through the SAME Symbol-vs-Literal branch below). `clamp:`'s own source
+/// is always a literal `[min, max]` pair — `ruby_value::read` already parses
+/// an Array literal (see ruby_value.rs's own `read("[1, 2]")` test), so no
+/// special case is needed beyond naming the op. `remove:` matches an
+/// element by VALUE, sourced the same single-argument-or-literal way
+/// increment/decrement/multiply already are.
 fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<ir::Mutation> {
     let target = super::positional_symbol(file, line, "sets", args, 1)?;
 
-    let named: Vec<(&str, &str)> = [("to", "set"), ("append", "append"), ("increment", "increment"), ("decrement", "decrement")]
+    let named: Vec<(&str, &str)> = [
+        ("to", "set"),
+        ("append", "append"),
+        ("increment", "increment"),
+        ("decrement", "decrement"),
+        ("multiply", "multiply"),
+        ("clamp", "clamp"),
+        ("remove", "remove"),
+    ]
         .into_iter()
         .filter_map(|(key, op)| super::named_raw(args, key).map(|raw| (op, raw)))
         .collect();

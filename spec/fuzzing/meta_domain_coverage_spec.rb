@@ -44,7 +44,15 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   # `language/bluebook/*.bluebook` appears here the next time this spec
   # runs, with no second edit anywhere in this file required to notice
   # it exists.
-  META_DOMAIN_ALL_FEATURES = META_DOMAIN_GRAMMAR.aggregates.flat_map { |agg| agg.attributes.map { |attr| "#{agg.name}##{attr.name}" } }.freeze
+  # S17, ADR 0026 — an aggregate's own ENTITIES carry attributes too
+  # (Member, nested under ValueObject), and their fields are just as real
+  # a fuzzer-coverage question as any top-level aggregate's — so they are
+  # walked here rather than silently dropping out of account the day
+  # `entity "Member"` replaced `aggregate "Member"`.
+  META_DOMAIN_ALL_FEATURES = META_DOMAIN_GRAMMAR.aggregates.flat_map { |agg|
+    (agg.attributes.map { |attr| "#{agg.name}##{attr.name}" }) +
+      agg.entities.flat_map { |piece| piece.attributes.map { |attr| "#{piece.hecks_name}##{attr.name}" } }
+  }.freeze
 
   # META_DOMAIN_STRUCTURAL_FEATURES BOOKKEEPING — no property should ever single these out,
   # because they carry no behavior of their own to have wrong: an
@@ -60,7 +68,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     Command#aggregate Command#entity_id Command#name Command#role Command#goal Command#provenance
     Query#aggregate Query#entity_id Query#name Query#description
     ValueObject#aggregate ValueObject#name
-    Member#value_object
     Entity#aggregate Entity#owner Entity#name Entity#description
     Policy#bluebook Policy#name Policy#aggregate
     ProcessManager#bluebook ProcessManager#name

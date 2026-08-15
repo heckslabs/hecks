@@ -86,7 +86,21 @@ RSpec.describe "the judge's coverage of the language" do
   def declared_verbs
     Hecksagain::Bluebook::MetaValidator.grammar_registry
       .bluebook("Bluebook").aggregates
-      .flat_map { |aggregate| aggregate.commands.map { |c| "Bluebook::#{aggregate.name}.#{c.hecks_name}" } }
+      .flat_map { |aggregate| aggregate_verbs(aggregate) }
+  end
+
+  # S17, ADR 0026 — Member is a genuine entity now, nested under
+  # ValueObject rather than its own root aggregate, so its own commands no
+  # longer show up in `aggregate.commands` — they are in `aggregate.
+  # entities.first.commands`, and the judge reaches them through a DOTTED
+  # verb (`ValueObject.Member.Pair`, `Judge#verb_for`), never a bare one.
+  def aggregate_verbs(aggregate)
+    own = aggregate.commands.map { |c| "Bluebook::#{aggregate.name}.#{c.hecks_name}" }
+    entities = aggregate.entities.flat_map do |entity|
+      entity.commands.map { |c| "Bluebook::#{aggregate.name}.#{entity.hecks_name}.#{c.hecks_name}" }
+    end
+
+    own + entities
   end
 
   it "offers every verb the language declares" do

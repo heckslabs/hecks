@@ -92,9 +92,19 @@ RSpec.describe "a graph assembled from declarations" do
     # used it — so adding `attribute :nickname` to the language's Bluebook passed
     # unnoticed, because nothing had taught `Declare` to carry it yet. What an
     # assembly must account for is what the language STORES.
+    # S17, ADR 0026 — an ENTITY-OWNED category (Member, nested under
+    # ValueObject) has no top-level aggregate `meta.aggregate` can find any
+    # more — it hangs off its OWNER's own `.entities` instead, the same
+    # place the runtime itself looks (EntityInterpreter#call).
+    def construct_for(meta, category, declared)
+      return meta.aggregate(category) unless declared.entity_owned
+
+      meta.aggregate(declared.parent).entities.find { |piece| piece.hecks_name == category }
+    end
+
     def stored_fields(meta, category)
-      aggregate = meta.aggregate(category)
       declared  = plan.category(category)
+      aggregate = construct_for(meta, category, declared)
 
       (aggregate.attributes.map(&:name) +
        declared.fields.map(&:to_sym) +
@@ -218,7 +228,26 @@ RSpec.describe "a graph assembled from declarations" do
 
     # Whether the category's own way back orders by the field — the proof that a
     # walk-supplied field is consumed rather than merely stored.
+    #
+    # S17, ADR 0026 — an ENTITY-OWNED category has no `DeclaredIn` query of
+    # its own to order by any more (there is no top-level aggregate left to
+    # hold one) — its records are consumed as ARRAY ORDER instead, inside
+    # the list its owner holds. That is still a real consumer, not a weaker
+    # one: `EntityInterpreter` never reorders a list, and `Reconstruction`
+    # reads it back verbatim (`Array(row[key]).map { ... }`, never sorted).
+    # So a walk-minted field justifies itself here by being the category's
+    # OWN positional identity — which is exactly the field the walk index
+    # was minted INTO in the first place (`entity_own_identity`, judge.rb).
     def ordered_by?(category, field)
+      declared = plan.category(category)
+      # An identity path names the SCALAR inside its attribute
+      # ("position.value", not "position" — the same reason
+      # `Judge#entity_own_identity` reads only the HEAD) — so the field
+      # this claims for is the path's head, not the path whole.
+      if declared.entity_owned
+        return declared.identity_paths.map { |path| path.to_s.split(".").first }.include?(field.to_s)
+      end
+
       meta = Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
       ask  = meta.aggregate(category)&.query("DeclaredIn")
 

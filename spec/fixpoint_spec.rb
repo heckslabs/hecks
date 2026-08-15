@@ -29,9 +29,15 @@ RSpec.describe "the language's own definition" do
     # if the language stops describing a category, a bluebook using it stops
     # being judged — silently, since the judge skips what it has no shape for
     expect(meta.aggregates.map(&:name)).to include(
-      "Bluebook", "Aggregate", "Command", "ValueObject", "Query", "Entity", "Member",
+      "Bluebook", "Aggregate", "Command", "ValueObject", "Query", "Entity",
       "Policy", "ProcessManager", "ReadModel", "Vocabulary"
     )
+
+    # S17, ADR 0026 — Member is a genuine entity now, nested under
+    # ValueObject rather than its own root aggregate, so it is found
+    # through `.entities` here, not `.aggregates`.
+    value_object = meta.aggregates.find { |aggregate| aggregate.hecks_name == "ValueObject" }
+    expect(value_object.entities.map(&:hecks_name)).to include("Member")
   end
 
   it "is what actually refuses a malformed bluebook, end to end" do

@@ -257,12 +257,21 @@ RSpec.describe "the language's own rules" do
     end.to raise_error(Hecksagain::Runtime::NotFound, /no Aggregate with/)
   end
 
+  # S17, ADR 0026 — Member is a genuine entity now, nested under
+  # ValueObject: `ValueObject.Member` CREATES the row (an ordinary append,
+  # the same shape `Account.LogEntry` creates a LedgerEntry with — never a
+  # dotted verb of its own, since EntityInterpreter#element_of only ever
+  # LOCATES an element already on the list) ; `ValueObject.Member.Pair`,
+  # dotted, fills it in.
   it "refuses an admitted row that binds no named field" do
-    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
-    member_id = id_of("Bluebook::Member.Declare", value_object: value_object_id, shape: v("X"), position: { value: 0 })
+    name = v("X")
+    value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: name)
+    @runtime.dispatch("Bluebook::ValueObject.Member", id: value_object_id, position: { value: 0 })
 
-    expect { @runtime.dispatch("Bluebook::Member.Pair", id: member_id, key: v(""), value: v("q")) }
-      .to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
+    expect do
+      @runtime.dispatch("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
+                        position: { value: 0 }, key: v(""), value: v("q"))
+    end.to raise_error(Hecksagain::Runtime::GivenNotMet, /an admitted row binds a named field/)
   end
 
   # ---- tier 3 : whole-document, dispatched once everything is declared ------
