@@ -44,6 +44,14 @@ module Hecksagain
       # declare-time gate at all, so this method gates it here instead.
       FILTER_COMPARATORS = Hecksagain::QuerySpecification::Common::COMPARATORS.map(&:to_s).freeze
 
+      # THE TWO CLASSES `#enforce_givens`/`#enforce_lifecycle_guard`
+      # themselves ever raise — see Admissibility's own doc comment,
+      # `command_rules/admissibility.rb`. Any OTHER DOMAIN_REFUSAL a step
+      # raises (TypeMismatch, EnsuresNotMet, InvariantViolation, ...)
+      # proves the guard itself did NOT fire, since it runs first in
+      # DISPATCH_ORDER.
+      GUARD_REFUSAL_CLASSES = [Runtime::GivenNotMet, Runtime::LifecycleRefused].freeze
+
       def call(domain_path, steps)
         # See isolated_boot.rb's own header: resets data/ AND rebinds
         # persistence to Memory, since a Postgres-bound domain's real store
@@ -52,9 +60,10 @@ module Hecksagain
         IsolatedBoot.call(domain_path) do |copy|
           runtime = Hecks.boot(copy)
 
-          refusals = []
-          queries  = []
-          fan_outs = []
+          refusals     = []
+          queries      = []
+          fan_outs     = []
+          guard_checks = []
 
           # EVERY AGGREGATE A `for_each` COULD EVER QUERY, resolved ONCE —
           # `[domain, aggregate_name]` pairs, gleaned from every loaded
@@ -145,6 +154,21 @@ module Hecksagain
                   runtime.registry.repository(fdomain, aggregate).all.to_h { |record| [record.id, record.state.dup] }
               end
 
+              # THE GUARD ORACLE'S OWN PRE-DISPATCH READ — same idiom,
+              # same placement, same reason as fan_out_snapshot right
+              # above: `Admissibility#enforce_givens` (which itself calls
+              # `#enforce_lifecycle_guard` when `declaring:` is passed)
+              # is called a SECOND time here, independently, against the
+              # record exactly as CommandInterpreter#hydrate's own acting
+              # branch would find it (`repository.find(id).dup` — the
+              # identical three-tier id fallback, Identity.of/.from,
+              # reproduced read-only) — BEFORE this step's real dispatch
+              # can mutate anything a cross-aggregate given dereferences
+              # (`customer.status`). A pure predicate read, side-effect
+              # free, so calling it twice changes nothing this step
+              # itself observes.
+              guard_check = build_guard_check(runtime, step["verb"], args)
+
               # `role:` — an OPTIONAL per-step key, absent on every one of
               # the 231 existing `spec/corpus/*.json` steps (their own
               # unwrapped `runtime.dispatch` call, unchanged, so nothing
@@ -161,6 +185,7 @@ module Hecksagain
                        end
 
               fan_outs.concat(fan_out_findings(runtime, fan_out_snapshot, result.events, runtime.reactions[reaction_mark..]))
+              guard_checks << guard_check.merge(actual_refused: false, actual_kind: nil) if guard_check
             rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
               # `kind:` — the RAISED CLASS, not re-derived from the message.
               # `GivenNotMet`/`EnsuresNotMet` share their exact wording
@@ -172,6 +197,25 @@ module Hecksagain
               # one of those. The class is unambiguous where the string
               # is not.
               refusals << { verb: step["verb"], error: e.message, kind: e.class.name }
+              # ONLY a refusal raised BY THE GUARD ITSELF counts here —
+              # measured, not assumed: a step whose args were simply
+              # incomplete (AbsentArgument, from normalize_args — which
+              # runs BEFORE enforce_givens in DISPATCH_ORDER) never
+              # reached the guard at all, and this oracle's own first
+              # live run against real generated pizzas data caught
+              # exactly that case as a false positive (a malformed-args
+              # step the generator deliberately produces, `amount:`
+              # dropped entirely) before this comment existed. Whether a
+              # refusal from a stage AFTER enforce_givens (TypeMismatch
+              # on a mutation, EnsuresNotMet, InvariantViolation) proves
+              # the guard passed can't be told apart from a same-shaped
+              # refusal from a stage BEFORE it by class alone (TypeMismatch
+              # can come from either), so anything that isn't one of the
+              # two guard classes is left OUT of guard_checks entirely —
+              # inconclusive, not a claimed pass.
+              if guard_check && GUARD_REFUSAL_CLASSES.include?(e.class)
+                guard_checks << guard_check.merge(actual_refused: true, actual_kind: e.class.name)
+              end
             end
           end
 
@@ -223,9 +267,67 @@ module Hecksagain
           # "the" bluebook — reads this instead.
           { instances: instances, events: events, refusals: refusals,
             reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
-            queries: queries, fan_outs: fan_outs, bluebook: runtime.registry.bluebooks.values.first,
+            queries: queries, fan_outs: fan_outs, guard_checks: guard_checks,
+            bluebook: runtime.registry.bluebooks.values.first,
             bluebooks: runtime.registry.bluebooks.dup }
         end
+      end
+
+      # THE GUARD ORACLE'S OWN RESOLUTION — "which record, if any, is
+      # this step about, and would enforce_givens/enforce_lifecycle_guard
+      # have refused it against that record's PRE-DISPATCH state" —
+      # reproduced read-only from already-public pieces
+      # (Naming.split_verb, registry.bluebook/.aggregate/.command,
+      # Runtime::Identity.of/.from, repository.find), the exact same
+      # three-tier fallback CommandInterpreter#hydrate's OWN acting
+      # branch uses, minus its creating/duplicate-checking logic (a
+      # creating command has no pre-existing record to snapshot, and
+      # every real target this closes — Debit/CloseAccount/Credit/
+      # FreezeAccount — already acts on one).
+      #
+      # `nil` for anything out of scope: an entity/port verb (a dotted
+      # command_name — EntityInterpreter's own enforce_givens call,
+      # `parent:`-shaped, is a different call signature this does not
+      # reproduce), a creating command, an unresolvable id, or a command
+      # that declares neither `givens` nor `from` at all (nothing to
+      # check — logging a guaranteed, tautological pass would be noise,
+      # not a finding, the same reason `aggregation_matches_recompute`
+      # skips a read model with no count/median declared).
+      #
+      # Never lets a resolution surprise (a malformed verb, a dangling
+      # reference) become the step's own real dispatch outcome — this
+      # is a SEPARATE, best-effort read, not part of the step's own
+      # control flow.
+      def build_guard_check(runtime, verb, args)
+        domain_name, aggregate_name, command_name = Naming.split_verb(verb)
+        return nil unless command_name && !command_name.include?(".")
+
+        aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
+        command   = aggregate&.command(command_name)
+        return nil unless aggregate && command && !command.creates?
+        return nil if command.givens.empty? && !command.from
+
+        reference_key = command.references.to_s.empty? ? nil : Naming.reference_key(command.references)
+        id = Runtime::Identity.of(aggregate, args) ||
+             Runtime::Identity.from(aggregate, args, :id) ||
+             (reference_key && Runtime::Identity.from(aggregate, args, reference_key))
+        return nil unless id
+
+        record = runtime.registry.repository(domain_name, aggregate).find(id)
+        return nil unless record
+
+        rules = Runtime::CommandRules.new(runtime.registry)
+        recomputed_kind = begin
+          rules.enforce_givens(record.dup, command, args, domain: domain_name, declaring: aggregate)
+          nil
+        rescue *GUARD_REFUSAL_CLASSES => e
+          e.class.name
+        end
+
+        { verb: verb, domain: domain_name, aggregate: aggregate_name, command: command_name, id: id,
+          recomputed_refused: !recomputed_kind.nil?, recomputed_kind: recomputed_kind }
+      rescue StandardError
+        nil
       end
 
       # THE FAN-OUT ORACLE — one finding per (event, for_each policy) this

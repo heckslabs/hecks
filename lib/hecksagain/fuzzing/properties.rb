@@ -52,6 +52,7 @@ module Hecksagain
         query_answers_match_reference: %w[Query#wheres Query#order_field Query#order_way Query#limit],
         paging_offset_partitions_correctly: %w[Query#options],
         guard_refusals_are_declared: %w[Command#givens Command#ensures],
+        lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions],
         sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
                                      ProcessManager#starts_on ProcessManager#ends_on],
         fanout_dispatches_once_per_matching_row: %w[Policy#for_each Policy#where],
@@ -421,6 +422,54 @@ module Hecksagain
         end
       end
 
+      # `guard_refusals_are_declared`'s OWN OPPOSITE DIRECTION. That
+      # property is passive and one-directional — for a refusal that
+      # ALREADY HAPPENED, is the quoted text real declared text? It says
+      # nothing about a guard that should have refused and silently did
+      # not — a call site that stopped calling enforce_givens/enforce_
+      # lifecycle_guard would never appear in history[:refusals] at all,
+      # invisible to that property by construction.
+      #
+      # This one calls Admissibility#enforce_givens (which itself folds
+      # in #enforce_lifecycle_guard whenever `declaring:` is passed)
+      # DIRECTLY, against Replay's own pre-dispatch snapshot
+      # (history[:guard_checks], one bounded, additive extension — see
+      # that file's own comment at the capture site) — an independent
+      # recomputation, not grading production against itself, the same
+      # "two engines, compared" shape query_answers_match_reference and
+      # the fan-out oracle already establish. `recomputed_refused`
+      # (Replay's own call, made live, before this step's real dispatch
+      # could mutate anything a cross-aggregate given dereferences) is
+      # compared against `actual_refused` (GivenNotMet/LifecycleRefused
+      # specifically — Replay's own comment on GUARD_REFUSAL_CLASSES
+      # explains why ANY other refusal class, or an outright success,
+      # both count as "the guard did not fire," since enforce_givens
+      # runs FIRST in DISPATCH_ORDER).
+      #
+      # Aggregate#preconditions closes for free alongside this — a
+      # no-block `given` reference (CommandBuilder#given) pushes the
+      # SAME Given struct object `enforce_givens` already iterates
+      # command.givens for, so there is no separate runtime path a
+      # property could exercise beyond what this already reaches.
+      #
+      # Real targets: Account.Debit/CloseAccount (`from:` guards),
+      # Credit/Debit (the named-once `given("customer is active")`
+      # precondition) — FreezeAccount deliberately references the
+      # DIFFERENT named precondition `"customer is not closed"` instead
+      # (a suspended customer must still be freezable), so it is not a
+      # `"customer is active"` example, just the same MECHANISM.
+      def lifecycle_guard_and_given_violations_are_refused(history)
+        offenders = history.fetch(:guard_checks).filter_map do |check|
+          next if check[:recomputed_refused] == check[:actual_refused]
+
+          "#{check[:verb]} — independently recomputing enforce_givens/enforce_lifecycle_guard against the " \
+            "pre-dispatch state says #{check[:recomputed_refused] ? "refused (#{check[:recomputed_kind]})" : 'admitted'}, " \
+            "but the real dispatch #{check[:actual_refused] ? "refused (#{check[:actual_kind]})" : 'admitted it'}"
+        end
+
+        offenders.empty? || offenders.join("; ")
+      end
+
       # EVERY STORED RECORD STILL SATISFIES ITS OWN AGGREGATE'S DECLARED
       # INVARIANTS — Admissibility#enforce_invariants (command_rules/
       # admissibility.rb) checks these AFTER every command's mutations,
@@ -712,7 +761,8 @@ module Hecksagain
           aggregation_matches_recompute: aggregation_matches_recompute(history),
           stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history),
           group_by_matches_recompute: group_by_matches_recompute(history),
-          paging_offset_partitions_correctly: paging_offset_partitions_correctly(history) }
+          paging_offset_partitions_correctly: paging_offset_partitions_correctly(history),
+          lifecycle_guard_and_given_violations_are_refused: lifecycle_guard_and_given_violations_are_refused(history) }
       end
     end
   end

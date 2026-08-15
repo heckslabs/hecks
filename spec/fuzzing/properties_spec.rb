@@ -231,6 +231,39 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
 
+    it "lifecycle_guard_and_given_violations_are_refused names a step the guard should have refused but didn't" do
+      history = { guard_checks: [
+        { verb: "Banking::Account.Debit", recomputed_refused: true, recomputed_kind: "Hecksagain::Runtime::GivenNotMet",
+          actual_refused: false, actual_kind: nil }
+      ] }
+
+      result = Hecksagain::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::Account.Debit").and include("refused").and include("admitted")
+    end
+
+    it "lifecycle_guard_and_given_violations_are_refused names a step the guard refused but shouldn't have" do
+      history = { guard_checks: [
+        { verb: "Banking::Account.Credit", recomputed_refused: false, recomputed_kind: nil,
+          actual_refused: true, actual_kind: "Hecksagain::Runtime::LifecycleRefused" }
+      ] }
+
+      result = Hecksagain::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Banking::Account.Credit")
+    end
+
+    it "lifecycle_guard_and_given_violations_are_refused passes when the recomputed and actual verdicts agree" do
+      history = { guard_checks: [
+        { verb: "Banking::Account.Debit", recomputed_refused: false, recomputed_kind: nil,
+          actual_refused: false, actual_kind: nil },
+        { verb: "Banking::Account.CloseAccount", recomputed_refused: true, recomputed_kind: "Hecksagain::Runtime::LifecycleRefused",
+          actual_refused: true, actual_kind: "Hecksagain::Runtime::LifecycleRefused" }
+      ] }
+
+      expect(Hecksagain::Fuzzing::Properties.lifecycle_guard_and_given_violations_are_refused(history)).to eq(true)
+    end
+
     it "sagas_rehydrate_cleanly names a live instance holding a state its process manager never declares" do
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" => { state: "teleported", memory: { a: 1 } } } } }
