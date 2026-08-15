@@ -22,7 +22,14 @@ Booting installs the door, so a domain is just Ruby:
 
 <!-- doctest:boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
-Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
+Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 -->
 
 ```ruby
@@ -224,7 +231,14 @@ end
 ```
 
 ```ruby boot
-Hecks.hecksagon("Banking") { Banking::Account.persisted_by("Memory") }
+Hecks.hecksagon("Banking") do
+  uses_framework "Governance"
+  Banking::Account.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 ```
 
 ```ruby

@@ -163,7 +163,14 @@ domain's state lives is a decision, and decisions are made in the
 `.hecksagon` — one line here:
 
 ```ruby boot
-Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
+Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 ```
 
 Memory for now. The same domain binds to Sqlite or Postgres by changing

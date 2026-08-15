@@ -78,7 +78,7 @@ module Hecksagain
       # Bind the ambient caller (see Runtime::Caller) for the duration of
       # the block — who a command's declared `role`, if any, is checked
       # against.
-      def as_caller(role:, &block) = Caller.as(role: role, &block)
+      def as_caller(role:, actor_id: nil, &block) = Caller.as(role: role, actor_id: actor_id, &block)
     end
   end
 end

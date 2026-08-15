@@ -32,6 +32,7 @@ RSpec.describe "Banking across persistence adapters" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(ADAPTER_MATRIX_BLUEBOOK)
       Hecks.hecksagon("Banking") do
+        uses_framework "Governance"
         Banking::Customer.persisted_by(adapter)
         Banking::Customer.projected_by("SqliteProjection") if projected
         Banking::Account.persisted_by(adapter)
@@ -52,6 +53,10 @@ RSpec.describe "Banking across persistence adapters" do
         Banking::OnboardingCase.projected_by("SqliteProjection") if projected
         Banking::Statement.persisted_by(adapter)
         Banking::Statement.projected_by("SqliteProjection") if projected
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
       if adapter != "Memory"
         adapter_name = adapter

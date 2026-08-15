@@ -31,6 +31,11 @@ Hecks.hecksagon "Governance" do
 end
 
 Hecks.hecksagon "Identity" do
+  # `Identity::Identity.Register` declares `role "Identity registrar"` —
+  # same reason this sibling attaches Governance as `Banking` and
+  # `Governance` (above) both do: a declared role is only real access
+  # control once Governance can check it against something (S8).
+  uses_framework "Governance"
   Identity::Identity.persisted_by("Memory")
   Identity::ExternalIdentifier.persisted_by("Memory")
 end

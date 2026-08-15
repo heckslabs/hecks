@@ -12,8 +12,17 @@ RSpec.describe "role-based command rejections" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      Kernel.load(File.expand_path("../../lib/hecksagain/ports/authorization.port", __dir__))
+      Kernel.load(File.expand_path("../../lib/hecksagain/adapters/driven/governance_authorization.adapter", __dir__))
       Hecks.bluebook("Cafeteria", &block)
-      Hecks.hecksagon("Cafeteria") { Cafeteria::Order.persisted_by("Memory") }
+      Hecks.hecksagon("Cafeteria") do
+        uses_framework "Governance"
+        Cafeteria::Order.persisted_by("Memory")
+      end
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
+      end
     end
     registry.verify!
     Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
@@ -100,5 +109,51 @@ RSpec.describe "role-based command rejections" do
     reaction = runtime.reactions.first
     expect(reaction[:delivered]).to eq(true)
     expect(Order.find("o1").events.map(&:name)).to include("OrderPrepared")
+  end
+
+  # THE REAL CHECK — once Governance is attached (every hecksagon above
+  # now carries `uses_framework "Governance"`, the new declare-time
+  # requirement), a caller who ALSO names WHO they are is checked
+  # against a real `RoleAssignment`, not the string they happened to
+  # type. `role:` and `actor_id:` disagreeing is the case that proves
+  # identity wins: a caller cannot talk its way past a role it was never
+  # granted just by typing the right word.
+  describe "an identified caller, checked against a real Governance grant" do
+    def grant(runtime, actor_id:, role_name:)
+      runtime.dispatch("Governance::RoleAssignment.Assign",
+                        actor_id: { value: actor_id }, role_name: { value: role_name },
+                        scope: { value: "kitchen" }, starts_at: { value: "2026-01-01" })
+    end
+
+    it "dispatches when the actor holds the command's role via a real assignment" do
+      runtime = build(&CAFETERIA_DOMAIN)
+      grant(runtime, actor_id: "u1", role_name: "Chef")
+      Hecksagain.as_caller(role: "Customer") { Order.place(ref: { value: "o1" }) }
+      order = Order.find("o1")
+
+      Hecksagain.as_caller(role: "Chef", actor_id: "u1") { order.prepare }
+      expect(order.events.map(&:name)).to include("OrderPrepared")
+    end
+
+    it "refuses an identified caller with no matching grant, even though the role it typed matches" do
+      runtime = build(&CAFETERIA_DOMAIN)
+      Hecksagain.as_caller(role: "Customer") { Order.place(ref: { value: "o1" }) }
+      order = Order.find("o1")
+
+      expect {
+        Hecksagain.as_caller(role: "Chef", actor_id: "u2") { order.prepare }
+      }.to raise_error(Hecksagain::Runtime::Unauthorized, /refused — role: Chef, and the caller stated Chef/)
+    end
+
+    it "refuses an identified caller whose real assignment is for a different role" do
+      runtime = build(&CAFETERIA_DOMAIN)
+      grant(runtime, actor_id: "u3", role_name: "Customer")
+      Hecksagain.as_caller(role: "Customer", actor_id: "u3") { Order.place(ref: { value: "o1" }) }
+      order = Order.find("o1")
+
+      expect {
+        Hecksagain.as_caller(role: "Chef", actor_id: "u3") { order.prepare }
+      }.to raise_error(Hecksagain::Runtime::Unauthorized)
+    end
   end
 end

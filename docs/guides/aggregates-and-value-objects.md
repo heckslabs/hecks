@@ -22,6 +22,7 @@ it happens.
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
 
 Hecks.hecksagon("Banking") do
+  uses_framework "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::SafeDepositBox.persisted_by("Memory")
@@ -29,6 +30,10 @@ Hecks.hecksagon("Banking") do
   Banking::ATMCard.persisted_by("Memory")
   Banking::ExternalTransfer.persisted_by("Memory")
   Banking::OnboardingCase.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end
 ```
 
@@ -631,7 +636,14 @@ end
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
-Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
+Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 ```
 
 ```ruby

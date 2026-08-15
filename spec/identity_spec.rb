@@ -17,8 +17,13 @@ RSpec.describe "Identity" do
       Kernel.load(File.expand_path("fixtures/sequential_identity.adapter", __dir__))
       Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"))
       Hecks.hecksagon("Identity") do
+        uses_framework "Governance"
         ::Identity::Identity.persisted_by("Memory")
         ::Identity::ExternalIdentifier.persisted_by("Memory")
+      end
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
       end
     end
 

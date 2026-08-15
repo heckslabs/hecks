@@ -64,11 +64,25 @@ module Hecksagain
     # everywhere else too. See `examples/banking/bluebook/banking.hecksagon`
     # for the pattern — a real `.hecksagon` file can hold more than one
     # `Hecks.hecksagon` call, one per domain it wires.
+    # IDEMPOTENT, PER REGISTRY — `uses_framework` is now called more than
+    # once for the SAME member within a single boot (S8: a domain
+    # attaching Governance for its own role check, plus a framework
+    # sibling attaching it too, e.g. `banking.hecksagon`'s Identity
+    # block). `Kernel.load` always re-executes the file, unlike
+    # `require`, so a second call would re-run `Hecks.bluebook
+    # "Governance"` a second time — and the self-hosting meta-domain
+    # records every declaration as a real dispatched command against its
+    # own ledger, so a second `Declare` for the SAME aggregate is a real
+    # `AlreadyExists`, not a no-op. Skipped once the member's bluebook is
+    # already registered in THIS registry — the same chapter, not merely
+    # a same-named one from a stale prior boot.
     def self.load!(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
               "no framework member named #{name.inspect} — known: #{members.keys.sort.join(', ')}"
       end
+
+      return if Hecksagain.current_registry.bluebook(name.to_s)
 
       Kernel.load(path)
     end

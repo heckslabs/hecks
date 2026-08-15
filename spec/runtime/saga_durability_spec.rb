@@ -43,7 +43,14 @@ RSpec.describe "durable saga/process-manager state" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
       # §0's domain-level default — one bind covers both aggregates.
-      Hecks.hecksagon("Wire") { persisted_by "SqlitePersistence" }
+      Hecks.hecksagon("Wire") do
+        uses_framework "Governance"
+        persisted_by "SqlitePersistence"
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
+      end
       Hecks.world("Wire") { persisted_by("SqlitePersistence") { database(File.join(root, "wire.db")) } }
     end
 
@@ -120,7 +127,14 @@ RSpec.describe "durable saga/process-manager state" do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(WIRE_BLUEBOOK)
-        Hecks.hecksagon("Wire") { persisted_by "Memory" }
+        Hecks.hecksagon("Wire") do
+          uses_framework "Governance"
+          persisted_by "Memory"
+        end
+        Hecks.hecksagon("Governance") do
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
+        end
       end
       registry.verify!
       runtime = Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))

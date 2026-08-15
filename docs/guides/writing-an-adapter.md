@@ -433,6 +433,7 @@ already declares:
 Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
 
 Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
   Pizzas::Order.persisted_by("Memory")
 
   Pizzas::Order.port "PaymentGateway" do
@@ -444,6 +445,10 @@ Hecks.hecksagon("Pizzas") do
       emits "PizzaPaymentReceived"
     end
   end
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end
 ```
 

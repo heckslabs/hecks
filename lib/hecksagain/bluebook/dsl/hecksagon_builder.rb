@@ -64,8 +64,10 @@ module Hecksagain
         end
 
         def build
-          Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
-                             framework_members: @framework_members)
+          hecksagon = Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
+                                     framework_members: @framework_members)
+          refuse_ungoverned_roles!(hecksagon)
+          hecksagon
         end
 
         # DOMAIN-LEVEL DEFAULT BINDS — `persisted_by "Heki"` bare, at the top
@@ -85,6 +87,48 @@ module Hecksagain
         end
 
         def respond_to_missing?(_name, _include_private = false) = true
+
+        private
+
+        # `role` IS REAL ACCESS CONTROL ONLY WHEN GOVERNANCE CAN CHECK IT
+        # AGAINST SOMETHING — a command that declares a role but whose
+        # domain never attaches Governance would leave that role forever
+        # unchecked, exactly the defect ADR 0025 §9 names ("role gates
+        # access control by exact string equality ... Governance ...
+        # connected to none of it"). Refused here, at HECKSAGON build
+        # time, not bluebook build time — a bluebook can be judged before
+        # its own domain's hecksagon exists at all (`uses_framework` is a
+        # WIRING decision, declared on the hecksagon, same as
+        # `persisted_by`), so this is the first point either fact is
+        # known together.
+        #
+        # GOVERNANCE ITSELF IS EXEMPT — it cannot `uses_framework` its own
+        # aggregates, and it IS the source of truth a role check runs
+        # against, the same self-reference `CommandRules::Authorization
+        # #governance_attached?` grants it at dispatch time.
+        def refuse_ungoverned_roles!(hecksagon)
+          return if hecksagon.domain == "Governance"
+          return if hecksagon.framework_members.include?("Governance")
+
+          bluebook_ir = Hecksagain.current_registry.bluebook(hecksagon.domain)
+          return unless bluebook_ir
+
+          offender = commands_in(bluebook_ir).find { |command| !command.role.to_s.empty? }
+          return unless offender
+
+          raise Malformed,
+                "#{offender.hecks_fqn} declares role #{offender.role.inspect}, but " \
+                "#{hecksagon.domain}'s hecksagon never uses_framework \"Governance\" — role is only " \
+                "real access control once Governance is attached to check it against; without that " \
+                "it is silent decoration, the exact defect this refusal exists to catch"
+        end
+
+        # Every command this domain declares, an aggregate's own AND every
+        # entity nested inside one — the same reach `refuse_role_mismatch`
+        # itself needs at dispatch time, just walked ahead of time here.
+        def commands_in(bluebook_ir)
+          bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
+        end
 
         def self.build(domain, &block)
           builder  = new(domain)

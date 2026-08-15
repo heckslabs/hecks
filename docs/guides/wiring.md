@@ -58,6 +58,7 @@ the entire reason a `.hecksagon` exists.
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
 Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
   Pizzas::Order.persisted_by("Memory")
 
   # An event this hecksagon takes from OUTSIDE Pizzas' own bluebook —
@@ -77,6 +78,10 @@ Hecks.hecksagon("Pizzas") do
       emits "PizzaPaymentReceived"
     end
   end
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end
 ```
 

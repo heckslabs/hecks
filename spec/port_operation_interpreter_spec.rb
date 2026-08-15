@@ -18,6 +18,7 @@ RSpec.describe "a port operation, dispatched" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "spec/fixtures/payments.bluebook"))
       Hecks.hecksagon("Payments") do
+        uses_framework "Governance"
         ::Payments::Payment.persisted_by("Memory")
 
         # THE PRIMARY PORT — called by an adapter outside the bluebook
@@ -41,6 +42,10 @@ RSpec.describe "a port operation, dispatched" do
             emits "PaymentDeclined"
           end
         end
+      end
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
       end
     end
 

@@ -157,7 +157,13 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # ever consulted whichever bluebook happened to load first, never
       # the refusing verb's OWN domain.
       bluebooks = bluebooks_for(PROPERTIES_GRAMMAR)
-      expect(bluebooks.keys).to eq(%w[Expression Translation]) # Expression loads first — the shape the bug needed
+      # Expression loads first — the shape the bug needed. Governance
+      # loads last — both Expression's and Translation's hecksagons now
+      # `uses_framework "Governance"` (S8: `role` is only real access
+      # control once Governance can check it), attached AFTER either
+      # chapter itself, since `uses_framework` runs from inside their
+      # own hecksagon blocks.
+      expect(bluebooks.keys).to eq(%w[Expression Translation Governance])
 
       history = { bluebooks: bluebooks,
                   refusals: [{ verb: "Translation::Map.Seal",

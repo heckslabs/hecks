@@ -12,15 +12,22 @@ module Hecksagain
     # worker thread mid-dispatch today, so this is a fact worth naming
     # rather than a gap worth solving.
     module Caller
-      Current = Struct.new(:role, keyword_init: true)
+      # `actor_id` is OPTIONAL, on top of the role that has always been
+      # here — a caller that states only a role (every caller before this)
+      # is checked the way it always was, string equality against the
+      # command's own `role`. A caller that also names WHO it is lets
+      # `CommandRules::Authorization` check a real Governance
+      # `RoleAssignment` instead, once the command's domain has Governance
+      # attached — see that module's own header for the full split.
+      Current = Struct.new(:role, :actor_id, keyword_init: true)
 
       module_function
 
       def current = Thread.current[:hecksagain_caller]
 
-      def as(role:)
+      def as(role:, actor_id: nil)
         previous = Thread.current[:hecksagain_caller]
-        Thread.current[:hecksagain_caller] = Current.new(role: role.to_s)
+        Thread.current[:hecksagain_caller] = Current.new(role: role.to_s, actor_id: actor_id&.to_s)
         yield
       ensure
         Thread.current[:hecksagain_caller] = previous

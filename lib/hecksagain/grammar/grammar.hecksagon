@@ -2,9 +2,19 @@
 # alone. Both are read-only in practice — Hecksagain::Grammar parses
 # against them — but a binding is declared rather than defaulted.
 Hecks.hecksagon "Expression" do
+  # Every command here declares `role "Language designer"` — only real
+  # access control once Governance can check it against something (S8).
+  uses_framework "Governance"
   persisted_by "Memory"
 end
 
 Hecks.hecksagon "Translation" do
+  # Same reason as Expression, above — S8.
+  uses_framework "Governance"
   persisted_by "Memory"
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end

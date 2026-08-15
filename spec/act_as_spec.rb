@@ -42,7 +42,14 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-      Hecks.hecksagon("Pizzas") { ::Pizzas::Order.persisted_by("Memory") }
+      Hecks.hecksagon("Pizzas") do
+        uses_framework "Governance"
+        ::Pizzas::Order.persisted_by("Memory")
+      end
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
+      end
     end
 
     registry.verify!

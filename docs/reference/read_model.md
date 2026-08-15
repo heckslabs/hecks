@@ -19,6 +19,7 @@ declared by no read model in the corpus, so they get one of their own:
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
 
 Hecks.hecksagon("Banking") do
+  uses_framework "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
   Banking::ATMCard.persisted_by("Memory")
@@ -26,6 +27,10 @@ Hecks.hecksagon("Banking") do
   Banking::CardPayment.persisted_by("Memory")
   Banking::ExternalTransfer.persisted_by("Memory")
   Banking::ScheduledPayment.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end
 ```
 

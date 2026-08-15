@@ -28,7 +28,14 @@ does. The evidence follows below rather than a description of it:
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.world"))
-Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Postgres") }
+Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("Postgres")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 ```
 
 ```ruby

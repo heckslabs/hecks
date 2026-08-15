@@ -60,7 +60,7 @@ module Hecksagain
       end
 
       def step_refuse_role_mismatch(ctx)
-        step(:refuse_role_mismatch) { @rules.refuse_role_mismatch(ctx.command) }
+        step(:refuse_role_mismatch) { @rules.refuse_role_mismatch(ctx.command, ctx.domain) }
       end
 
       def step_resolve_references(ctx)

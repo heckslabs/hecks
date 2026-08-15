@@ -22,6 +22,7 @@ RSpec.describe "a read model's query options" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
       Hecks.hecksagon("Banking") do
+        uses_framework "Governance"
         Banking::Customer.persisted_by(adapter)
         Banking::Account.persisted_by(adapter)
         Banking::ATMCard.persisted_by(adapter)
@@ -31,6 +32,10 @@ RSpec.describe "a read model's query options" do
         Banking::ScheduledPayment.persisted_by(adapter)
         Banking::SafeDepositBox.persisted_by(adapter)
         Banking::OnboardingCase.persisted_by(adapter)
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
       yield if block_given?
     end
@@ -244,9 +249,14 @@ RSpec.describe "a read model's query options" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
         Hecks.hecksagon("Banking") do
+          uses_framework "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")
           Banking::Account.persisted_by("SqlitePersistence")
           Banking::CardPayment.persisted_by("SqlitePersistence")
+        end
+        Hecks.hecksagon("Governance") do
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
         end
         Hecks.world("Banking") do
           persisted_by("SqlitePersistence") { database File.join(dir, "banking.db") }
@@ -307,6 +317,7 @@ RSpec.describe "a read model's query options" do
           end
         end
         Hecks.hecksagon("Banking") do
+          uses_framework "Governance"
           Banking::Customer.persisted_by(adapter)
           Banking::Account.persisted_by(adapter)
           Banking::ATMCard.persisted_by(adapter)
@@ -316,6 +327,10 @@ RSpec.describe "a read model's query options" do
           Banking::ScheduledPayment.persisted_by(adapter)
           Banking::SafeDepositBox.persisted_by(adapter)
           Banking::OnboardingCase.persisted_by(adapter)
+        end
+        Hecks.hecksagon("Governance") do
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
         end
       end
       registry.verify!
@@ -519,8 +534,13 @@ RSpec.describe "a rootless read model's own group_by" do
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
       Hecks.hecksagon("Banking") do
+        uses_framework "Governance"
         Banking::Customer.persisted_by(adapter)
         Banking::Account.persisted_by(adapter)
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
       end
       yield if block_given?
     end
@@ -723,8 +743,13 @@ RSpec.describe "a rootless read model's own group_by" do
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
         Hecks.hecksagon("Banking") do
+          uses_framework "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")
           Banking::Account.persisted_by("SqlitePersistence")
+        end
+        Hecks.hecksagon("Governance") do
+          Governance::RoleAssignment.persisted_by("Memory")
+          Governance::RoleTransition.persisted_by("Memory")
         end
         Hecks.world("Banking") do
           persisted_by("SqlitePersistence") { database File.join(dir, "banking.db") }

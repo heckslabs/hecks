@@ -56,7 +56,14 @@ module Hecksagain
     # against a command's declared `role`, if it has one. Unbound (the
     # default), a command's role stays exactly what it is without this:
     # decoration.
-    def as_caller(role:, &block) = Runtime.as_caller(role: role, &block)
+    #
+    # `actor_id` is OPTIONAL — a caller naming only a role is checked by
+    # string equality against the command's own `role`, exactly as
+    # before. A caller that also names WHO it is lets the check run
+    # against a real Governance `RoleAssignment` instead, once the
+    # command's domain has Governance attached — see
+    # `CommandRules::Authorization`'s own header.
+    def as_caller(role:, actor_id: nil, &block) = Runtime.as_caller(role: role, actor_id: actor_id, &block)
 
     def bluebook(name, version: nil, &block) = collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))

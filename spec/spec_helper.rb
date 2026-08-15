@@ -34,7 +34,14 @@ module InMemoryDomain
       # unresolved constant reaches Object's const_missing (ConstShim ->
       # BindingProxy). This block lives inside a module, so a bare `Pizzas`
       # would be looked up here first and reach no hook at all.
-      Hecks.hecksagon("Pizzas") { ::Pizzas::Order.persisted_by("Memory") }
+      Hecks.hecksagon("Pizzas") do
+        uses_framework "Governance"
+        ::Pizzas::Order.persisted_by("Memory")
+      end
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
+      end
     end
 
     registry.verify!

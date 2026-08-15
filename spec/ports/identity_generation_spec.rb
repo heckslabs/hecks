@@ -44,7 +44,14 @@ RSpec.describe Hecksagain::Ports::IdentityGeneration do
       registry = registry_with(SEQUENTIAL_ADAPTER)
       Hecksagain.with_registry(registry) do
         Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Hecks.hecksagon("Pizzas") { ::Pizzas::Order.persisted_by("Memory") }
+        Hecks.hecksagon("Pizzas") do
+          uses_framework "Governance"
+          ::Pizzas::Order.persisted_by("Memory")
+        end
+        Hecks.hecksagon("Governance") do
+          ::Governance::RoleAssignment.persisted_by("Memory")
+          ::Governance::RoleTransition.persisted_by("Memory")
+        end
       end
       registry.verify!
       Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))

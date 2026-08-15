@@ -1,4 +1,15 @@
 Hecks.hecksagon "Compliance" do
+  # Every command here declares `role "Compliance officer"` — only real
+  # access control once Governance can check it against something (S8).
+  # A genuine standalone deploy (this domain's own Lambda, per this
+  # file's own header two files up), so this attaches AND binds
+  # Governance itself, the same sibling shape banking.hecksagon uses.
+  uses_framework "Governance"
   Compliance::AccountFreezeReview.persisted_by("Postgres")
   Compliance::BoxSurrenderReview.persisted_by("Postgres")
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end

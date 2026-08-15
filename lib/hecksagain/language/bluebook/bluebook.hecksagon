@@ -11,5 +11,14 @@
 # still has to be DECLARED rather than defaulted, so that what answers is
 # a stated fact rather than whatever the runtime happened to fall back on.
 Hecks.hecksagon "Bluebook" do
+  # Several constructs here declare `role "Language"` (Aggregate.Declare,
+  # Entity.Declare, ...) — only real access control once Governance can
+  # check it against something (S8).
+  uses_framework "Governance"
   persisted_by "Memory"
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
 end

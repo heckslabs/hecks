@@ -19,11 +19,23 @@ Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.b
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"))
 
 Hecks.hecksagon("Banking") do
+  uses_framework "Governance"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
 end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 
-Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
+Hecks.hecksagon("Pizzas") do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("Memory")
+end
+Hecks.hecksagon("Governance") do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
 ```
 
 ```ruby bluebook

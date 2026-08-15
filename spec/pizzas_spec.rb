@@ -38,7 +38,12 @@ RSpec.describe "Pizzas" do
 
   describe "the domain surface" do
     it "exposes every command as a fully-qualified verb" do
-      expect(runtime.verbs).to contain_exactly(
+      # `include`, not `contain_exactly` — `boot_in_memory` now attaches
+      # Governance too (S8: `role` is only real access control once
+      # Governance can check it), so its own verbs are on the surface as
+      # well. This test is about Pizza's own commands, not the absence
+      # of anything else's.
+      expect(runtime.verbs).to include(
         "Pizzas::Order.AddTopping",
         "Pizzas::Order.CreatePizza",
         "Pizzas::Order.Purchase"
@@ -154,7 +159,14 @@ RSpec.describe "Pizzas" do
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-          Hecks.hecksagon("Pizzas") { Pizzas::Order.charged_by("Memory") }
+          Hecks.hecksagon("Pizzas") do
+            uses_framework "Governance"
+            Pizzas::Order.charged_by("Memory")
+          end
+          Hecks.hecksagon("Governance") do
+            Governance::RoleAssignment.persisted_by("Memory")
+            Governance::RoleTransition.persisted_by("Memory")
+          end
         end
         registry.verify!
       end.to raise_error(
@@ -212,7 +224,14 @@ RSpec.describe "Pizzas" do
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
           Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-          Hecks.hecksagon("Pizzas") { Pizzas::Order.charged_by("Memory") }
+          Hecks.hecksagon("Pizzas") do
+            uses_framework "Governance"
+            Pizzas::Order.charged_by("Memory")
+          end
+          Hecks.hecksagon("Governance") do
+            Governance::RoleAssignment.persisted_by("Memory")
+            Governance::RoleTransition.persisted_by("Memory")
+          end
         end
 
         pizza = registry.bluebook("Pizzas").aggregate("Order")
@@ -232,7 +251,10 @@ RSpec.describe "Pizzas" do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
-        Hecks.hecksagon("Pizzas") { Pizzas::Order.persisted_by("Memory") }
+        Hecks.hecksagon("Pizzas") do
+          uses_framework "Governance"
+          Pizzas::Order.persisted_by("Memory")
+        end
       end
 
       pizza = registry.bluebook("Pizzas").aggregate("Order")
