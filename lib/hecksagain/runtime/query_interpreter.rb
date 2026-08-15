@@ -94,7 +94,13 @@ module Hecksagain
       def interpret(records, declared, args, domain: nil)
         matched = records.select { |r| declared.wheres.all? { |w| where_holds?(w, r, args, domain: domain) } }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
-        capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
+        # OFFSET FIRST, THEN LIMIT — the order SQL means by `LIMIT n
+        # OFFSET m`, and the order Ports::Query::InMemory#execute already
+        # applies (see that file's own comment). This interpreter used to
+        # never read declared.offset at all — offset silently vanished for
+        # any query answered here, not just come out reversed.
+        skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
+        capped  = declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
 
         # id LAST — see the native-path comment above; same clobbering
         # risk for the in-memory reference interpreter's own rows.
@@ -110,7 +116,10 @@ module Hecksagain
       def reference_interpret(records, declared, args, domain:, shape:)
         matched = records.select { |r| declared.wheres.all? { |w| reference_where_holds?(w, r, args, domain: domain, shape: shape) } }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
-        capped  = declared.limit ? ordered.first(resolve_query_value(declared.limit.value, args).to_i) : ordered
+        # OFFSET FIRST, THEN LIMIT — same fix, same reasoning, as
+        # #interpret's own rows above.
+        skipped = declared.offset ? ordered.drop(resolve_query_value(declared.offset.value, args).to_i) : ordered
+        capped  = declared.limit ? skipped.first(resolve_query_value(declared.limit.value, args).to_i) : skipped
 
         # id LAST — same reasoning, same fix, as interpret's own rows.
         capped.map { |r| r.state.merge(id: r.id) }
