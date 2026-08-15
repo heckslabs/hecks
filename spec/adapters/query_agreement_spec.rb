@@ -2,7 +2,7 @@ require "hecksagain"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 # `pg` is required explicitly — the adapter only requires it lazily,
-# inside `Postgres.connect_for` — see postgres_spec.rb's own note.
+# inside `PostgresEra.connect_for` — see postgres_era_spec.rb's own note.
 require "pg"
 
 # WHY THIS GATE EXISTS: every existing adapter spec (postgres_spec.rb,
@@ -264,7 +264,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   let(:memory)   { Hecksagain::Adapters::Memory.new(aggregate: aggregate) }
   let(:sqlite)   { Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
-  let(:postgres) { postgres_available? ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
+  let(:postgres) { postgres_available? ? Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
   let(:d1) do
     next nil unless d1_available?
 

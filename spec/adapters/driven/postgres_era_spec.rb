@@ -7,7 +7,7 @@ require_relative "../../support/postgres_probe"
 # scratch database and needs no configuration at all. The reachability
 # probe itself lives in support/postgres_probe.rb, shared by every
 # Postgres spec — see that file for why.
-RSpec.describe Hecksagain::Adapters::Postgres,
+RSpec.describe Hecksagain::Adapters::PostgresEra,
                io: true do
   SPEC_DB = "hecksagain_adapter_spec".freeze
 
@@ -54,7 +54,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecksagain::Runtime::WiringError, /cannot bind Postgres at postgres:\/\/localhost:1\/nowhere for Order/)
+      .to raise_error(Hecksagain::Runtime::WiringError, /cannot bind PostgresEra at postgres:\/\/localhost:1\/nowhere for Order/)
   end
 
   it "saves and finds one back through the jsonb head" do
@@ -230,7 +230,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new([clause], nil, nil, nil, nil)
 
       expect { adapter.query(declared, {}) }
-        .to raise_error(ArgumentError, 'Postgres query adapter does not support "between"')
+        .to raise_error(ArgumentError, 'PostgresEra query adapter does not support "between"')
     end
 
     # ADVERSARIAL, not incidental: today's only caller compiles field
@@ -265,7 +265,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
       expect(adapter.query(declared, {})).to eq([])
     end
 
-    # eq and lt were the only operators ever exercised against Postgres —
+    # eq and lt were the only operators ever exercised against PostgresEra —
     # the rest of the comparator matrix was tested only against Memory
     # (spec/query_comparators_spec.rb). One real adapter should prove
     # the other five compile and answer correctly too.
@@ -294,7 +294,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
     # scalar, which agreed with this SQL substring search only by
     # coincidence on a comma-free field. See
     # spec/adapters/query_agreement_spec.rb's "carries a comma" case for
-    # the cross-engine proof. This test verifies only that Postgres's own
+    # the cross-engine proof. This test verifies only that PostgresEra's own
     # compilation (a value-object member would also need query_value's
     # hash-unwrapping to resolve a string, which it does not: it only
     # extracts a NUMERIC member and returns nil otherwise) executes
@@ -333,7 +333,7 @@ RSpec.describe Hecksagain::Adapters::Postgres,
 
     # `pizza.price_cents.cents` (the live Pizzas domain's own numeric field)
     # is a value object nested TWO levels deep, and `numeric_field?`
-    # (postgres.rb) only ever inspects the first nested segment — it was
+    # (postgres_era.rb) only ever inspects the first nested segment — it was
     # never built to recurse. A dotted path that deep still compiles a
     # correct jsonb EXTRACTION (arbitrary depth), but the numeric CAST is
     # skipped, so ordering falls back to lexicographic text — wrong for any
@@ -412,12 +412,12 @@ RSpec.describe Hecksagain::Adapters::Postgres,
   # aggregate_builder.rb) all compile to a scalar Reference<T> attribute,
   # stored as a bare id (never wrapped — Runtime::Value refuses a
   # reference arriving as a hash). No fixture anywhere declared one
-  # before this, and none was exercised against Postgres: `where` on
+  # before this, and none was exercised against PostgresEra: `where` on
   # such a field compiled to `state #>> '{field,value}'`, digging for a
   # nested "value" key that a bare scalar never has, and silently
   # matched nothing. Falsified before trusting it: reverting the fix in
   # query_expression reproduces the empty result exactly.
-  describe "a has_one/belongs_to reference field, queried through Postgres" do
+  describe "a has_one/belongs_to reference field, queried through PostgresEra" do
     REFS_SOURCE = <<~BLUEBOOK.freeze
       Hecks.bluebook "Refs" do
         aggregate "Ticket" do

@@ -33,8 +33,9 @@ makes an existing blocking backfill path non-blocking per a newly-adopted standi
    are already adapter-owned, so this doesn't require reaching into shared infrastructure.
 3. **Automatic derivation, not a new DSL keyword.** Which fields get indexed (cache tables for
    `PostgresEra`, plain indexes for `Postgres`/`Sqlite`/`D1`) is derived from existing declared
-   `where`/`order_by` IR on the aggregate's own queries. No bluebook author ever opts in explicitly
-   — matches every other self-healing schema move this adapter already makes
+   `where`/`order_by` IR on the aggregate's own queries (`Aggregate#queries`, plus each entity's own
+   `queries` — `query_surfaces` in `dsl/aggregate_builder.rb` walks both). No bluebook author ever
+   opts in explicitly — matches every other self-healing schema move this adapter already makes
    (`ensure_head_snapshot!`, `ensure_first_head!`).
 4. **Backward-compatible naming.** `PostgresEra` keeps today's `Postgres` behavior byte-for-byte
    under a new name. Every existing consumer is explicitly repointed at it — nothing changes
@@ -44,16 +45,123 @@ makes an existing blocking backfill path non-blocking per a newly-adopted standi
    shape is the reduced read side (`all()`/`head_view`), not the raw write history. This is the one
    mechanism for: Postgres→Sqlite, Sqlite→Postgres, and a domain later upgrading from plain
    `Postgres` to `PostgresEra` — not three separate migration stories.
+6. **New backfill/cache-table code picks lock keys disjoint from the four families already in use**
+   — `hecks_ordinal:`, `hecks_eras:`, `hecks_head_snapshot:` (see `postgres_era/lineage/*.rb`, all
+   `pg_advisory_xact_lock(hashtext(...))`). A natural new prefix is `hecks_field_cache:`; whatever is
+   chosen, grep the full lock-key inventory before picking it.
 
-## Scope
+## Implementation ordering
+
+The original version of this doc listed five scope items with no stated dependency graph. Turning
+it into an actual work plan surfaced a real one — Scope 1 (the rename) is a hard prerequisite for
+everything else (it frees the plain `Postgres` name), Scope 5 (validation) is a hard dependent of
+Scope 3 (nothing to validate until the cache-table engine exists), and Scopes 2/3/4 touch disjoint
+files once Scope 1 lands, so they parallelize cleanly. It also surfaced work the original scope list
+didn't name at all: the adapter's own 2700-line spec suite (`postgres_spec.rb`, 525 lines;
+`postgres/lineage_spec.rb`, 1413 lines; `postgres/domain_rename_spec.rb`, 338 lines;
+`adapters/query_agreement_spec.rb`, 430 lines) all bind `Hecksagain::Adapters::Postgres` directly and
+need the same rename Scope 1 gives every other consumer — not mentioned in the original Scope 1, but
+the same prerequisite.
+
+```
+Phase 0 — Rename (sequential, blocking, no parallelism possible)
+  │  Frees the bare "Postgres" name. Nothing in Phase 1 can start before this lands —
+  │  Track A creates a NEW lib/.../postgres.rb and a NEW spec/.../postgres_spec.rb at
+  │  paths this phase must vacate first.
+  │
+  ├─ lib/hecksagain/adapters/driven/postgres.rb        → postgres_era.rb (class → PostgresEra)
+  ├─ lib/hecksagain/adapters/driven/postgres.adapter    → postgres_era.adapter
+  ├─ lib/hecksagain/adapters/driven/postgres/           → postgres_era/  (lineage + lineage_manager)
+  ├─ driven.rb's require_relative repointed
+  ├─ every real consumer repointed to persisted_by("PostgresEra"): pizzas/compliance
+  │  .hecksagon + .world, saga_durability_postgres_spec.rb's inline Wire fixture,
+  │  spec_helper.rb's adapter-path constant + its 4 call sites, comments in
+  │  domain_refusal_spec.rb/dsl_spec.rb
+  ├─ the adapter's OWN spec suite renamed + repointed (not in the original scope list):
+  │    spec/adapters/driven/postgres_spec.rb           → postgres_era_spec.rb
+  │    spec/adapters/driven/postgres/                  → postgres_era/  (lineage_spec.rb,
+  │                                                        domain_rename_spec.rb)
+  │    spec/adapters/query_agreement_spec.rb            (Postgres → PostgresEra refs updated
+  │                                                        in place; stays this filename —
+  │                                                        Track A adds a 5th engine to it later)
+  └─ docs (README, guides) + live Rust-side comments (lineage_pass.rs, auth.rs, journal.rs,
+     lex.rs) swept for accuracy; historical audit logs / dated correction entries in
+     HECKS_IMPLEMENTATION_PLAN.md deliberately left untouched (point-in-time records)
+
+  STATUS: done. Verified: `require "hecksagain"` loads clean; PostgresEra resolves and
+  answers lineage_capable? true.
+
+Phase 1 — three independent tracks, parallel (disjoint files once Phase 0 lands)
+
+  ┌─ Track A: new plain `Postgres` adapter (original Scope 2) ────────────────────────┐
+  │  lib/hecksagain/adapters/driven/postgres.rb (NEW), postgres.adapter (NEW),         │
+  │  postgres/codec.rb (NEW — real typed columns for scalars, jsonb for nested/list,   │
+  │  ported from Sqlite::Codec's shape, not its SQLite-JSON-text mechanics),           │
+  │  postgres/schema_builder.rb (NEW — plain CREATE INDEX per declared where/order_by  │
+  │  field, both safe to index directly here since there's no reduction to route       │
+  │  around), driven.rb gets its second require_relative added back,                   │
+  │  spec/adapters/driven/postgres_spec.rb (NEW, modeled on sqlite_spec.rb),           │
+  │  query_agreement_spec.rb gains a 5th engine (plain Postgres, alongside Memory/      │
+  │  Sqlite/PostgresEra/D1) — depends on this track's own adapter existing, so it's     │
+  │  the last step within this track, not a separate one.                              │
+  └──────────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Track B: Sqlite/D1 automatic indexing (original Scope 4) ────────────────────────┐
+  │  sqlite/schema_builder.rb: plain CREATE INDEX for scalar where/order_by columns;   │
+  │  for value-object/list-typed attributes (JSON-encoded text per sqlite/codec.rb),   │
+  │  an EXPRESSION index matching nested_expression/plain_column's own json_extract    │
+  │  phrasing (an index on the raw column indexes the whole blob, not the field; a     │
+  │  mismatched expression index is invisible to the planner). D1 inherits for free    │
+  │  (shares SchemaBuilder with Sqlite verbatim) — no D1-specific work.                │
+  └──────────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Track C: PostgresEra cache tables + resumable backfill (original Scope 3) ───────┐
+  │  HIGHEST RISK, LEAST PARALLELIZABLE — real concurrency correctness (locking,       │
+  │  crash-resumability), not mechanical refactoring. Built as one coherent piece, not │
+  │  split further:                                                                    │
+  │   - one narrow cache table per where-field (id PK, ordinal, value), upserted       │
+  │     transactionally inside the existing append, same ordinal-guard idiom           │
+  │     head_snapshot's own upsert already uses                                        │
+  │   - two-phase query execution: SELECT id FROM <field>_cache WHERE value = $1, then │
+  │     SELECT id, state FROM head_view WHERE id = ANY($ids) — safe through the        │
+  │     DISTINCT ON reduction because id is its own partition key                      │
+  │   - order_by-only queries need no cache table (sorting reduced output was never    │
+  │     blocked by the reduction — only filtering was)                                 │
+  │   - backfill for a query declared later against existing history: chunked by id    │
+  │     range, no shared lock with append's own ordinal lock, ordinal-guarded so a     │
+  │     concurrent live write always wins, resumable across a crash/second concurrent  │
+  │     boot mid-backfill                                                              │
+  │   - retrofit backfill_head_snapshot! itself (era 1's existing one-shot blocking    │
+  │     backfill, full contents in head_compiler.rb) to the same chunked, lock-free,   │
+  │     resumable shape — principle 1 reaching backward                                │
+  │   - additive (aggregate_id, ordinal DESC) index on the snapshot/matview tables     │
+  └──────────────────────────────────────────────────────────────────────────────────┘
+
+Phase 2 — Validation (original Scope 5), depends on Phase 1 Track C only
+  New spec in hecksagain's own suite, against a real throwaway Postgres database (never the
+  dev database, PostgresProbe/before(:all)-scratch-db pattern every other real-Postgres spec
+  already uses) — with a toy aggregate pushed through a real era mint. Must prove: cache-table
+  correctness both before and after a mint, backfill resumability under a simulated
+  crash/restart, and genuine non-blocking-ness (a concurrent write succeeding while a backfill
+  is mid-scan). Not routed through Payments (~/Projects/junkdrawer/payments) — that project
+  stays on Heki by its own explicit design; this is a framework capability, proven against a
+  purpose-built aggregate.
+
+Phase 3 — Full-suite verification, depends on everything
+  `bundle exec rspec` (unconditional suite) + `CI=true bundle exec rspec` or
+  `--tag io` (the real-Postgres-gated suite, including the new Phase 2 spec and the extended
+  query_agreement_spec.rb) run clean against local Postgres. Update this doc's own status.
+```
+
+Tracks A and B were delegated to parallel subagents once Phase 0 landed; Track C (and Phase 2) were
+built directly rather than delegated — the risk in Track C is real concurrency correctness under
+crash/restart, not mechanical translation of an existing pattern, and that class of bug is exactly
+the kind a subagent's own tests won't reliably catch without close, incremental supervision.
+
+## Scope (unchanged in substance from the original version — ordering now lives above)
 
 ### 1. Rename `Postgres` → `PostgresEra`
-- `lib/hecksagain/adapters/driven/postgres.rb` → `postgres_era.rb` (`class Postgres` → `class PostgresEra`)
-- `lib/hecksagain/adapters/driven/postgres.adapter` → `postgres_era.adapter` (`Hecks.adapter "Postgres"` → `"PostgresEra"`)
-- Repoint every existing consumer: `pizzas.hecksagon`, `compliance.hecksagon`, and the three specs
-  named above, to `persisted_by("PostgresEra")`.
-- No data migration needed for any of them (per the verified-consumer check above) — this is a pure
-  rename for every domain that exists today.
+See Phase 0 above.
 
 ### 2. New, plain `Postgres` adapter
 - Flat, one table per aggregate. Real typed columns for scalar attributes, jsonb for nested/list —
