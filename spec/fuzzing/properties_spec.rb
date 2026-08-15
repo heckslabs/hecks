@@ -214,6 +214,55 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       expect(Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)).to eq(true)
     end
 
+    it "dispatch_binding_fidelity names a saga dispatch bound to the wrong value" do
+      history = { saga_dispatches: [
+        { process_manager: "Settlement", instance: "ref-1", dispatch: "Account::Credit", on: "AccountDebited",
+          correlation_head: :reference, event_payload: { source: "a1", destination: "a2", amount: 500 },
+          memory: { destination: "a2" }, with_spec: { number: :destination, amount: :amount },
+          args: { number: "WRONG", amount: 500 } }
+      ] }
+
+      result = Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)
+      expect(result).to be_a(String)
+      expect(result).to include("Settlement").and include("Account::Credit").and include("WRONG")
+    end
+
+    it "dispatch_binding_fidelity names a policy trigger bound to the wrong value" do
+      history = { policy_dispatches: [
+        { policy: "NotifyOnDebit", on: "AccountDebited", payload: { account: "a1", amount: 500 },
+          with_spec: { account_ref: :account }, args: { account_ref: "WRONG" } }
+      ] }
+
+      result = Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)
+      expect(result).to be_a(String)
+      expect(result).to include("NotifyOnDebit").and include("WRONG")
+    end
+
+    # ALL FOUR SagaInterpreter#dispatch_args BRANCHES, in one entry —
+    # literal (`narrative:`), correlation-head (`transfer:`),
+    # current-event-payload (`amount:`), and saga-memory-fallback
+    # (`number:`, absent from event_payload, present only in memory) —
+    # plus a policy trigger's own 2-branch resolution (literal, payload).
+    it "dispatch_binding_fidelity passes saga and policy dispatches correctly bound on every resolution branch" do
+      history = {
+        saga_dispatches: [
+          { process_manager: "Settlement", instance: "ref-1", dispatch: "Account::Credit", on: "AccountDebited",
+            correlation_head: :reference, event_payload: { source: "a1", amount: 500 },
+            memory: { destination: "a2" },
+            with_spec: { number: :destination, amount: :amount, transfer: :reference,
+                         narrative: { text: "transfer in" } },
+            args: { number: "a2", amount: 500, transfer: "ref-1", narrative: { text: "transfer in" } } }
+        ],
+        policy_dispatches: [
+          { policy: "NotifyOnDebit", on: "AccountDebited", payload: { account: "a1", amount: 500 },
+            with_spec: { account_ref: :account, reason: "debited" },
+            args: { account_ref: "a1", reason: "debited" } }
+        ]
+      }
+
+      expect(Hecksagain::Fuzzing::Properties.dispatch_binding_fidelity(history)).to eq(true)
+    end
+
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
                   refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",

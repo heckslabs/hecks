@@ -54,6 +54,8 @@ module Hecksagain
       def reactions = @registry.reaction_log
 
       def sagas = @registry.saga_log
+      def saga_dispatches = @registry.saga_dispatch_log
+      def policy_dispatches = @registry.policy_dispatch_log
       def verbs = @registry.verbs
 
       def dispatch(verb, saga_correlation: nil, **args)

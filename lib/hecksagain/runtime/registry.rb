@@ -14,7 +14,8 @@ module Hecksagain
       include SagaPersistence
 
       attr_reader :root, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :event_log,
-                  :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex
+                  :reaction_log, :saga_log, :saga_instances, :translations, :saga_mutex,
+                  :saga_dispatch_log, :policy_dispatch_log
 
       def initialize(root: nil)
         @root         = root
@@ -27,6 +28,19 @@ module Hecksagain
         @event_log    = []
         @reaction_log = []
         @saga_log = []
+        # ADDITIVE, RUBY-ONLY — never merged into saga_log/reaction_log.
+        # rust/src/kernel/orchestrate.rs ports THOSE two arrays' exact
+        # shape byte-for-byte (spec/rust_conformance_spec.rb's own
+        # equality check) — a landmine found by reading that spec before
+        # touching anything, not by hitting it. These carry the raw
+        # inputs a dispatch's own argument binding was resolved from
+        # (SagaInterpreter#deliver_saga_dispatch / PolicyInterpreter#
+        # trigger_args), for Properties.dispatch_binding_fidelity's own
+        # independent re-derivation — a fact neither existing log
+        # records at all, so there is nothing here for Rust to have
+        # matched or drifted from.
+        @saga_dispatch_log   = []
+        @policy_dispatch_log = []
         @saga_instances = Hash.new { |h, k| h[k] = {} }
         # GUARDS `saga_instances`' OWN mutation+checkpoint sequence
         # (`SagaInterpreter`'s 4 write points, §7) — the same shape of

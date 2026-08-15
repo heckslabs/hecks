@@ -268,6 +268,7 @@ module Hecksagain
           { instances: instances, events: events, refusals: refusals,
             reactions: runtime.reactions, sagas: runtime.sagas, saga_instances: saga_instances,
             queries: queries, fan_outs: fan_outs, guard_checks: guard_checks,
+            saga_dispatches: runtime.saga_dispatches, policy_dispatches: runtime.policy_dispatches,
             bluebook: runtime.registry.bluebooks.values.first,
             bluebooks: runtime.registry.bluebooks.dup }
         end

@@ -182,13 +182,25 @@ module Hecksagain
         payload = event.payload.transform_keys(&:to_sym).merge(extra)
         return payload if policy.with_spec.to_a.empty?
 
-        policy.with_spec.to_h do |key, value|
+        args = policy.with_spec.to_h do |key, value|
           resolved = value.is_a?(Symbol) ? payload[value] : value
           # Carried as STATE, not as the emitting aggregate's own runtime
           # type — the same reason a saga materialises: two aggregates may
           # share a value object's fields without sharing the class.
           [key.to_sym, Value.materialize(resolved)]
         end
+
+        # THE RAW INPUTS `args` WAS RESOLVED FROM — same additive,
+        # Ruby-only shape SagaInterpreter#deliver_saga_dispatch's own
+        # saga_dispatch_log gets, for Properties.dispatch_binding_
+        # fidelity's own independent re-derivation of Policy#with_spec's
+        # 2-branch resolution (Symbol → payload lookup, anything else →
+        # literal — a policy holds no correlation and no memory, so
+        # `payload` — the merged event-payload-plus-fan-out-row source —
+        # is the WHOLE source, unlike a saga's own 4-branch one).
+        @registry.policy_dispatch_log << { policy: policy.name, on: event.name, payload: payload,
+                                            with_spec: policy.with_spec, args: args }
+        args
       end
 
       # RESOLVES `target` ("Domain::Aggregate.Command", the same shape

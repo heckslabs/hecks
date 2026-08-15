@@ -54,6 +54,21 @@ module Hecksagain
         authorize_scopes_or_refuses: %w[Query#options],
         guard_refusals_are_declared: %w[Command#givens Command#ensures],
         lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions],
+        # Dispatch#command_name/Dispatch#with_spec are NOT claimable
+        # feature names — META_DOMAIN_ALL_FEATURES only walks ONE level
+        # of entity nesting (`agg.entities.flat_map`, meta_domain_
+        # coverage_spec.rb), and Dispatch sits TWO deep (ProcessManager
+        # -&gt; Handler -&gt; Dispatch), so those strings never exist there
+        # to claim — a pre-existing meta-domain coverage-generation gap,
+        # found here (their old META_DOMAIN_KNOWN_GAPS entries were
+        # themselves already-orphaned strings no completeness check ever
+        # verified, since KNOWN_GAPS has no "never lets a gap rot" check
+        # the way FEATURE_COVERAGE/GUARANTEED_BY_CONSTRUCTION both do).
+        # This property still closes the REAL behavior both would have
+        # named — a Dispatch's own command_name/with_spec are exactly
+        # what dispatch_args resolves and this property checks — the
+        # grammar just has no feature string for either one.
+        dispatch_binding_fidelity: %w[Handler#dispatches Policy#with_spec],
         sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
                                      ProcessManager#starts_on ProcessManager#ends_on],
         fanout_dispatches_once_per_matching_row: %w[Policy#for_each Policy#where],
@@ -540,6 +555,86 @@ module Hecksagain
         offenders.empty? || offenders.join("; ")
       end
 
+      # Closes Handler#dispatches and — the same shape, one construct
+      # over — Policy#with_spec (Dispatch#command_name/Dispatch#with_spec
+      # are not claimable feature strings at all — see FEATURE_COVERAGE's
+      # own comment on this entry). history[:saga_dispatches]/[:policy_dispatches]
+      # (Registry#saga_dispatch_log/#policy_dispatch_log — additive,
+      # Ruby-only, NEVER touching saga_log/reaction_log, the byte-for-
+      # byte shape spec/rust_conformance_spec.rb holds Rust to) each
+      # carry the RAW inputs a dispatch's own args were resolved from,
+      # captured live at the moment the resolution actually ran — a
+      # saga's own memory keeps changing across a run, so re-deriving
+      # from history[:saga_instances]'s FINAL memory (the only other
+      # place it would be visible) would grade the wrong moment,
+      # lifecycle_guard_and_given_violations_are_refused's own false
+      # positive one item earlier, in a different shape.
+      #
+      # #resolve_dispatch_binding/#resolve_trigger_binding are SEPARATE,
+      # independently-written re-derivations of SagaInterpreter#
+      # dispatch_args/PolicyInterpreter#trigger_args's own resolution —
+      # never calling either method again, which would only ever agree
+      # with itself. Exactly the class of bug this closes: "a wrong
+      # argument binding on a fan-out dispatch that produces a perfectly
+      # normal-looking log entry (`delivered: true`) and would only ever
+      # surface as a downstream assertion failure, if it surfaces at
+      # all" — PR #325's own defect class, one level over.
+      #
+      # Real targets: Settlement (mixed literal/correlation-head/event-
+      # payload/memory-fallback bindings across three legs, plus a
+      # compensation leg that deliberately omits `reference:`, a field
+      # the forward Credit leg carries), ExternalSettlement, Onboarding
+      # (no compensation leg, by design — nothing to check there beyond
+      # the forward leg's own event-payload binding).
+      def dispatch_binding_fidelity(history)
+        saga_offenders = history.fetch(:saga_dispatches, []).filter_map do |entry|
+          expected = resolve_dispatch_binding(entry)
+          next if expected == entry[:args]
+
+          "#{entry[:process_manager]}##{entry[:instance]} dispatching #{entry[:dispatch]} on #{entry[:on]} — " \
+            "bound #{entry[:args].inspect}, but independently re-deriving with_spec's own resolution gives " \
+            "#{expected.inspect}"
+        end
+
+        policy_offenders = history.fetch(:policy_dispatches, []).filter_map do |entry|
+          expected = resolve_trigger_binding(entry)
+          next if expected == entry[:args]
+
+          "#{entry[:policy]} on #{entry[:on]} — bound #{entry[:args].inspect}, but independently re-deriving " \
+            "with_spec's own resolution gives #{expected.inspect}"
+        end
+
+        offenders = saga_offenders + policy_offenders
+        offenders.empty? || offenders.join("; ")
+      end
+
+      # SagaInterpreter#dispatch_args's own 4-branch resolution,
+      # reproduced independently: a literal, the correlation key itself,
+      # the CURRENT triggering event's own payload, or — the fallback —
+      # the saga's own carried memory (seeded from the STARTING event's
+      # payload, at begin_saga).
+      def resolve_dispatch_binding(entry)
+        entry[:with_spec].to_h do |key, value|
+          resolved = if !value.is_a?(Symbol) then value
+                     elsif value == entry[:correlation_head] then entry[:instance]
+                     elsif entry[:event_payload].key?(value) then entry[:event_payload][value]
+                     else entry[:memory][value]
+                     end
+          [key.to_sym, Runtime::Value.materialize(resolved)]
+        end
+      end
+
+      # PolicyInterpreter#trigger_args's own 2-branch resolution — a
+      # policy holds no correlation and no memory, so `payload` (the
+      # triggering event's own payload, already merged with a fan-out
+      # row's id when there is one) is the WHOLE source.
+      def resolve_trigger_binding(entry)
+        entry[:with_spec].to_h do |key, value|
+          resolved = value.is_a?(Symbol) ? entry[:payload][value] : value
+          [key.to_sym, Runtime::Value.materialize(resolved)]
+        end
+      end
+
       # EVERY STORED RECORD STILL SATISFIES ITS OWN AGGREGATE'S DECLARED
       # INVARIANTS — Admissibility#enforce_invariants (command_rules/
       # admissibility.rb) checks these AFTER every command's mutations,
@@ -833,7 +928,8 @@ module Hecksagain
           group_by_matches_recompute: group_by_matches_recompute(history),
           paging_offset_partitions_correctly: paging_offset_partitions_correctly(history),
           lifecycle_guard_and_given_violations_are_refused: lifecycle_guard_and_given_violations_are_refused(history),
-          authorize_scopes_or_refuses: authorize_scopes_or_refuses(history) }
+          authorize_scopes_or_refuses: authorize_scopes_or_refuses(history),
+          dispatch_binding_fidelity: dispatch_binding_fidelity(history) }
       end
     end
   end

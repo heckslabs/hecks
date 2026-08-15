@@ -131,6 +131,22 @@ module Hecksagain
         args   = dispatch_args(pm, spec, event, instance, correlation)
         record = { process_manager: pm.name, instance: correlation, dispatch: spec.command_name }
 
+        # THE RAW INPUTS `args` WAS RESOLVED FROM, captured alongside the
+        # result — never re-derived from history[:saga_instances] later
+        # (that only ever holds the FINAL memory, after every step has
+        # run; this dispatch's own memory, at the moment it actually
+        # fired, is a different fact for a saga whose memory keeps
+        # changing). `spec.with_spec.empty?` skipped: nothing declared
+        # to check, a tautological pass, the same reason a command with
+        # no givens/from is skipped by lifecycle_guard_and_given_
+        # violations_are_refused.
+        unless spec.with_spec.to_a.empty?
+          @registry.saga_dispatch_log << { process_manager: pm.name, instance: correlation, dispatch: spec.command_name,
+                                            on: event.name, correlation_head: pm.correlation_head,
+                                            event_payload: event.payload, memory: Value.materialize(instance[:memory]),
+                                            with_spec: spec.with_spec, args: args }
+        end
+
         if @door.reaction_depth_reached?
           # THE CEILING IS NOT A DOMAIN DECISION EITHER — same reasoning as a
           # crash, below — but unlike a crash there is nothing ambiguous
