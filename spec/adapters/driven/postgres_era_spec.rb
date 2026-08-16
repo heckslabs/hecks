@@ -408,23 +408,24 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
     end
   end
 
-  # `has_one`/`belongs_to`/`has_many` (DSL sugar over reference_to — see
-  # aggregate_builder.rb) all compile to a scalar Reference<T> attribute,
-  # stored as a bare id (never wrapped — Runtime::Value refuses a
-  # reference arriving as a hash). No fixture anywhere declared one
-  # before this, and none was exercised against PostgresEra: `where` on
-  # such a field compiled to `state #>> '{field,value}'`, digging for a
-  # nested "value" key that a bare scalar never has, and silently
-  # matched nothing. Falsified before trusting it: reverting the fix in
-  # query_expression reproduces the empty result exactly.
-  describe "a has_one/belongs_to reference field, queried through PostgresEra" do
+  # `reference_to` (the ONLY spelling now — `has_one`/`belongs_to`/
+  # `has_many` were sugar over it and are gone; see aggregate_builder.rb)
+  # compiles to a scalar Reference<T> attribute, stored as a bare id
+  # (never wrapped — Runtime::Value refuses a reference arriving as a
+  # hash). No fixture anywhere declared one before this, and none was
+  # exercised against PostgresEra: `where` on such a field compiled to
+  # `state #>> '{field,value}'`, digging for a nested "value" key that a
+  # bare scalar never has, and silently matched nothing. Falsified
+  # before trusting it: reverting the fix in query_expression reproduces
+  # the empty result exactly.
+  describe "a reference_to reference field, queried through PostgresEra" do
     REFS_SOURCE = <<~BLUEBOOK.freeze
       Hecks.bluebook "Refs" do
         aggregate "Ticket" do
           identified_by :number
           attribute :number, TicketNumber
-          belongs_to :Team
-          has_many :Invoices
+          reference_to Team
+          reference_to Invoice, as: :invoices
 
           value_object "TicketNumber" do
             attribute :value, String
@@ -499,12 +500,12 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
       expect(refs_adapter.query(declared, {}).map(&:id)).to eq(["t1"])
     end
 
-    # has_many's own naming logic (demodulise + singularize, distinct DSL
-    # code from has_one/belongs_to) is what most invites the "list_of a
-    # reference" misreading the name suggests — proven wrong at the DSL
-    # level already (aggregate_builder.rb), but never before against a
-    # real save/query round trip through any adapter.
-    it "has_many :Invoices singularizes to a scalar invoices reference, queryable the same way" do
+    # A PLURAL-NAMED reference (`reference_to Invoice, as: :invoices`) is
+    # what most invites the "list_of a reference" misreading the name
+    # suggests — proven wrong at the DSL level already
+    # (aggregate_builder.rb), but never before against a real save/query
+    # round trip through any adapter.
+    it "a plural-named reference_to still mints a scalar reference, queryable the same way" do
       expect(ticket.attribute(:invoices).reference?).to be(true)
       expect(ticket.attribute(:invoices).list?).to be(false)
       expect(ticket.attribute(:invoices).type.to_s).to eq("Reference<Invoice>")
