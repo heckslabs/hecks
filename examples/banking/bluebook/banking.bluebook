@@ -267,6 +267,12 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :narrative, Narrative
       attribute :direction, LedgerDirection
 
+      # DECLARED ONCE, ON THE PIECE (ADR 0028) — Amend and Reverse both
+      # need the same two facts about the AGGREGATE they belong to;
+      # each used to retype both predicates verbatim.
+      given("customer is active") { parent.customer.status == "active" }
+      given("account is open")    { parent.status == "open" }
+
       lifecycle :state, default: "posted" do
         transition "Reverse" => "reversed", from: "posted"
         transition "Amend"   => "posted",   from: "posted"
@@ -277,8 +283,8 @@ Hecks.bluebook "Banking", version: "v1" do
         goal "Correct a movement posted for the wrong amount"
 
         attribute :adjustment, Money
-        given("customer is active") { parent.customer.status == "active" }
-        given("account is open") { parent.status == "open" }
+        given("customer is active")
+        given("account is open")
         given("entry is posted") { state == "posted" }
 
         given("an amendment leaves a non-negative amount") { amount.cents + adjustment.cents >= 0 }
@@ -293,8 +299,8 @@ Hecks.bluebook "Banking", version: "v1" do
         role "Back office"
         goal "Undo a movement that should not have been posted"
 
-        given("customer is active") { parent.customer.status == "active" }
-        given("account is open") { parent.status == "open" }
+        given("customer is active")
+        given("account is open")
         given("entry is posted") { state == "posted" }
         sets :narrative
 

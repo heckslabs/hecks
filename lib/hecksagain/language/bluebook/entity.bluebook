@@ -16,6 +16,12 @@ Hecks.bluebook "Bluebook" do
     # which is the whole point of it being its own root.
     attribute :identified_by, list_of(IdentityPath)
     attribute :attributes,    list_of(PieceField)
+    # ADR 0028 — A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
+    # DECLARED ONCE — the SAME Rule shape Aggregate's own `preconditions`
+    # already carries (that file's own comment on why it's declared
+    # again here rather than shared: a value object is aggregate-scoped
+    # in this self-hosting domain).
+    attribute :preconditions, list_of(Rule)
     attribute :state_field, EntityText
     attribute :state_start, EntityText
     attribute :transitions, list_of(PieceTransition)
@@ -27,6 +33,14 @@ Hecks.bluebook "Bluebook" do
 
     value_object "EntityText" do
       attribute :value, String
+    end
+
+    # See Aggregate's own "Rule" value object — the identical shape,
+    # declared again here rather than shared (that file's own comment
+    # on why).
+    value_object "Rule" do
+      attribute :description, String
+      attribute :canonical,   String
     end
 
     # A piece's identity is made of parts the same way a head's is, so it holds
@@ -144,6 +158,26 @@ Hecks.bluebook "Bluebook" do
       emits "PieceAttributeAttached"
     end
 
+
+    # A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS, DECLARED
+    # ONCE (ADR 0028) — see Aggregate.Precondition, the identical shape
+    # one level down: the piece's own named `given`, referenced back by
+    # one of its own commands rather than re-typed.
+    command "Precondition" do
+      role "Language"
+      goal "Declare one precondition this piece's own commands can reference by name"
+
+      reference_to Entity
+      attribute :description, EntityText, optional: true
+      attribute :canonical,   EntityText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      sets :preconditions, append: { description: :description, canonical: :canonical }
+
+      emits "PiecePreconditionAttached"
+    end
 
     command "Lifecycle" do
       role "Language"

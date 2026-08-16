@@ -4174,6 +4174,9 @@
           ],
           "lifecycle": null,
           "name": "Member",
+          "preconditions": [
+
+          ],
           "queries": [
 
           ]
@@ -4574,6 +4577,15 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "preconditions",
+          "optional": false,
+          "pattern": null,
+          "type": "Rule"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "state_field",
           "optional": false,
@@ -4845,6 +4857,60 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PiecePreconditionAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Declare one precondition this piece's own commands can reference by name",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": ":canonical",
+                "description": ":description"
+              },
+              "op": "append",
+              "target": "preconditions"
+            }
+          ],
+          "name": "Precondition",
+          "provenance": null,
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "state_field",
               "optional": false,
               "pattern": null,
@@ -5049,6 +5115,36 @@
 
           ],
           "name": "EntityText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Rule"
         },
         {
           "attributes": [
@@ -6012,6 +6108,9 @@
               ],
               "lifecycle": null,
               "name": "Dispatch",
+              "preconditions": [
+
+              ],
               "queries": [
 
               ]
@@ -6022,6 +6121,9 @@
           ],
           "lifecycle": null,
           "name": "Handler",
+          "preconditions": [
+
+          ],
           "queries": [
 
           ]
@@ -8520,6 +8622,9 @@
             ]
           },
           "name": "Keyword",
+          "preconditions": [
+
+          ],
           "queries": [
 
           ]
@@ -8721,6 +8826,9 @@
             ]
           },
           "name": "Argument",
+          "preconditions": [
+
+          ],
           "queries": [
 
           ]
@@ -10078,6 +10186,32 @@
               [
                 "fills",
                 "identified_by"
+              ]
+            ],
+            [
+              [
+                "word",
+                "given"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "preconditions"
               ]
             ],
             [
@@ -13272,6 +13406,36 @@
               [
                 "keyword",
                 "description"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "given"
               ],
               [
                 "context",

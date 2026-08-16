@@ -233,6 +233,13 @@ pub struct Entity {
     // own `emits_ir` now names `entities: many(:entities)`, the same
     // field an Aggregate already carries, one level down.
     pub entities: Vec<Entity>,
+    // ADR 0028 — A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
+    // DECLARED ONCE — the SAME `{description:, canonical:}` shape
+    // `Aggregate.preconditions` already carries, one level down
+    // (`entity.rb`'s own `emits_ir` row, identical). DECLARATION-ONLY
+    // here, the same as `Aggregate.preconditions` — see that field's own
+    // comment.
+    pub preconditions: Vec<Given>,
     pub lifecycle: Option<Lifecycle>,
 }
 

@@ -137,6 +137,11 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:entity.precondition",
+      "verb": "Bluebook::Entity.Precondition",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:entity.seal",
       "verb": "Bluebook::Entity.Seal",
       "role": "Language"
