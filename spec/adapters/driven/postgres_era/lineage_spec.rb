@@ -480,27 +480,23 @@ RSpec.describe "lineage in the PostgresEra adapter",
   # by name, matching the Ruby reference transform's own refusal pinned
   # in spec/translation_language_spec.rb.
   it "a move whose destination collides with an existing scalar refuses the mint by name, not silently" do
-    # `as: :team` EXPLICIT, not the bare `reference_to Team` default —
-    # `default_reference_name` (attribute_collector.rb) mints a
-    # DIFFERENT name (`team_id` vs `team`) depending on
-    # MetaValidator.shadow_parsing?, deliberately, so EraGuard.shadow_
-    # parse can correctly reconstruct historical text minted before
-    # ADR 0025's naming convention changed. This fixture's era 1 is
-    # brand-new text, never exposed to the old convention — but
-    # ensure_named! shadow-parses ITS held text too (the mechanism has
-    # no way to know a given era's text postdates the change), so a
-    # bare `reference_to Team` here mints `:team` normally and `:team_id`
-    # under the SAME text's later shadow-reparse, hashing to two
-    # different labels for byte-identical source and breaking mint's own
-    # edge lookup. `as:` bypasses `default_reference_name` entirely,
-    # sidestepping the ambiguity without touching that subsystem.
+    # Bare `reference_to Team` — no `as:` — deliberately: this exact
+    # shape used to break `ensure_named!`'s own from/to edge lookup
+    # entirely (era_guard.rb's `shadow_parse` used to shadow-parse
+    # every held era's text unconditionally, and `default_reference_
+    # name`'s shadow-mode default mints `team_id` instead of `team` for
+    # the identical source text — a pre-ADR-0025 convention meant for
+    # GENUINELY old frozen text, wrongly applied here too). Now doubles
+    # as this bug's own regression coverage — see shadow_parse's own
+    # comment for the fix (normal parse first, shadow only as a
+    # fallback on a genuine `Malformed` refusal).
     collide_v1 = <<~BLUEBOOK
       Hecks.bluebook "Collide" do
         aggregate "Acct" do
           identified_by :kind
           attribute :amount, Money
           attribute :kind, Kind
-          reference_to Team, as: :team
+          reference_to Team
           value_object "Money" do
             attribute :cents, Integer
           end

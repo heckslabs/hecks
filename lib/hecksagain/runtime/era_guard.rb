@@ -1,5 +1,6 @@
 require "fileutils"
 require_relative "era_guard/shape_diff"
+require_relative "../bluebook/dsl/malformed"
 require_relative "../bluebook/meta_validator"
 require_relative "../naming"
 require_relative "../ports/loading"
@@ -121,26 +122,70 @@ module Hecksagain
       # Parses held source into its own IR, in a scratch registry so a past
       # era's text never touches the one actually booting.
       #
+      # NORMAL PARSE FIRST, shadow only as a FALLBACK — not shadow-parsing
+      # unconditionally, which is what this used to do. A handful of DSL
+      # defaults fork on `MetaValidator.shadow_parsing?` for a reason
+      # that has NOTHING to do with syntax the live grammar can no longer
+      # read at all (`identified_by { }`, `belongs_to`, `has_one`,
+      # `has_many` — genuinely removed spellings, exactly what shadow-
+      # parsing exists to keep readable): `reference_to`'s own default
+      # mint name (`default_reference_name`, attribute_collector.rb)
+      # changed from `_id`-suffixed to bare under ADR 0025, and THAT fork
+      # applies even to text using nothing but current, live syntax.
+      # Held text minted under the CURRENT grammar — every real era in
+      # this corpus today, since nothing has ever minted a second one —
+      # parses fine normally; only the reference-naming DEFAULT differed
+      # once shadow mode engaged unconditionally, so it silently
+      # reconstructed a DIFFERENT shape (and hash) than a fresh parse of
+      # the identical text — the same text hashing two different ways
+      # depending on which code path read it, breaking `ensure_named!`'s
+      # own from/to edge lookup with a spurious "no translation edge
+      # covers it" refusal that has nothing to do with any real
+      # translation gap.
+      #
+      # A normal parse can only ever SUCCEED on text the live grammar
+      # fully understands — there is no way for it to silently produce a
+      # wrong-but-plausible answer for genuinely legacy text, since every
+      # removed spelling refuses loudly (`Malformed`) rather than
+      # degrading. So: try normal first — if the ordinary grammar reads
+      # this text without complaint, that IS the canonical, unambiguous
+      # interpretation, the same one `label_of`/`mint_hash` on the same
+      # source text always computes, whoever's asking. Only on a
+      # `Malformed` refusal — the one signal that actually means "this
+      # spelling doesn't exist anymore" — fall back to the legacy
+      # grammar, exactly as before this change. Any OTHER exception (a
+      # genuine syntax error, an unrelated validation refusal) propagates
+      # unchanged; swallowing it here to retry under shadow mode would
+      # risk masking a real defect in the held text behind a confusing
+      # second failure instead of the original, more specific one.
+      #
       # `MetaValidator.while_shadow_parsing` (ADR 0025, docs/dsl-work-
-      # slices.md's S0a) is what makes this a LEGACY grammar rather than
-      # just a second copy of today's: it stops `BluebookBuilder.build`
-      # from judging this text against the grammar as it stands NOW,
-      # which is the one thing that would make a removed spelling refuse
-      # HISTORY the day it is removed from live source. The scratch
-      # registry is throwaway either way — nothing here is dispatched
-      # against or exposed to the real one — so skipping the judge/
-      # assemble round-trip changes nothing this method reads: `shape`,
-      # `uncovered_attributes`, and friends only ever ask the built IR
-      # for its own structure.
+      # slices.md's S0a) is what makes the fallback a LEGACY grammar
+      # rather than just a second copy of today's: it stops
+      # `BluebookBuilder.build` from judging this text against the
+      # grammar as it stands NOW, which is the one thing that would make
+      # a removed spelling refuse HISTORY the day it is removed from
+      # live source. The scratch registry is throwaway either way —
+      # nothing here is dispatched against or exposed to the real one —
+      # so skipping the judge/assemble round-trip changes nothing this
+      # method reads: `shape`, `uncovered_attributes`, and friends only
+      # ever ask the built IR for its own structure.
       def shadow_parse(source, path)
+        parse_bluebook(source, path, shadow: false)
+      rescue Hecksagain::Bluebook::DSL::Malformed
+        parse_bluebook(source, path, shadow: true)
+      end
+
+      def parse_bluebook(source, path, shadow:)
         scratch = Registry.new
         loading = Ports::Loading.bootstrap
-        Hecksagain::Bluebook::MetaValidator.while_shadow_parsing do
+        run = lambda do
           Hecksagain.with_registry(scratch) do
             loading.load_library
             Kernel.eval(source, TOPLEVEL_BINDING, path, 1)
           end
         end
+        shadow ? Hecksagain::Bluebook::MetaValidator.while_shadow_parsing(&run) : run.call
         scratch.bluebooks.values.first
       end
     end
