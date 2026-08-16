@@ -388,6 +388,41 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  # `Hecksagain::Adapters::Prism::TREES` caches a file's parsed AST for
+  # the life of the process, keyed by path — correct for every ordinary
+  # caller, wrong for anything that reloads an edited file in-process
+  # (found for real building `Hecksagain::Codemod`, see its own file
+  # header). `forget`/`forget_all` are the real invalidation API.
+  describe "cache invalidation" do
+    around do |example|
+      Dir.mktmpdir { |dir| @tmp_file = File.join(dir, "sample.rb"); example.run }
+    end
+
+    it "forget re-parses a specific file's tree on the next read, not before" do
+      File.write(@tmp_file, "1")
+      first = Hecksagain::Adapters::Prism.tree_for(@tmp_file)
+
+      File.write(@tmp_file, "2")
+      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).to equal(first), "still cached — a rewrite alone must not invalidate it"
+
+      Hecksagain::Adapters::Prism.forget(@tmp_file)
+      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
+    end
+
+    it "forget_all clears every cached tree, not just one path" do
+      File.write(@tmp_file, "1")
+      first = Hecksagain::Adapters::Prism.tree_for(@tmp_file)
+
+      Hecksagain::Adapters::Prism.forget_all
+      File.write(@tmp_file, "2")
+      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)
+    end
+
+    it "forget on a path never cached is a no-op, not a raise" do
+      expect { Hecksagain::Adapters::Prism.forget("/no/such/file.rb") }.not_to raise_error
+    end
+  end
+
   describe "caching" do
     let(:evaluator) { Hecksagain::Bluebook::Expression::Evaluator }
 
