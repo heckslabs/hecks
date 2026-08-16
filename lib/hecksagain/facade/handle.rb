@@ -95,15 +95,18 @@ module Hecksagain
       # method_missing only runs once Ruby finds no REAL method already
       # answering the name — and every object already answers `freeze` and
       # `send` (Kernel/Object), among others. A verb whose snake-cased name
-      # collides with one of those — `Account::Freeze` -> `freeze`,
+      # collided with one of those — `Account::Freeze` -> `freeze`,
       # `ExternalTransfer::Send` -> `send` in the banking corpus, both real —
-      # silently ran the Kernel method instead of dispatching: no error, no
-      # refusal, the call just did the wrong thing. AggregateDoor's creating
-      # verbs never had this problem because it already defines a real
-      # singleton method per verb; this closes the same gap here.
+      # used to silently run the Kernel method instead of dispatching: no
+      # error, no refusal, the call just did the wrong thing. Defining a
+      # real singleton method per verb closed that; the `!` suffix (every
+      # command, door and Handle alike) closes it a second, permanent way —
+      # `freeze!`/`send!` name nothing Kernel/Object already answers to,
+      # so this exact class of collision cannot recur no matter what a
+      # future domain names a command.
       def define_verb_methods
         @ir.commands.reject(&:creates?).each do |command|
-          define_singleton_method(Naming.snake(command.hecks_name)) do |**args|
+          define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |**args|
             run(command, **args)
           end
         end

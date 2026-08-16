@@ -37,9 +37,9 @@ end
 -->
 
 ```ruby
-order = Order.create_pizza(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
-order.purchase(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+order = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
+order.purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
 order.status             # => "sold"
 order.events.last.name   # => "PizzaPurchased"
@@ -161,7 +161,7 @@ itself first — `given` refuses before `sets` ever runs, and `PizzaName`'s
 "a pizza is named" invariant, on the same booted domain from above:
 
 ```ruby
-Order.create_pizza(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
+Order.create_pizza!(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
 Pizzas' own mutations either replace a field (`sets :status, to: "sold"`,
@@ -246,11 +246,11 @@ end
 ```
 
 ```ruby
-account = Account.open(number: { value: "1001" })
-account.credit(amount: { cents: 500, currency: "USD" })
+account = Account.open!(number: { value: "1001" })
+account.credit!(amount: { cents: 500, currency: "USD" })
 
 account.balance.to_h                                     # => { cents: 500, currency: "USD" }
-account.credit(amount: { cents: -1, currency: "USD" })    # ~> InvariantViolation: an amount is positive
+account.credit!(amount: { cents: -1, currency: "USD" })    # ~> InvariantViolation: an amount is positive
 ```
 
 (That aggregate is a trimmed real subset of

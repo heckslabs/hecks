@@ -63,14 +63,14 @@ RSpec.describe Doctest do
       Locals carry across blocks:
 
       ```ruby
-      widget = DoctestGadget.add(name: { value: "w1" })
+      widget = DoctestGadget.add!(name: { value: "w1" })
       widget.status   # => "current"
       ```
 
       ```ruby
-      widget.retire
+      widget.retire!
       widget.status   # => "retired"
-      widget.retire   # ~> GivenNotMet: only a current widget retires
+      widget.retire!   # ~> GivenNotMet: only a current widget retires
       ```
 
       ```ruby skip
@@ -154,7 +154,7 @@ RSpec.describe Doctest do
 
       ```ruby
       x + 1                                     # => 42
-      DoctestHarnessMemo.jot(label: { value: "later" }).label.to_h   # => { value: "later" }
+      DoctestHarnessMemo.jot!(label: { value: "later" }).label.to_h   # => { value: "later" }
       ```
     MD
 

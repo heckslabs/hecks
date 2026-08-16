@@ -30,7 +30,7 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "vo-1" },
                  name: { given: "Melba", family: "Roy" },
                  email: { address: "melba@example.com" })
-account = Banking::Account.open(customer: "vo-1", number: { value: "vo-a1" },
+account = Banking::Account.open!(customer: "vo-1", number: { value: "vo-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -71,7 +71,7 @@ A caller naming only `cents:` still gets a whole `Money` — `default:`
 fills the rest at the door, not at read time:
 
 ```ruby
-account.credit(amount: { cents: 2_500 }, narrative: { text: "opening deposit" })
+account.credit!(amount: { cents: 2_500 }, narrative: { text: "opening deposit" })
 account.balance.cents     # => 2500
 account.balance.currency  # => "USD"
 ```
@@ -81,7 +81,7 @@ append their own, and the closed set (`LedgerDirection`'s own
 `one_of:`, above) is what makes the two readable apart:
 
 ```ruby
-account.debit(amount: { cents: 500 }, narrative: { text: "lunch" })
+account.debit!(amount: { cents: 500 }, narrative: { text: "lunch" })
 account.ledger.map { |entry| entry[:direction][:value] }  # => ["credit", "debit"]
 ```
 
@@ -119,21 +119,21 @@ a command's other checks.
 `PositiveMoney` carries two, and neither belongs to any one command:
 
 ```ruby
-account.credit(amount: { cents: -1 }, narrative: { text: "negative" })  # ~> InvariantViolation: an amount is positive
+account.credit!(amount: { cents: -1 }, narrative: { text: "negative" })  # ~> InvariantViolation: an amount is positive
 ```
 
 The currency rule fires from the same value, in the same command,
 without either being mentioned where the money is spent:
 
 ```ruby
-account.credit(amount: { cents: 100, currency: "DOLLARS" }, narrative: { text: "wrong currency" })  # ~> InvariantViolation: a currency is a three-letter code
+account.credit!(amount: { cents: 100, currency: "DOLLARS" }, narrative: { text: "wrong currency" })  # ~> InvariantViolation: a currency is a three-letter code
 ```
 
 "Travels with the value" is literal — `Debit` never declares these
 rules, and gets both anyway because it takes a `PositiveMoney` too:
 
 ```ruby
-account.debit(amount: { cents: -1 }, narrative: { text: "negative" })  # ~> InvariantViolation: an amount is positive
+account.debit!(amount: { cents: -1 }, narrative: { text: "negative" })  # ~> InvariantViolation: an amount is positive
 ```
 
 ## member

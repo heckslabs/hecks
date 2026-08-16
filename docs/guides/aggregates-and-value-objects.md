@@ -61,7 +61,7 @@ end
 ```
 
 ```ruby
-customer = Banking::Customer.register(reference: { value: "CUST-1000" },
+customer = Banking::Customer.register!(reference: { value: "CUST-1000" },
                                        name: { given: "Ada", family: "Byron" },
                                        email: { address: "ada@example.com" })
 
@@ -84,7 +84,7 @@ end
 ```
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer: customer.id,
+box = Banking::SafeDepositBox.rent!(customer: customer.id,
                                     branch_code: { value: "downtown" },
                                     box_number: { value: 12 },
                                     size: { value: "small" })
@@ -98,7 +98,7 @@ same record, and a second `Rent` against that pair is not a fresh box,
 it is a duplicate:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer: customer.id, branch_code: { value: "downtown" }, box_number: { value: 12 }, size: { value: "medium" })   # ~> AlreadyExists: already exists
+Banking::SafeDepositBox.rent!(customer: customer.id, branch_code: { value: "downtown" }, box_number: { value: 12 }, size: { value: "medium" })   # ~> AlreadyExists: already exists
 ```
 
 That refusal is the whole reason `identified_by` exists. If two records
@@ -146,7 +146,7 @@ is required, but nothing says `cents` has to be in it, and `default:`
 fills that gap the moment the record is built:
 
 ```ruby
-account = Banking::Account.open(customer: customer.id, number: { value: "ACC-1000" },
+account = Banking::Account.open!(customer: customer.id, number: { value: "ACC-1000" },
                                  kind: { name: "current" }, daily_limit: {})
 
 account.daily_limit.to_h   # => { cents: 0 }
@@ -171,7 +171,7 @@ Authorize a payment without ever mentioning `tags` — the command
 accepts the call, no refusal for one missing:
 
 ```ruby
-payment = Banking::CardPayment.authorize(account: account.id,
+payment = Banking::CardPayment.authorize!(account: account.id,
                                           authorisation: { value: "AUTH-1000" },
                                           amount: { cents: 500 }, merchant: { value: "Cafe" })
 
@@ -280,7 +280,7 @@ end
 ```
 
 ```ruby
-Banking::Customer.register(reference: { value: "CUST-BAD" }, name: { given: "X", family: "Y" }, email: { address: "not-an-email" })   # ~> TypeMismatch: must match
+Banking::Customer.register!(reference: { value: "CUST-BAD" }, name: { given: "X", family: "Y" }, email: { address: "not-an-email" })   # ~> TypeMismatch: must match
 ```
 
 And `admits:` refuses the same way, for a set declared somewhere else
@@ -298,13 +298,13 @@ attribute :direction, MovementDirection, admits: "Account::LedgerDirection"
 ```
 
 ```ruby
-ext = Banking::ExternalTransfer.request(account: account.id, end_to_end: { value: "E2E-1000" },
+ext = Banking::ExternalTransfer.request!(account: account.id, end_to_end: { value: "E2E-1000" },
                                          amount: { cents: 1000 }, beneficiary: { value: "Someone" },
                                          direction: { value: "debit" })
 
 ext.direction.to_h   # => { value: "debit" }
 
-Banking::ExternalTransfer.request(account: account.id, end_to_end: { value: "E2E-1001" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "sideways" })   # ~> InvariantViolation: got "sideways"
+Banking::ExternalTransfer.request!(account: account.id, end_to_end: { value: "E2E-1001" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "sideways" })   # ~> InvariantViolation: got "sideways"
 ```
 
 ## Where a rule actually belongs
@@ -334,18 +334,18 @@ end
 ```
 
 ```ruby
-funded = Banking::Account.open(customer: customer.id, number: { value: "ACC-2000" },
+funded = Banking::Account.open!(customer: customer.id, number: { value: "ACC-2000" },
                                 kind: { name: "current" }, daily_limit: { cents: 5000 })
 
-funded.credit(amount: { cents: 0 }, narrative: { text: "bad" })   # ~> InvariantViolation: an amount is positive
+funded.credit!(amount: { cents: 0 }, narrative: { text: "bad" })   # ~> InvariantViolation: an amount is positive
 
-funded = funded.credit(amount: { cents: 1000 }, narrative: { text: "deposit" })
+funded = funded.credit!(amount: { cents: 1000 }, narrative: { text: "deposit" })
 
 funded.balance.to_h   # => { cents: 1000, currency: "USD" }
 
-funded.debit(amount: { cents: -5 }, narrative: { text: "bad" })   # ~> InvariantViolation: an amount is positive
+funded.debit!(amount: { cents: -5 }, narrative: { text: "bad" })   # ~> InvariantViolation: an amount is positive
 
-funded = funded.debit(amount: { cents: 400 }, narrative: { text: "withdrawal" })
+funded = funded.debit!(amount: { cents: 400 }, narrative: { text: "withdrawal" })
 
 funded.balance.to_h   # => { cents: 600, currency: "USD" }
 ```
@@ -377,7 +377,7 @@ end
 ```
 
 ```ruby
-Banking::Account.open(customer: customer.id, number: { value: "ACC-BAD" }, kind: { name: "gold" }, daily_limit: { cents: 0 })   # ~> InvariantViolation: got "gold"
+Banking::Account.open!(customer: customer.id, number: { value: "ACC-BAD" }, kind: { name: "gold" }, daily_limit: { cents: 0 })   # ~> InvariantViolation: got "gold"
 ```
 
 A NAMED, MULTI-field set — each member carrying more than one
@@ -402,7 +402,7 @@ The inline shorthand skips naming a value object at all — `SafeDepositBox`'s
 `size`, seen already above, synthesises one for you:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer: customer.id, branch_code: { value: "uptown" }, box_number: { value: 99 }, size: { value: "huge" })   # ~> InvariantViolation: got "huge"
+Banking::SafeDepositBox.rent!(customer: customer.id, branch_code: { value: "uptown" }, box_number: { value: 99 }, size: { value: "huge" })   # ~> InvariantViolation: got "huge"
 ```
 
 Reach for this one when the set is small, local, and not worth a name
@@ -460,7 +460,7 @@ end
 ```
 
 ```ruby
-card = Banking::ATMCard.issue(account: account.id, serial: { value: "CARD-1000" },
+card = Banking::ATMCard.issue!(account: account.id, serial: { value: "CARD-1000" },
                                daily_fee: { amount: 0.0 })
 
 card.withdrawals   # => []
@@ -472,12 +472,12 @@ goes through the same construction a bare value would, invariant
 included:
 
 ```ruby
-card = card.withdraw(cents: { cents: 4000 }, narrative: { text: "ATM run" })
+card = card.withdraw!(cents: { cents: 4000 }, narrative: { text: "ATM run" })
 
 card.withdrawals.size                       # => 1
 card.withdrawals.first[:cents].to_h         # => { cents: 4000 }
 
-card.withdraw(cents: { cents: -100 }, narrative: { text: "bad" })   # ~> InvariantViolation: a withdrawal amount is positive
+card.withdraw!(cents: { cents: -100 }, narrative: { text: "bad" })   # ~> InvariantViolation: a withdrawal amount is positive
 ```
 
 The rule you declared once on `WithdrawalAmount` holds for withdrawal
@@ -516,7 +516,7 @@ refuses it at the door, by name, rather than let a wrapped reference
 travel quietly into storage:
 
 ```ruby
-Banking::ExternalTransfer.request(account: { value: account.id }, end_to_end: { value: "E2E-1002" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "debit" })   # ~> TypeMismatch: arrived as an object
+Banking::ExternalTransfer.request!(account: { value: account.id }, end_to_end: { value: "E2E-1002" }, amount: { cents: 1000 }, beneficiary: { value: "Someone" }, direction: { value: "debit" })   # ~> TypeMismatch: arrived as an object
 ```
 
 `as:` renames what the base form would otherwise mint. `CardPayment`'s
@@ -533,7 +533,7 @@ end
 ```
 
 ```ruby
-disputed = payment.capture.dispute(disputed_by: customer.id)
+disputed = payment.capture!.dispute!(disputed_by: customer.id)
 
 disputed[:disputed_by]   # => "CUST-1000"
 ```
@@ -555,7 +555,7 @@ end
 ```
 
 ```ruby
-onboarding = Banking::OnboardingCase.open(customer: customer.id, reference: { value: "ONB-1000" },
+onboarding = Banking::OnboardingCase.open!(customer: customer.id, reference: { value: "ONB-1000" },
                                            account_number: { value: "ACC-3000" })
 
 onboarding[:customer]   # => "CUST-1000"
@@ -566,7 +566,7 @@ every other reference: an id, never an object, refused at the door the
 same way `ExternalTransfer`'s was above:
 
 ```ruby
-Banking::OnboardingCase.open(customer: { value: customer.id }, reference: { value: "ONB-1001" }, account_number: { value: "ACC-3001" })   # ~> TypeMismatch: arrived as an object
+Banking::OnboardingCase.open!(customer: { value: customer.id }, reference: { value: "ONB-1001" }, account_number: { value: "ACC-3001" })   # ~> TypeMismatch: arrived as an object
 ```
 
 One direction only: if `Customer` were to declare `reference_to Account`
@@ -660,7 +660,7 @@ end
 ```
 
 ```ruby
-order = Pizzas::Order.create_pizza(name: { value: "Margherita" },
+order = Pizzas::Order.create_pizza!(name: { value: "Margherita" },
                                     pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 
 order.pizza.to_h   # => { price_cents: { cents: 1200 }, size: { value: "large" } }

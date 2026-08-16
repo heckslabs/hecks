@@ -11,7 +11,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
   # this codebase's standing preference that specs boot against Memory and
   # reserve real-adapter specs for testing that adapter itself.
   def order(dispatcher)
-    Pizzas::Order.create_pizza(
+    Pizzas::Order.create_pizza!(
       name: { value: "Margherita" },
       pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
     )
@@ -43,7 +43,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
     it "names the one command an aggregate declares creates? for, snake_cased" do
       boot_in_memory
 
-      expect(json_door.creating_command(Pizzas::Order)).to eq("create_pizza")
+      expect(json_door.creating_command(Pizzas::Order)).to eq("create_pizza!")
     end
 
     it "raises Runtime::NotFound when the aggregate declares no creating command" do
@@ -65,7 +65,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
     it "accepts a declared command name" do
       boot_in_memory
 
-      expect(json_door.validate_command!(Pizzas::Order, "add_topping")).to eq("add_topping")
+      expect(json_door.validate_command!(Pizzas::Order, "add_topping!")).to eq("add_topping!")
     end
 
     it "raises Runtime::NotFound for a name the aggregate never declared" do

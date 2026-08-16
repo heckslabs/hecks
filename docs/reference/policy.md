@@ -130,7 +130,7 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "po-1" },
                  name: { given: "Dorothy", family: "Vaughan" },
                  email: { address: "dorothy@example.com" })
-account = Banking::Account.open(customer: "po-1", number: { value: "po-a1" },
+account = Banking::Account.open!(customer: "po-1", number: { value: "po-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -264,10 +264,10 @@ raises nothing anywhere — the card stays active and the reaction log
 does not grow:
 
 ```ruby
-PolicyReference::RefCard.issue(serial: { value: "po-c1" }, holder: { value: "po-h1" })
+PolicyReference::RefCard.issue!(serial: { value: "po-c1" }, holder: { value: "po-h1" })
 before = runtime.registry.reaction_log.size
 
-PolicyReference::RefAlert.raise_alert(ref: { value: "po-al1" }, holder: { value: "po-h1" }, severity: { level: 1 })
+PolicyReference::RefAlert.raise_alert!(ref: { value: "po-al1" }, holder: { value: "po-h1" }, severity: { level: 1 })
 PolicyReference::RefCard.find("po-c1").status  # => "active"
 runtime.registry.reaction_log.size == before   # => true
 ```
@@ -301,9 +301,9 @@ per row `ForHolder` answers — the alert never named a card. Each row is
 recorded under `for_row:`:
 
 ```ruby
-PolicyReference::RefCard.issue(serial: { value: "po-c2" }, holder: { value: "po-h1" })
+PolicyReference::RefCard.issue!(serial: { value: "po-c2" }, holder: { value: "po-h1" })
 
-PolicyReference::RefAlert.raise_alert(ref: { value: "po-al2" }, holder: { value: "po-h1" }, severity: { level: 5 })
+PolicyReference::RefAlert.raise_alert!(ref: { value: "po-al2" }, holder: { value: "po-h1" }, severity: { level: 5 })
 runtime.registry.reaction_log.last(2).map { |row| row[:for_row] }  # => ["po-c1", "po-c2"]
 ```
 
@@ -321,8 +321,8 @@ fan-out never reaches it — this one was issued before the alert above
 and is still untouched:
 
 ```ruby
-PolicyReference::RefCard.issue(serial: { value: "po-c3" }, holder: { value: "po-h2" })
-PolicyReference::RefAlert.raise_alert(ref: { value: "po-al3" }, holder: { value: "po-h2" }, severity: { level: 5 })
+PolicyReference::RefCard.issue!(serial: { value: "po-c3" }, holder: { value: "po-h2" })
+PolicyReference::RefAlert.raise_alert!(ref: { value: "po-al3" }, holder: { value: "po-h2" }, severity: { level: 5 })
 runtime.registry.reaction_log.last[:for_row]  # => "po-c3"
 ```
 

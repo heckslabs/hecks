@@ -106,11 +106,11 @@ hook, no callback, nothing in `Pizzas::Order`'s own declaration
 that could even ask which adapter answered:
 
 ```ruby
-order = Order.create_pizza(name: { value: "Margherita" },
+order = Order.create_pizza!(name: { value: "Margherita" },
                             pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
 order.status   # => "available"
 
-order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
 order.toppings.map(&:to_h)   # => [{ name: "Basil", amount: 3 }]
 ```
 

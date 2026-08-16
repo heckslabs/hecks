@@ -80,7 +80,7 @@ transition sets it, because `Authorize` is the creating command and
 `"authorized"` is simply where a payment is born:
 
 ```ruby
-payment = Banking::CardPayment.authorize(account: "a1",
+payment = Banking::CardPayment.authorize!(account: "a1",
   authorisation: { value: "auth-742" }, amount: { cents: 4200 },
   merchant: { value: "Corner Shop" })
 payment.status  # => "authorized"
@@ -92,7 +92,7 @@ applied after the command's other mutations, the step
 `command_interpreter.rb` calls `advance_lifecycle`:
 
 ```ruby
-payment.capture
+payment.capture!
 payment.status  # => "captured"
 ```
 
@@ -104,10 +104,10 @@ the dispute thrown out, and it returns to the same settled state by a
 different transition:
 
 ```ruby
-payment.dispute(disputed_by: "c1")
+payment.dispute!(disputed_by: "c1")
 payment.status  # => "disputed"
 
-payment.reject_dispute
+payment.reject_dispute!
 payment.status  # => "captured"
 ```
 
@@ -123,7 +123,7 @@ there `"captured"`, not `"disputed"` — and the command refuses before
 anything is written:
 
 ```ruby
-payment.chargeback  # ~> GivenNotMet: Chargeback refused — payment is disputed
+payment.chargeback!  # ~> GivenNotMet: Chargeback refused — payment is disputed
 ```
 
 `Chargeback` also carries its own `given("payment is disputed") {
@@ -147,11 +147,11 @@ Dispute the payment again, and this time carry the charge back for
 real — it lands in a state this lifecycle defines no exit from:
 
 ```ruby
-payment.dispute(disputed_by: "c1")
-payment.chargeback
+payment.dispute!(disputed_by: "c1")
+payment.chargeback!
 payment.status  # => "charged_back"
 
-payment.reject_dispute  # ~> GivenNotMet: RejectDispute refused — payment is disputed
+payment.reject_dispute!  # ~> GivenNotMet: RejectDispute refused — payment is disputed
 ```
 
 Same overlap as `Chargeback` above — `RejectDispute` carries the same

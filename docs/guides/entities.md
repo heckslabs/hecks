@@ -257,7 +257,7 @@ customer who does not exist yet.
 becomes a module method the same way every aggregate's does:
 
 ```ruby
-customer = Banking::Customer.register(reference: { value: "CUST-0001" },
+customer = Banking::Customer.register!(reference: { value: "CUST-0001" },
                                        name: { given: "Odile", family: "Vasseur" },
                                        email: { address: "odile@example.com" })
 customer.reference.to_h   # => { value: "CUST-0001" }
@@ -267,7 +267,7 @@ customer.reference.to_h   # => { value: "CUST-0001" }
 — gets the same door:
 
 ```ruby
-box = Banking::SafeDepositBox.rent(branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
+box = Banking::SafeDepositBox.rent!(branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                     size: { value: "medium" }, customer: "CUST-0001")
 box.status         # => "rented"
 box.size.to_h       # => { value: "medium" }

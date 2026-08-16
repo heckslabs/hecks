@@ -101,20 +101,20 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "rm-1" },
                  name: { given: "Sofia", family: "Kovalevskaya" },
                  email: { address: "sofia@example.com" })
-account = Banking::Account.open(customer: "rm-1", number: { value: "rm-a1" },
+account = Banking::Account.open!(customer: "rm-1", number: { value: "rm-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
-Banking::Account.open(customer: "rm-1", number: { value: "rm-a2" },
+Banking::Account.open!(customer: "rm-1", number: { value: "rm-a2" },
                       kind: { name: "savings" }, daily_limit: { cents: 10_000 })
 
-payment = Banking::CardPayment.authorize(account: "rm-a1", authorisation: { value: "auth-1" },
+payment = Banking::CardPayment.authorize!(account: "rm-a1", authorisation: { value: "auth-1" },
                                          amount: { cents: 4_200 }, merchant: { value: "Corner Shop" })
-payment.capture
-payment.dispute(disputed_by: "rm-1")
+payment.capture!
+payment.dispute!(disputed_by: "rm-1")
 
-second = Banking::CardPayment.authorize(account: "rm-a1", authorisation: { value: "auth-2" },
+second = Banking::CardPayment.authorize!(account: "rm-a1", authorisation: { value: "auth-2" },
                                         amount: { cents: 900 }, merchant: { value: "Kiosk" })
-second.capture
-second.dispute(disputed_by: "rm-1")
+second.capture!
+second.dispute!(disputed_by: "rm-1")
 
 # SEVEN, on the OTHER account (S13, ADR 0025 — ComplianceDashboard
 # gained a real `offset 5` alongside its own `limit 5`) — enough for
@@ -122,10 +122,10 @@ second.dispute(disputed_by: "rm-1")
 # genuine second page, without disturbing "rm-a1"'s own two disputes
 # that `count`/`median` already rely on above.
 [4_200, 900, 500, 400, 300, 200, 100].each_with_index do |cents, index|
-  card = Banking::CardPayment.authorize(account: "rm-a2", authorisation: { value: "auth-page-#{index}" },
+  card = Banking::CardPayment.authorize!(account: "rm-a2", authorisation: { value: "auth-page-#{index}" },
                                         amount: { cents: cents }, merchant: { value: "Shop#{index}" })
-  card.capture
-  card.dispute(disputed_by: "rm-1")
+  card.capture!
+  card.dispute!(disputed_by: "rm-1")
 end
 
 runtime.dispatch("ReadModelReference::Depot.OpenDepot", code: { value: "dp-1" })

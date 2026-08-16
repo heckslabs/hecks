@@ -125,7 +125,7 @@ runtime.registry.bluebook("Bookkeeping")  # => nil
 Nothing about the domain's own shape depends on it:
 
 ```ruby
-Ledgering::Folio.open_folio(number: { value: "f-1" }).number.value  # => "f-1"
+Ledgering::Folio.open_folio!(number: { value: "f-1" }).number.value  # => "f-1"
 ```
 
 **Written exemption (ADR 0025 principle 4)** — no bluebook in THIS
@@ -190,7 +190,7 @@ runtime.registry.bluebook("Banking").classification  # => "core"
 dispatches exactly like any other:
 
 ```ruby
-Banking::Account.open(customer: "bb-1", number: { value: "bb-a1" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> NotFound: bb-1
+Banking::Account.open!(customer: "bb-1", number: { value: "bb-a1" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> NotFound: bb-1
 ```
 
 ## supporting
@@ -234,7 +234,7 @@ the chapter:
 
 ```ruby
 runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # => ["Customer", "Account", "ATMCard"]
-BluebookReference::Postcode.record(code: { value: "N1" }).code.value  # => "N1"
+BluebookReference::Postcode.record!(code: { value: "N1" }).code.value  # => "N1"
 ```
 
 ## read_model

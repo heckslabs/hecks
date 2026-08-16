@@ -119,9 +119,9 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "qy-1" },
                  name: { given: "Nancy", family: "Roman" },
                  email: { address: "nancy@example.com" })
-account = Banking::Account.open(customer: "qy-1", number: { value: "qy-a1" },
+account = Banking::Account.open!(customer: "qy-1", number: { value: "qy-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit(amount: { cents: 9_000 }, narrative: { text: "funding" })
+account.credit!(amount: { cents: 9_000 }, narrative: { text: "funding" })
 
 runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-1" })
 runtime.dispatch("QueryReference::Warden.Appoint", badge: { value: "w-2" })
@@ -291,7 +291,7 @@ moment its customer is suspended, so the dangerous state this query
 exists to surface can no longer be reached.
 
 ```ruby
-Banking::Customer.find("qy-1").suspend(standing: { value: "under-review" })
+Banking::Customer.find("qy-1").suspend!(standing: { value: "under-review" })
 Banking::Account.find("qy-a1").status  # => "frozen"
 runtime.query("Banking::Account.OpenForSuspendedCustomers")  # => []
 ```
@@ -300,7 +300,7 @@ Put back, so the sections below start where this one found things — a
 reference page runs top to bottom against one boot:
 
 ```ruby
-Banking::Customer.find("qy-1").reinstate.status  # => "active"
+Banking::Customer.find("qy-1").reinstate!.status  # => "active"
 ```
 
 ## order_by
@@ -357,8 +357,8 @@ declared.
 :branch_code`. Two boxes, in two branches:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
-Banking::SafeDepositBox.rent(customer: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
+Banking::SafeDepositBox.rent!(customer: "qy-1", branch_code: { value: "DT" }, box_number: { value: 1 }, size: { value: "small" })
+Banking::SafeDepositBox.rent!(customer: "qy-1", branch_code: { value: "UP" }, box_number: { value: 1 }, size: { value: "large" })
 ```
 
 The tenant boundary is mandatory — an ask that does not say which branch

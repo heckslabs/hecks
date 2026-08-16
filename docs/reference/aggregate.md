@@ -73,10 +73,10 @@ end
 ```
 
 ```ruby
-Banking::Customer.register(reference: "ag-1",
+Banking::Customer.register!(reference: "ag-1",
                            name: { given: "Jean", family: "Bartik" },
                            email: "jean@example.com")
-account = Banking::Account.open(customer: "ag-1", number: "ag-a1",
+account = Banking::Account.open!(customer: "ag-1", number: "ag-a1",
                                 kind: "current", daily_limit: 50_000)
 ```
 
@@ -152,7 +152,7 @@ Opening a second account on the same number refuses as a duplicate
 rather than quietly replacing the first:
 
 ```ruby
-Banking::Account.open(customer: "ag-1", number: "ag-a1", kind: "savings", daily_limit: 1)  # ~> AlreadyExists: Account
+Banking::Account.open!(customer: "ag-1", number: "ag-a1", kind: "savings", daily_limit: 1)  # ~> AlreadyExists: Account
 ```
 
 A composite identity joins its paths in declaration order —
@@ -187,7 +187,7 @@ account.customer.id    # => "ag-1"
 Handing it the object instead is refused where it arrives:
 
 ```ruby
-Banking::Account.open(customer: { value: "ag-1" }, number: "ag-a3", kind: "current", daily_limit: 1)  # ~> TypeMismatch: a reference is an id
+Banking::Account.open!(customer: { value: "ag-1" }, number: "ag-a3", kind: "current", daily_limit: 1)  # ~> TypeMismatch: a reference is an id
 ```
 
 One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are GONE (ADR 0025) — `reference_to` covers everything they did.
@@ -243,7 +243,7 @@ Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; a
 GONE (ADR 0025, "References") — an alias for `has_one`, gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
 
 ```ruby
-kase = Banking::OnboardingCase.open(customer: "ag-1", reference: "ag-c1", account_number: "ag-a2")
+kase = Banking::OnboardingCase.open!(customer: "ag-1", reference: "ag-c1", account_number: "ag-a2")
 kase[:customer]  # => "ag-1"
 ```
 
@@ -305,10 +305,17 @@ Banking::Account.ir.entities.map(&:hecks_name)  # => ["LedgerEntry"]
 
 Declares a read over this aggregate's own fields. See the Query context page for `where`, ordering, and the dotted-path rules.
 
-Declared here, dispatched as `Domain::Aggregate.query_name`:
+Declared here, dispatched as `Domain::Aggregate.query_name` through
+`runtime.query`, or as a bare door method of the same snake_case
+name — `Account` declares a QUERY named "Open" alongside its
+CREATING command of the same name, and the two never collide: a
+command's own door method always ends in `!` (`open!` created the
+`account` this page has been using throughout), so the bare name is
+free for the query:
 
 ```ruby
 runtime.query("Banking::Account.Open").map { |row| row[:number][:value] }  # => ["ag-a1"]
+Banking::Account.open.map { |row| row[:number][:value] }                  # => ["ag-a1"]
 ```
 
 ## policy
@@ -423,7 +430,7 @@ account.balance.currency  # => "USD"
 a non-blank string, so a blank one is refused rather than stored:
 
 ```ruby
-Banking::Customer.register(reference: " ", name: { given: "A", family: "B" }, email: "a@b.co")  # ~> TypeMismatch: must match
+Banking::Customer.register!(reference: " ", name: { given: "A", family: "B" }, email: "a@b.co")  # ~> TypeMismatch: must match
 ```
 
 `admits:` points at a vocabulary declared elsewhere instead of restating
@@ -438,8 +445,8 @@ Banking::ExternalTransfer.ir.commands.find { |c| c.hecks_name == "Request" }.att
 `SafeDepositBox.LogVisit`'s note, omitted here without refusal:
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 9 }, size: { value: "small" })
-box.log_visit(date: { value: "2026-08-14" }, sequence: { value: 1 }).visits.size  # => 1
+box = Banking::SafeDepositBox.rent!(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 9 }, size: { value: "small" })
+box.log_visit!(date: { value: "2026-08-14" }, sequence: { value: 1 }).visits.size  # => 1
 ```
 
 A value-object-typed attribute whose OWN declared type carries exactly
@@ -449,7 +456,7 @@ one field accepts a bare scalar in place of the wrapped `{ field: ...
 dispatches identically:
 
 ```ruby
-Banking::SafeDepositBox.rent(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 10 }, size: "small").size.value  # => "small"
+Banking::SafeDepositBox.rent!(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 10 }, size: "small").size.value  # => "small"
 ```
 
 A genuinely multi-field value object still refuses the bare form —

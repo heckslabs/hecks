@@ -30,7 +30,7 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "lc-1" },
                  name: { given: "Ada", family: "Byron" },
                  email: { address: "ada@example.com" })
-account = Banking::Account.open(customer: "lc-1", number: { value: "lc-a1" },
+account = Banking::Account.open!(customer: "lc-1", number: { value: "lc-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -58,7 +58,7 @@ assignment:
 
 ```ruby
 account.status  # => "open"
-account.freeze_account
+account.freeze_account!
 account.status  # => "frozen"
 ```
 
@@ -66,7 +66,7 @@ The transition's own `from:` is enforced, not decorative — a second
 `freeze_account` is refused rather than silently repeated:
 
 ```ruby
-account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"
+account.freeze_account!  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"
 ```
 
 The refusal names `FreezeAccount` itself, not the transition, because

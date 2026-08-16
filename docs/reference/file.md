@@ -76,7 +76,7 @@ runtime.registry.bluebook("FileReference").aggregates.map(&:hecks_name)  # => ["
 That is enough to dispatch against:
 
 ```ruby
-FileReference::Dispatch.raise_dispatch(docket: { value: "d-1" }, note: { text: "first" }).note.text  # => "first"
+FileReference::Dispatch.raise_dispatch!(docket: { value: "d-1" }, note: { text: "first" }).note.text  # => "first"
 ```
 
 ## hecksagon

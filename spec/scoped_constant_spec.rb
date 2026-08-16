@@ -126,7 +126,7 @@ RSpec.describe "the scoped-constant bridge" do
       expect(nested).to be_a(Module)
       expect(nested).not_to be_a(ScopedConstant) # a REAL constant, found without const_missing at all
 
-      expect(ScopedBridgeThing.commands).to eq(["make"])
+      expect(ScopedBridgeThing.commands).to eq(["make!"])
     end
   end
 

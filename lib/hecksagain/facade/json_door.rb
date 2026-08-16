@@ -68,14 +68,15 @@ module Hecksagain
       # these". `AggregateDoor` already enforces exactly one creating
       # command per aggregate (`Command#creates?`, true exactly when the
       # command declares no `references`); this just names it the same
-      # snake_case a Ruby caller would already ask the door for
+      # snake_case-plus-bang a Ruby caller would already ask the door for
       # (`Naming.snake`, the identical call `AggregateDoor` itself makes
-      # when it defines that singleton method in the first place).
+      # when it defines that singleton method in the first place — `!`
+      # because every command does now, door and Handle alike).
       def creating_command(klass)
         creating = klass.ir.commands.find(&:creates?)
         raise Runtime::NotFound, "#{klass.ir.hecks_name} declares no creating command" unless creating
 
-        Naming.snake(creating.hecks_name)
+        "#{Naming.snake(creating.hecks_name)}!"
       end
 
       # A URL segment or a JSON body's "command" field, checked against what

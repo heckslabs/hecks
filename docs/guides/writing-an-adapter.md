@@ -467,11 +467,11 @@ once the reaction beneath this event runs it:
 ```ruby
 NAME = "GuideMargherita"
 
-order = Pizzas::Order.create_pizza(
+order = Pizzas::Order.create_pizza!(
   name:  { value: NAME },
   pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
 )
-order.add_topping(topping: { value: "Basil" }, amount: { value: 3 })
+order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
 
 order.status  # => "available"
 ```

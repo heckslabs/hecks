@@ -73,7 +73,7 @@ Hecks.hecksagon("CommandReference") { CommandReference::Meter.persisted_by("Memo
 runtime.dispatch("Banking::Customer.Register", reference: { value: "cm-1" },
                  name: { given: "Annie", family: "Cannon" },
                  email: { address: "annie@example.com" })
-account = Banking::Account.open(customer: "cm-1", number: { value: "cm-a1" },
+account = Banking::Account.open!(customer: "cm-1", number: { value: "cm-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
 ```
 
@@ -173,7 +173,7 @@ Whether this reference names the command's OWN aggregate decides everything: ref
 and lands as a class method on the door:
 
 ```ruby
-Banking::Account.respond_to?(:open)  # => true
+Banking::Account.respond_to?(:open!)  # => true
 ```
 
 `Freeze` references `Account`, the aggregate it is declared on, so it
@@ -200,7 +200,7 @@ this account is open and the balance is empty, so it is the second that
 answers:
 
 ```ruby
-account.debit(amount: { cents: 999 }, narrative: { text: "nothing there" })  # ~> GivenNotMet: the balance covers it
+account.debit!(amount: { cents: 999 }, narrative: { text: "nothing there" })  # ~> GivenNotMet: the balance covers it
 ```
 
 The description IS the message, verbatim — which is why a `given` is
@@ -229,10 +229,10 @@ written as a sentence a caller can act on rather than a name.
 one op per call, three calls across two commands here:
 
 ```ruby
-meter = CommandReference::Meter.install(serial: { value: 7 })
+meter = CommandReference::Meter.install!(serial: { value: 7 })
 meter.reading.units  # => 0
 
-meter.advance(units: { units: 12 }, note: { note: "first read" })
+meter.advance!(units: { units: 12 }, note: { note: "first read" })
 meter.reading.units  # => 12
 meter.marks.map { |mark| mark[:note] }  # => ["first read"]
 ```
@@ -241,7 +241,7 @@ Arithmetic accumulates rather than replacing, which is the difference
 between `increment:` and `to:`:
 
 ```ruby
-meter.advance(units: { units: 5 }, note: { note: "second read" })
+meter.advance!(units: { units: 5 }, note: { note: "second read" })
 meter.reading.units  # => 17
 ```
 
@@ -263,9 +263,9 @@ accumulates the events of every command run through it, so the rent that
 created this box is still in the list — the last two are `Surrender`'s.)
 
 ```ruby
-box = Banking::SafeDepositBox.rent(customer: "cm-1", branch_code: { value: "DT" },
+box = Banking::SafeDepositBox.rent!(customer: "cm-1", branch_code: { value: "DT" },
                                    box_number: { value: 4 }, size: { value: "small" })
-box.surrender.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
+box.surrender!.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
 ```
 
 ## attribute
@@ -290,14 +290,14 @@ A command takes the arguments it declares — all of them, and no others.
 Missing one refuses:
 
 ```ruby
-account.credit(narrative: { text: "no amount" })  # ~> AbsentArgument: Credit was not given amount
+account.credit!(narrative: { text: "no amount" })  # ~> AbsentArgument: Credit was not given amount
 ```
 
 And so does a name it never declared, rather than the value riding along
 unread:
 
 ```ruby
-account.credit(amount: { cents: 1 }, narrative: { text: "ok" }, memo: "extra")  # ~> UnknownArgument: Credit does not declare memo
+account.credit!(amount: { cents: 1 }, narrative: { text: "ok" }, memo: "extra")  # ~> UnknownArgument: Credit does not declare memo
 ```
 
 ## ensures
@@ -325,8 +325,8 @@ Both hold on an ordinary debit, so nothing is visible but the result —
 which is what a postcondition looks like when the code is right:
 
 ```ruby
-account.credit(amount: { cents: 5_000 }, narrative: { text: "funding" })
-account.debit(amount: { cents: 2_000 }, narrative: { text: "rent" })
+account.credit!(amount: { cents: 5_000 }, narrative: { text: "funding" })
+account.debit!(amount: { cents: 2_000 }, narrative: { text: "rent" })
 account.balance.cents  # => 3000
 ```
 

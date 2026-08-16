@@ -170,15 +170,15 @@ stray `reference_to Self` to what should be a creating command — and
 it silently stops being callable the way a controller expects.
 
 ```ruby
-Banking::Account.respond_to?(:open)    # => true
-Banking::Account.respond_to?(:credit)  # => false
+Banking::Account.respond_to?(:open!)    # => true
+Banking::Account.respond_to?(:credit!)  # => false
 ```
 
 ```ruby
-customer = Banking::Customer.register(reference: { value: "C-1" },
+customer = Banking::Customer.register!(reference: { value: "C-1" },
                                        name: { given: "Ada", family: "Lovelace" },
                                        email: { address: "ada@example.com" })
-account  = Banking::Account.open(customer: customer.id, number: { value: "AC-1" },
+account  = Banking::Account.open!(customer: customer.id, number: { value: "AC-1" },
                                   kind: { name: "current" }, daily_limit: { cents: 100_000 })
 account.number.to_h  # => { value: "AC-1" }
 ```
@@ -188,7 +188,7 @@ again with a number you already used and there is no second account,
 only a collision with the one you have:
 
 ```ruby
-Banking::Account.open(customer: customer.id, number: { value: "AC-1" }, kind: { name: "current" }, daily_limit: { cents: 100_000 })  # ~> AlreadyExists: Open creates a Account that already exists
+Banking::Account.open!(customer: customer.id, number: { value: "AC-1" }, kind: { name: "current" }, daily_limit: { cents: 100_000 })  # ~> AlreadyExists: Open creates a Account that already exists
 ```
 
 ## `given` — the rule you enforce going in
@@ -221,7 +221,7 @@ now, checked against the real lifecycle field instead of a free-text
 copy of it (see `from:`, below):
 
 ```ruby
-account.freeze_account
+account.freeze_account!
 account.status  # => "frozen"
 ```
 
@@ -233,7 +233,7 @@ the fact your caller actually needs — the state the record is in, and
 every state the command would have accepted:
 
 ```ruby
-account.freeze_account  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"
+account.freeze_account!  # ~> LifecycleRefused: FreezeAccount refused — status is "frozen", and FreezeAccount moves it only from "open"
 ```
 
 `Debit` declares three givens — the referenced `"customer is active"`,
@@ -246,8 +246,8 @@ blows both its own remaining rules at once, and only the
 first-declared one is what you'll ever see:
 
 ```ruby
-account.unfreeze
-account.debit(amount: { cents: 999_999 }, narrative: { text: "too much" })  # ~> GivenNotMet: the balance covers it
+account.unfreeze!
+account.debit!(amount: { cents: 999_999 }, narrative: { text: "too much" })  # ~> GivenNotMet: the balance covers it
 ```
 
 Write your givens with the cheapest or most-likely-to-fail check first
@@ -286,10 +286,10 @@ already re-enters itself, live, up to its own limit, before your code
 ever gets control back:
 
 ```ruby
-sp = Banking::ScheduledPayment.schedule(account: account.id, instruction: { value: "I-1" },
+sp = Banking::ScheduledPayment.schedule!(account: account.id, instruction: { value: "I-1" },
                                          amount: { cents: 5000 }, recipient: { value: "Landlord" },
                                          due_on: { value: "2026-09-01" })
-sp.fail
+sp.fail!
 Banking::ScheduledPayment.find(sp.id).attempts.to_h  # => { value: 3 }
 ```
 
@@ -302,7 +302,7 @@ the mechanism). Dispatch `Retry` again yourself, directly, and the same
 `given` refuses it the ordinary way:
 
 ```ruby
-Banking::ScheduledPayment.find(sp.id).retry  # ~> GivenNotMet: a retry is still allowed
+Banking::ScheduledPayment.find(sp.id).retry!  # ~> GivenNotMet: a retry is still allowed
 ```
 
 `Abandon` declares the mirror image — `given("every retry is
@@ -310,7 +310,7 @@ exhausted") { attempts.value >= max_attempts.value }` — which only
 reads true now that the reflex above has run its course:
 
 ```ruby
-Banking::ScheduledPayment.find(sp.id).abandon
+Banking::ScheduledPayment.find(sp.id).abandon!
 Banking::ScheduledPayment.find(sp.id).status  # => "abandoned"
 ```
 
@@ -327,8 +327,8 @@ before `save` — a failed `ensures` never reaches the store.
 without either one raising:
 
 ```ruby
-account.credit(amount: { cents: 500 }, narrative: { text: "paycheck" })
-account.debit(amount: { cents: 200 }, narrative: { text: "rent" })
+account.credit!(amount: { cents: 500 }, narrative: { text: "paycheck" })
+account.debit!(amount: { cents: 200 }, narrative: { text: "rent" })
 account.balance.to_h  # => { cents: 300, currency: "USD" }
 ```
 
@@ -446,7 +446,7 @@ A required attribute that never arrives refuses before anything else
 happens — no partial record, no half-run mutation:
 
 ```ruby
-Banking::Account.open(customer: customer.id, number: { value: "AC-2" }, daily_limit: { cents: 0 })  # ~> AbsentArgument: Open was not given kind
+Banking::Account.open!(customer: customer.id, number: { value: "AC-2" }, daily_limit: { cents: 0 })  # ~> AbsentArgument: Open was not given kind
 ```
 
 An argument the command never declared at all refuses just as early,
@@ -454,7 +454,7 @@ the other half of the same gate — a misspelled or stray field does not
 ride along in silence:
 
 ```ruby
-account.credit(amount: { cents: 100 }, narrative: { text: "x" }, memo: "nope")  # ~> UnknownArgument: Credit does not declare memo
+account.credit!(amount: { cents: 100 }, narrative: { text: "x" }, memo: "nope")  # ~> UnknownArgument: Credit does not declare memo
 ```
 
 A value object's own rules travel with it into every command that
@@ -467,7 +467,7 @@ blank number is refused as a `TypeMismatch`, not the more specific
 `InvariantViolation` its own invariant would otherwise raise:
 
 ```ruby
-Banking::Account.open(customer: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: AccountNumber.value must match [^ \t\n\r], got ""
+Banking::Account.open!(customer: customer.id, number: { value: "" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: AccountNumber.value must match [^ \t\n\r], got ""
 ```
 
 A value object arrives as its fields, plainly — `{ name: "current" }`,
@@ -476,7 +476,7 @@ another aggregate, by contrast, arrives as a bare id — the string
 `customer.id`, not an object describing the customer:
 
 ```ruby
-Banking::Account.open(customer: { reference: customer.id }, number: { value: "AC-4" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: a reference is an id, and customer arrived as an object
+Banking::Account.open!(customer: { reference: customer.id }, number: { value: "AC-4" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: a reference is an id, and customer arrived as an object
 ```
 
 `CardPayment.Dispute` is the one command in this chapter carrying BOTH
@@ -488,11 +488,11 @@ account raised the dispute. The same rule about a bare id applies to
 that second reference exactly as it did to `Open`'s:
 
 ```ruby
-cp = Banking::CardPayment.authorize(account: account.id, authorisation: { value: "AUTH-1" },
+cp = Banking::CardPayment.authorize!(account: account.id, authorisation: { value: "AUTH-1" },
                                      amount: { cents: 4200 }, merchant: { value: "Cafe" })
-cp.capture
-cp.dispute(disputed_by: { reference: customer.id })  # ~> TypeMismatch: a reference is an id, and disputed_by arrived as an object
-cp.dispute(disputed_by: customer.id)
+cp.capture!
+cp.dispute!(disputed_by: { reference: customer.id })  # ~> TypeMismatch: a reference is an id, and disputed_by arrived as an object
+cp.dispute!(disputed_by: customer.id)
 cp[:disputed_by]  # => "C-1"
 ```
 
@@ -514,6 +514,6 @@ account above still holds exactly what its last SUCCESSFUL debit left
 it at, not whatever a refused call tried to write:
 
 ```ruby
-account.debit(amount: { cents: 999_999 }, narrative: { text: "nope" })  # ~> GivenNotMet: the balance covers it
+account.debit!(amount: { cents: 999_999 }, narrative: { text: "nope" })  # ~> GivenNotMet: the balance covers it
 Banking::Account.find(account.id).balance.to_h  # => { cents: 300, currency: "USD" }
 ```

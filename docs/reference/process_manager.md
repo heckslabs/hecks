@@ -71,7 +71,7 @@ so the declaration is refused at load time unless it names a scalar.
 filed under the case's own reference — not a saga id of its own:
 
 ```ruby
-kase = Banking::OnboardingCase.open(customer: "pm-1", reference: { value: "pm-c1" },
+kase = Banking::OnboardingCase.open!(customer: "pm-1", reference: { value: "pm-c1" },
                                     account_number: { value: "pm-a1" })
 runtime.registry.saga_instances["Onboarding"].keys  # => ["pm-c1"]
 ```
@@ -114,7 +114,7 @@ stops being tracked.
 its end in one act, and the instance is gone afterwards:
 
 ```ruby
-kase.clear
+kase.clear!
 runtime.registry.saga_instances["Onboarding"]  # => {}
 ```
 

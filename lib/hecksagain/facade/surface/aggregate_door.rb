@@ -24,11 +24,31 @@ module Hecksagain
           end
 
           # A creating verb is a MODULE method returning the new record in hand ;
-          # a verb that reaches an existing record lives on the Handle.
+          # a verb that reaches an existing record lives on the Handle. `!` —
+          # a command DOES something (mutates, may refuse), Ruby's own
+          # convention for that ; `Naming.snake` alone used to leave a
+          # creating command's bare name claiming the exact spelling a
+          # QUERY of the SAME business name also wants (`Account`'s own
+          # "Open" — the creating command AND a query listing open
+          # accounts, a real same-aggregate collision this corpus already
+          # has) — the suffix is what makes both nameable at all, not
+          # merely a style choice.
           ir.commands.select(&:creates?).each do |command|
-            door.define_singleton_method(Naming.snake(command.hecks_name)) do |**args|
+            door.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |**args|
               Handle.new(dispatcher: dispatcher, domain: domain, ir: ir,
                          instance: dispatcher.dispatch("#{fqn}.#{command.hecks_name}", **args).instance)
+            end
+          end
+
+          # A query is a MODULE method too — same level as a creating
+          # command, since neither needs an existing record in hand — but
+          # bare: a query reads and returns, nothing to warn a caller
+          # about the way `!` does for a command. Answers the raw row
+          # array `dispatcher.query` itself answers, the same shape
+          # `runtime.query("#{fqn}.Name")` already gave.
+          ir.queries.each do |query|
+            door.define_singleton_method(Naming.snake(query.hecks_name)) do |**args|
+              dispatcher.query("#{fqn}.#{query.hecks_name}", **args)
             end
           end
 
@@ -53,7 +73,8 @@ module Hecksagain
             Projector.write(artifact, out, as: Projector.emits_for(key))
           end
           door.define_singleton_method(:repository) { dispatcher.registry.repository(domain, ir) }
-          door.define_singleton_method(:commands)   { ir.commands.map { |c| Naming.snake(c.hecks_name) }.sort }
+          door.define_singleton_method(:commands)   { ir.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort }
+          door.define_singleton_method(:queries)    { ir.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
           # ONE AGGREGATE'S USAGE DOCUMENT — the same projection the chapter
           # answers with, narrowed to this head. `commands` above already
           # answers "what can I call"; this answers "and what does each one

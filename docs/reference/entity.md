@@ -113,10 +113,10 @@ end
 runtime.dispatch("Banking::Customer.Register", reference: { value: "en-1" },
                  name: { given: "Evelyn", family: "Boyd" },
                  email: { address: "evelyn@example.com" })
-account = Banking::Account.open(customer: "en-1", number: { value: "en-a1" },
+account = Banking::Account.open!(customer: "en-1", number: { value: "en-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit(amount: { cents: 10_000 }, narrative: { text: "opening" })
-account.debit(amount: { cents: 2_500 }, narrative: { text: "groceries" })
+account.credit!(amount: { cents: 10_000 }, narrative: { text: "opening" })
+account.debit!(amount: { cents: 2_500 }, narrative: { text: "groceries" })
 ```
 
 ## description
@@ -218,9 +218,9 @@ reading, before `state == "posted"` (the entry's OWN field, no
 ```ruby
 runtime.dispatch("Banking::Customer.Register", reference: { value: "pa-1" },
                  name: { given: "Parent", family: "Reader" }, email: { address: "pa@example.com" })
-account = Banking::Account.open(customer: "pa-1", number: { value: "pa-a1" },
+account = Banking::Account.open!(customer: "pa-1", number: { value: "pa-a1" },
                                 kind: { name: "current" }, daily_limit: { cents: 50_000 })
-account.credit(amount: { cents: 1_000 }, narrative: { text: "opening deposit" })
+account.credit!(amount: { cents: 1_000 }, narrative: { text: "opening deposit" })
 runtime.dispatch("Banking::Customer.Suspend", reference: "pa-1", standing: { value: "under review" })
 runtime.dispatch("Banking::Account.LedgerEntry.Reverse", number: { value: "pa-a1" }, sequence: { value: 1 }, narrative: { text: "reversing" })  # ~> GivenNotMet: customer is active
 ```

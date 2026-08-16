@@ -66,9 +66,9 @@ whole act, and the account exists afterwards:
 runtime.dispatch("Banking::Customer.Register", reference: { value: "hd-1" },
                  name: { given: "Annie", family: "Easley" },
                  email: { address: "annie@example.com" })
-kase = Banking::OnboardingCase.open(customer: "hd-1", reference: { value: "hd-c1" },
+kase = Banking::OnboardingCase.open!(customer: "hd-1", reference: { value: "hd-c1" },
                                     account_number: { value: "hd-a1" })
-kase.clear
+kase.clear!
 
 Banking::Account.find("hd-a1")[:customer]  # => "hd-1"
 ```

@@ -90,10 +90,10 @@ RSpec.describe Hecksagain::Facade::Handle do
   it "dispatches a verb even when its name collides with a Kernel method" do
     boot_collider
 
-    vault = Collider::Vault.build(tag: { value: "v1" })
+    vault = Collider::Vault.build!(tag: { value: "v1" })
     expect(vault.status).to eq("open")
 
-    vault.freeze
+    vault.freeze!
 
     expect(vault.status).to eq("frozen")
     # NOT actually Kernel-frozen — the domain verb ran, the object did not
@@ -103,7 +103,7 @@ RSpec.describe Hecksagain::Facade::Handle do
 
     # `send` is the sharper case: Kernel#send takes a method name and would
     # happily invoke something else entirely rather than refuse.
-    vault.send
+    vault.send!
 
     expect(vault.status).to eq("sent")
     expect(vault.events.map(&:name)).to include("VaultSent")
@@ -112,11 +112,11 @@ RSpec.describe Hecksagain::Facade::Handle do
   it "chains a colliding verb the way every other non-creating verb chains" do
     boot_collider
 
-    vault = Collider::Vault.build(tag: { value: "v2" })
-    vault.freeze
+    vault = Collider::Vault.build!(tag: { value: "v2" })
+    vault.freeze!
     # A truly Kernel-frozen object would raise FrozenError the moment `run`
     # tried to reassign @state.
-    vault.thaw
+    vault.thaw!
 
     expect(vault.status).to eq("open")
   end
@@ -133,20 +133,20 @@ RSpec.describe Hecksagain::Facade::Handle do
   it "dispatches non-creating verbs on a composite-identity aggregate" do
     boot_banking_in_memory
 
-    Banking::Customer.register(reference: { value: "c1" }, name: { given: "Ada", family: "Lovelace" },
+    Banking::Customer.register!(reference: { value: "c1" }, name: { given: "Ada", family: "Lovelace" },
                                 email: { address: "ada@example.com" })
-    box = Banking::SafeDepositBox.rent(customer: "c1", branch_code: { value: "BR01" },
+    box = Banking::SafeDepositBox.rent!(customer: "c1", branch_code: { value: "BR01" },
                                         box_number: { value: 12 }, size: { value: "small" })
 
-    box.log_visit(date: { value: "2026-08-04" }, sequence: { value: 1 })
+    box.log_visit!(date: { value: "2026-08-04" }, sequence: { value: 1 })
     expect(box[:visits].size).to eq(1)
 
-    box.issue_key(serial: { value: "K1" })
+    box.issue_key!(serial: { value: "K1" })
     expect(box[:keys].size).to eq(1)
 
     # Zero declared attributes — the identity payload is the ENTIRE args
     # hash, so a stray `nil` key had nowhere to hide.
-    box.surrender
+    box.surrender!
     expect(box.status).to eq("vacant")
   end
 
@@ -205,7 +205,7 @@ RSpec.describe Hecksagain::Facade::Handle do
     registry.verify!
     Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
 
-    thing = Thingy::Thing.mint(id: { value: "t1" }, name: { value: "goggles" })
+    thing = Thingy::Thing.mint!(id: { value: "t1" }, name: { value: "goggles" })
 
     expect(thing.id).to eq("t1")
     expect(thing.to_h[:id]).to eq("t1")

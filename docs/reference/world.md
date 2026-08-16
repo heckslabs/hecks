@@ -93,7 +93,7 @@ It is deployment identity, so it addresses rather than describes.
 Nothing about `Beacon` changes when the realm does:
 
 ```ruby
-WorldReference::Beacon.light(callsign: { value: "w-1" }).callsign.value  # => "w-1"
+WorldReference::Beacon.light!(callsign: { value: "w-1" }).callsign.value  # => "w-1"
 ```
 
 ## latest
