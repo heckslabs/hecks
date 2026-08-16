@@ -71,18 +71,19 @@ module Hecksagain
 
     def self.export_json(registry) = Hecksagain::Projector::Exporter.json(registry)
 
-    # `Hecksagain::Adapters::Prism::TREES` (lib/hecksagain/adapters/
-    # driven/prism.rb) caches a file's parsed AST for the life of the
-    # PROCESS, keyed by path, never invalidated — fine for every
-    # existing caller (a file loads once per process: one `bin/ir` run,
-    # one rspec worker), but a codemod legitimately reloads the SAME
-    # path after editing it, and a stale cached tree reports a
+    # `Hecksagain::Adapters::Prism` caches a file's parsed AST for the
+    # life of the PROCESS, keyed by path — fine for every existing
+    # caller (a file loads once per process: one `bin/ir` run, one
+    # rspec worker), but a codemod legitimately reloads the SAME path
+    # after editing it, and a stale cached tree reports a
     # `given`/`ensures` block at its OLD line number, which no longer
     # matches the freshly re-executed file's own `block.source_location`
     # — surfacing as "did not survive extraction" on a perfectly valid
-    # file. Cleared explicitly on every reload rather than worked around.
+    # file. `Prism.forget` is the real invalidation API this module's
+    # own first use motivated (found here, fixed at the source rather
+    # than left as a private `TREES.clear` poke from outside).
     def self.load_bluebook(path)
-      Hecksagain::Adapters::Prism::TREES.clear
+      Hecksagain::Adapters::Prism.forget(path)
 
       registry = Hecksagain::Runtime::Registry.new
       Hecksagain.with_registry(registry) do
@@ -95,14 +96,18 @@ module Hecksagain
       registry
     end
 
+    # `forget_all`, not a single `forget` — the meta-domain is NINE
+    # files (`MetaValidator::GRAMMAR_FILES`) merged into one registry,
+    # and a caller here (the codemod runner) doesn't generally know in
+    # advance which ONE it just edited.
     def self.boot_meta
-      Hecksagain::Adapters::Prism::TREES.clear
+      Hecksagain::Adapters::Prism.forget_all
       Hecksagain::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
       export_json(Hecksagain::Bluebook::MetaValidator.grammar_registry)
     end
 
     def self.meta_registry
-      Hecksagain::Adapters::Prism::TREES.clear
+      Hecksagain::Adapters::Prism.forget_all
       Hecksagain::Bluebook::MetaValidator.instance_variable_set(:@grammar_registry, nil)
       Hecksagain::Bluebook::MetaValidator.grammar_registry
     end
