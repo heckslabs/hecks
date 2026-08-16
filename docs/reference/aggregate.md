@@ -73,9 +73,9 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: "ag-1",
-                 name: { given: "Jean", family: "Bartik" },
-                 email: "jean@example.com")
+Banking::Customer.register(reference: "ag-1",
+                           name: { given: "Jean", family: "Bartik" },
+                           email: "jean@example.com")
 account = Banking::Account.open(customer: "ag-1", number: "ag-a1",
                                 kind: "current", daily_limit: 50_000)
 ```
@@ -423,7 +423,7 @@ account.balance.currency  # => "USD"
 a non-blank string, so a blank one is refused rather than stored:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: " ", name: { given: "A", family: "B" }, email: "a@b.co")  # ~> TypeMismatch: must match
+Banking::Customer.register(reference: " ", name: { given: "A", family: "B" }, email: "a@b.co")  # ~> TypeMismatch: must match
 ```
 
 `admits:` points at a vocabulary declared elsewhere instead of restating
