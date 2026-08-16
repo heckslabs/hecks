@@ -672,6 +672,30 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::meta::readmodel::dispatch_option(&mut store.readmodel, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::ValueObject.Member.Pair" => {
+              let parent_id = crate::generated::meta::valueobject::ValueObject::extract_id(args_json)?;
+              let element_id = crate::generated::meta::valueobject::Member::extract_id(args_json)?;
+              let element_wants = crate::generated::meta::valueobject::Member::extract_wants(args_json);
+              let args = crate::generated::meta::valueobject::MemberPairArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Language"), "Pair", caller_role)?;
+              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::ValueObject", &parent_id) { command_deref.push(("parent", parent_node)); }
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::meta::valueobject::dispatch_entity_member_pair(&mut store.valueobject, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::ProcessManager.Handler.Dispatch" => {
+              let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(args_json)?;
+              let element_id = crate::generated::meta::processmanager::Handler::extract_id(args_json)?;
+              let element_wants = crate::generated::meta::processmanager::Handler::extract_wants(args_json);
+              let args = crate::generated::meta::processmanager::HandlerDispatchArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Language"), "Dispatch", caller_role)?;
+              let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();
+              let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, "Bluebook::ProcessManager", &parent_id) { command_deref.push(("parent", parent_node)); }
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::meta::processmanager::dispatch_entity_handler_dispatch(&mut store.processmanager, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::Syntax.Keyword.Deprecate" => {
               let parent_id = crate::generated::meta::syntax::Syntax::extract_id(args_json)?;
               let element_id = crate::generated::meta::syntax::Keyword::extract_id(args_json)?;

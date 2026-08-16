@@ -405,8 +405,6 @@ module RustProjection
     # a real, separate, still-open gap flagged loudly, not silently worked
     # around by the delegation below.
     def entity_command_skip_reason(command, entity, value_objects_by_name)
-      return "sets append: on an entity's own command not generated yet (nested list)" if command[:mutations].any? { |m| m[:op].to_s == "append" }
-
       command_skip_reason(command, entity, value_objects_by_name)
     end
 

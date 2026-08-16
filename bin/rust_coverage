@@ -298,6 +298,35 @@ end
 # allowlist forgot to widen for.
 ALLOWLIST = [
   {
+    kind: "entity_command",
+    # AN ENTITY NESTED TWO LEVELS DEEP's OWN COMMAND — a real, tracked,
+    # DELIBERATE gap named at the moment this exact class of construct
+    # (S17, ADR 0026 — an entity nested inside another entity,
+    # `ProcessManager.Handler.Dispatch`) first got a struct/JSON codec at
+    # all (rust/project/domain_generator.rb's own recursion, mirrored in
+    # rust/codegen/src/domain_generator.rs). Making the struct/codec
+    # real was the tractable half; routing ITS OWN commands
+    # (`Dispatch.Bind`) through kernel::cli.rs's JSON router is a
+    # separate, deeper question — the router and registry.rs's dispatch
+    # table both resolve exactly one level of `Aggregate.Entity.Command`,
+    # never two. `entity_command_skip_reason` no longer refuses an
+    # entity's own `:append` mutation generically (that guard's own
+    # removal is what closed the OTHER two meta gaps this same commit
+    # closed — `Handler.Dispatch`, `Member.Pair`), so `Dispatch.Bind`'s
+    # own function is real and compiles; only ROUTING two levels deep is
+    # what's actually missing, which is exactly what `gap_class:
+    # "structural"` (domain_generator.rb's own manifest_entry, not
+    # "per_instance" — this isn't a one-off skip, it's every command any
+    # doubly-nested entity will ever declare) already names.
+    reason_match: /\Aentity nested two levels deep \(.+\) — kernel::cli\.rs's JSON router and registry\.rs's dispatch table both resolve one level of Aggregate\.Entity\.Command, not two\z/,
+    doc: "rust/project/domain_generator.rb (the manifest_entry this exact gap_class: \"structural\" comment sits " \
+         "beside) and rust/codegen/src/domain_generator.rs's identical, mirrored comment",
+    note: "Confirmed against a real run (2026-08-16): bin/rust_coverage meta's only entity_command GAP is " \
+          "Bluebook::ProcessManager.Handler.Dispatch.Bind — the one real corpus command on the one real corpus " \
+          "entity nested two levels deep. A future SECOND doubly-nested entity would be covered by the same " \
+          "rule (matched on the general shape the reason text names, not this specific verb).",
+  },
+  {
     kind: "query",
     # NARROWED, not the whole construct kind any more — a declared
     # `query "X" do ... end` block now DOES have a real generated Rust
@@ -366,30 +395,63 @@ ALLOWLIST = [
   },
   {
     kind: "read_model",
-    # A NEW, HONEST GAP THIS MERGE ITSELF SURFACED — not present on
-    # either side before `main` and `feat/rust-projection` combined.
-    # `main`'s own rootless-read-model work (`report: rootless read
-    # models + group_by`) added `group_by` to `ReadModel` after
-    # `rust/project/read_models.rb` was written against a version of
-    # that IR with no such concept at all (that file's own header
-    # already named this exact scenario as a "future reader diffing
-    # this generator against a newer read_model_interpreter.rb" case).
-    # `Banking::AccountsByKind` is the one real corpus read model that
-    # actually declares `group_by` — genuinely rootless nesting-by-field,
-    # a shape this generator's `kernel/read_model.rs` has no code path
-    # for at all, the same class of "missing subsystem, not a parity
-    # bug" the era/lineage note below already draws a line around.
-    # `Banking::CustomerPortfolio`/`ComplianceDashboard` do NOT belong
-    # here — fixed to be real IMPLEMENTED findings (read_models.rb's own
-    # `READ_MODEL_BARE_KEYS`/value-check fix), not allowlisted away.
-    reason_match: /\Adeclares group_by —/,
+    # WIDENED, not narrowed — this used to match only `group_by`
+    # (`Banking::AccountsByKind`, the one real corpus read model that
+    # declared it at the time), with a note claiming `Banking::
+    # CustomerPortfolio`/`ComplianceDashboard` were real IMPLEMENTED
+    # findings with no gap of their own. That claim went stale: `Banking
+    # ::ComplianceDashboard` was later extended with `where(status:
+    # "disputed"); order_by :amount, :desc; limit 5` on its CardPayment
+    # collection (a real, deliberate compliance-review feature, not a
+    # regression), and `DisputedPaymentCount`/`DisputedPaymentMedian`
+    # (newer read models, `count`/`median :amount`) never had generator
+    # support to begin with — all three now hit the SAME single function
+    # (`read_models.rb#read_model_options_skip_reason`) `group_by`
+    # already did, for the identical reason: offset/cursor/consistency/
+    # authorization(TenantScope)/null_semantics beyond the default/
+    # inspection are real capabilities this generator does not port (the
+    # SAME boundary the `query` entry above already cites for the
+    # equivalent AGGREGATE-query case). Matched on the function's own
+    # distinctive tail, not the enum it lists first (`extra` can be one
+    # value or several, comma-joined) — deliberately narrow enough to
+    # still exclude the READ MODEL'S OTHER real refusal shape
+    # ("declares reference_to X, but includes no matching aggregate
+    # head" — a genuine authoring gap, never this generator's own scope
+    # boundary, and never allowlisted).
+    reason_match: /out of scope for this generator: offset\/cursor\/consistency\/authorization\(TenantScope\)\/null_semantics/,
     doc: "rust/project/read_models.rb (own header note on group_by/rootless read models being a main-only concept " \
-         "this generator doesn't cover) and rust/project/queries.rb's own eligibility argument the reason text " \
-         "quotes verbatim",
-    note: "Confirmed against a real run: bin/rust_coverage banking shows Banking::CustomerPortfolio and " \
-          "Banking::ComplianceDashboard as real IMPLEMENTED read_model findings (both regenerated for real, no " \
-          "group_by of their own) — only Banking::AccountsByKind, which actually declares `group_by :kind, " \
-          ":number`, is deferred here.",
+         "this generator doesn't cover, and #read_model_options_skip_reason's own single source for every " \
+         "'declares X — out of scope' reason this matches) and rust/project/queries.rb's own eligibility " \
+         "argument the reason text quotes verbatim",
+    note: "Confirmed against a real run (2026-08-16): bin/rust_coverage banking's own GAP(3) is exactly " \
+          "Banking::ComplianceDashboard (declares offset), Banking::DisputedPaymentCount (declares count), " \
+          "Banking::DisputedPaymentMedian (declares median_field) — Banking::AccountsByKind (declares group_by) " \
+          "already matched before this widening; Banking::CustomerPortfolio still has no gap of its own (no " \
+          "option this function's own list names).",
+  },
+  {
+    kind: "read_model",
+    # AN ENTITY-TYPED `include` — a real, distinct boundary from the
+    # `offset/cursor/...` one above, newly documented in read_models.rb
+    # itself (own header note right above `read_model_head_skip_reason`)
+    # at the same moment this allowlist entry was added, not invented
+    # after the fact to make a run look clean. The one real corpus site
+    # is the self-hosted grammar's own `Bluebook::WholeBluebook`
+    # (`include Member` — S17/ADR 0026 retired Member's own root
+    # aggregate for a genuine nested entity, and this `include` line was
+    # never updated) — confirmed, via grep, that no spec anywhere
+    # dispatches or queries WholeBluebook for real either, so this isn't
+    # an unported Rust gap trailing a working Ruby feature; it's a
+    # genuinely new subsystem (entity-typed read-model heads) neither
+    # side has ever exercised.
+    reason_match: /\Aincludes Member, which this domain never declares\z/,
+    doc: "rust/project/read_models.rb (own header note on entity-typed include, directly above " \
+         "#read_model_head_skip_reason)",
+    note: "Confirmed against a real run (2026-08-16): bin/rust_coverage meta's only remaining read_model GAP " \
+          "is Bluebook::WholeBluebook, and the only unresolvable head is Member specifically — every other " \
+          "`include` on that same read model (Bluebook, Aggregate, Command, ValueObject, Query, Entity, Policy, " \
+          "ProcessManager, Handler, Dispatch, ReadModel) is a real top-level aggregate this generator already " \
+          "handles.",
   },
 ]
 # REMOVED, NOT WIDENED — the cross-domain-policy `kind: "policy"` entry

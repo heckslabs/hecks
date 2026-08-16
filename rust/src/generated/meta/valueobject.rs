@@ -633,6 +633,84 @@ impl Member {
     }
 }
 
+impl crate::kernel::Fielded for MemberPairArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "key" => Some(Field::Nested(&self.key)),
+            "value" => Some(Field::Nested(&self.value)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MemberPairArgs {
+    pub key: MemberText,
+    pub value: MemberText,
+}
+
+impl MemberPairArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), self.key.to_json()),
+        ("value".to_string(), self.value.to_json()),
+        ])
+    }
+}
+
+
+impl MemberPairArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        key: MemberText::from_json(v.require("key", "MemberPairArgs")?)?,
+        value: MemberText::from_json(v.require("value", "MemberPairArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_member_pair(
+    repo: &mut impl crate::kernel::Repository<ValueObject>, parent_id: &str, element_id: &str, element_wants: &str, args: MemberPairArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ValueObject> {
+        args.key.check_invariants()?;
+        args.value.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &ValueObject| &r.members,
+        |r: &mut ValueObject| &mut r.members,
+        |el: &Member| el.identity() == element_id,
+        "Member.Pair",
+        "Bluebook::ValueObject",
+        "ValueObject",
+        "aggregate, name.value",
+        "Member",
+        "position.value",
+        element_wants,
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "an admitted row binds a named field", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("key.value"))))))) },
+        ],
+        None,
+        |record| {
+        record.pairs.push(Pair { key: args.key.value.clone(), value: args.value.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["PairBound"],
+        args.to_json(),
+        mutations,
+    )
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ValueObject {
     pub aggregate: Option<String>,

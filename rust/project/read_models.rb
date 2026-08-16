@@ -215,6 +215,33 @@ module RustProjection
       declared_limit_skip_reason(read_model[:limit])
     end
 
+    # A REAL, NEWLY-CONFIRMED BOUNDARY, distinct from every other gap
+    # this file already names: an `include` naming an ENTITY, not an
+    # aggregate. `aggregates_by_name` — this whole file's own head/join
+    # machinery, `AggregateScan`/`filter_entries` included — has no
+    # concept of scanning an entity's own records at all; entities live
+    # nested inside their owning aggregate's storage, not their own
+    # top-level table, so "fetch every Member" isn't a query this
+    # generator's `kernel/repository.rs` primitives can even express,
+    # let alone FK-match against a sibling head the way an ordinary
+    # aggregate head already does. The one real corpus site is the
+    # self-hosted grammar's own `Bluebook::WholeBluebook` (`include
+    # Member` — S17/ADR 0026 retired Member's own root aggregate in
+    # favor of a genuine nested entity under ValueObject, and this
+    # `include` was never updated to match). Confirmed this has no
+    # working path on EITHER side today, not merely an unported Rust
+    # gap: no spec anywhere dispatches or queries `WholeBluebook` for
+    # real (grep spec/ finds exactly one comment mentioning it, in
+    # self_use_spec.rb, about the read model's existence as a design
+    # rationale — never its own execution). A genuinely new subsystem
+    # this generator has no code path for at all, the same class of
+    # "missing subsystem, not a parity bug" `group_by`'s own history
+    # (above) already drew a line around before this file supported it
+    # for real — worth its own dedicated design (does an entity-typed
+    # head mean "every element across every instance of the owning
+    # aggregate," or something narrower scoped to the reference root?
+    # ReadModelInterpreter's own Ruby answer would need reading closely
+    # before generating anything), not attempted here.
     def read_model_head_skip_reason(head, aggregates_by_name, unsupported_names)
       target = aggregates_by_name[head[:aggregate]]
       return "includes #{head[:aggregate]}, which this domain never declares" unless target

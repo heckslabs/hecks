@@ -418,14 +418,17 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
 }
 
 /// `entity_command_skip_reason` — `command_skip_reason` with `entity`
-/// standing in for `aggregate`, guarding the one real divergence
-/// (`:append` on an entity's own command reads `aggregate[:entities]`,
-/// which an entity node doesn't carry) before delegating.
+/// standing in for `aggregate`. Used to unconditionally refuse an
+/// entity's own `:append` mutation here, reasoning that `append_element`
+/// reads `aggregate.get("entities")`, which an entity node didn't carry
+/// at the time this guard was written. It does now (S17, ADR 0026 — an
+/// entity's own IR shape is genuinely the same six-key shape an
+/// aggregate's is, entities included) — mirrors commands.rb's own
+/// identical removal exactly, confirmed the same way: both real corpus
+/// targets (`ValueObject::Member.Pair`, a VO-list; `ProcessManager::
+/// Handler.Dispatch`, a genuinely nested entity-list) compile and pass
+/// codegen_parity_spec against the Ruby-orchestrated generator.
 pub fn entity_command_skip_reason(command: &Json, entity: &Json, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
-    let mutations_list = command.get("mutations").map(Json::each).unwrap_or(&[]);
-    if mutations_list.iter().any(|m| m.get("op").map(Json::to_s).unwrap_or_default() == "append") {
-        return Some("sets append: on an entity's own command not generated yet (nested list)".to_string());
-    }
     command_skip_reason(command, entity, value_objects_by_name)
 }
 

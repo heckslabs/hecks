@@ -194,9 +194,8 @@
   {
     "kind": "entity_command",
     "id": "Bluebook::ValueObject.Member.Pair",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "sets append: on an entity's own command not generated yet (nested list)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "command",
@@ -311,9 +310,8 @@
   {
     "kind": "entity_command",
     "id": "Bluebook::ProcessManager.Handler.Dispatch",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "sets append: on an entity's own command not generated yet (nested list)"
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "command",

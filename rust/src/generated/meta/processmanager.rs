@@ -461,6 +461,79 @@ impl Handler {
     }
 }
 
+impl crate::kernel::Fielded for HandlerDispatchArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "command_name" => Some(Field::Nested(&self.command_name)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct HandlerDispatchArgs {
+    pub command_name: DispatchText,
+}
+
+impl HandlerDispatchArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("command_name".to_string(), self.command_name.to_json()),
+        ])
+    }
+}
+
+
+impl HandlerDispatchArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        command_name: DispatchText::from_json(v.require("command_name", "HandlerDispatchArgs")?)?,
+        })
+    }
+}
+
+
+pub fn dispatch_entity_handler_dispatch(
+    repo: &mut impl crate::kernel::Repository<ProcessManager>, parent_id: &str, element_id: &str, element_wants: &str, args: HandlerDispatchArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ProcessManager> {
+        args.command_name.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch_entity(
+        repo,
+        parent_id,
+        |r: &ProcessManager| &r.handlers,
+        |r: &mut ProcessManager| &mut r.handlers,
+        |el: &Handler| el.identity() == element_id,
+        "Handler.Dispatch",
+        "Bluebook::ProcessManager",
+        "ProcessManager",
+        "bluebook, name.value",
+        "Handler",
+        "event_type.value",
+        element_wants,
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.dispatches.push(Dispatch { command_name: args.command_name.clone(), with_spec: Vec::new() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["SendDeclared"],
+        args.to_json(),
+        mutations,
+    )
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProcessManager {
     pub bluebook: Option<String>,
