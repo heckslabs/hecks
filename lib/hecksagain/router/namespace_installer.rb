@@ -22,14 +22,28 @@ module Hecksagain
         end
 
         def respond_to_missing?(verb, include_private = false)
-          Fqn.command_name?(verb) || Fqn.query_name?(verb) || super
+          command_bang?(verb) || Fqn.query_name?(verb) || super
         end
 
         private
 
+        # A command verb here is PascalCase already — `Fqn.command_name?`
+        # was always enough to tell it apart from a snake_case query verb,
+        # with no risk of the two sharing a spelling the way a door/Handle
+        # method name could (aggregate_door.rb's own `!` — this mirrors it
+        # for consistency, not because this mechanism ever needed it to
+        # disambiguate). `!` is required, not optional: a bare PascalCase
+        # verb matches neither branch below and falls through to the same
+        # `NoMethodError` an unknown verb gets.
+        def command_bang?(verb)
+          text = verb.to_s
+          text.end_with?("!") && Fqn.command_name?(text.delete_suffix("!"))
+        end
+
         def fqn_for(verb)
-          if Fqn.command_name?(verb)
-            Fqn.command(realm: @realm, domain: @domain, version: @version, aggregate: @aggregate, command: verb)
+          if command_bang?(verb)
+            Fqn.command(realm: @realm, domain: @domain, version: @version, aggregate: @aggregate,
+                        command: verb.to_s.delete_suffix("!"))
           elsif Fqn.query_name?(verb)
             Fqn.query(realm: @realm, domain: @domain, version: @version, aggregate: @aggregate, query: verb)
           else
@@ -64,7 +78,7 @@ module Hecksagain
                            aggregate: entry.fqn.aggregate, options: options)
         end
         if entry.command?
-          target.define_singleton_method(entry.fqn.verb) { |**args| active_router.dispatch(address, **args) }
+          target.define_singleton_method("#{entry.fqn.verb}!") { |**args| active_router.dispatch(address, **args) }
         else
           target.define_singleton_method(entry.fqn.verb) { |**args| active_router.query(address, **args) }
         end
@@ -118,7 +132,14 @@ module Hecksagain
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.aggregate, entry.fqn.verb] }
                        .each do |(aggregate, verb), candidates|
-          shortcut_target(aggregate).define_singleton_method(verb) { |**args| installer.send(:dispatch_short, candidates, **args) }
+          # Grouped on the RAW verb — that's what tells two same-named
+          # commands (or queries) apart across domains, `dispatch_short`'s
+          # own job below. The `!` only affects which method name this
+          # group's answer gets installed under, one command's own suffix,
+          # decided once candidates already agree on `command?` (grouped
+          # by verb, so they always do).
+          method_name = candidates.first.command? ? "#{verb}!" : verb
+          shortcut_target(aggregate).define_singleton_method(method_name) { |**args| installer.send(:dispatch_short, candidates, **args) }
         end
       end
 
