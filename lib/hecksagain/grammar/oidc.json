@@ -1,0 +1,69 @@
+{
+  "audience": "Expression",
+  "scopes": [
+    {
+      "scope": "expression:expression.admit",
+      "verb": "Expression::Expression.Admit",
+      "role": "System"
+    },
+    {
+      "scope": "expression:expression.extract",
+      "verb": "Expression::Expression.Extract",
+      "role": "System"
+    },
+    {
+      "scope": "expression:expression.note",
+      "verb": "Expression::Expression.Note",
+      "role": "System"
+    },
+    {
+      "scope": "expression:expression.reject",
+      "verb": "Expression::Expression.Reject",
+      "role": "System"
+    },
+    {
+      "scope": "expression:normalisation.admit",
+      "verb": "Expression::Normalisation.Admit",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:normalisation.propose",
+      "verb": "Expression::Normalisation.Propose",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:normalisation.read",
+      "verb": "Expression::Normalisation.Read",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:normalisation.retire",
+      "verb": "Expression::Normalisation.Retire",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:operator.admit",
+      "verb": "Expression::Operator.Admit",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:operator.propose",
+      "verb": "Expression::Operator.Propose",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:operator.render",
+      "verb": "Expression::Operator.Render",
+      "role": "Language designer"
+    },
+    {
+      "scope": "expression:operator.retire",
+      "verb": "Expression::Operator.Retire",
+      "role": "Language designer"
+    }
+  ],
+  "roles": [
+    "Language designer",
+    "System"
+  ]
+}

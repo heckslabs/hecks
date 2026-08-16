@@ -1,0 +1,303 @@
+{
+  "audience": "Bluebook",
+  "scopes": [
+    {
+      "scope": "bluebook:aggregate.attribute",
+      "verb": "Bluebook::Aggregate.Attribute",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.declare",
+      "verb": "Bluebook::Aggregate.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.holds",
+      "verb": "Bluebook::Aggregate.Holds",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.identify",
+      "verb": "Bluebook::Aggregate.Identify",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.invariant",
+      "verb": "Bluebook::Aggregate.Invariant",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.lifecycle",
+      "verb": "Bluebook::Aggregate.Lifecycle",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.precondition",
+      "verb": "Bluebook::Aggregate.Precondition",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.projects",
+      "verb": "Bluebook::Aggregate.Projects",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.reference",
+      "verb": "Bluebook::Aggregate.Reference",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.seal",
+      "verb": "Bluebook::Aggregate.Seal",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.transition",
+      "verb": "Bluebook::Aggregate.Transition",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:aggregate.value",
+      "verb": "Bluebook::Aggregate.Value",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:bluebook.attach",
+      "verb": "Bluebook::Bluebook.Attach",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:bluebook.declare",
+      "verb": "Bluebook::Bluebook.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:bluebook.normalise",
+      "verb": "Bluebook::Bluebook.Normalise",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.acts_on",
+      "verb": "Bluebook::Command.ActsOn",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.announce",
+      "verb": "Bluebook::Command.Announce",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.argument",
+      "verb": "Bluebook::Command.Argument",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.change",
+      "verb": "Bluebook::Command.Change",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.declare",
+      "verb": "Bluebook::Command.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.ensure",
+      "verb": "Bluebook::Command.Ensure",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.reference",
+      "verb": "Bluebook::Command.Reference",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.rule",
+      "verb": "Bluebook::Command.Rule",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.attribute",
+      "verb": "Bluebook::Entity.Attribute",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.declare",
+      "verb": "Bluebook::Entity.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.identify",
+      "verb": "Bluebook::Entity.Identify",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.lifecycle",
+      "verb": "Bluebook::Entity.Lifecycle",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.seal",
+      "verb": "Bluebook::Entity.Seal",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:entity.transition",
+      "verb": "Bluebook::Entity.Transition",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:policy.bind",
+      "verb": "Bluebook::Policy.Bind",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:policy.declare",
+      "verb": "Bluebook::Policy.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:process_manager.declare",
+      "verb": "Bluebook::ProcessManager.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:process_manager.handler",
+      "verb": "Bluebook::ProcessManager.Handler",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:process_manager.handler.dispatch",
+      "verb": "Bluebook::ProcessManager.Handler.Dispatch",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:process_manager.handler.dispatch.bind",
+      "verb": "Bluebook::ProcessManager.Handler.Dispatch.Bind",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:process_manager.state",
+      "verb": "Bluebook::ProcessManager.State",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:query.argument",
+      "verb": "Bluebook::Query.Argument",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:query.declare",
+      "verb": "Bluebook::Query.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:query.filter",
+      "verb": "Bluebook::Query.Filter",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:query.option",
+      "verb": "Bluebook::Query.Option",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.count",
+      "verb": "Bluebook::ReadModel.Count",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.declare",
+      "verb": "Bluebook::ReadModel.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.gather",
+      "verb": "Bluebook::ReadModel.Gather",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.group_by",
+      "verb": "Bluebook::ReadModel.GroupBy",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.median",
+      "verb": "Bluebook::ReadModel.Median",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:read_model.option",
+      "verb": "Bluebook::ReadModel.Option",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.argument",
+      "verb": "Bluebook::Syntax.Argument",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.argument.deprecate",
+      "verb": "Bluebook::Syntax.Argument.Deprecate",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.argument.retire",
+      "verb": "Bluebook::Syntax.Argument.Retire",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.declare",
+      "verb": "Bluebook::Syntax.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.keyword",
+      "verb": "Bluebook::Syntax.Keyword",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.keyword.deprecate",
+      "verb": "Bluebook::Syntax.Keyword.Deprecate",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:syntax.keyword.retire",
+      "verb": "Bluebook::Syntax.Keyword.Retire",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:value_object.assert",
+      "verb": "Bluebook::ValueObject.Assert",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:value_object.close",
+      "verb": "Bluebook::ValueObject.Close",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:value_object.declare",
+      "verb": "Bluebook::ValueObject.Declare",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:value_object.field",
+      "verb": "Bluebook::ValueObject.Field",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:value_object.member",
+      "verb": "Bluebook::ValueObject.Member",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:value_object.member.pair",
+      "verb": "Bluebook::ValueObject.Member.Pair",
+      "role": "Language"
+    }
+  ],
+  "roles": [
+    "Language"
+  ]
+}

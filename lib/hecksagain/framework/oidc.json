@@ -1,0 +1,39 @@
+{
+  "audience": "Compliance",
+  "scopes": [
+    {
+      "scope": "compliance:account_freeze_review.clear",
+      "verb": "Compliance::AccountFreezeReview.Clear",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "compliance:account_freeze_review.escalate",
+      "verb": "Compliance::AccountFreezeReview.Escalate",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "compliance:account_freeze_review.open",
+      "verb": "Compliance::AccountFreezeReview.Open",
+      "role": "System"
+    },
+    {
+      "scope": "compliance:box_surrender_review.clear",
+      "verb": "Compliance::BoxSurrenderReview.Clear",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "compliance:box_surrender_review.escalate",
+      "verb": "Compliance::BoxSurrenderReview.Escalate",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "compliance:box_surrender_review.open",
+      "verb": "Compliance::BoxSurrenderReview.Open",
+      "role": "System"
+    }
+  ],
+  "roles": [
+    "Compliance officer",
+    "System"
+  ]
+}

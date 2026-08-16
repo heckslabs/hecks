@@ -40,10 +40,31 @@ module Hecksagain
         # as Dispatcher#dispatch takes it. Derived from the aggregates,
         # never declared — which is why Projections::OIDC can hold its own
         # scope list equal to this and have that mean something.
+        #
+        # Recurses into entities, not just an aggregate's own direct
+        # commands — `Dispatcher#dispatch` already routes a dotted
+        # `Domain::Aggregate.Entity.Command` verb to `EntityInterpreter`
+        # (a command_name with a "." in it), so a verb this method left
+        # out was never "not a verb," only one this list forgot to name.
+        # Ported from the same recursive shape `spec/judge_coverage_spec.rb`
+        # already proved out for the meta-domain's own grammar (S17, ADR
+        # 0026) — entities nest arbitrarily deep (`Dispatch`, inside
+        # `Handler`), so one flat level isn't enough.
         def verbs
-          @aggregates.flat_map do |agg|
-            agg.commands.map { |cmd| "#{@name}::#{agg.hecks_name}.#{cmd.hecks_name}" }
-          end
+          @aggregates.flat_map { |agg| aggregate_verbs(agg) }
+        end
+
+        private
+
+        def aggregate_verbs(agg)
+          agg.commands.map { |cmd| "#{@name}::#{agg.hecks_name}.#{cmd.hecks_name}" } +
+            agg.entities.flat_map { |entity| entity_verbs("#{@name}::#{agg.hecks_name}", entity) }
+        end
+
+        def entity_verbs(prefix, entity)
+          dotted = "#{prefix}.#{entity.hecks_name}"
+          entity.commands.map { |cmd| "#{dotted}.#{cmd.hecks_name}" } +
+            entity.entities.flat_map { |piece| entity_verbs(dotted, piece) }
         end
       end
     end

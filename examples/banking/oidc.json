@@ -1,0 +1,294 @@
+{
+  "audience": "Banking",
+  "scopes": [
+    {
+      "scope": "banking:account.accrue_interest",
+      "verb": "Banking::Account.AccrueInterest",
+      "role": null
+    },
+    {
+      "scope": "banking:account.apply_fee",
+      "verb": "Banking::Account.ApplyFee",
+      "role": null
+    },
+    {
+      "scope": "banking:account.close_account",
+      "verb": "Banking::Account.CloseAccount",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:account.correct_fee",
+      "verb": "Banking::Account.CorrectFee",
+      "role": null
+    },
+    {
+      "scope": "banking:account.correct_interest",
+      "verb": "Banking::Account.CorrectInterest",
+      "role": null
+    },
+    {
+      "scope": "banking:account.credit",
+      "verb": "Banking::Account.Credit",
+      "role": "Teller"
+    },
+    {
+      "scope": "banking:account.debit",
+      "verb": "Banking::Account.Debit",
+      "role": "Teller"
+    },
+    {
+      "scope": "banking:account.freeze_account",
+      "verb": "Banking::Account.FreezeAccount",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "banking:account.ledger_entry.amend",
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "role": "Back office"
+    },
+    {
+      "scope": "banking:account.ledger_entry.reverse",
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "role": "Back office"
+    },
+    {
+      "scope": "banking:account.open",
+      "verb": "Banking::Account.Open",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:account.unfreeze",
+      "verb": "Banking::Account.Unfreeze",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "banking:atm_card.activate",
+      "verb": "Banking::ATMCard.Activate",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:atm_card.issue",
+      "verb": "Banking::ATMCard.Issue",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:atm_card.rename",
+      "verb": "Banking::ATMCard.Rename",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:atm_card.retire",
+      "verb": "Banking::ATMCard.Retire",
+      "role": "Back office"
+    },
+    {
+      "scope": "banking:atm_card.withdraw",
+      "verb": "Banking::ATMCard.Withdraw",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:atm_card.withdrawal.dispute",
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:card_payment.authorize",
+      "verb": "Banking::CardPayment.Authorize",
+      "role": null
+    },
+    {
+      "scope": "banking:card_payment.capture",
+      "verb": "Banking::CardPayment.Capture",
+      "role": null
+    },
+    {
+      "scope": "banking:card_payment.chargeback",
+      "verb": "Banking::CardPayment.Chargeback",
+      "role": null
+    },
+    {
+      "scope": "banking:card_payment.dispute",
+      "verb": "Banking::CardPayment.Dispute",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:card_payment.refund",
+      "verb": "Banking::CardPayment.Refund",
+      "role": null
+    },
+    {
+      "scope": "banking:card_payment.reject_dispute",
+      "verb": "Banking::CardPayment.RejectDispute",
+      "role": null
+    },
+    {
+      "scope": "banking:card_payment.reverse",
+      "verb": "Banking::CardPayment.Reverse",
+      "role": null
+    },
+    {
+      "scope": "banking:card_payment.void",
+      "verb": "Banking::CardPayment.Void",
+      "role": null
+    },
+    {
+      "scope": "banking:customer.close",
+      "verb": "Banking::Customer.Close",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:customer.register",
+      "verb": "Banking::Customer.Register",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:customer.reinstate",
+      "verb": "Banking::Customer.Reinstate",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "banking:customer.suspend",
+      "verb": "Banking::Customer.Suspend",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "banking:external_transfer.recall",
+      "verb": "Banking::ExternalTransfer.Recall",
+      "role": null
+    },
+    {
+      "scope": "banking:external_transfer.request",
+      "verb": "Banking::ExternalTransfer.Request",
+      "role": null
+    },
+    {
+      "scope": "banking:external_transfer.return",
+      "verb": "Banking::ExternalTransfer.Return",
+      "role": null
+    },
+    {
+      "scope": "banking:external_transfer.send_transfer",
+      "verb": "Banking::ExternalTransfer.SendTransfer",
+      "role": null
+    },
+    {
+      "scope": "banking:onboarding_case.clear",
+      "verb": "Banking::OnboardingCase.Clear",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "banking:onboarding_case.decline",
+      "verb": "Banking::OnboardingCase.Decline",
+      "role": "Compliance officer"
+    },
+    {
+      "scope": "banking:onboarding_case.open",
+      "verb": "Banking::OnboardingCase.Open",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:safe_deposit_box.issue_key",
+      "verb": "Banking::SafeDepositBox.IssueKey",
+      "role": "Vault officer"
+    },
+    {
+      "scope": "banking:safe_deposit_box.key_issuance.return",
+      "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
+      "role": "Vault officer"
+    },
+    {
+      "scope": "banking:safe_deposit_box.log_visit",
+      "verb": "Banking::SafeDepositBox.LogVisit",
+      "role": "Vault officer"
+    },
+    {
+      "scope": "banking:safe_deposit_box.rent",
+      "verb": "Banking::SafeDepositBox.Rent",
+      "role": "Branch clerk"
+    },
+    {
+      "scope": "banking:safe_deposit_box.surrender",
+      "verb": "Banking::SafeDepositBox.Surrender",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:safe_deposit_box.visit.annotate",
+      "verb": "Banking::SafeDepositBox.Visit.Annotate",
+      "role": "Vault officer"
+    },
+    {
+      "scope": "banking:scheduled_payment.abandon",
+      "verb": "Banking::ScheduledPayment.Abandon",
+      "role": "Back office"
+    },
+    {
+      "scope": "banking:scheduled_payment.cancel",
+      "verb": "Banking::ScheduledPayment.Cancel",
+      "role": null
+    },
+    {
+      "scope": "banking:scheduled_payment.execute",
+      "verb": "Banking::ScheduledPayment.Execute",
+      "role": null
+    },
+    {
+      "scope": "banking:scheduled_payment.fail",
+      "verb": "Banking::ScheduledPayment.Fail",
+      "role": "System"
+    },
+    {
+      "scope": "banking:scheduled_payment.retry",
+      "verb": "Banking::ScheduledPayment.Retry",
+      "role": "System"
+    },
+    {
+      "scope": "banking:scheduled_payment.schedule",
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "role": null
+    },
+    {
+      "scope": "banking:statement.generate",
+      "verb": "Banking::Statement.Generate",
+      "role": "System"
+    },
+    {
+      "scope": "banking:transfer.credited",
+      "verb": "Banking::Transfer.Credited",
+      "role": "System"
+    },
+    {
+      "scope": "banking:transfer.debited",
+      "verb": "Banking::Transfer.Debited",
+      "role": "System"
+    },
+    {
+      "scope": "banking:transfer.reject",
+      "verb": "Banking::Transfer.Reject",
+      "role": "System"
+    },
+    {
+      "scope": "banking:transfer.request",
+      "verb": "Banking::Transfer.Request",
+      "role": "Customer"
+    },
+    {
+      "scope": "banking:transfer.reverse",
+      "verb": "Banking::Transfer.Reverse",
+      "role": "System"
+    },
+    {
+      "scope": "banking:transfer.settle",
+      "verb": "Banking::Transfer.Settle",
+      "role": "System"
+    }
+  ],
+  "roles": [
+    "Back office",
+    "Branch clerk",
+    "Compliance officer",
+    "Customer",
+    "System",
+    "Teller",
+    "Vault officer"
+  ]
+}

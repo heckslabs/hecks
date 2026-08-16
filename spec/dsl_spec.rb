@@ -1051,6 +1051,38 @@ RSpec.describe "the DSL surface" do
       end
       expect(bluebook.verbs).to eq(["Verbed::Thing.Do"])
     end
+
+    # An entity-owned command reaches Runtime::Dispatcher#dispatch through
+    # the same dotted-verb routing (command_name.include?(".")) an
+    # ordinary command never uses — so it was always real and dispatchable,
+    # just missing from this list. Two levels deep, not one, because S17
+    # (ADR 0026) made entities nest inside entities for real (Dispatch,
+    # inside Handler) — a fix that only walked one level would still miss
+    # the deepest verb.
+    it "verbs recurses into entities, arbitrarily deep, as dotted verbs" do
+      bluebook = build_bluebook("Nested") do
+        aggregate("Thing") do
+          identified_by :id
+          command("Do")
+
+          entity("Piece") do
+            identified_by :piece_id
+            command("Advance")
+
+            entity("SubPiece") do
+              identified_by :sub_id
+              command("Touch")
+            end
+          end
+        end
+      end
+
+      expect(bluebook.verbs).to contain_exactly(
+        "Nested::Thing.Do",
+        "Nested::Thing.Piece.Advance",
+        "Nested::Thing.Piece.SubPiece.Touch"
+      )
+    end
   end
 
   describe "an aggregate" do

@@ -1,0 +1,13 @@
+{
+  "audience": "Deploy",
+  "scopes": [
+    {
+      "scope": "deploy:lambda_target.declare",
+      "verb": "Deploy::LambdaTarget.Declare",
+      "role": null
+    }
+  ],
+  "roles": [
+
+  ]
+}

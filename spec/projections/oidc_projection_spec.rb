@@ -55,6 +55,43 @@ RSpec.describe Hecksagain::Projections::OIDC do
     end
   end
 
+  # Banking, not Pizzas — Pizzas declares no entities at all
+  # (`SafeDepositBox.Visit`, `Account.LedgerEntry`, `ATMCard.Withdrawal`
+  # are Banking's own), so it is the only domain in the corpus that can
+  # show this gap ever existed. Every entity-owned command reaches
+  # `Runtime::Dispatcher#dispatch` through the SAME dotted-verb routing
+  # (`command_name.include?(".")`) an ordinary command never uses — a
+  # manifest that never names one could never grant a client a scope
+  # for it, and would do so silently, not with an error.
+  describe "entity-owned commands" do
+    let(:banking) { Hecks.boot("examples/banking", install_facade: false).registry.bluebook("Banking") }
+    let(:banking_manifest) { described_class.call(bluebook: banking) }
+    let(:verbs) { banking_manifest["scopes"].map { |scope| scope["verb"] } }
+    let(:scopes) { banking_manifest["scopes"].map { |scope| scope["scope"] } }
+
+    it "names a one-level-nested entity command as a dotted verb" do
+      expect(verbs).to include("Banking::SafeDepositBox.Visit.Annotate",
+                                "Banking::SafeDepositBox.KeyIssuance.Return",
+                                "Banking::Account.LedgerEntry.Amend",
+                                "Banking::Account.LedgerEntry.Reverse",
+                                "Banking::ATMCard.Withdrawal.Dispute")
+    end
+
+    it "spells the matching scope in the same dotted shape, snake_cased" do
+      expect(scopes).to include("banking:safe_deposit_box.visit.annotate",
+                                 "banking:safe_deposit_box.key_issuance.return",
+                                 "banking:account.ledger_entry.amend",
+                                 "banking:account.ledger_entry.reverse",
+                                 "banking:atm_card.withdrawal.dispute")
+    end
+
+    it "carries the entity command's own role, the same as an aggregate command would" do
+      annotate = banking_manifest["scopes"].find { |scope| scope["verb"] == "Banking::SafeDepositBox.Visit.Annotate" }
+
+      expect(annotate["role"]).not_to be_nil
+    end
+  end
+
   describe "roles" do
     # Banking, not Pizzas — Pizzas declares no roles at all, which is
     # exactly why it is the right domain for the "unguarded command"

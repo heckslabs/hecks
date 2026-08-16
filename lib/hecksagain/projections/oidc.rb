@@ -59,25 +59,50 @@ module Hecksagain
       # Sorted by scope, not left in declaration order — a manifest is
       # something two versions of get diffed, and the same precedent
       # `StorageShape.project` sets for its own aggregate list.
+      #
+      # Recurses into entities, not just an aggregate's own direct
+      # commands — the exact same gap `Bluebook#verbs` closed for the
+      # same reason (`chapter.rb`'s own comment): a command reached
+      # through `Dispatcher#dispatch`'s dotted `Entity.Command` routing
+      # is real and callable, so a manifest that never names it can
+      # never grant a client a scope for it either.
       def scopes_for(bluebook)
-        bluebook.aggregates.flat_map { |aggregate|
-          aggregate.commands.map do |command|
-            {
-              "scope" => scope_name(bluebook, aggregate, command),
-              "verb"  => "#{bluebook.name}::#{aggregate.hecks_name}.#{command.hecks_name}",
-              "role"  => command.role
-            }
-          end
-        }.sort_by { |scope| scope["scope"] }
+        bluebook.aggregates.flat_map { |aggregate| aggregate_scopes(bluebook, aggregate) }
+                .sort_by { |scope| scope["scope"] }
+      end
+
+      def aggregate_scopes(bluebook, aggregate)
+        verb_prefix  = "#{bluebook.name}::#{aggregate.hecks_name}"
+        scope_prefix = "#{Naming.snake(bluebook.name)}:#{Naming.snake(aggregate.hecks_name)}"
+
+        command_scopes(aggregate.commands, verb_prefix, scope_prefix) +
+          aggregate.entities.flat_map { |entity| entity_scopes(entity, verb_prefix, scope_prefix) }
+      end
+
+      # S17, ADR 0026 — an entity can nest further entities (`Dispatch`,
+      # inside `Handler`), so this recurses the same way `Chapter#verbs`
+      # now does. The verb and scope prefixes grow in lockstep, each
+      # `.`-joined the same way its own kind already was.
+      def entity_scopes(entity, verb_prefix, scope_prefix)
+        verb_prefix  = "#{verb_prefix}.#{entity.hecks_name}"
+        scope_prefix = "#{scope_prefix}.#{Naming.snake(entity.hecks_name)}"
+
+        command_scopes(entity.commands, verb_prefix, scope_prefix) +
+          entity.entities.flat_map { |piece| entity_scopes(piece, verb_prefix, scope_prefix) }
       end
 
       # `banking:account.open` — the shape an OIDC scope is conventionally
       # spelled in, and snake_cased through the SAME `Naming.snake` the
       # facade uses to name a command's own door method, so a scope and
       # the Ruby call that satisfies it cannot drift apart.
-      def scope_name(bluebook, aggregate, command)
-        "#{Naming.snake(bluebook.name)}:" \
-          "#{Naming.snake(aggregate.hecks_name)}.#{Naming.snake(command.hecks_name)}"
+      def command_scopes(commands, verb_prefix, scope_prefix)
+        commands.map do |command|
+          {
+            "scope" => "#{scope_prefix}.#{Naming.snake(command.hecks_name)}",
+            "verb"  => "#{verb_prefix}.#{command.hecks_name}",
+            "role"  => command.role
+          }
+        end
       end
     end
   end
