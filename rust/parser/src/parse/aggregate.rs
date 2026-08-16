@@ -199,9 +199,24 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                     remote_field: remote_field.to_string(),
                 });
             }
+            // `owner_value_objects` — `AggregateBuilder#value_object`'s own
+            // `owner_value_objects: @value_objects + closed_sets`, SO FAR
+            // (source order): this aggregate's own explicit value objects
+            // built by earlier iterations of THIS loop, plus any inline
+            // `attribute :x, one_of(...)` closed set synthesized by an
+            // earlier `attribute` line — the two Vecs `value_object::
+            // parse_body`'s own `try_reference_named_invariant` resolves a
+            // bare `invariant("...")` against. Combined fresh on every
+            // `value_object` line (not threaded as a running Vec) since
+            // `aggregate.value_objects`/`closed_sets` are two separate
+            // local Vecs, each still growing.
             "value_object" => {
                 let vo_name = super::positional_text(file, line, "value_object", &gated.args, 1)?;
-                let vo = super::parse_nested_body(file, lines, pos, &gated.call.opener, line, |f, l, p| value_object::parse_body(f, l, p, &vo_name))?;
+                let owner_value_objects: Vec<ir::ValueObject> =
+                    aggregate.value_objects.iter().chain(closed_sets.iter()).cloned().collect();
+                let vo = super::parse_nested_body(file, lines, pos, &gated.call.opener, line, |f, l, p| {
+                    value_object::parse_body(f, l, p, &vo_name, &owner_value_objects)
+                })?;
                 aggregate.value_objects.push(vo);
             }
             "lifecycle" => {

@@ -5,24 +5,106 @@
 //! object; see `spec/syntax_conformance_spec.rb`'s own `BUILDER` table).
 //! `invariant` admits BOTH `source` spellings (`{ ... }` and
 //! `do ... end` — `parse::mod::source_body_text`'s own header explains
-//! why), and `member` rows (`build/closed_sets.rs`) — an open map of
-//! pairs, captured verbatim per `PairsShape::verbatim`.
+//! why) for a FRESH declaration, and — mirroring `command.rs`'s own
+//! `given` one level over (S10, ADR 0025) — a BARE, block-less form that
+//! REFERENCES an already-declared invariant of the same description on a
+//! sibling value object of the same aggregate instead
+//! (`try_reference_named_invariant`'s own header). `member` rows
+//! (`build/closed_sets.rs`) are an open map of pairs, captured verbatim
+//! per `PairsShape::verbatim`.
 
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
-use crate::lex::SourceLine;
+use crate::lex::{self, LineShape, Opener, SourceLine};
 use crate::ruby_value;
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("ValueObject.{word}"))
 }
 
-/// Parses a `value_object "Name" do ... end` body.
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::ValueObject> {
+/// NO BLOCK IS A REFERENCE, NOT A FRESH DECLARATION (S10/S-next, ADR 0025,
+/// one level over `command.rs`'s own `try_reference_named_given` — read
+/// that function's header first, this mirrors it exactly one construct
+/// down). `syntax.bluebook` declares exactly ONE keyword row for
+/// `invariant`/ValueObject (`body: "source"`, `parse::mod::body_gate`'s
+/// own comment names it directly among the words with "at most a sibling
+/// `none` row, never" one — false as of THIS function; that comment is
+/// now stale for this one word, kept anyway since fixing it belongs in
+/// `syntax.bluebook`, out of scope here), so a bare `invariant("...")`
+/// would otherwise be refused by the ordinary `next_line`/`body_gate`
+/// path before ever reaching the `"invariant"` match arm below. Resolved
+/// by `description` against `owner_value_objects` — the OWNING
+/// aggregate's own sibling value objects, built SO FAR (source order;
+/// `aggregate::parse_body`'s own `"value_object"` arm hands in
+/// `@value_objects + closed_sets` up to this point, the same combination
+/// `AggregateBuilder#value_object`'s own `owner_value_objects:` uses) —
+/// duplicating the matched `Given` verbatim, the same canonical text,
+/// into this value object's own invariants. Confirmed real:
+/// banking.bluebook's own `Account`, `PositiveMoney`'s bare
+/// `invariant("a currency is a three-letter code")` resolving against
+/// `Money`'s own block-form declaration of the same description,
+/// declared earlier in the same aggregate.
+///
+/// Peeks the next physical line WITHOUT consuming it unless it actually
+/// matches (word `invariant`, `Opener::None`) — anything else (a
+/// `invariant { ... }`/`invariant do ... end` fresh declaration, or any
+/// other word entirely) falls through untouched to the ordinary
+/// `next_line` gate below.
+fn try_reference_named_invariant(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    vo_name: &str,
+    owner_value_objects: &[ir::ValueObject],
+) -> ParseResult<Option<ir::Given>> {
+    let Some(&line) = lines.get(*pos) else { return Ok(None) };
+    let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
+    if call.word != "invariant" || !matches!(call.opener, Opener::None) {
+        return Ok(None);
+    }
+
+    let args = super::argument_gate(file, "invariant", "ValueObject", &call.args, line.number)?;
+    let description = super::positional_text(file, line.number, "invariant", &args, 1)?;
+    let resolved = owner_value_objects
+        .iter()
+        .flat_map(|vo| vo.invariants.iter())
+        .find(|given| given.description.as_deref() == Some(description.as_str()))
+        .cloned()
+        .ok_or_else(|| {
+            Diagnostic::new(
+                file,
+                line.number,
+                format!(
+                    "'{vo_name}'s invariant {description:?} names no rule a sibling value object on \
+                     this aggregate declares — declare it once with a block, on the value object that \
+                     needs it first, before the ones that reference it back"
+                ),
+            )
+        })?;
+
+    *pos += 1;
+    Ok(Some(resolved))
+}
+
+/// Parses a `value_object "Name" do ... end` body. `owner_value_objects`
+/// — see `try_reference_named_invariant`'s own header — is the OWNING
+/// aggregate's own sibling value objects declared so far.
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+    owner_value_objects: &[ir::ValueObject],
+) -> ParseResult<ir::ValueObject> {
     let mut vo = ir::ValueObject { name: name.to_string(), ..Default::default() };
 
     loop {
+        if let Some(invariant) = try_reference_named_invariant(file, lines, pos, &vo.name, owner_value_objects)? {
+            vo.invariants.push(invariant);
+            continue;
+        }
+
         let Some(gated) = super::next_line(file, lines, pos, "ValueObject")? else {
             // `ValueObjectBuilder#build`'s own `closed_set: @closed_set ||
             // !@members.empty?` — a non-empty `members` closes the set
