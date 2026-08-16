@@ -36,6 +36,24 @@ if ! (cd "$ROOT" && bundle exec parallel_rspec spec); then
   exit 1
 fi
 
+printf '\n[pre-push] spec/fuzzing — excluded from the parallel run above like any other local rspec\n\n'
+
+# CLOSES A REAL GAP, found rather than assumed: `parallel_rspec spec`
+# above sets no CI and passes no --tag, so it excludes spec/fuzzing
+# (`fuzzing: true`, spec_helper.rb) the exact same way it excludes
+# `io: true` — .githooks/post-commit covers every ordinary commit, but
+# a commit made with --no-verify, or one whose post-commit run was
+# skipped (SKIP_POST_COMMIT_FUZZING=1), would otherwise reach a push
+# having never run it at all. Re-included here explicitly, the same
+# `--tag <excluded-tag>` override the io step below already uses —
+# ~18-20s on its own (properties_spec.rb's own live-generated-history
+# replays are most of that), the one real cost of closing this gap.
+if ! (cd "$ROOT" && bundle exec rspec spec/fuzzing --tag fuzzing); then
+  printf '\n[pre-push] BLOCKED — spec/fuzzing is red.\n'
+  printf '           Fix it, or push with --no-verify and say why.\n\n'
+  exit 1
+fi
+
 printf '\n[pre-push] adapter agreement — one declared query, every engine, same answer\n\n'
 
 # WHY THIS ONE io SPEC AND NOT THE REST. `io: true` is excluded from the
@@ -78,4 +96,4 @@ if ! "$ROOT/bin/doc_coverage"; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, engines agree, model checks clean, every word exemplified.\n\n'
+printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified.\n\n'

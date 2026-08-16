@@ -18,15 +18,17 @@
 # it by the time this runs — so a failure here is reported loudly, not
 # silently, and left for the next commit or push to actually fix.
 #
-# NOTE, measured not assumed: pre-push's own `parallel_rspec spec`
-# does NOT re-cover fuzzing — it sets no CI and passes no --tag, so
-# `filter_run_excluding fuzzing: true unless ENV["CI"]` (spec_helper.rb)
-# excludes spec/fuzzing there too, the same as any other local run.
-# This hook is the ONLY place fuzzing runs locally now, on whatever
-# cadence commits happen at; only CI (which always sets CI=true)
-# covers it unconditionally on push. If that gap matters, pre-push
-# needs its own explicit `bundle exec rspec spec/fuzzing --tag
-# fuzzing` step — deliberately not added here without asking first.
+# pre-push (.githooks/pre-push) has its OWN explicit
+# `bundle exec rspec spec/fuzzing --tag fuzzing` step now too — its
+# own `parallel_rspec spec` sets no CI and passes no --tag, so it
+# excludes spec/fuzzing the same way it excludes `io: true`, and
+# without that added step a commit made with --no-verify, or one
+# whose post-commit run was skipped (SKIP_POST_COMMIT_FUZZING=1),
+# could otherwise reach a push having never run it at all. So fuzzing
+# is checked on TWO cadences on purpose, not by accident: this hook
+# catches it early, close to the commit that broke it; pre-push is the
+# backstop that means a push can never skip it, however this hook was
+# bypassed getting there.
 #
 # Install:  git config core.hooksPath .githooks
 # Skip once: SKIP_POST_COMMIT_FUZZING=1 git commit ...   (post-commit
