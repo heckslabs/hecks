@@ -10,7 +10,10 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 Most of these run against `examples/banking`'s `Account`, which carries
-every structural word an aggregate has.
+every structural word an aggregate has. Each generated table's `fills`
+column names the IR field the argument's value lands in — worth
+knowing if you're reading the runtime, safe to ignore if you're just
+writing a bluebook.
 
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
@@ -73,6 +76,18 @@ Hecks.hecksagon("AggregateReference") do
   AggregateReference::Studio.persisted_by("Memory")
   AggregateReference::Film.persisted_by("Memory")
 end
+```
+
+Two references to the same target need `as:` to tell them apart —
+`financier` and `distributor` are both `Studio`, distinct only because
+each names its own `as:`:
+
+```ruby
+big   = AggregateReference::Studio.found!(name: { value: "Big Studio" })
+indie = AggregateReference::Studio.found!(name: { value: "Indie Circuit" })
+film  = AggregateReference::Film.greenlight!(title: { value: "Debut" }, financier: big.id, distributor: indie.id)
+film.financier.id    # => "Big Studio"
+film.distributor.id  # => "Indie Circuit"
 ```
 
 ```ruby
@@ -182,6 +197,14 @@ Banking::SafeDepositBox.ir.identity_heads  # => [:branch_code, :box_number]
 <!-- generated:end -->
 
 Points at another aggregate by id, not by object — the STORED field holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named for the target's own bare name by default (`customer`, no `_id`), or whatever `as:` names. The door's own accessor of the same name hydrates it — reads the bare id and finds the record it names — which is why a reference needs no separate "get me the real one" method.
+
+`film` (above) points at `Studio` twice — `as:` is the only thing that
+kept `financier` and `distributor` from colliding on the same field:
+
+```ruby
+film.financier.id    # => "Big Studio"
+film.distributor.id  # => "Indie Circuit"
+```
 
 `Account` references `Customer`; the raw id lives under the same name in
 state, and the accessor hydrates it into the real record:
@@ -415,7 +438,13 @@ account_ir.commands.find { |c| c.hecks_name == "CloseAccount" }.from # => ["open
 | `one_of:` | list | false | one_of |
 <!-- generated:end -->
 
-Declares a field, scalar or value object. `pattern:` checks a String attribute against a regex the moment the bluebook loads, not the day a bad value reaches production — and only admits regexes every engine reads identically (no lookahead, no `\d`/`\w`). `admits:` points a field at a closed vocabulary declared elsewhere (a `one_of` on another value object) rather than restating its members, so two fields can't drift out of sync on what's allowed. `default:` fills the field when the record is built; for a value-object-typed attribute the default must fill that type's own fields (`default: { cents: 0 }`), not a bare scalar — a bare scalar loads cleanly and then refuses every create at dispatch. `optional:` lets a caller omit the argument entirely with no refusal, distinct from `default:`, which still fills the field either way.
+Declares a field, scalar or value object.
+
+`pattern:` checks a String attribute against a regex the moment the bluebook loads, not the day a bad value reaches production — and only admits regexes every engine reads identically (no lookahead, no `\d`/`\w`).
+
+`admits:` points a field at a closed vocabulary declared elsewhere (a `one_of` on another value object) rather than restating its members, so two fields can't drift out of sync on what's allowed.
+
+`default:` fills the field when the record is built; for a value-object-typed attribute the default must fill that type's own fields (`default: { cents: 0 }`), not a bare scalar — a bare scalar loads cleanly and then refuses every create at dispatch. `optional:` lets a caller omit the argument entirely with no refusal, distinct from `default:`, which still fills the field either way.
 
 `Account`'s own fields are value objects and a list, and each starts
 where its type says rather than at `nil`:
@@ -485,7 +514,7 @@ runtime.dispatch("Banking::Account.Credit", number: "ag-a1", amount: 100, narrat
 
 A rule that travels with the AGGREGATE, not with any one command — the
 same word `value_object` already carries (see value_object.md), moved
-up a level so it guards the SETTLED record as a whole rather than one
+up a level so it guards the settled record as a whole rather than one
 value object's own fields. Checked at the same point a value object's
 own `invariant` is: after every command that runs against this
 aggregate, right before `save`, reading no `args` and no `old` the way
@@ -586,7 +615,7 @@ banking.aggregate("SafeDepositBox").projected_fields.map { |f| [f.name, f.refere
 ```
 
 A record that predates the declaration, or that no sweep has yet
-reached, reads as genuinely ABSENT rather than as a stale guess — a
+reached, reads as genuinely absent rather than as a stale guess — a
 `given`/`ensures`/`invariant` that reads a projected field before it
 has ever been swept refuses with `ProjectionAbsent`, the same shape
 `AttributeAbsent` already gives an ordinary field nobody backfilled.
