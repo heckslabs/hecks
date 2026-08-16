@@ -501,6 +501,18 @@ exactly what it was already good at either way — Rust never parses or
 interprets canonical IR at its own runtime, only compiles from it once,
 at build time.
 
+`rust/parser` (`hecks-parse`) is the one exception that still hand-mirrors
+Ruby's own logic rather than generating from it — it parses `.bluebook`
+source directly ([0023](docs/decisions/0023-rust-parses-and-compiles-bluebooks-directly.md)),
+so a DSL builder sugar that lets an author omit a declaration the runtime
+can derive (a *resolution rule* — `sets :field` importing the owner's own
+attribute is the first one) needs a second, hand-written implementation
+there, kept honest by `spec/parser_parity_spec.rb`'s byte-identical IR
+check against the real corpus. [`docs/resolution-rules/`](docs/resolution-rules/README.md)
+is where each such rule's exact algorithm is written down once,
+language-agnostic — the contract a Rust mirror is written from, not
+inferred from Ruby's own comments.
+
 ## Verify
 
 ```sh

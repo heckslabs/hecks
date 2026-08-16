@@ -307,6 +307,12 @@ module Hecksagain
 
         private
 
+        # RESOLUTION RULES — see `docs/resolution-rules/README.md` for the
+        # precise, language-agnostic algorithm each of `resolve_bare_set!`/
+        # `resolve_append_fields!` implements (`implicit-command-attributes.md`
+        # / `implicit-append-fields.md`) — the contract a Rust mirror is
+        # written from, not inferred from this comment.
+        #
         # `sets :field` ALONE (S5's own bare form — no `to:`, meaning
         # `to: :field`) already says the command accepts an argument
         # named `:field`; requiring a SEPARATE `attribute :field, Type`
