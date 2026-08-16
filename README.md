@@ -409,6 +409,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/project_vocabulary` | Projects the language's own closed sets into lib/hecksagain/vocabulary.rb. A one-line wrapper over the projector registry, deliberately —... |
 | `bin/project_wasm` | The WASM projector — wraps THE SAME Rust binary bin/project_rust already generates, rather than a second, WASM-specific implementation (d... |
 | `bin/project_wasm_browser` | The BROWSER wasm-bindgen projector — decision docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a SEPARATE binary from... |
+| `bin/query_ir` | STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session working ON the language (adding a resolution rule, checking a propagatio... |
 | `bin/reattest_era` | The recovery path after a held-text integrity refusal. The digest is tamper-EVIDENCE — it catches accident and drift, not an adversary (a... |
 | `bin/reference` | Regenerates docs/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved from the commit... |
 | `bin/run` | Executes a step list — commands and queries, declared as JSON — and reports instances, events, refusals, reactions, sagas, and query rows... |
