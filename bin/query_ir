@@ -1,0 +1,214 @@
+#!/usr/bin/env ruby
+
+# STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session
+# working ON the language (adding a resolution rule, checking a
+# propagation checklist) rather than a domain running on top of it.
+# `bin/ir` already dumps a whole domain's raw JSON; this answers the
+# SPECIFIC questions that recurred across five real feature rounds
+# (docs/decisions/0028-.../ and .claude/skills/bluebook-construct-
+# creator/SKILL.md) without hand-grepping corpus text or hand-reading
+# Ruby source each time:
+#
+#   bin/query_ir constructs [Name]
+#     For each Ruby IR class (or just the one named), the real
+#     STRUCTURAL diff between what it emits (Class.ir_spec.keys) and
+#     what the self-hosted meta-domain declares for it — the SAME
+#     comparison spec/model_shape_conformance_spec.rb makes, reusing
+#     its own Hecksagain::Projections::Model::Deviations data so this
+#     can never silently drift from what that gate actually checks.
+#     Answers "does Entity already have field X" without opening
+#     entity.rb AND entity.bluebook by hand.
+#
+#   bin/query_ir duplicates [--meta|DOMAIN...]
+#     Every given/ensures/invariant DECLARATION across the given
+#     domains (all real examples + the self-hosted meta-domain by
+#     default), grouped by canonical predicate text, reporting every
+#     group with more than one independent declaration — the exact
+#     grep three of five rounds in this arc started with, done once,
+#     structurally, covering the whole corpus at once.
+#
+# Boots the lightweight way (Hecksagain::Codemod's own path) — no live
+# Postgres needed for a Postgres-backed domain like compliance.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "hecksagain/codemod"
+require "hecksagain/projections/model"
+
+Codemod = Hecksagain::Codemod
+Deviations = Hecksagain::Projections::Model::Deviations
+
+# THE SAME MAPPING spec/model_shape_conformance_spec.rb's own
+# MODEL_CONSTRUCTS holds — kept here rather than shared from the spec
+# (a spec file is not a library other code should require), matching
+# Deviations' own doc comment: "the generator and the gate read one
+# source" — Deviations is that one source; this table is small and
+# genuinely construct-list bookkeeping, not a rule that can drift
+# silently the way a Deviations entry could.
+CONSTRUCTS = {
+  "Bluebook"       => Hecksagain::Bluebook::Chapter,
+  "Aggregate"      => Hecksagain::Bluebook::Aggregate,
+  "Command"        => Hecksagain::Bluebook::Command,
+  "Entity"         => Hecksagain::Bluebook::Entity,
+  "ValueObject"    => Hecksagain::Bluebook::ValueObject,
+  "Policy"         => Hecksagain::Bluebook::Policy,
+  "Query"          => Hecksagain::Bluebook::Query,
+  "ReadModel"      => Hecksagain::Bluebook::ReadModel,
+  "ProcessManager" => Hecksagain::Bluebook::ProcessManager
+}.freeze
+
+def meta_declared(name)
+  Hecksagain::Bluebook::MetaValidator.grammar_registry
+    .bluebook("Bluebook").aggregate(name).attributes.map(&:name)
+end
+
+def construct_diff(name, klass)
+  declared = meta_declared(name)
+  emitted  = klass.ir_spec.keys
+
+  accounted = declared.reject { |field| Deviations::PARENT_REF.call(field) } -
+              Deviations::JUDGE_ONLY -
+              Deviations.folded(name).values.flatten -
+              Deviations.off_the_wire(name) -
+              Deviations.dynamic_tail(name) -
+              Deviations.unpacked(name).keys
+
+  missing_from_ruby = accounted - emitted
+
+  unaccounted = emitted -
+                declared -
+                Deviations.contained(name) -
+                Deviations.folded(name).keys -
+                Deviations.computed(name) -
+                Deviations.unpacked(name).values.flatten
+
+  { declared: declared, emitted: emitted, missing_from_ruby: missing_from_ruby, unaccounted_in_ruby: unaccounted }
+end
+
+def run_constructs(args)
+  targets = args.empty? ? CONSTRUCTS : CONSTRUCTS.slice(*args)
+  if targets.empty?
+    warn "no such construct — known: #{CONSTRUCTS.keys.join(', ')}"
+    exit 1
+  end
+
+  targets.each do |name, klass|
+    diff = construct_diff(name, klass)
+    puts "== #{name} =="
+    puts "  emits:    #{diff[:emitted].join(', ')}"
+    puts "  declares: #{diff[:declared].join(', ')}"
+    if diff[:missing_from_ruby].empty? && diff[:unaccounted_in_ruby].empty?
+      puts "  clean — every declared field is emitted (or a named deviation), nothing emitted is undeclared"
+    else
+      puts "  MISSING FROM RUBY (declared, not emitted, not a named deviation): #{diff[:missing_from_ruby].join(', ')}" unless diff[:missing_from_ruby].empty?
+      puts "  UNACCOUNTED IN RUBY (emitted, not declared, not a named deviation): #{diff[:unaccounted_in_ruby].join(', ')}" unless diff[:unaccounted_in_ruby].empty?
+    end
+    puts
+  end
+end
+
+Rule = Struct.new(:kind, :description, :canonical, :location, :object_id, keyword_init: true)
+
+def collect_rules(registry, chapter_name = nil)
+  rules = []
+  chapters = chapter_name ? [registry.bluebook(chapter_name)] : registry.bluebooks.values
+
+  walk_construct = lambda do |construct, path|
+    (construct.respond_to?(:preconditions) ? construct.preconditions : []).each do |rule|
+      rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
+                         location: "#{path} (declared)", object_id: rule.object_id)
+    end
+    (construct.respond_to?(:invariants) ? construct.invariants : []).each do |rule|
+      rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
+                         location: "#{path} (declared)", object_id: rule.object_id)
+    end
+    construct.commands.each do |command|
+      # `command.givens` too, not just `.preconditions`/`.ensures` — a
+      # command's own LOCAL `given("x") { block }` (not yet hoisted to
+      # its owner) is exactly round 4's own starting shape, and would be
+      # invisible here otherwise. A REFERENCED given shares its owner's
+      # own Rule object (`object_id` matches) so the later distinct-
+      # object-id filter correctly treats it as already-one-declaration,
+      # not a second one to flag.
+      command.givens.each do |rule|
+        rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
+                           location: "#{path}.#{command.hecks_name}", object_id: rule.object_id)
+      end
+      command.ensures.each do |rule|
+        rules << Rule.new(kind: "ensures", description: rule.description, canonical: rule.canonical,
+                           location: "#{path}.#{command.hecks_name}", object_id: rule.object_id)
+      end
+    end
+    construct.entities.each { |piece| walk_construct.call(piece, "#{path}.#{piece.hecks_name}") } if construct.respond_to?(:entities)
+  end
+
+  chapters.each do |chapter|
+    chapter.aggregates.each do |aggregate|
+      walk_construct.call(aggregate, aggregate.hecks_name)
+      aggregate.value_objects.each do |vo|
+        vo.invariants.each do |rule|
+          rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
+                             location: "#{aggregate.hecks_name}::#{vo.hecks_name} (declared)", object_id: rule.object_id)
+        end
+      end
+    end
+  end
+  rules
+end
+
+def run_duplicates(args)
+  use_meta = args.delete("--meta") || args.empty?
+  domains  = args.empty? ? Codemod::EXAMPLE_ROOTS : args
+
+  all_rules = []
+
+  if use_meta
+    all_rules.concat(collect_rules(Codemod.meta_registry))
+  end
+
+  domains.each do |domain_dir|
+    bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
+    next if bluebook_files.empty?
+
+    registry = Codemod.load_bluebook(bluebook_files.first)
+    all_rules.concat(collect_rules(registry))
+  end
+
+  # Grouped by (kind, description, canonical), not canonical text alone —
+  # a generic one-liner like `!value.to_s.empty?` legitimately recurs
+  # dozens of times for unrelated fields; the real signal is the SAME
+  # RULE (same description, same predicate), which is also exactly what
+  # the given/invariant reference mechanism itself resolves on. Filtered
+  # to groups with more than one DISTINCT object_id — a command
+  # referencing its owner's own declared precondition shares that same
+  # Rule struct (the reference mechanism copies the object, not just its
+  # value), so an already-deduped rule's own multiple appearances never
+  # get flagged as a fresh opportunity a second time.
+  groups = all_rules.group_by { |r| [r.kind, r.description, r.canonical] }
+                     .select { |_, rules| rules.map(&:object_id).uniq.size > 1 }
+
+  if groups.empty?
+    puts "no duplicate given/invariant/ensures rule found"
+    return
+  end
+
+  groups.each do |(kind, description, canonical), rules|
+    puts "== #{kind}: #{description.inspect} — #{canonical} =="
+    rules.each { |r| puts "  #{r.location}" }
+    puts
+  end
+  puts "#{groups.size} duplicate group(s), #{groups.values.flatten.size} declarations total"
+end
+
+command = ARGV.shift
+case command
+when "constructs" then run_constructs(ARGV)
+when "duplicates" then run_duplicates(ARGV)
+else
+  warn <<~USAGE
+    Usage:
+      bin/query_ir constructs [Name ...]
+      bin/query_ir duplicates [--meta] [domain_dir ...]
+  USAGE
+  exit 1
+end
