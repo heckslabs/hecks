@@ -77,11 +77,11 @@ end
 ```
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: "ag-1" },
+runtime.dispatch("Banking::Customer.Register", reference: "ag-1",
                  name: { given: "Jean", family: "Bartik" },
-                 email: { address: "jean@example.com" })
-account = Banking::Account.open(customer: "ag-1", number: { value: "ag-a1" },
-                                kind: { name: "current" }, daily_limit: { cents: 50_000 })
+                 email: "jean@example.com")
+account = Banking::Account.open(customer: "ag-1", number: "ag-a1",
+                                kind: "current", daily_limit: 50_000)
 ```
 
 ## description
@@ -156,7 +156,7 @@ Opening a second account on the same number refuses as a duplicate
 rather than quietly replacing the first:
 
 ```ruby
-Banking::Account.open(customer: "ag-1", number: { value: "ag-a1" }, kind: { name: "savings" }, daily_limit: { cents: 1 })  # ~> AlreadyExists: Account
+Banking::Account.open(customer: "ag-1", number: "ag-a1", kind: "savings", daily_limit: 1)  # ~> AlreadyExists: Account
 ```
 
 A composite identity joins its paths in declaration order —
@@ -191,7 +191,7 @@ account.customer.id    # => "ag-1"
 Handing it the object instead is refused where it arrives:
 
 ```ruby
-Banking::Account.open(customer: { value: "ag-1" }, number: { value: "ag-a3" }, kind: { name: "current" }, daily_limit: { cents: 1 })  # ~> TypeMismatch: a reference is an id
+Banking::Account.open(customer: { value: "ag-1" }, number: "ag-a3", kind: "current", daily_limit: 1)  # ~> TypeMismatch: a reference is an id
 ```
 
 One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are GONE (ADR 0025) — `reference_to` covers everything they did.
@@ -247,7 +247,7 @@ Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; a
 GONE (ADR 0025, "References") — an alias for `has_one`, gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
 
 ```ruby
-kase = Banking::OnboardingCase.open(customer: "ag-1", reference: { value: "ag-c1" }, account_number: { value: "ag-a2" })
+kase = Banking::OnboardingCase.open(customer: "ag-1", reference: "ag-c1", account_number: "ag-a2")
 kase[:customer]  # => "ag-1"
 ```
 
@@ -427,7 +427,7 @@ account.balance.currency  # => "USD"
 a non-blank string, so a blank one is refused rather than stored:
 
 ```ruby
-runtime.dispatch("Banking::Customer.Register", reference: { value: " " }, name: { given: "A", family: "B" }, email: { address: "a@b.co" })  # ~> TypeMismatch: must match
+runtime.dispatch("Banking::Customer.Register", reference: " ", name: { given: "A", family: "B" }, email: "a@b.co")  # ~> TypeMismatch: must match
 ```
 
 `admits:` points at a vocabulary declared elsewhere instead of restating
@@ -461,7 +461,7 @@ A genuinely multi-field value object still refuses the bare form —
 `pattern:`/`admits:`/`one_of:` above already refuse:
 
 ```ruby
-runtime.dispatch("Banking::Account.Credit", number: "ag-a1", amount: 100, narrative: { text: "Deposit" })  # ~> TypeMismatch: pass its fields as an object
+runtime.dispatch("Banking::Account.Credit", number: "ag-a1", amount: 100, narrative: "Deposit")  # ~> TypeMismatch: pass its fields as an object
 ```
 
 ## invariant
