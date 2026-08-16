@@ -11,6 +11,14 @@ module Hecksagain
           @queries  = []
           @entities = []
           @owner_value_objects = owner_value_objects
+          # DEFERRED CONSTRUCTION — see `AggregateBuilder#drain_pending!`'s
+          # own comment; the identical mechanism, one level down, so a
+          # nested piece's own commands (Dispatch inside Handler) see
+          # every SIBLING entity/command/query this piece goes on to
+          # declare, not just whatever came before it textually.
+          @pending_entities = []
+          @pending_commands = []
+          @pending_queries  = []
         end
 
         def description(value) = @description = value
@@ -39,12 +47,11 @@ module Hecksagain
         # (S10, ADR 0025 — a piece's own state machine is checkable the
         # same way a head's is).
         def command(name, from: nil, &block)
-          @commands << CommandBuilder.build(name, owner: @name, from: from, owner_attributes: attributes,
-                                                   owner_constructs: @owner_value_objects + @entities, &block)
+          @pending_commands << [name, from, block]
         end
 
         def query(name, &block)
-          @queries << QueryBuilder.build(name, owner_attributes: attributes, &block)
+          @pending_queries << [name, block]
         end
 
         # S17, ADR 0026 — A PIECE NESTED INSIDE A PIECE. "A `Dispatch`
@@ -59,7 +66,7 @@ module Hecksagain
         # names this pool ; there is exactly one of them, however deep
         # the nesting goes).
         def entity(name, &block)
-          @entities << EntityBuilder.build(name, owner_value_objects: @owner_value_objects, &block)
+          @pending_entities << [name, block]
         end
 
         def lifecycle(field, default:, &block)
@@ -67,6 +74,7 @@ module Hecksagain
         end
 
         def build
+          drain_pending!
           resolve_pending_identity!
           seal_lifecycle_guards
           Entity.declare(
@@ -88,6 +96,25 @@ module Hecksagain
         end
 
         private
+
+        # See `AggregateBuilder#drain_pending!`'s own comment — the
+        # identical mechanism, one level down. Entities first and fully
+        # built (so a nested command's own `append:` resolution can read
+        # a sibling piece's `.attributes`), then commands, then queries.
+        def drain_pending!
+          @entities = @pending_entities.map do |name, block|
+            EntityBuilder.build(name, owner_value_objects: @owner_value_objects, &block)
+          end
+
+          @commands = @pending_commands.map do |name, from, block|
+            CommandBuilder.build(name, owner: @name, from: from, owner_attributes: attributes,
+                                        owner_constructs: @owner_value_objects + @entities, &block)
+          end
+
+          @queries = @pending_queries.map do |name, block|
+            QueryBuilder.build(name, owner_attributes: attributes, &block)
+          end
+        end
 
         # See `AggregateBuilder#seal_lifecycle_guards`'s own comment —
         # the identical check, one level down.

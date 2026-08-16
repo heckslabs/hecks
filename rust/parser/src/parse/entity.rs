@@ -38,6 +38,17 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str, owner_value_objects: &[ir::ValueObject]) -> ParseResult<ir::Entity> {
     let mut entity = ir::Entity { name: name.to_string(), ..Default::default() };
     let mut pending_identity: Option<super::PendingIdentity> = None;
+    // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header
+    // and `parse::aggregate`'s own mirror, one level up. `command`/
+    // `query`/`entity` only QUEUE here; the drain below builds them for
+    // real once THIS piece's own top-level line-range is fully walked,
+    // so a nested command's own `sets :list, append: {...}` can resolve
+    // against a SIBLING piece (S17, ADR 0026 — `entity` nested inside
+    // `entity`) regardless of which was written first, matching
+    // `EntityBuilder#drain_pending!` exactly.
+    let mut pending_entities: Vec<(String, super::PendingBody)> = Vec::new();
+    let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> = Vec::new();
+    let mut pending_queries: Vec<(String, super::PendingBody)> = Vec::new();
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Entity")? else {
@@ -61,33 +72,13 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
                 let from = command::parse_from(file, line, &gated.args)?;
-                // AN ENTITY OFFERS NO PRECONDITIONS OF ITS OWN
-                // (`EntityBuilder#command` never forwards `named_givens:`
-                // — see `command::try_reference_named_given`'s own
-                // header) — a bare `given(...)` here always fails
-                // resolution, matching Ruby's own refusal.
-                // `owner_constructs: @owner_value_objects + @entities` —
-                // `EntityBuilder#command`'s own mix, SO FAR (this
-                // entity's own nested `entity`s declared textually
-                // before this command, plus the value objects handed
-                // down from the owning aggregate/entity unchanged) —
-                // see `command::parse_body`'s own header.
-                entity.commands.push(command::parse_body(
-                    file,
-                    lines,
-                    pos,
-                    &c_name,
-                    name,
-                    from,
-                    &[],
-                    &entity.attributes,
-                    owner_value_objects,
-                    &entity.entities,
-                )?);
+                let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
+                pending_commands.push((c_name, from, pending));
             }
             "query" => {
                 let q_name = super::positional_text(file, line, "query", &gated.args, 1)?;
-                entity.queries.push(query::parse_body(file, lines, pos, &q_name)?);
+                let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
+                pending_queries.push((q_name, pending));
             }
             // S17, ADR 0026 — a piece nested inside a piece (Dispatch,
             // inside Handler). `owner_value_objects` passes straight
@@ -100,11 +91,43 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
             // that level, unchanged.
             "entity" => {
                 let e_name = super::positional_text(file, line, "entity", &gated.args, 1)?;
-                entity.entities.push(parse_body(file, lines, pos, &e_name, owner_value_objects)?);
+                let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
+                pending_entities.push((e_name, pending));
             }
             _ => return Err(super::not_built_yet("Entity", gated.row, file, line, &gated.call.word)),
         }
     }
+
+    // DEFERRED CONSTRUCTION, DRAINED — `EntityBuilder#drain_pending!`'s
+    // own mirror: entities first and fully (recursively — a nested piece
+    // may itself queue pieces of its own), then commands (so a sibling
+    // command's own append-field resolution sees every sibling entity,
+    // not just ones declared textually before it), then queries.
+    // `owner_value_objects` passes straight through unchanged at every
+    // depth — see the "entity" match arm's own comment above.
+    entity.entities = pending_entities
+        .into_iter()
+        .map(|(e_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| parse_body(f, l, p, &e_name, owner_value_objects)))
+        .collect::<ParseResult<Vec<_>>>()?;
+
+    // AN ENTITY OFFERS NO PRECONDITIONS OF ITS OWN (`EntityBuilder#
+    // command` never forwards `named_givens:` — see `command::
+    // try_reference_named_given`'s own header) — a bare `given(...)`
+    // here always fails resolution, matching Ruby's own refusal, hence
+    // `&[]`.
+    entity.commands = pending_commands
+        .into_iter()
+        .map(|(c_name, from, pending)| {
+            super::build_deferred(file, lines, &pending, |f, l, p| {
+                command::parse_body(f, l, p, &c_name, name, from.clone(), &[], &entity.attributes, owner_value_objects, &entity.entities)
+            })
+        })
+        .collect::<ParseResult<Vec<_>>>()?;
+
+    entity.queries = pending_queries
+        .into_iter()
+        .map(|(q_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| query::parse_body(f, l, p, &q_name)))
+        .collect::<ParseResult<Vec<_>>>()?;
 
     if let Some(pending) = pending_identity {
         match pending {

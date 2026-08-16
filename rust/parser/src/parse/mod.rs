@@ -964,6 +964,70 @@ fn brace_body_statements(body: &str) -> Vec<String> {
     statements
 }
 
+/// DEFERRED CONSTRUCTION — the Rust-side equivalent of `AggregateBuilder`/
+/// `EntityBuilder`'s own `@pending_entities`/`@pending_commands`/
+/// `@pending_queries` + `#drain_pending!` (Ruby, `dsl/aggregate_builder.rb`/
+/// `dsl/entity_builder.rb`). Ruby QUEUES an unevaluated block and only
+/// `instance_eval`s it later, once the owning aggregate/entity's own
+/// `instance_eval` has fully finished — so a nested `entity`/`command`/
+/// `query`'s own resolution logic (an entity's `identified_by` single-
+/// field-value-object auto-unwrap, a command's `sets :list, append:
+/// {...}` element-type lookup against a SIBLING entity, a command's own
+/// bare `given(...)` precondition reference) sees the owner's COMPLETE
+/// `value_objects`/`entities`/`preconditions`, not just whatever was
+/// declared textually before that line.
+///
+/// Rust has no unevaluated block to defer — `entity`/`command`/`query`
+/// are `keywords`-shaped bodies, walked line-by-line straight out of
+/// `lines`/`*pos`. The equivalent move: on hitting one of these three
+/// words, DON'T recurse into the body yet. Record where it starts
+/// (`body_start`) and, for a `do ... end` opener, SKIP past it —
+/// `lex::capture_do_block_body` (already used elsewhere to CAPTURE a
+/// `source`-shaped body's raw text) does exactly the "purely textual
+/// do/end depth tracking" this needs, reused here just to advance `*pos`
+/// past the block without interpreting it; its own returned text is
+/// discarded. A `{ ... }` opener needs no skip at all — `body` is
+/// already the whole captured text, on the one physical line the
+/// opening call itself was on, so `*pos` is already correct.
+///
+/// The real parse happens later, via `build_deferred`, once the owner's
+/// own top-level line-range has been walked in full and its
+/// `value_objects`/`entities`/`preconditions`/`attributes` are the real,
+/// final lists — not a snapshot mid-walk.
+pub(crate) struct PendingBody {
+    opener: Opener,
+    line_number: usize,
+    body_start: usize,
+}
+
+/// Called the instant `entity`/`command`/`query`'s own OPENING line has
+/// been gated (`*pos` already past that line) — see `PendingBody`'s own
+/// header. `opener`/`line_number` come off that same gated line.
+pub(crate) fn defer_body(file: &str, lines: &[SourceLine], pos: &mut usize, opener: &Opener, line_number: usize) -> ParseResult<PendingBody> {
+    let body_start = *pos;
+    if matches!(opener, Opener::DoBlock { .. }) {
+        lex::capture_do_block_body(file, lines, pos)?;
+    }
+    Ok(PendingBody { opener: opener.clone(), line_number, body_start })
+}
+
+/// The drained counterpart of `defer_body` — parses a deferred body for
+/// real, dispatching through the SAME `parse_nested_body` every other
+/// `keywords`/`rows`-body construct already uses (so a `{ ... }`-opened
+/// entity/command/query gets the identical synthetic-line treatment
+/// `value_object`'s own arm does, with no second code path). `lines`
+/// must be the SAME slice `defer_body` was called against — `body_start`
+/// is an index into it, meaningless against any other.
+pub(crate) fn build_deferred<T>(
+    file: &str,
+    lines: &[SourceLine],
+    pending: &PendingBody,
+    parse: impl FnOnce(&str, &[SourceLine], &mut usize) -> ParseResult<T>,
+) -> ParseResult<T> {
+    let mut pos = pending.body_start;
+    parse_nested_body(file, lines, &mut pos, &pending.opener, pending.line_number, parse)
+}
+
 /// The `identified_by` forms this parser actually resolves/refuses —
 /// shared by `parse::aggregate` and `parse::entity`, since
 /// `AttributeCollector#resolve_identity_field!`/`#resolve_identity_type!`

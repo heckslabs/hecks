@@ -17,6 +17,12 @@ module Hecksagain
           @queries       = []
           @policies      = []
           @reference_targets = []
+          # DEFERRED CONSTRUCTION — `entity`/`command`/`query` push a
+          # pending descriptor here instead of building immediately; see
+          # `#drain_pending!`'s own comment for why.
+          @pending_entities = []
+          @pending_commands = []
+          @pending_queries  = []
         end
 
         def description(value)
@@ -130,15 +136,13 @@ module Hecksagain
           # `Aggregate#initialize`, once the aggregate exists. Its own
           # commands were given the piece as their owner when it was declared,
           # so the chain closes as chapter -> aggregate -> entity -> command.
-          # `owner_value_objects:` lets a PIECE's own `identified_by :field`
-          # (see AttributeCollector#resolve_identity_field!) derive from a
-          # value object this AGGREGATE declared — a piece has none of its
-          # own — so the same bare-field form works at both levels.
-          @entities << EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets, &block)
+          # NOT built here — see `#drain_pending!`'s own comment for why
+          # this only queues a descriptor.
+          @pending_entities << [name, block]
         end
 
         def query(name, &block)
-          @queries << QueryBuilder.build(name, owner_attributes: attributes, &block)
+          @pending_queries << [name, block]
         end
 
         def policy(name, &block)
@@ -180,10 +184,10 @@ module Hecksagain
           # The verb is declared ON this aggregate — the owner `acts_on` answers
           # with — stamped by `Aggregate#initialize` once the aggregate
           # exists. An ENTITY's commands take the entity as their owner instead,
-          # at the entity's own declaration.
-          @commands << CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens,
-                                                   owner_attributes: attributes,
-                                                   owner_constructs: @value_objects + closed_sets + @entities, &block)
+          # at the entity's own declaration. NOT built here — see
+          # `#drain_pending!`'s own comment for why this only queues a
+          # descriptor.
+          @pending_commands << [name, from, block]
         end
 
         # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
@@ -233,6 +237,7 @@ module Hecksagain
         end
 
         def build
+          drain_pending!
           resolve_pending_identity!
           seal_mutation_targets
           seal_query_targets
@@ -272,6 +277,59 @@ module Hecksagain
         end
 
         private
+
+        # DEFERRED CONSTRUCTION — `entity`/`command`/`query` used to build
+        # immediately, INLINE, the moment their own DSL line ran during
+        # `instance_eval` — meaning a command's own resolution (`sets
+        # :field` importing the owner's own attribute, `given("desc")`
+        # referencing an aggregate-level precondition, a query's own
+        # positional-param resolution) only ever saw whatever `@entities`/
+        # `attributes`/`@named_givens`/`@value_objects` held AS OF THAT
+        # EXACT TEXTUAL LINE — never what the aggregate's block would go
+        # on to declare after it. Three real, confirmed cases in the
+        # self-hosted meta-domain violate the "declare before you
+        # reference" convention every other resolution rule relies on
+        # (`command "Handler"` before `entity "Handler"`, same for
+        # Member/Dispatch — see docs/resolution-rules/
+        # implicit-append-fields.md's own "Known limitations").
+        #
+        # This is the SAME move `BluebookBuilder` already makes one level
+        # UP, at the CHAPTER level — build every aggregate first, THEN run
+        # cross-referential validation (`validate_query_hops!`,
+        # `validate_projected_fields!`, `validate_no_bidirectional_
+        # references!`) once `@aggregates` is fully populated — extended
+        # one level down: `entity`/`command`/`query` now only QUEUE a
+        # descriptor (`@pending_entities`/`@pending_commands`/
+        # `@pending_queries`, each preserving its own declared order),
+        # and `#build` drains them here, in this exact order, BEFORE any
+        # of the existing `seal_*` validations (which already assume
+        # `@commands`/`@entities`/`@queries` are the real, final, built
+        # objects) — entities FIRST and fully, since a command's own
+        # `sets :list, append: {...}` needs a list's element entity
+        # already built (`.attributes` populated) to resolve against, not
+        # just named.
+        #
+        # `attribute`/`value_object`/`identified_by`/`given` (block form)
+        # are NOT deferred — they still build eagerly during
+        # `instance_eval`, unchanged. Nothing reads `@entities`/
+        # `@commands`/`@queries` from anywhere OTHER than `#build` and its
+        # own private helpers (checked directly), so nothing else in this
+        # file needed to change for this to be safe.
+        def drain_pending!
+          @entities = @pending_entities.map do |name, block|
+            EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets, &block)
+          end
+
+          @commands = @pending_commands.map do |name, from, block|
+            CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens,
+                                        owner_attributes: attributes,
+                                        owner_constructs: @value_objects + closed_sets + @entities, &block)
+          end
+
+          @queries = @pending_queries.map do |name, block|
+            QueryBuilder.build(name, owner_attributes: attributes, &block)
+          end
+        end
 
         # `identified_by`'s own resolution pool (AttributeCollector#resolve_
         # pending_identity!'s hook, S9) — an aggregate resolves a bare

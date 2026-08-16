@@ -42,7 +42,12 @@ Every rule spec covers the same six sections, in order:
    inputs and their outcomes, especially the near-misses that look like they
    should match but don't (and why).
 4. **Known limitations** — anything the algorithm deliberately does not
-   handle, named rather than silently scoped around.
+   handle, named rather than silently scoped around. `AggregateBuilder`/
+   `EntityBuilder` defer `entity`/`command`/`query` construction until
+   their own block ends ([ADR 0028](../decisions/0028-aggregate-and-entity-builders-defer-construction-until-their-own-block-ends.md)),
+   so a resolution rule generally does NOT need to name a declaration-
+   order limitation the way `implicit-append-fields.md` used to — check
+   that ADR before assuming a forward reference can't resolve.
 5. **Reference implementation** — the exact Ruby file and method.
 6. **Reference mirror** — the exact Rust file and function, once ported.
    `NOT YET MIRRORED` if it isn't (a rule spec is written when the Ruby side
