@@ -43,10 +43,12 @@ require "json"
 # chapter, every attached framework chapter, AND `meta` — must be
 # genuinely byte-identical.
 RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
-  ROOT = InMemoryDomain::ROOT
-  GENERATED_ROOT = File.join(ROOT, "rust/src/generated")
-  CARGO_TOML = File.join(ROOT, "rust/Cargo.toml")
-  PROJECT_RUST = File.join(ROOT, "bin/project_rust")
+  # `InMemoryDomain::ROOT` directly, not aliased to a local `ROOT` — a
+  # bare `ROOT` collided with word_coverage_spec.rb's own (see
+  # load_hygiene_spec.rb's own top-level-constant check).
+  GENERATED_ROOT = File.join(InMemoryDomain::ROOT, "rust/src/generated")
+  CARGO_TOML = File.join(InMemoryDomain::ROOT, "rust/Cargo.toml")
+  PROJECT_RUST = File.join(InMemoryDomain::ROOT, "bin/project_rust")
 
   # [domain, dirs THIS domain's own run touches] — the target itself,
   # `meta` (every run regenerates it — both paths' own header explains
@@ -75,7 +77,7 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
 
   def run_project_rust!(domain, extra_env)
     env = { "PATH" => ENV["PATH"] }.merge(extra_env)
-    _out, err, status = Open3.capture3(env, PROJECT_RUST, domain, chdir: ROOT)
+    _out, err, status = Open3.capture3(env, PROJECT_RUST, domain, chdir: InMemoryDomain::ROOT)
     raise "bin/project_rust #{extra_env.inspect} #{domain} failed:\n#{err}" unless status.success?
   end
 

@@ -27,19 +27,20 @@ require "hecksagain/doc/reference"
 # `plurality_coverage_spec.rb`'s ALLOWED_SINGLETON already is for a
 # different claim.
 RSpec.describe "every live DSL word, used somewhere real" do
-  ROOT = InMemoryDomain::ROOT
-
   # THE SAME FILE FAMILY spec/corpus_spec.rb's CORPUS_MEMBERS walks —
   # example domains, grammar chapters, framework members — widened to
   # every extension a real domain ships across (`.hecksagon`/`.world`
   # carry hecksagon/world words that no `.bluebook` file ever could).
+  # `InMemoryDomain::ROOT` directly, not aliased to a local `ROOT` — a
+  # bare `ROOT` collided with project_rust_pipeline_spec.rb's own (see
+  # load_hygiene_spec.rb's own top-level-constant check).
   CORPUS_GLOBS = [
-    File.join(ROOT, "examples", "*", "**", "*.bluebook"),
-    File.join(ROOT, "examples", "*", "**", "*.hecksagon"),
-    File.join(ROOT, "examples", "*", "**", "*.world"),
-    File.join(ROOT, "lib/hecksagain/grammar", "*.bluebook"),
-    File.join(ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook"),
-    File.join(ROOT, "lib/hecksagain/framework/bluebook", "*.hecksagon")
+    File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.hecksagon"),
+    File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.world"),
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.hecksagon")
   ].freeze
 
   def corpus_files
@@ -139,7 +140,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do
-    missing = Hecksagain::Doc::Reference.live_words(File.join(ROOT, "docs/reference"))
+    missing = Hecksagain::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/reference"))
                                         .reject { |word, _context, _prose| corpus_uses?(word) }
                                         .map { |word, context, _prose| Hecksagain::Doc::Reference.name_of(word, context) }
 

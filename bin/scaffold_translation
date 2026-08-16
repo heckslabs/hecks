@@ -35,12 +35,12 @@ capable =
   end
 
 current_shape = Hecksagain::Runtime::StorageShape.project(bluebook)
-manager = Hecksagain::Adapters::Postgres::LineageManager
+manager = Hecksagain::Adapters::PostgresEra::LineageManager
 
 if capable
   settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
-  db = Hecksagain::Adapters::Postgres.connect_for(bluebook.name, settings)
-  lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, bluebook.name)
+  db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, settings)
+  lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
   lineage.ensure_base!
   if lineage.eras.empty?
     lineage.hold_first!(File.read(Dir[File.join(directory, "*.bluebook")].first),
@@ -63,7 +63,7 @@ else
   # document describing a translation nothing will ever run.
   abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
         "a translation edge is only applied by a lineage-capable adapter. " \
-        "Bind Postgres, or change the shape and its stored data by hand."
+        "Bind PostgresEra, or change the shape and its stored data by hand."
 end
 
 text = File.read(path)
@@ -77,5 +77,5 @@ end
 if unresolved.zero? && unclaimed.empty?
   puts "0 unresolved — this shape change costs one extra boot and no typing. Check it with bin/translation_audit, then boot."
 else
-  puts "#{unresolved} unresolved — decide what each became (rename/move/convert/drop, or compute on Postgres), then boot." if unresolved.positive?
+  puts "#{unresolved} unresolved — decide what each became (rename/move/convert/drop, or compute on PostgresEra), then boot." if unresolved.positive?
 end

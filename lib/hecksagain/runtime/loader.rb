@@ -70,7 +70,7 @@ module Hecksagain
       # Lambda" would have silently rerouted Banking's every local
       # boot — every spec, every `bin/console` session — the moment
       # this landed. A domain opts in explicitly, the same way
-      # `persisted_by("Postgres")` is never inferred from anything
+      # `persisted_by("PostgresEra")` is never inferred from anything
       # else either.
       def self.dispatcher_for(registry)
         domain = registry.bluebooks.keys.first

@@ -26,7 +26,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
   V1_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Acct" do
-        identified_by { kind.label }
+        identified_by :kind
 
         attribute :cost, Money
         attribute :kind, Kind
@@ -51,7 +51,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
   V2_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Account" do
-        identified_by { kind.label }
+        identified_by :kind
 
         attribute :amount, Money
         attribute :kind, Kind
@@ -78,7 +78,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
   V3_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Account" do
-        identified_by { kind.label }
+        identified_by :kind
 
         attribute :balance, Money
         attribute :kind, Kind
@@ -734,7 +734,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
   end
 
   it "refuses an identity-path change as a re-keying, not a translation" do
-    rekeyed = V2_SOURCE.sub("identified_by { kind.label }", "identified_by { amount.cents }")
+    rekeyed = V2_SOURCE.sub("identified_by :kind", "identified_by :amount")
     write_v1_record
     from = label_of(V1_SOURCE)
     to = label_of(rekeyed)

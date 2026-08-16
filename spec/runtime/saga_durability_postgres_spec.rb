@@ -46,7 +46,20 @@ RSpec.describe "durable saga/process-manager state, against Postgres",
       Kernel.load(POSTGRES_ERA_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(WIRE_BLUEBOOK)
-      Hecks.hecksagon("Wire") { persisted_by "PostgresEra" }
+      # Every Drawer/Wire command declares `role` — matching the sibling
+      # SqlitePersistence spec's own boot_wire (saga_durability_spec.rb):
+      # without uses_framework "Governance" attached, a declared role is
+      # silent decoration, and hecksagon_builder.rb's own
+      # refuse_ungoverned_roles! refuses to build the domain at all
+      # rather than let that pass quietly.
+      Hecks.hecksagon("Wire") do
+        uses_framework "Governance"
+        persisted_by "PostgresEra"
+      end
+      Hecks.hecksagon("Governance") do
+        Governance::RoleAssignment.persisted_by("Memory")
+        Governance::RoleTransition.persisted_by("Memory")
+      end
       Hecks.world("Wire") { persisted_by("PostgresEra") { database(SAGA_DURABILITY_SPEC_DB) } }
     end
 

@@ -51,12 +51,12 @@ capable =
   rescue StandardError
     false
   end
-abort "a tail-merge needs a lineage journal; #{bluebook.name} is bound to #{adapter_name}, not Postgres" unless capable
+abort "a tail-merge needs a lineage journal; #{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless capable
 
 settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
 
-db = Hecksagain::Adapters::Postgres.connect_for(bluebook.name, settings)
-lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, bluebook.name)
+db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, settings)
+lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
 lineage.ensure_base!
 eras = lineage.eras
 diverged = eras.size > 1 ? (1...eras.last[:ordinal]).sum { |era| lineage.diverged_count(era) } : 0
@@ -65,7 +65,7 @@ db.close
 puts "#{bluebook.name}: #{diverged} post-cut write#{diverged == 1 ? '' : 's'} in ancestor eras before the merge"
 
 begin
-  Hecksagain::Adapters::Postgres::LineageManager.merge!(
+  Hecksagain::Adapters::PostgresEra::LineageManager.merge!(
     registry: registry, bluebook: bluebook, settings: settings, winners: winners
   )
 rescue Hecksagain::Runtime::WiringError => error

@@ -44,8 +44,8 @@ capable =
 
 if capable
   settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
-  db = Hecksagain::Adapters::Postgres.connect_for(bluebook.name, settings)
-  lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, bluebook.name)
+  db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, settings)
+  lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
   lineage.ensure_base!
   era = lineage.raw_era(ordinal) or abort "#{bluebook.name} holds no era #{ordinal}"
   text = era[:held_text]
