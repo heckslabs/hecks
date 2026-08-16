@@ -326,9 +326,6 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
       attribute :identity_field,       SettingsText
       attribute :identity_strategy,    one_of("slug", "sequence", "port")
-      attribute :identity_source,      SettingsText,    optional: true
-      attribute :identity_prefix,      SettingsText,    optional: true
-      attribute :identity_extra_json,  CollectionExtra, optional: true
 
       sets :identity_field
       sets :identity_strategy
@@ -354,7 +351,6 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Replace a collection's own whole list of table columns"
 
       reference_to Collection
-      attribute :columns, list_of(Column)
 
       sets :columns
       emits "ColumnsReplaced"
@@ -365,7 +361,6 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Replace a collection's own whole list of detail-panel fields"
 
       reference_to Collection
-      attribute :detail_fields, list_of(DetailField)
 
       sets :detail_fields
       emits "DetailFieldsReplaced"
@@ -376,7 +371,6 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Replace every rows-field's own sub-column filter, whole"
 
       reference_to Collection
-      attribute :detail_field_columns, list_of(DetailFieldColumn)
 
       sets :detail_field_columns
       emits "DetailFieldColumnsReplaced"
@@ -387,7 +381,6 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Replace a collection's own whole list of dispatch preconditions"
 
       reference_to Collection
-      attribute :preconditions, list_of(Precondition)
 
       sets :preconditions
       emits "PreconditionsReplaced"
@@ -398,7 +391,6 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Replace a collection's own whole list of field display formats"
 
       reference_to Collection
-      attribute :field_formats, list_of(FieldFormat)
 
       sets :field_formats
       emits "FieldFormatsReplaced"
@@ -466,7 +458,6 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Replace the dashboard's whole list of stat cards"
 
       reference_to Overview
-      attribute :stats, list_of(Stat)
 
       sets :stats
       emits "StatsReplaced"

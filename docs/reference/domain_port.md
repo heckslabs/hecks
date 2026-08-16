@@ -28,8 +28,6 @@ Hecks.bluebook "DomainPortReference" do
     value_object("Note")    { attribute :text,  String }
 
     command "Book" do
-      attribute :waybill, Waybill
-      attribute :note,    Note
       sets :waybill
       sets :note
       emits "ShipmentBooked"

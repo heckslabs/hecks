@@ -136,10 +136,6 @@ Hecks.bluebook "Banking", version: "v1" do
       role "Branch clerk"
       goal "Take on a new customer"
 
-      attribute :reference, CustomerNumber
-      attribute :name,      PersonName
-      attribute :email,     EmailAddress
-
       sets :reference
       sets :name
       sets :email
@@ -152,7 +148,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Stop a customer transacting while something is investigated"
 
       reference_to Customer
-      attribute :standing, CustomerStanding
       given("customer is active") { status == "active" }
 
       sets :standing
@@ -282,7 +277,6 @@ Hecks.bluebook "Banking", version: "v1" do
         goal "Correct a movement posted for the wrong amount"
 
         attribute :adjustment, Money
-        attribute :narrative,  Narrative
         given("customer is active") { parent.customer.status == "active" }
         given("account is open") { parent.status == "open" }
         given("entry is posted") { state == "posted" }
@@ -299,7 +293,6 @@ Hecks.bluebook "Banking", version: "v1" do
         role "Back office"
         goal "Undo a movement that should not have been posted"
 
-        attribute :narrative, Narrative
         given("customer is active") { parent.customer.status == "active" }
         given("account is open") { parent.status == "open" }
         given("entry is posted") { state == "posted" }
@@ -377,9 +370,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Give a customer somewhere to keep money"
 
       reference_to Customer
-      attribute :number,      AccountNumber
-      attribute :kind,        AccountKind
-      attribute :daily_limit, DailyLimit
       given("customer is active")
 
       sets :number
@@ -682,7 +672,6 @@ Hecks.bluebook "Banking", version: "v1" do
         role "Customer"
         goal "Challenge a withdrawal that was not mine"
 
-        attribute :narrative, Narrative
         given("customer is active") { parent.account.customer.status == "active" }
         given("account is open") { parent.account.status == "open" }
         given("card is not retired") { status != "retired" }
@@ -709,8 +698,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Put a card in a customer's hand"
 
       reference_to Account
-      attribute :serial,    CardSerial
-      attribute :daily_fee, DailyFee
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
 
@@ -847,8 +834,6 @@ Hecks.bluebook "Banking", version: "v1" do
       reference_to Account, as: :source
       reference_to Account, as: :destination
       attribute :reference,   TransferReference
-      attribute :amount,      TransferMoney
-      attribute :narrative,   Narrative
 
       # A REFERENCE IS THE ACCOUNT'S NUMBER, so these read it as one. They said
       # `source.value` while a reference was stored as an object wrapping that
@@ -987,8 +972,6 @@ Hecks.bluebook "Banking", version: "v1" do
     command "Authorize" do
       reference_to Account
       attribute :authorisation, AuthorisationCode
-      attribute :amount, PaymentAmount
-      attribute :merchant, MerchantName
       attribute :tags, list_of(Tag), optional: true
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
@@ -1134,14 +1117,8 @@ Hecks.bluebook "Banking", version: "v1" do
     command "Request" do
       reference_to Account
       attribute :end_to_end, EndToEndReference
-      attribute :amount, ExternalAmount
-      attribute :beneficiary, BeneficiaryName
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
-      # Named on the ARGUMENT as well as on the head : the head says what the
-      # aggregate holds, this is where a caller hands one in, and a set that is
-      # only named where it is stored is not refusing anybody.
-      attribute :direction, MovementDirection, admits: "Account::LedgerDirection"
       sets :amount
       sets :beneficiary
       sets :direction
@@ -1231,9 +1208,6 @@ Hecks.bluebook "Banking", version: "v1" do
     command "Schedule" do
       reference_to Account
       attribute :instruction, InstructionReference
-      attribute :amount, ScheduledAmount
-      attribute :recipient, PaymentRecipient
-      attribute :due_on, PaymentDueDate
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
       sets :amount
@@ -1571,8 +1545,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Open a KYC case for a newly registered customer, naming the account it will become"
 
       reference_to Customer, as: :customer
-      attribute :reference,      OnboardingReference
-      attribute :account_number, AccountNumber
       given("customer is active") { customer.status == "active" }
 
       sets :reference

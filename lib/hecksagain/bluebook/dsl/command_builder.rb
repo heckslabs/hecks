@@ -19,14 +19,15 @@ module Hecksagain
         UNSET = Object.new.freeze
         private_constant :UNSET
 
-        def initialize(name, owner: nil, from: nil, named_givens: {})
-          @name          = name
-          @owner         = owner
-          @givens        = []
-          @ensures       = []
-          @mutations     = []
-          @emits         = []
-          @named_givens  = named_givens
+        def initialize(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [])
+          @name              = name
+          @owner             = owner
+          @givens            = []
+          @ensures           = []
+          @mutations         = []
+          @emits             = []
+          @named_givens      = named_givens
+          @owner_attributes  = owner_attributes
           # NORMALIZED the exact same way `StateTransition#from` already
           # is — one state or several, a single spelling either way,
           # both read back through `Array(...)` at check time.
@@ -279,6 +280,8 @@ module Hecksagain
         end
 
         def build
+          resolve_implicit_attributes!
+
           Command.declare(
             name:       @name,
             role:       @role,
@@ -294,13 +297,48 @@ module Hecksagain
           )
         end
 
-        def self.build(name, owner: nil, from: nil, named_givens: {}, &block)
-          builder = new(name, owner: owner, from: from, named_givens: named_givens)
+        def self.build(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], &block)
+          builder = new(name, owner: owner, from: from, named_givens: named_givens, owner_attributes: owner_attributes)
           builder.instance_eval(&block) if block
           builder.build
         end
 
         private
+
+        # `sets :field` ALONE (S5's own bare form — no `to:`, meaning
+        # `to: :field`) already says the command accepts an argument
+        # named `:field`; requiring a SEPARATE `attribute :field, Type`
+        # line that retypes what the owning aggregate/entity already
+        # declared is the same redundancy S10's `given` reference already
+        # killed for preconditions ("a precondition shared across
+        # commands is declared once... a command references it by
+        # name"). Same move here, one level down: when the command
+        # hasn't declared its own `:field`, import the OWNER's
+        # already-built `Attribute` verbatim (same type, pattern,
+        # optional, admits) instead of retyping it.
+        #
+        # Only the exact self-referential shape qualifies — `sets
+        # :field, to: :other` names a genuinely different source and
+        # stays exactly as explicit as it always was; `sets :field, to:
+        # false` (or any other literal) isn't naming an argument at all.
+        # Comparing as text rather than identity handles both sides
+        # (`source` carries whatever `target` was passed as; `target`
+        # itself is always symbolized) without caring which.
+        #
+        # Declaration order matters here the same way it already does
+        # for `identified_by`/`given` — the owner's own attribute must
+        # exist by the time THIS builder's `build` runs, which every
+        # real bluebook already satisfies (the aggregate/entity always
+        # declares its attributes before the commands that act on them).
+        def resolve_implicit_attributes!
+          @mutations.each do |mutation|
+            next unless mutation.op == :set && mutation.source.to_s == mutation.target.to_s
+            next if attributes.any? { |attr| attr.name == mutation.target }
+
+            owner_attr = @owner_attributes.find { |attr| attr.name == mutation.target }
+            attributes << owner_attr if owner_attr
+          end
+        end
 
         # LEGACY — see `then_set`'s own comment. The ORIGINAL implementation,
         # verbatim: `from:` still a synonym for `to:`, no omittable-`to:`

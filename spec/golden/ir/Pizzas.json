@@ -140,19 +140,19 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "customer_name",
+              "name": "amount",
               "optional": false,
               "pattern": null,
-              "type": "CustomerName"
+              "type": "Price"
             },
             {
               "admits": null,
               "default": null,
               "list": false,
-              "name": "amount",
+              "name": "customer_name",
               "optional": false,
               "pattern": null,
-              "type": "Price"
+              "type": "CustomerName"
             }
           ],
           "emits": [

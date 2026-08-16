@@ -45,7 +45,6 @@ Hecks.bluebook "ReadModelReference" do
     value_object("Code") { attribute :value, String }
 
     command "OpenDepot" do
-      attribute :code, Code
       sets :code
       emits "DepotOpened"
     end
@@ -64,10 +63,7 @@ Hecks.bluebook "ReadModelReference" do
     value_object("Weight") { attribute :value, Integer }
 
     command "Accept" do
-      attribute :label,    Label
       attribute :depot,    Depot
-      attribute :region,   Region
-      attribute :weight,   Weight, optional: true
       sets :label
       sets :region
       sets :weight

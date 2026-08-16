@@ -39,7 +39,7 @@ module Hecksagain
         # (S10, ADR 0025 — a piece's own state machine is checkable the
         # same way a head's is).
         def command(name, from: nil, &block)
-          @commands << CommandBuilder.build(name, owner: @name, from: from, &block)
+          @commands << CommandBuilder.build(name, owner: @name, from: from, owner_attributes: attributes, &block)
         end
 
         def query(name, &block)

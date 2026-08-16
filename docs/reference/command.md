@@ -45,7 +45,6 @@ Hecks.bluebook "CommandReference" do
     value_object("Mark")    { attribute :note,  String }
 
     command "Install" do
-      attribute :serial, Serial
       sets :serial
       emits "MeterInstalled"
     end
@@ -285,6 +284,14 @@ box.surrender!.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyRetu
 <!-- generated:end -->
 
 Declares an argument this command needs, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
+
+Omittable when it would only retype what the owner already declared: a bare `sets :field` (no `to:` naming a different source) already says the command takes an argument named `:field`, so when the command itself declares no `attribute :field`, it imports the owning aggregate's (or entity's) own attribute of that name verbatim — type, pattern, `optional:`, `admits:`, all of it. `Install` above never declares `attribute :serial` — it imports `Meter`'s own `serial` — and still takes it as an argument:
+
+```ruby
+CommandReference::Meter.install!(serial: { value: 9 }).serial.value  # => 9
+```
+
+An explicit local `attribute :field` is never clobbered by this — it is checked first, so a command narrowing or retyping its own argument still wins.
 
 A command takes the arguments it declares — all of them, and no others.
 Missing one refuses:

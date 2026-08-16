@@ -181,7 +181,8 @@ module Hecksagain
           # with — stamped by `Aggregate#initialize` once the aggregate
           # exists. An ENTITY's commands take the entity as their owner instead,
           # at the entity's own declaration.
-          @commands << CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens, &block)
+          @commands << CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens,
+                                                   owner_attributes: attributes, &block)
         end
 
         # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR

@@ -222,7 +222,7 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 // order) — see `command::try_reference_named_given`'s own
                 // header on why a command's own block-less `given` needs
                 // this, not just `&[]`.
-                aggregate.commands.push(command::parse_body(file, lines, pos, &c_name, name, from, &aggregate.preconditions)?);
+                aggregate.commands.push(command::parse_body(file, lines, pos, &c_name, name, from, &aggregate.preconditions, &aggregate.attributes)?);
             }
             // `AggregateBuilder#policy` — see this function's own header
             // on why the built `ir::Policy` is returned rather than

@@ -28,8 +28,6 @@ Hecks.bluebook "PortOperationReference" do
     value_object("Holder") { attribute :value, String }
 
     command "Grant" do
-      attribute :serial, Serial
-      attribute :holder, Holder
       sets :serial
       sets :holder
       emits "LicenceGranted"

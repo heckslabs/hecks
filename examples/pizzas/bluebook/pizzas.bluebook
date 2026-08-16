@@ -136,7 +136,6 @@ Hecks.bluebook "Pizzas" do
       goal "Buy the pizza"
 
       reference_to Order
-      attribute :customer_name, CustomerName
       attribute :amount, Price
 
       given("a pizza needs at least one topping") { toppings.size.positive? }
