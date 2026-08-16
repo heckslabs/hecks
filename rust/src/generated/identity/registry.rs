@@ -100,9 +100,9 @@ pub fn dispatch_by_name(
           "Identity::ExternalIdentifier.Link" => {
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
-              crate::kernel::check_reference(&store.identity, &args.identity_id, "Identity", "identity_id")?;
+              crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let owner_deref = Vec::new();
-              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity_id", as_name: "identity", target: "Identity::Identity" }], &args);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
@@ -131,7 +131,7 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 
 pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Identity::Identity", &[]),
-    ("Identity::ExternalIdentifier", &[crate::kernel::ReferenceSpec { field: "identity_id", as_name: "identity", target: "Identity::Identity" }]),
+    ("Identity::ExternalIdentifier", &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }]),
 ];
 
 impl crate::kernel::ReferenceLookup for Store {

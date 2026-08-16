@@ -696,7 +696,7 @@ pub fn dispatch_entity_ledgerentry_reverse(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Account {
-    pub customer_id: Option<String>,
+    pub customer: Option<String>,
     pub number: Option<AccountNumber>,
     pub balance: Option<Money>,
     pub kind: Option<AccountKind>,
@@ -711,7 +711,7 @@ impl crate::kernel::Fielded for Account {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "customer_id" => self.customer_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "customer" => self.customer.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "number" => self.number.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "balance" => self.balance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "daily_limit" => self.daily_limit.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -727,7 +727,7 @@ impl crate::kernel::Fielded for Account {
 impl Account {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("customer_id".to_string(), self.customer_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("customer".to_string(), self.customer.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("number".to_string(), self.number.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("balance".to_string(), self.balance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("kind".to_string(), self.kind.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -743,7 +743,7 @@ impl Account {
 impl Account {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        customer_id: match v.get("customer_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Account.customer_id: expected String".to_string()))?), },
+        customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Account.customer: expected String".to_string()))?), },
         number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(x)?), },
         balance: match v.get("balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
         kind: match v.get("kind") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountKind::from_json(x)?), },
@@ -782,7 +782,7 @@ impl crate::kernel::Fielded for OpenArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "customer_id" => Some(Field::Value(Value::Str(self.customer_id.clone()))),
+            "customer" => Some(Field::Value(Value::Str(self.customer.clone()))),
             "number" => Some(Field::Nested(&self.number)),
             "daily_limit" => Some(Field::Nested(&self.daily_limit)),
             _ => None,
@@ -793,7 +793,7 @@ impl crate::kernel::Fielded for OpenArgs {
 
 #[derive(Debug, Clone)]
 pub struct OpenArgs {
-    pub customer_id: String,
+    pub customer: String,
     pub number: AccountNumber,
     pub kind: AccountKind,
     pub daily_limit: DailyLimit,
@@ -811,7 +811,7 @@ pub fn dispatch_open(
         crate::kernel::Hydrate::Create {
         id: args.number.value.to_string(),
         build: Box::new(|| Account {
-            customer_id: Some(args.customer_id.clone()),
+            customer: Some(args.customer.clone()),
             number: Some(args.number.clone()),
             balance: Some(Money { cents: 0, currency: "USD".to_string() }),
             kind: Some(args.kind.clone()),
@@ -849,7 +849,7 @@ pub fn dispatch_open(
 impl OpenArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("customer_id".to_string(), crate::kernel::Json::Str(self.customer_id.clone())),
+        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
         ("number".to_string(), self.number.to_json()),
         ("kind".to_string(), self.kind.to_json()),
         ("daily_limit".to_string(), self.daily_limit.to_json()),
@@ -859,15 +859,15 @@ impl OpenArgs {
 
 impl OpenArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["customer_id", "number", "kind", "daily_limit", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["customer", "number", "kind", "daily_limit", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Open does not declare {} — it takes customer_id, number, kind, daily_limit",
+        "Open does not declare {} — it takes customer, number, kind, daily_limit",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        customer_id: { let x = v.require("customer_id", "OpenArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer_id: expected String".to_string()))? },
+        customer: { let x = v.require("customer", "OpenArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()))? },
         number: AccountNumber::from_json(v.require("number", "OpenArgs")?)?,
         kind: AccountKind::from_json(v.require("kind", "OpenArgs")?)?,
         daily_limit: DailyLimit::from_json(v.require("daily_limit", "OpenArgs")?)?,
@@ -911,7 +911,6 @@ pub fn dispatch_credit(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "the account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         None,
         |record| {
@@ -989,7 +988,6 @@ pub fn dispatch_debit(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "the account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
             crate::kernel::GivenSpec { description: "the balance covers it", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
             crate::kernel::GivenSpec { description: "the daily limit allows it", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("daily_limit.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
@@ -1001,7 +999,7 @@ pub fn dispatch_debit(
         },
         &[
             crate::kernel::EnsuresSpec { description: "the balance fell by exactly the amount", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("old.balance.cents")), right: Box::new(Expr::Add(Box::new(Expr::Lookup("balance.cents")), Box::new(Expr::Lookup("amount.cents")))) } },
-            crate::kernel::EnsuresSpec { description: "no debit leaves the balance negative", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Int(0)) } },
+            crate::kernel::EnsuresSpec { description: "a ledger entry was posted", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("ledger")))), right: Box::new(Expr::Add(Box::new(Expr::Size(Box::new(Expr::Lookup("old.ledger")))), Box::new(Expr::Int(1)))) } },
         ],
         &["AccountDebited"],
         args.to_json(),
@@ -1066,7 +1064,6 @@ pub fn dispatch_freeze_account(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("closed".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open"] }),
         |record| {
@@ -1137,7 +1134,6 @@ pub fn dispatch_unfreeze(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is frozen", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("frozen".to_string())) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["frozen"] }),
         |record| {
@@ -1208,7 +1204,6 @@ pub fn dispatch_close_account(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is not closed", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: true }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("closed".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open or frozen", expr: Expr::Or(Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) }), Box::new(Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("frozen".to_string())) })) },
             crate::kernel::GivenSpec { description: "an account closes empty", expr: Expr::SignTest { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, receiver: Box::new(Expr::Lookup("balance.cents")) } },
         ],
         Some(crate::kernel::TransitionCheck { field: "status", from_states: &["open", "frozen"] }),
@@ -1284,7 +1279,6 @@ pub fn dispatch_apply_fee(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
             crate::kernel::GivenSpec { description: "the balance covers a fee", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
         None,
@@ -1360,7 +1354,6 @@ pub fn dispatch_correct_fee(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
             crate::kernel::GivenSpec { description: "a correction cannot exceed collected fees", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("fees_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],
         None,
@@ -1434,7 +1427,6 @@ pub fn dispatch_accrue_interest(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
         ],
         None,
         |record| {
@@ -1507,7 +1499,6 @@ pub fn dispatch_correct_interest(
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
-            crate::kernel::GivenSpec { description: "account is open", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("status")), right: Box::new(Expr::Str("open".to_string())) } },
             crate::kernel::GivenSpec { description: "a correction cannot exceed accrued interest", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("interest_cents.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
             crate::kernel::GivenSpec { description: "the balance covers an interest correction", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: false, negated: true }, left: Box::new(Expr::Lookup("balance.cents")), right: Box::new(Expr::Lookup("amount.cents")) } },
         ],

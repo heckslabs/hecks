@@ -246,6 +246,42 @@ module RustProjection
             f.puts Projector.emit_from_json_state(entity_name, entity[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(entity))
             f.puts
 
+            # S17, ADR 0026 — AN ENTITY NESTED INSIDE THIS ONE
+            # (`ProcessManager.Handler.Dispatch`: `Dispatch` here is
+            # `Handler`'s own `entity[:entities]`, one level past what
+            # this loop otherwise ever reaches). Its struct and JSON
+            # codec are real and needed the moment ANY sibling field
+            # references it as a `Vec<...>` element type (`emit_entity`
+            # above already resolved `dispatches: list_of(Dispatch)` to
+            # `Vec<Dispatch>` — a type reference nothing before this
+            # generated a definition for). Struct + codec only: making
+            # its OWN commands (`Dispatch.Bind`) reachable through
+            # `kernel::cli.rs`'s JSON router is a SEPARATE, deeper
+            # question — the router and `registry.rs`'s dispatch table
+            # both assume one level of `Aggregate.Entity.Command`, not
+            # two — left a named, tracked gap (manifest_entry below)
+            # rather than attempted here.
+            entity[:entities].each do |nested|
+              nested_verb = "#{entity_verb}.#{nested[:name]}"
+              manifest << manifest_entry(kind: "entity", id: nested_verb, generated: true)
+              f.puts Projector.emit_entity(nested, value_objects_by_name)
+              f.puts
+              nested_name = Projector.rust_ident(nested[:name])
+              f.puts Projector.emit_to_json_flat(nested_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
+              f.puts
+              f.puts Projector.emit_from_json_state(nested_name, nested[:attributes], value_objects_by_name, extra_fields: lifecycle_extra_field(nested))
+              f.puts
+
+              nested[:commands].each do |command|
+                manifest << manifest_entry(
+                  kind: "entity_command", id: "#{nested_verb}.#{command[:name]}", generated: false,
+                  gap_class: "structural",
+                  reason: "entity nested two levels deep (#{nested_verb}) — kernel::cli.rs's JSON router and " \
+                           "registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
+                )
+              end
+            end
+
             entity_can_route = Projector.extract_id_supported?(entity)
             entity_router_reason = "identity #{entity[:identified_by].inspect} isn't a shape extract_id resolves yet (json_codec.rb)"
             if entity_can_route

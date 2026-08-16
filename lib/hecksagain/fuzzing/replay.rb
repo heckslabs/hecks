@@ -327,7 +327,16 @@ module Hecksagain
         aggregate = runtime.registry.bluebook(domain_name)&.aggregate(aggregate_name)
         command   = aggregate&.command(command_name)
         return nil unless aggregate && command && !command.creates?
-        return nil if command.givens.empty? && !command.from
+
+        # NOTHING TO CHECK, genuinely — not "nothing THIS reproduces yet".
+        # A transition-only guard (no per-command `from:`, no `given`,
+        # only an aggregate `lifecycle do transition ... end` block
+        # naming this command — `Admit`/`Reject`'s own shape) still
+        # counts as something to check now that `admissible_transition`
+        # is reproduced below; skipping it here would just move the
+        # exact gap that call was added to close one line earlier.
+        has_transition = aggregate.lifecycle && aggregate.lifecycle.transitions_for(command.hecks_name).any?
+        return nil if command.givens.empty? && !command.from && !has_transition
 
         reference_key = command.references.to_s.empty? ? nil : Naming.reference_key(command.references)
         id = Runtime::Identity.of(aggregate, args) ||
@@ -341,6 +350,29 @@ module Hecksagain
         rules = Runtime::CommandRules.new(runtime.registry)
         recomputed_kind = begin
           rules.enforce_givens(record.dup, command, args, domain: domain_name, declaring: aggregate)
+
+          # A SECOND, SEPARATE DISPATCH_ORDER STEP — `enforce_givens`
+          # (just above) only ever checks a per-COMMAND `from:` clause
+          # (its own trailing `enforce_lifecycle_guard(declaring, ...)
+          # if declaring` call) — the aggregate's own `lifecycle do
+          # transition "X" => Y, from: Z end` block is a WHOLLY separate
+          # method (`admissible_transition`), called as its own later
+          # DISPATCH_ORDER step (`:enforce_givens` then
+          # `:admissible_transition` — Vocabulary.symbols
+          # ("AggregateDispatchOrder")), not reached from inside
+          # `enforce_givens` at all. Missing this call meant a command
+          # declared with NO per-command `from:` of its own — every real
+          # transition-guarded command in this corpus, `Admit`/`Reject`
+          # included — always recomputed "admitted" no matter the
+          # record's actual state, because the ONE check that would
+          # have refused it was never run. Found live: `Expression::
+          # Expression.Admit`, fuzzed against `lib/hecksagain/grammar`
+          # (a domain the property's own hand-verification — Banking,
+          # Pizzas — never happened to exercise a transition-guarded,
+          # no-per-command-`from:` command against). Called only when
+          # `enforce_givens` didn't already refuse, mirroring the real
+          # pipeline's own "first refusal wins" order exactly.
+          rules.admissible_transition(aggregate, command, record.dup)
           nil
         rescue *GUARD_REFUSAL_CLASSES => e
           e.class.name

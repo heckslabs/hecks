@@ -188,7 +188,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternalIdentifier {
-    pub identity_id: Option<String>,
+    pub identity: Option<String>,
     pub key: Option<ExternalIdentifierKey>,
     pub issuer: Option<Issuer>,
     pub subject: Option<Subject>,
@@ -198,7 +198,7 @@ impl crate::kernel::Fielded for ExternalIdentifier {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "identity_id" => self.identity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "identity" => self.identity.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "key" => self.key.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "issuer" => self.issuer.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "subject" => self.subject.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -210,7 +210,7 @@ impl crate::kernel::Fielded for ExternalIdentifier {
 impl ExternalIdentifier {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("identity_id".to_string(), self.identity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("identity".to_string(), self.identity.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("key".to_string(), self.key.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("issuer".to_string(), self.issuer.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("subject".to_string(), self.subject.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -221,7 +221,7 @@ impl ExternalIdentifier {
 impl ExternalIdentifier {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        identity_id: match v.get("identity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalIdentifier.identity_id: expected String".to_string()))?), },
+        identity: match v.get("identity") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalIdentifier.identity: expected String".to_string()))?), },
         key: match v.get("key") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalIdentifierKey::from_json(x)?), },
         issuer: match v.get("issuer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Issuer::from_json(x)?), },
         subject: match v.get("subject") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Subject::from_json(x)?), },
@@ -255,7 +255,7 @@ impl crate::kernel::Fielded for LinkArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "identity_id" => Some(Field::Value(Value::Str(self.identity_id.clone()))),
+            "identity" => Some(Field::Value(Value::Str(self.identity.clone()))),
             "key" => Some(Field::Nested(&self.key)),
             "issuer" => Some(Field::Nested(&self.issuer)),
             "subject" => Some(Field::Nested(&self.subject)),
@@ -267,7 +267,7 @@ impl crate::kernel::Fielded for LinkArgs {
 
 #[derive(Debug, Clone)]
 pub struct LinkArgs {
-    pub identity_id: String,
+    pub identity: String,
     pub key: ExternalIdentifierKey,
     pub issuer: Issuer,
     pub subject: Subject,
@@ -286,7 +286,7 @@ pub fn dispatch_link(
         crate::kernel::Hydrate::Create {
         id: args.key.value.to_string(),
         build: Box::new(|| ExternalIdentifier {
-            identity_id: Some(args.identity_id.clone()),
+            identity: Some(args.identity.clone()),
             key: Some(args.key.clone()),
             issuer: Some(args.issuer.clone()),
             subject: Some(args.subject.clone()),
@@ -317,7 +317,7 @@ pub fn dispatch_link(
 impl LinkArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("identity_id".to_string(), crate::kernel::Json::Str(self.identity_id.clone())),
+        ("identity".to_string(), crate::kernel::Json::Str(self.identity.clone())),
         ("key".to_string(), self.key.to_json()),
         ("issuer".to_string(), self.issuer.to_json()),
         ("subject".to_string(), self.subject.to_json()),
@@ -327,15 +327,15 @@ impl LinkArgs {
 
 impl LinkArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["identity_id", "key", "issuer", "subject", "id"]);
+let unknown = v.unknown_keys(&["identity", "key", "issuer", "subject", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Link does not declare {} — it takes identity_id, key, issuer, subject",
+        "Link does not declare {} — it takes identity, key, issuer, subject",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        identity_id: { let x = v.require("identity_id", "LinkArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.identity_id: expected String".to_string()))? },
+        identity: { let x = v.require("identity", "LinkArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LinkArgs.identity: expected String".to_string()))? },
         key: ExternalIdentifierKey::from_json(v.require("key", "LinkArgs")?)?,
         issuer: Issuer::from_json(v.require("issuer", "LinkArgs")?)?,
         subject: Subject::from_json(v.require("subject", "LinkArgs")?)?,

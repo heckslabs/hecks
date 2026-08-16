@@ -208,7 +208,7 @@ impl StatementFrequency {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Statement {
-    pub account_id: Option<String>,
+    pub account: Option<String>,
     pub period: Option<StatementPeriod>,
     pub opening_balance: Option<StatementAmount>,
     pub closing_balance: Option<StatementAmount>,
@@ -220,7 +220,7 @@ impl crate::kernel::Fielded for Statement {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "account_id" => self.account_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "account" => self.account.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "period" => self.period.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "opening_balance" => self.opening_balance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "closing_balance" => self.closing_balance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -233,7 +233,7 @@ impl crate::kernel::Fielded for Statement {
 impl Statement {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), self.account_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("account".to_string(), self.account.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("period".to_string(), self.period.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("opening_balance".to_string(), self.opening_balance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("closing_balance".to_string(), self.closing_balance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -246,7 +246,7 @@ impl Statement {
 impl Statement {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement.account_id: expected String".to_string()))?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement.account: expected String".to_string()))?), },
         period: match v.get("period") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementPeriod::from_json(x)?), },
         opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(x)?), },
         closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(x)?), },
@@ -265,7 +265,7 @@ impl crate::kernel::ToJson for Statement {
 impl Statement {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            let c0 = v.dig("account_id")?.to_id_component().ok()?;
+            let c0 = v.dig("account")?.to_id_component().ok()?;
             let c1 = v.dig("period.value")?.to_id_component().ok()?;
             Some(vec![c0, c1].join(":"))
         })();
@@ -273,7 +273,7 @@ impl Statement {
         let by_reference_key = v.get("statement").and_then(|j| j.to_id_component().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Statement: no identity found (tried account_id, period.value, id, statement)".to_string())
+            crate::kernel::Refusal::TypeMismatch("Statement: no identity found (tried account, period.value, id, statement)".to_string())
         })
     }
 }
@@ -283,7 +283,7 @@ impl crate::kernel::Fielded for GenerateArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "account_id" => Some(Field::Value(Value::Str(self.account_id.clone()))),
+            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "period" => Some(Field::Nested(&self.period)),
             "opening_balance" => Some(Field::Nested(&self.opening_balance)),
             "closing_balance" => Some(Field::Nested(&self.closing_balance)),
@@ -296,7 +296,7 @@ impl crate::kernel::Fielded for GenerateArgs {
 
 #[derive(Debug, Clone)]
 pub struct GenerateArgs {
-    pub account_id: String,
+    pub account: String,
     pub period: StatementPeriod,
     pub opening_balance: StatementAmount,
     pub closing_balance: StatementAmount,
@@ -316,9 +316,9 @@ pub fn dispatch_generate(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.account_id.to_string(), args.period.value.to_string()),
+        id: format!("{}:{}", args.account.to_string(), args.period.value.to_string()),
         build: Box::new(|| Statement {
-            account_id: Some(args.account_id.clone()),
+            account: Some(args.account.clone()),
             period: Some(args.period.clone()),
             opening_balance: Some(args.opening_balance.clone()),
             closing_balance: Some(args.closing_balance.clone()),
@@ -329,7 +329,7 @@ pub fn dispatch_generate(
         "Generate",
         "Banking::Statement",
         "Statement",
-        "account_id, period.value",
+        "account, period.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "customer is active", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Lookup("account.customer.status")), right: Box::new(Expr::Str("active".to_string())) } },
@@ -352,7 +352,7 @@ pub fn dispatch_generate(
 impl GenerateArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("period".to_string(), self.period.to_json()),
         ("opening_balance".to_string(), self.opening_balance.to_json()),
         ("closing_balance".to_string(), self.closing_balance.to_json()),
@@ -364,15 +364,15 @@ impl GenerateArgs {
 
 impl GenerateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account_id", "period", "opening_balance", "closing_balance", "generated_on", "frequency", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["account", "period", "opening_balance", "closing_balance", "generated_on", "frequency", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Generate does not declare {} — it takes account_id, period, opening_balance, closing_balance, generated_on, frequency",
+        "Generate does not declare {} — it takes account, period, opening_balance, closing_balance, generated_on, frequency",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: { let x = v.require("account_id", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account_id: expected String".to_string()))? },
+        account: { let x = v.require("account", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()))? },
         period: StatementPeriod::from_json(v.require("period", "GenerateArgs")?)?,
         opening_balance: StatementAmount::from_json(v.require("opening_balance", "GenerateArgs")?)?,
         closing_balance: StatementAmount::from_json(v.require("closing_balance", "GenerateArgs")?)?,

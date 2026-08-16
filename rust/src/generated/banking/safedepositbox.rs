@@ -698,7 +698,7 @@ pub fn dispatch_entity_keyissuance_return(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SafeDepositBox {
-    pub customer_id: Option<String>,
+    pub customer: Option<String>,
     pub branch_code: Option<BranchCode>,
     pub box_number: Option<BoxNumber>,
     pub size: Option<Size>,
@@ -711,7 +711,7 @@ impl crate::kernel::Fielded for SafeDepositBox {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "customer_id" => self.customer_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "customer" => self.customer.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "branch_code" => self.branch_code.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "box_number" => self.box_number.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "visits" => Some(Field::Value(Value::List(self.visits.len()))),
@@ -725,7 +725,7 @@ impl crate::kernel::Fielded for SafeDepositBox {
 impl SafeDepositBox {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("customer_id".to_string(), self.customer_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("customer".to_string(), self.customer.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("branch_code".to_string(), self.branch_code.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("box_number".to_string(), self.box_number.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("size".to_string(), self.size.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -739,7 +739,7 @@ impl SafeDepositBox {
 impl SafeDepositBox {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        customer_id: match v.get("customer_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer_id: expected String".to_string()))?), },
+        customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer: expected String".to_string()))?), },
         branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(x)?), },
         box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(x)?), },
         size: match v.get("size") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Size::from_json(x)?), },
@@ -777,7 +777,7 @@ impl crate::kernel::Fielded for RentArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "customer_id" => Some(Field::Value(Value::Str(self.customer_id.clone()))),
+            "customer" => Some(Field::Value(Value::Str(self.customer.clone()))),
             "branch_code" => Some(Field::Nested(&self.branch_code)),
             "box_number" => Some(Field::Nested(&self.box_number)),
             _ => None,
@@ -788,7 +788,7 @@ impl crate::kernel::Fielded for RentArgs {
 
 #[derive(Debug, Clone)]
 pub struct RentArgs {
-    pub customer_id: String,
+    pub customer: String,
     pub branch_code: BranchCode,
     pub box_number: BoxNumber,
     pub size: Size,
@@ -806,7 +806,7 @@ pub fn dispatch_rent(
         crate::kernel::Hydrate::Create {
         id: format!("{}:{}", args.branch_code.value.to_string(), args.box_number.value.to_string()),
         build: Box::new(|| SafeDepositBox {
-            customer_id: Some(args.customer_id.clone()),
+            customer: Some(args.customer.clone()),
             branch_code: Some(args.branch_code.clone()),
             box_number: Some(args.box_number.clone()),
             size: Some(args.size.clone()),
@@ -842,7 +842,7 @@ pub fn dispatch_rent(
 impl RentArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("customer_id".to_string(), crate::kernel::Json::Str(self.customer_id.clone())),
+        ("customer".to_string(), crate::kernel::Json::Str(self.customer.clone())),
         ("branch_code".to_string(), self.branch_code.to_json()),
         ("box_number".to_string(), self.box_number.to_json()),
         ("size".to_string(), self.size.to_json()),
@@ -852,15 +852,15 @@ impl RentArgs {
 
 impl RentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["customer_id", "branch_code", "box_number", "size", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["customer", "branch_code", "box_number", "size", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Rent does not declare {} — it takes customer_id, branch_code, box_number, size",
+        "Rent does not declare {} — it takes customer, branch_code, box_number, size",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        customer_id: { let x = v.require("customer_id", "RentArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.customer_id: expected String".to_string()))? },
+        customer: { let x = v.require("customer", "RentArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.customer: expected String".to_string()))? },
         branch_code: BranchCode::from_json(v.require("branch_code", "RentArgs")?)?,
         box_number: BoxNumber::from_json(v.require("box_number", "RentArgs")?)?,
         size: Size::from_json(v.require("size", "RentArgs")?)?,

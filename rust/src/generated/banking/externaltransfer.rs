@@ -222,7 +222,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExternalTransfer {
-    pub account_id: Option<String>,
+    pub account: Option<String>,
     pub end_to_end: Option<EndToEndReference>,
     pub amount: Option<ExternalAmount>,
     pub beneficiary: Option<BeneficiaryName>,
@@ -234,7 +234,7 @@ impl crate::kernel::Fielded for ExternalTransfer {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "account_id" => self.account_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "account" => self.account.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "end_to_end" => self.end_to_end.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "amount" => self.amount.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "beneficiary" => self.beneficiary.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -248,7 +248,7 @@ impl crate::kernel::Fielded for ExternalTransfer {
 impl ExternalTransfer {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), self.account_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("account".to_string(), self.account.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("end_to_end".to_string(), self.end_to_end.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("amount".to_string(), self.amount.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("beneficiary".to_string(), self.beneficiary.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -261,7 +261,7 @@ impl ExternalTransfer {
 impl ExternalTransfer {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalTransfer.account_id: expected String".to_string()))?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalTransfer.account: expected String".to_string()))?), },
         end_to_end: match v.get("end_to_end") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EndToEndReference::from_json(x)?), },
         amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalAmount::from_json(x)?), },
         beneficiary: match v.get("beneficiary") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BeneficiaryName::from_json(x)?), },
@@ -297,7 +297,7 @@ impl crate::kernel::Fielded for RequestArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "account_id" => Some(Field::Value(Value::Str(self.account_id.clone()))),
+            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "end_to_end" => Some(Field::Nested(&self.end_to_end)),
             "amount" => Some(Field::Nested(&self.amount)),
             "beneficiary" => Some(Field::Nested(&self.beneficiary)),
@@ -310,7 +310,7 @@ impl crate::kernel::Fielded for RequestArgs {
 
 #[derive(Debug, Clone)]
 pub struct RequestArgs {
-    pub account_id: String,
+    pub account: String,
     pub end_to_end: EndToEndReference,
     pub amount: ExternalAmount,
     pub beneficiary: BeneficiaryName,
@@ -332,7 +332,7 @@ pub fn dispatch_request(
         crate::kernel::Hydrate::Create {
         id: args.end_to_end.value.to_string(),
         build: Box::new(|| ExternalTransfer {
-            account_id: Some(args.account_id.clone()),
+            account: Some(args.account.clone()),
             end_to_end: Some(args.end_to_end.clone()),
             amount: Some(args.amount.clone()),
             beneficiary: Some(args.beneficiary.clone()),
@@ -368,7 +368,7 @@ pub fn dispatch_request(
 impl RequestArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("end_to_end".to_string(), self.end_to_end.to_json()),
         ("amount".to_string(), self.amount.to_json()),
         ("beneficiary".to_string(), self.beneficiary.to_json()),
@@ -379,15 +379,15 @@ impl RequestArgs {
 
 impl RequestArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account_id", "end_to_end", "amount", "beneficiary", "direction", "id", "reference"]);
+let unknown = v.unknown_keys(&["account", "end_to_end", "amount", "beneficiary", "direction", "id", "reference"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Request does not declare {} — it takes account_id, end_to_end, amount, beneficiary, direction",
+        "Request does not declare {} — it takes account, end_to_end, amount, beneficiary, direction",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: { let x = v.require("account_id", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account_id: expected String".to_string()))? },
+        account: { let x = v.require("account", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account: expected String".to_string()))? },
         end_to_end: EndToEndReference::from_json(v.require("end_to_end", "RequestArgs")?)?,
         amount: ExternalAmount::from_json(v.require("amount", "RequestArgs")?)?,
         beneficiary: BeneficiaryName::from_json(v.require("beneficiary", "RequestArgs")?)?,

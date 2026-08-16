@@ -445,6 +445,7 @@ pub enum AggregateDispatchOrder {
     ApplyMutations,
     AdvanceLifecycle,
     EnforceEnsures,
+    EnforceInvariants,
     Save,
     Emit,
 }
@@ -464,6 +465,7 @@ impl AggregateDispatchOrder {
             AggregateDispatchOrder::ApplyMutations => "apply_mutations",
             AggregateDispatchOrder::AdvanceLifecycle => "advance_lifecycle",
             AggregateDispatchOrder::EnforceEnsures => "enforce_ensures",
+            AggregateDispatchOrder::EnforceInvariants => "enforce_invariants",
             AggregateDispatchOrder::Save => "save",
             AggregateDispatchOrder::Emit => "emit",
         };
@@ -486,11 +488,12 @@ impl AggregateDispatchOrder {
             "apply_mutations" => Ok(AggregateDispatchOrder::ApplyMutations),
             "advance_lifecycle" => Ok(AggregateDispatchOrder::AdvanceLifecycle),
             "enforce_ensures" => Ok(AggregateDispatchOrder::EnforceEnsures),
+            "enforce_invariants" => Ok(AggregateDispatchOrder::EnforceInvariants),
             "save" => Ok(AggregateDispatchOrder::Save),
             "emit" => Ok(AggregateDispatchOrder::Emit),
             other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "AggregateDispatchOrder"),
-                ("admitted", "\"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate\", \"enforce_givens\", \"admissible_transition\", \"assign_creation_attributes\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"save\", \"emit\""),
+                ("admitted", "\"refuse_unknown_arguments\", \"refuse_absent_arguments\", \"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate\", \"enforce_givens\", \"admissible_transition\", \"assign_creation_attributes\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
@@ -509,6 +512,7 @@ pub enum EntityDispatchOrder {
     ApplyMutations,
     AdvanceLifecycle,
     EnforceEnsures,
+    EnforceInvariants,
     Save,
     Emit,
 }
@@ -526,6 +530,7 @@ impl EntityDispatchOrder {
             EntityDispatchOrder::ApplyMutations => "apply_mutations",
             EntityDispatchOrder::AdvanceLifecycle => "advance_lifecycle",
             EntityDispatchOrder::EnforceEnsures => "enforce_ensures",
+            EntityDispatchOrder::EnforceInvariants => "enforce_invariants",
             EntityDispatchOrder::Save => "save",
             EntityDispatchOrder::Emit => "emit",
         };
@@ -546,11 +551,12 @@ impl EntityDispatchOrder {
             "apply_mutations" => Ok(EntityDispatchOrder::ApplyMutations),
             "advance_lifecycle" => Ok(EntityDispatchOrder::AdvanceLifecycle),
             "enforce_ensures" => Ok(EntityDispatchOrder::EnforceEnsures),
+            "enforce_invariants" => Ok(EntityDispatchOrder::EnforceInvariants),
             "save" => Ok(EntityDispatchOrder::Save),
             "emit" => Ok(EntityDispatchOrder::Emit),
             other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "EntityDispatchOrder"),
-                ("admitted", "\"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"save\", \"emit\""),
+                ("admitted", "\"normalize_args\", \"refuse_role_mismatch\", \"resolve_references\", \"hydrate_parent\", \"locate_element\", \"enforce_givens\", \"admissible_transition\", \"apply_mutations\", \"advance_lifecycle\", \"enforce_ensures\", \"enforce_invariants\", \"save\", \"emit\""),
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
@@ -561,11 +567,13 @@ impl EntityDispatchOrder {
 pub enum DomainRefusal {
     Absentargument,
     Alreadyexists,
+    Attributeabsent,
     Ensuresnotmet,
     Givennotmet,
     Invariantviolation,
     Lifecyclerefused,
     Notfound,
+    Projectionabsent,
     Remoterefusal,
     Typemismatch,
     Unauthorized,
@@ -578,11 +586,13 @@ impl DomainRefusal {
         let member = match self {
             DomainRefusal::Absentargument => "AbsentArgument",
             DomainRefusal::Alreadyexists => "AlreadyExists",
+            DomainRefusal::Attributeabsent => "AttributeAbsent",
             DomainRefusal::Ensuresnotmet => "EnsuresNotMet",
             DomainRefusal::Givennotmet => "GivenNotMet",
             DomainRefusal::Invariantviolation => "InvariantViolation",
             DomainRefusal::Lifecyclerefused => "LifecycleRefused",
             DomainRefusal::Notfound => "NotFound",
+            DomainRefusal::Projectionabsent => "ProjectionAbsent",
             DomainRefusal::Remoterefusal => "RemoteRefusal",
             DomainRefusal::Typemismatch => "TypeMismatch",
             DomainRefusal::Unauthorized => "Unauthorized",
@@ -598,11 +608,13 @@ impl DomainRefusal {
         match raw {
             "AbsentArgument" => Ok(DomainRefusal::Absentargument),
             "AlreadyExists" => Ok(DomainRefusal::Alreadyexists),
+            "AttributeAbsent" => Ok(DomainRefusal::Attributeabsent),
             "EnsuresNotMet" => Ok(DomainRefusal::Ensuresnotmet),
             "GivenNotMet" => Ok(DomainRefusal::Givennotmet),
             "InvariantViolation" => Ok(DomainRefusal::Invariantviolation),
             "LifecycleRefused" => Ok(DomainRefusal::Lifecyclerefused),
             "NotFound" => Ok(DomainRefusal::Notfound),
+            "ProjectionAbsent" => Ok(DomainRefusal::Projectionabsent),
             "RemoteRefusal" => Ok(DomainRefusal::Remoterefusal),
             "TypeMismatch" => Ok(DomainRefusal::Typemismatch),
             "Unauthorized" => Ok(DomainRefusal::Unauthorized),
@@ -610,7 +622,7 @@ impl DomainRefusal {
             "UnknownVerb" => Ok(DomainRefusal::Unknownverb),
             other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "DomainRefusal"),
-                ("admitted", "\"AbsentArgument\", \"AlreadyExists\", \"EnsuresNotMet\", \"GivenNotMet\", \"InvariantViolation\", \"LifecycleRefused\", \"NotFound\", \"RemoteRefusal\", \"TypeMismatch\", \"Unauthorized\", \"UnknownArgument\", \"UnknownVerb\""),
+                ("admitted", "\"AbsentArgument\", \"AlreadyExists\", \"AttributeAbsent\", \"EnsuresNotMet\", \"GivenNotMet\", \"InvariantViolation\", \"LifecycleRefused\", \"NotFound\", \"ProjectionAbsent\", \"RemoteRefusal\", \"TypeMismatch\", \"Unauthorized\", \"UnknownArgument\", \"UnknownVerb\""),
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
@@ -627,6 +639,7 @@ pub struct RefusalTemplate {
 pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "NotFound", site: "creating_no_identity", template: "{command} creates a {aggregate} — pass {identity}:" },
     RefusalTemplate { refusal: "AlreadyExists", site: "creating_duplicate", template: "{command} creates a {aggregate} that already exists — {identity} {offered}" },
+    RefusalTemplate { refusal: "AlreadyExists", site: "entity_duplicate", template: "a {entity} already exists on {aggregate} — {identity} {offered}" },
     RefusalTemplate { refusal: "NotFound", site: "acting_no_identity", template: "{command} acts on an existing {aggregate} — pass {identity}:" },
     RefusalTemplate { refusal: "NotFound", site: "record_missing", template: "no {aggregate} with {identity} {offered}" },
     RefusalTemplate { refusal: "NotFound", site: "entity_parent_no_identity", template: "{command} acts on a {aggregate}'s {entity} — pass {identity}:" },
@@ -664,6 +677,8 @@ pub const REFUSAL_TEMPLATE: &[RefusalTemplate] = &[
     RefusalTemplate { refusal: "InvariantViolation", site: "undeclared_set", template: "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds" },
     RefusalTemplate { refusal: "Unauthorized", site: "tenant_required", template: "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to" },
     RefusalTemplate { refusal: "Unauthorized", site: "role_mismatch", template: "{command} refused — role: {role}, and the caller stated {caller_role}" },
+    RefusalTemplate { refusal: "AttributeAbsent", site: "absent_read", template: "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true" },
+    RefusalTemplate { refusal: "ProjectionAbsent", site: "absent_read", template: "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait" },
 ];
 
 impl RefusalTemplate {

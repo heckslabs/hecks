@@ -419,6 +419,67 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct AttachesToContext {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for AttachesToContext {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl AttachesToContext {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("value"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "AttachesToContext"),
+            ("description", "an attachment names a context"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+        Ok(())
+    }
+}
+
+impl AttachesToContext {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl AttachesToContext {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AttachesToContext does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value: { let x = v.require("value", "AttachesToContext")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AttachesToContext.value: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Bluebook {
     pub name: Option<BluebookName>,
     pub vision: Option<Vision>,
@@ -426,6 +487,7 @@ pub struct Bluebook {
     pub version: Option<Version>,
     pub formerly_known_as: Option<FormerlyKnownAs>,
     pub normalisations: Vec<NormalisationRule>,
+    pub attaches_to: Vec<AttachesToContext>,
 }
 
 impl crate::kernel::Fielded for Bluebook {
@@ -438,6 +500,7 @@ impl crate::kernel::Fielded for Bluebook {
             "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "normalisations" => Some(Field::Value(Value::List(self.normalisations.len()))),
+            "attaches_to" => Some(Field::Value(Value::List(self.attaches_to.len()))),
             _ => None,
         }
     }
@@ -452,6 +515,7 @@ impl Bluebook {
         ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("normalisations".to_string(), crate::kernel::Json::Array(self.normalisations.iter().map(|x| x.to_json()).collect())),
+        ("attaches_to".to_string(), crate::kernel::Json::Array(self.attaches_to.iter().map(|x| x.to_json()).collect())),
         ])
     }
 }
@@ -465,6 +529,7 @@ impl Bluebook {
         version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(x)?), },
         formerly_known_as: match v.get("formerly_known_as") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(x)?), },
         normalisations: match v.get("normalisations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(NormalisationRule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        attaches_to: match v.get("attaches_to").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AttachesToContext::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
 }
@@ -536,6 +601,7 @@ pub fn dispatch_declare(
             version: args.version.clone(),
             formerly_known_as: args.formerly_known_as.clone(),
             normalisations: vec![],
+            attaches_to: vec![],
         }),
     },
         "Declare",
@@ -587,6 +653,77 @@ if !unknown.is_empty() {
         classification: match v.get("classification") { Some(x) => Some(Classification::from_json(x)?), None => None, },
         version: match v.get("version") { Some(x) => Some(Version::from_json(x)?), None => None, },
         formerly_known_as: match v.get("formerly_known_as") { Some(x) => Some(FormerlyKnownAs::from_json(x)?), None => None, },
+        })
+    }
+}
+
+impl crate::kernel::Fielded for AttachArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "context" => Some(Field::Nested(&self.context)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct AttachArgs {
+    pub context: AttachesToContext,
+}
+
+pub fn dispatch_attach(
+    repo: &mut impl crate::kernel::Repository<Bluebook>, id: &str, args: AttachArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Bluebook> {
+        args.context.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Attach",
+        "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.attaches_to.push(AttachesToContext { value: args.context.value.clone() });
+            Ok(())
+        },
+        &[
+            crate::kernel::EnsuresSpec { description: "the list grew by exactly one", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: false, equal: true, negated: false }, left: Box::new(Expr::Size(Box::new(Expr::Lookup("attaches_to")))), right: Box::new(Expr::Add(Box::new(Expr::Size(Box::new(Expr::Lookup("old.attaches_to")))), Box::new(Expr::Int(1)))) } },
+        ],
+        &["ChapterAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl AttachArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("context".to_string(), self.context.to_json()),
+        ])
+    }
+}
+
+impl AttachArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["context", "id", "bluebook", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Attach does not declare {} — it takes context",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        context: AttachesToContext::from_json(v.require("context", "AttachArgs")?)?,
         })
     }
 }

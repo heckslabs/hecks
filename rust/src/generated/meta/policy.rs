@@ -211,7 +211,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Policy {
-    pub bluebook_id: Option<String>,
+    pub bluebook: Option<String>,
     pub name: Option<PolicyName>,
     pub aggregate: Option<PolicyText>,
     pub on_event: Option<PolicyText>,
@@ -227,7 +227,7 @@ impl crate::kernel::Fielded for Policy {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "bluebook_id" => self.bluebook_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "bluebook" => self.bluebook.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "aggregate" => self.aggregate.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "on_event" => self.on_event.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -245,7 +245,7 @@ impl crate::kernel::Fielded for Policy {
 impl Policy {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("bluebook_id".to_string(), self.bluebook_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("bluebook".to_string(), self.bluebook.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("aggregate".to_string(), self.aggregate.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("on_event".to_string(), self.on_event.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -262,7 +262,7 @@ impl Policy {
 impl Policy {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        bluebook_id: match v.get("bluebook_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy.bluebook_id: expected String".to_string()))?), },
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy.bluebook: expected String".to_string()))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyName::from_json(x)?), },
         aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
         on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
@@ -285,7 +285,7 @@ impl crate::kernel::ToJson for Policy {
 impl Policy {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            let c0 = v.dig("bluebook_id")?.to_id_component().ok()?;
+            let c0 = v.dig("bluebook")?.to_id_component().ok()?;
             let c1 = v.dig("name.value")?.to_id_component().ok()?;
             Some(vec![c0, c1].join(":"))
         })();
@@ -293,7 +293,7 @@ impl Policy {
         let by_reference_key = v.get("policy").and_then(|j| j.to_id_component().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Policy: no identity found (tried bluebook_id, name.value, id, policy)".to_string())
+            crate::kernel::Refusal::TypeMismatch("Policy: no identity found (tried bluebook, name.value, id, policy)".to_string())
         })
     }
 }
@@ -303,7 +303,7 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "bluebook_id" => Some(Field::Value(Value::Str(self.bluebook_id.clone()))),
+            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
             "name" => Some(Field::Nested(&self.name)),
             "aggregate" => self.aggregate.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "on_event" => Some(Field::Nested(&self.on_event)),
@@ -320,7 +320,7 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub bluebook_id: String,
+    pub bluebook: String,
     pub name: PolicyName,
     pub aggregate: Option<PolicyText>,
     pub on_event: PolicyText,
@@ -347,9 +347,9 @@ pub fn dispatch_declare(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.bluebook_id.to_string(), args.name.value.to_string()),
+        id: format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string()),
         build: Box::new(|| Policy {
-            bluebook_id: Some(args.bluebook_id.clone()),
+            bluebook: Some(args.bluebook.clone()),
             name: Some(args.name.clone()),
             aggregate: args.aggregate.clone(),
             on_event: Some(args.on_event.clone()),
@@ -364,7 +364,7 @@ pub fn dispatch_declare(
         "Declare",
         "Bluebook::Policy",
         "Policy",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
 
@@ -386,7 +386,7 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
+        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
         ("name".to_string(), self.name.to_json()),
         ("aggregate".to_string(), self.aggregate.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("on_event".to_string(), self.on_event.to_json()),
@@ -401,15 +401,15 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["bluebook_id", "name", "aggregate", "on_event", "trigger_command", "target_domain", "where", "for_each", "position", "id"]);
+let unknown = v.unknown_keys(&["bluebook", "name", "aggregate", "on_event", "trigger_command", "target_domain", "where", "for_each", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes bluebook_id, name, aggregate, on_event, trigger_command, target_domain, where, for_each, position",
+        "Declare does not declare {} — it takes bluebook, name, aggregate, on_event, trigger_command, target_domain, where, for_each, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        bluebook_id: { let x = v.require("bluebook_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))? },
+        bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
         name: PolicyName::from_json(v.require("name", "DeclareArgs")?)?,
         aggregate: match v.get("aggregate") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
         on_event: PolicyText::from_json(v.require("on_event", "DeclareArgs")?)?,
@@ -454,7 +454,7 @@ pub fn dispatch_bind(
         "Bind",
         "Bluebook::Policy",
         "Policy",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
 
@@ -484,7 +484,7 @@ impl BindArgs {
 
 impl BindArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["key", "value", "id", "policy", "bluebook_id", "name"]);
+let unknown = v.unknown_keys(&["key", "value", "id", "policy", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Bind does not declare {} — it takes key, value",

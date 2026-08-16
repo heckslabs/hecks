@@ -3,7 +3,7 @@
   "name": "Identity",
   "version": null,
   "vision": "Authentication proves an identifier; the organization decides what that identity means.",
-  "classification": "supporting",
+  "classification": "generic",
   "aggregates": [
     {
       "name": "Identity",
@@ -69,9 +69,13 @@
           "emits": [
             "IdentityRegistered"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [],
@@ -86,7 +90,7 @@
       ],
       "attributes": [
         {
-          "name": "identity_id",
+          "name": "identity",
           "type": "Reference<Identity>",
           "list": false,
           "default": null,
@@ -198,7 +202,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "identity_id",
+              "name": "identity",
               "type": "Reference<Identity>",
               "list": false,
               "default": null,
@@ -240,9 +244,13 @@
           "emits": [
             "ExternalIdentifierLinked"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -292,6 +300,7 @@
   "read_models": [],
   "policies": [],
   "process_managers": [],
+  "attaches_to": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

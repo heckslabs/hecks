@@ -213,6 +213,7 @@
           "emits": [
             "CustomerRegistered"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -251,6 +252,7 @@
           "emits": [
             "CustomerSuspended"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -281,6 +283,7 @@
           "emits": [
             "CustomerReinstated"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -300,9 +303,13 @@
           "emits": [
             "CustomerClosed"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "active",
@@ -401,7 +408,7 @@
       ],
       "attributes": [
         {
-          "name": "customer_id",
+          "name": "customer",
           "type": "Reference<Customer>",
           "list": false,
           "default": null,
@@ -703,7 +710,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "customer_id",
+              "name": "customer",
               "type": "Reference<Customer>",
               "list": false,
               "default": null,
@@ -775,6 +782,7 @@
           "emits": [
             "AccountOpened"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -806,10 +814,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "the account is open",
-              "canonical": "status == \"open\""
             }
           ],
           "ensures": [],
@@ -835,6 +839,7 @@
           "emits": [
             "AccountCredited"
           ],
+          "from": "open",
           "provenance": null
         },
         {
@@ -868,10 +873,6 @@
               "canonical": "customer.status == \"active\""
             },
             {
-              "description": "the account is open",
-              "canonical": "status == \"open\""
-            },
-            {
               "description": "the balance covers it",
               "canonical": "balance.cents >= amount.cents"
             },
@@ -886,8 +887,8 @@
               "canonical": "old.balance.cents == balance.cents + amount.cents"
             },
             {
-              "description": "no debit leaves the balance negative",
-              "canonical": "balance.cents >= 0"
+              "description": "a ledger entry was posted",
+              "canonical": "ledger.size == old.ledger.size + 1"
             }
           ],
           "mutations": [
@@ -912,6 +913,7 @@
           "emits": [
             "AccountDebited"
           ],
+          "from": "open",
           "provenance": null
         },
         {
@@ -924,10 +926,6 @@
             {
               "description": "customer is not closed",
               "canonical": "customer.status != \"closed\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "status == \"open\""
             }
           ],
           "ensures": [],
@@ -935,6 +933,7 @@
           "emits": [
             "AccountFrozen"
           ],
+          "from": "open",
           "provenance": null
         },
         {
@@ -947,10 +946,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "account is frozen",
-              "canonical": "status == \"frozen\""
             }
           ],
           "ensures": [],
@@ -958,6 +953,7 @@
           "emits": [
             "AccountUnfrozen"
           ],
+          "from": "frozen",
           "provenance": null
         },
         {
@@ -972,10 +968,6 @@
               "canonical": "customer.status != \"closed\""
             },
             {
-              "description": "account is open or frozen",
-              "canonical": "[\"open\", \"frozen\"].include?(status)"
-            },
-            {
               "description": "an account closes empty",
               "canonical": "balance.cents.zero?"
             }
@@ -984,6 +976,10 @@
           "mutations": [],
           "emits": [
             "AccountClosed"
+          ],
+          "from": [
+            "open",
+            "frozen"
           ],
           "provenance": null
         },
@@ -1018,10 +1014,6 @@
               "canonical": "customer.status == \"active\""
             },
             {
-              "description": "account is open",
-              "canonical": "status == \"open\""
-            },
-            {
               "description": "the balance covers a fee",
               "canonical": "balance.cents >= amount.cents"
             }
@@ -1048,6 +1040,7 @@
           "emits": [
             "FeeApplied"
           ],
+          "from": "open",
           "provenance": null
         },
         {
@@ -1070,10 +1063,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "status == \"open\""
             },
             {
               "description": "a correction cannot exceed collected fees",
@@ -1102,6 +1091,7 @@
           "emits": [
             "FeeCorrected"
           ],
+          "from": "open",
           "provenance": null
         },
         {
@@ -1124,10 +1114,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "status == \"open\""
             }
           ],
           "ensures": [],
@@ -1152,6 +1138,7 @@
           "emits": [
             "InterestAccrued"
           ],
+          "from": "open",
           "provenance": null
         },
         {
@@ -1174,10 +1161,6 @@
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "status == \"open\""
             },
             {
               "description": "a correction cannot exceed accrued interest",
@@ -1210,7 +1193,31 @@
           "emits": [
             "InterestCorrected"
           ],
+          "from": "open",
           "provenance": null
+        }
+      ],
+      "invariants": [
+        {
+          "description": "the balance never goes negative",
+          "canonical": "balance.cents >= 0"
+        }
+      ],
+      "preconditions": [
+        {
+          "description": "customer is active",
+          "canonical": "customer.status == \"active\""
+        },
+        {
+          "description": "customer is not closed",
+          "canonical": "customer.status != \"closed\""
+        }
+      ],
+      "projected_fields": [
+        {
+          "name": "customer_status",
+          "reference": "customer",
+          "remote_field": "status"
         }
       ],
       "lifecycle": {
@@ -1350,6 +1357,7 @@
               "emits": [
                 "LedgerEntryAmended"
               ],
+              "from": null,
               "provenance": null
             },
             {
@@ -1396,6 +1404,7 @@
               "emits": [
                 "LedgerEntryReversed"
               ],
+              "from": null,
               "provenance": null
             }
           ],
@@ -1415,6 +1424,7 @@
               "limit": null
             }
           ],
+          "entities": [],
           "lifecycle": {
             "field": "state",
             "default": "posted",
@@ -1478,16 +1488,7 @@
           },
           "limit": {
             "value": "100"
-          },
-          "freshness": {
-            "mode": "eventual",
-            "max_age": "300"
-          },
-          "index_hints": [
-            {
-              "name": "balance_index"
-            }
-          ]
+          }
         },
         {
           "name": "HighBalance",
@@ -1598,7 +1599,7 @@
               "value": "\"open\""
             },
             {
-              "field": "customer.status",
+              "field": "customer/status",
               "op": "eq",
               "value": "\"suspended\""
             }
@@ -1625,7 +1626,7 @@
           ],
           "wheres": [
             {
-              "field": "customer_id",
+              "field": "customer",
               "op": "eq",
               "value": ":reference"
             },
@@ -1657,7 +1658,7 @@
       ],
       "attributes": [
         {
-          "name": "account_id",
+          "name": "account",
           "type": "Reference<Account>",
           "list": false,
           "default": null,
@@ -1679,7 +1680,7 @@
           "type": "CardNickname",
           "list": false,
           "default": null,
-          "optional": false,
+          "optional": true,
           "pattern": null,
           "admits": null
         },
@@ -1839,7 +1840,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "account_id",
+              "name": "account",
               "type": "Reference<Account>",
               "list": false,
               "default": null,
@@ -1898,6 +1899,7 @@
           "emits": [
             "ATMCardIssued"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1940,6 +1942,7 @@
           "emits": [
             "ATMCardRenamed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1991,6 +1994,7 @@
           "emits": [
             "CashWithdrawn"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2014,6 +2018,7 @@
           "emits": [
             "ATMCardActivated"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2037,9 +2042,13 @@
           "emits": [
             "ATMCardRetired"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "issued",
@@ -2146,6 +2155,7 @@
               "emits": [
                 "WithdrawalDisputed"
               ],
+              "from": null,
               "provenance": null
             }
           ],
@@ -2167,6 +2177,7 @@
               }
             }
           ],
+          "entities": [],
           "lifecycle": {
             "field": "state",
             "default": "taken",
@@ -2183,7 +2194,7 @@
       "queries": [
         {
           "name": "Active",
-          "description": "Live cards in nickname order — a card nobody named sorts before every card that has one.",
+          "description": "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.",
           "attributes": [],
           "wheres": [
             {
@@ -2196,7 +2207,10 @@
             "field": "nickname",
             "direction": "asc"
           },
-          "limit": null
+          "limit": null,
+          "null_semantics": {
+            "mode": "last"
+          }
         },
         {
           "name": "ByFee",
@@ -2215,6 +2229,9 @@
           },
           "limit": {
             "value": "3"
+          },
+          "offset": {
+            "value": "1"
           }
         }
       ],
@@ -2455,6 +2472,7 @@
           "emits": [
             "TransferRequested"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2482,6 +2500,7 @@
           "emits": [
             "TransferDebited"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2509,6 +2528,7 @@
           "emits": [
             "TransferSettled"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2536,6 +2556,7 @@
           "emits": [
             "TransferCredited"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2563,6 +2584,7 @@
           "emits": [
             "TransferReversed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2590,7 +2612,22 @@
           "emits": [
             "TransferRejected"
           ],
+          "from": null,
           "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [
+        {
+          "name": "source_account_status",
+          "reference": "source",
+          "remote_field": "status"
+        },
+        {
+          "name": "destination_account_status",
+          "reference": "destination",
+          "remote_field": "status"
         }
       ],
       "lifecycle": {
@@ -2655,7 +2692,7 @@
       ],
       "attributes": [
         {
-          "name": "account_id",
+          "name": "account",
           "type": "Reference<Account>",
           "list": false,
           "default": null,
@@ -2802,7 +2839,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "account_id",
+              "name": "account",
               "type": "Reference<Account>",
               "list": false,
               "default": null,
@@ -2887,6 +2924,7 @@
           "emits": [
             "CardAuthorized"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2914,6 +2952,7 @@
           "emits": [
             "CardCaptured"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2941,6 +2980,7 @@
           "emits": [
             "CardVoided"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2968,6 +3008,7 @@
           "emits": [
             "CardRefunded"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2995,6 +3036,7 @@
           "emits": [
             "CardReversed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3041,6 +3083,7 @@
           "emits": [
             "CardDisputed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3068,6 +3111,7 @@
           "emits": [
             "CardChargedBack"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3095,9 +3139,13 @@
           "emits": [
             "CardDisputeRejected"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "authorized",
@@ -3200,7 +3248,7 @@
       ],
       "attributes": [
         {
-          "name": "account_id",
+          "name": "account",
           "type": "Reference<Account>",
           "list": false,
           "default": null,
@@ -3333,7 +3381,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "account_id",
+              "name": "account",
               "type": "Reference<Account>",
               "list": false,
               "default": null,
@@ -3418,6 +3466,7 @@
           "emits": [
             "ExternalTransferRequested"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3445,6 +3494,7 @@
           "emits": [
             "ExternalTransferSent"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3472,6 +3522,7 @@
           "emits": [
             "ExternalTransferRecalled"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3499,9 +3550,13 @@
           "emits": [
             "ExternalTransferReturned"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "requested",
@@ -3551,7 +3606,7 @@
       ],
       "attributes": [
         {
-          "name": "account_id",
+          "name": "account",
           "type": "Reference<Account>",
           "list": false,
           "default": null,
@@ -3751,7 +3806,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "account_id",
+              "name": "account",
               "type": "Reference<Account>",
               "list": false,
               "default": null,
@@ -3836,6 +3891,7 @@
           "emits": [
             "PaymentScheduled"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3863,6 +3919,7 @@
           "emits": [
             "ScheduledPaymentExecuted"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3890,6 +3947,7 @@
           "emits": [
             "ScheduledPaymentCancelled"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3917,6 +3975,7 @@
           "emits": [
             "ScheduledPaymentFailed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3964,6 +4023,7 @@
           "emits": [
             "ScheduledPaymentFailed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3995,9 +4055,13 @@
           "emits": [
             "ScheduledPaymentAbandoned"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "scheduled",
@@ -4061,7 +4125,7 @@
       ],
       "attributes": [
         {
-          "name": "customer_id",
+          "name": "customer",
           "type": "Reference<Customer>",
           "list": false,
           "default": null,
@@ -4290,7 +4354,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "customer_id",
+              "name": "customer",
               "type": "Reference<Customer>",
               "list": false,
               "default": null,
@@ -4350,6 +4414,7 @@
           "emits": [
             "BoxRented"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4374,6 +4439,7 @@
             "BoxSurrendered",
             "KeyReturnDue"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4435,6 +4501,7 @@
           "emits": [
             "BoxOpened"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4476,7 +4543,17 @@
           "emits": [
             "KeyIssued"
           ],
+          "from": null,
           "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [
+        {
+          "name": "customer_status",
+          "reference": "customer",
+          "remote_field": "status"
         }
       ],
       "lifecycle": {
@@ -4595,6 +4672,7 @@
               "emits": [
                 "VisitAnnotated"
               ],
+              "from": null,
               "provenance": null
             }
           ],
@@ -4616,6 +4694,7 @@
               }
             }
           ],
+          "entities": [],
           "lifecycle": {
             "field": "state",
             "default": "logged",
@@ -4681,10 +4760,12 @@
               "emits": [
                 "KeyReturned"
               ],
+              "from": null,
               "provenance": null
             }
           ],
           "queries": [],
+          "entities": [],
           "lifecycle": {
             "field": "status",
             "default": "issued",
@@ -4715,10 +4796,6 @@
             "direction": "asc"
           },
           "limit": null,
-          "consistency": {
-            "mode": "snapshot",
-            "timeout": null
-          },
           "authorization": {
             "policy": "vault_access",
             "tenant": "branch_code"
@@ -4872,6 +4949,7 @@
           "emits": [
             "OnboardingOpened"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4895,6 +4973,7 @@
           "emits": [
             "OnboardingCleared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4918,9 +4997,13 @@
           "emits": [
             "OnboardingDeclined"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": {
         "field": "status",
         "default": "screening",
@@ -4964,12 +5047,12 @@
       "name": "Statement",
       "description": "A snapshot of one account's activity over one period, generated once and never revised.",
       "identified_by": [
-        "account_id",
+        "account",
         "period.value"
       ],
       "attributes": [
         {
-          "name": "account_id",
+          "name": "account",
           "type": "Reference<Account>",
           "list": false,
           "default": null,
@@ -5172,7 +5255,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "account_id",
+              "name": "account",
               "type": "Reference<Account>",
               "list": false,
               "default": null,
@@ -5241,9 +5324,13 @@
           "emits": [
             "StatementGenerated"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [],
@@ -5333,15 +5420,9 @@
         }
       ],
       "group_by": [],
-      "freshness": {
-        "mode": "eventual",
-        "max_age": "60"
-      },
-      "index_hints": [
-        {
-          "name": "account_index"
-        }
-      ]
+      "offset": {
+        "value": "5"
+      }
     },
     {
       "name": "DisputedPaymentCount",
@@ -5509,7 +5590,7 @@
           "to_state": "requested",
           "dispatches": [
             {
-              "command_name": "Banking::Account.Debit",
+              "command_name": "Account.Debit",
               "with_spec": [
                 [
                   "number",
@@ -5537,7 +5618,7 @@
           "to_state": "awaiting_credit",
           "dispatches": [
             {
-              "command_name": "Banking::Transfer.Debited",
+              "command_name": "Transfer.Debited",
               "with_spec": [
                 [
                   "transfer",
@@ -5546,7 +5627,7 @@
               ]
             },
             {
-              "command_name": "Banking::Account.Credit",
+              "command_name": "Account.Credit",
               "with_spec": [
                 [
                   "number",
@@ -5574,7 +5655,7 @@
           "to_state": "awaiting_credit",
           "dispatches": [
             {
-              "command_name": "Banking::Transfer.Credited",
+              "command_name": "Transfer.Credited",
               "with_spec": [
                 [
                   "transfer",
@@ -5590,7 +5671,7 @@
           "to_state": "settled",
           "dispatches": [
             {
-              "command_name": "Banking::Transfer.Settle",
+              "command_name": "Transfer.Settle",
               "with_spec": [
                 [
                   "transfer",
@@ -5606,7 +5687,7 @@
           "to_state": "reversed",
           "dispatches": [
             {
-              "command_name": "Banking::Account.Credit",
+              "command_name": "Account.Credit",
               "with_spec": [
                 [
                   "number",
@@ -5623,7 +5704,7 @@
               ]
             },
             {
-              "command_name": "Banking::Transfer.Reverse",
+              "command_name": "Transfer.Reverse",
               "with_spec": [
                 [
                   "transfer",
@@ -5642,7 +5723,6 @@
       "ends_on": "ExternalTransferSent",
       "states": [
         "requested",
-        "sent",
         "returned"
       ],
       "handlers": [
@@ -5652,7 +5732,7 @@
           "to_state": "requested",
           "dispatches": [
             {
-              "command_name": "Banking::ExternalTransfer.SendTransfer",
+              "command_name": "ExternalTransfer.SendTransfer",
               "with_spec": [
                 [
                   "end_to_end",
@@ -5668,7 +5748,7 @@
           "to_state": "returned",
           "dispatches": [
             {
-              "command_name": "Banking::ExternalTransfer.Return",
+              "command_name": "ExternalTransfer.Return",
               "with_spec": [
                 [
                   "end_to_end",
@@ -5697,10 +5777,10 @@
           "to_state": "cleared",
           "dispatches": [
             {
-              "command_name": "Banking::Account.Open",
+              "command_name": "Account.Open",
               "with_spec": [
                 [
-                  "customer_id",
+                  "customer",
                   ":customer"
                 ],
                 [
@@ -5728,6 +5808,7 @@
       ]
     }
   ],
+  "attaches_to": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

@@ -12,6 +12,12 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Bluebook.Attach",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Bluebook.Normalise",
     "generated": true,
     "routed": true
@@ -72,6 +78,24 @@
   {
     "kind": "command",
     "id": "Bluebook::Aggregate.Value",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Invariant",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Precondition",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Aggregate.Projects",
     "generated": true,
     "routed": true
   },
@@ -163,6 +187,18 @@
     "generated": true
   },
   {
+    "kind": "entity",
+    "id": "Bluebook::ValueObject.Member",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::ValueObject.Member.Pair",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "sets append: on an entity's own command not generated yet (nested list)"
+  },
+  {
     "kind": "command",
     "id": "Bluebook::ValueObject.Declare",
     "generated": true,
@@ -187,19 +223,8 @@
     "routed": true
   },
   {
-    "kind": "aggregate",
-    "id": "Bluebook::Member",
-    "generated": true
-  },
-  {
     "kind": "command",
-    "id": "Bluebook::Member.Declare",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Bluebook::Member.Pair",
+    "id": "Bluebook::ValueObject.Member",
     "generated": true,
     "routed": true
   },
@@ -267,6 +292,30 @@
     "generated": true
   },
   {
+    "kind": "entity",
+    "id": "Bluebook::ProcessManager.Handler",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Bluebook::ProcessManager.Handler.Dispatch",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::ProcessManager.Handler.Dispatch.Bind",
+    "generated": false,
+    "gap_class": "structural",
+    "reason": "entity nested two levels deep (Bluebook::ProcessManager.Handler.Dispatch) — kernel::cli.rs's JSON router and registry.rs's dispatch table both resolve one level of Aggregate.Entity.Command, not two"
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::ProcessManager.Handler.Dispatch",
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "sets append: on an entity's own command not generated yet (nested list)"
+  },
+  {
     "kind": "command",
     "id": "Bluebook::ProcessManager.Declare",
     "generated": true,
@@ -279,30 +328,8 @@
     "routed": true
   },
   {
-    "kind": "aggregate",
-    "id": "Bluebook::Handler",
-    "generated": true
-  },
-  {
     "kind": "command",
-    "id": "Bluebook::Handler.Declare",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "aggregate",
-    "id": "Bluebook::Dispatch",
-    "generated": true
-  },
-  {
-    "kind": "command",
-    "id": "Bluebook::Dispatch.Declare",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Bluebook::Dispatch.Bind",
+    "id": "Bluebook::ProcessManager.Handler",
     "generated": true,
     "routed": true
   },
@@ -315,6 +342,58 @@
     "kind": "aggregate",
     "id": "Bluebook::Syntax",
     "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Bluebook::Syntax.Keyword",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::Syntax.Keyword.Deprecate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::Syntax.Keyword.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity",
+    "id": "Bluebook::Syntax.Argument",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::Syntax.Argument.Deprecate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Bluebook::Syntax.Argument.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Syntax.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Syntax.Keyword",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Syntax.Argument",
+    "generated": true,
+    "routed": true
   },
   {
     "kind": "aggregate",
@@ -384,11 +463,6 @@
   },
   {
     "kind": "query",
-    "id": "Bluebook::Member.DeclaredIn",
-    "generated": true
-  },
-  {
-    "kind": "query",
     "id": "Bluebook::Entity.DeclaredIn",
     "generated": true
   },
@@ -404,22 +478,14 @@
   },
   {
     "kind": "query",
-    "id": "Bluebook::Handler.DeclaredIn",
-    "generated": true
-  },
-  {
-    "kind": "query",
-    "id": "Bluebook::Dispatch.DeclaredIn",
-    "generated": true
-  },
-  {
-    "kind": "query",
     "id": "Bluebook::ReadModel.DeclaredIn",
     "generated": true
   },
   {
     "kind": "read_model",
     "id": "Bluebook::WholeBluebook",
-    "generated": true
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "includes Member, which this domain never declares"
   }
 ]

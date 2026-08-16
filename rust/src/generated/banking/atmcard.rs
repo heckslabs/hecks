@@ -511,7 +511,7 @@ pub fn dispatch_entity_withdrawal_dispute(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ATMCard {
-    pub account_id: Option<String>,
+    pub account: Option<String>,
     pub serial: Option<CardSerial>,
     pub nickname: Option<CardNickname>,
     pub daily_fee: Option<DailyFee>,
@@ -523,7 +523,7 @@ impl crate::kernel::Fielded for ATMCard {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "account_id" => self.account_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "account" => self.account.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "serial" => self.serial.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "nickname" => self.nickname.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "daily_fee" => self.daily_fee.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -537,7 +537,7 @@ impl crate::kernel::Fielded for ATMCard {
 impl ATMCard {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), self.account_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("account".to_string(), self.account.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("serial".to_string(), self.serial.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("nickname".to_string(), self.nickname.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("daily_fee".to_string(), self.daily_fee.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -550,7 +550,7 @@ impl ATMCard {
 impl ATMCard {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.account_id: expected String".to_string()))?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.account: expected String".to_string()))?), },
         serial: match v.get("serial") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardSerial::from_json(x)?), },
         nickname: match v.get("nickname") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardNickname::from_json(x)?), },
         daily_fee: match v.get("daily_fee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyFee::from_json(x)?), },
@@ -586,7 +586,7 @@ impl crate::kernel::Fielded for IssueArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "account_id" => Some(Field::Value(Value::Str(self.account_id.clone()))),
+            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "serial" => Some(Field::Nested(&self.serial)),
             "daily_fee" => Some(Field::Nested(&self.daily_fee)),
             _ => None,
@@ -597,7 +597,7 @@ impl crate::kernel::Fielded for IssueArgs {
 
 #[derive(Debug, Clone)]
 pub struct IssueArgs {
-    pub account_id: String,
+    pub account: String,
     pub serial: CardSerial,
     pub daily_fee: DailyFee,
 }
@@ -614,7 +614,7 @@ pub fn dispatch_issue(
         crate::kernel::Hydrate::Create {
         id: args.serial.value.to_string(),
         build: Box::new(|| ATMCard {
-            account_id: Some(args.account_id.clone()),
+            account: Some(args.account.clone()),
             serial: Some(args.serial.clone()),
             nickname: None,
             daily_fee: Some(args.daily_fee.clone()),
@@ -649,7 +649,7 @@ pub fn dispatch_issue(
 impl IssueArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("serial".to_string(), self.serial.to_json()),
         ("daily_fee".to_string(), self.daily_fee.to_json()),
         ])
@@ -658,15 +658,15 @@ impl IssueArgs {
 
 impl IssueArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account_id", "serial", "daily_fee", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["account", "serial", "daily_fee", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Issue does not declare {} — it takes account_id, serial, daily_fee",
+        "Issue does not declare {} — it takes account, serial, daily_fee",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: { let x = v.require("account_id", "IssueArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account_id: expected String".to_string()))? },
+        account: { let x = v.require("account", "IssueArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account: expected String".to_string()))? },
         serial: CardSerial::from_json(v.require("serial", "IssueArgs")?)?,
         daily_fee: DailyFee::from_json(v.require("daily_fee", "IssueArgs")?)?,
         })

@@ -345,7 +345,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Query {
-    pub aggregate_id: Option<String>,
+    pub aggregate: Option<String>,
     pub entity_id: Option<String>,
     pub name: Option<QueryName>,
     pub description: Option<QueryText>,
@@ -362,7 +362,7 @@ impl crate::kernel::Fielded for Query {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "aggregate_id" => self.aggregate_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "aggregate" => self.aggregate.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "entity_id" => self.entity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -381,7 +381,7 @@ impl crate::kernel::Fielded for Query {
 impl Query {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), self.aggregate_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -399,7 +399,7 @@ impl Query {
 impl Query {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.aggregate_id: expected String".to_string()))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.aggregate: expected String".to_string()))?), },
         entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.entity_id: expected String".to_string()))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryName::from_json(x)?), },
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
@@ -441,7 +441,7 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "aggregate_id" => Some(Field::Value(Value::Str(self.aggregate_id.clone()))),
+            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
             "entity_id" => self.entity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => Some(Field::Nested(&self.name)),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -457,7 +457,7 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub aggregate_id: String,
+    pub aggregate: String,
     pub entity_id: Option<String>,
     pub name: QueryName,
     pub description: Option<QueryText>,
@@ -483,7 +483,7 @@ pub fn dispatch_declare(
         crate::kernel::Hydrate::Create {
         id: format!("{}:{}", owner_id, args.name.value.to_string()),
         build: Box::new(|| Query {
-            aggregate_id: Some(args.aggregate_id.clone()),
+            aggregate: Some(args.aggregate.clone()),
             entity_id: args.entity_id.clone(),
             name: Some(args.name.clone()),
             description: args.description.clone(),
@@ -521,7 +521,7 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
+        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
         ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.to_json()),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -535,15 +535,15 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate_id", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
+let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes aggregate_id, entity_id, name, description, order_field, order_way, limit, position",
+        "Declare does not declare {} — it takes aggregate, entity_id, name, description, order_field, order_way, limit, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        aggregate_id: { let x = v.require("aggregate_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))? },
+        aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
         entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
         name: QueryName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(QueryText::from_json(x)?), None => None, },

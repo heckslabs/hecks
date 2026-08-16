@@ -313,6 +313,166 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct MemberPosition {
+    pub value: i64,
+}
+
+impl crate::kernel::Fielded for MemberPosition {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Int(self.value))),
+            _ => None,
+        }
+    }
+}
+
+
+impl MemberPosition {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl MemberPosition {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::int(self.value)),
+        ])
+    }
+}
+
+impl MemberPosition {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "MemberPosition does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value: { let x = v.require("value", "MemberPosition")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("MemberPosition.value expects Integer, got {}", x.inspect())))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MemberText {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for MemberText {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl MemberText {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl MemberText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl MemberText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "MemberText does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        value: { let x = v.require("value", "MemberText")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("MemberText.value: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Pair {
+    pub key: String,
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for Pair {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "key" => Some(Field::Value(Value::Str(self.key.clone()))),
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl Pair {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+{
+    let ctx = crate::kernel::EvalContext { args: &crate::kernel::NoFields, instance: self };
+    if !crate::kernel::interpret(&Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("key"))))))), &ctx)?.truthy() {
+        let mut offered = self.to_json();
+        if let crate::kernel::Json::Object(fields) = &mut offered {
+            fields.sort_by(|a, b| a.0.cmp(&b.0));
+        }
+        let offered = offered.to_json_string();
+        return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationValueObjectInvariant.render(&[
+            ("name", "Pair"),
+            ("description", "a pair key is present"),
+            ("offered", offered.as_str()),
+        ])));
+    }
+}
+        if !crate::kernel::pattern::matches("[^ \\t\\n\\r]", &self.key) { return Err(crate::kernel::Refusal::TypeMismatch(format!("{}{:?}", "Pair.key must match [^ \\t\\n\\r], got ", self.key))); }
+        Ok(())
+    }
+}
+
+impl Pair {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("key".to_string(), crate::kernel::Json::Str(self.key.clone())),
+        ("value".to_string(), crate::kernel::Json::Str(self.value.clone())),
+        ])
+    }
+}
+
+impl Pair {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["key", "value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Pair does not declare {} — it takes key, value",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        key: { let x = v.require("key", "Pair")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.key: expected String".to_string()))? },
+        value: { let x = v.require("value", "Pair")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Pair.value: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub value: i64,
 }
@@ -407,12 +567,80 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Member {
+    pub position: MemberPosition,
+    pub pairs: Vec<Pair>,
+}
+
+impl crate::kernel::Fielded for Member {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "position" => Some(Field::Nested(&self.position)),
+            "pairs" => Some(Field::Value(Value::List(self.pairs.len()))),
+            _ => None,
+        }
+    }
+}
+
+impl Member {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("position".to_string(), self.position.to_json()),
+        ("pairs".to_string(), crate::kernel::Json::Array(self.pairs.iter().map(|x| x.to_json()).collect())),
+        ])
+    }
+}
+
+impl Member {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        Ok(Self {
+        position: MemberPosition::from_json(v.require("position", "Member")?)?,
+        pairs: match v.get("pairs").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Pair::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        })
+    }
+}
+
+impl Member {
+    pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        let by_identity = (|| -> Option<String> {
+            let c0 = v.dig("position.value")?.to_id_component().ok()?;
+            Some(c0)
+        })();
+        let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("member").and_then(|j| j.to_id_component().ok());
+
+        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch("Member: no identity found (tried position.value, id, member)".to_string())
+        })
+    }
+}
+
+impl Member {
+    pub fn extract_wants(v: &crate::kernel::Json) -> String {
+        (|| -> Option<String> {
+            let c0 = v.dig("position.value")?.to_id_component().ok()?;
+            Some(c0)
+        })()
+        .unwrap_or_default()
+    }
+}
+
+impl Member {
+    pub fn identity(&self) -> String {
+        self.position.value.to_string()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ValueObject {
-    pub aggregate_id: Option<String>,
+    pub aggregate: Option<String>,
     pub name: Option<ValueObjectName>,
     pub attributes: Vec<ShapeField>,
     pub invariants: Vec<Assertion>,
     pub rows: Option<RowCount>,
+    pub members: Vec<Member>,
     pub position: Option<Position>,
 }
 
@@ -420,11 +648,12 @@ impl crate::kernel::Fielded for ValueObject {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "aggregate_id" => self.aggregate_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "aggregate" => self.aggregate.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "attributes" => Some(Field::Value(Value::List(self.attributes.len()))),
             "invariants" => Some(Field::Value(Value::List(self.invariants.len()))),
             "rows" => self.rows.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "members" => Some(Field::Value(Value::List(self.members.len()))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -434,11 +663,12 @@ impl crate::kernel::Fielded for ValueObject {
 impl ValueObject {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), self.aggregate_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
         ("invariants".to_string(), crate::kernel::Json::Array(self.invariants.iter().map(|x| x.to_json()).collect())),
         ("rows".to_string(), self.rows.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("members".to_string(), crate::kernel::Json::Array(self.members.iter().map(|x| x.to_json()).collect())),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -447,11 +677,12 @@ impl ValueObject {
 impl ValueObject {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObject.aggregate_id: expected String".to_string()))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObject.aggregate: expected String".to_string()))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectName::from_json(x)?), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ShapeField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         invariants: match v.get("invariants").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Assertion::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         rows: match v.get("rows") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RowCount::from_json(x)?), },
+        members: match v.get("members").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Member::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
         })
     }
@@ -466,7 +697,7 @@ impl crate::kernel::ToJson for ValueObject {
 impl ValueObject {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            let c0 = v.dig("aggregate_id")?.to_id_component().ok()?;
+            let c0 = v.dig("aggregate")?.to_id_component().ok()?;
             let c1 = v.dig("name.value")?.to_id_component().ok()?;
             Some(vec![c0, c1].join(":"))
         })();
@@ -474,7 +705,7 @@ impl ValueObject {
         let by_reference_key = v.get("value_object").and_then(|j| j.to_id_component().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("ValueObject: no identity found (tried aggregate_id, name.value, id, value_object)".to_string())
+            crate::kernel::Refusal::TypeMismatch("ValueObject: no identity found (tried aggregate, name.value, id, value_object)".to_string())
         })
     }
 }
@@ -484,7 +715,7 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "aggregate_id" => Some(Field::Value(Value::Str(self.aggregate_id.clone()))),
+            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
             "name" => Some(Field::Nested(&self.name)),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
@@ -495,7 +726,7 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub aggregate_id: String,
+    pub aggregate: String,
     pub name: ValueObjectName,
     pub position: Option<Position>,
 }
@@ -510,20 +741,21 @@ pub fn dispatch_declare(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.aggregate_id.to_string(), args.name.value.to_string()),
+        id: format!("{}:{}", args.aggregate.to_string(), args.name.value.to_string()),
         build: Box::new(|| ValueObject {
-            aggregate_id: Some(args.aggregate_id.clone()),
+            aggregate: Some(args.aggregate.clone()),
             name: Some(args.name.clone()),
             attributes: vec![],
             invariants: vec![],
             rows: None,
+            members: vec![],
             position: args.position.clone(),
         }),
     },
         "Declare",
         "Bluebook::ValueObject",
         "ValueObject",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
 
@@ -545,7 +777,7 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
+        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
         ("name".to_string(), self.name.to_json()),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
@@ -554,15 +786,15 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate_id", "name", "position", "id"]);
+let unknown = v.unknown_keys(&["aggregate", "name", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes aggregate_id, name, position",
+        "Declare does not declare {} — it takes aggregate, name, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        aggregate_id: { let x = v.require("aggregate_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))? },
+        aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
         name: ValueObjectName::from_json(v.require("name", "DeclareArgs")?)?,
         position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
@@ -616,7 +848,7 @@ pub fn dispatch_field(
         "Field",
         "Bluebook::ValueObject",
         "ValueObject",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
 
@@ -651,7 +883,7 @@ impl FieldArgs {
 
 impl FieldArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "value_object", "aggregate_id"]);
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "value_object", "aggregate"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Field does not declare {} — it takes name, type, list, optional, pattern, default, admits",
@@ -699,7 +931,7 @@ pub fn dispatch_close(
         "Close",
         "Bluebook::ValueObject",
         "ValueObject",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "a closed set admits a member", expr: Expr::Compare { op: crate::kernel::Comparison { less_than: true, equal: true, negated: true }, left: Box::new(Expr::Lookup("rows.value")), right: Box::new(Expr::Int(0)) } },
@@ -728,7 +960,7 @@ impl CloseArgs {
 
 impl CloseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["rows", "id", "value_object", "aggregate_id", "name"]);
+let unknown = v.unknown_keys(&["rows", "id", "value_object", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Close does not declare {} — it takes rows",
@@ -773,7 +1005,7 @@ pub fn dispatch_assert(
         "Assert",
         "Bluebook::ValueObject",
         "ValueObject",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
@@ -804,7 +1036,7 @@ impl AssertArgs {
 
 impl AssertArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["description", "canonical", "id", "value_object", "aggregate_id", "name"]);
+let unknown = v.unknown_keys(&["description", "canonical", "id", "value_object", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Assert does not declare {} — it takes description, canonical",
@@ -814,6 +1046,77 @@ if !unknown.is_empty() {
         Ok(Self {
         description: match v.get("description") { Some(x) => Some(ValueObjectText::from_json(x)?), None => None, },
         canonical: ValueObjectText::from_json(v.require("canonical", "AssertArgs")?)?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for MemberArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        
+        match name {
+            "position" => Some(Field::Nested(&self.position)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct MemberArgs {
+    pub position: MemberPosition,
+}
+
+pub fn dispatch_member(
+    repo: &mut impl crate::kernel::Repository<ValueObject>, id: &str, args: MemberArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<ValueObject> {
+        args.position.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Member",
+        "Bluebook::ValueObject",
+        "ValueObject",
+        "aggregate, name.value",
+        &with_references,
+        &[
+
+        ],
+        None,
+        |record| {
+        record.members.push(Member { position: args.position.clone(), pairs: Vec::new() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["MemberDeclared"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl MemberArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("position".to_string(), self.position.to_json()),
+        ])
+    }
+}
+
+impl MemberArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["position", "id", "value_object", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Member does not declare {} — it takes position",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        position: MemberPosition::from_json(v.require("position", "MemberArgs")?)?,
         })
     }
 }

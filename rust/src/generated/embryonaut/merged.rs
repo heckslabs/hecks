@@ -569,7 +569,20 @@ pub fn dispatch_by_name(
           "Identity::ExternalIdentifier.Link" => {
               let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
-              crate::kernel::check_reference(&store.identity, &args.identity_id, "Identity", "identity_id")?;
+              // HAND-PATCHED, not regenerated — this whole directory is
+              // orphaned. `rust/src/generated/embryonaut/` predates the
+              // live Embryonaut -> EmbryonautFoundersApp rename (project_
+              // domain_rename_framework); the domain's real Ruby source no
+              // longer lives in THIS repo at all, so `bin/project_rust`
+              // can never refresh this tree the ordinary way again. The
+              // Identity framework chapter's own `LinkArgs` field this
+              // line reads was renamed (`identity_id` -> `identity`,
+              // src/generated/identity/externalidentifier.rs, regenerated
+              // fresh by this same run) sometime after this file was last
+              // produced. One mechanical rename to restore compilation —
+              // see the CI-fix session's own report for the larger,
+              // undecided question this leaves open.
+              crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations, Vec::new(), Vec::new()).map(|(_, events)| stamp_payload(events, &payload))
           }

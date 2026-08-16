@@ -359,7 +359,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScheduledPayment {
-    pub account_id: Option<String>,
+    pub account: Option<String>,
     pub amount: Option<ScheduledAmount>,
     pub instruction: Option<InstructionReference>,
     pub recipient: Option<PaymentRecipient>,
@@ -373,7 +373,7 @@ impl crate::kernel::Fielded for ScheduledPayment {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "account_id" => self.account_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "account" => self.account.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "amount" => self.amount.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "instruction" => self.instruction.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "recipient" => self.recipient.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -389,7 +389,7 @@ impl crate::kernel::Fielded for ScheduledPayment {
 impl ScheduledPayment {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), self.account_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("account".to_string(), self.account.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("amount".to_string(), self.amount.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("instruction".to_string(), self.instruction.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("recipient".to_string(), self.recipient.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -404,7 +404,7 @@ impl ScheduledPayment {
 impl ScheduledPayment {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        account_id: match v.get("account_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledPayment.account_id: expected String".to_string()))?), },
+        account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledPayment.account: expected String".to_string()))?), },
         amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ScheduledAmount::from_json(x)?), },
         instruction: match v.get("instruction") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(InstructionReference::from_json(x)?), },
         recipient: match v.get("recipient") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentRecipient::from_json(x)?), },
@@ -442,7 +442,7 @@ impl crate::kernel::Fielded for ScheduleArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "account_id" => Some(Field::Value(Value::Str(self.account_id.clone()))),
+            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "instruction" => Some(Field::Nested(&self.instruction)),
             "amount" => Some(Field::Nested(&self.amount)),
             "recipient" => Some(Field::Nested(&self.recipient)),
@@ -455,7 +455,7 @@ impl crate::kernel::Fielded for ScheduleArgs {
 
 #[derive(Debug, Clone)]
 pub struct ScheduleArgs {
-    pub account_id: String,
+    pub account: String,
     pub instruction: InstructionReference,
     pub amount: ScheduledAmount,
     pub recipient: PaymentRecipient,
@@ -476,7 +476,7 @@ pub fn dispatch_schedule(
         crate::kernel::Hydrate::Create {
         id: args.instruction.value.to_string(),
         build: Box::new(|| ScheduledPayment {
-            account_id: Some(args.account_id.clone()),
+            account: Some(args.account.clone()),
             amount: Some(args.amount.clone()),
             instruction: Some(args.instruction.clone()),
             recipient: Some(args.recipient.clone()),
@@ -514,7 +514,7 @@ pub fn dispatch_schedule(
 impl ScheduleArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account_id".to_string(), crate::kernel::Json::Str(self.account_id.clone())),
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("instruction".to_string(), self.instruction.to_json()),
         ("amount".to_string(), self.amount.to_json()),
         ("recipient".to_string(), self.recipient.to_json()),
@@ -525,15 +525,15 @@ impl ScheduleArgs {
 
 impl ScheduleArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account_id", "instruction", "amount", "recipient", "due_on", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["account", "instruction", "amount", "recipient", "due_on", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Schedule does not declare {} — it takes account_id, instruction, amount, recipient, due_on",
+        "Schedule does not declare {} — it takes account, instruction, amount, recipient, due_on",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account_id: { let x = v.require("account_id", "ScheduleArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account_id: expected String".to_string()))? },
+        account: { let x = v.require("account", "ScheduleArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account: expected String".to_string()))? },
         instruction: InstructionReference::from_json(v.require("instruction", "ScheduleArgs")?)?,
         amount: ScheduledAmount::from_json(v.require("amount", "ScheduleArgs")?)?,
         recipient: PaymentRecipient::from_json(v.require("recipient", "ScheduleArgs")?)?,

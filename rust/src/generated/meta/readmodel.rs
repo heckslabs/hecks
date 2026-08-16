@@ -396,7 +396,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReadModel {
-    pub bluebook_id: Option<String>,
+    pub bluebook: Option<String>,
     pub name: Option<ReadModelName>,
     pub description: Option<ProjectionPurpose>,
     pub query_name: Option<ReadModelText>,
@@ -414,7 +414,7 @@ impl crate::kernel::Fielded for ReadModel {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "bluebook_id" => self.bluebook_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "bluebook" => self.bluebook.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "query_name" => self.query_name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -434,7 +434,7 @@ impl crate::kernel::Fielded for ReadModel {
 impl ReadModel {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("bluebook_id".to_string(), self.bluebook_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("bluebook".to_string(), self.bluebook.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("query_name".to_string(), self.query_name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -453,7 +453,7 @@ impl ReadModel {
 impl ReadModel {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        bluebook_id: match v.get("bluebook_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel.bluebook_id: expected String".to_string()))?), },
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel.bluebook: expected String".to_string()))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelName::from_json(x)?), },
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProjectionPurpose::from_json(x)?), },
         query_name: match v.get("query_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
@@ -478,7 +478,7 @@ impl crate::kernel::ToJson for ReadModel {
 impl ReadModel {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            let c0 = v.dig("bluebook_id")?.to_id_component().ok()?;
+            let c0 = v.dig("bluebook")?.to_id_component().ok()?;
             let c1 = v.dig("name.value")?.to_id_component().ok()?;
             Some(vec![c0, c1].join(":"))
         })();
@@ -486,7 +486,7 @@ impl ReadModel {
         let by_reference_key = v.get("read_model").and_then(|j| j.to_id_component().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("ReadModel: no identity found (tried bluebook_id, name.value, id, read_model)".to_string())
+            crate::kernel::Refusal::TypeMismatch("ReadModel: no identity found (tried bluebook, name.value, id, read_model)".to_string())
         })
     }
 }
@@ -496,7 +496,7 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "bluebook_id" => Some(Field::Value(Value::Str(self.bluebook_id.clone()))),
+            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
             "name" => Some(Field::Nested(&self.name)),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "query_name" => Some(Field::Nested(&self.query_name)),
@@ -511,7 +511,7 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub bluebook_id: String,
+    pub bluebook: String,
     pub name: ReadModelName,
     pub description: Option<ProjectionPurpose>,
     pub query_name: ReadModelText,
@@ -534,9 +534,9 @@ pub fn dispatch_declare(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.bluebook_id.to_string(), args.name.value.to_string()),
+        id: format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string()),
         build: Box::new(|| ReadModel {
-            bluebook_id: Some(args.bluebook_id.clone()),
+            bluebook: Some(args.bluebook.clone()),
             name: Some(args.name.clone()),
             description: args.description.clone(),
             query_name: Some(args.query_name.clone()),
@@ -553,7 +553,7 @@ pub fn dispatch_declare(
         "Declare",
         "Bluebook::ReadModel",
         "ReadModel",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
 
@@ -575,7 +575,7 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("bluebook_id".to_string(), crate::kernel::Json::Str(self.bluebook_id.clone())),
+        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
         ("name".to_string(), self.name.to_json()),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("query_name".to_string(), self.query_name.to_json()),
@@ -588,15 +588,15 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["bluebook_id", "name", "description", "query_name", "reference_name", "reference_target", "position", "id"]);
+let unknown = v.unknown_keys(&["bluebook", "name", "description", "query_name", "reference_name", "reference_target", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes bluebook_id, name, description, query_name, reference_name, reference_target, position",
+        "Declare does not declare {} — it takes bluebook, name, description, query_name, reference_name, reference_target, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        bluebook_id: { let x = v.require("bluebook_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook_id: expected String".to_string()))? },
+        bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
         name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(ProjectionPurpose::from_json(x)?), None => None, },
         query_name: ReadModelText::from_json(v.require("query_name", "DeclareArgs")?)?,
@@ -642,7 +642,7 @@ pub fn dispatch_gather(
         "Gather",
         "Bluebook::ReadModel",
         "ReadModel",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
 
@@ -673,7 +673,7 @@ impl GatherArgs {
 
 impl GatherArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate", "as", "many", "id", "read_model", "bluebook_id", "name"]);
+let unknown = v.unknown_keys(&["aggregate", "as", "many", "id", "read_model", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Gather does not declare {} — it takes aggregate, as, many",
@@ -717,7 +717,7 @@ pub fn dispatch_group_by(
         "GroupBy",
         "Bluebook::ReadModel",
         "ReadModel",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "a group_by field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("field.value"))))))) },
@@ -746,7 +746,7 @@ impl GroupByArgs {
 
 impl GroupByArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["field", "id", "read_model", "bluebook_id", "name"]);
+let unknown = v.unknown_keys(&["field", "id", "read_model", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "GroupBy does not declare {} — it takes field",
@@ -788,7 +788,7 @@ pub fn dispatch_count(
         "Count",
         "Bluebook::ReadModel",
         "ReadModel",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
 
@@ -817,7 +817,7 @@ impl CountArgs {
 
 impl CountArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["count", "id", "read_model", "bluebook_id", "name"]);
+let unknown = v.unknown_keys(&["count", "id", "read_model", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Count does not declare {} — it takes count",
@@ -859,7 +859,7 @@ pub fn dispatch_median(
         "Median",
         "Bluebook::ReadModel",
         "ReadModel",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "a median field is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("median_field.value"))))))) },
@@ -888,7 +888,7 @@ impl MedianArgs {
 
 impl MedianArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["median_field", "id", "read_model", "bluebook_id", "name"]);
+let unknown = v.unknown_keys(&["median_field", "id", "read_model", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Median does not declare {} — it takes median_field",
@@ -939,7 +939,7 @@ pub fn dispatch_option(
         "Option",
         "Bluebook::ReadModel",
         "ReadModel",
-        "bluebook_id, name.value",
+        "bluebook, name.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "an option is named", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("option.value"))))))) },
@@ -971,7 +971,7 @@ impl OptionArgs {
 
 impl OptionArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "read_model", "bluebook_id", "name"]);
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "read_model", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Option does not declare {} — it takes option, key, value, at",

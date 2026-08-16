@@ -391,9 +391,37 @@ module RustProjection
           if id_attr && !present.include?(id_attr[:name].to_s)
             mint = "#{rust_ident(id_attr[:type])} { #{rust_ident_field(id_vo[:attributes].first[:name])}: (record.#{target_field}.len() as i64) + 1 }"
             fields_assignment << "#{rust_ident_field(id_attr[:name])}: #{mint}"
+            present << id_attr[:name].to_s
           end
           if entity[:lifecycle] && !present.include?(entity[:lifecycle][:field].to_s)
             fields_assignment << "#{rust_ident_field(entity[:lifecycle][:field])}: #{entity[:lifecycle][:default].inspect}.to_string()"
+            present << entity[:lifecycle][:field].to_s
+          end
+
+          # A THIRD field no `append: { ... }` binding ever names, on top
+          # of the two above: a LIST-typed attribute the entity declares
+          # for some OTHER command to `append`/`remove` into later
+          # (`ValueObject::Member#pairs`, bound only by its own `Pair`
+          # command — S17, ADR 0026). Ruby's `entity_element`
+          # (mutation_applier.rb) never sets this key at all when the
+          # entity is minted — the fields Hash simply lacks it, and
+          # everything downstream reads a missing list key as empty
+          # (`Array(current)`, the same coercion `entity_identity_mint`'s
+          # own `Array(current).size + 1` already relies on). A Rust
+          # struct literal has no such absence to fall back on — every
+          # field must be assigned at construction, so this ports that
+          # same "unmentioned list starts empty" fact explicitly rather
+          # than leaving the struct literal short a field and refusing to
+          # compile. Found live: `ValueObject::Member`'s own `pairs`
+          # (`list_of(Pair)`) reaching exactly this gap the first time
+          # this generator was pointed at the self-hosted grammar's own
+          # IR after S17 landed.
+          entity[:attributes].each do |attr|
+            next unless attr[:list]
+            next if present.include?(attr[:name].to_s)
+
+            fields_assignment << "#{rust_ident_field(attr[:name])}: Vec::new()"
+            present << attr[:name].to_s
           end
         end
 

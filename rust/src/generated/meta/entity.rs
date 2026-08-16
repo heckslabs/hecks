@@ -333,7 +333,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
-    pub aggregate_id: Option<String>,
+    pub aggregate: Option<String>,
     pub owner: Option<EntityText>,
     pub name: Option<EntityName>,
     pub description: Option<EntityName>,
@@ -349,7 +349,7 @@ impl crate::kernel::Fielded for Entity {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "aggregate_id" => self.aggregate_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "aggregate" => self.aggregate.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "owner" => self.owner.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -367,7 +367,7 @@ impl crate::kernel::Fielded for Entity {
 impl Entity {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), self.aggregate_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("owner".to_string(), self.owner.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -384,7 +384,7 @@ impl Entity {
 impl Entity {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Entity.aggregate_id: expected String".to_string()))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Entity.aggregate: expected String".to_string()))?), },
         owner: match v.get("owner") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(x)?), },
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(x)?), },
@@ -407,7 +407,7 @@ impl crate::kernel::ToJson for Entity {
 impl Entity {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            let c0 = v.dig("aggregate_id")?.to_id_component().ok()?;
+            let c0 = v.dig("aggregate")?.to_id_component().ok()?;
             let c1 = v.dig("name.value")?.to_id_component().ok()?;
             Some(vec![c0, c1].join(":"))
         })();
@@ -415,7 +415,7 @@ impl Entity {
         let by_reference_key = v.get("entity").and_then(|j| j.to_id_component().ok());
 
         by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Entity: no identity found (tried aggregate_id, name.value, id, entity)".to_string())
+            crate::kernel::Refusal::TypeMismatch("Entity: no identity found (tried aggregate, name.value, id, entity)".to_string())
         })
     }
 }
@@ -425,7 +425,7 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "aggregate_id" => Some(Field::Value(Value::Str(self.aggregate_id.clone()))),
+            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
             "owner" => Some(Field::Nested(&self.owner)),
             "name" => Some(Field::Nested(&self.name)),
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -438,7 +438,7 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub aggregate_id: String,
+    pub aggregate: String,
     pub owner: EntityText,
     pub name: EntityName,
     pub description: Option<EntityName>,
@@ -457,9 +457,9 @@ pub fn dispatch_declare(
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.aggregate_id.to_string(), args.name.value.to_string()),
+        id: format!("{}:{}", args.aggregate.to_string(), args.name.value.to_string()),
         build: Box::new(|| Entity {
-            aggregate_id: Some(args.aggregate_id.clone()),
+            aggregate: Some(args.aggregate.clone()),
             owner: Some(args.owner.clone()),
             name: Some(args.name.clone()),
             description: args.description.clone(),
@@ -474,7 +474,7 @@ pub fn dispatch_declare(
         "Declare",
         "Bluebook::Entity",
         "Entity",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
 
@@ -496,7 +496,7 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
+        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
         ("owner".to_string(), self.owner.to_json()),
         ("name".to_string(), self.name.to_json()),
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -507,15 +507,15 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate_id", "owner", "name", "description", "position", "id"]);
+let unknown = v.unknown_keys(&["aggregate", "owner", "name", "description", "position", "id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes aggregate_id, owner, name, description, position",
+        "Declare does not declare {} — it takes aggregate, owner, name, description, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        aggregate_id: { let x = v.require("aggregate_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))? },
+        aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
         owner: EntityText::from_json(v.require("owner", "DeclareArgs")?)?,
         name: EntityName::from_json(v.require("name", "DeclareArgs")?)?,
         description: match v.get("description") { Some(x) => Some(EntityName::from_json(x)?), None => None, },
@@ -553,10 +553,10 @@ pub fn dispatch_identify(
         "Identify",
         "Bluebook::Entity",
         "Entity",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
-            crate::kernel::GivenSpec { description: "an identity part reaches a scalar", expr: Expr::Or(Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str(".".to_string())) }), Box::new(Expr::Include { haystack: Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value")))), needle: Box::new(Expr::Str("_id".to_string())) })) },
+            crate::kernel::GivenSpec { description: "an identity part names something", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("path.value"))))))) },
         ],
         None,
         |record| {
@@ -582,7 +582,7 @@ impl IdentifyArgs {
 
 impl IdentifyArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["path", "id", "entity", "aggregate_id", "name"]);
+let unknown = v.unknown_keys(&["path", "id", "entity", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Identify does not declare {} — it takes path",
@@ -623,7 +623,7 @@ pub fn dispatch_seal(
         "Seal",
         "Bluebook::Entity",
         "Entity",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
             crate::kernel::GivenSpec { description: "an entity says what it is known by", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::Lookup("identified_by"))))) },
@@ -652,7 +652,7 @@ impl SealArgs {
 
 impl SealArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["id", "entity", "aggregate_id", "name"]);
+let unknown = v.unknown_keys(&["id", "entity", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Seal does not declare {} — it takes ",
@@ -712,7 +712,7 @@ pub fn dispatch_attribute(
         "Attribute",
         "Bluebook::Entity",
         "Entity",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
 
@@ -747,7 +747,7 @@ impl AttributeArgs {
 
 impl AttributeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "entity", "aggregate_id"]);
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "entity", "aggregate"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Attribute does not declare {} — it takes name, type, list, optional, pattern, default, admits",
@@ -798,7 +798,7 @@ pub fn dispatch_lifecycle(
         "Lifecycle",
         "Bluebook::Entity",
         "Entity",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
 
@@ -829,7 +829,7 @@ impl LifecycleArgs {
 
 impl LifecycleArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["state_field", "state_start", "id", "entity", "aggregate_id", "name"]);
+let unknown = v.unknown_keys(&["state_field", "state_start", "id", "entity", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Lifecycle does not declare {} — it takes state_field, state_start",
@@ -878,7 +878,7 @@ pub fn dispatch_transition(
         "Transition",
         "Bluebook::Entity",
         "Entity",
-        "aggregate_id, name.value",
+        "aggregate, name.value",
         &with_references,
         &[
 
@@ -909,7 +909,7 @@ impl TransitionArgs {
 
 impl TransitionArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "entity", "aggregate_id", "name"]);
+let unknown = v.unknown_keys(&["command", "from_state", "to_state", "id", "entity", "aggregate", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Transition does not declare {} — it takes command, from_state, to_state",

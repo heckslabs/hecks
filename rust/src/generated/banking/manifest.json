@@ -428,9 +428,7 @@
   {
     "kind": "query",
     "id": "Banking::Account.Overdrawn",
-    "generated": false,
-    "gap_class": "per_instance",
-    "reason": "declares freshness — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
+    "generated": true
   },
   {
     "kind": "query",
@@ -457,7 +455,7 @@
     "id": "Banking::Account.OpenForSuspendedCustomers",
     "generated": false,
     "gap_class": "per_instance",
-    "reason": "where clause on \"customer.status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
+    "reason": "where clause on \"customer/status\" isn't a recognized attribute of this aggregate — a hop through a reference, an entity-scoped field, or simply undeclared here; cross-aggregate joins are read_model territory, not this generator's job"
   },
   {
     "kind": "query",
@@ -467,12 +465,16 @@
   {
     "kind": "query",
     "id": "Banking::ATMCard.Active",
-    "generated": true
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares null_semantics — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
   },
   {
     "kind": "query",
     "id": "Banking::ATMCard.ByFee",
-    "generated": true
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares offset — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
   },
   {
     "kind": "query",
@@ -509,7 +511,7 @@
     "id": "Banking::SafeDepositBox.Rented",
     "generated": false,
     "gap_class": "per_instance",
-    "reason": "declares consistency, authorization — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
+    "reason": "declares authorization — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
   },
   {
     "kind": "query",
@@ -524,7 +526,9 @@
   {
     "kind": "read_model",
     "id": "Banking::ComplianceDashboard",
-    "generated": true
+    "generated": false,
+    "gap_class": "per_instance",
+    "reason": "declares offset — out of scope for this generator: offset/cursor/consistency/authorization(TenantScope)/null_semantics beyond the default/inspection are real capabilities Ports::Query::InMemory/Ports::Query::Ordering/TenantScope implement that this generator does not port (this file's own header has the full argument, the same boundary queries.rb already draws for a declared AGGREGATE query); freshness/use_index are never disqualifying on their own — neither is read by the in-memory interpreter path this kernel matches"
   },
   {
     "kind": "read_model",

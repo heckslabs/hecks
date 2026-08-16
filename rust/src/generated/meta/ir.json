@@ -65,6 +65,15 @@
           "optional": false,
           "pattern": null,
           "admits": null
+        },
+        {
+          "name": "attaches_to",
+          "type": "AttachesToContext",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
         }
       ],
       "value_objects": [
@@ -247,6 +256,28 @@
           ],
           "closed_set": false,
           "members": []
+        },
+        {
+          "name": "AttachesToContext",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an attachment names a context",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
         }
       ],
       "commands": [
@@ -308,6 +339,45 @@
           "emits": [
             "ChapterDeclared"
           ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Attach",
+          "role": "Language",
+          "goal": "Name one core context this chapter's own Syntax rows attach to",
+          "references": "Bluebook",
+          "attributes": [
+            {
+              "name": "context",
+              "type": "AttachesToContext",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [
+            {
+              "description": "the list grew by exactly one",
+              "canonical": "attaches_to.size == old.attaches_to.size + 1"
+            }
+          ],
+          "mutations": [
+            {
+              "target": "attaches_to",
+              "op": "append",
+              "fields": {
+                "value": ":context"
+              }
+            }
+          ],
+          "emits": [
+            "ChapterAttached"
+          ],
+          "from": null,
           "provenance": null
         },
         {
@@ -380,9 +450,13 @@
           "emits": [
             "NormalisationAttached"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -418,12 +492,12 @@
       "name": "Aggregate",
       "description": "One aggregate inside a chapter — the head a domain's declarations attach to.",
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "attributes": [
         {
-          "name": "bluebook_id",
+          "name": "bluebook",
           "type": "Reference<Bluebook>",
           "list": false,
           "default": null,
@@ -506,6 +580,33 @@
         {
           "name": "transitions",
           "type": "Transition",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "invariants",
+          "type": "Rule",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "preconditions",
+          "type": "Rule",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "projected_fields",
+          "type": "ProjectedField",
           "list": true,
           "default": null,
           "optional": false,
@@ -725,6 +826,67 @@
           "members": []
         },
         {
+          "name": "Rule",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "canonical",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ProjectedField",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "reference",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "remote_field",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
           "name": "Position",
           "attributes": [
             {
@@ -833,7 +995,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "bluebook_id",
+              "name": "bluebook",
               "type": "Reference<Bluebook>",
               "list": false,
               "default": null,
@@ -884,6 +1046,7 @@
           "emits": [
             "RootDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -904,8 +1067,8 @@
           ],
           "givens": [
             {
-              "description": "an identity part reaches a scalar",
-              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")"
+              "description": "an identity part names something",
+              "canonical": "!path.value.to_s.empty?"
             }
           ],
           "ensures": [],
@@ -921,6 +1084,7 @@
           "emits": [
             "RootIdentified"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1013,6 +1177,7 @@
           "emits": [
             "AttributeAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1105,6 +1270,7 @@
           "emits": [
             "ReferenceAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1197,6 +1363,7 @@
           "emits": [
             "PieceHeld"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1247,6 +1414,7 @@
           "emits": [
             "LifecycleNamed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1299,6 +1467,7 @@
           "emits": [
             "TransitionAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1318,6 +1487,7 @@
           "emits": [
             "RootSealed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -1350,9 +1520,183 @@
           "emits": [
             "ValueDeclared"
           ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Invariant",
+          "role": "Language",
+          "goal": "Attach one invariant to the aggregate",
+          "references": "Aggregate",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "LiteralText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "canonical",
+              "type": "LiteralText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a rule says what it means",
+              "canonical": "!description.value.to_s.empty?"
+            },
+            {
+              "description": "a rule survives extraction",
+              "canonical": "!canonical.value.to_s.empty?"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "invariants",
+              "op": "append",
+              "fields": {
+                "description": ":description",
+                "canonical": ":canonical"
+              }
+            }
+          ],
+          "emits": [
+            "InvariantAttached"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Precondition",
+          "role": "Language",
+          "goal": "Declare one precondition commands can reference by name",
+          "references": "Aggregate",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "LiteralText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "canonical",
+              "type": "LiteralText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a rule says what it means",
+              "canonical": "!description.value.to_s.empty?"
+            },
+            {
+              "description": "a rule survives extraction",
+              "canonical": "!canonical.value.to_s.empty?"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "preconditions",
+              "op": "append",
+              "fields": {
+                "description": ":description",
+                "canonical": ":canonical"
+              }
+            }
+          ],
+          "emits": [
+            "PreconditionAttached"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Projects",
+          "role": "Language",
+          "goal": "Declare a field read locally through a reference",
+          "references": "Aggregate",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "FieldName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "reference",
+              "type": "FieldName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "remote_field",
+              "type": "FieldName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a projected field is named",
+              "canonical": "!name.value.to_s.empty?"
+            },
+            {
+              "description": "a projected field reads through a reference",
+              "canonical": "!reference.value.to_s.empty?"
+            },
+            {
+              "description": "a projected field names a remote field",
+              "canonical": "!remote_field.value.to_s.empty?"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "projected_fields",
+              "op": "append",
+              "fields": {
+                "name": ":name",
+                "reference": ":reference",
+                "remote_field": ":remote_field"
+              }
+            }
+          ],
+          "emits": [
+            "ProjectedFieldAttached"
+          ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -1361,7 +1705,7 @@
           "description": null,
           "attributes": [
             {
-              "name": "bluebook_id",
+              "name": "bluebook",
               "type": "IdentityField",
               "list": false,
               "default": null,
@@ -1372,9 +1716,9 @@
           ],
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ],
           "order_by": {
@@ -1396,7 +1740,7 @@
       ],
       "attributes": [
         {
-          "name": "aggregate_id",
+          "name": "aggregate",
           "type": "Reference<Aggregate>",
           "list": false,
           "default": null,
@@ -1500,6 +1844,15 @@
           "list": false,
           "default": null,
           "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "from",
+          "type": "CommandText",
+          "list": false,
+          "default": null,
+          "optional": true,
           "pattern": null,
           "admits": null
         },
@@ -1887,7 +2240,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "Reference<Aggregate>",
               "list": false,
               "default": null,
@@ -1941,6 +2294,15 @@
               "admits": null
             },
             {
+              "name": "from",
+              "type": "CommandText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -1956,6 +2318,7 @@
           "emits": [
             "VerbDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2048,6 +2411,7 @@
           "emits": [
             "ArgumentAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2140,6 +2504,7 @@
           "emits": [
             "ArgumentReferenceAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2191,6 +2556,7 @@
           "emits": [
             "RuleAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2242,6 +2608,7 @@
           "emits": [
             "EnsureAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2323,6 +2690,7 @@
           "emits": [
             "ChangeAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2365,6 +2733,7 @@
           "emits": [
             "ReferenceNamed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2402,9 +2771,13 @@
           "emits": [
             "AnnouncementNamed"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -2413,7 +2786,7 @@
           "description": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "CommandText",
               "list": false,
               "default": null,
@@ -2424,9 +2797,9 @@
           ],
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ],
           "order_by": {
@@ -2448,7 +2821,7 @@
       ],
       "attributes": [
         {
-          "name": "aggregate_id",
+          "name": "aggregate",
           "type": "Reference<Aggregate>",
           "list": false,
           "default": null,
@@ -2763,7 +3136,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "Reference<Aggregate>",
               "list": false,
               "default": null,
@@ -2841,6 +3214,7 @@
           "emits": [
             "AskDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2893,6 +3267,7 @@
           "emits": [
             "FilterAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -2960,6 +3335,7 @@
           "emits": [
             "OptionAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3052,9 +3428,13 @@
           "emits": [
             "AskArgumentAttached"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -3063,7 +3443,7 @@
           "description": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "QueryText",
               "list": false,
               "default": null,
@@ -3074,9 +3454,9 @@
           ],
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ],
           "order_by": {
@@ -3093,12 +3473,12 @@
       "name": "ValueObject",
       "description": "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can.",
       "identified_by": [
-        "aggregate_id",
+        "aggregate",
         "name.value"
       ],
       "attributes": [
         {
-          "name": "aggregate_id",
+          "name": "aggregate",
           "type": "Reference<Aggregate>",
           "list": false,
           "default": null,
@@ -3137,6 +3517,15 @@
           "name": "rows",
           "type": "RowCount",
           "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "members",
+          "type": "Member",
+          "list": true,
           "default": null,
           "optional": false,
           "pattern": null,
@@ -3312,6 +3701,71 @@
           "members": []
         },
         {
+          "name": "MemberPosition",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "MemberText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "Pair",
+          "attributes": [
+            {
+              "name": "key",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null
+            },
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a pair key is present",
+              "canonical": "!key.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": []
+        },
+        {
           "name": "Position",
           "attributes": [
             {
@@ -3354,7 +3808,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "Reference<Aggregate>",
               "list": false,
               "default": null,
@@ -3387,6 +3841,7 @@
           "emits": [
             "ShapeDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3479,6 +3934,7 @@
           "emits": [
             "ShapeFieldAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3517,6 +3973,7 @@
           "emits": [
             "ShapeClosed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -3568,18 +4025,136 @@
           "emits": [
             "AssertionAttached"
           ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Member",
+          "role": "Language",
+          "goal": "Open one admitted row on a value object",
+          "references": "ValueObject",
+          "attributes": [
+            {
+              "name": "position",
+              "type": "MemberPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "members",
+              "op": "append",
+              "fields": {
+                "position": ":position"
+              }
+            }
+          ],
+          "emits": [
+            "MemberDeclared"
+          ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+        {
+          "name": "Member",
+          "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Nested under the value object because a row is a list of pairs inside a list of rows.",
+          "identified_by": [
+            "position.value"
+          ],
+          "attributes": [
+            {
+              "name": "position",
+              "type": "MemberPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pairs",
+              "type": "Pair",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Pair",
+              "role": "Language",
+              "goal": "Bind one field of the admitted row",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "key",
+                  "type": "MemberText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                },
+                {
+                  "name": "value",
+                  "type": "MemberText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                }
+              ],
+              "givens": [
+                {
+                  "description": "an admitted row binds a named field",
+                  "canonical": "!key.value.to_s.empty?"
+                }
+              ],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "pairs",
+                  "op": "append",
+                  "fields": {
+                    "key": ":key",
+                    "value": ":value"
+                  }
+                }
+              ],
+              "emits": [
+                "PairBound"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [],
+          "lifecycle": null
+        }
+      ],
       "queries": [
         {
           "name": "DeclaredIn",
           "description": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "ValueObjectText",
               "list": false,
               "default": null,
@@ -3590,246 +4165,9 @@
           ],
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
-            }
-          ],
-          "order_by": {
-            "field": "position",
-            "direction": "asc"
-          },
-          "limit": null
-        }
-      ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "Member",
-      "description": "One admitted row of a value object's one_of — a whole combination of field values, not a per-field choice. Its own root because a row is a list of pairs inside a list of rows.",
-      "identified_by": [
-        "value_object_id",
-        "position.value"
-      ],
-      "attributes": [
-        {
-          "name": "value_object_id",
-          "type": "Reference<ValueObject>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "shape",
-          "type": "MemberText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "pairs",
-          "type": "Pair",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "position",
-          "type": "Position",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
-        {
-          "name": "MemberText",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "Pair",
-          "attributes": [
-            {
-              "name": "key",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            },
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a pair key is present",
-              "canonical": "!key.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "Position",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        }
-      ],
-      "commands": [
-        {
-          "name": "Declare",
-          "role": "Language",
-          "goal": "Open one admitted row on a value object",
-          "references": null,
-          "attributes": [
-            {
-              "name": "value_object_id",
-              "type": "Reference<ValueObject>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "shape",
-              "type": "MemberText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "position",
-              "type": "Position",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "MemberDeclared"
-          ],
-          "provenance": null
-        },
-        {
-          "name": "Pair",
-          "role": "Language",
-          "goal": "Bind one field of the admitted row",
-          "references": "Member",
-          "attributes": [
-            {
-              "name": "key",
-              "type": "MemberText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "value",
-              "type": "MemberText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "an admitted row binds a named field",
-              "canonical": "!key.value.to_s.empty?"
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "pairs",
-              "op": "append",
-              "fields": {
-                "key": ":key",
-                "value": ":value"
-              }
-            }
-          ],
-          "emits": [
-            "PairBound"
-          ],
-          "provenance": null
-        }
-      ],
-      "lifecycle": null,
-      "entities": [],
-      "queries": [
-        {
-          "name": "DeclaredIn",
-          "description": null,
-          "attributes": [
-            {
-              "name": "value_object_id",
-              "type": "MemberText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "wheres": [
-            {
-              "field": "value_object_id",
-              "op": "eq",
-              "value": ":value_object_id"
+              "value": ":aggregate"
             }
           ],
           "order_by": {
@@ -3846,12 +4184,12 @@
       "name": "Entity",
       "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
       "identified_by": [
-        "aggregate_id",
+        "aggregate",
         "name.value"
       ],
       "attributes": [
         {
-          "name": "aggregate_id",
+          "name": "aggregate",
           "type": "Reference<Aggregate>",
           "list": false,
           "default": null,
@@ -4130,7 +4468,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "Reference<Aggregate>",
               "list": false,
               "default": null,
@@ -4181,6 +4519,7 @@
           "emits": [
             "PieceDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4201,8 +4540,8 @@
           ],
           "givens": [
             {
-              "description": "an identity part reaches a scalar",
-              "canonical": "path.value.to_s.include?(\".\") || path.value.to_s.include?(\"_id\")"
+              "description": "an identity part names something",
+              "canonical": "!path.value.to_s.empty?"
             }
           ],
           "ensures": [],
@@ -4218,6 +4557,7 @@
           "emits": [
             "PieceIdentified"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4237,6 +4577,7 @@
           "emits": [
             "PieceSealed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4329,6 +4670,7 @@
           "emits": [
             "PieceAttributeAttached"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4379,6 +4721,7 @@
           "emits": [
             "PieceLifecycleNamed"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4431,9 +4774,13 @@
           "emits": [
             "PieceTransitionAttached"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -4442,7 +4789,7 @@
           "description": null,
           "attributes": [
             {
-              "name": "aggregate_id",
+              "name": "aggregate",
               "type": "EntityText",
               "list": false,
               "default": null,
@@ -4453,9 +4800,9 @@
           ],
           "wheres": [
             {
-              "field": "aggregate_id",
+              "field": "aggregate",
               "op": "eq",
-              "value": ":aggregate_id"
+              "value": ":aggregate"
             }
           ],
           "order_by": {
@@ -4472,12 +4819,12 @@
       "name": "Policy",
       "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "attributes": [
         {
-          "name": "bluebook_id",
+          "name": "bluebook",
           "type": "Reference<Bluebook>",
           "list": false,
           "default": null,
@@ -4659,7 +5006,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "bluebook_id",
+              "name": "bluebook",
               "type": "Reference<Bluebook>",
               "list": false,
               "default": null,
@@ -4746,6 +5093,7 @@
           "emits": [
             "ReactionDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -4788,9 +5136,13 @@
           "emits": [
             "TriggerBindingAttached"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -4799,7 +5151,7 @@
           "description": null,
           "attributes": [
             {
-              "name": "bluebook_id",
+              "name": "bluebook",
               "type": "PolicyText",
               "list": false,
               "default": null,
@@ -4810,9 +5162,9 @@
           ],
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ],
           "order_by": {
@@ -4829,12 +5181,12 @@
       "name": "ProcessManager",
       "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "attributes": [
         {
-          "name": "bluebook_id",
+          "name": "bluebook",
           "type": "Reference<Bluebook>",
           "list": false,
           "default": null,
@@ -4881,6 +5233,15 @@
         {
           "name": "states",
           "type": "SagaState",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "handlers",
+          "type": "Handler",
           "list": true,
           "default": null,
           "optional": false,
@@ -4955,216 +5316,6 @@
           "members": []
         },
         {
-          "name": "Position",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        }
-      ],
-      "commands": [
-        {
-          "name": "Declare",
-          "role": "Language",
-          "goal": "Open a process manager on a chapter",
-          "references": null,
-          "attributes": [
-            {
-              "name": "bluebook_id",
-              "type": "Reference<Bluebook>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "name",
-              "type": "ProcessManagerName",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "correlates_by",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "starts_on",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "ends_on",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "position",
-              "type": "Position",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "SagaDeclared"
-          ],
-          "provenance": null
-        },
-        {
-          "name": "State",
-          "role": "Language",
-          "goal": "Attach one state to the process manager",
-          "references": "ProcessManager",
-          "attributes": [
-            {
-              "name": "name",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "states",
-              "op": "append",
-              "fields": {
-                "name": ":name"
-              }
-            }
-          ],
-          "emits": [
-            "SagaStateAttached"
-          ],
-          "provenance": null
-        }
-      ],
-      "lifecycle": null,
-      "entities": [],
-      "queries": [
-        {
-          "name": "DeclaredIn",
-          "description": null,
-          "attributes": [
-            {
-              "name": "bluebook_id",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "wheres": [
-            {
-              "field": "bluebook_id",
-              "op": "eq",
-              "value": ":bluebook_id"
-            }
-          ],
-          "order_by": {
-            "field": "position",
-            "direction": "asc"
-          },
-          "limit": null
-        }
-      ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "Handler",
-      "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Its own root because a handler holds nested dispatches, which hold nested bindings.",
-      "identified_by": [
-        "process_manager_id",
-        "event_type.value"
-      ],
-      "attributes": [
-        {
-          "name": "process_manager_id",
-          "type": "Reference<ProcessManager>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "event_type",
-          "type": "HandlerText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "from_state",
-          "type": "HandlerText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "to_state",
-          "type": "HandlerText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "position",
-          "type": "Position",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
-        {
           "name": "HandlerText",
           "attributes": [
             {
@@ -5181,175 +5332,6 @@
           "closed_set": false,
           "members": []
         },
-        {
-          "name": "Position",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        }
-      ],
-      "commands": [
-        {
-          "name": "Declare",
-          "role": "Language",
-          "goal": "Open a handler inside a process manager",
-          "references": null,
-          "attributes": [
-            {
-              "name": "process_manager_id",
-              "type": "Reference<ProcessManager>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "event_type",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "from_state",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "to_state",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "position",
-              "type": "Position",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "LegDeclared"
-          ],
-          "provenance": null
-        }
-      ],
-      "lifecycle": null,
-      "entities": [],
-      "queries": [
-        {
-          "name": "DeclaredIn",
-          "description": null,
-          "attributes": [
-            {
-              "name": "process_manager_id",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "wheres": [
-            {
-              "field": "process_manager_id",
-              "op": "eq",
-              "value": ":process_manager_id"
-            }
-          ],
-          "order_by": {
-            "field": "position",
-            "direction": "asc"
-          },
-          "limit": null
-        }
-      ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "Dispatch",
-      "description": "One command a handler dispatches, with the arguments it binds. Its own root because the bindings are an open map, which no value object can hold.",
-      "identified_by": [
-        "handler_id",
-        "command_name.value"
-      ],
-      "attributes": [
-        {
-          "name": "handler_id",
-          "type": "Reference<Handler>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "handler",
-          "type": "DispatchText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "command_name",
-          "type": "DispatchText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "with_spec",
-          "type": "Binding",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "position",
-          "type": "Position",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
         {
           "name": "DispatchText",
           "attributes": [
@@ -5415,12 +5397,12 @@
         {
           "name": "Declare",
           "role": "Language",
-          "goal": "Open a dispatch inside a handler",
+          "goal": "Open a process manager on a chapter",
           "references": null,
           "attributes": [
             {
-              "name": "handler_id",
-              "type": "Reference<Handler>",
+              "name": "bluebook",
+              "type": "Reference<Bluebook>",
               "list": false,
               "default": null,
               "optional": false,
@@ -5428,8 +5410,8 @@
               "admits": null
             },
             {
-              "name": "handler",
-              "type": "DispatchText",
+              "name": "name",
+              "type": "ProcessManagerName",
               "list": false,
               "default": null,
               "optional": false,
@@ -5437,11 +5419,29 @@
               "admits": null
             },
             {
-              "name": "command_name",
-              "type": "DispatchText",
+              "name": "correlates_by",
+              "type": "ProcessManagerText",
               "list": false,
               "default": null,
               "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "starts_on",
+              "type": "ProcessManagerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "ends_on",
+              "type": "ProcessManagerText",
+              "list": false,
+              "default": null,
+              "optional": true,
               "pattern": null,
               "admits": null
             },
@@ -5459,28 +5459,20 @@
           "ensures": [],
           "mutations": [],
           "emits": [
-            "SendDeclared"
+            "SagaDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
-          "name": "Bind",
+          "name": "State",
           "role": "Language",
-          "goal": "Bind one argument of the dispatched command",
-          "references": "Dispatch",
+          "goal": "Attach one state to the process manager",
+          "references": "ProcessManager",
           "attributes": [
             {
-              "name": "key",
-              "type": "DispatchText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "value",
-              "type": "DispatchText",
+              "name": "name",
+              "type": "ProcessManagerText",
               "list": false,
               "default": null,
               "optional": false,
@@ -5492,30 +5484,246 @@
           "ensures": [],
           "mutations": [
             {
-              "target": "with_spec",
+              "target": "states",
               "op": "append",
               "fields": {
-                "key": ":key",
-                "value": ":value"
+                "name": ":name"
               }
             }
           ],
           "emits": [
-            "BindingAttached"
+            "SagaStateAttached"
           ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Handler",
+          "role": "Language",
+          "goal": "Open a handler inside a process manager",
+          "references": "ProcessManager",
+          "attributes": [
+            {
+              "name": "event_type",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "from_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "to_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "handlers",
+              "op": "append",
+              "fields": {
+                "event_type": ":event_type",
+                "from_state": ":from_state",
+                "to_state": ":to_state"
+              }
+            }
+          ],
+          "emits": [
+            "LegDeclared"
+          ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+        {
+          "name": "Handler",
+          "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings.",
+          "identified_by": [
+            "event_type.value"
+          ],
+          "attributes": [
+            {
+              "name": "event_type",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "from_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "to_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "dispatches",
+              "type": "Dispatch",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Dispatch",
+              "role": "Language",
+              "goal": "Open a dispatch inside a handler",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "command_name",
+                  "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                }
+              ],
+              "givens": [],
+              "ensures": [],
+              "mutations": [
+                {
+                  "target": "dispatches",
+                  "op": "append",
+                  "fields": {
+                    "command_name": ":command_name"
+                  }
+                }
+              ],
+              "emits": [
+                "SendDeclared"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [
+            {
+              "name": "Dispatch",
+              "description": "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold.",
+              "identified_by": [
+                "command_name.value"
+              ],
+              "attributes": [
+                {
+                  "name": "command_name",
+                  "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                },
+                {
+                  "name": "with_spec",
+                  "type": "Binding",
+                  "list": true,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null
+                }
+              ],
+              "commands": [
+                {
+                  "name": "Bind",
+                  "role": "Language",
+                  "goal": "Bind one argument of the dispatched command",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "key",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null
+                    },
+                    {
+                      "name": "value",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null
+                    }
+                  ],
+                  "givens": [],
+                  "ensures": [],
+                  "mutations": [
+                    {
+                      "target": "with_spec",
+                      "op": "append",
+                      "fields": {
+                        "key": ":key",
+                        "value": ":value"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "BindingAttached"
+                  ],
+                  "from": null,
+                  "provenance": null
+                }
+              ],
+              "queries": [],
+              "entities": [],
+              "lifecycle": null
+            }
+          ],
+          "lifecycle": null
+        }
+      ],
       "queries": [
         {
           "name": "DeclaredIn",
           "description": null,
           "attributes": [
             {
-              "name": "handler_id",
-              "type": "DispatchText",
+              "name": "bluebook",
+              "type": "ProcessManagerText",
               "list": false,
               "default": null,
               "optional": false,
@@ -5525,9 +5733,9 @@
           ],
           "wheres": [
             {
-              "field": "handler_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":handler_id"
+              "value": ":bluebook"
             }
           ],
           "order_by": {
@@ -6319,6 +6527,12 @@
             [
               [
                 "step",
+                "enforce_invariants"
+              ]
+            ],
+            [
+              [
+                "step",
                 "save"
               ]
             ],
@@ -6409,6 +6623,12 @@
             [
               [
                 "step",
+                "enforce_invariants"
+              ]
+            ],
+            [
+              [
+                "step",
                 "save"
               ]
             ],
@@ -6451,6 +6671,12 @@
             [
               [
                 "name",
+                "AttributeAbsent"
+              ]
+            ],
+            [
+              [
+                "name",
                 "EnsuresNotMet"
               ]
             ],
@@ -6476,6 +6702,12 @@
               [
                 "name",
                 "NotFound"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ProjectionAbsent"
               ]
             ],
             [
@@ -6570,6 +6802,20 @@
               [
                 "template",
                 "{command} creates a {aggregate} that already exists — {identity} {offered}"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "AlreadyExists"
+              ],
+              [
+                "site",
+                "entity_duplicate"
+              ],
+              [
+                "template",
+                "a {entity} already exists on {aggregate} — {identity} {offered}"
               ]
             ],
             [
@@ -7089,6 +7335,34 @@
                 "template",
                 "{command} refused — role: {role}, and the caller stated {caller_role}"
               ]
+            ],
+            [
+              [
+                "refusal",
+                "AttributeAbsent"
+              ],
+              [
+                "site",
+                "absent_read"
+              ],
+              [
+                "template",
+                "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "ProjectionAbsent"
+              ],
+              [
+                "site",
+                "absent_read"
+              ],
+              [
+                "template",
+                "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"
+              ]
             ]
           ]
         },
@@ -7210,6 +7484,9 @@
         }
       ],
       "commands": [],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [],
@@ -7227,6 +7504,24 @@
           "name": "name",
           "type": "SyntaxName",
           "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "keywords",
+          "type": "Keyword",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "arguments",
+          "type": "Argument",
+          "list": true,
           "default": null,
           "optional": false,
           "pattern": null,
@@ -7575,7 +7870,7 @@
           ]
         },
         {
-          "name": "Keyword",
+          "name": "KeywordSeed",
           "attributes": [
             {
               "name": "word",
@@ -7786,6 +8081,32 @@
             [
               [
                 "word",
+                "attaches_to"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attaches_to"
+              ]
+            ],
+            [
+              [
+                "word",
                 "core"
               ],
               [
@@ -7890,7 +8211,7 @@
             [
               [
                 "word",
-                "report"
+                "read_model"
               ],
               [
                 "context",
@@ -7914,7 +8235,7 @@
               ],
               [
                 "was",
-                "read_model"
+                "report"
               ]
             ],
             [
@@ -8123,6 +8444,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -8149,6 +8474,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -8175,6 +8504,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -8357,6 +8690,84 @@
               [
                 "fills",
                 "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
+                "invariant"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "invariants"
+              ]
+            ],
+            [
+              [
+                "word",
+                "given"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "preconditions"
+              ]
+            ],
+            [
+              [
+                "word",
+                "projects"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "projected_fields"
               ]
             ],
             [
@@ -8565,6 +8976,32 @@
               [
                 "fills",
                 "attributes"
+              ]
+            ],
+            [
+              [
+                "word",
+                "entity"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Entity"
+              ],
+              [
+                "opens",
+                "Entity"
+              ],
+              [
+                "fills",
+                ""
               ]
             ],
             [
@@ -8864,6 +9301,32 @@
               ],
               [
                 "context",
+                "ValueObject"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                "Member"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "member"
+              ],
+              [
+                "context",
                 "OneOf"
               ],
               [
@@ -9120,33 +9583,7 @@
             [
               [
                 "word",
-                "state"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "states"
-              ]
-            ],
-            [
-              [
-                "word",
-                "on"
+                "transition"
               ],
               [
                 "context",
@@ -9172,7 +9609,7 @@
             [
               [
                 "word",
-                "on"
+                "transition"
               ],
               [
                 "context",
@@ -9354,136 +9791,6 @@
             [
               [
                 "word",
-                "limit"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "limit"
-              ]
-            ],
-            [
-              [
-                "word",
-                "offset"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "cursor"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "consistency"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "freshness"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "authorize"
               ],
               [
@@ -9510,59 +9817,7 @@
             [
               [
                 "word",
-                "nulls"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "inspect_query"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "use_index"
               ],
               [
                 "context",
@@ -9796,136 +10051,6 @@
             [
               [
                 "word",
-                "limit"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "offset"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "cursor"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "consistency"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "freshness"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "authorize"
               ],
               [
@@ -9952,59 +10077,7 @@
             [
               [
                 "word",
-                "nulls"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
                 "inspect_query"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                "options"
-              ]
-            ],
-            [
-              [
-                "word",
-                "use_index"
               ],
               [
                 "context",
@@ -10472,7 +10545,7 @@
           ]
         },
         {
-          "name": "Argument",
+          "name": "ArgumentSeed",
           "attributes": [
             {
               "name": "keyword",
@@ -10718,6 +10791,40 @@
             [
               [
                 "keyword",
+                "attaches_to"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "attaches_to"
+              ],
+              [
+                "variadic",
+                "true"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "aggregate"
               ],
               [
@@ -10748,7 +10855,7 @@
             [
               [
                 "keyword",
-                "report"
+                "read_model"
               ],
               [
                 "context",
@@ -10923,6 +11030,10 @@
               [
                 "fills",
                 "identified_by"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -10953,6 +11064,10 @@
               [
                 "fills",
                 "type"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -10983,6 +11098,10 @@
               [
                 "fills",
                 "name"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -11558,6 +11677,36 @@
             [
               [
                 "keyword",
+                "command"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "attribute"
               ],
               [
@@ -11608,37 +11757,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Aggregate"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -11768,6 +11887,156 @@
             [
               [
                 "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "invariant"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "given"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "projects"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "projects"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "from"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "description"
               ],
               [
@@ -11823,6 +12092,10 @@
               [
                 "fills",
                 "identified_by"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -11853,6 +12126,10 @@
               [
                 "fills",
                 "type"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -11883,6 +12160,10 @@
               [
                 "fills",
                 "name"
+              ],
+              [
+                "status",
+                "deprecated"
               ]
             ],
             [
@@ -11918,7 +12199,67 @@
             [
               [
                 "keyword",
+                "command"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "query"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "entity"
               ],
               [
                 "context",
@@ -12058,37 +12399,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Entity"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -12213,6 +12524,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -12696,40 +13037,6 @@
               ],
               [
                 "named",
-                "from"
-              ],
-              [
-                "kind",
-                "literal"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "source"
-              ],
-              [
-                "selects",
-                "op=set"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "sets"
-              ],
-              [
-                "context",
-                "Command"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
                 "multiply"
               ],
               [
@@ -12900,37 +13207,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Command"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -13055,6 +13332,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -13110,37 +13417,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "ValueObject"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -13270,6 +13547,36 @@
             [
               [
                 "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "ValueObject"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "invariant"
               ],
               [
@@ -13295,6 +13602,40 @@
               [
                 "fills",
                 "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "member"
+              ],
+              [
+                "context",
+                "ValueObject"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "members"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
               ]
             ],
             [
@@ -13482,6 +13823,36 @@
               ],
               [
                 "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "trigger_command"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "trigger"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
                 "text"
               ],
               [
@@ -13646,109 +14017,19 @@
             [
               [
                 "keyword",
-                "state"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "states"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "event_type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "event_type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
                 "transition"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
               ],
               [
                 "kind",
@@ -13764,7 +14045,7 @@
               ],
               [
                 "pair_key_fills",
-                "from_state"
+                "event_type"
               ],
               [
                 "pair_value_fills",
@@ -13773,6 +14054,96 @@
               [
                 "pairs_shape",
                 "fields"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "from_state"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from_state"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command_name"
               ]
             ],
             [
@@ -13922,37 +14293,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -14077,6 +14418,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "Query"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -14274,216 +14645,6 @@
             [
               [
                 "keyword",
-                "limit"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "limit"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "offset"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "cursor"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "timeout"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "timeout"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "max_age"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "max_age"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "authorize"
               ],
               [
@@ -14544,36 +14705,6 @@
             [
               [
                 "keyword",
-                "nulls"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "inspect_query"
               ],
               [
@@ -14599,36 +14730,6 @@
               [
                 "fills",
                 "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "use_index"
-              ],
-              [
-                "context",
-                "Query"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "name"
               ]
             ],
             [
@@ -14938,216 +15039,6 @@
             [
               [
                 "keyword",
-                "limit"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "offset"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "cursor"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "value"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "consistency"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "timeout"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "timeout"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "freshness"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "max_age"
-              ],
-              [
-                "kind",
-                "number"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "max_age"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "authorize"
               ],
               [
@@ -15208,36 +15099,6 @@
             [
               [
                 "keyword",
-                "nulls"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
                 "inspect_query"
               ],
               [
@@ -15263,36 +15124,6 @@
               [
                 "fills",
                 "mode"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "use_index"
-              ],
-              [
-                "context",
-                "ReadModel"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "name"
               ]
             ],
             [
@@ -15738,37 +15569,7 @@
               ],
               [
                 "required",
-                "false"
-              ],
-              [
-                "fills",
-                "type"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "attribute"
-              ],
-              [
-                "context",
-                "PortOperation"
-              ],
-              [
-                "at",
-                "2"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "false"
+                "true"
               ],
               [
                 "fills",
@@ -15893,6 +15694,36 @@
               [
                 "fills",
                 "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
               ]
             ],
             [
@@ -16080,11 +15911,691 @@
               ]
             ]
           ]
+        },
+        {
+          "name": "KeywordPosition",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ArgumentPosition",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "KeywordSeedText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
+        },
+        {
+          "name": "ArgumentSeedText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
         }
       ],
-      "commands": [],
+      "commands": [
+        {
+          "name": "Declare",
+          "role": "Language",
+          "goal": "Open the language's own syntax table",
+          "references": null,
+          "attributes": [
+            {
+              "name": "bluebook",
+              "type": "Reference<Bluebook>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "name",
+              "type": "SyntaxName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
+          "emits": [
+            "SyntaxDeclared"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Keyword",
+          "role": "Language",
+          "goal": "Admit one word the bluebook surface accepts",
+          "references": "Syntax",
+          "attributes": [
+            {
+              "name": "position",
+              "type": "KeywordPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "word",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "context",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Context"
+            },
+            {
+              "name": "body",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Body"
+            },
+            {
+              "name": "inner",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "opens",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "fills",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "was",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "keywords",
+              "op": "append",
+              "fields": {
+                "position": ":position",
+                "word": ":word",
+                "context": ":context",
+                "body": ":body",
+                "inner": ":inner",
+                "opens": ":opens",
+                "fills": ":fills",
+                "was": ":was"
+              }
+            }
+          ],
+          "emits": [
+            "KeywordAdmitted"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Argument",
+          "role": "Language",
+          "goal": "Admit one argument a keyword takes",
+          "references": "Syntax",
+          "attributes": [
+            {
+              "name": "position",
+              "type": "ArgumentPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "keyword",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "context",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Context"
+            },
+            {
+              "name": "at",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "named",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "kind",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::ArgumentKind"
+            },
+            {
+              "name": "required",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "fills",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "selects",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pair_key_fills",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pair_value_fills",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pairs_shape",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "variadic",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "arguments",
+              "op": "append",
+              "fields": {
+                "position": ":position",
+                "keyword": ":keyword",
+                "context": ":context",
+                "at": ":at",
+                "named": ":named",
+                "kind": ":kind",
+                "required": ":required",
+                "fills": ":fills",
+                "selects": ":selects",
+                "pair_key_fills": ":pair_key_fills",
+                "pair_value_fills": ":pair_value_fills",
+                "pairs_shape": ":pairs_shape",
+                "variadic": ":variadic"
+              }
+            }
+          ],
+          "emits": [
+            "ArgumentAdmitted"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+        {
+          "name": "Keyword",
+          "description": "One word the bluebook surface admits — the body it may open, and the field it fills. Nested under Syntax because it is now the LANGUAGE'S OWN data, not merely its declaration : a word's own status is a real fact that moves, not a string replaced wholesale.",
+          "identified_by": [
+            "position.value"
+          ],
+          "attributes": [
+            {
+              "name": "position",
+              "type": "KeywordPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "word",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "context",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Context"
+            },
+            {
+              "name": "body",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Body"
+            },
+            {
+              "name": "inner",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "opens",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "fills",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "was",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Deprecate",
+              "role": "Language",
+              "goal": "Mark a word as on its way out, still read",
+              "references": null,
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
+              "emits": [
+                "KeywordDeprecated"
+              ],
+              "from": null,
+              "provenance": null
+            },
+            {
+              "name": "Retire",
+              "role": "Language",
+              "goal": "Remove a word from every generated parser table",
+              "references": null,
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
+              "emits": [
+                "KeywordRetired"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [],
+          "lifecycle": {
+            "field": "status",
+            "default": "admitted",
+            "transitions": [
+              {
+                "command": "Deprecate",
+                "to_state": "deprecated",
+                "from_state": "admitted"
+              },
+              {
+                "command": "Retire",
+                "to_state": "retired",
+                "from_state": "admitted"
+              },
+              {
+                "command": "Retire",
+                "to_state": "retired",
+                "from_state": "deprecated"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Argument",
+          "description": "One argument a keyword takes, typed. Nested under Syntax (a SIBLING of Keyword, not nested inside it — `keyword`/`context` name which Keyword row it belongs to, carried as ordinary fields rather than through containment, because the language reads Argument rows independently of any one Keyword element).",
+          "identified_by": [
+            "position.value"
+          ],
+          "attributes": [
+            {
+              "name": "position",
+              "type": "ArgumentPosition",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "keyword",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "context",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Context"
+            },
+            {
+              "name": "at",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "named",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "kind",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::ArgumentKind"
+            },
+            {
+              "name": "required",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "fills",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "selects",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pair_key_fills",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pair_value_fills",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "pairs_shape",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "variadic",
+              "type": "ArgumentSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Deprecate",
+              "role": "Language",
+              "goal": "Mark an argument as on its way out, still read",
+              "references": null,
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
+              "emits": [
+                "ArgumentDeprecated"
+              ],
+              "from": null,
+              "provenance": null
+            },
+            {
+              "name": "Retire",
+              "role": "Language",
+              "goal": "Remove an argument from every generated parser table",
+              "references": null,
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
+              "emits": [
+                "ArgumentRetired"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [],
+          "entities": [],
+          "lifecycle": {
+            "field": "status",
+            "default": "admitted",
+            "transitions": [
+              {
+                "command": "Deprecate",
+                "to_state": "deprecated",
+                "from_state": "admitted"
+              },
+              {
+                "command": "Retire",
+                "to_state": "retired",
+                "from_state": "admitted"
+              },
+              {
+                "command": "Retire",
+                "to_state": "retired",
+                "from_state": "deprecated"
+              }
+            ]
+          }
+        }
+      ],
       "queries": [],
       "ports": [],
       "provenance": null
@@ -16093,12 +16604,12 @@
       "name": "ReadModel",
       "description": "One read model — the aggregate heads it gathers and the reference it hangs from.",
       "identified_by": [
-        "bluebook_id",
+        "bluebook",
         "name.value"
       ],
       "attributes": [
         {
-          "name": "bluebook_id",
+          "name": "bluebook",
           "type": "Reference<Bluebook>",
           "list": false,
           "default": null,
@@ -16395,7 +16906,7 @@
           "references": null,
           "attributes": [
             {
-              "name": "bluebook_id",
+              "name": "bluebook",
               "type": "Reference<Bluebook>",
               "list": false,
               "default": null,
@@ -16464,6 +16975,7 @@
           "emits": [
             "ProjectionDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -16516,6 +17028,7 @@
           "emits": [
             "HeadGathered"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -16553,6 +17066,7 @@
           "emits": [
             "GroupByFieldAdded"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -16586,6 +17100,7 @@
           "emits": [
             "CountDeclared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -16624,6 +17139,7 @@
           "emits": [
             "MedianFieldSet"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -16691,9 +17207,13 @@
           "emits": [
             "OptionAttached"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -16702,7 +17222,7 @@
           "description": null,
           "attributes": [
             {
-              "name": "bluebook_id",
+              "name": "bluebook",
               "type": "ReadModelText",
               "list": false,
               "default": null,
@@ -16713,9 +17233,9 @@
           ],
           "wheres": [
             {
-              "field": "bluebook_id",
+              "field": "bluebook",
               "op": "eq",
-              "value": ":bluebook_id"
+              "value": ":bluebook"
             }
           ],
           "order_by": {
@@ -16806,6 +17326,7 @@
   ],
   "policies": [],
   "process_managers": [],
+  "attaches_to": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

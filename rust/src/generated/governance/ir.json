@@ -200,6 +200,7 @@
           "emits": [
             "RoleAssigned"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -233,9 +234,13 @@
           "emits": [
             "RoleRevoked"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -381,6 +386,7 @@
           "emits": [
             "RoleTransitionGranted"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -414,9 +420,13 @@
           "emits": [
             "RoleTransitionRevoked"
           ],
+          "from": null,
           "provenance": null
         }
       ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [],
       "queries": [
@@ -466,6 +476,7 @@
   "read_models": [],
   "policies": [],
   "process_managers": [],
+  "attaches_to": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

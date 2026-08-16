@@ -782,7 +782,7 @@ if !unknown.is_empty() {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Command {
-    pub aggregate_id: Option<String>,
+    pub aggregate: Option<String>,
     pub entity_id: Option<String>,
     pub name: Option<CommandName>,
     pub role: Option<Actor>,
@@ -794,6 +794,7 @@ pub struct Command {
     pub ensures: Vec<Rule>,
     pub mutations: Vec<Change>,
     pub provenance: Option<CommandText>,
+    pub from: Option<CommandText>,
     pub position: Option<Position>,
 }
 
@@ -801,7 +802,7 @@ impl crate::kernel::Fielded for Command {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
-            "aggregate_id" => self.aggregate_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "aggregate" => self.aggregate.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "entity_id" => self.entity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "role" => self.role.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -813,6 +814,7 @@ impl crate::kernel::Fielded for Command {
             "ensures" => Some(Field::Value(Value::List(self.ensures.len()))),
             "mutations" => Some(Field::Value(Value::List(self.mutations.len()))),
             "provenance" => self.provenance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "from" => self.from.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -822,7 +824,7 @@ impl crate::kernel::Fielded for Command {
 impl Command {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), self.aggregate_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("aggregate".to_string(), self.aggregate.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("role".to_string(), self.role.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
@@ -834,6 +836,7 @@ impl Command {
         ("ensures".to_string(), crate::kernel::Json::Array(self.ensures.iter().map(|x| x.to_json()).collect())),
         ("mutations".to_string(), crate::kernel::Json::Array(self.mutations.iter().map(|x| x.to_json()).collect())),
         ("provenance".to_string(), self.provenance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("from".to_string(), self.from.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -842,7 +845,7 @@ impl Command {
 impl Command {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        aggregate_id: match v.get("aggregate_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.aggregate_id: expected String".to_string()))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.aggregate: expected String".to_string()))?), },
         entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.entity_id: expected String".to_string()))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandName::from_json(x)?), },
         role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Actor::from_json(x)?), },
@@ -854,6 +857,7 @@ impl Command {
         ensures: match v.get("ensures").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         mutations: match v.get("mutations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Change::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         provenance: match v.get("provenance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(x)?), },
+        from: match v.get("from") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(x)?), },
         position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
         })
     }
@@ -886,12 +890,13 @@ impl crate::kernel::Fielded for DeclareArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "aggregate_id" => Some(Field::Value(Value::Str(self.aggregate_id.clone()))),
+            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
             "entity_id" => self.entity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => Some(Field::Nested(&self.name)),
             "role" => self.role.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "goal" => self.goal.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "provenance" => self.provenance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "from" => self.from.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
@@ -901,12 +906,13 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub aggregate_id: String,
+    pub aggregate: String,
     pub entity_id: Option<String>,
     pub name: CommandName,
     pub role: Option<Actor>,
     pub goal: Option<Goal>,
     pub provenance: Option<CommandText>,
+    pub from: Option<CommandText>,
     pub position: Option<Position>,
 }
 
@@ -917,6 +923,7 @@ pub fn dispatch_declare(
         if let Some(v) = &args.role { v.check_invariants()?; }
         if let Some(v) = &args.goal { v.check_invariants()?; }
         if let Some(v) = &args.provenance { v.check_invariants()?; }
+        if let Some(v) = &args.from { v.check_invariants()?; }
         if let Some(v) = &args.position { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
@@ -925,7 +932,7 @@ pub fn dispatch_declare(
         crate::kernel::Hydrate::Create {
         id: format!("{}:{}", owner_id, args.name.value.to_string()),
         build: Box::new(|| Command {
-            aggregate_id: Some(args.aggregate_id.clone()),
+            aggregate: Some(args.aggregate.clone()),
             entity_id: args.entity_id.clone(),
             name: Some(args.name.clone()),
             role: args.role.clone(),
@@ -937,6 +944,7 @@ pub fn dispatch_declare(
             ensures: vec![],
             mutations: vec![],
             provenance: args.provenance.clone(),
+            from: args.from.clone(),
             position: args.position.clone(),
         }),
     },
@@ -965,12 +973,13 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("aggregate_id".to_string(), crate::kernel::Json::Str(self.aggregate_id.clone())),
+        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
         ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.to_json()),
         ("role".to_string(), self.role.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("goal".to_string(), self.goal.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("provenance".to_string(), self.provenance.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("from".to_string(), self.from.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
@@ -978,20 +987,21 @@ impl DeclareArgs {
 
 impl DeclareArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate_id", "entity_id", "name", "role", "goal", "provenance", "position", "id", "owner_id"]);
+let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "role", "goal", "provenance", "from", "position", "id", "owner_id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes aggregate_id, entity_id, name, role, goal, provenance, position",
+        "Declare does not declare {} — it takes aggregate, entity_id, name, role, goal, provenance, from, position",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        aggregate_id: { let x = v.require("aggregate_id", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate_id: expected String".to_string()))? },
+        aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
         entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
         name: CommandName::from_json(v.require("name", "DeclareArgs")?)?,
         role: match v.get("role") { Some(x) => Some(Actor::from_json(x)?), None => None, },
         goal: match v.get("goal") { Some(x) => Some(Goal::from_json(x)?), None => None, },
         provenance: match v.get("provenance") { Some(x) => Some(CommandText::from_json(x)?), None => None, },
+        from: match v.get("from") { Some(x) => Some(CommandText::from_json(x)?), None => None, },
         position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
         })
     }
