@@ -182,7 +182,8 @@ module Hecksagain
           # exists. An ENTITY's commands take the entity as their owner instead,
           # at the entity's own declaration.
           @commands << CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens,
-                                                   owner_attributes: attributes, &block)
+                                                   owner_attributes: attributes,
+                                                   owner_constructs: @value_objects + closed_sets + @entities, &block)
         end
 
         # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR

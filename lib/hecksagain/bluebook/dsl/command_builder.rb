@@ -19,7 +19,7 @@ module Hecksagain
         UNSET = Object.new.freeze
         private_constant :UNSET
 
-        def initialize(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [])
+        def initialize(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [])
           @name              = name
           @owner             = owner
           @givens            = []
@@ -28,6 +28,7 @@ module Hecksagain
           @emits             = []
           @named_givens      = named_givens
           @owner_attributes  = owner_attributes
+          @owner_constructs  = owner_constructs
           # NORMALIZED the exact same way `StateTransition#from` already
           # is — one state or several, a single spelling either way,
           # both read back through `Array(...)` at check time.
@@ -297,8 +298,9 @@ module Hecksagain
           )
         end
 
-        def self.build(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], &block)
-          builder = new(name, owner: owner, from: from, named_givens: named_givens, owner_attributes: owner_attributes)
+        def self.build(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [], &block)
+          builder = new(name, owner: owner, from: from, named_givens: named_givens,
+                        owner_attributes: owner_attributes, owner_constructs: owner_constructs)
           builder.instance_eval(&block) if block
           builder.build
         end
@@ -332,12 +334,88 @@ module Hecksagain
         # declares its attributes before the commands that act on them).
         def resolve_implicit_attributes!
           @mutations.each do |mutation|
-            next unless mutation.op == :set && mutation.source.to_s == mutation.target.to_s
-            next if attributes.any? { |attr| attr.name == mutation.target }
-
-            owner_attr = @owner_attributes.find { |attr| attr.name == mutation.target }
-            attributes << owner_attr if owner_attr
+            case mutation.op
+            when :set    then resolve_bare_set!(mutation)
+            when :append then resolve_append_fields!(mutation)
+            end
           end
+        end
+
+        def resolve_bare_set!(mutation)
+          return unless mutation.source.to_s == mutation.target.to_s
+          return if attributes.any? { |attr| attr.name == mutation.target }
+
+          owner_attr = @owner_attributes.find { |attr| attr.name == mutation.target }
+          attributes << owner_attr if owner_attr
+        end
+
+        # ONE HOP DEEPER than `resolve_bare_set!` — an `append:` mutation
+        # (`sets :ledger, append: { narrative: :narrative, ... }`) builds
+        # a NEW element of a LIST field, not the command's own root
+        # record, so a bare self-referential field inside it (the hash
+        # key equals its own value, same shorthand `resolve_bare_set!`
+        # already reads) can't resolve against `@owner_attributes` — the
+        # aggregate itself never stores `:narrative`, only the list
+        # element's own construct does (`attribute :ledger,
+        # list_of(LedgerEntry)`, and `LedgerEntry` is what actually
+        # declares `:narrative`). Resolves the list field's own element
+        # TYPE first (`element_type_for`), then that construct's own
+        # attribute of the same name — same verbatim-import, one level
+        # further down the same reasoning `resolve_bare_set!`'s own
+        # comment already gives.
+        #
+        # A non-self-referential value (`direction: { value: "credit" }`,
+        # a nested literal) is untouched — only a bare symbol equal to
+        # its own key ever qualifies, identical to `resolve_bare_set!`'s
+        # own target/source text comparison.
+        #
+        # POSITION-PRESERVING, not appended at the end — the exported IR
+        # is array-order-sensitive (attributes carry their own declared
+        # order onto the wire), so an append's fields are resolved as
+        # ONE CONTIGUOUS GROUP, in the mutation's own hash order,
+        # reinserted at whichever position the group's leftmost STILL-
+        # DECLARED member already occupies (or the end, if every member
+        # of the group is resolved). A plain `attributes << owner_attr`
+        # here would only ever reproduce the original order when the
+        # missing field happened to already be last — real, live
+        # evidence: `Keyword#was`/`Argument#variadic` (both genuinely
+        # last in their own append hash) round-tripped correctly under
+        # the naive append; every OTHER field in the same hash did not,
+        # caught by this codemod's own reboot-and-diff safety net rather
+        # than silently landing wrong.
+        def resolve_append_fields!(mutation)
+          return unless mutation.source.is_a?(Hash)
+
+          element = element_type_for(mutation.target)
+          return unless element
+
+          self_ref_fields = mutation.source.select { |field, value| value.is_a?(Symbol) && value.to_s == field.to_s }.keys
+          return if self_ref_fields.empty?
+
+          present = self_ref_fields.filter_map { |field| attributes.find { |attr| attr.name == field } }
+          return if present.size == self_ref_fields.size # already fully declared — nothing to resolve
+
+          anchor = present.empty? ? attributes.length : present.map { |attr| attributes.index(attr) }.min
+          attributes.reject! { |attr| present.include?(attr) }
+
+          group = self_ref_fields.filter_map do |field|
+            present.find { |attr| attr.name == field } || element.attributes.find { |attr| attr.name == field }
+          end
+          attributes.insert(anchor, *group)
+        end
+
+        # The owner's own LIST attribute names its element type as TEXT
+        # (`Attribute#type`, unwrapped from `list_of(...)` at declare
+        # time) — resolved against `@owner_constructs` (the owner's own
+        # value objects and entities, the only two kinds an element can
+        # be) by `hecks_name`, the same lookup
+        # `AttributeCollector#resolve_identity_field!` already uses for
+        # a value object's own name.
+        def element_type_for(list_field)
+          list_attr = @owner_attributes.find { |attr| attr.name == list_field && attr.list? }
+          return nil unless list_attr
+
+          @owner_constructs.find { |construct| construct.hecks_name.to_s == list_attr.type.to_s }
         end
 
         # LEGACY — see `then_set`'s own comment. The ORIGINAL implementation,

@@ -392,7 +392,6 @@ Hecks.bluebook "Banking", version: "v1" do
 
       reference_to Account
       attribute :amount,    PositiveMoney
-      attribute :narrative, Narrative
 
       given("customer is active")
       sets :balance, increment: :amount
@@ -407,7 +406,6 @@ Hecks.bluebook "Banking", version: "v1" do
 
       reference_to Account
       attribute :amount,    PositiveMoney
-      attribute :narrative, Narrative
 
       given("customer is active")
       given("the balance covers it")     { balance.cents >= amount.cents }
@@ -725,8 +723,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Take cash out at a machine"
 
       reference_to ATMCard
-      attribute :cents,     WithdrawalAmount
-      attribute :narrative, Narrative
       given("customer is active") { account.customer.status == "active" }
       given("account is open") { account.status == "open" }
 
@@ -1475,9 +1471,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Record that the box was opened"
 
       reference_to SafeDepositBox
-      attribute :date,     VisitDate
-      attribute :sequence, VisitSequence
-      attribute :note,     VisitNote, optional: true
 
       given("customer is active") { customer.status == "active" }
       given("only a rented box is opened") { status == "rented" }
@@ -1492,7 +1485,6 @@ Hecks.bluebook "Banking", version: "v1" do
       goal "Cut a key for the box"
 
       reference_to SafeDepositBox
-      attribute :serial, KeySerial
       given("customer is active") { customer.status == "active" }
       given("box is rented") { status == "rented" }
 
