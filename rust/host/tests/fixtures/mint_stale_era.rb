@@ -7,7 +7,7 @@
 # `append_lineage_mutation`'s own claim needs to hold against: staleness
 # is refused by Postgres's OWN RLS row policy, not by anything this
 # crate checks itself. Mirrors
-# spec/adapters/driven/postgres/lineage_spec.rb's own
+# spec/adapters/driven/postgres_era/lineage_spec.rb's own
 # "fences a deployment's app role" setup (LINEAGE_OWNER/LINEAGE_ROLE
 # pattern, load_registry/check!/hash_of helpers) almost verbatim rather
 # than reinventing it — only the db/role names are parameterized.
@@ -53,7 +53,7 @@ owner_url = "postgres://#{owner_role}@localhost/#{db_name}"
 v1 = <<~BLUEBOOK
   Hecks.bluebook "Ledger" do
     aggregate "Account" do
-      identified_by { kind.label }
+      identified_by :kind
       attribute :cost, Money
       attribute :kind, Kind
 
@@ -71,7 +71,7 @@ BLUEBOOK
 v2 = <<~BLUEBOOK
   Hecks.bluebook "Ledger" do
     aggregate "Account" do
-      identified_by { kind.label }
+      identified_by :kind
       attribute :amount, Money
       attribute :kind, Kind
 
