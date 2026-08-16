@@ -134,6 +134,57 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     expect(Hecksagain::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
   end
 
+  # THE STRUCTURAL HALF OF "comes back exactly as the builder made it" —
+  # that test's own comparison slices the builder's `to_h` down to
+  # `back`'s OWN keys (`bluebook.to_h.slice(*back.keys)`), by design
+  # ("the language is allowed to hold MORE than `to_h` spells"). That
+  # means a key `Reconstruction#aggregate`/`#entity` never asks for at
+  # all is invisible to that comparison, not a failure — both sides
+  # silently agree not to discuss it. Real, confirmed history, not a
+  # hypothetical: `aggregate(row)` (`meta_validator/reconstruction.rb`)
+  # is HAND-TYPED — unlike `command`/`value_object`/`query`, which read
+  # generically through `Assembly::Contracts`'s own data-driven
+  # `declaration()` — and once silently dropped `invariants`/
+  # `preconditions` for exactly this reason (S10/S12): the judge
+  # correctly dispatched them, Reconstruction just never asked. `entity
+  # (row)` is the SAME hand-typed shape, one level down, and repeated
+  # the identical gap for `preconditions` this session (ADR 0028) —
+  # found by re-deriving the fix from memory of the Aggregate bug, not
+  # by a gate catching it fresh. THIS is that gate: checked
+  # structurally, against `ir_spec` (what the REAL Ruby class declares
+  # it emits), so a dropped key fails here regardless of whether any
+  # fixture's own content happens to populate that field — the round-
+  # trip test above only catches a VALUE mismatch, never an ABSENT KEY.
+  #
+  # Scoped to the two constructs actually hand-typed today. A construct
+  # read through `Assembly::Contracts`'s generic path isn't structurally
+  # immune to the same class of bug, but its `fields:` hash is data a
+  # reviewer diffs directly against `ir_spec`, not free-hand Ruby a
+  # silent `return` can quietly under-populate — a materially different
+  # risk shape, out of scope here.
+  # `:ports` is the one NAMED exception, matching `strip_ports`'s own
+  # comment just above: hecksagon-level `port`/`operation` declarations
+  # have no self-hosted grammar representation at all — a real,
+  # deliberately-deferred epic, not a gap this check exists to catch.
+  RECONSTRUCTION_KNOWN_GAPS = %i[ports].freeze
+
+  it "hand-typed reconstruction methods return every key their construct's own IR declares" do
+    walk = lambda do |rows, construct, chapter|
+      rows.each do |row|
+        missing = construct.ir_spec.keys - row.keys - RECONSTRUCTION_KNOWN_GAPS
+        expect(missing).to be_empty,
+                           "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(', ')} " \
+                           "(row #{row[:name].inspect})"
+        walk.call(row[:entities] || [], Hecksagain::Bluebook::Entity, chapter)
+      end
+    end
+
+    ROUND_TRIP_CORPUS.each_key do |name|
+      back, = read_back(load_corpus(ROUND_TRIP_CORPUS[name]).bluebook(name))
+      walk.call(back[:aggregates] || [], Hecksagain::Bluebook::Aggregate, name)
+    end
+  end
+
   it "carries a chapter's version, which banking pins for real" do
     # The language grew `version` so a graph assembled purely from these
     # records would stop losing it. Banking pins one for real
