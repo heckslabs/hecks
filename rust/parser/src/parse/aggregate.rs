@@ -221,8 +221,24 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 // `aggregate.preconditions` AS DECLARED SO FAR (textual
                 // order) — see `command::try_reference_named_given`'s own
                 // header on why a command's own block-less `given` needs
-                // this, not just `&[]`.
-                aggregate.commands.push(command::parse_body(file, lines, pos, &c_name, name, from, &aggregate.preconditions, &aggregate.attributes)?);
+                // this, not just `&[]`. `owner_constructs:
+                // @value_objects + closed_sets + @entities` —
+                // `AggregateBuilder#command`'s own mix, SO FAR (textual
+                // order), split into its two real kinds — see
+                // `command::parse_body`'s own header.
+                let owner_value_objects: Vec<ir::ValueObject> = aggregate.value_objects.iter().cloned().chain(closed_sets.iter().cloned()).collect();
+                aggregate.commands.push(command::parse_body(
+                    file,
+                    lines,
+                    pos,
+                    &c_name,
+                    name,
+                    from,
+                    &aggregate.preconditions,
+                    &aggregate.attributes,
+                    &owner_value_objects,
+                    &aggregate.entities,
+                )?);
             }
             // `AggregateBuilder#policy` — see this function's own header
             // on why the built `ir::Policy` is returned rather than

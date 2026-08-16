@@ -66,7 +66,24 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
                 // — see `command::try_reference_named_given`'s own
                 // header) — a bare `given(...)` here always fails
                 // resolution, matching Ruby's own refusal.
-                entity.commands.push(command::parse_body(file, lines, pos, &c_name, name, from, &[], &entity.attributes)?);
+                // `owner_constructs: @owner_value_objects + @entities` —
+                // `EntityBuilder#command`'s own mix, SO FAR (this
+                // entity's own nested `entity`s declared textually
+                // before this command, plus the value objects handed
+                // down from the owning aggregate/entity unchanged) —
+                // see `command::parse_body`'s own header.
+                entity.commands.push(command::parse_body(
+                    file,
+                    lines,
+                    pos,
+                    &c_name,
+                    name,
+                    from,
+                    &[],
+                    &entity.attributes,
+                    owner_value_objects,
+                    &entity.entities,
+                )?);
             }
             "query" => {
                 let q_name = super::positional_text(file, line, "query", &gated.args, 1)?;

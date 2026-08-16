@@ -1,0 +1,85 @@
+#!/usr/bin/env ruby
+
+# A CODEMOD, not an agent — for the class of redundancy
+# `CommandBuilder#resolve_append_fields!` (lib/hecksagain/bluebook/dsl/
+# command_builder.rb) makes obsolete: a command's own `attribute
+# :field, Type` line that byte-for-byte repeats what an `append:`
+# mutation's target list ELEMENT construct already declares for that
+# same field name, fed through a bare self-referential `sets :list,
+# append: { field: :field, ... }`.
+#
+# The boot/safety-net machinery (edit -> reboot -> diff-or-revert,
+# per-candidate isolation for the self-hosted meta-domain, the process-
+# lifetime AST cache fix) lives in `Hecksagain::Codemod` — this file is
+# only the two things specific to THIS rule: how to find a candidate
+# (`find_candidates`, replaying `resolve_append_fields!`'s own lookup
+# against the already-booted IR) and how to remove one
+# (`remove_attribute_line`, scoped to the text between a command's own
+# header and its own `emits` line, which every real command in this
+# corpus ends with).
+#
+# Usage: bin/codemod_implicit_append_fields [--dry-run]
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "hecksagain/codemod"
+
+DRY_RUN = ARGV.include?("--dry-run")
+
+Candidate = Struct.new(:command_name, :field, :type, keyword_init: true)
+
+def identical_attribute?(candidate, owner_attr)
+  return false unless owner_attr
+
+  %i[type pattern optional? admits].all? { |m| candidate.public_send(m) == owner_attr.public_send(m) }
+end
+
+# The SAME lookup `CommandBuilder#resolve_append_fields!` makes at
+# declare time, replayed here against the ALREADY-BOOTED IR instead —
+# this script never touches the DSL builder internals, only the same
+# public shape every other Projector reads.
+find_candidates = lambda do |registry|
+  found = []
+  Hecksagain::Codemod.each_command(registry) do |construct, command|
+    command.mutations.select { |m| m.op == :append }.each do |mutation|
+      element = Hecksagain::Codemod.element_construct_for(construct, mutation.target)
+      next unless element
+
+      mutation.source.each do |field, value|
+        next unless value.is_a?(Symbol) && value.to_s == field.to_s
+
+        local = command.attributes.find { |attr| attr.name.to_s == field.to_s }
+        next unless local
+
+        owner_attr = Hecksagain::Codemod.owner_attribute(element, field)
+        next unless identical_attribute?(local, owner_attr)
+
+        found << Candidate.new(command_name: command.hecks_name, field: field.to_s, type: local.type)
+      end
+    end
+  end
+  found
+end
+
+# Returns [new_text, true] on a clean single match, [text, false]
+# (unchanged) otherwise — ambiguous or absent never gets guessed past.
+apply_candidate = lambda do |text, candidate|
+  window_start = text.index(/^\s*command\s+"#{Regexp.escape(candidate.command_name)}"/)
+  next [text, false] unless window_start
+
+  window_end = text.index(/^\s*emits\s/, window_start)
+  next [text, false] unless window_end
+
+  before, window, after = text[0...window_start], text[window_start...window_end], text[window_end..]
+
+  pattern = /^[ \t]*attribute\s+:#{Regexp.escape(candidate.field)}\s*,[^\n]*\n/
+  next [text, false] unless window.scan(pattern).size == 1
+
+  [before + window.sub(pattern, "") + after, true]
+end
+
+label = ->(c) { "#{c.command_name}##{c.field} (#{c.type})" }
+
+runner  = Hecksagain::Codemod::Runner.new(find_candidates: find_candidates, apply_candidate: apply_candidate, label: label)
+results = runner.run(dry_run: DRY_RUN)
+runner.report(results, dry_run: DRY_RUN)

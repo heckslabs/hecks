@@ -133,7 +133,16 @@ fn try_reference_named_given(file: &str, lines: &[SourceLine], pos: &mut usize, 
 /// `attribute`s declared so far (textual order — the same ordering
 /// caveat `preconditions` already carries), used by
 /// `resolve_implicit_attributes` below once this command's own body is
-/// fully parsed.
+/// fully parsed. `owner_value_objects`/`owner_entities` —
+/// `CommandBuilder#initialize`'s own `owner_constructs:` (split into its
+/// two real kinds here rather than kept as one mixed Vec the way Ruby's
+/// duck-typed `hecks_name`/`attributes` lets it stay — `AggregateBuilder#
+/// command`'s own `@value_objects + closed_sets + @entities`,
+/// `EntityBuilder#command`'s own `@owner_value_objects + @entities`, both
+/// SO-FAR slices the same way `owner_attributes` already is) — the owner's
+/// own constructs (value objects, then entities), used by
+/// `resolve_append_fields` to resolve an `append:` mutation's own list
+/// field element type.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -143,6 +152,8 @@ pub fn parse_body(
     from: Option<ir::CommandFrom>,
     preconditions: &[ir::Given],
     owner_attributes: &[ir::Attribute],
+    owner_value_objects: &[ir::ValueObject],
+    owner_entities: &[ir::Entity],
 ) -> ParseResult<ir::Command> {
     let mut command = ir::Command { name: name.to_string(), from, ..Default::default() };
 
@@ -153,7 +164,7 @@ pub fn parse_body(
         }
 
         let Some(gated) = super::next_line(file, lines, pos, "Command")? else {
-            resolve_implicit_attributes(&mut command, owner_attributes);
+            resolve_implicit_attributes(&mut command, owner_attributes, owner_value_objects, owner_entities);
             return Ok(command);
         };
         let line = gated.line.number;
@@ -191,8 +202,53 @@ pub fn parse_body(
     }
 }
 
-/// `CommandBuilder#resolve_implicit_attributes!` — `sets :field` ALONE
-/// (the omittable case `build_mutation` below already resolves into
+/// `CommandBuilder#resolve_implicit_attributes!` — dispatches each
+/// mutation, IN ITS OWN DECLARED ORDER, to the resolver matching its own
+/// op (`:set` -> `resolve_bare_set`, `:append` -> `resolve_append_fields`
+/// below), the same `case mutation.op when :set ... when :append ...`
+/// Ruby runs. Built as a two-pass plan (collect what each mutation needs
+/// FIRST, over an immutable borrow of `command.mutations`; mutate
+/// `command.attributes` SECOND) rather than mutating mid-iteration —
+/// `command.mutations` is read-only throughout this function, so nothing
+/// about the two-pass split changes behavior; it exists only so the
+/// borrow checker can see `mutations` and `attributes` (disjoint fields
+/// of the same `Command`) mutated separately, matching Ruby's own
+/// single-pass loop exactly in effect.
+fn resolve_implicit_attributes(
+    command: &mut ir::Command,
+    owner_attributes: &[ir::Attribute],
+    owner_value_objects: &[ir::ValueObject],
+    owner_entities: &[ir::Entity],
+) {
+    enum Job {
+        BareSet(String),
+        Append { target: String, fields: Vec<(String, String)> },
+    }
+
+    let jobs: Vec<Job> = command
+        .mutations
+        .iter()
+        .filter_map(|mutation| match mutation {
+            ir::Mutation::Other { target, op, source: Some(ir::MutationSource::Argument(name)) } if op == "set" && name == target => {
+                Some(Job::BareSet(target.clone()))
+            }
+            ir::Mutation::Append { target, fields } => Some(Job::Append { target: target.clone(), fields: fields.clone() }),
+            _ => None,
+        })
+        .collect();
+
+    for job in jobs {
+        match job {
+            Job::BareSet(target) => resolve_bare_set(&mut command.attributes, &target, owner_attributes),
+            Job::Append { target, fields } => {
+                resolve_append_fields(&mut command.attributes, &target, &fields, owner_attributes, owner_value_objects, owner_entities)
+            }
+        }
+    }
+}
+
+/// `CommandBuilder#resolve_bare_set!` — `sets :field` ALONE (the
+/// omittable case `build_mutation` below already resolves into
 /// `Mutation::Other { op: "set", source: Some(MutationSource::
 /// Argument(target)) }`, target == source by construction) already says
 /// the command accepts an argument named `:field`; requiring a SEPARATE
@@ -219,26 +275,101 @@ pub fn parse_body(
 /// declares its attributes before the commands that act on them) and
 /// which `aggregate::parse_body`/`entity::parse_body` both guarantee by
 /// handing in their own `attributes` Vec mid-walk.
-fn resolve_implicit_attributes(command: &mut ir::Command, owner_attributes: &[ir::Attribute]) {
-    let implicit_targets: Vec<String> = command
-        .mutations
+fn resolve_bare_set(attributes: &mut Vec<ir::Attribute>, target: &str, owner_attributes: &[ir::Attribute]) {
+    if attributes.iter().any(|attr| attr.name == target) {
+        return;
+    }
+    if let Some(owner_attr) = owner_attributes.iter().find(|attr| attr.name == target) {
+        attributes.push(owner_attr.clone());
+    }
+}
+
+/// The owner's own LIST attribute names its element type as TEXT
+/// (`Attribute.type_name`, already unwrapped from `list_of(...)` at
+/// `parse::mod::resolve_type_expression`'s own `list_of` arm — the bare
+/// inner constant, never re-wrapped the way a reference's own
+/// `Reference<Target>` spelling is) — resolved against the owner's own
+/// constructs (value objects THEN entities, matching `AggregateBuilder#
+/// command`'s own `@value_objects + closed_sets + @entities` order) by
+/// name. `CommandBuilder#element_type_for`'s own mirror.
+fn element_type_attributes<'a>(
+    list_field: &str,
+    owner_attributes: &[ir::Attribute],
+    owner_value_objects: &'a [ir::ValueObject],
+    owner_entities: &'a [ir::Entity],
+) -> Option<&'a [ir::Attribute]> {
+    let list_attr = owner_attributes.iter().find(|attr| attr.name == list_field && attr.list)?;
+
+    if let Some(vo) = owner_value_objects.iter().find(|vo| vo.name == list_attr.type_name) {
+        return Some(&vo.attributes);
+    }
+    owner_entities.iter().find(|entity| entity.name == list_attr.type_name).map(|entity| entity.attributes.as_slice())
+}
+
+/// `CommandBuilder#resolve_append_fields!` — ONE HOP DEEPER than
+/// `resolve_bare_set` above: `sets :ledger, append: { narrative:
+/// :narrative, ... }` builds a NEW element of a LIST field, so a bare
+/// self-referential field inside it (hash key equals its own value,
+/// `":field"` after rendering — see `ruby_value::render`'s own `Symbol`
+/// arm — the same shorthand `resolve_bare_set` already reads) resolves
+/// against the list field's own ELEMENT construct
+/// (`element_type_attributes` above), not `owner_attributes` directly —
+/// the owner itself never stores `:narrative`, only the list element's
+/// own construct does.
+///
+/// POSITION-PRESERVING, not appended at the end — the exported IR is
+/// array-order-sensitive, so this mutation's own fields are resolved as
+/// ONE CONTIGUOUS GROUP, in the mutation's own hash order, reinserted at
+/// whichever position the group's leftmost STILL-DECLARED member already
+/// occupies (or the end, if every member of the group is resolved). The
+/// `anchor` index is computed BEFORE any removal — nothing removed sits
+/// before it (it is the MIN index among the removed set), so it is
+/// already the correct insertion index into the POST-removal array with
+/// no adjustment needed; the Ruby method's own comment gives the full
+/// "why not append at the end" rationale (`Keyword#was`/`Argument#
+/// variadic` only ever looked correct because they happened to already
+/// be last).
+fn resolve_append_fields(
+    attributes: &mut Vec<ir::Attribute>,
+    target: &str,
+    fields: &[(String, String)],
+    owner_attributes: &[ir::Attribute],
+    owner_value_objects: &[ir::ValueObject],
+    owner_entities: &[ir::Entity],
+) {
+    let Some(element_attrs) = element_type_attributes(target, owner_attributes, owner_value_objects, owner_entities) else {
+        return;
+    };
+
+    let self_ref_fields: Vec<&str> =
+        fields.iter().filter(|(field, value)| *value == format!(":{field}")).map(|(field, _)| field.as_str()).collect();
+    if self_ref_fields.is_empty() {
+        return;
+    }
+
+    let present: Vec<ir::Attribute> =
+        self_ref_fields.iter().filter_map(|field| attributes.iter().find(|attr| attr.name == *field).cloned()).collect();
+    if present.len() == self_ref_fields.len() {
+        return; // already fully declared — nothing to resolve
+    }
+
+    let anchor = if present.is_empty() {
+        attributes.len()
+    } else {
+        present.iter().filter_map(|attr| attributes.iter().position(|a| a.name == attr.name)).min().unwrap_or(attributes.len())
+    };
+
+    attributes.retain(|attr| !present.iter().any(|p| p.name == attr.name));
+
+    let group: Vec<ir::Attribute> = self_ref_fields
         .iter()
-        .filter_map(|mutation| match mutation {
-            ir::Mutation::Other { target, op, source: Some(ir::MutationSource::Argument(name)) } if op == "set" && name == target => {
-                Some(target.clone())
-            }
-            _ => None,
+        .filter_map(|field| {
+            present.iter().find(|attr| attr.name == *field).cloned().or_else(|| element_attrs.iter().find(|attr| attr.name == *field).cloned())
         })
         .collect();
 
-    for target in implicit_targets {
-        if command.attributes.iter().any(|attr| attr.name == target) {
-            continue;
-        }
-        if let Some(owner_attr) = owner_attributes.iter().find(|attr| attr.name == target) {
-            command.attributes.push(owner_attr.clone());
-        }
-    }
+    let insert_at = anchor.min(attributes.len());
+    attributes.splice(insert_at..insert_at, group);
 }
 
 /// `CommandBuilder#reference_to` — SELF (`@references =`) when no `as:`

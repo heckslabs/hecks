@@ -1184,14 +1184,6 @@ Hecks.bluebook "Bluebook" do
       goal "Admit one word the bluebook surface accepts"
 
       reference_to Syntax
-      attribute :position, KeywordPosition
-      attribute :word,    KeywordSeedText
-      attribute :context, KeywordSeedText, admits: "Syntax::Context"
-      attribute :body,    KeywordSeedText, admits: "Syntax::Body"
-      attribute :inner,   KeywordSeedText
-      attribute :opens,   KeywordSeedText
-      attribute :fills,   KeywordSeedText
-      attribute :was,     KeywordSeedText, optional: true
 
       sets :keywords, append: { position: :position, word: :word, context: :context, body: :body,
                                  inner: :inner, opens: :opens, fills: :fills, was: :was }
@@ -1204,19 +1196,6 @@ Hecks.bluebook "Bluebook" do
       goal "Admit one argument a keyword takes"
 
       reference_to Syntax
-      attribute :position,          ArgumentPosition
-      attribute :keyword,           ArgumentSeedText
-      attribute :context,           ArgumentSeedText, admits: "Syntax::Context"
-      attribute :at,                ArgumentSeedText, optional: true
-      attribute :named,             ArgumentSeedText, optional: true
-      attribute :kind,              ArgumentSeedText, admits: "Syntax::ArgumentKind"
-      attribute :required,          ArgumentSeedText
-      attribute :fills,             ArgumentSeedText
-      attribute :selects,           ArgumentSeedText, optional: true
-      attribute :pair_key_fills,    ArgumentSeedText, optional: true
-      attribute :pair_value_fills,  ArgumentSeedText, optional: true
-      attribute :pairs_shape,       ArgumentSeedText, optional: true
-      attribute :variadic,          ArgumentSeedText, optional: true
 
       sets :arguments, append: { position: :position, keyword: :keyword, context: :context, at: :at,
                                   named: :named, kind: :kind, required: :required, fills: :fills,
