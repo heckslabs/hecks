@@ -333,14 +333,19 @@ Hecks.bluebook "Bluebook" do
       # nested `entity`. `reference_to` is the one exception — a piece can
       # point at another ROOT the same way its own head can (Card.assignee_id),
       # just never at another piece, since there's no cross-piece addressing
-      # anywhere in this language to resolve one against. Seven words,
-      # against an aggregate's eleven.
+      # anywhere in this language to resolve one against.
       member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
       member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
       # The same two rows an aggregate carries, for the same reason — a
       # piece is identified exactly the way a head is, and EntityBuilder's
       # own `identified_by` is the aggregate's method line for line.
       member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by"
+      # ADR 0028 — A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
+      # DECLARED ONCE, the SAME move `given` already makes one level up
+      # (see the "Aggregate" row above, body/fills identical) — a piece
+      # gained the same structural capability its own owning aggregate
+      # already had.
+      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions"
       member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
       member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
       member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
@@ -785,6 +790,11 @@ Hecks.bluebook "Bluebook" do
       member keyword: "projects",        context: "Aggregate", at: "",  named: "from",     kind: "symbol",   required: "true",  fills: "from"
 
       member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # ADR 0028 — see Aggregate's own `given` row above (this file's own
+      # "Argument" section) — the same shape, one level down: a piece's
+      # own `given` always takes a block (a fresh declaration), so this
+      # is the only row it needs.
+      member keyword: "given",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       # See Aggregate's own three rows above — the same method, one level down.
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"

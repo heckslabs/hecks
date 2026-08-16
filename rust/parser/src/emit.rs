@@ -367,6 +367,12 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
         // `entities: many(:entities)`, same field an Aggregate already
         // carries (`aggregate_json`, above) — recurses the same way.
         ("entities".to_string(), JsonValue::Array(e.entities.iter().map(entity_json).collect())),
+        // ADR 0028 — `entity.rb`'s own `emits_ir` now names
+        // `preconditions`, the SAME shape `Aggregate.preconditions`
+        // already carries (`aggregate_json`, above) — exported for
+        // EVERY entity, empty when unused, matching Ruby's own
+        // unconditional `preconditions.map { ... }`.
+        ("preconditions".to_string(), JsonValue::Array(e.preconditions.iter().map(given_json).collect())),
         ("lifecycle".to_string(), e.lifecycle.as_ref().map(lifecycle_json).unwrap_or(JsonValue::Null)),
     ])
 }

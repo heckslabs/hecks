@@ -166,10 +166,15 @@ module Hecksagain
             # LedgerEntry — pass sequence:", while passing sequence. There is one
             # spelling now, and no room left for that difference.
             identified_by: [:identified_by, :plain],
-            attributes:    [:attributes,    [:each, :shape_field]]
+            attributes:    [:attributes,    [:each, :shape_field]],
+            # ADR 0028 — the SAME shape Aggregate's own `preconditions`
+            # already carries, one level down: a piece's own named
+            # `given`, referenced back by one of its own commands.
+            preconditions: [:preconditions, [:each, :given]]
           },
           rows: { transitions: :transition_rows, identified_by: :identity_rows },
-          reads: { identified_by: [:each, :identity_path], attributes: [:each, :shape_field] },
+          reads: { identified_by: [:each, :identity_path], attributes: [:each, :shape_field],
+                   preconditions: [:each, :rule] },
           derived: {
             position: :walk,
             owner:       :parent,

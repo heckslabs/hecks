@@ -17,9 +17,15 @@
 //! (`Dispatch`, inside `Handler`, reaction.bluebook) — "no `value_object`,
 //! no `policy`, no nested `entity`, no `reference_to`" is no longer
 //! quite the whole list ; `reference_to` is still the one real omission.
+//! ADR 0028 added a seventh word: `given`, a precondition shared across
+//! this piece's OWN commands, declared once — the SAME move
+//! `parse::aggregate`'s own `given` arm already makes, one level up
+//! (real corpus motivation: banking.bluebook's own `LedgerEntry`, whose
+//! `Amend`/`Reverse` used to repeat two `given` blocks byte for byte).
 
 use super::{command, lifecycle, query};
 use crate::build::identity;
+use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::SourceLine;
@@ -69,6 +75,22 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
                     .ok_or_else(|| Diagnostic::new(file, line, "'lifecycle' requires a default:"))?;
                 entity.lifecycle = Some(lifecycle::parse_body(file, lines, pos, &field, &default)?);
             }
+            // A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
+            // DECLARED ONCE (ADR 0028) — the SAME move `parse::aggregate`'s
+            // own "given" arm already makes, one level up (block REQUIRED
+            // here, same reasoning: a fresh declaration, never a bare
+            // reference — only a COMMAND's own `given` can omit the
+            // block). DECLARATION-ONLY — a command's own bare
+            // `given("...")` resolves against this list via
+            // `command::parse_body`'s own `preconditions` parameter,
+            // threaded through below, mirroring
+            // `EntityBuilder#given`/`#drain_pending!` passing its own
+            // `@named_givens` into `CommandBuilder.build`.
+            "given" => {
+                let description = super::positional_text(file, line, "given", &gated.args, 1)?;
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                entity.preconditions.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+            }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
                 let from = command::parse_from(file, line, &gated.args)?;
@@ -110,16 +132,30 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
         .map(|(e_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| parse_body(f, l, p, &e_name, owner_value_objects)))
         .collect::<ParseResult<Vec<_>>>()?;
 
-    // AN ENTITY OFFERS NO PRECONDITIONS OF ITS OWN (`EntityBuilder#
-    // command` never forwards `named_givens:` — see `command::
-    // try_reference_named_given`'s own header) — a bare `given(...)`
-    // here always fails resolution, matching Ruby's own refusal, hence
-    // `&[]`.
+    // ADR 0028 — an entity now offers its OWN preconditions, the same
+    // way an aggregate always has (`EntityBuilder#command` now forwards
+    // `named_givens: @named_givens`, mirroring `AggregateBuilder#
+    // command`'s own `named_givens: @named_givens` one level up) — a
+    // bare `given(...)` inside one of THIS entity's own commands
+    // resolves against `entity.preconditions`, declared textually so far
+    // (the same ordering caveat `parse::aggregate`'s own call already
+    // carries), via `command::try_reference_named_given`.
     entity.commands = pending_commands
         .into_iter()
         .map(|(c_name, from, pending)| {
             super::build_deferred(file, lines, &pending, |f, l, p| {
-                command::parse_body(f, l, p, &c_name, name, from.clone(), &[], &entity.attributes, owner_value_objects, &entity.entities)
+                command::parse_body(
+                    f,
+                    l,
+                    p,
+                    &c_name,
+                    name,
+                    from.clone(),
+                    &entity.preconditions,
+                    &entity.attributes,
+                    owner_value_objects,
+                    &entity.entities,
+                )
             })
         })
         .collect::<ParseResult<Vec<_>>>()?;

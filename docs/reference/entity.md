@@ -9,11 +9,12 @@ by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
-Six of these seven run against `examples/banking`'s `LedgerEntry` — the
+Seven of these nine run against `examples/banking`'s `LedgerEntry` — the
 movements inside an `Account`, which have their own identity, their own
 state machine and their own commands, but no life apart from the account
-holding them. `reference_to` appears on no entity anywhere in the corpus,
-so it gets a small chapter of its own further down.
+holding them. `reference_to` and nested `entity` appear on no entity
+anywhere in the real corpus, so both get a small chapter of their own
+further down.
 
 ```ruby boot
 Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
@@ -161,6 +162,42 @@ account.ledger.map { |entry| entry[:sequence][:value] }  # => [1, 2]
 
 Which is why reaching one takes BOTH identities: the parent's, then the
 entity's own.
+
+## given
+
+<!-- generated:begin word=given -->
+`given description do ... end` — fills `preconditions`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | description |
+<!-- generated:end -->
+
+The SAME word an aggregate declares (see aggregate.md's own "given"),
+one level down: a precondition shared across this entity's OWN
+commands, declared once — block required — and referenced back by
+name, with no block of its own, from any command that needs it. The
+resolved canonical predicate lands on the referencing command's own
+`givens` either way, so a command's own rule enforcement is identical
+whichever construct declared the wording.
+
+`LedgerEntry` declares two — `"customer is active"` and `"account is
+open"` — and both `Amend` and `Reverse` read them back rather than
+retyping the `parent.`-qualified predicate:
+
+```ruby
+ledger_entry = runtime.registry.bluebook("Banking").aggregate("Account")
+                       .entities.find { |e| e.hecks_name == "LedgerEntry" }
+ledger_entry.preconditions.map(&:description)  # => ["customer is active", "account is open"]
+ledger_entry.commands.find { |c| c.hecks_name == "Amend" }.givens.map(&:description)  # => ["customer is active", "account is open", "entry is posted", "an amendment leaves a non-negative amount"]
+```
+
+Same canonical text either way — a referencing command's own `given`
+carries the entity's declared predicate, not a copy:
+
+```ruby
+ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canonical)  # => ["parent.customer.status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
+```
 
 ## command
 

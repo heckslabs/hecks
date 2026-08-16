@@ -239,6 +239,11 @@ module Hecksagain
             # ever said so.
             identified_by: identity_paths(row),
             attributes:    Array(row[:attributes]).map { |field| shape_field(field) },
+            # ADR 0028 — the SAME shape `aggregate(row)`'s own
+            # `preconditions:` reads two hand-typed methods up, read by
+            # hand for the identical reason: `entity(row)` is hand-typed
+            # too, unlike `command`/`value_object`/`query`.
+            preconditions: Array(row[:preconditions]).map { |held| rule(held) },
             commands:      within("Command", row).map { |verb| command(verb) },
             queries:       within("Query", row).map { |ask| query(ask) },
             # S17, ADR 0026 — Dispatch, inside Handler : an entity's own

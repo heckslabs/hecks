@@ -53,7 +53,7 @@ module Hecksagain
         paging_offset_partitions_correctly: %w[Query#options],
         authorize_scopes_or_refuses: %w[Query#options],
         guard_refusals_are_declared: %w[Command#givens Command#ensures],
-        lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions],
+        lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions Entity#preconditions],
         # Dispatch#command_name/Dispatch#with_spec are NOT claimable
         # feature names — META_DOMAIN_ALL_FEATURES only walks ONE level
         # of entity nesting (`agg.entities.flat_map`, meta_domain_
@@ -536,6 +536,11 @@ module Hecksagain
       # SAME Given struct object `enforce_givens` already iterates
       # command.givens for, so there is no separate runtime path a
       # property could exercise beyond what this already reaches.
+      # Entity#preconditions closes the identical way, one level down
+      # (ADR 0028) — a piece's own bare `given` reference pushes the
+      # SAME Given struct onto ITS OWN referencing command's givens,
+      # so LedgerEntry's own Amend/Reverse (banking) already exercise
+      # this through the exact mechanism above, no separate path.
       #
       # Real targets: Account.Debit/CloseAccount (`from:` guards),
       # Credit/Debit (the named-once `given("customer is active")`

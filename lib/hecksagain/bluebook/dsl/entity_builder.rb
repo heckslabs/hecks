@@ -6,10 +6,11 @@ module Hecksagain
         include IdentityDeclaration
 
         def initialize(name, owner_value_objects: [])
-          @name     = name
-          @commands = []
-          @queries  = []
-          @entities = []
+          @name         = name
+          @commands     = []
+          @queries      = []
+          @entities     = []
+          @named_givens = {}
           @owner_value_objects = owner_value_objects
           # DEFERRED CONSTRUCTION — see `AggregateBuilder#drain_pending!`'s
           # own comment; the identical mechanism, one level down, so a
@@ -73,6 +74,37 @@ module Hecksagain
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end
 
+        # A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS, DECLARED
+        # ONCE — the same move `AggregateBuilder#given` already makes,
+        # one level down. Real, live redundancy this closes: banking's
+        # own `LedgerEntry.Amend`/`LedgerEntry.Reverse` each repeated
+        # `given("customer is active") { parent.customer.status ==
+        # "active" }` and `given("account is open") { parent.status ==
+        # "open" }`, byte for byte, because a piece had no way to declare
+        # either once and reference it back — only the AGGREGATE could.
+        # DECLARE BEFORE THE COMMANDS THAT REFERENCE IT, the same
+        # ordering `AggregateBuilder#given`'s own comment names — though
+        # since ADR 0028, `command` only queues a descriptor and actually
+        # builds at `#drain_pending!` time, well after this whole block
+        # (including every `given` in it) has already run, so textual
+        # order within the block no longer actually matters here; named
+        # for the reader anyway, since `given`'s own resolution logic
+        # (`CommandBuilder#reference_named_given`) still reads whatever
+        # `@named_givens` holds AT THE COMMAND'S OWN BUILD TIME, not by
+        # magic.
+        def given(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s given #{description.inspect} did not survive " \
+                  "extraction — its source could not be read, so no other " \
+                  "runtime could ever evaluate it"
+          end
+
+          @named_givens[description] = Given.new(description: description, canonical: canonical, predicate: predicate)
+        end
+
         def build
           drain_pending!
           resolve_pending_identity!
@@ -85,6 +117,7 @@ module Hecksagain
             commands:      @commands,
             queries:       @queries,
             entities:      @entities,
+            preconditions: @named_givens.values,
             lifecycle:     @lifecycle
           )
         end
@@ -107,7 +140,8 @@ module Hecksagain
           end
 
           @commands = @pending_commands.map do |name, from, block|
-            CommandBuilder.build(name, owner: @name, from: from, owner_attributes: attributes,
+            CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens,
+                                        owner_attributes: attributes,
                                         owner_constructs: @owner_value_objects + @entities, &block)
           end
 

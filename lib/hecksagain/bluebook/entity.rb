@@ -42,20 +42,31 @@ module Hecksagain
         # an aggregate's always were — the field the ADR names as
         # declared-but-unused until this slice.
         entities:      many(:entities),
+        # ADR 0028 — a piece's own `given`, the SAME shape
+        # `Aggregate#preconditions` already carries (its own `emits_ir`
+        # row, identical). A precondition shared across this piece's own
+        # commands, declared once — a command references it back by
+        # name; the resolved text still lands on EACH referencing
+        # command's own `givens` either way, so this field is read-only
+        # documentation of what the piece itself declared, the same
+        # relationship `Aggregate.preconditions` already has to its own
+        # commands.
+        preconditions: -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         lifecycle:     one(:lifecycle)
       )
 
       class << self
         attr_reader :description, :identified_by, :identity_paths, :identity_heads,
-                    :attributes, :commands, :queries, :entities, :lifecycle
+                    :attributes, :commands, :queries, :entities, :preconditions, :lifecycle
 
         def declare(name:, description: nil, identified_by: nil, attributes: [],
-                    commands: [], queries: [], entities: [], lifecycle: nil)
+                    commands: [], queries: [], entities: [], preconditions: [], lifecycle: nil)
           piece = Class.new(self)
           piece.hecks_name = name.to_s
           piece.absorb(description: description, identified_by: identified_by,
                        attributes: attributes, commands: commands,
-                       queries: queries, entities: entities, lifecycle: lifecycle)
+                       queries: queries, entities: entities, preconditions: preconditions,
+                       lifecycle: lifecycle)
           piece.stamp_children
           piece
         end
@@ -63,14 +74,15 @@ module Hecksagain
         # Assigns what the language declares, then hands off to the
         # behaviour's own `settle` — derived identity and the name
         # indexes, neither of which the declaration states.
-        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, lifecycle:)
-          @description   = description
-          @identified_by = identified_by
-          @attributes    = attributes
-          @commands      = commands
-          @queries       = queries
-          @entities      = entities
-          @lifecycle     = lifecycle
+        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, lifecycle:)
+          @description    = description
+          @identified_by  = identified_by
+          @attributes     = attributes
+          @commands       = commands
+          @queries        = queries
+          @entities       = entities
+          @preconditions  = preconditions
+          @lifecycle      = lifecycle
 
           settle
         end

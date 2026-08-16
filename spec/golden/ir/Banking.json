@@ -1223,6 +1223,16 @@
             ]
           },
           "name": "LedgerEntry",
+          "preconditions": [
+            {
+              "canonical": "parent.customer.status == \"active\"",
+              "description": "customer is active"
+            },
+            {
+              "canonical": "parent.status == \"open\"",
+              "description": "account is open"
+            }
+          ],
           "queries": [
             {
               "attributes": [
@@ -2135,6 +2145,9 @@
             ]
           },
           "name": "Withdrawal",
+          "preconditions": [
+
+          ],
           "queries": [
             {
               "attributes": [
@@ -4870,6 +4883,9 @@
             ]
           },
           "name": "Visit",
+          "preconditions": [
+
+          ],
           "queries": [
             {
               "attributes": [
@@ -4966,6 +4982,9 @@
             ]
           },
           "name": "KeyIssuance",
+          "preconditions": [
+
+          ],
           "queries": [
 
           ]
