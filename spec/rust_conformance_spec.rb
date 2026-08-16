@@ -167,7 +167,13 @@ RSpec.describe "Rust conformance (native binary)", io: true do
       ruby_instances = ruby_result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) }
       ruby_events = JSON.parse(JSON.generate(ruby_result[:events]))
       ruby_refusals = ruby_result[:refusals].map { |r| { "verb" => r[:verb].to_s, "error" => r[:error] } }
-      ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries]))
+      # `instances_at:` — Fuzzing::Replay's OWN per-query snapshot for the
+      # property harness (Properties.group_by_matches_recompute and
+      # siblings), never part of the "queries" contract this spec holds
+      # Rust to; Rust's own compiled binary has no equivalent field at
+      # all, so it's stripped here rather than becoming a permanent,
+      # meaningless diff.
+      ruby_queries = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| q.reject { |k, _| k == :instances_at } }))
       ruby_sagas = JSON.parse(JSON.generate(ruby_result[:sagas]))
 
       stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
