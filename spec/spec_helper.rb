@@ -68,4 +68,19 @@ RSpec.configure do |config|
   # these unfiltered; run them locally on demand with
   # `CI=true bundle exec rspec` or `bundle exec rspec --tag io`.
   config.filter_run_excluding io: true unless ENV["CI"]
+
+  # `fuzzing: true` — every example under spec/fuzzing/, tagged by
+  # PATH rather than by hand at each file (`define_derived_metadata`,
+  # not a per-file `:fuzzing` label to keep in sync). Not `io: true`
+  # itself — nothing here does real I/O, it's slow for a different
+  # reason: a live-generated-history replay against a real domain,
+  # dispatched for real, several seeds deep, run twice over
+  # (`properties_spec.rb`'s own "standard battery" + determinism
+  # check alone is ~8s of a suite that's otherwise ~50ms/example).
+  # Same shape as `io: true` — excluded from the everyday local loop,
+  # run automatically on every commit instead (`.githooks/post-commit`,
+  # `bundle exec rspec spec/fuzzing --tag fuzzing`), and unfiltered in
+  # CI. Run on demand with `bundle exec rspec spec/fuzzing --tag fuzzing`.
+  config.define_derived_metadata(file_path: %r{/spec/fuzzing/}) { |metadata| metadata[:fuzzing] = true }
+  config.filter_run_excluding fuzzing: true unless ENV["CI"]
 end
