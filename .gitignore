@@ -13,4 +13,12 @@ Gemfile.lock
 tmp/
 vendor/bundle/
 coverage/
-.claude/
+.claude/*
+# Skills are project knowledge, not session scratch — tracked so any
+# future session on this repo (this machine or a fresh clone) gets
+# them for free, the same reason docs/decisions/ is tracked. `.claude/*`
+# above, not `.claude/` — a directory-matching pattern stops git from
+# ever descending into it at all, so a negation below can't reach
+# anything inside; the glob form still excludes every current child
+# but leaves each one negatable.
+!.claude/skills/
