@@ -142,10 +142,23 @@ module Hecksagain
         # elsewhere in this file — Postgres-only and audited, not
         # actually applied by THIS method, the same gap the vanish side
         # already lives with.
+        #
+        # `@renames.value?` belongs here too, and used to be missing: a
+        # bare `rename :cost, to: :amount` is the plainest possible
+        # covering rule there is (`translate` above applies it
+        # unconditionally, no lookup table, no per-record ambiguity —
+        # simpler than a move or convert, which both got their `fills?`
+        # entry from the start), and its absence meant `unsafe_additions`
+        # reported the new name as an unexplained required addition on
+        # EVERY rename-only edge, the single most common translation
+        # shape there is. `explains?` already checked the source side
+        # (`@renames.key?`); `fills?` is the symmetric destination-side
+        # check that was never added alongside it.
         def fills?(path)
           path = path.to_s
 
-          @moves.any? { |move| move.to.split(".").first == path } ||
+          @renames.value?(path.to_sym) ||
+            @moves.any? { |move| move.to.split(".").first == path } ||
             @converts.any? { |convert| convert.to.split(".").first == path } ||
             @computes.any? { |compute| compute.to.split(".").first == path } ||
             @backfills.any? { |backfill| backfill.name.to_s == path }
