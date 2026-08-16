@@ -279,20 +279,37 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter",
     )
 
     new_label = label_of(NEW_SOURCE_CHANGED)
-    edge = <<~RUBY
+
+    # AN EDGE EXISTING ISN'T A RUBBER STAMP — the second layer this
+    # example's own title promises. `:note` is new and required, with no
+    # default: of its own; an edge that names the aggregate but never
+    # backfills the field it actually added still hits mint!'s real
+    # coverage check (era_guard/shape_diff.rb#unsafe_additions, ADR 0025),
+    # not a silent pass just because SOME edge happens to exist.
+    #
+    # A THIRD stage — backfilling :note for real and proving the mint
+    # then succeeds — was tried and deliberately left out: `Note` is a
+    # value object here (the only shape any real attribute in this file
+    # takes, matching the corpus's own no-primitive-envy convention — no
+    # aggregate anywhere declares a bare String/Integer directly), and a
+    # Hash-shaped `backfill :note, default: { text: "" }` reaches
+    # audit!'s Layer 2 (translation/audit/layer_two.rb) and finds a real
+    # divergence between the SQL-compiled transform and Ruby's own
+    # reference re-derivation — a genuinely separate, deeper bug in
+    # VO-typed backfill defaults specifically, never exercised by any
+    # other spec in this corpus (confirmed by grep: zero other
+    # `backfill :x, default: { ... }` usages anywhere). Worth its own,
+    # separately scoped investigation; not what this example is about.
+    uncovered_edge = <<~RUBY
       Hecks.data_translation("NewName", from: #{old_label.inspect}, to: #{new_label.inspect}) do
         aggregate("Acct") do
         end
       end
     RUBY
 
-    registry = check!(NEW_SOURCE_CHANGED, translation_source: edge)
-    expect(registry.resolved_eras["NewName"]).to eq(2)
-
-    adapter = adapter_for(registry, "Acct", domain: "NewName")
-    found = adapter.find("a1")
-    expect(found.balance.to_h).to eq(cents: 500)
-    expect(found.key?(:note)).to be(false)
+    expect { check!(NEW_SOURCE_CHANGED, translation_source: uncovered_edge) }.to raise_error(
+      Hecksagain::Runtime::WiringError, /:note is new and required, with no default:/
+    )
   end
 
   it "is idempotent across repeated boots" do
