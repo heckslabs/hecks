@@ -390,6 +390,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/expression_projection` | The expression machinery's tables, projected from the grammar chapter's admitted set and checked in, so the evaluator and the canonical f... |
 | `bin/fuzz` | Generates random-but-valid command/query sequences from a domain's own IR (Hecksagain::Fuzzing::SequenceGenerator) and checks each one th... |
 | `bin/generate` | Prints one randomly generated, valid dispatch sequence for a domain — the same generator bin/fuzz drives, exposed standalone so a sequenc... |
+| `bin/hecksagain_query_ir_mcp` | AN MCP SERVER exposing Hecksagain::QueryIR's two queries as tools, so a coding agent calls them directly instead of shelling out to `bin/... |
 | `bin/history` | Prints every journal entry a domain's append-only adapters hold, as JSON — the full write history, not just the current head. bin/history... |
 | `bin/ir` | Prints a booted domain's IR as JSON — the same `to_h` the golden specs pin and StorageShape hashes into an era, for reading rather than a... |
 | `bin/merge_tail` | Tail-merge: the one deliberate command. It marks a business event — an old app retiring — never a shape change. One transaction: advance ... |

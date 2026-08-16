@@ -1,0 +1,131 @@
+#!/usr/bin/env ruby
+
+# AN MCP SERVER exposing Hecksagain::QueryIR's two queries as tools,
+# so a coding agent calls them directly instead of shelling out to
+# `bin/query_ir` and parsing text. Hand-rolled JSON-RPC 2.0 over
+# stdio, no gem dependency — the same shape the earlier (unpushed,
+# never-shipped) hecksagain_development_mcp used, rebuilt fresh since
+# that code never actually landed in this repo's history. One line in,
+# one line out: newline-delimited JSON, the MCP stdio transport's own
+# framing, flushed after every write.
+#
+# Registered in .mcp.json. All query logic AND text formatting live in
+# Hecksagain::QueryIR (lib/hecksagain/query_ir.rb) — this file is
+# JSON-RPC plumbing only, so the CLI and the MCP tool can never answer
+# the same question two different ways.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "hecksagain/query_ir"
+require "json"
+
+STDOUT.sync = true
+
+PROTOCOL_VERSION = "2024-11-05"
+
+TOOLS = [
+  {
+    name: "query_ir_constructs",
+    description: "For a bluebook IR construct (Aggregate, Entity, Command, Query, ValueObject, Policy, ReadModel, ProcessManager, Bluebook) or all of them, the real structural diff between what the Ruby class emits and what the self-hosted meta-domain declares for it. Use this instead of reading entity.rb/entity.bluebook (or the equivalent pair for another construct) by hand to check whether a new IR field has been fully propagated.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        names: {
+          type: "array",
+          items: { type: "string" },
+          description: "Construct names to check (e.g. [\"Entity\"]). Omit or leave empty for all constructs."
+        }
+      }
+    }
+  },
+  {
+    name: "query_ir_duplicates",
+    description: "Every given/ensures/invariant DECLARATION across the real corpus (banking/pizzas/compliance) and the self-hosted meta-domain, grouped by (kind, description, canonical predicate), reporting every group with more than one independently-declared rule (already-deduped references, which share the same underlying rule object, are excluded). Use this to find real corpus duplication before proposing a new 'declared once, referenced by name' resolution rule.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        domains: {
+          type: "array",
+          items: { type: "string" },
+          description: "Real example domain directories to scan (e.g. [\"examples/banking\"]). Omit for every real example domain."
+        },
+        include_meta: {
+          type: "boolean",
+          description: "Include the self-hosted meta-domain (lib/hecksagain/language/bluebook). Defaults to true."
+        }
+      }
+    }
+  }
+].freeze
+
+def tool_result(text, error: false)
+  { content: [{ type: "text", text: text }], isError: error }
+end
+
+def call_tool(name, arguments)
+  case name
+  when "query_ir_constructs"
+    names = Array(arguments["names"])
+    tool_result(Hecksagain::QueryIR.format_constructs(Hecksagain::QueryIR.constructs(names)))
+  when "query_ir_duplicates"
+    domains = arguments["domains"] && !arguments["domains"].empty? ? arguments["domains"] : nil
+    include_meta = arguments.fetch("include_meta", true)
+    tool_result(Hecksagain::QueryIR.format_duplicates(Hecksagain::QueryIR.duplicates(domains: domains, include_meta: include_meta)))
+  else
+    tool_result("no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}", error: true)
+  end
+rescue ArgumentError => e
+  tool_result(e.message, error: true)
+end
+
+def send_response(id, result)
+  puts JSON.generate({ jsonrpc: "2.0", id: id, result: result })
+end
+
+def send_error(id, code, message)
+  puts JSON.generate({ jsonrpc: "2.0", id: id, error: { code: code, message: message } })
+end
+
+def handle(request)
+  id     = request["id"]
+  method = request["method"]
+  params = request["params"] || {}
+
+  case method
+  when "initialize"
+    send_response(id, {
+                    protocolVersion: PROTOCOL_VERSION,
+                    capabilities: { tools: {} },
+                    serverInfo: { name: "hecksagain-query-ir", version: "1.0.0" }
+                  })
+  when "notifications/initialized"
+    nil # a notification — no id, no response
+  when "tools/list"
+    send_response(id, { tools: TOOLS })
+  when "tools/call"
+    result = call_tool(params["name"], params["arguments"] || {})
+    send_response(id, result)
+  when "ping"
+    send_response(id, {})
+  else
+    send_error(id, -32_601, "Method not found: #{method}") unless id.nil?
+  end
+end
+
+$stdin.each_line do |line|
+  line = line.strip
+  next if line.empty?
+
+  begin
+    request = JSON.parse(line)
+  rescue JSON::ParserError => e
+    send_error(nil, -32_700, "Parse error: #{e.message}")
+    next
+  end
+
+  begin
+    handle(request)
+  rescue StandardError => e
+    send_error(request["id"], -32_603, "Internal error: #{e.class}: #{e.message}")
+  end
+end
