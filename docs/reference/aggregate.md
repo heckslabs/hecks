@@ -26,7 +26,7 @@ end
 
 ```ruby bluebook
 Hecks.bluebook "AggregateReference" do
-  vision "A film financed by one studio and distributed by another — as: is what tells the two references apart."
+  vision "A film financed by one studio, and possibly distributed by another — as: is what tells the two references apart."
 
   aggregate "Studio" do
     attribute :name, Name
@@ -141,7 +141,11 @@ Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 | `as:` | symbol | false | name |
 <!-- generated:end -->
 
-Names which already-declared field or fields say which record this is — one bare field (`:tag`) points at a single-field value object and its path is derived (`tag.value`); several, one per argument, join in declaration order (`"north:3"`). A bare scalar or a reference resolves to its own name unchanged, since there is nothing to unwrap. Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — a second creating command against an existing identity refuses as a duplicate, not a fresh record, demonstrated below.
+Names which already-declared field or fields say which record this is — one bare field (`:tag`) points at a single-field value object and its path is derived (`tag.value`); several, one per argument, join in declaration order, the composite form demonstrated below.
+
+A bare scalar or a reference resolves to its own name unchanged, since there is nothing to unwrap.
+
+Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — a second creating command against an existing identity refuses as a duplicate, not a fresh record, demonstrated below.
 
 `Account` declares `attribute :number, AccountNumber` and then
 `identified_by :number`, so the number IS the record's identity — not
@@ -592,6 +596,6 @@ live, the way every `given("customer is active")` in this corpus
 always has — so the sweep, and the refusal it guards against, are
 demonstrated directly instead: `spec/runtime/rebuild_sweep_spec.rb`
 declares a small dedicated fixture, dispatches into it, and shows a
-guard refuse with `ProjectionAbsent` before a sweep runs and read the
-swept value cleanly after.
+guard refuse with `ProjectionAbsent` before a sweep runs, then reads
+the swept value cleanly after.
 
