@@ -741,7 +741,7 @@ template_yaml = <<~YAML
         # Aurora needs (a DBCluster carrying the managed password/
         # endpoint/subnet-group/security-group, plus at least one
         # DBInstance inside it) is the ONLY thing different from the
-        # plain-RDS path below; Adapters::Postgres/tokio_postgres speak
+        # plain-RDS path below; Adapters::PostgresEra/tokio_postgres speak
         # the identical wire protocol against either endpoint.
         # SELF-MANAGED, not ManageMasterUserPassword: true -- confirmed
         # live that the plain-RDS path's own approach (below) has a real
@@ -939,7 +939,7 @@ template_yaml = <<~YAML
             # domain's own declared name, known at generation time the
             # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
             # "1" because that's what a FRESH database always gets:
-            # Postgres::LineageManager::EraResolver#check! mints era 1
+            # PostgresEra::LineageManager::EraResolver#check! mints era 1
             # unconditionally the first time any Ruby process boots
             # against an empty `hecks_eras` (era_resolver.rb's own
             # `held.empty?` branch) — deterministic, not guessed. `make
@@ -1439,7 +1439,7 @@ mint_era_recipe =
     # through whatever the domain's OWN .world file declares
     # (`persisted_by("Heki")` for a domain that hasn't opted into
     # Postgres for local dev), by EXPLICIT design — loader.rb's own
-    # comment: "persisted_by(\\"Postgres\\") is never inferred from
+    # comment: "persisted_by(\\"PostgresEra\\") is never inferred from
     # anything else." `EraCheck.check!` (what `Hecks.boot` runs) is
     # itself adapter-capability-gated on that same declaration and simply
     # no-ops for a non-lineage-capable adapter — it never touches
@@ -1447,10 +1447,10 @@ mint_era_recipe =
     # `Loader.boot` itself does (`Ports::Loading.bootstrap`/
     # `load_library`/`load_project`/`load_domain`) to build a real,
     # fully-loaded registry (bluebook + any uses_framework attachments),
-    # then calls straight into Postgres's own `LineageManager.check!`
+    # then calls straight into PostgresEra's own `LineageManager.check!`
     # with THIS deploy's actual `DATABASE_URL` — bypassing the world
     # file's own adapter choice entirely, the same targeted pattern
-    # spec/adapters/driven/postgres/lineage_spec.rb's own `check!` helper
+    # spec/adapters/driven/postgres_era/lineage_spec.rb's own `check!` helper
     # already uses.
     #
     # THE WHOLE TUNNEL IS RESTARTED PER ATTEMPT, not just the boot
@@ -1486,7 +1486,7 @@ mint_era_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::Postgres::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\

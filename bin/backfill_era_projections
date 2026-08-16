@@ -5,7 +5,7 @@
 # what `EraStore#eras` already does incidentally, as a side effect, the
 # next time the domain happens to boot through Ruby
 # (`verify_integrity!` -> `backfill_frozen_facts!`,
-# lib/hecksagain/adapters/driven/postgres/lineage/era_store.rb). No new
+# lib/hecksagain/adapters/driven/postgres_era/lineage/era_store.rb). No new
 # backfill logic lives here — this just calls that existing path and
 # reports what it found, so an operator can PROVE every row is migrated
 # before any consumer that refuses, rather than computes one, on a row
@@ -50,8 +50,8 @@ unless capable
 end
 
 settings = registry.world(bluebook.name)&.for_binding(Hecksagain::Ports::Persistence::VERB, adapter_name) || {}
-db = Hecksagain::Adapters::Postgres.connect_for(bluebook.name, settings)
-lineage = Hecksagain::Adapters::Postgres::Lineage.new(db, bluebook.name)
+db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, settings)
+lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
 lineage.ensure_base!
 
 missing = -> {
