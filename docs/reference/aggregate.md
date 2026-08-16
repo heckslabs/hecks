@@ -97,7 +97,7 @@ account = Banking::Account.open(customer: "ag-1", number: { value: "ag-a1" },
 A free-text label for the aggregate — no rules attached, read by nothing but a human.
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").description  # => "A balance belonging to one customer, and the ledger that explains how it got there."
+Banking::Account.ir.description  # => "A balance belonging to one customer, and the ledger that explains how it got there."
 ```
 
 ## provenance
