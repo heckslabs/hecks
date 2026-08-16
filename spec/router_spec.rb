@@ -88,8 +88,8 @@ RSpec.describe Hecksagain::Router do
     RUBY
 
     described_class.boot(@root)
-    Realm::Banking::Customer.Register!(reference: { value: "C-1" }, name: { value: "Ada" })
-    Realm::Banking::Account.Open!(id: "A-1", customer: "C-1", number: { value: "ACC-1" })
+    Realm::Banking::Customer.Register(reference: { value: "C-1" }, name: { value: "Ada" })
+    Realm::Banking::Account.Open(id: "A-1", customer: "C-1", number: { value: "ACC-1" })
 
     expect(Realm::Banking.customer_portfolio(customer: "C-1")).to eq([
       { customer: { id: "C-1", reference: { value: "C-1" }, name: { value: "Ada" } },
@@ -121,7 +121,7 @@ RSpec.describe Hecksagain::Router do
     RUBY
 
     described_class.boot(@root)
-    Realm::Catalog::Book.Add!(code: { value: "B-1" })
+    Realm::Catalog::Book.Add(code: { value: "B-1" })
 
     found = Realm::Catalog::Book.find("B-1")
     expect(found.id).to eq("B-1")
@@ -193,7 +193,7 @@ RSpec.describe Hecksagain::Router do
 
     described_class.boot(@root)
 
-    expect(SugarRealm::Catalog::Book.Add!(code: { value: "book-1" }).id).to eq("book-1")
+    expect(SugarRealm::Catalog::Book.Add(code: { value: "book-1" }).id).to eq("book-1")
     expect(SugarRealm::Catalog::Book.available.map { |row| row.merge(code: row[:code].to_h) })
       .to eq([{ id: "book-1", code: { value: "book-1" } }])
   ensure
@@ -230,8 +230,8 @@ RSpec.describe Hecksagain::Router do
 
     described_class.boot(@root)
 
-    expect(OptionsRealm::Banking::Account.Open!(code: { value: "latest" }).id).to eq("latest")
-    expect(OptionsRealm::Banking::Account.options(version: :v1).LegacyOpen!(code: { value: "legacy" }).id).to eq("legacy")
+    expect(OptionsRealm::Banking::Account.Open(code: { value: "latest" }).id).to eq("latest")
+    expect(OptionsRealm::Banking::Account.options(version: :v1).LegacyOpen(code: { value: "legacy" }).id).to eq("legacy")
   ensure
     Object.send(:remove_const, :OptionsRealm) if Object.const_defined?(:OptionsRealm, false)
   end
@@ -272,7 +272,7 @@ RSpec.describe Hecksagain::Router do
 
     described_class.boot(@root)
 
-    expect(ShortcutBook.Add!(code: { value: "book-1" }).id).to eq("book-1")
+    expect(ShortcutBook.Add(code: { value: "book-1" }).id).to eq("book-1")
   ensure
     Object.send(:remove_const, :ShortcutBook) if Object.const_defined?(:ShortcutBook, false)
     Object.send(:remove_const, :ShortcutRealm) if Object.const_defined?(:ShortcutRealm, false)
@@ -292,7 +292,7 @@ RSpec.describe Hecksagain::Router do
 
     described_class.boot(@root)
 
-    expect { SharedShortcutBook.Add! }
+    expect { SharedShortcutBook.Add }
       .to raise_error(described_class::AmbiguousShortRoute,
                       /AmbiguityRealm::Billing::SharedShortcutBook.Add.*AmbiguityRealm::Catalog::SharedShortcutBook.Add/)
   ensure
