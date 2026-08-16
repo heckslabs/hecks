@@ -64,6 +64,15 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     let mut pending_identity: Option<super::PendingIdentity> = None;
     let mut closed_sets: Vec<ir::ValueObject> = Vec::new();
     let mut policies: Vec<ir::Policy> = Vec::new();
+    // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header.
+    // `entity`/`command`/`query` only QUEUE here; built for real by the
+    // drain below, once this aggregate's own top-level line-range is
+    // fully walked and `aggregate.value_objects`/`.entities`/
+    // `.preconditions`/`.attributes` are the real, final lists —
+    // mirroring `AggregateBuilder#drain_pending!` one for one.
+    let mut pending_entities: Vec<(String, super::PendingBody)> = Vec::new();
+    let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> = Vec::new();
+    let mut pending_queries: Vec<(String, super::PendingBody)> = Vec::new();
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Aggregate")? else {
@@ -201,44 +210,31 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                     .ok_or_else(|| Diagnostic::new(file, line, "'lifecycle' requires a default:"))?;
                 aggregate.lifecycle = Some(lifecycle::parse_body(file, lines, pos, &field, &default)?);
             }
+            // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own
+            // header. `AggregateBuilder#entity` now only QUEUES too; the
+            // real build happens in the drain below, against this
+            // aggregate's COMPLETE `value_objects` (this one's own TYPE-
+            // form `identified_by` — and, one level down, its own
+            // entities'/commands' resolution — needs the FULL set, not
+            // just what was declared textually before this line: a
+            // value_object declared AFTER an entity that identifies by
+            // it is real, confirmed corpus shape —
+            // `model_check/lifecycle_findings.bluebook`'s own `Part`).
             "entity" => {
                 let e_name = super::positional_text(file, line, "entity", &gated.args, 1)?;
-                // `AggregateBuilder#entity`'s own `owner_value_objects:
-                // @value_objects + closed_sets` — whatever this aggregate
-                // has declared SO FAR (textual order), not the whole
-                // eventual set; an entity's own TYPE-form `identified_by`
-                // resolves against exactly this slice.
-                let owner_value_objects: Vec<ir::ValueObject> = aggregate.value_objects.iter().cloned().chain(closed_sets.iter().cloned()).collect();
-                aggregate.entities.push(entity::parse_body(file, lines, pos, &e_name, &owner_value_objects)?);
+                let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
+                pending_entities.push((e_name, pending));
             }
             "query" => {
                 let q_name = super::positional_text(file, line, "query", &gated.args, 1)?;
-                aggregate.queries.push(query::parse_body(file, lines, pos, &q_name)?);
+                let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
+                pending_queries.push((q_name, pending));
             }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
                 let from = command::parse_from(file, line, &gated.args)?;
-                // `aggregate.preconditions` AS DECLARED SO FAR (textual
-                // order) — see `command::try_reference_named_given`'s own
-                // header on why a command's own block-less `given` needs
-                // this, not just `&[]`. `owner_constructs:
-                // @value_objects + closed_sets + @entities` —
-                // `AggregateBuilder#command`'s own mix, SO FAR (textual
-                // order), split into its two real kinds — see
-                // `command::parse_body`'s own header.
-                let owner_value_objects: Vec<ir::ValueObject> = aggregate.value_objects.iter().cloned().chain(closed_sets.iter().cloned()).collect();
-                aggregate.commands.push(command::parse_body(
-                    file,
-                    lines,
-                    pos,
-                    &c_name,
-                    name,
-                    from,
-                    &aggregate.preconditions,
-                    &aggregate.attributes,
-                    &owner_value_objects,
-                    &aggregate.entities,
-                )?);
+                let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
+                pending_commands.push((c_name, from, pending));
             }
             // `AggregateBuilder#policy` — see this function's own header
             // on why the built `ir::Policy` is returned rather than
@@ -259,6 +255,47 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     // closed set (not exercised by any real corpus member today, kept
     // correct anyway).
     aggregate.value_objects.extend(closed_sets);
+
+    // DEFERRED CONSTRUCTION, DRAINED — `AggregateBuilder#drain_pending!`'s
+    // own mirror, in the SAME order (entities first and fully, then
+    // commands, then queries), run AFTER `aggregate.value_objects` is the
+    // real, final, merged list above and BEFORE this aggregate's own
+    // pending identity resolves (matching `AggregateBuilder#build`'s own
+    // `drain_pending!` then `resolve_pending_identity!` order exactly —
+    // the two don't actually depend on each other, but nothing is lost by
+    // keeping the identical order). Declared-order preserved throughout:
+    // each `pending_*` Vec was pushed to in textual order and `.map` walks
+    // it in that same order, so `aggregate.entities`/`.commands`/
+    // `.queries` end up in the SAME order they always did.
+    aggregate.entities = pending_entities
+        .into_iter()
+        .map(|(e_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| entity::parse_body(f, l, p, &e_name, &aggregate.value_objects)))
+        .collect::<ParseResult<Vec<_>>>()?;
+
+    aggregate.commands = pending_commands
+        .into_iter()
+        .map(|(c_name, from, pending)| {
+            super::build_deferred(file, lines, &pending, |f, l, p| {
+                command::parse_body(
+                    f,
+                    l,
+                    p,
+                    &c_name,
+                    name,
+                    from.clone(),
+                    &aggregate.preconditions,
+                    &aggregate.attributes,
+                    &aggregate.value_objects,
+                    &aggregate.entities,
+                )
+            })
+        })
+        .collect::<ParseResult<Vec<_>>>()?;
+
+    aggregate.queries = pending_queries
+        .into_iter()
+        .map(|(q_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| query::parse_body(f, l, p, &q_name)))
+        .collect::<ParseResult<Vec<_>>>()?;
 
     if let Some(pending) = pending_identity {
         match pending {

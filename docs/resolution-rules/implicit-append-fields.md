@@ -86,27 +86,40 @@ insertion logic itself. The group-anchor algorithm above is the fix.
 
 ## Known limitations
 
-**Declaration order, one level deeper than `implicit-command-attributes.md`.**
-The list field's own element construct (the entity or value object
-`list_of(...)` names) must already be declared, among the owner's `@value_objects
-+ closed_sets + @entities`, by the time THIS command's resolution runs — a
-command that CREATES elements of a construct declared LATER in the same
-aggregate cannot resolve against it. Three real, confirmed violations exist
-in the self-hosted meta-domain (`lib/hecksagain/language/bluebook/`):
-`command "Handler"` is declared before `entity "Handler"` (`reaction.bluebook`),
-same for `command "Dispatch"` before `entity "Dispatch"` (nested one level
-further in, same file), and `command "Member"` before `entity "Member"`
-(`shape.bluebook`) — in each case the creator command lives on the OUTER
-construct (comments there explain why: "an entity is never created through
-its own dotted verb"), textually before the entity it creates. These three
-commands still carry their explicit `attribute` declarations in the corpus;
-neither Ruby nor Rust resolves them, by design — not a bug, a structural
-limit of one-pass resolution. A two-pass declaration-resolution restructure
-of `AggregateBuilder`/`EntityBuilder` would remove this limitation for
-every resolution rule at once (this one, `given`-reference,
-`identified_by`, `projected_fields`), not just this rule — named as a
-candidate, not built; see the project's own session notes on this pilot
-arc for the fuller writeup.
+**RESOLVED.** `AggregateBuilder`/`EntityBuilder` used to build `entity`/
+`command`/`query` immediately, inline, the instant that DSL line executed —
+so a command's own resolution could only ever see whatever the owner had
+declared SO FAR, textually, never anything declared later in the same
+block. `entity`/`command`/`query` now queue a descriptor instead of
+building immediately; each owner's own `#build` drains the queue (entities
+first and fully, then commands, then queries) only after its whole block
+has finished — the same "collect everything, then run cross-referential
+work in a second pass" move `BluebookBuilder` already made one level up
+(build every aggregate in the chapter first, then validate query hops/
+projected fields/reference cycles against the complete set), extended one
+level down. `command "Handler"`/`command "Dispatch"`/`command "Member"` in
+the self-hosted meta-domain (`lib/hecksagain/language/bluebook/`,
+`reaction.bluebook`/`shape.bluebook`) — declared before the `entity`
+they create — now resolve correctly, verified directly: with their
+explicit `attribute` lines removed, each imports the right attribute from
+its own entity, in the right position. Their corpus text hasn't actually
+been migrated (that's separate follow-up work, not required for the
+restructure itself); they still carry explicit declarations today, which
+is harmless — an explicit local declaration always wins over the resolved
+one regardless.
+
+The SAME fix also surfaced (and fixed) a previously-hidden bug in
+`identified_by`'s own single-field-value-object auto-unwrap, one level
+over: `spec/fixtures/model_check/lifecycle_findings.bluebook` declares
+`entity "Part"` with `identified_by :serial` / `attribute :serial,
+Serial`, and declares `value_object "Serial"` (a single-field VO) AFTER
+the entity, later in the same aggregate — Ruby now correctly resolves
+`identity_paths` to `["serial.value"]` (the documented unwrap rule) where
+it silently produced the wrong `["serial"]` before, because `Serial`
+wasn't visible yet under the old eager snapshot. Not a hypothetical: this
+was a real, live, previously-undetected bug in real fixture output, caught
+only by this restructure's own verification against `spec/
+parser_parity_spec.rb`.
 
 ## Reference implementation
 
