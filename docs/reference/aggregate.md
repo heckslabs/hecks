@@ -26,7 +26,7 @@ end
 
 ```ruby bluebook
 Hecks.bluebook "AggregateReference" do
-  vision "reference_to, with as: as the only spelling — has_many/has_one/belongs_to are gone (ADR 0025)."
+  vision "A film financed by one studio and distributed by another — as: is what tells the two references apart."
 
   aggregate "Studio" do
     attribute :name, Name
@@ -174,7 +174,7 @@ Banking::SafeDepositBox.ir.identity_heads  # => [:branch_code, :box_number]
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-Points at another aggregate by id, not by object — the STORED field holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named for the target's own bare name by default (`customer`, no `_id` — ADR 0025), or whatever `as:` names. The door's own accessor of the same name hydrates it — reads the bare id and finds the record it names — which is why a reference needs no separate "get me the real one" method.
+Points at another aggregate by id, not by object — the STORED field holds a bare id string, and handing it a nested value instead is refused at the door. Mints an attribute named for the target's own bare name by default (`customer`, no `_id`), or whatever `as:` names. The door's own accessor of the same name hydrates it — reads the bare id and finds the record it names — which is why a reference needs no separate "get me the real one" method.
 
 `Account` references `Customer`; the raw id lives under the same name in
 state, and the accessor hydrates it into the real record:
@@ -190,7 +190,7 @@ Handing it the object instead is refused where it arrives:
 Banking::Account.open!(customer: { value: "ag-1" }, number: "ag-a3", kind: "current", daily_limit: 1)  # ~> TypeMismatch: a reference is an id
 ```
 
-One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are GONE (ADR 0025) — `reference_to` covers everything they did.
+One direction only: if the target aggregate also references this one back, the bluebook refuses to build (`BluebookBuilder#validate_no_bidirectional_references!`, raises `Malformed`) — two aggregates pointing at each other means neither is a boundary a caller can reason about alone. `has_many`/`has_one`/`belongs_to` below are GONE — `reference_to` covers everything they did.
 
 ## has_many
 
@@ -204,7 +204,7 @@ One direction only: if the target aggregate also references this one back, the b
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-GONE (ADR 0025, "References") — `reference_to` mints the same bare, `_id`-less name on its own now, so the sugar had no work left. It also LIED while it existed: despite the plural name and plural argument it singularised its target and minted one scalar, not a list, so a `has_many Studios` field read `nil` until set and never `[]`. Refuses live, unconditionally:
+GONE — `reference_to` mints the same bare, `_id`-less name on its own now, so the sugar had no work left. It also LIED while it existed: despite the plural name and plural argument it singularised its target and minted one scalar, not a list, so a `has_many Studios` field read `nil` until set and never `[]`. Refuses live, unconditionally:
 
 ```ruby
 Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attribute :name, StudioName; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, Title; value_object("Title") { attribute :value, String }; has_many Studio } }  # ~> Malformed: has_many is gone
@@ -222,7 +222,7 @@ Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attri
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-GONE (ADR 0025, "References") — it existed only to drop the `_id` suffix `reference_to` used to mint by default; `reference_to` drops it on its own now. Refuses live:
+GONE — it existed only to drop the `_id` suffix `reference_to` used to mint by default; `reference_to` drops it on its own now. Refuses live:
 
 ```ruby
 Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; attribute :name, StudioName; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, Title; value_object("Title") { attribute :value, String }; has_one Studio } }  # ~> Malformed: has_one is gone
@@ -240,7 +240,7 @@ Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; a
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-GONE (ADR 0025, "References") — an alias for `has_one`, gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
+GONE — an alias for `has_one`, gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
 
 ```ruby
 kase = Banking::OnboardingCase.open!(customer: "ag-1", reference: "ag-c1", account_number: "ag-a2")
@@ -548,11 +548,10 @@ account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:ca
 | `from:` | symbol | true | from |
 <!-- generated:end -->
 
-A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (ADR 0025, "Consistency
-across aggregate boundaries") — the boundary rule's whole point is that
-a `given`/`ensures`/`invariant` should never reach across a
-`reference_to` at rule-evaluation time to ask another aggregate a
-question live. `projects` is the alternative: `from:` names a dotted
+A FIELD READ THROUGH A REFERENCE, HELD LOCALLY — the boundary rule's
+whole point is that a `given`/`ensures`/`invariant` should never reach
+across a `reference_to` at rule-evaluation time to ask another
+aggregate a question live. `projects` is the alternative: `from:` names a dotted
 path — the LOCAL reference attribute to read through, then the SCALAR
 field on the target to copy — and the copy lands under `name` on this
 aggregate's own record, kept fresh by an explicit rebuild sweep
