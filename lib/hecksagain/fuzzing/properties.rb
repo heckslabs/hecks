@@ -287,7 +287,6 @@ module Hecksagain
       # Real target: ATMCard.ByFee (`limit 3; offset 1`).
       def paging_offset_partitions_correctly(history)
         bluebooks = history.fetch(:bluebooks)
-        instances = history.fetch(:instances)
 
         offenders = history.fetch(:queries).filter_map do |asked|
           next if asked[:error] || !asked[:query].is_a?(String) || !asked[:query].include?("::")
@@ -297,7 +296,7 @@ module Hecksagain
 
           domain, aggregate_name, = Naming.split_verb(asked[:query])
           args = asked[:args] || {}
-          rows = query_eligible_rows(instances, domain, aggregate_name, declared.wheres, args)
+          rows = query_eligible_rows(asked.fetch(:instances_at), domain, aggregate_name, declared.wheres, args)
           ordered = Ports::Query::Ordering.apply(
             rows, declared.order_by, declared.null_semantics, identity: ->(row) { row[:id].to_s }
           ) { |row| Ports::Query::InMemory.comparable(QuerySpecification::FieldPath.dig(row, declared.order_by.field)) }
@@ -951,8 +950,7 @@ module Hecksagain
       # what we have the grammar for" scope `lifecycle_values_are_declared`
       # already takes for a multi-domain replay.
       def aggregation_matches_recompute(history)
-        bluebook  = history.fetch(:bluebook)
-        instances = history.fetch(:instances)
+        bluebook = history.fetch(:bluebook)
 
         offenders = history.fetch(:queries).filter_map do |asked|
           next if asked[:error]
@@ -966,7 +964,7 @@ module Hecksagain
           reduced_head = model.aggregate_heads.find { |head| head[:many] }
           next unless reduced_head
 
-          rows = eligible_rows(bluebook, instances, domain, model, reduced_head, asked[:args] || {})
+          rows = eligible_rows(bluebook, asked.fetch(:instances_at), domain, model, reduced_head, asked[:args] || {})
           expected = model.count? ? rows.length : recompute_median(rows, model.median_field)
           actual = asked[:rows]&.first&.dig(reduced_head[:as])
           next if actual == expected
@@ -993,8 +991,7 @@ module Hecksagain
       # Real target: AccountsByKind (`group_by :kind, :number`,
       # rootless — always generator-eligible with `{}` args).
       def group_by_matches_recompute(history)
-        bluebook  = history.fetch(:bluebook)
-        instances = history.fetch(:instances)
+        bluebook = history.fetch(:bluebook)
 
         offenders = history.fetch(:queries).filter_map do |asked|
           next if asked[:error]
@@ -1008,7 +1005,7 @@ module Hecksagain
           grouped_head = model.aggregate_heads.find { |head| head[:many] }
           next unless grouped_head
 
-          rows = eligible_rows(bluebook, instances, domain, model, grouped_head, asked[:args] || {})
+          rows = eligible_rows(bluebook, asked.fetch(:instances_at), domain, model, grouped_head, asked[:args] || {})
           materialized = rows.map { |state| Runtime::Value.materialize_unwrapped(state) }
           expected = nest_rows(materialized, model.group_by_fields)
           actual = asked[:rows]&.first&.dig(grouped_head[:as])

@@ -139,14 +139,14 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     # 1`. Four active cards, distinct fees; the true offset-1/limit-3 page
     # is cards 2-4.
     it "paging_offset_partitions_correctly names an answer that disagrees with the recomputed page" do
+      instances = {
+        "Banking::ATMCard#s1" => { status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } },
+        "Banking::ATMCard#s2" => { status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
+        "Banking::ATMCard#s3" => { status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
+        "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
+      }
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::ATMCard#s1" => { status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } },
-                    "Banking::ATMCard#s2" => { status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
-                    "Banking::ATMCard#s3" => { status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
-                    "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
-                  },
-                  queries: [{ query: "Banking::ATMCard.ByFee", args: {},
+                  queries: [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
                              rows: [{ id: "s1", status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } }] }] }
 
       result = Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)
@@ -155,14 +155,14 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "paging_offset_partitions_correctly passes an answer that skips before it takes" do
+      instances = {
+        "Banking::ATMCard#s1" => { status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } },
+        "Banking::ATMCard#s2" => { status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
+        "Banking::ATMCard#s3" => { status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
+        "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
+      }
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::ATMCard#s1" => { status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } },
-                    "Banking::ATMCard#s2" => { status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
-                    "Banking::ATMCard#s3" => { status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
-                    "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
-                  },
-                  queries: [{ query: "Banking::ATMCard.ByFee", args: {},
+                  queries: [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
                              rows: [
                                { id: "s2", status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
                                { id: "s3", status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
@@ -476,14 +476,14 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "aggregation_matches_recompute names a count that disagrees with the recomputed eligible rows" do
+      instances = {
+        "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed" },
+        "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed" },
+        "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" }
+      }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" }
-                  },
                   queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
-                             rows: [{ account: {}, card_payments: 99 }] }] }
+                             instances_at: instances, rows: [{ account: {}, card_payments: 99 }] }] }
 
       result = Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)
       expect(result).to be_a(String)
@@ -491,27 +491,27 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "aggregation_matches_recompute passes a count that matches the recomputed eligible rows" do
+      instances = {
+        "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed" },
+        "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed" },
+        "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" },
+        "Banking::CardPayment#p4" => { account: "acct-2", status: "disputed" }
+      }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed" },
-                    "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" },
-                    "Banking::CardPayment#p4" => { account: "acct-2", status: "disputed" }
-                  },
                   queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
-                             rows: [{ account: {}, card_payments: 2 }] }] }
+                             instances_at: instances, rows: [{ account: {}, card_payments: 2 }] }] }
 
       expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
     end
 
     it "aggregation_matches_recompute passes a median matching the interpreter's own even/odd convention" do
+      instances = {
+        "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed", amount: { cents: 100 } },
+        "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed", amount: { cents: 300 } }
+      }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::CardPayment#p1" => { account: "acct-1", status: "disputed", amount: { cents: 100 } },
-                    "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed", amount: { cents: 300 } }
-                  },
                   queries: [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
-                             rows: [{ account: {}, card_payments: 200.0 }] }] }
+                             instances_at: instances, rows: [{ account: {}, card_payments: 200.0 }] }] }
 
       expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
     end
@@ -542,13 +542,13 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     # single-VO unwrap is ReadModelInterpreter's own spec's job, not this
     # oracle's.
     it "group_by_matches_recompute names a grouping that disagrees with the recomputed nesting" do
+      instances = {
+        "Banking::Account#a1" => { kind: "current", number: "a1", daily_limit: { cents: 0 } },
+        "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } },
+        "Banking::Account#a3" => { kind: "current", number: "a3", daily_limit: { cents: 0 } }
+      }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::Account#a1" => { kind: "current", number: "a1", daily_limit: { cents: 0 } },
-                    "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } },
-                    "Banking::Account#a3" => { kind: "current", number: "a3", daily_limit: { cents: 0 } }
-                  },
-                  queries: [{ query: "Banking.accounts_by_kind", args: {},
+                  queries: [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
                              rows: [{ accounts: {} }] }] }
 
       result = Hecksagain::Fuzzing::Properties.group_by_matches_recompute(history)
@@ -557,12 +557,12 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "group_by_matches_recompute passes a grouping that matches the recomputed nesting" do
+      instances = {
+        "Banking::Account#a1" => { kind: "current", number: "a1", daily_limit: { cents: 0 } },
+        "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } }
+      }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  instances: {
-                    "Banking::Account#a1" => { kind: "current", number: "a1", daily_limit: { cents: 0 } },
-                    "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } }
-                  },
-                  queries: [{ query: "Banking.accounts_by_kind", args: {},
+                  queries: [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
                              rows: [{ accounts: {
                                "current" => { "a1" => { daily_limit: { cents: 0 }, id: "a1" } },
                                "savings" => { "a2" => { daily_limit: { cents: 0 }, id: "a2" } }

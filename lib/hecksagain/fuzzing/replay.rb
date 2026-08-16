@@ -99,7 +99,7 @@ module Hecksagain
               if question.is_a?(Hash)
                 begin
                   rows = run_filter(runtime, question)
-                  queries << { query: question, rows: rows }
+                  queries << { query: question, rows: rows, instances_at: snapshot_instances(runtime) }
                 rescue => e
                   refusals << { verb: filter_label(question), error: e.message }
                 end
@@ -116,7 +116,8 @@ module Hecksagain
                 # form, no "::") have no reference twin and record only the
                 # one answer.
                 reference = question.include?("::") ? runtime.reference_query(question, **args) : nil
-                queries << { query: question, args: args, rows: rows, reference_rows: reference }
+                queries << { query: question, args: args, rows: rows, reference_rows: reference,
+                             instances_at: snapshot_instances(runtime) }
               rescue *Runtime::DOMAIN_REFUSALS, Bluebook::Expression::EvaluationError => e
                 queries << { query: question, args: args, error: e.message }
                 refusals << { verb: question, error: e.message, kind: e.class.name }
@@ -239,14 +240,7 @@ module Hecksagain
             end
           end
 
-          instances = {}
-          runtime.registry.bluebooks.each do |domain_name, bluebook|
-            bluebook.aggregates.each do |aggregate|
-              runtime.registry.repository(domain_name, aggregate).all.each do |record|
-                instances["#{domain_name}::#{aggregate.name}##{record.id}"] = record.state
-              end
-            end
-          end
+          instances = snapshot_instances(runtime)
 
           events = runtime.events.map { |event| { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload } }
 
@@ -320,6 +314,35 @@ module Hecksagain
       # reference) become the step's own real dispatch outcome — this
       # is a SEPARATE, best-effort read, not part of the step's own
       # control flow.
+      # THE SAME SHAPE `call`'s own end-of-replay block used to build
+      # inline — every persisted record, keyed the way `query_eligible_rows`/
+      # `#eligible_rows` (properties.rb) already expect. Now ALSO called
+      # once PER QUERY STEP (see `call`, above), not only once at the very
+      # end: a query asked at step 1 of a script whose LATER steps go on
+      # to create more records was being checked, by every property that
+      # independently recomputes "the eligible rows," against the FINAL
+      # snapshot — the records that existed AFTER the whole replay, not
+      # the ones that existed when the query actually ran. Found live:
+      # `Banking.accounts_by_kind`, asked as literally the first step of a
+      # 3-step script, correctly answered against zero accounts (none
+      # existed yet) while `group_by_matches_recompute`'s own independent
+      # recompute claimed "1 eligible row" — the ONE account the script's
+      # later two steps went on to create. Each query step now carries
+      # its own `instances_at:` snapshot, taken at the moment it ran, so
+      # every property that recomputes against "the eligible rows" reads
+      # the state as that query actually saw it, not a shared final one.
+      def snapshot_instances(runtime)
+        instances = {}
+        runtime.registry.bluebooks.each do |domain_name, bluebook|
+          bluebook.aggregates.each do |aggregate|
+            runtime.registry.repository(domain_name, aggregate).all.each do |record|
+              instances["#{domain_name}::#{aggregate.name}##{record.id}"] = record.state
+            end
+          end
+        end
+        instances
+      end
+
       def build_guard_check(runtime, verb, args)
         domain_name, aggregate_name, command_name = Naming.split_verb(verb)
         return nil unless command_name && !command_name.include?(".")
