@@ -454,17 +454,17 @@ impl ReadModel {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReadModel.bluebook: expected String".to_string()))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelName::from_json(x)?), },
-        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProjectionPurpose::from_json(x)?), },
-        query_name: match v.get("query_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
-        reference_name: match v.get("reference_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
-        reference_target: match v.get("reference_target") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelName::from_json(&x.coerce_single_field("value"))?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProjectionPurpose::from_json(&x.coerce_single_field("value"))?), },
+        query_name: match v.get("query_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        reference_name: match v.get("reference_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        reference_target: match v.get("reference_target") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
         aggregate_heads: match v.get("aggregate_heads").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Head::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ProjectionOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         group_by: match v.get("group_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(GroupByField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        count: match v.get("count") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
-        median_field: match v.get("median_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(x)?), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        count: match v.get("count") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        median_field: match v.get("median_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -597,12 +597,12 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
-        name: ReadModelName::from_json(v.require("name", "DeclareArgs")?)?,
-        description: match v.get("description") { Some(x) => Some(ProjectionPurpose::from_json(x)?), None => None, },
-        query_name: ReadModelText::from_json(v.require("query_name", "DeclareArgs")?)?,
-        reference_name: match v.get("reference_name") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
-        reference_target: match v.get("reference_target") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        name: ReadModelName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        description: match v.get("description") { Some(x) => Some(ProjectionPurpose::from_json(&x.coerce_single_field("value"))?), None => None, },
+        query_name: ReadModelText::from_json(&v.require("query_name", "DeclareArgs")?.coerce_single_field("value"))?,
+        reference_name: match v.get("reference_name") { Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        reference_target: match v.get("reference_target") { Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -681,9 +681,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        aggregate: ReadModelText::from_json(v.require("aggregate", "GatherArgs")?)?,
-        r#as: ReadModelText::from_json(v.require("as", "GatherArgs")?)?,
-        many: ReadModelText::from_json(v.require("many", "GatherArgs")?)?,
+        aggregate: ReadModelText::from_json(&v.require("aggregate", "GatherArgs")?.coerce_single_field("value"))?,
+        r#as: ReadModelText::from_json(&v.require("as", "GatherArgs")?.coerce_single_field("value"))?,
+        many: ReadModelText::from_json(&v.require("many", "GatherArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -754,7 +754,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        field: ReadModelText::from_json(v.require("field", "GroupByArgs")?)?,
+        field: ReadModelText::from_json(&v.require("field", "GroupByArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -825,7 +825,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        count: ReadModelText::from_json(v.require("count", "CountArgs")?)?,
+        count: ReadModelText::from_json(&v.require("count", "CountArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -896,7 +896,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        median_field: ReadModelText::from_json(v.require("median_field", "MedianArgs")?)?,
+        median_field: ReadModelText::from_json(&v.require("median_field", "MedianArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -979,10 +979,10 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        option: ReadModelText::from_json(v.require("option", "OptionArgs")?)?,
-        key: ReadModelText::from_json(v.require("key", "OptionArgs")?)?,
-        value: match v.get("value") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
-        at: match v.get("at") { Some(x) => Some(ReadModelText::from_json(x)?), None => None, },
+        option: ReadModelText::from_json(&v.require("option", "OptionArgs")?.coerce_single_field("value"))?,
+        key: ReadModelText::from_json(&v.require("key", "OptionArgs")?.coerce_single_field("value"))?,
+        value: match v.get("value") { Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        at: match v.get("at") { Some(x) => Some(ReadModelText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }

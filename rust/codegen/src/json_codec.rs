@@ -7,6 +7,7 @@
 use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::naming;
+use std::collections::HashMap;
 
 pub fn json_type_error(struct_name: &str, key: &str, expectation: &str) -> String {
     format!("crate::kernel::Refusal::TypeMismatch({}.to_string())", naming::ruby_inspect_string(&format!("{struct_name}.{key}: expected {expectation}")))
@@ -60,6 +61,34 @@ pub fn scalar_to_json_expr(scalar_type: &str, rust_expr: &str) -> String {
         "Integer" => format!("crate::kernel::Json::int({rust_expr})"),
         "Float" => format!("crate::kernel::Json::Num({rust_expr})"),
         other => panic!("no to_json expr for scalar type {other:?}"),
+    }
+}
+
+/// `Value.for_attribute` → `fields_for`'s own bare-scalar branch
+/// (lib/hecksagain/runtime/value/coercion.rb), at codegen time instead
+/// of runtime — port of `json_codec.rb#sole_field_of`. `None` for
+/// anything but a genuinely single-field value object, so every other
+/// composite branch below is unchanged.
+pub fn sole_field_of(type_name: &str, value_objects_by_name: &HashMap<String, &Json>) -> Option<String> {
+    let vo = value_objects_by_name.get(type_name)?;
+    let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
+    if attrs.len() == 1 {
+        Some(crate::attr::name(&attrs[0]).to_string())
+    } else {
+        None
+    }
+}
+
+/// Port of `json_codec.rb#composite_from_json_expr` — the
+/// `NestedType::from_json(expr)?` call, wrapped in
+/// `Json::coerce_single_field` (kernel/json.rs) first when `attr`'s own
+/// type is single-field. Shared by both composite branches in
+/// `emit_from_json_flat`/`emit_from_json_state` below.
+pub fn composite_from_json_expr(attr: &Json, value_objects_by_name: &HashMap<String, &Json>, value_expr: &str) -> String {
+    let nested_type = naming::rust_ident(crate::attr::type_name(attr));
+    match sole_field_of(crate::attr::type_name(attr), value_objects_by_name) {
+        Some(sole) => format!("{nested_type}::from_json(&{value_expr}.coerce_single_field({}))?", naming::ruby_inspect_string(&sole)),
+        None => format!("{nested_type}::from_json({value_expr})?"),
     }
 }
 
@@ -118,6 +147,7 @@ pub fn emit_from_json_flat(
     exemplar: &Exemplar,
     struct_name: &str,
     attributes: &[Json],
+    value_objects_by_name: &HashMap<String, &Json>,
     unknown_argument_allowlist: Option<&[String]>,
     command_name: Option<&str>,
 ) -> String {
@@ -147,13 +177,11 @@ pub fn emit_from_json_flat(
             } else if optional && scalar.is_some() {
                 format!("match v.get({}) {{ Some(x) => Some({}), None => None, }}", naming::ruby_inspect_string(&key), scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x"))
             } else if optional {
-                let nested_type = naming::rust_ident(crate::attr::type_name(attr));
-                format!("match v.get({}) {{ Some(x) => Some({nested_type}::from_json(x)?), None => None, }}", naming::ruby_inspect_string(&key))
+                format!("match v.get({}) {{ Some(x) => Some({}), None => None, }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
             } else {
-                let nested_type = naming::rust_ident(crate::attr::type_name(attr));
-                format!("{nested_type}::from_json(v.require({}, {})?)?", naming::ruby_inspect_string(&key), naming::ruby_inspect_string(struct_name))
+                composite_from_json_expr(attr, value_objects_by_name, &format!("v.require({}, {})?", naming::ruby_inspect_string(&key), naming::ruby_inspect_string(struct_name)))
             };
             exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)])
         })
@@ -227,7 +255,15 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
     format!("{}\n", exemplar.render("to_json_flat", &[("TmplFlatType2", struct_name.to_string()), ("tmpl_to_json_field_block()", field_block)]))
 }
 
-pub fn emit_from_json_state(exemplar: &Exemplar, struct_name: &str, attributes: &[Json], optional: bool, extra_fields: &[(String, String)], aggregate: Option<&Json>) -> String {
+pub fn emit_from_json_state(
+    exemplar: &Exemplar,
+    struct_name: &str,
+    attributes: &[Json],
+    value_objects_by_name: &HashMap<String, &Json>,
+    optional: bool,
+    extra_fields: &[(String, String)],
+    aggregate: Option<&Json>,
+) -> String {
     let mut field_exprs: Vec<String> = attributes
         .iter()
         .map(|attr| {
@@ -260,13 +296,15 @@ pub fn emit_from_json_state(exemplar: &Exemplar, struct_name: &str, attributes: 
                     scalar_from_json_value_expr(struct_name, &key, scalar.unwrap(), "x")
                 )
             } else if field_optional {
-                let nested_type = naming::rust_ident(crate::attr::type_name(attr));
-                format!("match v.get({}) {{ Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some({nested_type}::from_json(x)?), }}", naming::ruby_inspect_string(&key))
+                format!(
+                    "match v.get({}) {{ Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some({}), }}",
+                    naming::ruby_inspect_string(&key),
+                    composite_from_json_expr(attr, value_objects_by_name, "x")
+                )
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(struct_name, &key, scalar, crate::attr::default(attr))
             } else {
-                let nested_type = naming::rust_ident(crate::attr::type_name(attr));
-                format!("{nested_type}::from_json(v.require({}, {})?)?", naming::ruby_inspect_string(&key), naming::ruby_inspect_string(struct_name))
+                composite_from_json_expr(attr, value_objects_by_name, &format!("v.require({}, {})?", naming::ruby_inspect_string(&key), naming::ruby_inspect_string(struct_name)))
             };
             exemplar.render("field_assignment", &[("tmpl_ident", ident), ("tmpl_rhs_placeholder()", rhs)])
         })

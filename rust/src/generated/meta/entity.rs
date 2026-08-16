@@ -385,15 +385,15 @@ impl Entity {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Entity.aggregate: expected String".to_string()))?), },
-        owner: match v.get("owner") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(x)?), },
-        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(x)?), },
+        owner: match v.get("owner") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?), },
         identified_by: match v.get("identified_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(IdentityPath::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
-        state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(x)?), },
+        state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
+        state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
         transitions: match v.get("transitions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceTransition::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -516,10 +516,10 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
-        owner: EntityText::from_json(v.require("owner", "DeclareArgs")?)?,
-        name: EntityName::from_json(v.require("name", "DeclareArgs")?)?,
-        description: match v.get("description") { Some(x) => Some(EntityName::from_json(x)?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        owner: EntityText::from_json(&v.require("owner", "DeclareArgs")?.coerce_single_field("value"))?,
+        name: EntityName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        description: match v.get("description") { Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -590,7 +590,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        path: IdentityPath::from_json(v.require("path", "IdentifyArgs")?)?,
+        path: IdentityPath::from_json(&v.require("path", "IdentifyArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -755,13 +755,13 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: EntityText::from_json(v.require("name", "AttributeArgs")?)?,
-        r#type: EntityText::from_json(v.require("type", "AttributeArgs")?)?,
-        list: EntityText::from_json(v.require("list", "AttributeArgs")?)?,
-        optional: match v.get("optional") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
-        default: match v.get("default") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
+        name: EntityText::from_json(&v.require("name", "AttributeArgs")?.coerce_single_field("value"))?,
+        r#type: EntityText::from_json(&v.require("type", "AttributeArgs")?.coerce_single_field("value"))?,
+        list: EntityText::from_json(&v.require("list", "AttributeArgs")?.coerce_single_field("value"))?,
+        optional: match v.get("optional") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        default: match v.get("default") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -837,8 +837,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        state_field: EntityText::from_json(v.require("state_field", "LifecycleArgs")?)?,
-        state_start: EntityText::from_json(v.require("state_start", "LifecycleArgs")?)?,
+        state_field: EntityText::from_json(&v.require("state_field", "LifecycleArgs")?.coerce_single_field("value"))?,
+        state_start: EntityText::from_json(&v.require("state_start", "LifecycleArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -917,9 +917,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        command: EntityText::from_json(v.require("command", "TransitionArgs")?)?,
-        from_state: match v.get("from_state") { Some(x) => Some(EntityText::from_json(x)?), None => None, },
-        to_state: EntityText::from_json(v.require("to_state", "TransitionArgs")?)?,
+        command: EntityText::from_json(&v.require("command", "TransitionArgs")?.coerce_single_field("value"))?,
+        from_state: match v.get("from_state") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        to_state: EntityText::from_json(&v.require("to_state", "TransitionArgs")?.coerce_single_field("value"))?,
         })
     }
 }

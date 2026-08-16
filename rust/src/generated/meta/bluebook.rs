@@ -523,11 +523,11 @@ impl Bluebook {
 impl Bluebook {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BluebookName::from_json(x)?), },
-        vision: match v.get("vision") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(x)?), },
-        classification: match v.get("classification") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Classification::from_json(x)?), },
-        version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(x)?), },
-        formerly_known_as: match v.get("formerly_known_as") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BluebookName::from_json(&x.coerce_single_field("value"))?), },
+        vision: match v.get("vision") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Vision::from_json(&x.coerce_single_field("value"))?), },
+        classification: match v.get("classification") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Classification::from_json(&x.coerce_single_field("value"))?), },
+        version: match v.get("version") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Version::from_json(&x.coerce_single_field("value"))?), },
+        formerly_known_as: match v.get("formerly_known_as") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?), },
         normalisations: match v.get("normalisations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(NormalisationRule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attaches_to: match v.get("attaches_to").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AttachesToContext::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
@@ -648,11 +648,11 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: BluebookName::from_json(v.require("name", "DeclareArgs")?)?,
-        vision: match v.get("vision") { Some(x) => Some(Vision::from_json(x)?), None => None, },
-        classification: match v.get("classification") { Some(x) => Some(Classification::from_json(x)?), None => None, },
-        version: match v.get("version") { Some(x) => Some(Version::from_json(x)?), None => None, },
-        formerly_known_as: match v.get("formerly_known_as") { Some(x) => Some(FormerlyKnownAs::from_json(x)?), None => None, },
+        name: BluebookName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        vision: match v.get("vision") { Some(x) => Some(Vision::from_json(&x.coerce_single_field("value"))?), None => None, },
+        classification: match v.get("classification") { Some(x) => Some(Classification::from_json(&x.coerce_single_field("value"))?), None => None, },
+        version: match v.get("version") { Some(x) => Some(Version::from_json(&x.coerce_single_field("value"))?), None => None, },
+        formerly_known_as: match v.get("formerly_known_as") { Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -723,7 +723,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        context: AttachesToContext::from_json(v.require("context", "AttachArgs")?)?,
+        context: AttachesToContext::from_json(&v.require("context", "AttachArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -810,11 +810,11 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        strategy: RuleText::from_json(v.require("strategy", "NormaliseArgs")?)?,
-        source_token: RuleText::from_json(v.require("source_token", "NormaliseArgs")?)?,
-        replacement: RuleText::from_json(v.require("replacement", "NormaliseArgs")?)?,
-        boundary: RuleText::from_json(v.require("boundary", "NormaliseArgs")?)?,
-        position: match v.get("position") { Some(x) => Some(RuleText::from_json(x)?), None => None, },
+        strategy: RuleText::from_json(&v.require("strategy", "NormaliseArgs")?.coerce_single_field("value"))?,
+        source_token: RuleText::from_json(&v.require("source_token", "NormaliseArgs")?.coerce_single_field("value"))?,
+        replacement: RuleText::from_json(&v.require("replacement", "NormaliseArgs")?.coerce_single_field("value"))?,
+        boundary: RuleText::from_json(&v.require("boundary", "NormaliseArgs")?.coerce_single_field("value"))?,
+        position: match v.get("position") { Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }

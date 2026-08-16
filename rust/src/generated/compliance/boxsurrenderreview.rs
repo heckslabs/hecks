@@ -51,6 +51,13 @@ impl BranchCode {
 
 impl BranchCode {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BranchCode does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "BranchCode")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BranchCode.value: expected String".to_string()))? },
         })
@@ -105,6 +112,13 @@ impl BoxNumber {
 
 impl BoxNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "BoxNumber does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "BoxNumber")?; x.as_i64().ok_or_else(|| crate::kernel::Refusal::TypeMismatch(format!("BoxNumber.value expects Integer, got {}", x.inspect())))? },
         })
@@ -143,8 +157,8 @@ impl BoxSurrenderReview {
 impl BoxSurrenderReview {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(x)?), },
-        box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(x)?), },
+        branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(&x.coerce_single_field("value"))?), },
+        box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "BoxSurrenderReview")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("BoxSurrenderReview.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -192,10 +206,11 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<BoxSurrenderReview> {
         args.branch_code.check_invariants()?;
         args.box_number.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -211,7 +226,7 @@ pub fn dispatch_open(
         "Compliance::BoxSurrenderReview",
         "BoxSurrenderReview",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -249,8 +264,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        branch_code: BranchCode::from_json(v.require("branch_code", "OpenArgs")?)?,
-        box_number: BoxNumber::from_json(v.require("box_number", "OpenArgs")?)?,
+        branch_code: BranchCode::from_json(&v.require("branch_code", "OpenArgs")?.coerce_single_field("value"))?,
+        box_number: BoxNumber::from_json(&v.require("box_number", "OpenArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -272,9 +287,10 @@ pub struct ClearArgs {
 }
 
 pub fn dispatch_clear(
-    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, id: &str, args: ClearArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, id: &str, args: ClearArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<BoxSurrenderReview> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -283,7 +299,7 @@ pub fn dispatch_clear(
         "Compliance::BoxSurrenderReview",
         "BoxSurrenderReview",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -341,9 +357,10 @@ pub struct EscalateArgs {
 }
 
 pub fn dispatch_escalate(
-    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, id: &str, args: EscalateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<BoxSurrenderReview>, id: &str, args: EscalateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<BoxSurrenderReview> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -352,7 +369,7 @@ pub fn dispatch_escalate(
         "Compliance::BoxSurrenderReview",
         "BoxSurrenderReview",
         "branch_code.value, box_number.value",
-        &args,
+        &with_references,
         &[
 
         ],

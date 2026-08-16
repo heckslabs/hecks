@@ -51,6 +51,13 @@ impl AccountNumber {
 
 impl AccountNumber {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["value"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "AccountNumber does not declare {} — it takes value",
+        unknown.join(", ")
+    )));
+}
         Ok(Self {
         value: { let x = v.require("value", "AccountNumber")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccountNumber.value: expected String".to_string()))? },
         })
@@ -86,7 +93,7 @@ impl AccountFreezeReview {
 impl AccountFreezeReview {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(x)?), },
+        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "AccountFreezeReview")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AccountFreezeReview.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -131,9 +138,10 @@ pub struct OpenArgs {
 }
 
 pub fn dispatch_open(
-    repo: &mut impl crate::kernel::Repository<AccountFreezeReview>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<AccountFreezeReview>, args: OpenArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<AccountFreezeReview> {
         args.number.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -148,7 +156,7 @@ pub fn dispatch_open(
         "Compliance::AccountFreezeReview",
         "AccountFreezeReview",
         "number.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -184,7 +192,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        number: AccountNumber::from_json(v.require("number", "OpenArgs")?)?,
+        number: AccountNumber::from_json(&v.require("number", "OpenArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -206,9 +214,10 @@ pub struct ClearArgs {
 }
 
 pub fn dispatch_clear(
-    repo: &mut impl crate::kernel::Repository<AccountFreezeReview>, id: &str, args: ClearArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<AccountFreezeReview>, id: &str, args: ClearArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<AccountFreezeReview> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -217,7 +226,7 @@ pub fn dispatch_clear(
         "Compliance::AccountFreezeReview",
         "AccountFreezeReview",
         "number.value",
-        &args,
+        &with_references,
         &[
 
         ],
@@ -275,9 +284,10 @@ pub struct EscalateArgs {
 }
 
 pub fn dispatch_escalate(
-    repo: &mut impl crate::kernel::Repository<AccountFreezeReview>, id: &str, args: EscalateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>,
+    repo: &mut impl crate::kernel::Repository<AccountFreezeReview>, id: &str, args: EscalateArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<AccountFreezeReview> {
 
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
         repo,
@@ -286,7 +296,7 @@ pub fn dispatch_escalate(
         "Compliance::AccountFreezeReview",
         "AccountFreezeReview",
         "number.value",
-        &args,
+        &with_references,
         &[
 
         ],

@@ -545,7 +545,7 @@ pub fn emit_entity_command(
         crate::fielded::emit_fielded_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, &[]),
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
         crate::json_codec::emit_to_json_flat(exemplar, &args_struct_name, attrs, false, &[], None),
-        crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, None, None),
+        crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, None, None),
         entity_dispatch_fn,
     ]
     .join("\n\n")

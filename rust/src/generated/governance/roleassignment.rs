@@ -285,11 +285,11 @@ impl RoleAssignment {
 impl RoleAssignment {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        actor_id: match v.get("actor_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(x)?), },
-        role_name: match v.get("role_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(x)?), },
-        scope: match v.get("scope") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Scope::from_json(x)?), },
-        starts_at: match v.get("starts_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(x)?), },
-        ends_at: match v.get("ends_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(x)?), },
+        actor_id: match v.get("actor_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(&x.coerce_single_field("value"))?), },
+        role_name: match v.get("role_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(&x.coerce_single_field("value"))?), },
+        scope: match v.get("scope") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Scope::from_json(&x.coerce_single_field("value"))?), },
+        starts_at: match v.get("starts_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(&x.coerce_single_field("value"))?), },
+        ends_at: match v.get("ends_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -404,10 +404,10 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        actor_id: IdentityId::from_json(v.require("actor_id", "AssignArgs")?)?,
-        role_name: RoleName::from_json(v.require("role_name", "AssignArgs")?)?,
-        scope: Scope::from_json(v.require("scope", "AssignArgs")?)?,
-        starts_at: Timestamp::from_json(v.require("starts_at", "AssignArgs")?)?,
+        actor_id: IdentityId::from_json(&v.require("actor_id", "AssignArgs")?.coerce_single_field("value"))?,
+        role_name: RoleName::from_json(&v.require("role_name", "AssignArgs")?.coerce_single_field("value"))?,
+        scope: Scope::from_json(&v.require("scope", "AssignArgs")?.coerce_single_field("value"))?,
+        starts_at: Timestamp::from_json(&v.require("starts_at", "AssignArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -478,7 +478,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        ends_at: Timestamp::from_json(v.require("ends_at", "RevokeArgs")?)?,
+        ends_at: Timestamp::from_json(&v.require("ends_at", "RevokeArgs")?.coerce_single_field("value"))?,
         })
     }
 }

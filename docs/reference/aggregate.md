@@ -446,6 +446,24 @@ box = Banking::SafeDepositBox.rent(customer: "ag-1", branch_code: { value: "DT" 
 box.log_visit(date: { value: "2026-08-14" }, sequence: { value: 1 }).visits.size  # => 1
 ```
 
+A value-object-typed attribute whose OWN declared type carries exactly
+one field accepts a bare scalar in place of the wrapped `{ field: ...
+}` shape — the same unwrap `identified_by` already gets (see above).
+`size` above is `Size { value }`, one field, so the bare spelling
+dispatches identically:
+
+```ruby
+Banking::SafeDepositBox.rent(customer: "ag-1", branch_code: { value: "DT" }, box_number: { value: 10 }, size: "small").size.value  # => "small"
+```
+
+A genuinely multi-field value object still refuses the bare form —
+`Money` (`cents`, `currency`) needs both, so this narrows nothing
+`pattern:`/`admits:`/`one_of:` above already refuse:
+
+```ruby
+runtime.dispatch("Banking::Account.Credit", number: "ag-a1", amount: 100, narrative: { text: "Deposit" })  # ~> TypeMismatch: pass its fields as an object
+```
+
 ## invariant
 
 <!-- generated:begin word=invariant -->

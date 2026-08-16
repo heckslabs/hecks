@@ -33,6 +33,39 @@ module RustProjection
 
     SCALAR_JSON_ACCESSOR = { "String" => "as_str", "Integer" => "as_i64", "Float" => "as_f64" }.freeze
 
+    # `Value.for_attribute` → `fields_for`'s own bare-scalar branch
+    # (lib/hecksagain/runtime/value/coercion.rb), at codegen time instead
+    # of runtime: a value-object-typed field whose OWN type has exactly
+    # one attribute accepts a bare JSON scalar in the caller's place of
+    # the wrapped `{"field": ...}` shape — `size: "large"` alongside
+    # `size: { value: "large" }`, both admitted, matching Ruby exactly.
+    # `nil` for anything else (no such type in `value_objects_by_name` —
+    # every real composite attribute type IS declared there, since a
+    # value object is scoped to its own aggregate — or a genuinely
+    # multi-field one), so every OTHER composite branch below is
+    # unchanged. Mirrors `Behaviour::ValueObject#sole_attribute`
+    # (value_object.rb) against the exported IR's own Hash shape
+    # (`vo[:attributes]`, not a live `Bluebook::Attribute` object).
+    def sole_field_of(type_name, value_objects_by_name)
+      vo = value_objects_by_name[type_name]
+      return nil unless vo && vo[:attributes]&.size == 1
+
+      vo[:attributes].first[:name].to_s
+    end
+
+    # The `NestedType::from_json(expr)?` call itself, wrapped in
+    # `Json::coerce_single_field` (kernel/json.rs) first when `attr`'s
+    # own type is single-field — shared by both composite branches in
+    # `emit_from_json_flat`/`emit_from_json_state` below (required and
+    # `attr[:optional]`) so the bare-scalar decision is made once, not
+    # copied four times.
+    def composite_from_json_expr(attr, value_objects_by_name, value_expr)
+      nested_type = rust_ident(attr[:type])
+      sole = sole_field_of(attr[:type], value_objects_by_name)
+      source = sole ? "&#{value_expr}.coerce_single_field(#{sole.inspect})" : value_expr
+      "#{nested_type}::from_json(#{source})?"
+    end
+
     # `default:` — `Value.build`'s own fallback (bridging.rb's
     # `creation_default_rhs` comment, the same rule applied here instead of
     # only at creation time): a scalar field the caller's JSON doesn't
@@ -161,13 +194,11 @@ module RustProjection
           elsif attr[:optional] && scalar
             "match v.get(#{key.inspect}) { Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}), None => None, }"
           elsif attr[:optional]
-            nested_type = rust_ident(attr[:type])
-            "match v.get(#{key.inspect}) { Some(x) => Some(#{nested_type}::from_json(x)?), None => None, }"
+            "match v.get(#{key.inspect}) { Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}), None => None, }"
           elsif scalar
             scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
           else
-            nested_type = rust_ident(attr[:type])
-            "#{nested_type}::from_json(v.require(#{key.inspect}, #{struct_name.inspect})?)?"
+            composite_from_json_expr(attr, value_objects_by_name, "v.require(#{key.inspect}, #{struct_name.inspect})?")
           end
         Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end
@@ -367,15 +398,13 @@ module RustProjection
               "Some(&crate::kernel::Json::Null) | None => None, " \
               "Some(x) => Some(#{scalar_from_json_value_expr(struct_name, key, scalar, 'x')}), }"
           elsif field_optional
-            nested_type = rust_ident(attr[:type])
             "match v.get(#{key.inspect}) { " \
               "Some(&crate::kernel::Json::Null) | None => None, " \
-              "Some(x) => Some(#{nested_type}::from_json(x)?), }"
+              "Some(x) => Some(#{composite_from_json_expr(attr, value_objects_by_name, 'x')}), }"
           elsif scalar
             scalar_from_json_expr(struct_name, key, scalar, default: attr[:default])
           else
-            nested_type = rust_ident(attr[:type])
-            "#{nested_type}::from_json(v.require(#{key.inspect}, #{struct_name.inspect})?)?"
+            composite_from_json_expr(attr, value_objects_by_name, "v.require(#{key.inspect}, #{struct_name.inspect})?")
           end
         Exemplar.render("field_assignment", "tmpl_ident" => ident, "tmpl_rhs_placeholder()" => rhs)
       end

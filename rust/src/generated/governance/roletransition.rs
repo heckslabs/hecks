@@ -157,9 +157,9 @@ impl RoleTransition {
 impl RoleTransition {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        from_role: match v.get("from_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(x)?), },
-        to_role: match v.get("to_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(x)?), },
-        ends_at: match v.get("ends_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(x)?), },
+        from_role: match v.get("from_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(&x.coerce_single_field("value"))?), },
+        to_role: match v.get("to_role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RoleName::from_json(&x.coerce_single_field("value"))?), },
+        ends_at: match v.get("ends_at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Timestamp::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -263,8 +263,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        from_role: RoleName::from_json(v.require("from_role", "GrantArgs")?)?,
-        to_role: RoleName::from_json(v.require("to_role", "GrantArgs")?)?,
+        from_role: RoleName::from_json(&v.require("from_role", "GrantArgs")?.coerce_single_field("value"))?,
+        to_role: RoleName::from_json(&v.require("to_role", "GrantArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -335,7 +335,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        ends_at: Timestamp::from_json(v.require("ends_at", "RevokeArgs")?)?,
+        ends_at: Timestamp::from_json(&v.require("ends_at", "RevokeArgs")?.coerce_single_field("value"))?,
         })
     }
 }

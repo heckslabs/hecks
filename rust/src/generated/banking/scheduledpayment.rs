@@ -405,12 +405,12 @@ impl ScheduledPayment {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledPayment.account: expected String".to_string()))?), },
-        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ScheduledAmount::from_json(x)?), },
-        instruction: match v.get("instruction") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(InstructionReference::from_json(x)?), },
-        recipient: match v.get("recipient") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentRecipient::from_json(x)?), },
-        due_on: match v.get("due_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentDueDate::from_json(x)?), },
-        attempts: match v.get("attempts") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RetryCount::from_json(x)?), },
-        max_attempts: match v.get("max_attempts") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RetryLimit::from_json(x)?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ScheduledAmount::from_json(&x.coerce_single_field("cents"))?), },
+        instruction: match v.get("instruction") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(InstructionReference::from_json(&x.coerce_single_field("value"))?), },
+        recipient: match v.get("recipient") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentRecipient::from_json(&x.coerce_single_field("value"))?), },
+        due_on: match v.get("due_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentDueDate::from_json(&x.coerce_single_field("value"))?), },
+        attempts: match v.get("attempts") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RetryCount::from_json(&x.coerce_single_field("value"))?), },
+        max_attempts: match v.get("max_attempts") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RetryLimit::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "ScheduledPayment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduledPayment.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -534,10 +534,10 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         account: { let x = v.require("account", "ScheduleArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account: expected String".to_string()))? },
-        instruction: InstructionReference::from_json(v.require("instruction", "ScheduleArgs")?)?,
-        amount: ScheduledAmount::from_json(v.require("amount", "ScheduleArgs")?)?,
-        recipient: PaymentRecipient::from_json(v.require("recipient", "ScheduleArgs")?)?,
-        due_on: PaymentDueDate::from_json(v.require("due_on", "ScheduleArgs")?)?,
+        instruction: InstructionReference::from_json(&v.require("instruction", "ScheduleArgs")?.coerce_single_field("value"))?,
+        amount: ScheduledAmount::from_json(&v.require("amount", "ScheduleArgs")?.coerce_single_field("cents"))?,
+        recipient: PaymentRecipient::from_json(&v.require("recipient", "ScheduleArgs")?.coerce_single_field("value"))?,
+        due_on: PaymentDueDate::from_json(&v.require("due_on", "ScheduleArgs")?.coerce_single_field("value"))?,
         })
     }
 }

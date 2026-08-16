@@ -596,7 +596,7 @@ impl Member {
 impl Member {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        position: MemberPosition::from_json(v.require("position", "Member")?)?,
+        position: MemberPosition::from_json(&v.require("position", "Member")?.coerce_single_field("value"))?,
         pairs: match v.get("pairs").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Pair::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
@@ -665,8 +665,8 @@ impl MemberPairArgs {
 impl MemberPairArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        key: MemberText::from_json(v.require("key", "MemberPairArgs")?)?,
-        value: MemberText::from_json(v.require("value", "MemberPairArgs")?)?,
+        key: MemberText::from_json(&v.require("key", "MemberPairArgs")?.coerce_single_field("value"))?,
+        value: MemberText::from_json(&v.require("value", "MemberPairArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -756,12 +756,12 @@ impl ValueObject {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ValueObject.aggregate: expected String".to_string()))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectName::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ValueObjectName::from_json(&x.coerce_single_field("value"))?), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(ShapeField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         invariants: match v.get("invariants").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Assertion::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        rows: match v.get("rows") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RowCount::from_json(x)?), },
+        rows: match v.get("rows") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(RowCount::from_json(&x.coerce_single_field("value"))?), },
         members: match v.get("members").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Member::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -873,8 +873,8 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
-        name: ValueObjectName::from_json(v.require("name", "DeclareArgs")?)?,
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        name: ValueObjectName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -969,13 +969,13 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: ValueObjectName::from_json(v.require("name", "FieldArgs")?)?,
-        r#type: ValueObjectName::from_json(v.require("type", "FieldArgs")?)?,
-        list: ValueObjectName::from_json(v.require("list", "FieldArgs")?)?,
-        optional: match v.get("optional") { Some(x) => Some(ValueObjectName::from_json(x)?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(ValueObjectText::from_json(x)?), None => None, },
-        default: match v.get("default") { Some(x) => Some(ValueObjectText::from_json(x)?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(ValueObjectText::from_json(x)?), None => None, },
+        name: ValueObjectName::from_json(&v.require("name", "FieldArgs")?.coerce_single_field("value"))?,
+        r#type: ValueObjectName::from_json(&v.require("type", "FieldArgs")?.coerce_single_field("value"))?,
+        list: ValueObjectName::from_json(&v.require("list", "FieldArgs")?.coerce_single_field("value"))?,
+        optional: match v.get("optional") { Some(x) => Some(ValueObjectName::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        default: match v.get("default") { Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -1046,7 +1046,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        rows: RowCount::from_json(v.require("rows", "CloseArgs")?)?,
+        rows: RowCount::from_json(&v.require("rows", "CloseArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1122,8 +1122,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        description: match v.get("description") { Some(x) => Some(ValueObjectText::from_json(x)?), None => None, },
-        canonical: ValueObjectText::from_json(v.require("canonical", "AssertArgs")?)?,
+        description: match v.get("description") { Some(x) => Some(ValueObjectText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        canonical: ValueObjectText::from_json(&v.require("canonical", "AssertArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1194,7 +1194,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        position: MemberPosition::from_json(v.require("position", "MemberArgs")?)?,
+        position: MemberPosition::from_json(&v.require("position", "MemberArgs")?.coerce_single_field("value"))?,
         })
     }
 }

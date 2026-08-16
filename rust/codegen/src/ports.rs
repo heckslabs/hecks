@@ -100,7 +100,7 @@ pub fn emit_port_operation(
     [
         format!("#[derive(Debug, Clone)]\n{}", struct_lines.join("\n")),
         crate::json_codec::emit_to_json_flat(exemplar, &args_struct, attrs, false, &[], None),
-        crate::json_codec::emit_from_json_flat(exemplar, &args_struct, attrs, None, Some(&format!("{port_name}.{operation_name}"))),
+        crate::json_codec::emit_from_json_flat(exemplar, &args_struct, attrs, value_objects_by_name, None, Some(&format!("{port_name}.{operation_name}"))),
         dispatch_fn,
     ]
     .join("\n\n")

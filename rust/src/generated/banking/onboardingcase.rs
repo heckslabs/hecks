@@ -163,8 +163,8 @@ impl OnboardingCase {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OnboardingCase.customer: expected String".to_string()))?), },
-        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(OnboardingReference::from_json(x)?), },
-        account_number: match v.get("account_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(x)?), },
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(OnboardingReference::from_json(&x.coerce_single_field("value"))?), },
+        account_number: match v.get("account_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "OnboardingCase")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OnboardingCase.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -274,8 +274,8 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         customer: { let x = v.require("customer", "OpenArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()))? },
-        reference: OnboardingReference::from_json(v.require("reference", "OpenArgs")?)?,
-        account_number: AccountNumber::from_json(v.require("account_number", "OpenArgs")?)?,
+        reference: OnboardingReference::from_json(&v.require("reference", "OpenArgs")?.coerce_single_field("value"))?,
+        account_number: AccountNumber::from_json(&v.require("account_number", "OpenArgs")?.coerce_single_field("value"))?,
         })
     }
 }

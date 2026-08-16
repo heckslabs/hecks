@@ -374,7 +374,7 @@ module Hecksagain
             fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
           end
         end
-        appended = value_object ? Value.build(value_object, fields) : fields
+        appended = value_object ? Value.build(value_object, fields, aggregate) : fields
         Freezer.deep(Array(element[mutation.target]) + [appended])
       end
 

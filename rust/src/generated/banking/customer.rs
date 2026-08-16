@@ -294,10 +294,10 @@ impl Customer {
 impl Customer {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerNumber::from_json(x)?), },
+        reference: match v.get("reference") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerNumber::from_json(&x.coerce_single_field("value"))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PersonName::from_json(x)?), },
-        email: match v.get("email") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EmailAddress::from_json(x)?), },
-        standing: match v.get("standing") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerStanding::from_json(x)?), },
+        email: match v.get("email") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EmailAddress::from_json(&x.coerce_single_field("address"))?), },
+        standing: match v.get("standing") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerStanding::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Customer")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Customer.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -409,9 +409,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        reference: CustomerNumber::from_json(v.require("reference", "RegisterArgs")?)?,
+        reference: CustomerNumber::from_json(&v.require("reference", "RegisterArgs")?.coerce_single_field("value"))?,
         name: PersonName::from_json(v.require("name", "RegisterArgs")?)?,
-        email: EmailAddress::from_json(v.require("email", "RegisterArgs")?)?,
+        email: EmailAddress::from_json(&v.require("email", "RegisterArgs")?.coerce_single_field("address"))?,
         })
     }
 }
@@ -483,7 +483,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        standing: CustomerStanding::from_json(v.require("standing", "SuspendArgs")?)?,
+        standing: CustomerStanding::from_json(&v.require("standing", "SuspendArgs")?.coerce_single_field("value"))?,
         })
     }
 }

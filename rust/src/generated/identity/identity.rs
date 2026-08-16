@@ -90,7 +90,7 @@ impl Identity {
 impl Identity {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        identity_id: match v.get("identity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(x)?), },
+        identity_id: match v.get("identity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(IdentityId::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -187,7 +187,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        identity_id: IdentityId::from_json(v.require("identity_id", "RegisterArgs")?)?,
+        identity_id: IdentityId::from_json(&v.require("identity_id", "RegisterArgs")?.coerce_single_field("value"))?,
         })
     }
 }

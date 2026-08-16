@@ -393,9 +393,9 @@ impl Withdrawal {
 impl Withdrawal {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        sequence: WithdrawalSequence::from_json(v.require("sequence", "Withdrawal")?)?,
-        cents: WithdrawalAmount::from_json(v.require("cents", "Withdrawal")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "Withdrawal")?)?,
+        sequence: WithdrawalSequence::from_json(&v.require("sequence", "Withdrawal")?.coerce_single_field("value"))?,
+        cents: WithdrawalAmount::from_json(&v.require("cents", "Withdrawal")?.coerce_single_field("cents"))?,
+        narrative: Narrative::from_json(&v.require("narrative", "Withdrawal")?.coerce_single_field("text"))?,
         state: v.require("state", "Withdrawal")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Withdrawal.state: expected a string".to_string()))?.to_string(),
         })
     }
@@ -461,7 +461,7 @@ impl WithdrawalDisputeArgs {
 impl WithdrawalDisputeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        narrative: Narrative::from_json(v.require("narrative", "WithdrawalDisputeArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "WithdrawalDisputeArgs")?.coerce_single_field("text"))?,
         })
     }
 }
@@ -551,9 +551,9 @@ impl ATMCard {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.account: expected String".to_string()))?), },
-        serial: match v.get("serial") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardSerial::from_json(x)?), },
-        nickname: match v.get("nickname") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardNickname::from_json(x)?), },
-        daily_fee: match v.get("daily_fee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyFee::from_json(x)?), },
+        serial: match v.get("serial") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardSerial::from_json(&x.coerce_single_field("value"))?), },
+        nickname: match v.get("nickname") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CardNickname::from_json(&x.coerce_single_field("value"))?), },
+        daily_fee: match v.get("daily_fee") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyFee::from_json(&x.coerce_single_field("amount"))?), },
         withdrawals: match v.get("withdrawals").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Withdrawal::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         status: v.require("status", "ATMCard")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ATMCard.status: expected a string".to_string()))?.to_string(),
         })
@@ -667,8 +667,8 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         account: { let x = v.require("account", "IssueArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("IssueArgs.account: expected String".to_string()))? },
-        serial: CardSerial::from_json(v.require("serial", "IssueArgs")?)?,
-        daily_fee: DailyFee::from_json(v.require("daily_fee", "IssueArgs")?)?,
+        serial: CardSerial::from_json(&v.require("serial", "IssueArgs")?.coerce_single_field("value"))?,
+        daily_fee: DailyFee::from_json(&v.require("daily_fee", "IssueArgs")?.coerce_single_field("amount"))?,
         })
     }
 }
@@ -740,7 +740,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        nickname: CardNickname::from_json(v.require("nickname", "RenameArgs")?)?,
+        nickname: CardNickname::from_json(&v.require("nickname", "RenameArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -816,8 +816,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        cents: WithdrawalAmount::from_json(v.require("cents", "WithdrawArgs")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "WithdrawArgs")?)?,
+        cents: WithdrawalAmount::from_json(&v.require("cents", "WithdrawArgs")?.coerce_single_field("cents"))?,
+        narrative: Narrative::from_json(&v.require("narrative", "WithdrawArgs")?.coerce_single_field("text"))?,
         })
     }
 }

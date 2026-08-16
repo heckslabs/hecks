@@ -25,6 +25,15 @@ module Hecksagain
       EDGE_CASE_PROBABILITY    = 0.2
       INVALID_MEMBER_PROBABILITY = 0.1
       INVALID_REFERENCE_PROBABILITY = 0.2
+      # `Value.for_attribute` → `fields_for`'s own bare-scalar branch
+      # (lib/hecksagain/runtime/value/coercion.rb) has accepted a bare
+      # `"large"` in place of `{"value" => "large"}` for any single-field
+      # value object since 86727afd — but until this generator actually
+      # PRODUCES that shape, nothing exercises it: neither the adapter-
+      # agreement gate nor the Rust/WASM `from_json` codegen (rust/project/
+      # json_codec.rb) can ever be caught drifting on a shape they're
+      # never handed.
+      BARE_SCALAR_PROBABILITY = 0.2
 
       STRING_EDGE_CASES = [
         "", "x", "with \"quotes\"", "with, a comma", "with a \\backslash",
@@ -56,16 +65,28 @@ module Hecksagain
       end
 
       def object_for(value_object, aggregate, random:, known_ids:)
-        if value_object.closed_set? && !value_object.members.empty?
-          return invalid_member(value_object, random: random) if random.rand < INVALID_MEMBER_PROBABILITY
+        fields =
+          if value_object.closed_set? && !value_object.members.empty?
+            return invalid_member(value_object, random: random) if random.rand < INVALID_MEMBER_PROBABILITY
 
-          member = value_object.members.sample(random: random)
-          return member.to_h { |field, value| [field.to_s, value] }
-        end
+            member = value_object.members.sample(random: random)
+            member.to_h { |field, value| [field.to_s, value] }
+          else
+            value_object.attributes.to_h do |field|
+              [field.name.to_s, value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
+            end
+          end
 
-        value_object.attributes.to_h do |field|
-          [field.name.to_s, value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
-        end
+        # `fields.size == 1` — the SAME test `Behaviour::ValueObject#
+        # sole_attribute` names: a genuinely single-field value object,
+        # not merely "this particular closed-set member happened to pick
+        # one field." Unwrapping ONLY here, not in `invalid_member`
+        # above — a deliberately-wrong combination stays a Hash so its
+        # own wrongness is what gets exercised, not a second, unrelated
+        # shape question.
+        return fields.values.first if fields.size == 1 && random.rand < BARE_SCALAR_PROBABILITY
+
+        fields
       end
 
       # A combination that (almost certainly) isn't one of the closed set's

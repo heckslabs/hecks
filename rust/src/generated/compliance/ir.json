@@ -43,7 +43,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -63,8 +65,12 @@
               "admits": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "number",
@@ -78,6 +84,7 @@
           "emits": [
             "AccountFreezeReviewOpened"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -85,13 +92,22 @@
           "role": "Compliance officer",
           "goal": "Confirm the freeze was warranted, or resolve it, with nothing further to escalate",
           "references": "AccountFreezeReview",
-          "attributes": [],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "AccountFreezeReviewCleared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -99,15 +115,33 @@
           "role": "Compliance officer",
           "goal": "Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral",
           "references": "AccountFreezeReview",
-          "attributes": [],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "AccountFreezeReviewEscalated"
           ],
+          "from": null,
           "provenance": null
         }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
       ],
       "lifecycle": {
         "field": "status",
@@ -125,9 +159,15 @@
           }
         ]
       },
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -178,7 +218,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "BoxNumber",
@@ -200,7 +242,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -229,8 +273,12 @@
               "admits": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "branch_code",
@@ -252,6 +300,7 @@
           "emits": [
             "BoxSurrenderReviewOpened"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -259,13 +308,22 @@
           "role": "Compliance officer",
           "goal": "Confirm the surrender needs no further compliance action",
           "references": "BoxSurrenderReview",
-          "attributes": [],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "BoxSurrenderReviewCleared"
           ],
+          "from": null,
           "provenance": null
         },
         {
@@ -273,15 +331,33 @@
           "role": "Compliance officer",
           "goal": "Send a genuine finding on to whatever handles it next",
           "references": "BoxSurrenderReview",
-          "attributes": [],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "BoxSurrenderReviewEscalated"
           ],
+          "from": null,
           "provenance": null
         }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
       ],
       "lifecycle": {
         "field": "status",
@@ -299,15 +375,30 @@
           }
         ]
       },
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

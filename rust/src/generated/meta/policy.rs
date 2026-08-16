@@ -263,15 +263,15 @@ impl Policy {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Policy.bluebook: expected String".to_string()))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyName::from_json(x)?), },
-        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
-        on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
-        trigger_command: match v.get("trigger_command") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
-        target_domain: match v.get("target_domain") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
-        r#where: match v.get("where") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
-        for_each: match v.get("for_each") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyName::from_json(&x.coerce_single_field("value"))?), },
+        aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
+        on_event: match v.get("on_event") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
+        trigger_command: match v.get("trigger_command") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
+        target_domain: match v.get("target_domain") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
+        r#where: match v.get("where") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
+        for_each: match v.get("for_each") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), },
         with_spec: match v.get("with_spec").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Binding::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -410,14 +410,14 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
-        name: PolicyName::from_json(v.require("name", "DeclareArgs")?)?,
-        aggregate: match v.get("aggregate") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
-        on_event: PolicyText::from_json(v.require("on_event", "DeclareArgs")?)?,
-        trigger_command: PolicyText::from_json(v.require("trigger_command", "DeclareArgs")?)?,
-        target_domain: match v.get("target_domain") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
-        r#where: match v.get("where") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
-        for_each: match v.get("for_each") { Some(x) => Some(PolicyText::from_json(x)?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        name: PolicyName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        aggregate: match v.get("aggregate") { Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        on_event: PolicyText::from_json(&v.require("on_event", "DeclareArgs")?.coerce_single_field("value"))?,
+        trigger_command: PolicyText::from_json(&v.require("trigger_command", "DeclareArgs")?.coerce_single_field("value"))?,
+        target_domain: match v.get("target_domain") { Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        r#where: match v.get("where") { Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        for_each: match v.get("for_each") { Some(x) => Some(PolicyText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -492,8 +492,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        key: PolicyText::from_json(v.require("key", "BindArgs")?)?,
-        value: PolicyText::from_json(v.require("value", "BindArgs")?)?,
+        key: PolicyText::from_json(&v.require("key", "BindArgs")?.coerce_single_field("value"))?,
+        value: PolicyText::from_json(&v.require("value", "BindArgs")?.coerce_single_field("value"))?,
         })
     }
 }

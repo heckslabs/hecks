@@ -401,15 +401,15 @@ impl Query {
         Ok(Self {
         aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.aggregate: expected String".to_string()))?), },
         entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Query.entity_id: expected String".to_string()))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryName::from_json(x)?), },
-        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
-        order_field: match v.get("order_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
-        order_way: match v.get("order_way") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
-        limit: match v.get("limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryName::from_json(&x.coerce_single_field("value"))?), },
+        description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
+        order_field: match v.get("order_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
+        order_way: match v.get("order_way") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
+        limit: match v.get("limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), },
         wheres: match v.get("wheres").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Filter::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AskArgument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         options: match v.get("options").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(AskOption::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -545,12 +545,12 @@ if !unknown.is_empty() {
         Ok(Self {
         aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
         entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
-        name: QueryName::from_json(v.require("name", "DeclareArgs")?)?,
-        description: match v.get("description") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        order_field: match v.get("order_field") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        order_way: match v.get("order_way") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        limit: match v.get("limit") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        name: QueryName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        description: match v.get("description") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        order_field: match v.get("order_field") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        order_way: match v.get("order_way") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        limit: match v.get("limit") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -630,9 +630,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        field: QueryText::from_json(v.require("field", "FilterArgs")?)?,
-        op: QueryText::from_json(v.require("op", "FilterArgs")?)?,
-        value: QueryText::from_json(v.require("value", "FilterArgs")?)?,
+        field: QueryText::from_json(&v.require("field", "FilterArgs")?.coerce_single_field("value"))?,
+        op: QueryText::from_json(&v.require("op", "FilterArgs")?.coerce_single_field("value"))?,
+        value: QueryText::from_json(&v.require("value", "FilterArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -715,10 +715,10 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        option: QueryText::from_json(v.require("option", "OptionArgs")?)?,
-        key: QueryText::from_json(v.require("key", "OptionArgs")?)?,
-        value: match v.get("value") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        at: match v.get("at") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
+        option: QueryText::from_json(&v.require("option", "OptionArgs")?.coerce_single_field("value"))?,
+        key: QueryText::from_json(&v.require("key", "OptionArgs")?.coerce_single_field("value"))?,
+        value: match v.get("value") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        at: match v.get("at") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -813,13 +813,13 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: QueryText::from_json(v.require("name", "ArgumentArgs")?)?,
-        r#type: QueryText::from_json(v.require("type", "ArgumentArgs")?)?,
-        list: QueryText::from_json(v.require("list", "ArgumentArgs")?)?,
-        optional: match v.get("optional") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        default: match v.get("default") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(QueryText::from_json(x)?), None => None, },
+        name: QueryText::from_json(&v.require("name", "ArgumentArgs")?.coerce_single_field("value"))?,
+        r#type: QueryText::from_json(&v.require("type", "ArgumentArgs")?.coerce_single_field("value"))?,
+        list: QueryText::from_json(&v.require("list", "ArgumentArgs")?.coerce_single_field("value"))?,
+        optional: match v.get("optional") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        default: match v.get("default") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }

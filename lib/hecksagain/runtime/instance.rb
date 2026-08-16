@@ -48,7 +48,7 @@ module Hecksagain
         value_object = aggregate.value_object(attribute.type)
         return nil unless value_object && value_object.attributes.all? { |field| !field.default.nil? }
 
-        Value.build(value_object, {})
+        Value.build(value_object, {}, aggregate)
       end
 
       def [](name) = @state[name.to_sym]

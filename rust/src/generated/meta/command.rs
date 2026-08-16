@@ -847,18 +847,18 @@ impl Command {
         Ok(Self {
         aggregate: match v.get("aggregate") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.aggregate: expected String".to_string()))?), },
         entity_id: match v.get("entity_id") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Command.entity_id: expected String".to_string()))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandName::from_json(x)?), },
-        role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Actor::from_json(x)?), },
-        goal: match v.get("goal") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Goal::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandName::from_json(&x.coerce_single_field("value"))?), },
+        role: match v.get("role") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Actor::from_json(&x.coerce_single_field("value"))?), },
+        goal: match v.get("goal") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Goal::from_json(&x.coerce_single_field("value"))?), },
         emits: match v.get("emits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Announcement::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        references: match v.get("references") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EventName::from_json(x)?), },
+        references: match v.get("references") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EventName::from_json(&x.coerce_single_field("value"))?), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         givens: match v.get("givens").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         ensures: match v.get("ensures").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         mutations: match v.get("mutations").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Change::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        provenance: match v.get("provenance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(x)?), },
-        from: match v.get("from") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(x)?), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        provenance: match v.get("provenance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?), },
+        from: match v.get("from") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -997,12 +997,12 @@ if !unknown.is_empty() {
         Ok(Self {
         aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
         entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
-        name: CommandName::from_json(v.require("name", "DeclareArgs")?)?,
-        role: match v.get("role") { Some(x) => Some(Actor::from_json(x)?), None => None, },
-        goal: match v.get("goal") { Some(x) => Some(Goal::from_json(x)?), None => None, },
-        provenance: match v.get("provenance") { Some(x) => Some(CommandText::from_json(x)?), None => None, },
-        from: match v.get("from") { Some(x) => Some(CommandText::from_json(x)?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        name: CommandName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        role: match v.get("role") { Some(x) => Some(Actor::from_json(&x.coerce_single_field("value"))?), None => None, },
+        goal: match v.get("goal") { Some(x) => Some(Goal::from_json(&x.coerce_single_field("value"))?), None => None, },
+        provenance: match v.get("provenance") { Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        from: match v.get("from") { Some(x) => Some(CommandText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -1097,13 +1097,13 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: ArgName::from_json(v.require("name", "ArgumentArgs")?)?,
-        r#type: ArgType::from_json(v.require("type", "ArgumentArgs")?)?,
-        list: ArgType::from_json(v.require("list", "ArgumentArgs")?)?,
-        optional: match v.get("optional") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
-        default: match v.get("default") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
+        name: ArgName::from_json(&v.require("name", "ArgumentArgs")?.coerce_single_field("value"))?,
+        r#type: ArgType::from_json(&v.require("type", "ArgumentArgs")?.coerce_single_field("value"))?,
+        list: ArgType::from_json(&v.require("list", "ArgumentArgs")?.coerce_single_field("value"))?,
+        optional: match v.get("optional") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
+        default: match v.get("default") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -1198,12 +1198,12 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         points_at: { let x = v.require("points_at", "ReferenceArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ReferenceArgs.points_at: expected String".to_string()))? },
-        name: ArgName::from_json(v.require("name", "ReferenceArgs")?)?,
-        list: ArgType::from_json(v.require("list", "ReferenceArgs")?)?,
-        optional: match v.get("optional") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
-        pattern: match v.get("pattern") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
-        default: match v.get("default") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
-        admits: match v.get("admits") { Some(x) => Some(ArgType::from_json(x)?), None => None, },
+        name: ArgName::from_json(&v.require("name", "ReferenceArgs")?.coerce_single_field("value"))?,
+        list: ArgType::from_json(&v.require("list", "ReferenceArgs")?.coerce_single_field("value"))?,
+        optional: match v.get("optional") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pattern: match v.get("pattern") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
+        default: match v.get("default") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
+        admits: match v.get("admits") { Some(x) => Some(ArgType::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -1279,8 +1279,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        description: match v.get("description") { Some(x) => Some(RuleText::from_json(x)?), None => None, },
-        canonical: RuleText::from_json(v.require("canonical", "RuleArgs")?)?,
+        description: match v.get("description") { Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        canonical: RuleText::from_json(&v.require("canonical", "RuleArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1356,8 +1356,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        description: match v.get("description") { Some(x) => Some(RuleText::from_json(x)?), None => None, },
-        canonical: RuleText::from_json(v.require("canonical", "EnsureArgs")?)?,
+        description: match v.get("description") { Some(x) => Some(RuleText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        canonical: RuleText::from_json(&v.require("canonical", "EnsureArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1446,11 +1446,11 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        target: FieldRef::from_json(v.require("target", "ChangeArgs")?)?,
-        op: OpName::from_json(v.require("op", "ChangeArgs")?)?,
-        field: FieldRef::from_json(v.require("field", "ChangeArgs")?)?,
-        kind: FieldRef::from_json(v.require("kind", "ChangeArgs")?)?,
-        source: FieldRef::from_json(v.require("source", "ChangeArgs")?)?,
+        target: FieldRef::from_json(&v.require("target", "ChangeArgs")?.coerce_single_field("value"))?,
+        op: OpName::from_json(&v.require("op", "ChangeArgs")?.coerce_single_field("value"))?,
+        field: FieldRef::from_json(&v.require("field", "ChangeArgs")?.coerce_single_field("value"))?,
+        kind: FieldRef::from_json(&v.require("kind", "ChangeArgs")?.coerce_single_field("value"))?,
+        source: FieldRef::from_json(&v.require("source", "ChangeArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1522,7 +1522,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        root: EventName::from_json(v.require("root", "ActsOnArgs")?)?,
+        root: EventName::from_json(&v.require("root", "ActsOnArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1593,7 +1593,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        announces: EventName::from_json(v.require("announces", "AnnounceArgs")?)?,
+        announces: EventName::from_json(&v.require("announces", "AnnounceArgs")?.coerce_single_field("value"))?,
         })
     }
 }

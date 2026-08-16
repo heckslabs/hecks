@@ -247,10 +247,10 @@ impl Statement {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Statement.account: expected String".to_string()))?), },
-        period: match v.get("period") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementPeriod::from_json(x)?), },
-        opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(x)?), },
-        closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(x)?), },
-        generated_on: match v.get("generated_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementDate::from_json(x)?), },
+        period: match v.get("period") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementPeriod::from_json(&x.coerce_single_field("value"))?), },
+        opening_balance: match v.get("opening_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
+        closing_balance: match v.get("closing_balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementAmount::from_json(&x.coerce_single_field("cents"))?), },
+        generated_on: match v.get("generated_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementDate::from_json(&x.coerce_single_field("value"))?), },
         frequency: match v.get("frequency") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(StatementFrequency::from_json(x)?), },
         })
     }
@@ -373,10 +373,10 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         account: { let x = v.require("account", "GenerateArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("GenerateArgs.account: expected String".to_string()))? },
-        period: StatementPeriod::from_json(v.require("period", "GenerateArgs")?)?,
-        opening_balance: StatementAmount::from_json(v.require("opening_balance", "GenerateArgs")?)?,
-        closing_balance: StatementAmount::from_json(v.require("closing_balance", "GenerateArgs")?)?,
-        generated_on: StatementDate::from_json(v.require("generated_on", "GenerateArgs")?)?,
+        period: StatementPeriod::from_json(&v.require("period", "GenerateArgs")?.coerce_single_field("value"))?,
+        opening_balance: StatementAmount::from_json(&v.require("opening_balance", "GenerateArgs")?.coerce_single_field("cents"))?,
+        closing_balance: StatementAmount::from_json(&v.require("closing_balance", "GenerateArgs")?.coerce_single_field("cents"))?,
+        generated_on: StatementDate::from_json(&v.require("generated_on", "GenerateArgs")?.coerce_single_field("value"))?,
         frequency: StatementFrequency::from_json(v.require("frequency", "GenerateArgs")?)?,
         })
     }

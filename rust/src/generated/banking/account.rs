@@ -495,10 +495,10 @@ impl LedgerEntry {
 impl LedgerEntry {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        sequence: LedgerSequence::from_json(v.require("sequence", "LedgerEntry")?)?,
+        sequence: LedgerSequence::from_json(&v.require("sequence", "LedgerEntry")?.coerce_single_field("value"))?,
         amount: Money::from_json(v.require("amount", "LedgerEntry")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "LedgerEntry")?)?,
-        direction: LedgerDirection::from_json(v.require("direction", "LedgerEntry")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntry")?.coerce_single_field("text"))?,
+        direction: LedgerDirection::from_json(&v.require("direction", "LedgerEntry")?.coerce_single_field("value"))?,
         state: v.require("state", "LedgerEntry")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("LedgerEntry.state: expected a string".to_string()))?.to_string(),
         })
     }
@@ -568,7 +568,7 @@ impl LedgerEntryAmendArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         adjustment: Money::from_json(v.require("adjustment", "LedgerEntryAmendArgs")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "LedgerEntryAmendArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntryAmendArgs")?.coerce_single_field("text"))?,
         })
     }
 }
@@ -647,7 +647,7 @@ impl LedgerEntryReverseArgs {
 impl LedgerEntryReverseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        narrative: Narrative::from_json(v.require("narrative", "LedgerEntryReverseArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "LedgerEntryReverseArgs")?.coerce_single_field("text"))?,
         })
     }
 }
@@ -744,10 +744,10 @@ impl Account {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Account.customer: expected String".to_string()))?), },
-        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(x)?), },
+        number: match v.get("number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountNumber::from_json(&x.coerce_single_field("value"))?), },
         balance: match v.get("balance") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
-        kind: match v.get("kind") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountKind::from_json(x)?), },
-        daily_limit: match v.get("daily_limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyLimit::from_json(x)?), },
+        kind: match v.get("kind") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AccountKind::from_json(&x.coerce_single_field("name"))?), },
+        daily_limit: match v.get("daily_limit") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(DailyLimit::from_json(&x.coerce_single_field("cents"))?), },
         ledger: match v.get("ledger").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(LedgerEntry::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         fees_cents: match v.get("fees_cents") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
         interest_cents: match v.get("interest_cents") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Money::from_json(x)?), },
@@ -868,9 +868,9 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         customer: { let x = v.require("customer", "OpenArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("OpenArgs.customer: expected String".to_string()))? },
-        number: AccountNumber::from_json(v.require("number", "OpenArgs")?)?,
-        kind: AccountKind::from_json(v.require("kind", "OpenArgs")?)?,
-        daily_limit: DailyLimit::from_json(v.require("daily_limit", "OpenArgs")?)?,
+        number: AccountNumber::from_json(&v.require("number", "OpenArgs")?.coerce_single_field("value"))?,
+        kind: AccountKind::from_json(&v.require("kind", "OpenArgs")?.coerce_single_field("name"))?,
+        daily_limit: DailyLimit::from_json(&v.require("daily_limit", "OpenArgs")?.coerce_single_field("cents"))?,
         })
     }
 }
@@ -947,7 +947,7 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         amount: PositiveMoney::from_json(v.require("amount", "CreditArgs")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "CreditArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "CreditArgs")?.coerce_single_field("text"))?,
         })
     }
 }
@@ -1027,7 +1027,7 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         amount: PositiveMoney::from_json(v.require("amount", "DebitArgs")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "DebitArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "DebitArgs")?.coerce_single_field("text"))?,
         })
     }
 }
@@ -1316,7 +1316,7 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         amount: PositiveMoney::from_json(v.require("amount", "ApplyFeeArgs")?)?,
-        narrative: Narrative::from_json(v.require("narrative", "ApplyFeeArgs")?)?,
+        narrative: Narrative::from_json(&v.require("narrative", "ApplyFeeArgs")?.coerce_single_field("text"))?,
         })
     }
 }

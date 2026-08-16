@@ -10,12 +10,16 @@ use crate::kernel::Repository;
 
 pub struct Store {
     pub order: crate::kernel::InMemoryRepository<crate::generated::pizzas::order::Order>,
+    pub roleassignment: crate::kernel::InMemoryRepository<crate::generated::governance::roleassignment::RoleAssignment>,
+    pub roletransition: crate::kernel::InMemoryRepository<crate::generated::governance::roletransition::RoleTransition>,
 }
 
 impl Store {
     pub fn new() -> Self {
         Self {
             order: crate::kernel::InMemoryRepository::new(),
+            roleassignment: crate::kernel::InMemoryRepository::new(),
+            roletransition: crate::kernel::InMemoryRepository::new(),
         }
     }
 
@@ -28,6 +32,12 @@ impl Store {
         let mut instances = Vec::new();
 for (id, record) in self.order.entries() {
     instances.push((format!("{}{}", "Pizzas::Order#", id), record.to_json()));
+}
+for (id, record) in self.roleassignment.entries() {
+    instances.push((format!("{}{}", "Governance::RoleAssignment#", id), record.to_json()));
+}
+for (id, record) in self.roletransition.entries() {
+    instances.push((format!("{}{}", "Governance::RoleTransition#", id), record.to_json()));
 }
         instances
     }
@@ -44,6 +54,14 @@ for (id, record) in self.order.entries() {
             for (key, value) in fields {
 if let Some(id) = key.strip_prefix("Pizzas::Order#") {
     store.order.save(id, crate::generated::pizzas::order::Order::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Governance::RoleAssignment#") {
+    store.roleassignment.save(id, crate::generated::governance::roleassignment::RoleAssignment::from_json(value)?);
+    continue;
+}
+if let Some(id) = key.strip_prefix("Governance::RoleTransition#") {
+    store.roletransition.save(id, crate::generated::governance::roletransition::RoleTransition::from_json(value)?);
     continue;
 }
             }
@@ -64,6 +82,12 @@ impl crate::kernel::AggregateScan for Store {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, crate::kernel::Json)>> {
 if aggregate == "Pizzas::Order" {
     return Some(self.order.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Governance::RoleAssignment" {
+    return Some(self.roleassignment.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
+}
+if aggregate == "Governance::RoleTransition" {
+    return Some(self.roletransition.entries().map(|(id, record)| (id.clone(), record.to_json())).collect());
 }
         None
     }
@@ -103,6 +127,40 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::pizzas::order::dispatch_purchase(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Governance::RoleAssignment.Assign" => {
+              let args = crate::generated::governance::roleassignment::AssignArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Governance::RoleAssignment.Revoke" => {
+              let id = crate::generated::governance::roleassignment::RoleAssignment::extract_id(args_json)?;
+              let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Governance::RoleTransition.Grant" => {
+              let args = crate::generated::governance::roletransition::GrantArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
+              let owner_deref = Vec::new();
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Governance::RoleTransition.Revoke" => {
+              let id = crate::generated::governance::roletransition::RoleTransition::extract_id(args_json)?;
+              let args = crate::generated::governance::roletransition::RevokeArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Pizzas::Order.PaymentGateway.Receive" => {
               let args = crate::generated::pizzas::order::PaymentGatewayReceiveArgs::from_json(args_json)?;
               crate::kernel::check_reference(&store.order, &args.name, "Order", "name")?;
@@ -134,12 +192,20 @@ fn stamp_payload(events: Vec<crate::kernel::Event>, args_json: &crate::kernel::J
 
 pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Pizzas::Order", &[]),
+    ("Governance::RoleAssignment", &[]),
+    ("Governance::RoleTransition", &[]),
 ];
 
 impl crate::kernel::ReferenceLookup for Store {
     fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
 if target == "Pizzas::Order" {
     return self.order.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Governance::RoleAssignment" {
+    return self.roleassignment.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+}
+if target == "Governance::RoleTransition" {
+    return self.roletransition.find(id).map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
 }
         None
     }
@@ -162,6 +228,8 @@ pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
         "Pizzas::Order" => Some("order"),
+        "Governance::RoleAssignment" => Some("role_assignment"),
+        "Governance::RoleTransition" => Some("role_transition"),
         _ => None,
     }
 }
@@ -183,6 +251,25 @@ crate::kernel::QueryDef {
         crate::kernel::QueryCondition { field: "pizza.price_cents.cents", comparator: crate::kernel::query_comparators::QueryComparator::Lt, value: crate::kernel::QueryConditionValue::Arg("ceiling") },
     ],
     order_by: Some(crate::kernel::query_ordering::OrderBy { field: "name", descending: false }),
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Governance::RoleAssignment.AssignmentsForActor",
+    aggregate: "Governance::RoleAssignment",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "actor_id", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("actor_id") },
+    ],
+    order_by: None,
+    limit: None,
+},
+crate::kernel::QueryDef {
+    verb: "Governance::RoleTransition.Allowed",
+    aggregate: "Governance::RoleTransition",
+    conditions: &[
+        crate::kernel::QueryCondition { field: "from_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("from_role") },
+        crate::kernel::QueryCondition { field: "to_role", comparator: crate::kernel::query_comparators::QueryComparator::Eq, value: crate::kernel::QueryConditionValue::Arg("to_role") },
+    ],
+    order_by: None,
     limit: None,
 },
 ];

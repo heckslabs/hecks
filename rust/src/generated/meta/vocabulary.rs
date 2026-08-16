@@ -786,7 +786,7 @@ impl Vocabulary {
 impl Vocabulary {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VocabularyName::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VocabularyName::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }

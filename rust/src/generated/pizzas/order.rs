@@ -436,8 +436,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        price_cents: Price::from_json(v.require("price_cents", "Pizza")?)?,
-        size: Size::from_json(v.require("size", "Pizza")?)?,
+        price_cents: Price::from_json(&v.require("price_cents", "Pizza")?.coerce_single_field("cents"))?,
+        size: Size::from_json(&v.require("size", "Pizza")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -480,10 +480,10 @@ impl Order {
 impl Order {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PizzaName::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PizzaName::from_json(&x.coerce_single_field("value"))?), },
         pizza: match v.get("pizza") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Pizza::from_json(x)?), },
         toppings: match v.get("toppings").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Topping::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        customer_name: match v.get("customer_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(x)?), },
+        customer_name: match v.get("customer_name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(CustomerName::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Order")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Order.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -589,7 +589,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: PizzaName::from_json(v.require("name", "CreatePizzaArgs")?)?,
+        name: PizzaName::from_json(&v.require("name", "CreatePizzaArgs")?.coerce_single_field("value"))?,
         pizza: Pizza::from_json(v.require("pizza", "CreatePizzaArgs")?)?,
         })
     }
@@ -666,8 +666,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        topping: ToppingName::from_json(v.require("topping", "AddToppingArgs")?)?,
-        amount: ToppingAmount::from_json(v.require("amount", "AddToppingArgs")?)?,
+        topping: ToppingName::from_json(&v.require("topping", "AddToppingArgs")?.coerce_single_field("value"))?,
+        amount: ToppingAmount::from_json(&v.require("amount", "AddToppingArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -746,8 +746,8 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        customer_name: CustomerName::from_json(v.require("customer_name", "PurchaseArgs")?)?,
-        amount: Price::from_json(v.require("amount", "PurchaseArgs")?)?,
+        customer_name: CustomerName::from_json(&v.require("customer_name", "PurchaseArgs")?.coerce_single_field("value"))?,
+        amount: Price::from_json(&v.require("amount", "PurchaseArgs")?.coerce_single_field("cents"))?,
         })
     }
 }
@@ -774,8 +774,8 @@ impl PaymentGatewayReceiveArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         name: { let x = v.require("name", "PaymentGatewayReceiveArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("PaymentGatewayReceiveArgs.name: expected String".to_string()))? },
-        customer_name: CustomerName::from_json(v.require("customer_name", "PaymentGatewayReceiveArgs")?)?,
-        amount: Price::from_json(v.require("amount", "PaymentGatewayReceiveArgs")?)?,
+        customer_name: CustomerName::from_json(&v.require("customer_name", "PaymentGatewayReceiveArgs")?.coerce_single_field("value"))?,
+        amount: Price::from_json(&v.require("amount", "PaymentGatewayReceiveArgs")?.coerce_single_field("cents"))?,
         })
     }
 }

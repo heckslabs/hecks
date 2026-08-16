@@ -281,9 +281,9 @@ impl CardPayment {
         Ok(Self {
         account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.account: expected String".to_string()))?), },
         disputed_by: match v.get("disputed_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.disputed_by: expected String".to_string()))?), },
-        authorisation: match v.get("authorisation") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AuthorisationCode::from_json(x)?), },
-        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentAmount::from_json(x)?), },
-        merchant: match v.get("merchant") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MerchantName::from_json(x)?), },
+        authorisation: match v.get("authorisation") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(AuthorisationCode::from_json(&x.coerce_single_field("value"))?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(PaymentAmount::from_json(&x.coerce_single_field("cents"))?), },
+        merchant: match v.get("merchant") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MerchantName::from_json(&x.coerce_single_field("value"))?), },
         tags: match v.get("tags") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), },
         status: v.require("status", "CardPayment")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("CardPayment.status: expected a string".to_string()))?.to_string(),
         })
@@ -407,9 +407,9 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         account: { let x = v.require("account", "AuthorizeArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()))? },
-        authorisation: AuthorisationCode::from_json(v.require("authorisation", "AuthorizeArgs")?)?,
-        amount: PaymentAmount::from_json(v.require("amount", "AuthorizeArgs")?)?,
-        merchant: MerchantName::from_json(v.require("merchant", "AuthorizeArgs")?)?,
+        authorisation: AuthorisationCode::from_json(&v.require("authorisation", "AuthorizeArgs")?.coerce_single_field("value"))?,
+        amount: PaymentAmount::from_json(&v.require("amount", "AuthorizeArgs")?.coerce_single_field("cents"))?,
+        merchant: MerchantName::from_json(&v.require("merchant", "AuthorizeArgs")?.coerce_single_field("value"))?,
         tags: match v.get("tags") { Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, },
         })
     }

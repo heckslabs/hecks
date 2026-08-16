@@ -386,9 +386,9 @@ impl Handler {
 impl Handler {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        event_type: HandlerText::from_json(v.require("event_type", "Handler")?)?,
-        from_state: HandlerText::from_json(v.require("from_state", "Handler")?)?,
-        to_state: HandlerText::from_json(v.require("to_state", "Handler")?)?,
+        event_type: HandlerText::from_json(&v.require("event_type", "Handler")?.coerce_single_field("value"))?,
+        from_state: HandlerText::from_json(&v.require("from_state", "Handler")?.coerce_single_field("value"))?,
+        to_state: HandlerText::from_json(&v.require("to_state", "Handler")?.coerce_single_field("value"))?,
         dispatches: match v.get("dispatches").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Dispatch::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
@@ -424,7 +424,7 @@ impl Dispatch {
 impl Dispatch {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        command_name: DispatchText::from_json(v.require("command_name", "Dispatch")?)?,
+        command_name: DispatchText::from_json(&v.require("command_name", "Dispatch")?.coerce_single_field("value"))?,
         with_spec: match v.get("with_spec").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Binding::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
     }
@@ -490,7 +490,7 @@ impl HandlerDispatchArgs {
 impl HandlerDispatchArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        command_name: DispatchText::from_json(v.require("command_name", "HandlerDispatchArgs")?)?,
+        command_name: DispatchText::from_json(&v.require("command_name", "HandlerDispatchArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -582,13 +582,13 @@ impl ProcessManager {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ProcessManager.bluebook: expected String".to_string()))?), },
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerName::from_json(x)?), },
-        correlates_by: match v.get("correlates_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(x)?), },
-        starts_on: match v.get("starts_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(x)?), },
-        ends_on: match v.get("ends_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerName::from_json(&x.coerce_single_field("value"))?), },
+        correlates_by: match v.get("correlates_by") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
+        starts_on: match v.get("starts_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
+        ends_on: match v.get("ends_on") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), },
         states: match v.get("states").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(SagaState::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         handlers: match v.get("handlers").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Handler::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
-        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(x)?), },
+        position: match v.get("position") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), },
         })
     }
 }
@@ -713,11 +713,11 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
-        name: ProcessManagerName::from_json(v.require("name", "DeclareArgs")?)?,
-        correlates_by: ProcessManagerText::from_json(v.require("correlates_by", "DeclareArgs")?)?,
-        starts_on: ProcessManagerText::from_json(v.require("starts_on", "DeclareArgs")?)?,
-        ends_on: match v.get("ends_on") { Some(x) => Some(ProcessManagerText::from_json(x)?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(x)?), None => None, },
+        name: ProcessManagerName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
+        correlates_by: ProcessManagerText::from_json(&v.require("correlates_by", "DeclareArgs")?.coerce_single_field("value"))?,
+        starts_on: ProcessManagerText::from_json(&v.require("starts_on", "DeclareArgs")?.coerce_single_field("value"))?,
+        ends_on: match v.get("ends_on") { Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -788,7 +788,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        name: ProcessManagerText::from_json(v.require("name", "StateArgs")?)?,
+        name: ProcessManagerText::from_json(&v.require("name", "StateArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -867,9 +867,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        event_type: HandlerText::from_json(v.require("event_type", "HandlerArgs")?)?,
-        from_state: HandlerText::from_json(v.require("from_state", "HandlerArgs")?)?,
-        to_state: HandlerText::from_json(v.require("to_state", "HandlerArgs")?)?,
+        event_type: HandlerText::from_json(&v.require("event_type", "HandlerArgs")?.coerce_single_field("value"))?,
+        from_state: HandlerText::from_json(&v.require("from_state", "HandlerArgs")?.coerce_single_field("value"))?,
+        to_state: HandlerText::from_json(&v.require("to_state", "HandlerArgs")?.coerce_single_field("value"))?,
         })
     }
 }

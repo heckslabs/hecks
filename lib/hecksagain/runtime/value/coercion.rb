@@ -66,7 +66,7 @@ module Hecksagain
               if value.is_a?(self) && value.type_name == value_object&.hecks_name
                 value
               elsif value_object
-                build(value_object, fields_for(value_object, attribute.name, value))
+                build(value_object, fields_for(value_object, attribute.name, value), aggregate)
               else
                 value
               end
@@ -112,10 +112,52 @@ module Hecksagain
                                       offered: Rendering.describe(value))
         end
 
-        def build(value_object, fields)
+        # `build`'s own recursive twin of `for_attribute`'s single-level
+        # normalization — a value object's OWN composite-typed fields
+        # (`Pizza.price_cents`, a `Price`) never otherwise pass back
+        # through `fields_for`, so a bare scalar or partial Hash for one
+        # of THOSE sails past the outer VO's own shape check (`Pizza`
+        # itself has two fields, so nothing unwraps there) and lands
+        # stored one field down exactly as handed in — found live: once
+        # the fuzzer actually generated the bare-scalar shape
+        # `fields_for` has accepted at the TOP level since 86727afd, a
+        # nested `Price` stored as a raw Integer broke every later
+        # dotted-path read (`pizza.price_cents.cents`) expecting one
+        # more level of Hash.
+        #
+        # Stays a plain Hash, never a nested `Value` — `Value#with`'s own
+        # header and `materialize_unwrapped`'s comment already depend on
+        # a value-object-typed field of ANOTHER value object staying a
+        # plain Hash once stored, and this does not change that; it only
+        # makes sure that Hash has the shape its own type declares.
+        # `aggregate` is the one thing `build` didn't used to need — a
+        # nested type can only be resolved through `aggregate.
+        # value_object(name)`, so callers with no aggregate in reach
+        # (`Value#with`, always re-setting an already-scalar arithmetic
+        # field) simply skip this and keep their prior behavior.
+        def normalize_composite_fields(aggregate, value_object, fields)
+          return fields unless aggregate&.respond_to?(:value_object)
+
+          value_object.attributes.each do |attribute|
+            next if attribute.list? || !fields.key?(attribute.name)
+
+            raw = fields[attribute.name]
+            next if raw.nil? || raw.is_a?(self)
+
+            nested = aggregate.value_object(attribute.type)
+            next unless nested
+
+            fields[attribute.name] = normalize_composite_fields(aggregate, nested, fields_for(nested, attribute.name, raw))
+          end
+
+          fields
+        end
+
+        def build(value_object, fields, aggregate = nil)
           fields = value_object.attributes.each_with_object(fields.transform_keys(&:to_sym)) do |attribute, completed|
             completed[attribute.name] = attribute.default unless completed.key?(attribute.name) || attribute.default.nil?
           end
+          fields = normalize_composite_fields(aggregate, value_object, fields)
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
           check_numeric_fields(value_object, fields)

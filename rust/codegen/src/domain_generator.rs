@@ -158,7 +158,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
                 // refusal — found live dispatching a real command through
                 // the compiled binary.
                 let empty_allowlist: [String; 0] = [];
-                puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, Some(&empty_allowlist), None));
+                puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, &value_objects_by_name, Some(&empty_allowlist), None));
             }
             puts_blank(&mut out);
         }
@@ -173,7 +173,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
             let extra = lifecycle_extra_field(entity);
             puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &entity_name_ident, entity_attrs, false, &extra, None));
             puts_blank(&mut out);
-            puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &entity_name_ident, entity_attrs, false, &extra, None));
+            puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &entity_name_ident, entity_attrs, &value_objects_by_name, false, &extra, None));
             puts_blank(&mut out);
 
             // S17, ADR 0026 — AN ENTITY NESTED INSIDE THIS ONE
@@ -196,7 +196,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
                 let nested_extra = lifecycle_extra_field(nested);
                 puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &nested_name_ident, nested_attrs, false, &nested_extra, None));
                 puts_blank(&mut out);
-                puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &nested_name_ident, nested_attrs, false, &nested_extra, None));
+                puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &nested_name_ident, nested_attrs, &value_objects_by_name, false, &nested_extra, None));
                 puts_blank(&mut out);
             }
 
@@ -246,7 +246,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
         let extra = lifecycle_extra_field(aggregate);
         puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &record_name, record_attrs, true, &extra, Some(aggregate)));
         puts_blank(&mut out);
-        puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &record_name, record_attrs, true, &extra, Some(aggregate)));
+        puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &record_name, record_attrs, &value_objects_by_name, true, &extra, Some(aggregate)));
         puts_blank(&mut out);
         puts_str(&mut out, &format!("impl crate::kernel::ToJson for {record_name} {{\n    fn to_json(&self) -> crate::kernel::Json {{\n        {record_name}::to_json(self)\n    }}\n}}\n"));
         puts_blank(&mut out);
@@ -272,7 +272,7 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
             puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &args_struct, cmd_attrs, false, &[], None));
             puts_blank(&mut out);
             let allowlist = json_codec::command_argument_allowlist(aggregate, command, &process_managers);
-            puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &args_struct, cmd_attrs, Some(&allowlist), Some(command_name)));
+            puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &args_struct, cmd_attrs, &value_objects_by_name, Some(&allowlist), Some(command_name)));
             puts_blank(&mut out);
 
             let creates = command.get("references").is_none();

@@ -262,10 +262,10 @@ impl ExternalTransfer {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         account: match v.get("account") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalTransfer.account: expected String".to_string()))?), },
-        end_to_end: match v.get("end_to_end") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EndToEndReference::from_json(x)?), },
-        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalAmount::from_json(x)?), },
-        beneficiary: match v.get("beneficiary") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BeneficiaryName::from_json(x)?), },
-        direction: match v.get("direction") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MovementDirection::from_json(x)?), },
+        end_to_end: match v.get("end_to_end") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EndToEndReference::from_json(&x.coerce_single_field("value"))?), },
+        amount: match v.get("amount") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ExternalAmount::from_json(&x.coerce_single_field("cents"))?), },
+        beneficiary: match v.get("beneficiary") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BeneficiaryName::from_json(&x.coerce_single_field("value"))?), },
+        direction: match v.get("direction") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(MovementDirection::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "ExternalTransfer")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ExternalTransfer.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -388,10 +388,10 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         account: { let x = v.require("account", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.account: expected String".to_string()))? },
-        end_to_end: EndToEndReference::from_json(v.require("end_to_end", "RequestArgs")?)?,
-        amount: ExternalAmount::from_json(v.require("amount", "RequestArgs")?)?,
-        beneficiary: BeneficiaryName::from_json(v.require("beneficiary", "RequestArgs")?)?,
-        direction: MovementDirection::from_json(v.require("direction", "RequestArgs")?)?,
+        end_to_end: EndToEndReference::from_json(&v.require("end_to_end", "RequestArgs")?.coerce_single_field("value"))?,
+        amount: ExternalAmount::from_json(&v.require("amount", "RequestArgs")?.coerce_single_field("cents"))?,
+        beneficiary: BeneficiaryName::from_json(&v.require("beneficiary", "RequestArgs")?.coerce_single_field("value"))?,
+        direction: MovementDirection::from_json(&v.require("direction", "RequestArgs")?.coerce_single_field("value"))?,
         })
     }
 }

@@ -126,6 +126,29 @@ impl Json {
         }
     }
 
+    /// The RUNTIME half of a single-field value object's own bare-scalar
+    /// admission — `rust/project/json_codec.rb`'s `emit_from_json_flat`/
+    /// `emit_from_json_state` call this before handing a composite
+    /// field's raw JSON to its own `from_json`, whenever the target type
+    /// has exactly one attribute. Mirrors `Value.for_attribute`/
+    /// `fields_for`'s own `value_object.attributes.size == 1` branch
+    /// (lib/hecksagain/runtime/value/coercion.rb) — a caller's bare
+    /// `"large"` for a `Size { value }` field isn't a shape error, it's
+    /// the sole field's own value, unwrapped. Already-object input
+    /// passes through unchanged (the wrapped `{"value": "large"}`
+    /// spelling keeps working); anything else becomes a one-field object
+    /// under `field_name`, the SAME field the target type's own
+    /// `from_json` then looks up by name — so a genuinely wrong scalar
+    /// (`Money.cents` given `"lots"`) still fails exactly where it
+    /// always did, one level down inside that type's own field check,
+    /// not here.
+    pub fn coerce_single_field(&self, field_name: &str) -> Json {
+        match self {
+            Json::Object(_) => self.clone(),
+            other => Json::obj(vec![(field_name, other.clone())]),
+        }
+    }
+
     /// A required-field lookup that raises the same `Refusal::TypeMismatch`
     /// every generated `from_json` raises for a missing/wrong-shaped field —
     /// shared here so the message wording is one place, not re-typed at

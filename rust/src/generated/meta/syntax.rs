@@ -895,14 +895,14 @@ impl Keyword {
 impl Keyword {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        position: KeywordPosition::from_json(v.require("position", "Keyword")?)?,
-        word: KeywordSeedText::from_json(v.require("word", "Keyword")?)?,
-        context: KeywordSeedText::from_json(v.require("context", "Keyword")?)?,
-        body: KeywordSeedText::from_json(v.require("body", "Keyword")?)?,
-        inner: KeywordSeedText::from_json(v.require("inner", "Keyword")?)?,
-        opens: KeywordSeedText::from_json(v.require("opens", "Keyword")?)?,
-        fills: KeywordSeedText::from_json(v.require("fills", "Keyword")?)?,
-        was: match v.get("was") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(x)?), },
+        position: KeywordPosition::from_json(&v.require("position", "Keyword")?.coerce_single_field("value"))?,
+        word: KeywordSeedText::from_json(&v.require("word", "Keyword")?.coerce_single_field("value"))?,
+        context: KeywordSeedText::from_json(&v.require("context", "Keyword")?.coerce_single_field("value"))?,
+        body: KeywordSeedText::from_json(&v.require("body", "Keyword")?.coerce_single_field("value"))?,
+        inner: KeywordSeedText::from_json(&v.require("inner", "Keyword")?.coerce_single_field("value"))?,
+        opens: KeywordSeedText::from_json(&v.require("opens", "Keyword")?.coerce_single_field("value"))?,
+        fills: KeywordSeedText::from_json(&v.require("fills", "Keyword")?.coerce_single_field("value"))?,
+        was: match v.get("was") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Keyword")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Keyword.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -1149,19 +1149,19 @@ impl Argument {
 impl Argument {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        position: ArgumentPosition::from_json(v.require("position", "Argument")?)?,
-        keyword: ArgumentSeedText::from_json(v.require("keyword", "Argument")?)?,
-        context: ArgumentSeedText::from_json(v.require("context", "Argument")?)?,
-        at: match v.get("at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
-        named: match v.get("named") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
-        kind: ArgumentSeedText::from_json(v.require("kind", "Argument")?)?,
-        required: ArgumentSeedText::from_json(v.require("required", "Argument")?)?,
-        fills: ArgumentSeedText::from_json(v.require("fills", "Argument")?)?,
-        selects: match v.get("selects") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
-        pair_key_fills: match v.get("pair_key_fills") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
-        pair_value_fills: match v.get("pair_value_fills") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
-        pairs_shape: match v.get("pairs_shape") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
-        variadic: match v.get("variadic") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(x)?), },
+        position: ArgumentPosition::from_json(&v.require("position", "Argument")?.coerce_single_field("value"))?,
+        keyword: ArgumentSeedText::from_json(&v.require("keyword", "Argument")?.coerce_single_field("value"))?,
+        context: ArgumentSeedText::from_json(&v.require("context", "Argument")?.coerce_single_field("value"))?,
+        at: match v.get("at") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        named: match v.get("named") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        kind: ArgumentSeedText::from_json(&v.require("kind", "Argument")?.coerce_single_field("value"))?,
+        required: ArgumentSeedText::from_json(&v.require("required", "Argument")?.coerce_single_field("value"))?,
+        fills: ArgumentSeedText::from_json(&v.require("fills", "Argument")?.coerce_single_field("value"))?,
+        selects: match v.get("selects") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        pair_key_fills: match v.get("pair_key_fills") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        pair_value_fills: match v.get("pair_value_fills") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        pairs_shape: match v.get("pairs_shape") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        variadic: match v.get("variadic") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Argument")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -1374,7 +1374,7 @@ impl Syntax {
 impl Syntax {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(SyntaxName::from_json(x)?), },
+        name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(SyntaxName::from_json(&x.coerce_single_field("value"))?), },
         keywords: match v.get("keywords").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Keyword::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         arguments: match v.get("arguments").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         })
@@ -1479,7 +1479,7 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
-        name: SyntaxName::from_json(v.require("name", "DeclareArgs")?)?,
+        name: SyntaxName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1580,14 +1580,14 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        position: KeywordPosition::from_json(v.require("position", "KeywordArgs")?)?,
-        word: KeywordSeedText::from_json(v.require("word", "KeywordArgs")?)?,
-        context: KeywordSeedText::from_json(v.require("context", "KeywordArgs")?)?,
-        body: KeywordSeedText::from_json(v.require("body", "KeywordArgs")?)?,
-        inner: KeywordSeedText::from_json(v.require("inner", "KeywordArgs")?)?,
-        opens: KeywordSeedText::from_json(v.require("opens", "KeywordArgs")?)?,
-        fills: KeywordSeedText::from_json(v.require("fills", "KeywordArgs")?)?,
-        was: match v.get("was") { Some(x) => Some(KeywordSeedText::from_json(x)?), None => None, },
+        position: KeywordPosition::from_json(&v.require("position", "KeywordArgs")?.coerce_single_field("value"))?,
+        word: KeywordSeedText::from_json(&v.require("word", "KeywordArgs")?.coerce_single_field("value"))?,
+        context: KeywordSeedText::from_json(&v.require("context", "KeywordArgs")?.coerce_single_field("value"))?,
+        body: KeywordSeedText::from_json(&v.require("body", "KeywordArgs")?.coerce_single_field("value"))?,
+        inner: KeywordSeedText::from_json(&v.require("inner", "KeywordArgs")?.coerce_single_field("value"))?,
+        opens: KeywordSeedText::from_json(&v.require("opens", "KeywordArgs")?.coerce_single_field("value"))?,
+        fills: KeywordSeedText::from_json(&v.require("fills", "KeywordArgs")?.coerce_single_field("value"))?,
+        was: match v.get("was") { Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -1708,19 +1708,19 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        position: ArgumentPosition::from_json(v.require("position", "ArgumentArgs")?)?,
-        keyword: ArgumentSeedText::from_json(v.require("keyword", "ArgumentArgs")?)?,
-        context: ArgumentSeedText::from_json(v.require("context", "ArgumentArgs")?)?,
-        at: match v.get("at") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
-        named: match v.get("named") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
-        kind: ArgumentSeedText::from_json(v.require("kind", "ArgumentArgs")?)?,
-        required: ArgumentSeedText::from_json(v.require("required", "ArgumentArgs")?)?,
-        fills: ArgumentSeedText::from_json(v.require("fills", "ArgumentArgs")?)?,
-        selects: match v.get("selects") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
-        pair_key_fills: match v.get("pair_key_fills") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
-        pair_value_fills: match v.get("pair_value_fills") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
-        pairs_shape: match v.get("pairs_shape") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
-        variadic: match v.get("variadic") { Some(x) => Some(ArgumentSeedText::from_json(x)?), None => None, },
+        position: ArgumentPosition::from_json(&v.require("position", "ArgumentArgs")?.coerce_single_field("value"))?,
+        keyword: ArgumentSeedText::from_json(&v.require("keyword", "ArgumentArgs")?.coerce_single_field("value"))?,
+        context: ArgumentSeedText::from_json(&v.require("context", "ArgumentArgs")?.coerce_single_field("value"))?,
+        at: match v.get("at") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        named: match v.get("named") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        kind: ArgumentSeedText::from_json(&v.require("kind", "ArgumentArgs")?.coerce_single_field("value"))?,
+        required: ArgumentSeedText::from_json(&v.require("required", "ArgumentArgs")?.coerce_single_field("value"))?,
+        fills: ArgumentSeedText::from_json(&v.require("fills", "ArgumentArgs")?.coerce_single_field("value"))?,
+        selects: match v.get("selects") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pair_key_fills: match v.get("pair_key_fills") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pair_value_fills: match v.get("pair_value_fills") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        pairs_shape: match v.get("pairs_shape") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        variadic: match v.get("variadic") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }

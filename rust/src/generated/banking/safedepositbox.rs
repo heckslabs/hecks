@@ -427,9 +427,9 @@ impl Visit {
 impl Visit {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        date: VisitDate::from_json(v.require("date", "Visit")?)?,
-        sequence: VisitSequence::from_json(v.require("sequence", "Visit")?)?,
-        note: match v.get("note") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VisitNote::from_json(x)?), },
+        date: VisitDate::from_json(&v.require("date", "Visit")?.coerce_single_field("value"))?,
+        sequence: VisitSequence::from_json(&v.require("sequence", "Visit")?.coerce_single_field("value"))?,
+        note: match v.get("note") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(VisitNote::from_json(&x.coerce_single_field("text"))?), },
         state: v.require("state", "Visit")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Visit.state: expected a string".to_string()))?.to_string(),
         })
     }
@@ -503,9 +503,9 @@ impl VisitAnnotateArgs {
 impl VisitAnnotateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        date: VisitDate::from_json(v.require("date", "VisitAnnotateArgs")?)?,
-        sequence: VisitSequence::from_json(v.require("sequence", "VisitAnnotateArgs")?)?,
-        note: VisitNote::from_json(v.require("note", "VisitAnnotateArgs")?)?,
+        date: VisitDate::from_json(&v.require("date", "VisitAnnotateArgs")?.coerce_single_field("value"))?,
+        sequence: VisitSequence::from_json(&v.require("sequence", "VisitAnnotateArgs")?.coerce_single_field("value"))?,
+        note: VisitNote::from_json(&v.require("note", "VisitAnnotateArgs")?.coerce_single_field("text"))?,
         })
     }
 }
@@ -584,7 +584,7 @@ impl KeyIssuance {
 impl KeyIssuance {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        serial: KeySerial::from_json(v.require("serial", "KeyIssuance")?)?,
+        serial: KeySerial::from_json(&v.require("serial", "KeyIssuance")?.coerce_single_field("value"))?,
         status: v.require("status", "KeyIssuance")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("KeyIssuance.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -650,7 +650,7 @@ impl KeyIssuanceReturnArgs {
 impl KeyIssuanceReturnArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
-        serial: KeySerial::from_json(v.require("serial", "KeyIssuanceReturnArgs")?)?,
+        serial: KeySerial::from_json(&v.require("serial", "KeyIssuanceReturnArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -740,9 +740,9 @@ impl SafeDepositBox {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
         customer: match v.get("customer") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.customer: expected String".to_string()))?), },
-        branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(x)?), },
-        box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(x)?), },
-        size: match v.get("size") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Size::from_json(x)?), },
+        branch_code: match v.get("branch_code") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BranchCode::from_json(&x.coerce_single_field("value"))?), },
+        box_number: match v.get("box_number") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(BoxNumber::from_json(&x.coerce_single_field("value"))?), },
+        size: match v.get("size") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(Size::from_json(&x.coerce_single_field("value"))?), },
         visits: match v.get("visits").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Visit::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         keys: match v.get("keys").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(KeyIssuance::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         status: v.require("status", "SafeDepositBox")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("SafeDepositBox.status: expected a string".to_string()))?.to_string(),
@@ -861,9 +861,9 @@ if !unknown.is_empty() {
 }
         Ok(Self {
         customer: { let x = v.require("customer", "RentArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RentArgs.customer: expected String".to_string()))? },
-        branch_code: BranchCode::from_json(v.require("branch_code", "RentArgs")?)?,
-        box_number: BoxNumber::from_json(v.require("box_number", "RentArgs")?)?,
-        size: Size::from_json(v.require("size", "RentArgs")?)?,
+        branch_code: BranchCode::from_json(&v.require("branch_code", "RentArgs")?.coerce_single_field("value"))?,
+        box_number: BoxNumber::from_json(&v.require("box_number", "RentArgs")?.coerce_single_field("value"))?,
+        size: Size::from_json(&v.require("size", "RentArgs")?.coerce_single_field("value"))?,
         })
     }
 }
@@ -1014,9 +1014,9 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        date: VisitDate::from_json(v.require("date", "LogVisitArgs")?)?,
-        sequence: VisitSequence::from_json(v.require("sequence", "LogVisitArgs")?)?,
-        note: match v.get("note") { Some(x) => Some(VisitNote::from_json(x)?), None => None, },
+        date: VisitDate::from_json(&v.require("date", "LogVisitArgs")?.coerce_single_field("value"))?,
+        sequence: VisitSequence::from_json(&v.require("sequence", "LogVisitArgs")?.coerce_single_field("value"))?,
+        note: match v.get("note") { Some(x) => Some(VisitNote::from_json(&x.coerce_single_field("text"))?), None => None, },
         })
     }
 }
@@ -1088,7 +1088,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        serial: KeySerial::from_json(v.require("serial", "IssueKeyArgs")?)?,
+        serial: KeySerial::from_json(&v.require("serial", "IssueKeyArgs")?.coerce_single_field("value"))?,
         })
     }
 }
