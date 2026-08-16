@@ -165,7 +165,7 @@ module Hecksagain
         # `@value_objects + closed_sets` already makes for the aggregate's
         # own direct attributes (see this file's other 5 call sites).
         def value_object(name, &block)
-          builder = ValueObjectBuilder.new(name)
+          builder = ValueObjectBuilder.new(name, owner_value_objects: @value_objects + closed_sets)
           builder.instance_eval(&block) if block
           @value_objects << builder.build
           @value_objects.concat(builder.closed_sets)

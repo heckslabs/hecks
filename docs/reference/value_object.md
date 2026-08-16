@@ -122,6 +122,23 @@ a command's other checks.
 account.credit!(amount: { cents: -1 }, narrative: { text: "negative" })  # ~> InvariantViolation: an amount is positive
 ```
 
+NO BLOCK is a REFERENCE, not a fresh declaration — the same move `given`
+(command.md) already makes for a shared precondition, one level over: a
+rule shared across SIBLING value objects on the same aggregate,
+declared once, on the first one that needs it. `Money` and
+`PositiveMoney` (both on `Account`) used to both retype `invariant("a
+currency is a three-letter code") { currency.to_s.size == 3 }`, byte
+for byte — `Money` still declares it with a block, `PositiveMoney` now
+just names it back:
+
+```ruby
+account_ir = Banking::Account.ir
+money          = account_ir.value_objects.find { |vo| vo.hecks_name == "Money" }
+positive_money = account_ir.value_objects.find { |vo| vo.hecks_name == "PositiveMoney" }
+money.invariants.map(&:description)          # => ["a currency is a three-letter code"]
+positive_money.invariants.map(&:canonical)    # => ["cents.positive?", "currency.to_s.size == 3"]
+```
+
 The currency rule fires from the same value, in the same command,
 without either being mentioned where the money is spent:
 

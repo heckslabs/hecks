@@ -4,10 +4,11 @@ module Hecksagain
       class ValueObjectBuilder
         include AttributeCollector
 
-        def initialize(name)
+        def initialize(name, owner_value_objects: [])
           @name       = name
           @invariants = []
           @members    = []
+          @owner_value_objects = owner_value_objects
         end
 
         # THE WRAPPER BLOCK IS GONE (ADR 0025, "Attributes" — "closed sets
@@ -68,7 +69,22 @@ module Hecksagain
           @members << fields
         end
 
+        # NO BLOCK is a REFERENCE, not a fresh declaration — the same
+        # move S10 already made for `CommandBuilder#given` (ADR 0025,
+        # "a precondition shared across commands is declared once... a
+        # command references it by name"), one level over: a rule
+        # shared across SIBLING value objects on the same aggregate,
+        # declared once, on the first one to need it. Real, live
+        # redundancy this closes: `Account`'s own `Money`/`PositiveMoney`
+        # both declared `invariant("a currency is a three-letter code")
+        # { currency.to_s.size == 3 }`, byte for byte. Declare it before
+        # the value objects that reference it — resolution happens at
+        # the referencing value object's own build time, against
+        # whatever sibling value objects the aggregate has already
+        # built, the same ordering rule `given` carries.
         def invariant(description, &predicate)
+          return reference_named_invariant(description) unless predicate
+
           canonical = Ports::Extraction.canonical(predicate)
 
           # moved to the language: given "a rule says what it means", on Shape.Assert
@@ -86,6 +102,20 @@ module Hecksagain
           )
         end
 
+        private
+
+        def reference_named_invariant(description)
+          named = @owner_value_objects.flat_map(&:invariants).find { |rule| rule.description == description } ||
+                  raise(Malformed,
+                        "#{@name}'s invariant #{description.inspect} names no rule a sibling value " \
+                        "object on this aggregate declares — declare it once with a block, on the " \
+                        "value object that needs it first, before the ones that reference it back")
+
+          @invariants << named
+        end
+
+        public
+
         def build
           if @inline_closed_set_field && attributes.size > 1
             raise Malformed,
@@ -101,8 +131,8 @@ module Hecksagain
           )
         end
 
-        def self.build(name, &block)
-          builder = new(name)
+        def self.build(name, owner_value_objects: [], &block)
+          builder = new(name, owner_value_objects: owner_value_objects)
           builder.instance_eval(&block) if block
           builder.build
         end
