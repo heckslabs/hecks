@@ -141,7 +141,7 @@ Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 | `as:` | symbol | false | name |
 <!-- generated:end -->
 
-Names which already-declared field or fields say which record this is — one bare field (`:tag`) points at a single-field value object and its path is derived (`tag.value`); several, one per argument, join in declaration order (`"north:3"`). A bare scalar or a reference resolves to its own name unchanged, since there is nothing to unwrap. Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — the second `Establish` against an existing identity refuses as a duplicate, not a fresh record.
+Names which already-declared field or fields say which record this is — one bare field (`:tag`) points at a single-field value object and its path is derived (`tag.value`); several, one per argument, join in declaration order (`"north:3"`). A bare scalar or a reference resolves to its own name unchanged, since there is nothing to unwrap. Get this wrong and the aggregate either builds CRUD around something that was never more than a number, or lets two genuinely different records collide because nothing told the runtime how to tell them apart — a second creating command against an existing identity refuses as a duplicate, not a fresh record, demonstrated below.
 
 `Account` declares `attribute :number, AccountNumber` and then
 `identified_by :number`, so the number IS the record's identity — not
@@ -207,7 +207,7 @@ One direction only: if the target aggregate also references this one back, the b
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-GONE — `reference_to` mints the same bare, `_id`-less name on its own now, so the sugar had no work left. It also LIED while it existed: despite the plural name and plural argument it singularised its target and minted one scalar, not a list, so a `has_many Studios` field read `nil` until set and never `[]`. Refuses live, unconditionally:
+GONE — see `reference_to` above, which mints the same bare, `_id`-less name on its own now, so the sugar had no work left. It also LIED while it existed: despite the plural name and plural argument it singularised its target and minted one scalar, not a list, so a `has_many Studios` field read `nil` until set and never `[]`. Refuses live, unconditionally:
 
 ```ruby
 Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attribute :name, StudioName; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, Title; value_object("Title") { attribute :value, String }; has_many Studio } }  # ~> Malformed: has_many is gone
@@ -225,7 +225,7 @@ Hecks.bluebook("BackersGone") { aggregate("Studio") { identified_by :name; attri
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-GONE — it existed only to drop the `_id` suffix `reference_to` used to mint by default; `reference_to` drops it on its own now. Refuses live:
+GONE — see `reference_to` above; it existed only to drop the `_id` suffix `reference_to` used to mint by default, and `reference_to` drops it on its own now. Refuses live:
 
 ```ruby
 Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; attribute :name, StudioName; value_object("StudioName") { attribute :value, String } }; aggregate("Film") { identified_by :title; attribute :title, Title; value_object("Title") { attribute :value, String }; has_one Studio } }  # ~> Malformed: has_one is gone
@@ -243,7 +243,7 @@ Hecks.bluebook("DistributorGone") { aggregate("Studio") { identified_by :name; a
 | `optional:` | flag | false | optional |
 <!-- generated:end -->
 
-GONE — an alias for `has_one`, gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
+GONE — an alias for `has_one` above (see `reference_to` for what replaced both), gone for the same reason. `OnboardingCase` was the corpus's one use; it now spells the same relationship with `reference_to Customer`, and reads `customer`, not `customer_id`:
 
 ```ruby
 kase = Banking::OnboardingCase.open!(customer: "ag-1", reference: "ag-c1", account_number: "ag-a2")
@@ -309,12 +309,11 @@ Banking::Account.ir.entities.map(&:hecks_name)  # => ["LedgerEntry"]
 Declares a read over this aggregate's own fields. See the Query context page for `where`, ordering, and the dotted-path rules.
 
 Declared here, dispatched as `Domain::Aggregate.query_name` through
-`runtime.query`, or as a bare door method of the same snake_case
-name — `Account` declares a QUERY named "Open" alongside its
-CREATING command of the same name, and the two never collide: a
-command's own door method always ends in `!` (`open!` created the
-`account` this page has been using throughout), so the bare name is
-free for the query:
+`runtime.query`, or as a bare door method of the same snake_case name.
+`Account` declares a QUERY named "Open" alongside its CREATING command
+of the same name, and the two never collide: a command's own door
+method always ends in `!` (`open!` created the `account` this page has
+been using throughout), leaving the bare name free for the query:
 
 ```ruby
 runtime.query("Banking::Account.Open").map { |row| row[:number][:value] }  # => ["ag-a1"]
@@ -554,7 +553,7 @@ account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:ca
 A FIELD READ THROUGH A REFERENCE, HELD LOCALLY — the boundary rule's
 whole point is that a `given`/`ensures`/`invariant` should never reach
 across a `reference_to` at rule-evaluation time to ask another
-aggregate a question live. `projects` is the alternative: `from:` names a dotted
+aggregate a live question. `projects` is the alternative: `from:` names a dotted
 path — the LOCAL reference attribute to read through, then the SCALAR
 field on the target to copy — and the copy lands under `name` on this
 aggregate's own record, kept fresh by an explicit rebuild sweep
