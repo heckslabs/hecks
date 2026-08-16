@@ -121,13 +121,13 @@ was adopted from.
 `Account` is the corpus's own adopted concept:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").provenance[:source]  # => "HecksCanonical"
+Banking::Account.ir.provenance[:source]  # => "HecksCanonical"
 ```
 
 Raw and unread — nothing coerces the Hash, so nothing refuses it either:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").provenance[:source_id]  # => "aggregate:account"
+Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 ```
 
 ## identified_by
@@ -163,7 +163,7 @@ A composite identity joins its paths in declaration order —
 `SafeDepositBox` is `branch_code.value` then `box_number.value`:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("SafeDepositBox").identity_heads  # => [:branch_code, :box_number]
+Banking::SafeDepositBox.ir.identity_heads  # => [:branch_code, :box_number]
 ```
 
 ## reference_to
@@ -274,7 +274,7 @@ The field named here is the one every transition moves, and it starts at
 `default:` without any command setting it:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").lifecycle.field  # => :status
+Banking::Account.ir.lifecycle.field  # => :status
 account.status  # => "open"
 ```
 
@@ -294,7 +294,7 @@ Declares a piece owned by this aggregate, with its own commands and lifecycle. S
 no life outside the account holding them:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").entities.map(&:hecks_name)  # => ["LedgerEntry"]
+Banking::Account.ir.entities.map(&:hecks_name)  # => ["LedgerEntry"]
 ```
 
 ## query
@@ -350,7 +350,7 @@ Opens a type with no identity of its own, carrying its `attribute`s and `invaria
 nothing addresses one:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").value_objects.map(&:hecks_name).first(3)  # => ["AccountNumber", "DailyLimit", "LedgerSequence"]
+Banking::Account.ir.value_objects.map(&:hecks_name).first(3)  # => ["AccountNumber", "DailyLimit", "LedgerSequence"]
 ```
 
 ## command
@@ -370,7 +370,7 @@ Each one becomes a verb on the door, creating or acting depending on
 what it references:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").commands.map(&:hecks_name).first(4)  # => ["Open", "Credit", "Debit", "FreezeAccount"]
+Banking::Account.ir.commands.map(&:hecks_name).first(4)  # => ["Open", "Credit", "Debit", "FreezeAccount"]
 ```
 
 `from:` — a single state or an array of them — is a lifecycle guard,
@@ -385,7 +385,7 @@ never transitions anything itself — no target state, nothing
 with no matching `transition` at all:
 
 ```ruby
-account_ir = runtime.registry.bluebook("Banking").aggregate("Account")
+account_ir = Banking::Account.ir
 account_ir.commands.find { |c| c.hecks_name == "Debit" }.from        # => "open"
 account_ir.commands.find { |c| c.hecks_name == "CloseAccount" }.from # => ["open", "frozen"]
 ```
@@ -435,7 +435,7 @@ it — `ExternalTransfer.Request` admits `Account::LedgerDirection`, so
 the two cannot drift:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("ExternalTransfer").commands.find { |c| c.hecks_name == "Request" }.attributes.find { |a| a.name == :direction }.admits  # => "Account::LedgerDirection"
+Banking::ExternalTransfer.ir.commands.find { |c| c.hecks_name == "Request" }.attributes.find { |a| a.name == :direction }.admits  # => "Account::LedgerDirection"
 ```
 
 `optional:` is the one that lets a caller say nothing at all —
@@ -473,7 +473,7 @@ that the balance never goes negative is declared once, on the
 aggregate, and checked after every one of them:
 
 ```ruby
-runtime.registry.bluebook("Banking").aggregate("Account").invariants.map(&:description)  # => ["the balance never goes negative"]
+Banking::Account.ir.invariants.map(&:description)  # => ["the balance never goes negative"]
 ```
 
 ## given
@@ -503,7 +503,7 @@ closed"` — and most of its own commands read one back rather than
 retyping the predicate:
 
 ```ruby
-account_ir = runtime.registry.bluebook("Banking").aggregate("Account")
+account_ir = Banking::Account.ir
 account_ir.preconditions.map(&:description)  # => ["customer is active", "customer is not closed"]
 account_ir.commands.find { |c| c.hecks_name == "Credit" }.givens.map(&:description)  # => ["customer is active"]
 ```
