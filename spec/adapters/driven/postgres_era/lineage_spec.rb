@@ -474,19 +474,33 @@ RSpec.describe "lineage in the PostgresEra adapter",
 
   # ADVERSARIAL, not incidental: found by deliberately constructing a
   # move destination that collides with an existing scalar (most
-  # realistically, a has_one/belongs_to reference — a bare id, never an
+  # realistically, a reference_to field — a bare id, never an
   # object). The SQL side used to silently overwrite that scalar with
   # an empty object rather than lose the mint over it; now it refuses
   # by name, matching the Ruby reference transform's own refusal pinned
   # in spec/translation_language_spec.rb.
   it "a move whose destination collides with an existing scalar refuses the mint by name, not silently" do
+    # `as: :team` EXPLICIT, not the bare `reference_to Team` default —
+    # `default_reference_name` (attribute_collector.rb) mints a
+    # DIFFERENT name (`team_id` vs `team`) depending on
+    # MetaValidator.shadow_parsing?, deliberately, so EraGuard.shadow_
+    # parse can correctly reconstruct historical text minted before
+    # ADR 0025's naming convention changed. This fixture's era 1 is
+    # brand-new text, never exposed to the old convention — but
+    # ensure_named! shadow-parses ITS held text too (the mechanism has
+    # no way to know a given era's text postdates the change), so a
+    # bare `reference_to Team` here mints `:team` normally and `:team_id`
+    # under the SAME text's later shadow-reparse, hashing to two
+    # different labels for byte-identical source and breaking mint's own
+    # edge lookup. `as:` bypasses `default_reference_name` entirely,
+    # sidestepping the ambiguity without touching that subsystem.
     collide_v1 = <<~BLUEBOOK
       Hecks.bluebook "Collide" do
         aggregate "Acct" do
           identified_by :kind
           attribute :amount, Money
           attribute :kind, Kind
-          belongs_to :Team
+          reference_to Team, as: :team
           value_object "Money" do
             attribute :cents, Integer
           end
