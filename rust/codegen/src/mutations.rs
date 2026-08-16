@@ -303,24 +303,50 @@ fn emit_mutation_line_body(
                 .collect();
 
             if let Some(entity) = entity {
-                let present: Vec<&str> = fields.iter().map(|(k, _)| k.as_str()).collect();
+                let mut present: Vec<String> = fields.iter().map(|(k, _)| k.clone()).collect();
                 if let Some((id_attr, id_vo)) = entity_identity_mint(entity, value_objects_by_name) {
-                    if !present.contains(&crate::attr::name(id_attr)) {
+                    let id_name = crate::attr::name(id_attr);
+                    if !present.iter().any(|p| p == id_name) {
                         let id_vo_attrs = id_vo.get("attributes").map(Json::each).unwrap_or(&[]);
                         let mint = format!(
                             "{} {{ {}: (record.{target_field}.len() as i64) + 1 }}",
                             naming::rust_ident(crate::attr::type_name(id_attr)),
                             naming::rust_ident_field(crate::attr::name(&id_vo_attrs[0]))
                         );
-                        fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(crate::attr::name(id_attr))));
+                        fields_assignment.push(format!("{}: {mint}", naming::rust_ident_field(id_name)));
+                        present.push(id_name.to_string());
                     }
                 }
                 if let Some(entity_lifecycle) = entity.get("lifecycle") {
                     let lc_field = entity_lifecycle.get("field").map(Json::to_s).unwrap_or_default();
-                    if !present.contains(&lc_field.as_str()) {
+                    if !present.iter().any(|p| p == &lc_field) {
                         let default = entity_lifecycle.get("default").map(Json::to_s).unwrap_or_default();
                         fields_assignment.push(format!("{}: {}.to_string()", naming::rust_ident_field(&lc_field), naming::ruby_inspect_string(&default)));
+                        present.push(lc_field);
                     }
+                }
+
+                // A THIRD field no `append: { ... }` binding ever names, on
+                // top of the two above: a LIST-typed attribute the entity
+                // declares for some OTHER command to `append`/`remove` into
+                // later (`ValueObject::Member#pairs`, bound only by its own
+                // `Pair` command — S17, ADR 0026). Mirrors the identical fix
+                // in rust/project/mutations.rb's own `emit_mutation_line_body`
+                // exactly — this is a SEPARATE, independent implementation of
+                // the same codegen (Stage 8's opt-in `hecks-codegen` pipeline),
+                // and codegen_parity_spec holds the two byte-identical, so a
+                // gap fixed in one and not the other is a real, caught
+                // divergence, not a hypothetical one.
+                for attr in element_attrs {
+                    if !crate::attr::list(attr) {
+                        continue;
+                    }
+                    let attr_name = crate::attr::name(attr);
+                    if present.iter().any(|p| p == attr_name) {
+                        continue;
+                    }
+                    fields_assignment.push(format!("{}: Vec::new()", naming::rust_ident_field(attr_name)));
+                    present.push(attr_name.to_string());
                 }
             }
 

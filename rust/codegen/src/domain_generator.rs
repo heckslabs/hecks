@@ -176,6 +176,30 @@ pub fn generate(exemplar: &Exemplar, ir: &Json, source_label: &str, mod_name: &s
             puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &entity_name_ident, entity_attrs, false, &extra, None));
             puts_blank(&mut out);
 
+            // S17, ADR 0026 — AN ENTITY NESTED INSIDE THIS ONE
+            // (`ProcessManager.Handler.Dispatch`). Struct + JSON codec
+            // only, mirroring rust/project/domain_generator.rb's own
+            // identical fix exactly — making a doubly-nested entity's
+            // OWN commands (`Dispatch.Bind`) reachable through
+            // kernel::cli.rs's JSON router is a separate, deeper
+            // question the router/dispatch table aren't built for yet
+            // (one level of Aggregate.Entity.Command, not two), so
+            // those commands are simply never added to `entity_commands`
+            // below — real functions never get emitted for them here at
+            // all, unlike the Ruby generator's own manifest-tracked
+            // skip; this tool has no manifest to track it in.
+            for nested in entity.get("entities").map(Json::each).unwrap_or(&[]) {
+                puts_str(&mut out, &types::emit_entity(exemplar, nested, &value_objects_by_name));
+                puts_blank(&mut out);
+                let nested_name_ident = crate::naming::rust_ident(nested.get("name").and_then(Json::as_str).unwrap_or(""));
+                let nested_attrs = nested.get("attributes").map(Json::each).unwrap_or(&[]);
+                let nested_extra = lifecycle_extra_field(nested);
+                puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &nested_name_ident, nested_attrs, false, &nested_extra, None));
+                puts_blank(&mut out);
+                puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &nested_name_ident, nested_attrs, false, &nested_extra, None));
+                puts_blank(&mut out);
+            }
+
             let entity_can_route = json_codec::extract_id_supported(entity);
             if entity_can_route {
                 puts_str(&mut out, &json_codec::emit_extract_id(exemplar, entity));
