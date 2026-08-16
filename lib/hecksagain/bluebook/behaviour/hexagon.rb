@@ -26,8 +26,23 @@ module Hecksagain
       module World
         def for_verb(verb) = @settings.fetch(verb.to_s, {})
 
+        # The generic `verb` entry (`persisted_by("Heki") do dir :default
+        # end`) only answers for the adapter it actually names — falling
+        # back to it unconditionally applies one adapter's settings to an
+        # unrelated one. Real, corpus-caught bug: a hecksagon binding two
+        # aggregates to two different adapters under the SAME verb (one to
+        # Heki, one to Memory) sent Memory's lookup down Heki's generic
+        # entry, then failed `check_settings` with "Memory does not
+        # declare :dir" — the generic entry's own `settings[:adapter]`
+        # names Heki, not Memory, so the fallback was never actually for
+        # this bind. `{}` is exactly right when nothing was configured for
+        # THIS adapter — Memory, which takes no values at all.
         def for_binding(verb, adapter)
-          @settings.fetch("#{verb}:#{adapter.to_s.downcase}", for_verb(verb))
+          qualified = @settings["#{verb}:#{adapter.to_s.downcase}"]
+          return qualified if qualified
+
+          generic = for_verb(verb)
+          generic[:adapter].to_s.downcase == adapter.to_s.downcase ? generic : {}
         end
       end
     end
