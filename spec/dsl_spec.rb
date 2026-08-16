@@ -2328,6 +2328,47 @@ RSpec.describe "the DSL surface" do
       expect(mutation.to_h[:source]).to eq(kind: "literal", value: 1)
     end
 
+    # THE IMPLICIT-ATTRIBUTE SUGAR (mirrors S10's `given`-reference
+    # pattern, ADR 0025 "one idea, one spelling") — a bare `sets :field`
+    # already says the command accepts an argument named :field; when
+    # the command has not ALSO declared its own `attribute :field`, it
+    # imports the OWNER's (the aggregate `build_command` builds against)
+    # already-declared attribute of that name verbatim, rather than
+    # requiring a byte-identical retype. `balance` is `build_command`'s
+    # own fixture field, declared `Size` on the owning aggregate.
+    it "sets :field with no local attribute imports the owner's own attribute, verbatim" do
+      command = build_command("CmdImplicitAttr") { sets :balance }
+
+      expect(command.attribute(:balance).type).to eq("Size")
+    end
+
+    # AN EXPLICIT LOCAL attribute IS NEVER CLOBBERED — it is checked
+    # FIRST (CommandBuilder#resolve_implicit_attributes!), so a command
+    # narrowing or retyping its own argument still wins, the same way a
+    # command's own `given` always could say something the owner's
+    # named one did not.
+    it "an explicit local attribute still shadows the owner's own, rather than being clobbered" do
+      command = build_command("CmdShadowAttr") do
+        attribute :balance, Tag
+        sets :balance
+      end
+
+      expect(command.attribute(:balance).type).to eq("Tag")
+    end
+
+    # THE NEGATIVE CASE — neither the command nor the owner declares the
+    # field a bare `sets` names. `resolve_implicit_attributes!` finds no
+    # owner attribute and adds nothing, so the command's own `attributes`
+    # stays silent about it too; the refusal actually surfaces one level
+    # up, at AggregateBuilder#seal_mutation_targets (a PRE-EXISTING
+    # build-time gate, unrelated to this sugar) — a mutation into a
+    # field the aggregate never declares writes nothing and refuses
+    # nothing, so it is refused outright instead.
+    it "sets a field neither the command nor the owner declares still refuses, at aggregate build time" do
+      expect { build_command("CmdUnresolvedSets") { sets :nonexistent } }
+        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /never declares/)
+    end
+
     it "emits announces a fact" do
       expect(build_command("CmdEmit") { emits "Done" }.emits).to eq(["Done"])
     end

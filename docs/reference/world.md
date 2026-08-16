@@ -24,7 +24,6 @@ Hecks.bluebook "WorldReference", version: "2" do
     value_object("Callsign") { attribute :value, String }
 
     command "Light" do
-      attribute :callsign, Callsign
       sets :callsign
       emits "BeaconLit"
     end
@@ -43,7 +42,6 @@ Hecks.bluebook "WorldReferenceUnpinned" do
     value_object("Callsign") { attribute :value, String }
 
     command "Light" do
-      attribute :callsign, Callsign
       sets :callsign
       emits "LampLit"
     end

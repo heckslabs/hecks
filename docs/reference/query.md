@@ -44,7 +44,6 @@ Hecks.bluebook "QueryReference" do
     end
 
     command "Appoint" do
-      attribute :badge, Badge
       sets :badge
       emits "WardenAppointed"
     end
@@ -68,10 +67,7 @@ Hecks.bluebook "QueryReference" do
     value_object("Count")   { attribute :value, Integer }
 
     command "Log" do
-      attribute :tag,       Tag
       attribute :warden,    Warden
-      attribute :species,   Species
-      attribute :count,     Count, optional: true
       sets :tag
       sets :species
       sets :count

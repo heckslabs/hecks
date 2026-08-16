@@ -128,6 +128,12 @@ fn try_reference_named_given(file: &str, lines: &[SourceLine], pos: &mut usize, 
 /// already-built, the same way `owner` already is. `preconditions` — see
 /// `try_reference_named_given`'s own header — is the OWNING aggregate's
 /// own `given`s declared so far; always `&[]` for an entity's command.
+/// `owner_attributes` — `CommandBuilder#initialize`'s own
+/// `owner_attributes:` — the OWNING aggregate's (or entity's) own
+/// `attribute`s declared so far (textual order — the same ordering
+/// caveat `preconditions` already carries), used by
+/// `resolve_implicit_attributes` below once this command's own body is
+/// fully parsed.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -136,6 +142,7 @@ pub fn parse_body(
     owner: &str,
     from: Option<ir::CommandFrom>,
     preconditions: &[ir::Given],
+    owner_attributes: &[ir::Attribute],
 ) -> ParseResult<ir::Command> {
     let mut command = ir::Command { name: name.to_string(), from, ..Default::default() };
 
@@ -146,6 +153,7 @@ pub fn parse_body(
         }
 
         let Some(gated) = super::next_line(file, lines, pos, "Command")? else {
+            resolve_implicit_attributes(&mut command, owner_attributes);
             return Ok(command);
         };
         let line = gated.line.number;
@@ -179,6 +187,56 @@ pub fn parse_body(
             }
             "sets" => command.mutations.push(build_mutation(file, line, &gated.args)?),
             _ => return Err(super::not_built_yet("Command", gated.row, file, line, &gated.call.word)),
+        }
+    }
+}
+
+/// `CommandBuilder#resolve_implicit_attributes!` — `sets :field` ALONE
+/// (the omittable case `build_mutation` below already resolves into
+/// `Mutation::Other { op: "set", source: Some(MutationSource::
+/// Argument(target)) }`, target == source by construction) already says
+/// the command accepts an argument named `:field`; requiring a SEPARATE
+/// `attribute :field, ...` line that retypes what the owning
+/// aggregate/entity already declared is the same redundancy S10's
+/// `given` reference already killed for preconditions. When the command
+/// hasn't declared its own `:field`, import the OWNER's already-parsed
+/// `Attribute` verbatim (same `type_name`/`list`/`default`/`optional`/
+/// `pattern`/`admits` — every field `ir::Attribute` carries) instead of
+/// retyping it.
+///
+/// Only the exact self-referential shape qualifies — `sets :field, to:
+/// :other` names a genuinely different source and stays exactly as
+/// explicit as it always was; `sets :field, to: :field` is refused
+/// outright by `build_mutation` before this ever runs (never reaches
+/// `command.mutations` in the first place), and `sets :field, to: false`
+/// (or any other literal) isn't naming an argument at all — `source` is
+/// `MutationSource::Literal`, not `Argument`, so it never matches here.
+///
+/// Declaration order matters here the same way it already does for
+/// `identified_by`/`given` — the owner's own attribute must already
+/// exist in `owner_attributes` by the time THIS function runs, which
+/// every real bluebook already satisfies (the aggregate/entity always
+/// declares its attributes before the commands that act on them) and
+/// which `aggregate::parse_body`/`entity::parse_body` both guarantee by
+/// handing in their own `attributes` Vec mid-walk.
+fn resolve_implicit_attributes(command: &mut ir::Command, owner_attributes: &[ir::Attribute]) {
+    let implicit_targets: Vec<String> = command
+        .mutations
+        .iter()
+        .filter_map(|mutation| match mutation {
+            ir::Mutation::Other { target, op, source: Some(ir::MutationSource::Argument(name)) } if op == "set" && name == target => {
+                Some(target.clone())
+            }
+            _ => None,
+        })
+        .collect();
+
+    for target in implicit_targets {
+        if command.attributes.iter().any(|attr| attr.name == target) {
+            continue;
+        }
+        if let Some(owner_attr) = owner_attributes.iter().find(|attr| attr.name == target) {
+            command.attributes.push(owner_attr.clone());
         }
     }
 }

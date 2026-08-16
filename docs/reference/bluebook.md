@@ -51,7 +51,6 @@ Hecks.bluebook "BluebookReference" do
     value_object("Code") { attribute :value, String }
 
     command "Record" do
-      attribute :code, Code
       sets :code
       emits "PostcodeRecorded"
     end
@@ -73,7 +72,6 @@ Hecks.bluebook "Ledgering" do
     value_object("Number") { attribute :value, String }
 
     command "OpenFolio" do
-      attribute :number, Number
       sets :number
       emits "FolioOpened"
     end

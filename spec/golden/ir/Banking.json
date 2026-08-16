@@ -2962,6 +2962,15 @@
             {
               "admits": null,
               "default": null,
+              "list": true,
+              "name": "tags",
+              "optional": true,
+              "pattern": null,
+              "type": "Tag"
+            },
+            {
+              "admits": null,
+              "default": null,
               "list": false,
               "name": "amount",
               "optional": false,
@@ -2976,15 +2985,6 @@
               "optional": false,
               "pattern": null,
               "type": "MerchantName"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": true,
-              "name": "tags",
-              "optional": true,
-              "pattern": null,
-              "type": "Tag"
             }
           ],
           "emits": [

@@ -72,7 +72,6 @@ Hecks.bluebook "EntityReference" do
     end
 
     command "OpenManifest" do
-      attribute :docket, Docket
       sets :docket
       emits "ManifestOpened"
     end
@@ -94,7 +93,6 @@ Hecks.bluebook "EntityReference" do
     value_object("Code") { attribute :value, String }
 
     command "OpenDepot" do
-      attribute :code, Code
       sets :code
       emits "DepotOpened"
     end

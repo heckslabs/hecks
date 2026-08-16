@@ -34,8 +34,12 @@ Hecks.bluebook "AggregateReference" do
     identified_by :name
     value_object("Name") { attribute :value, String }
 
+    # `attribute :name, Name` IS OMITTED HERE, ON PURPOSE — a bare `sets
+    # :name` already says `Found` takes a `:name` argument, and `Studio`
+    # itself already declares `attribute :name, Name`, so the command
+    # imports it verbatim rather than retyping it (see command.md's own
+    # `attribute` section for the full rule).
     command "Found" do
-      attribute :name, Name
       sets :name
       emits "StudioFounded"
     end
@@ -55,7 +59,6 @@ Hecks.bluebook "AggregateReference" do
     reference_to Studio, as: :distributor
 
     command "Greenlight" do
-      attribute :title, Title
       attribute :financier,      Studio
       attribute :distributor,    Studio, optional: true
       sets :title

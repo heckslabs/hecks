@@ -63,8 +63,6 @@ Hecks.bluebook "Compliance" do
       role "System"
       goal "Register that a frozen account needs compliance review"
 
-      attribute :number, AccountNumber
-
       sets :number
 
       emits "AccountFreezeReviewOpened"
@@ -118,9 +116,6 @@ Hecks.bluebook "Compliance" do
     command "Open" do
       role "System"
       goal "Register that a surrendered box needs compliance review"
-
-      attribute :branch_code, BranchCode
-      attribute :box_number,  BoxNumber
 
       sets :branch_code
       sets :box_number

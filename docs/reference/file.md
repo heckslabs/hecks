@@ -32,8 +32,6 @@ Hecks.bluebook "FileReference" do
     # worth choosing so it does not land on a built-in; banking renamed
     # its own `Freeze` and `Send` for the same reason.
     command "RaiseDispatch" do
-      attribute :docket, Docket
-      attribute :note,   Note
       sets :docket
       sets :note
       emits "DispatchRaised"

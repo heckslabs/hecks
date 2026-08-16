@@ -38,8 +38,6 @@ Hecks.bluebook "PolicyReference" do
     end
 
     command "Issue" do
-      attribute :serial, Serial
-      attribute :holder, Holder
       sets :serial
       sets :holder
       emits "RefCardIssued"
@@ -78,9 +76,6 @@ Hecks.bluebook "PolicyReference" do
     # NOT `command "Raise"` — that door would be spelled `RefAlert.raise`,
     # and `raise` is Kernel's, so the facade never sees the call.
     command "RaiseAlert" do
-      attribute :ref,      AlertRef
-      attribute :holder,   Holder
-      attribute :severity, Severity
       sets :ref
       sets :holder
       sets :severity

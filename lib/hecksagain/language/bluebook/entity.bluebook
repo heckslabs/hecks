@@ -150,8 +150,6 @@ Hecks.bluebook "Bluebook" do
       goal "Name the field this entity's state machine runs on"
 
       reference_to Entity
-      attribute :state_field, EntityText
-      attribute :state_start, EntityText
 
       sets :state_field
       sets :state_start

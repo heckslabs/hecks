@@ -164,7 +164,6 @@ Hecks.bluebook "Bluebook" do
       goal "Mark the read model as a bare row count over its one eligible collection"
 
       reference_to ReadModel
-      attribute :count, ReadModelText
 
       sets :count
 
@@ -176,7 +175,6 @@ Hecks.bluebook "Bluebook" do
       goal "Mark the read model as the median of one numeric field across its one eligible collection"
 
       reference_to ReadModel
-      attribute :median_field, ReadModelText
 
       given("a median field is named") { !median_field.value.to_s.empty? }
 

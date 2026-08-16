@@ -140,7 +140,6 @@ Hecks.bluebook "Bluebook" do
       # and admits nothing. Members live in their own root (a row is a list of
       # pairs inside a list of rows), so the count is offered rather than read.
       reference_to ValueObject
-      attribute :rows, RowCount
 
       given("a closed set admits a member") { rows.value > 0 }
 
