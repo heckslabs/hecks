@@ -7,10 +7,14 @@ handler body exists anywhere. That is the load-bearing choice everything else
 follows from: a domain that is entirely **data** can be diffed, stored,
 translated across versions, and projected into another language.
 
-One runtime reads the file: **Ruby holds the semantics.** A parallel Rust
-runtime existed for a while, kept honest against Ruby by a full
-differential-testing harness — retired now, and [its own section
-below](#a-single-runtime) says why.
+**Ruby holds the semantics** — it's the reference implementation every
+other runtime is checked against, continuously, by a differential-testing
+harness. A generated Rust runtime reads the same canonical IR and compiles
+real, typed code from it, verified against Ruby the same way —
+[its own section below](#ruby-is-the-reference-implementation) has the
+full story, including an earlier, hand-written Rust runtime that was
+tried, retired, and rebuilt on a different architecture once the reason
+it failed was understood.
 
 ## Try it
 
@@ -456,19 +460,45 @@ actually uses it — `forms/` and `fuzzing/` each stay out of the core
 boot chain on purpose, so a project that never touches one never pays
 for it.
 
-## A single runtime
+## Ruby is the reference implementation
 
-This project ran a parallel hand-written Rust implementation for a while,
-kept honest against Ruby by a full differential-testing harness
-(`bin/parity`). That's retired now — see
+This project ran a parallel **hand-written** Rust implementation for a
+while, kept honest against Ruby by a full differential-testing harness
+(`bin/parity`). That one really was retired — see
 [`docs/rust-experiment.md`](docs/rust-experiment.md) for what it found and
 why: the domain's structure (aggregates, commands, rules, shapes) is
 genuinely declarative and belongs in `.bluebook`, judged by the self-hosted
 grammar in `lib/hecksagain/language/bluebook/`; the empirical half (actual
 parsing, actual dispatch, actual I/O) resisted that treatment and had to be
-hand-duplicated, which is where the project's cost concentrated without a
-matching return. One runtime now, and the `.bluebook` DSL keeps doing
-exactly what it was already good at.
+hand-duplicated by a second, hand-maintained implementation kept in parity
+by hand, forever, as Ruby changed — exactly the failure mode a generator
+is supposed to avoid.
+
+**Rust came back on a different architecture, and it's real again.**
+`bin/project_rust` (Ruby, build-time only) reads canonical IR and
+generates actual typed Rust — structs and enums for every value object,
+entity, and aggregate record — while `given`/`ensures`/mutation logic
+stays *data*, interpreted at runtime by one small, hand-written, generic
+kernel (`rust/src/kernel/{expr,dispatch}.rs`) that walks it the same
+generic way `CommandInterpreter#call` does in Ruby. Even the parser is
+generated now, from the language's own self-description, not hand-written
+a second time ([0007](docs/decisions/0007-rust-generates-code-not-ruby-source.md),
+[0010](docs/decisions/0010-ruby-is-the-reference-implementation.md),
+[0011](docs/decisions/0011-rust-compiles-types-interprets-dispatch.md),
+[0023](docs/decisions/0023-rust-parses-and-compiles-bluebooks-directly.md)
+have the full architecture and reasoning).
+
+Ruby stays the reference implementation either way — the source of truth
+an author reads and the oracle every other runtime is checked against,
+continuously, not "regenerate and hope": `spec/codegen_parity_spec.rb`
+holds Rust's generated output byte-identical to Ruby's own, `spec/
+rust_conformance_spec.rb` runs the same corpus scripts through the
+compiled binary and diffs the result against Ruby's, and `bin/
+rust_coverage`/`bin/rust_kernel_coverage` catch a construct that
+generates *something* but not the right thing. `.bluebook` keeps doing
+exactly what it was already good at either way — Rust never parses or
+interprets canonical IR at its own runtime, only compiles from it once,
+at build time.
 
 ## Verify
 
