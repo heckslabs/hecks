@@ -107,7 +107,19 @@ pub enum MutationSource {
 #[derive(Debug, Clone)]
 pub enum Mutation {
     Append { target: String, fields: Vec<(String, String)> }, // field -> Literal::render spelling
-    Other { target: String, op: String, source: Option<MutationSource> },
+    // `sign` — item #5, whole-project table-unification survey. Ruby's
+    // own `Bluebook::Mutation.sign_for` reads `Vocabulary::MutationOp`
+    // (a live table); this parser has no such table to read (it builds
+    // IR from raw source text with nothing exported to consult), so it
+    // computes the same fixed fact directly — `parse::command::
+    // mutation_sign`, mirroring `Vocabulary::MutationOp`'s own values
+    // ("1" for increment, "-1" for decrement, "" otherwise) rather than
+    // re-deriving it from the op NAME string at the two Rust CODEGEN
+    // call sites item #5 already fixed (rust/project/mutations.rb,
+    // rust/codegen/src/mutations.rs) — this is a third, necessarily
+    // independent computation, not a re-introduction of that same
+    // duplication.
+    Other { target: String, op: String, sign: String, source: Option<MutationSource> },
 }
 
 #[derive(Debug, Clone, Default)]

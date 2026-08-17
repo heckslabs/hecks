@@ -225,14 +225,23 @@ fn command_from_json(from: &Option<ir::CommandFrom>) -> JsonValue {
 /// non-append's literal `source:` are rendered two different ways.
 fn mutation_json(m: &ir::Mutation) -> JsonValue {
     match m {
+        // "sign": "" — append never carries a sign (only increment/
+        // decrement do), the same constant `Vocabulary::MutationOp`
+        // declares for it, but Ruby's own `Mutation#to_h` still emits
+        // the key (its `emits_ir`'s `sign:` field applies before the
+        // `op == :append` branch ever merges `fields:` in), so this
+        // does too — key ORDER matters, the same reason every other
+        // field here does.
         ir::Mutation::Append { target, fields } => JsonValue::Object(vec![
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str("append")),
+            ("sign".to_string(), JsonValue::str("")),
             ("fields".to_string(), JsonValue::Object(fields.iter().map(|(k, v)| (k.clone(), JsonValue::str(v.clone()))).collect())),
         ]),
-        ir::Mutation::Other { target, op, source } => JsonValue::Object(vec![
+        ir::Mutation::Other { target, op, sign, source } => JsonValue::Object(vec![
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str(op.clone())),
+            ("sign".to_string(), JsonValue::str(sign.clone())),
             ("source".to_string(), mutation_source_json(source)),
         ]),
     }

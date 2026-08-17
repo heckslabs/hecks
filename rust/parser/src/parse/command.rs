@@ -256,7 +256,7 @@ fn resolve_implicit_attributes(
         .mutations
         .iter()
         .filter_map(|mutation| match mutation {
-            ir::Mutation::Other { target, op, source: Some(ir::MutationSource::Argument(name)) } if op == "set" && name == target => {
+            ir::Mutation::Other { target, op, source: Some(ir::MutationSource::Argument(name)), .. } if op == "set" && name == target => {
                 Some(Job::BareSet(target.clone()))
             }
             ir::Mutation::Append { target, fields } => Some(Job::Append { target: target.clone(), fields: fields.clone() }),
@@ -475,7 +475,12 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
     // THE OMITTABLE CASE — no named op at all: `sets :target` alone
     // means "set :target from the argument of the same name".
     if named.is_empty() {
-        return Ok(ir::Mutation::Other { target: target.clone(), op: "set".to_string(), source: Some(ir::MutationSource::Argument(target)) });
+        return Ok(ir::Mutation::Other {
+            target: target.clone(),
+            op: "set".to_string(),
+            sign: mutation_sign("set").to_string(),
+            source: Some(ir::MutationSource::Argument(target)),
+        });
     }
 
     let (op, raw) = named[0];
@@ -505,7 +510,18 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
         ruby_value::Value::Symbol(name) => ir::MutationSource::Argument(name),
         other => ir::MutationSource::Literal(other),
     };
-    Ok(ir::Mutation::Other { target, op: op.to_string(), source: Some(source) })
+    Ok(ir::Mutation::Other { target, op: op.to_string(), sign: mutation_sign(op).to_string(), source: Some(source) })
+}
+
+// `Vocabulary::MutationOp`'s own fixed values, read directly — see
+// `ir::Mutation::Other`'s own header for why this parser computes the
+// fact itself rather than reading a table.
+fn mutation_sign(op: &str) -> &'static str {
+    match op {
+        "increment" => "1",
+        "decrement" => "-1",
+        _ => "",
+    }
 }
 
 /// `{ name: :topping, amount: :amount }` -> `[("name", ":topping"),
