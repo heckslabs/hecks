@@ -140,14 +140,15 @@ RSpec.describe "the declared syntax" do
       data_translation: "a sibling artifact — translations/ has its own builder and its own file"
     },
     "Hecksagon" => {
-      binds:             "the builder's own collected Bind records, read by whoever owns them",
-      subscriptions:     "the builder's own collected subscription strings, read by whoever owns them",
-      framework_members: "the builder's own collected framework-member names, read by whoever owns them",
+      binds:              "the builder's own collected Bind records, read by whoever owns them",
+      subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
+      framework_members:  "the builder's own collected framework-member names, read by whoever owns them",
+      vendored_bluebooks: "the builder's own collected vendored-embryonaut-bluebook names, read by whoever owns them",
       # THE OPEN VERB CATCH-ALL, DOMAIN-LEVEL. `persisted_by "Heki"` bare
       # (no aggregate) reaches HecksagonBuilder#method_missing the same
       # way World's own does — the verb is whichever bind-shaped word a
       # domain declares, not a closed set this table could enumerate.
-      method_missing:    "the open domain-level-default-bind catch-all — same boundary as World's own"
+      method_missing:     "the open domain-level-default-bind catch-all — same boundary as World's own"
     },
     "World"     => {
       # THE OPEN VERB-SETTINGS CATCH-ALL. `posted_by("Carrier") { office

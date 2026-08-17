@@ -23,7 +23,14 @@ module Hecksagain
       # the install is safe because nothing downstream of a raw
       # `Dispatcher` needs the sugar — `Dispatcher#dispatch`/`#query` work
       # identically either way.
-      def self.boot(path, shared: nil, install_facade: true)
+      # `environment:` — see Adapters::Folder#load_domain's own comment
+      # for the mechanism. hecksagain never reads ENV itself (every other
+      # env-var lookup in this codebase lives in app-owned .world/
+      # .hecksagon files, never library internals) — a caller resolves
+      # its own env var name and passes the resulting string straight
+      # through, e.g. `Hecks.boot(path, environment:
+      # ENV.fetch("MYAPP_ENV", "development"))`.
+      def self.boot(path, shared: nil, install_facade: true, environment: nil)
         loading   = Ports::Loading.bootstrap
         directory = loading.bluebook_directory(path)
         root      = loading.shared_root(shared, directory)
@@ -32,7 +39,7 @@ module Hecksagain
         Hecksagain.with_registry(registry) do
           loading.load_library
           loading.load_project(root)
-          loading.load_domain(directory)
+          loading.load_domain(directory, environment: environment)
         end
 
         # The era gate runs BEFORE verify! builds repositories: minting an

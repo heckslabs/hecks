@@ -11,13 +11,14 @@ module Hecksagain
           attr_accessor :collector
         end
 
-        attr_reader :binds, :subscriptions, :framework_members
+        attr_reader :binds, :subscriptions, :framework_members, :vendored_bluebooks
 
         def initialize(domain)
           @domain             = domain
           @binds              = []
           @subscriptions      = []
           @framework_members  = []
+          @vendored_bluebooks = []
         end
 
         # An event this hecksagon takes from OUTSIDE the domain's own
@@ -36,6 +37,25 @@ module Hecksagain
         def uses_framework(name)
           @framework_members << name.to_s
           Hecksagain::Framework.load!(name)
+        end
+
+        # A VENDORED, EXTERNAL bluebook this domain wants attached — same
+        # wiring-decision shape `uses_framework` already is, one level
+        # further out: not a member shipped inside hecksagain's own lib/,
+        # but a separate package (embryonaut_bluebooks) vendored into THIS
+        # project's own checkout. See EmbryonautBluebook's own header for
+        # the full reasoning on why its ROOT can't be a fixed constant the
+        # way Framework::ROOT is, and for the recovery provenance.
+        #
+        # RECORDED ONTO @vendored_bluebooks, same shape `uses_framework`
+        # already gives @framework_members — a SEPARATE list on purpose:
+        # `framework_members` is load-bearing for `refuse_ungoverned_roles!`
+        # (below) and for Governance's own attachment check; conflating
+        # the two would make a vendored bluebook attachment satisfy a
+        # Governance check it has nothing to do with.
+        def uses_embryonaut_bluebook(name)
+          @vendored_bluebooks << name.to_s
+          Hecksagain::EmbryonautBluebook.load!(name)
         end
 
         # THE PRIMARY PORT, BARE AT THE ROOT — belongs to the CHAPTER as a
@@ -68,11 +88,23 @@ module Hecksagain
           bluebook_ir.add_port(built)
         end
 
+        # NO ungoverned-role check here anymore — see
+        # Registry::Verification#refuse_ungoverned_roles!. Moved out of
+        # per-block `build`, recovered alongside `environment:`
+        # (Runtime::Loader.boot's comment has the provenance): a domain
+        # split across multiple hecksagon blocks (base + an
+        # `environments/<name>.hecksagon` overlay) would have every
+        # block but the one declaring `uses_framework "Governance"`
+        # refused HERE, even though `Registry#add_hecksagon` merges them
+        # into one Hecksagon before anything ever dispatches against it.
+        # Checking the MERGED result once, at verify! time — after every
+        # file for this domain has loaded — is both more permissive (no
+        # need to repeat `uses_framework` in every file) and strictly
+        # more correct (a check against an incomplete, not-yet-merged
+        # hecksagon can never see the real final shape).
         def build
-          hecksagon = Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
-                                    framework_members: @framework_members)
-          refuse_ungoverned_roles!(hecksagon)
-          hecksagon
+          Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
+                        framework_members: @framework_members, vendored_bluebooks: @vendored_bluebooks)
         end
 
         # DOMAIN-LEVEL DEFAULT BINDS — `persisted_by "Heki"` bare, at the top
@@ -92,48 +124,6 @@ module Hecksagain
         end
 
         def respond_to_missing?(_name, _include_private = false) = true
-
-        private
-
-        # `role` IS REAL ACCESS CONTROL ONLY WHEN GOVERNANCE CAN CHECK IT
-        # AGAINST SOMETHING — a command that declares a role but whose
-        # domain never attaches Governance would leave that role forever
-        # unchecked, exactly the defect ADR 0025 §9 names ("role gates
-        # access control by exact string equality ... Governance ...
-        # connected to none of it"). Refused here, at HECKSAGON build
-        # time, not bluebook build time — a bluebook can be judged before
-        # its own domain's hecksagon exists at all (`uses_framework` is a
-        # WIRING decision, declared on the hecksagon, same as
-        # `persisted_by`), so this is the first point either fact is
-        # known together.
-        #
-        # GOVERNANCE ITSELF IS EXEMPT — it cannot `uses_framework` its own
-        # aggregates, and it IS the source of truth a role check runs
-        # against, the same self-reference `CommandRules::Authorization
-        # #governance_attached?` grants it at dispatch time.
-        def refuse_ungoverned_roles!(hecksagon)
-          return if hecksagon.domain == "Governance"
-          return if hecksagon.framework_members.include?("Governance")
-
-          bluebook_ir = Hecksagain.current_registry.bluebook(hecksagon.domain)
-          return unless bluebook_ir
-
-          offender = commands_in(bluebook_ir).find { |command| !command.role.to_s.empty? }
-          return unless offender
-
-          raise Malformed,
-                "#{offender.hecks_fqn} declares role #{offender.role.inspect}, but " \
-                "#{hecksagon.domain}'s hecksagon never uses_framework \"Governance\" — role is only " \
-                "real access control once Governance is attached to check it against; without that " \
-                "it is silent decoration, the exact defect this refusal exists to catch"
-        end
-
-        # Every command this domain declares, an aggregate's own AND every
-        # entity nested inside one — the same reach `refuse_role_mismatch`
-        # itself needs at dispatch time, just walked ahead of time here.
-        def commands_in(bluebook_ir)
-          bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
-        end
 
         def self.build(domain, &block)
           builder  = new(domain)

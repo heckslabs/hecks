@@ -56,7 +56,8 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "HecksagonBuilder"            => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
-      %i[binds subscribe subscriptions port uses_framework framework_members method_missing]
+      %i[binds subscribe subscriptions port uses_framework framework_members
+         uses_embryonaut_bluebook vendored_bluebooks method_missing]
     ],
     "TranslationBuilder"          => [
       Hecksagain::Bluebook::DSL::TranslationBuilder,

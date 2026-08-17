@@ -10,6 +10,7 @@ Hecks.bluebook "Hecksagon" do
     attribute :domain,             HecksagonName
     attribute :subscriptions,      list_of(Subscription)
     attribute :framework_members,  list_of(FrameworkMember)
+    attribute :vendored_bluebooks, list_of(VendoredBluebook)
 
     value_object "HecksagonName" do
       attribute :value, String
@@ -27,6 +28,16 @@ Hecks.bluebook "Hecksagon" do
     value_object "FrameworkMember" do
       attribute :value, String
       invariant("a framework member is named") { !value.to_s.empty? }
+    end
+
+    # A vendored, external bluebook this hecksagon attaches — one level
+    # further out than `FrameworkMember`: not a member shipped inside
+    # hecksagain's own lib/, but a separate package vendored into the
+    # consuming project's own checkout. Same shape as `FrameworkMember`
+    # beside it, one word over — see EmbryonautBluebook's own header.
+    value_object "VendoredBluebook" do
+      attribute :value, String
+      invariant("a vendored bluebook is named") { !value.to_s.empty? }
     end
 
     command "Declare" do
@@ -60,6 +71,18 @@ Hecks.bluebook "Hecksagon" do
       sets :framework_members, append: { value: :member }
 
       emits "FrameworkMemberAttached"
+    end
+
+    command "UsesEmbryonautBluebook" do
+      role "Deployment"
+      goal "Attach a vendored, external bluebook to this hecksagon"
+
+      reference_to Hecksagon
+      attribute :package, VendoredBluebook
+
+      sets :vendored_bluebooks, append: { value: :package }
+
+      emits "VendoredBluebookAttached"
     end
   end
 

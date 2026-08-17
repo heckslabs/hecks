@@ -11913,6 +11913,32 @@
             [
               [
                 "word",
+                "uses_embryonaut_bluebook"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "vendored_bluebooks"
+              ]
+            ],
+            [
+              [
+                "word",
                 "port"
               ],
               [
@@ -17128,6 +17154,36 @@
               [
                 "fills",
                 "framework_members"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "uses_embryonaut_bluebook"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "vendored_bluebooks"
               ]
             ],
             [

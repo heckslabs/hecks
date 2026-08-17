@@ -23,19 +23,21 @@ module Hecksagain
       include Behaviour::Hecksagon
 
       emits_ir(
-        domain:            :domain,
-        binds:             many(:binds),
-        subscriptions:     -> { subscriptions.map(&:to_s) },
-        framework_members: -> { framework_members.map(&:to_s) }
+        domain:             :domain,
+        binds:              many(:binds),
+        subscriptions:      -> { subscriptions.map(&:to_s) },
+        framework_members:  -> { framework_members.map(&:to_s) },
+        vendored_bluebooks: -> { vendored_bluebooks.map(&:to_s) }
       )
 
-      attr_reader :domain, :binds, :subscriptions, :framework_members
+      attr_reader :domain, :binds, :subscriptions, :framework_members, :vendored_bluebooks
 
-      def initialize(domain:, binds: [], subscriptions: [], framework_members: [])
+      def initialize(domain:, binds: [], subscriptions: [], framework_members: [], vendored_bluebooks: [])
         @domain             = domain.to_s
         @binds              = binds
         @subscriptions      = subscriptions
         @framework_members  = framework_members
+        @vendored_bluebooks = vendored_bluebooks
       end
     end
 

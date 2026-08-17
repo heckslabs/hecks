@@ -94,6 +94,26 @@ registry now, dispatchable like any other, though nothing in
 runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => ["RoleAssignment", "RoleTransition"]
 ```
 
+## uses_embryonaut_bluebook
+
+<!-- generated:begin word=uses_embryonaut_bluebook -->
+`uses_embryonaut_bluebook vendored_bluebooks` — fills `vendored_bluebooks`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | vendored_bluebooks |
+<!-- generated:end -->
+
+One level further out than `uses_framework`: not a member shipped inside hecksagain's own `lib/`, but a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout* — `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. Loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same chapter loads in a stable order. Persistence is NOT part of what this loads, the same restriction `uses_framework` already draws — a consuming project declares its own separate `Hecks.hecksagon` block to bind the vendored aggregates' real storage.
+
+Real, external use: `lifeadelics/domain` (a hecksagain-based payments/booking service, not part of this repository) vendors `embryonaut_bluebooks/payments` this way — `uses_embryonaut_bluebook "payments"` attaches a `Payment` aggregate with a full settle/refund/dispute lifecycle, shared across every project that needs one, rather than reimplemented per project.
+
+Outside a real, rooted project — the doctest registry above, say — there is nowhere to vendor from, and it refuses rather than silently finding nothing:
+
+```ruby
+Hecks.hecksagon("Widgets") { uses_embryonaut_bluebook "payments" }  # ~> WiringError: needs a registry with a root to vendor from
+```
+
 ## port
 
 <!-- generated:begin word=port -->

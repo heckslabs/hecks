@@ -32,6 +32,7 @@ require_relative "hecksagain/projections"
 require_relative "hecksagain/facade/cli_door"
 require_relative "hecksagain/facade/cli_runner"
 require_relative "hecksagain/framework"
+require_relative "hecksagain/embryonaut_bluebook"
 
 module Hecksagain
   class LoadOutsideBoot < StandardError; end
@@ -45,7 +46,24 @@ module Hecksagain
     # they live.
     # `install_facade:` — see Runtime::Loader.boot. Defaults on; a caller
     # that only dispatches by FQN string can skip the global sugar.
-    def boot(path, shared: nil, install_facade: true) = Runtime.boot(path, shared: shared, install_facade: install_facade)
+    #
+    # `environment:` — RECOVERED, not new: this parameter (and the
+    # `environments/<name>.hecksagon` / `.world` overlay it loads —
+    # see Adapters::Folder#load_domain) existed on a prior commit of
+    # this repo (933d1dd), was vendored out to a real consumer
+    # (lifeadelics/domain), and was then lost from this repo's own
+    # history (no branch here reaches that commit). Ported forward
+    # from the consumer's vendor snapshot — the only surviving copy —
+    # and generalized: the original only loaded a `.hecksagon`
+    # overlay; this also loads a same-named `.world` overlay, both
+    # merged into the base rather than replacing it (Registry#add_hecksagon
+    # / #add_world). hecksagain never reads ENV itself — a caller
+    # resolves its own env var name and passes the resulting string
+    # straight through, e.g. `Hecks.boot(path, environment:
+    # ENV.fetch("MYAPP_ENV", "development"))`.
+    def boot(path, shared: nil, install_facade: true, environment: nil)
+      Runtime.boot(path, shared: shared, install_facade: install_facade, environment: environment)
+    end
 
     def with_registry(registry, &block) = Runtime.with_registry(registry, &block)
 

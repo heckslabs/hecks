@@ -19,7 +19,7 @@ survives regeneration.
 - [Query](query.md) — 11 words
 - [ReadModel](read_model.md) — 14 words
 - [Type](type.md) — 2 words
-- [Hecksagon](hecksagon.md) — 3 words
+- [Hecksagon](hecksagon.md) — 4 words
 - [DomainPort](domain_port.md) — 4 words
 - [PortOperation](port_operation.md) — 5 words
 - [World](world.md) — 2 words

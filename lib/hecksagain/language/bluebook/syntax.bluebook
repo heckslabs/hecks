@@ -603,6 +603,14 @@ Hecks.bluebook "Bluebook" do
       # itself is — that the record alone could not carry.
       member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
 
+      # A VENDORED, EXTERNAL bluebook this domain attaches — one level
+      # further out than `uses_framework`: not a member shipped inside
+      # hecksagain's own lib/, but a separate package vendored into the
+      # consuming project's own checkout (see EmbryonautBluebook's own
+      # header). Same shape otherwise: a fact recorded onto this
+      # hecksagon's own `vendored_bluebooks`, and a load.
+      member word: "uses_embryonaut_bluebook",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
+
       # THE PRIMARY PORT — the boundary between a domain and its adapters,
       # in hexagonal terms, is exactly what a hecksagon already IS for
       # every other port ; this is the one word beyond the open
@@ -1099,6 +1107,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
       member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
+      member keyword: "uses_embryonaut_bluebook",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"

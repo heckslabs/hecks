@@ -67,11 +67,37 @@ module Hecksagain
         @bluebook_builders[name.to_s] ||= yield
       end
 
-      def add_bluebook(item)  = @bluebooks[item.name] = item
-      def add_hecksagon(item) = @hecksagons[item.domain] = item
+      def add_bluebook(item) = @bluebooks[item.name] = item
+
+      # MERGED, NOT REPLACED — RECOVERED, not new (see Runtime::Loader
+      # .boot's own comment for the provenance). A domain's hecksagon can
+      # now load in more than one block for the same domain (base file
+      # plus an `environments/<name>.hecksagon` overlay), and the second
+      # block should ADD to what the first declared, not silently
+      # discard it.
+      def add_hecksagon(item)
+        existing = @hecksagons[item.domain]
+        @hecksagons[item.domain] = existing ? merge_hecksagons(existing, item) : item
+      end
+
       def add_port(item) = @ports[item.name] = item
-      def add_adapter(item)   = @adapters[item.name]   = item
-      def add_world(item)     = @worlds[item.domain]   = item
+      def add_adapter(item) = @adapters[item.name] = item
+
+      # MERGED, NOT REPLACED — the same generalization for `World` that
+      # `add_hecksagon` above recovers for `Hecksagon`: an
+      # `environments/<name>.world` overlay (or a host-owned tenancy
+      # overlay world, same mechanism) can now add or override settings
+      # for a domain a base `.world` file already declared, without
+      # restating everything the base file said. Settings merge shallow,
+      # keyed exactly the way WorldBuilder already stores them (both the
+      # bare verb key and the `"verb:adapter"` qualified key point at the
+      # same resolved hash) — an overlay's key wins over the base's same
+      # key; a key only the base declares survives untouched.
+      def add_world(item)
+        existing = @worlds[item.domain]
+        @worlds[item.domain] = existing ? merge_worlds(existing, item) : item
+      end
+
       def add_translation(item) = @translations << item
 
       # {domain name => era ordinal} as resolved by the boot-time era
@@ -121,6 +147,41 @@ module Hecksagain
         projected_rows == source_rows
       rescue StandardError
         false
+      end
+
+      # RECOVERED — see `add_hecksagon`'s own comment for provenance.
+      # Concatenates every list-shaped fact; `binds` in particular is
+      # additive because an overlay REBINDING an aggregate (a new
+      # `persisted_by` for the same aggregate/verb) is meant to shadow
+      # the base's own bind at resolution time, not erase it outright —
+      # `Ports::Persistence::BindingPolicy.resolve`'s own "exactly one
+      # authoritative bind" check is what actually catches a genuine
+      # double-bind; this merge only concatenates, it does not itself
+      # decide which of two binds for the same aggregate wins.
+      def merge_hecksagons(a, b)
+        Bluebook::Hecksagon.new(
+          domain:             a.domain,
+          binds:              a.binds + b.binds,
+          subscriptions:      a.subscriptions + b.subscriptions,
+          framework_members:  a.framework_members + b.framework_members,
+          vendored_bluebooks: a.vendored_bluebooks + b.vendored_bluebooks
+        )
+      end
+
+      # RECOVERED AND GENERALIZED — see `add_world`'s own comment. `realm`/
+      # `latest` are scalars, so the overlay's value wins when present,
+      # else the base's survives; `settings` is a shallow merge keyed by
+      # verb (and `"verb:adapter"`) — an overlay entry for a key the base
+      # also declares REPLACES that key's whole resolved hash (the same
+      # all-or-nothing shape `WorldBuilder#method_missing` already builds
+      # each entry as), it does not deep-merge field by field within it.
+      def merge_worlds(a, b)
+        Bluebook::World.new(
+          domain:   a.domain,
+          realm:    b.realm || a.realm,
+          latest:   b.latest || a.latest,
+          settings: a.settings.merge(b.settings)
+        )
       end
     end
   end

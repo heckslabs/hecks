@@ -32,10 +32,6 @@ Hecks.hecksagon("Pizzas") do
   uses_framework "Governance"
   Pizzas::Order.persisted_by("Memory")
 end
-Hecks.hecksagon("Governance") do
-  Governance::RoleAssignment.persisted_by("Memory")
-  Governance::RoleTransition.persisted_by("Memory")
-end
 ```
 
 ```ruby bluebook

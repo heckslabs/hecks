@@ -14,6 +14,8 @@ module Hecksagain
           verify_default_adapter!
 
           @hecksagons.each_value do |hexagon|
+            refuse_ungoverned_roles!(hexagon)
+
             hexagon.binds.each do |bind|
               # A domain-level default (§0) — `persisted_by "Heki"` bare,
               # applying to whichever aggregates don't override it — names
@@ -98,6 +100,57 @@ module Hecksagain
         rescue NameError
           raise WiringError, "no Ruby adapter implementation for #{name.inspect} " \
                              "(expected Hecksagain::Adapters::#{name})"
+        end
+
+        private
+
+        # `role` IS REAL ACCESS CONTROL ONLY WHEN GOVERNANCE CAN CHECK IT
+        # AGAINST SOMETHING — a command that declares a role but whose
+        # domain never attaches Governance would leave that role forever
+        # unchecked, exactly the defect ADR 0025 §9 names ("role gates
+        # access control by exact string equality ... Governance ...
+        # connected to none of it"). Checked here, at `verify!` — RECOVERED
+        # and MOVED, not new: this used to run per-block, at HECKSAGON
+        # build time (Bluebook::DSL::HecksagonBuilder#build), which broke
+        # the moment a domain could be split across multiple hecksagon
+        # blocks (base + an `environments/<name>.hecksagon` overlay,
+        # Runtime::Loader.boot's `environment:` — see its own comment for
+        # the recovery provenance): every block but the one declaring
+        # `uses_framework "Governance"` would be refused there, even
+        # though `Registry#add_hecksagon` merges every block for a domain
+        # into ONE Hecksagon before anything ever dispatches against it.
+        # Checking the MERGED result once, here, after every file for
+        # this domain has loaded, is both more permissive (no need to
+        # repeat `uses_framework` in every file) and strictly more
+        # correct (a check against an incomplete, not-yet-merged
+        # hecksagon can never see the real final shape).
+        #
+        # GOVERNANCE ITSELF IS EXEMPT — it cannot `uses_framework` its own
+        # aggregates, and it IS the source of truth a role check runs
+        # against, the same self-reference `CommandRules::Authorization
+        # #governance_attached?` grants it at dispatch time.
+        def refuse_ungoverned_roles!(hexagon)
+          return if hexagon.domain == "Governance"
+          return if hexagon.framework_members.include?("Governance")
+
+          bluebook_ir = bluebook(hexagon.domain)
+          return unless bluebook_ir
+
+          offender = commands_in(bluebook_ir).find { |command| !command.role.to_s.empty? }
+          return unless offender
+
+          raise WiringError,
+                "#{offender.hecks_fqn} declares role #{offender.role.inspect}, but " \
+                "#{hexagon.domain}'s hecksagon never uses_framework \"Governance\" — role is only " \
+                "real access control once Governance is attached to check it against; without that " \
+                "it is silent decoration, the exact defect this refusal exists to catch"
+        end
+
+        # Every command this domain declares, an aggregate's own AND every
+        # entity nested inside one — the same reach `refuse_role_mismatch`
+        # itself needs at dispatch time, just walked ahead of time here.
+        def commands_in(bluebook_ir)
+          bluebook_ir.aggregates.flat_map { |aggregate| aggregate.commands + aggregate.entities.flat_map(&:commands) }
         end
       end
     end

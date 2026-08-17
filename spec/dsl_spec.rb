@@ -134,6 +134,22 @@ RSpec.describe "the DSL surface" do
       expect(registry.hecksagon("Hexed").framework_members).to eq(["Governance"])
     end
 
+    it ".hecksagon's uses_embryonaut_bluebook records the name and needs a registry root to vendor from" do
+      # `in_registry`'s bare `Registry.new` sets no root — the exact real
+      # guard this exercises (EmbryonautBluebook.load!'s own refusal),
+      # not a fixture-less stand-in for it: a registry with nowhere to
+      # vendor FROM (`<root>/vendor/embryonaut_bluebooks/...`) has to
+      # refuse loudly rather than silently finding nothing.
+      expect do
+        in_registry do
+          Hecks.hecksagon("Hexed") do
+            uses_embryonaut_bluebook "payments"
+            Hexed::Thing.posted_by("Carrier")
+          end
+        end
+      end.to raise_error(Hecksagain::Runtime::WiringError, /needs a registry with a root to vendor from/)
+    end
+
     it ".data_translation registers a rename, a move, a convert, and a drop between two eras" do
       registry = in_registry do
         Hecks.data_translation("Translated", from: "1", to: "2") do

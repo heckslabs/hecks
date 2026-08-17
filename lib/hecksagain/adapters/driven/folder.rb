@@ -32,13 +32,39 @@ module Hecksagain
       # already places every `*.bluebook` ahead of hecksagons and worlds,
       # so the window ends at the last chapter pattern rather than at a
       # hand-written list this would otherwise have to keep in step.
-      def load_domain(directory)
+      # `environment:` — ONE MORE PAIR OF FILES, LOADED LAST, NOT A GLOB.
+      # RECOVERED, not new — see Runtime::Loader.boot's own comment for
+      # the provenance. A caller passing `Hecks.boot(path, environment:
+      # "production")` gets exactly `environments/production.hecksagon`
+      # and `environments/production.world` loaded, whichever exist (a
+      # missing one is a silent no-op — not every environment overrides
+      # both; see docs/guides/wiring.md's "Swapping wiring per
+      # environment" for the motivating case: swapping a driven adapter
+      # — e.g. a real payment gateway for a mock one, or a hosting
+      # layer's tenancy settings — without an `if`/`else` anywhere in
+      # the domain's own wiring). Never matched by `DOMAIN_ORDER`'s own
+      # globs (all non-recursive, none named `environments/*`), so this
+      # is the only thing that ever reaches them. Loaded as genuine
+      # `Hecks.hecksagon "SameDomain" do ... end` / `Hecks.world
+      # "SameDomain" do ... end` blocks — MERGED into the base file's
+      # own hecksagon/world (Registry#add_hecksagon / #add_world,
+      # concatenate/override rather than replace), so an overlay can
+      # rebind or add settings for anything the base file declared
+      # without needing to know what else the base file said.
+      def load_domain(directory, environment: nil)
         boundary = DOMAIN_ORDER.rindex { |pattern| pattern.end_with?(".bluebook") }
-        return load_each(directory, DOMAIN_ORDER) unless boundary
+        if boundary
+          Bluebook::MetaValidator.defer { load_each(directory, DOMAIN_ORDER[0..boundary]) }
+          Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
+          load_each(directory, DOMAIN_ORDER[(boundary + 1)..])
+        else
+          load_each(directory, DOMAIN_ORDER)
+        end
 
-        Bluebook::MetaValidator.defer { load_each(directory, DOMAIN_ORDER[0..boundary]) }
-        Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
-        load_each(directory, DOMAIN_ORDER[(boundary + 1)..])
+        return unless environment
+
+        load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
+        load_each(directory, [File.join("environments", "#{environment}.world")])
       end
 
       def load_each(directory, patterns)
