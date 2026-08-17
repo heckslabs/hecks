@@ -13449,6 +13449,36 @@
             [
               [
                 "keyword",
+                "given"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "declared_by"
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "declared_by"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "projects"
               ],
               [

@@ -535,11 +535,12 @@ Banking::Account.ir.invariants.map(&:description)  # => ["the balance never goes
 ## given
 
 <!-- generated:begin word=given -->
-`given description do ... end` — fills `preconditions`
+`given description, declared_by: do ... end` — fills `preconditions`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | description |
+| `declared_by:` | constant | false | declared_by |
 <!-- generated:end -->
 
 Declares a NAMED precondition directly on the aggregate — block
@@ -571,6 +572,38 @@ refusal message, everywhere it's read:
 ```ruby
 account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:canonical)  # => ["customer.status != \"closed\""]
 ```
+
+`given` also SHARES chapter-wide — a bare `given(description)` with no
+block, written directly inside a DIFFERENT aggregate's own `do...end`,
+resolves against whichever aggregate in the same chapter already
+declared that description, the identical move a command's own bare
+`given` already makes one level down (`docs/resolution-rules/
+chapter-given.md`). `SafeDepositBox` names `Account`'s own "customer is
+active" back rather than retyping `customer.status == "active"` a
+second time:
+
+```ruby
+banking = runtime.registry.bluebook("Banking")
+banking.aggregate("SafeDepositBox").preconditions.map { |g| [g.description, g.canonical] }  # => [["customer is active", "customer.status == \"active\""]]
+```
+
+`declared_by:` is only needed once the SAME description means a
+GENUINELY DIFFERENT predicate somewhere else in the chapter — real,
+live: `ATMCard`'s own "customer is active" reads `account.customer.
+status`, not bare `customer.status` (it reaches the customer THROUGH
+an account reference, not directly). `CardPayment` names `ATMCard`'s
+declaration explicitly (`given("customer is active", declared_by:
+ATMCard)`) rather than `Account`'s:
+
+```ruby
+banking.aggregate("CardPayment").preconditions.map { |g| g.description }  # => ["payment is disputed", "payment is captured", "payment is authorized", "account is open", "customer is active"]
+banking.aggregate("CardPayment").preconditions.last.canonical  # => "account.customer.status == \"active\""
+```
+
+Omitting `declared_by:` here would refuse — `CardPayment`'s own
+"customer is active" is AMBIGUOUS in this chapter (`Account` and
+`ATMCard` each declare a different predicate under it), and the
+language never silently guesses which one a bare reference meant.
 
 ## projects
 
