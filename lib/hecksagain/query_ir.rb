@@ -140,12 +140,16 @@ module Hecksagain
     # sharing an owner are the SAME declaration read twice (an owner's
     # own precondition, and a command under it referencing that
     # precondition by name) — not two independent ones.
+    #
+    # PUBLIC, not a `duplicates`-only internal — `bin/codemod_hoist_
+    # local_givens` reads it directly to group `collect_rules`' own
+    # output by owner itself, the same reading `duplicates`' own
+    # `declaration_count` makes.
     def owner_of(location)
       return location.sub(/ \(declared\)\z/, "") if location.end_with?(" (declared)")
 
       location.rpartition(".").first
     end
-    private_class_method :owner_of
 
     # Grouped by (kind, description, canonical), not canonical text
     # alone — a generic one-liner like `!value.to_s.empty?` legitimately

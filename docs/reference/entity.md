@@ -181,14 +181,18 @@ resolved canonical predicate lands on the referencing command's own
 `givens` either way, so a command's own rule enforcement is identical
 whichever construct declared the wording.
 
-`LedgerEntry` declares two — `"customer is active"` and `"account is
-open"` — and both `Amend` and `Reverse` read them back rather than
-retyping the `parent.`-qualified predicate:
+`LedgerEntry` declares three — `"entry is posted"`, `"customer is
+active"`, and `"account is open"` — and both `Amend` and `Reverse` read
+them all back rather than retyping the `parent.`-qualified predicates
+(`bin/codemod_hoist_local_givens` hoisted the third, "entry is
+posted", from the two commands' own identical local declarations —
+the exact same duplication this entity's other two preconditions were
+hand-hoisted for, round 4's own motivating case):
 
 ```ruby
 ledger_entry = runtime.registry.bluebook("Banking").aggregate("Account")
                        .entities.find { |e| e.hecks_name == "LedgerEntry" }
-ledger_entry.preconditions.map(&:description)  # => ["customer is active", "account is open"]
+ledger_entry.preconditions.map(&:description)  # => ["entry is posted", "customer is active", "account is open"]
 ledger_entry.commands.find { |c| c.hecks_name == "Amend" }.givens.map(&:description)  # => ["customer is active", "account is open", "entry is posted", "an amendment leaves a non-negative amount"]
 ```
 

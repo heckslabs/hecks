@@ -1225,6 +1225,10 @@
           "name": "LedgerEntry",
           "preconditions": [
             {
+              "canonical": "state == \"posted\"",
+              "description": "entry is posted"
+            },
+            {
               "canonical": "parent.customer.status == \"active\"",
               "description": "customer is active"
             },
@@ -2202,7 +2206,18 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "[\"issued\", \"active\"].include?(status)",
+          "description": "card is issued or active"
+        },
+        {
+          "canonical": "account.status == \"open\"",
+          "description": "account is open"
+        },
+        {
+          "canonical": "account.customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
 
@@ -2783,7 +2798,30 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "status == \"debited\"",
+          "description": "transfer is debited"
+        },
+        {
+          "canonical": "destination.status == \"open\"",
+          "description": "destination account is open"
+        },
+        {
+          "canonical": "destination.customer.status == \"active\"",
+          "description": "destination customer is active"
+        },
+        {
+          "canonical": "status == \"requested\"",
+          "description": "transfer is requested"
+        },
+        {
+          "canonical": "source.status == \"open\"",
+          "description": "source account is open"
+        },
+        {
+          "canonical": "source.customer.status == \"active\"",
+          "description": "source customer is active"
+        }
       ],
       "projected_fields": [
         {
@@ -3364,7 +3402,26 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "status == \"disputed\"",
+          "description": "payment is disputed"
+        },
+        {
+          "canonical": "status == \"captured\"",
+          "description": "payment is captured"
+        },
+        {
+          "canonical": "status == \"authorized\"",
+          "description": "payment is authorized"
+        },
+        {
+          "canonical": "account.status == \"open\"",
+          "description": "account is open"
+        },
+        {
+          "canonical": "account.customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
 
@@ -3801,7 +3858,18 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "status == \"sent\"",
+          "description": "transfer is sent"
+        },
+        {
+          "canonical": "account.status == \"open\"",
+          "description": "account is open"
+        },
+        {
+          "canonical": "account.customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
 
@@ -4319,7 +4387,22 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "status == \"failed\"",
+          "description": "payment is failed"
+        },
+        {
+          "canonical": "status == \"scheduled\"",
+          "description": "payment is scheduled"
+        },
+        {
+          "canonical": "account.status == \"open\"",
+          "description": "account is open"
+        },
+        {
+          "canonical": "account.customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
 
@@ -5018,7 +5101,10 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
         {
@@ -5425,7 +5511,14 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "status == \"screening\"",
+          "description": "case is screening"
+        },
+        {
+          "canonical": "customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
 
