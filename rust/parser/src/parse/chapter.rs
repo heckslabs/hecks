@@ -250,6 +250,16 @@ fn parse_body_into(
     aggregate_policies: &mut Vec<ir::Policy>,
     chapter_policies: &mut Vec<ir::Policy>,
 ) -> ParseResult<()> {
+    // THE ROOT of the chapter-wide given pool
+    // (`docs/resolution-rules/chapter-given.md`) — SCOPED TO THIS FILE,
+    // not `parse_chapter`'s own cross-file loop, matching Ruby exactly:
+    // `Hecks.bluebook "X" do ... end` mints a FRESH `BluebookBuilder`
+    // (`lib/hecksagain.rb#bluebook`) — and therefore a fresh
+    // `@chapter_named_givens` — on EVERY call, even when several files
+    // (the self-hosted meta-domain's own nine) declare the SAME chapter
+    // name; sharing never crosses a file boundary either side.
+    let mut chapter_named_givens: Vec<ir::Given> = Vec::new();
+
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? else {
             break;
@@ -274,7 +284,7 @@ fn parse_body_into(
             }
             "aggregate" => {
                 let agg_name = super::positional_text(file, line, "aggregate", &gated.args, 1)?;
-                let (built, policies) = aggregate::parse_body(file, lines, pos, &agg_name)?;
+                let (built, policies) = aggregate::parse_body(file, lines, pos, &agg_name, &mut chapter_named_givens)?;
                 bluebook.aggregates.push(built);
                 aggregate_policies.extend(policies);
             }
