@@ -75,3 +75,6 @@ extracted."
 - [Cross-entity given sharing](cross-entity-given.md) — a piece's own
   `given`, shared across ANY piece nested under the same aggregate, not just
   that one piece's own commands.
+- [Chapter-wide given sharing](chapter-given.md) — an aggregate's own
+  `given`, shared across any OTHER aggregate in the same chapter, when the
+  two verifiably resolve the identical predicate.

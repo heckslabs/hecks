@@ -11,6 +11,11 @@ module Hecksagain
           @read_models      = []
           @policies         = []
           @process_managers = []
+          # THE ROOT of the CHAPTER-WIDE given pool — one level wider
+          # than `AggregateBuilder`'s own `@entity_named_givens` (S10
+          # extended across an aggregate's whole entity tree, earlier
+          # this arc). See `#given`'s own comment for what this closes.
+          @chapter_named_givens = {}
         end
 
         def vision(value)
@@ -37,8 +42,16 @@ module Hecksagain
         def supporting = @classification = :supporting
         def generic    = @classification = :generic
 
+        # `@chapter_named_givens` is threaded into every aggregate this
+        # chapter builds — see `AggregateBuilder#given`'s own comment
+        # for the sharing this enables; NOT a new top-level DSL word
+        # itself (an aggregate's own EXISTING `given` already both
+        # declares locally and write-throughs here as a side effect,
+        # the identical shape `EntityBuilder#given`'s own write-through
+        # to its owner aggregate's pool already takes — no new spelling
+        # for "declare a precondition," one level wider, same word).
         def aggregate(name, &block)
-          @aggregates << AggregateBuilder.build(name, &block)
+          @aggregates << AggregateBuilder.build(name, chapter_named_givens: @chapter_named_givens, &block)
         end
 
         # `read_model` is the word (ADR 0025 reverts `report` — the IR

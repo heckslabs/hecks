@@ -1326,7 +1326,10 @@ Hecks.bluebook "Banking", version: "v1" do
   end
 
   aggregate "SafeDepositBox" do
-    given("customer is active") { customer.status == "active" }
+    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — `Account`'s
+    # own declaration, above, since both hold a DIRECT
+    # `reference_to Customer` and so resolve the identical predicate.
+    given("customer is active")
     description "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face."
 
     reference_to Customer
@@ -1550,7 +1553,9 @@ Hecks.bluebook "Banking", version: "v1" do
 
   aggregate "OnboardingCase" do
     given("case is screening") { status == "screening" }
-    given("customer is active") { customer.status == "active" }
+    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — see
+    # `SafeDepositBox`'s own comment on this same reference.
+    given("customer is active")
     description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
 
     # `reference_to` mints `customer`, no `_id` suffix (ADR 0025) — the
