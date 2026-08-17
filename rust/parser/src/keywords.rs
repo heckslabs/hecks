@@ -65,6 +65,7 @@ pub static KEYWORDS: &[KeywordRow] = &[
     KeywordRow { word: "hecksagon", context: "File", body: "keywords", inner: "Hecksagon", opens: "Hecksagon", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "world", context: "File", body: "keywords", inner: "World", opens: "World", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "port", context: "File", body: "keywords", inner: "Port", opens: "Port", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordRow { word: "adapter", context: "File", body: "keywords", inner: "Adapter", opens: "Adapter", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "formerly_known_as", context: "Bluebook", body: "none", inner: "", opens: "", fills: "formerly_known_as", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "attaches_to", context: "Bluebook", body: "none", inner: "", opens: "", fills: "attaches_to", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -166,6 +167,9 @@ pub static KEYWORDS: &[KeywordRow] = &[
     KeywordRow { word: "latest", context: "World", body: "none", inner: "", opens: "", fills: "latest", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "verb", context: "Port", body: "none", inner: "", opens: "", fills: "verb", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "signal", context: "Port", body: "none", inner: "", opens: "", fills: "signal", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordRow { word: "port", context: "Adapter", body: "none", inner: "", opens: "", fills: "port", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordRow { word: "field", context: "Adapter", body: "none", inner: "", opens: "", fills: "fields", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordRow { word: "secret", context: "Adapter", body: "none", inner: "", opens: "", fills: "secrets", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "limit", context: "Query", body: "none", inner: "", opens: "", fills: "limit", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "offset", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
     KeywordRow { word: "cursor", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
@@ -355,6 +359,10 @@ pub static ARGUMENTS: &[ArgumentRow] = &[
     ArgumentRow { keyword: "port", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     ArgumentRow { keyword: "verb", context: "Port", at: "1", named: "", kind: "text", required: "true", fills: "verb", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     ArgumentRow { keyword: "signal", context: "Port", at: "1", named: "", kind: "symbol", required: "true", fills: "signal", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    ArgumentRow { keyword: "adapter", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    ArgumentRow { keyword: "port", context: "Adapter", at: "1", named: "", kind: "text", required: "true", fills: "port", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    ArgumentRow { keyword: "field", context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "fields", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
+    ArgumentRow { keyword: "secret", context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "secrets", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     ArgumentRow { keyword: "limit", context: "Query", at: "1", named: "", kind: "number", required: "true", fills: "limit", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     ArgumentRow { keyword: "offset", context: "Query", at: "1", named: "", kind: "number", required: "true", fills: "value", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
     ArgumentRow { keyword: "cursor", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "value", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
@@ -385,6 +393,7 @@ pub static CONTEXTS: &[&str] = &[
     "DomainPort",
     "PortOperation",
     "Port",
+    "Adapter",
 ];
 
 pub static BODIES: &[&str] = &[

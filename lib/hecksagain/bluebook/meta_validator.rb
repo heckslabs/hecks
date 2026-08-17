@@ -46,6 +46,8 @@ module Hecksagain
       # remaining builders. Backs the new PortJudge door the same way
       # WORLD_GRAMMAR backs WorldJudge.
       PORT_GRAMMAR = File.expand_path("../language/port.bluebook", __dir__).freeze
+      # so is an adapter — same reasoning, one file over. Backs AdapterJudge.
+      ADAPTER_GRAMMAR = File.expand_path("../language/adapter.bluebook", __dir__).freeze
 
       # ADR 0026's OWN SEAM: THE CORE DOES NOT NAME ITS EXTENSION POINTS.
       #
@@ -184,6 +186,20 @@ module Hecksagain
 
         raise DSL::Malformed,
               "#{port.name}'s port is not well formed; #{refusals.join('; ')}"
+      end
+
+      # An adapter is not a bluebook either — same door shape, one more
+      # artifact over. Whole-project table-unification survey, item
+      # #13's remaining builders.
+      def self.call_adapter(adapter)
+        return adapter if disabled? || bootstrapping? || shadow_parsing?
+
+        key = Digest::SHA256.hexdigest(JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets]))
+        refusals = verdicts[key] ||= AdapterJudge.new(adapter).refusals
+        return adapter if refusals.empty?
+
+        raise DSL::Malformed,
+              "#{adapter.name}'s adapter is not well formed; #{refusals.join('; ')}"
       end
 
       # THE LANGUAGE HANDS THE GRAPH BACK.
@@ -326,6 +342,7 @@ module Hecksagain
           Kernel.load(WORLD_GRAMMAR)
           Kernel.load(HECKSAGON_GRAMMAR)
           Kernel.load(PORT_GRAMMAR)
+          Kernel.load(ADAPTER_GRAMMAR)
         end
         registry
       ensure
