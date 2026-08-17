@@ -72,3 +72,6 @@ extracted."
 - [Implicit append fields](implicit-append-fields.md) — bare self-referential
   fields inside `sets :list, append: { ... }` import the list element's own
   attribute, position-preserving.
+- [Cross-entity given sharing](cross-entity-given.md) — a piece's own
+  `given`, shared across ANY piece nested under the same aggregate, not just
+  that one piece's own commands.

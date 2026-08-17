@@ -5,13 +5,22 @@ module Hecksagain
         include AttributeCollector
         include IdentityDeclaration
 
-        def initialize(name, owner_value_objects: [])
+        def initialize(name, owner_value_objects: [], owner_named_givens: {})
           @name         = name
           @commands     = []
           @queries      = []
           @entities     = []
           @named_givens = {}
           @owner_value_objects = owner_value_objects
+          # THE AGGREGATE-WIDE cross-entity given pool — ONE hash, the
+          # SAME object, threaded unchanged through every piece nested
+          # under one aggregate however deep (the identical shape
+          # `@owner_value_objects` already threads — see this class'
+          # own `entity` comment). `given`'s own block form writes
+          # through to it; a SIBLING piece's bare command-level
+          # reference reads from it via `CommandBuilder#
+          # reference_named_given`.
+          @owner_named_givens = owner_named_givens
           # DEFERRED CONSTRUCTION — see `AggregateBuilder#drain_pending!`'s
           # own comment; the identical mechanism, one level down, so a
           # nested piece's own commands (Dispatch inside Handler) see
@@ -102,7 +111,17 @@ module Hecksagain
                   "runtime could ever evaluate it"
           end
 
-          @named_givens[description] = Given.new(description: description, canonical: canonical, predicate: predicate)
+          named = Given.new(description: description, canonical: canonical, predicate: predicate)
+          @named_givens[description] = named
+          # WRITE-THROUGH, first-declared-wins (`||=`) — a SECOND piece
+          # under the same aggregate independently declaring the exact
+          # same description stays purely local to itself (no silent
+          # overwrite of whatever the first piece already shared;
+          # real, live case a fuzzer or a future codemod could easily
+          # surface: two pieces phrasing an UNRELATED rule identically
+          # by coincidence, same as an aggregate-level given already
+          # tolerates today).
+          @owner_named_givens[description] ||= named
         end
 
         def build
@@ -122,8 +141,8 @@ module Hecksagain
           )
         end
 
-        def self.build(name, owner_value_objects: [], &block)
-          builder = new(name, owner_value_objects: owner_value_objects)
+        def self.build(name, owner_value_objects: [], owner_named_givens: {}, &block)
+          builder = new(name, owner_value_objects: owner_value_objects, owner_named_givens: owner_named_givens)
           builder.instance_eval(&block) if block
           builder.build
         end
@@ -136,13 +155,15 @@ module Hecksagain
         # a sibling piece's `.attributes`), then commands, then queries.
         def drain_pending!
           @entities = @pending_entities.map do |name, block|
-            EntityBuilder.build(name, owner_value_objects: @owner_value_objects, &block)
+            EntityBuilder.build(name, owner_value_objects: @owner_value_objects,
+                                       owner_named_givens: @owner_named_givens, &block)
           end
 
           @commands = @pending_commands.map do |name, from, block|
             CommandBuilder.build(name, owner: @name, from: from, named_givens: @named_givens,
                                         owner_attributes: attributes,
-                                        owner_constructs: @owner_value_objects + @entities, &block)
+                                        owner_constructs: @owner_value_objects + @entities,
+                                        entity_shared_givens: @owner_named_givens, &block)
           end
 
           @queries = @pending_queries.map do |name, block|

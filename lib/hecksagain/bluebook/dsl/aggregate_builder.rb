@@ -17,6 +17,10 @@ module Hecksagain
           @queries       = []
           @policies      = []
           @reference_targets = []
+          # THE ROOT of the cross-entity given pool — see `#entity`'s own
+          # comment. ONE hash for the whole aggregate, threaded unchanged
+          # into every piece nested under it, however deep.
+          @entity_named_givens = {}
           # DEFERRED CONSTRUCTION — `entity`/`command`/`query` push a
           # pending descriptor here instead of building immediately; see
           # `#drain_pending!`'s own comment for why.
@@ -131,13 +135,29 @@ module Hecksagain
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end
 
+        # A piece is declared IN this aggregate — its owner is stamped by
+        # `Aggregate#initialize`, once the aggregate exists. Its own
+        # commands were given the piece as their owner when it was declared,
+        # so the chain closes as chapter -> aggregate -> entity -> command.
+        # NOT built here — see `#drain_pending!`'s own comment for why
+        # this only queues a descriptor.
+        #
+        # A PRECONDITION SHARED ACROSS SIBLING PIECES, DECLARED ONCE — one
+        # level wider than round 4's own `EntityBuilder#given` (shared
+        # across ONE piece's own commands): `@entity_named_givens` is the
+        # SAME hash threaded into EVERY piece this aggregate builds, so a
+        # piece's own entity-level `given(desc) { block }` write-throughs
+        # into it, and any OTHER piece's own command can reference it back
+        # bare, the identical description/canonical, evaluated in ITS OWN
+        # `parent`-relative context. Real, live corpus this closes:
+        # `SafeDepositBox`'s `Visit`/`KeyIssuance` — two DIFFERENT pieces
+        # under one head, each independently typing `given("customer is
+        # active") { parent.customer.status == "active" }` byte for byte,
+        # which neither the aggregate's OWN "customer is active" (a
+        # DIFFERENT canonical — bare `customer.status`, not
+        # `parent.customer.status`, wrong scope for a piece's own command
+        # to evaluate) nor round 4's single-piece `given` could reach.
         def entity(name, &block)
-          # A piece is declared IN this aggregate — its owner is stamped by
-          # `Aggregate#initialize`, once the aggregate exists. Its own
-          # commands were given the piece as their owner when it was declared,
-          # so the chain closes as chapter -> aggregate -> entity -> command.
-          # NOT built here — see `#drain_pending!`'s own comment for why
-          # this only queues a descriptor.
           @pending_entities << [name, block]
         end
 
@@ -317,7 +337,8 @@ module Hecksagain
         # file needed to change for this to be safe.
         def drain_pending!
           @entities = @pending_entities.map do |name, block|
-            EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets, &block)
+            EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets,
+                                       owner_named_givens: @entity_named_givens, &block)
           end
 
           @commands = @pending_commands.map do |name, from, block|
