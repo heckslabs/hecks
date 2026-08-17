@@ -25,8 +25,25 @@ enum Node {
     Literal(char),
     Any,
     Class { negate: bool, ranges: Vec<(char, char)> },
-    Start,
-    End,
+    // `^`/`$` — PER-LINE anchors (Ruby's own default, unlike most other
+    // regex flavors): `^` matches at position 0 OR right after any `\n`;
+    // `$` matches at the end of the text OR right before any `\n`. Item
+    // #4, whole-project table-unification survey — found via a new
+    // #[cfg(test)] walking spec/corpus/fixtures/patterns.json's own
+    // recorded contract: this matcher used to treat `^`/`$` identically
+    // to `\A`/`\z` (whole-string only), disagreeing with Ruby's real
+    // `Regexp` on any multi-line input — e.g. `/^[A-Z]{3}-[0-9]{4}$/`
+    // against `"xx\nABC-1234\nyy"` (Ruby: true, this matcher: false,
+    // before this fix).
+    LineStart,
+    LineEnd,
+    // `\A`/`\z`/`\Z` — WHOLE-STRING anchors, never satisfied mid-text no
+    // matter where a `\n` falls. Distinct nodes, not a flag on Start/End,
+    // because the two anchor KINDS mean genuinely different things, not
+    // two spellings of the same fact — collapsing them is exactly the
+    // bug this fix undoes.
+    StringStart,
+    StringEnd,
     Group(Vec<Node>),
     Alt(Vec<Vec<Node>>),
     Repeat { node: Box<Node>, min: usize, max: Option<usize> },
@@ -42,7 +59,12 @@ enum Node {
 pub fn matches(pattern: &str, text: &str) -> bool {
     let Ok(nodes) = parse(pattern) else { return false };
     let chars: Vec<char> = text.chars().collect();
-    let anchored_start = matches!(nodes.first(), Some(Node::Start));
+    // ONLY `\A` (StringStart) justifies skipping straight to position 0 —
+    // `^` (LineStart) can still legitimately match at a LATER position
+    // (right after some `\n`), so the general "try every start position"
+    // loop below has to run for it; `LineStart`'s own per-position check
+    // (in `match_from`) is what actually enforces which positions qualify.
+    let anchored_start = matches!(nodes.first(), Some(Node::StringStart));
     if anchored_start {
         return match_from(&nodes, 0, &chars, 0, &|_| true);
     }
@@ -55,12 +77,19 @@ fn match_from(nodes: &[Node], idx: usize, text: &[char], ti: usize, cont: &dyn F
     }
     match &nodes[idx] {
         Node::Literal(c) => ti < text.len() && text[ti] == *c && match_from(nodes, idx + 1, text, ti + 1, cont),
-        Node::Any => ti < text.len() && match_from(nodes, idx + 1, text, ti + 1, cont),
+        // `.` — matches any character EXCEPT `\n`, Ruby's own default
+        // (no `/m` flag support in this dialect — PatternSubset admits
+        // no way to spell one). Item #4, whole-project table-unification
+        // survey — found via the same #[cfg(test)] contract test as the
+        // LineStart/LineEnd and escape_char fixes just above.
+        Node::Any => ti < text.len() && text[ti] != '\n' && match_from(nodes, idx + 1, text, ti + 1, cont),
         Node::Class { negate, ranges } => {
             ti < text.len() && class_matches(*negate, ranges, text[ti]) && match_from(nodes, idx + 1, text, ti + 1, cont)
         }
-        Node::Start => ti == 0 && match_from(nodes, idx + 1, text, ti, cont),
-        Node::End => ti == text.len() && match_from(nodes, idx + 1, text, ti, cont),
+        Node::LineStart => (ti == 0 || text[ti - 1] == '\n') && match_from(nodes, idx + 1, text, ti, cont),
+        Node::LineEnd => (ti == text.len() || text[ti] == '\n') && match_from(nodes, idx + 1, text, ti, cont),
+        Node::StringStart => ti == 0 && match_from(nodes, idx + 1, text, ti, cont),
+        Node::StringEnd => ti == text.len() && match_from(nodes, idx + 1, text, ti, cont),
         Node::Group(inner) => match_from(inner, 0, text, ti, &|ti2| match_from(nodes, idx + 1, text, ti2, cont)),
         Node::Alt(branches) => branches.iter().any(|b| match_from(b, 0, text, ti, &|ti2| match_from(nodes, idx + 1, text, ti2, cont))),
         Node::Repeat { node, min, max } => match_repeat(node, 0, *min, *max, nodes, idx + 1, text, ti, cont),
@@ -106,6 +135,31 @@ fn match_repeat(
 fn class_matches(negate: bool, ranges: &[(char, char)], c: char) -> bool {
     let hit = ranges.iter().any(|(lo, hi)| *lo <= c && c <= *hi);
     hit != negate
+}
+
+// `\t`/`\n`/`\r` — the three CONTROL-CHARACTER escapes Ruby's own
+// `Regexp` recognizes and this dialect's real corpus usage leans on
+// hardest (`[^ \t\n\r]`, banking.bluebook's own most common `pattern:`
+// — 26 usages in that one file alone). Item #4, whole-project table-
+// unification survey — found via the new #[cfg(test)] contract test:
+// both escape call sites used to take the RAW character following the
+// backslash verbatim (`\t` → the letter `t`, not a real tab), which
+// meant `[^ \t\n\r]` was silently checking against the LETTERS t/n/r
+// instead of actual whitespace/control characters — every string
+// containing a lowercase t, n, or r anywhere (extremely common in real
+// text) was wrongly refused, and a string containing an ACTUAL tab/
+// newline/CR was wrongly accepted. Every other escaped character
+// (`\.`, `\+`, `\\`, `\-`, ...) passes through unchanged — this is a
+// closed, small set, not a general C-style escape table, matching
+// `PatternSubset`'s own admitted dialect (no `\0`, no `\xNN`, no
+// Unicode escapes).
+fn escape_char(c: char) -> char {
+    match c {
+        't' => '\t',
+        'n' => '\n',
+        'r' => '\r',
+        other => other,
+    }
 }
 
 // ── PARSER — recursive descent, `alternation > concat > repeat > atom`,
@@ -247,8 +301,8 @@ impl<'a> Parser<'a> {
     fn parse_atom(&mut self) -> Result<Node, ()> {
         match self.bump().ok_or(())? {
             '.' => Ok(Node::Any),
-            '^' => Ok(Node::Start),
-            '$' => Ok(Node::End),
+            '^' => Ok(Node::LineStart),
+            '$' => Ok(Node::LineEnd),
             '(' => {
                 let inner = self.parse_alt()?;
                 if self.bump() != Some(')') {
@@ -258,9 +312,9 @@ impl<'a> Parser<'a> {
             }
             '[' => self.parse_class(),
             '\\' => match self.bump().ok_or(())? {
-                'A' => Ok(Node::Start),
-                'z' | 'Z' => Ok(Node::End),
-                c => Ok(Node::Literal(c)), // an escaped metacharacter (`\.`, `\+`, `\\`, ...) — the literal itself
+                'A' => Ok(Node::StringStart),
+                'z' | 'Z' => Ok(Node::StringEnd),
+                c => Ok(Node::Literal(escape_char(c))), // an escaped metacharacter (`\.`, `\+`, `\\`, ...) or control char (`\t`, `\n`, `\r`) — the literal itself
             },
             c => Ok(Node::Literal(c)),
         }
@@ -289,11 +343,11 @@ impl<'a> Parser<'a> {
                 }
                 Some(c) => {
                     self.bump();
-                    let lo = if c == '\\' { self.bump().ok_or(())? } else { c };
+                    let lo = if c == '\\' { escape_char(self.bump().ok_or(())?) } else { c };
                     if self.peek() == Some('-') && self.chars.get(self.pos + 1).is_some_and(|c| *c != ']') {
                         self.bump();
                         let hi_raw = self.bump().ok_or(())?;
-                        let hi = if hi_raw == '\\' { self.bump().ok_or(())? } else { hi_raw };
+                        let hi = if hi_raw == '\\' { escape_char(self.bump().ok_or(())?) } else { hi_raw };
                         ranges.push((lo, hi));
                     } else {
                         ranges.push((lo, lo));
@@ -304,5 +358,43 @@ impl<'a> Parser<'a> {
             first = false;
         }
         Ok(Node::Class { negate, ranges })
+    }
+}
+
+// Item #4, whole-project table-unification survey — `matches` above had
+// zero unit-test coverage of its own before this, only the exact-wording
+// contract of a handful of real corpus refusals via
+// spec/rust_conformance_spec.rb (refusal_wording_pattern_mismatch.json,
+// added alongside this test). This mirrors what
+// spec/pattern_subset_spec.rb already does for Ruby's own `Regexp`
+// against the SAME recorded contract (`spec/corpus/fixtures/
+// patterns.json`) — one `#[test]` walking every row, not a hand-picked
+// subset, so a change to `matches`'s own dialect can't silently drop
+// coverage of a case nobody thought to re-add. `#[cfg(test)]` only —
+// compiled out of every real build, touches none of the matcher's own
+// hot-path lines above.
+#[cfg(test)]
+mod tests {
+    use super::matches;
+    use crate::kernel::Json;
+
+    #[test]
+    fn matches_every_row_of_the_recorded_pattern_contract() {
+        let raw = include_str!("../../../spec/corpus/fixtures/patterns.json");
+        let parsed = Json::parse(raw).expect("patterns.json must parse");
+        let rows = parsed.as_array().expect("patterns.json must be a JSON array");
+        assert!(!rows.is_empty(), "the recorded contract must not be empty");
+
+        for row in rows {
+            let pattern = row.get("pattern").and_then(Json::as_str).expect("row must carry a pattern");
+            let input = row.get("input").and_then(Json::as_str).expect("row must carry an input");
+            let expected = matches!(row.get("matches"), Some(Json::Bool(true)));
+
+            assert_eq!(
+                matches(pattern, input),
+                expected,
+                "pattern {pattern:?} against {input:?} should match={expected}"
+            );
+        }
     }
 }
