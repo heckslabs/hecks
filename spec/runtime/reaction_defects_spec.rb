@@ -41,12 +41,13 @@ RSpec.describe "a reaction that cannot be delivered" do
   end
 
   def registry_for(policy)
-    bluebook = Struct.new(:policies).new([policy])
+    bluebook = Struct.new(:name, :policies).new("Reflex", [policy])
     Class.new do
       attr_reader :reaction_log
 
       define_method(:initialize) { @reaction_log = [] }
       define_method(:bluebook) { |_domain| bluebook }
+      define_method(:bluebooks) { { "Reflex" => bluebook } }
     end.new
   end
 

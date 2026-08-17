@@ -180,7 +180,14 @@ end
 # to be valid AWS policy (an ARN naming a function that doesn't exist
 # yet just means the call fails with ResourceNotFoundException instead
 # of AccessDeniedException until the target is deployed for real).
-cross_domain_registry = Hecksagain::Runtime::Registry.new
+
+# `root:` — same gap and same fix as bin/project_rust's own
+# target_registry (see that file's own comment): a domain declaring
+# `uses_embryonaut_bluebook` refuses here with "needs a registry with
+# a root to vendor from" without it. This registry builds its own
+# bluebook fresh from `domain`'s own files rather than reusing
+# `target_registry` above, so it needs the identical fix independently.
+cross_domain_registry = Hecksagain::Runtime::Registry.new(root: File.expand_path(domain))
 Hecksagain.with_registry(cross_domain_registry) do
   Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
   Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))

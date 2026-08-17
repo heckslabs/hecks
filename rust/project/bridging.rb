@@ -185,13 +185,56 @@ module RustProjection
     # gap this generator failed to bridge.
     def creation_default_rhs(attr, value_objects_by_name)
       default = attr[:default]
-      return default.is_a?(Hash) ? literal_hash_rhs(default, attr[:type], value_objects_by_name) : literal_rhs(default) unless default.nil?
+      unless default.nil?
+        return literal_rhs(default) unless default.is_a?(Hash)
+
+        # BACKFILLED FROM THE TARGET VO'S OWN PER-FIELD DEFAULTS —
+        # `attribute :refunded_amount, Money, default: { cents: 0 }`
+        # names only `cents`; Money's own `currency` attribute carries
+        # its own `default: "USD"`. Every OTHER caller of
+        # literal_hash_rhs here (mutations.rb x3, bridging.rb's own
+        # `literal_rhs` dispatch) checks literal_hash_bridgeable? first
+        # and takes a different path when it's false; this was the one
+        # caller that called literal_hash_rhs on the raw, possibly-
+        # partial declared default UNCONDITIONALLY — found live,
+        # generating lifeadelics' vendored payments.bluebook, the first
+        # domain in the corpus to declare a Hash default that leans on
+        # its own VO's per-field defaults rather than naming every
+        # field explicitly. Ruby's own runtime (Coercion#build) already
+        # backfills exactly this way at object-construction time; this
+        # brings codegen's compile-time literal to the same completed
+        # shape before handing it to literal_hash_rhs, rather than
+        # inventing a second, parallel completion path.
+        return literal_hash_rhs(complete_hash_default(default, attr[:type], value_objects_by_name), attr[:type], value_objects_by_name)
+      end
 
       vo = value_objects_by_name[attr[:type]]
       return nil unless vo && !vo[:closed_set] && vo[:attributes].all? { |f| !f[:default].nil? }
 
       fields = vo[:attributes].map { |f| "#{rust_ident_field(f[:name])}: #{literal_rhs(f[:default])}" }
       "#{rust_ident(attr[:type])} { #{fields.join(', ')} }"
+    end
+
+    # A field the completed hash still lacks — the ORIGINAL hash didn't
+    # name it AND the target VO's own attribute has no default either —
+    # is left OUT of the returned hash entirely, not set to nil: adding
+    # a `nil`-valued key would satisfy `literal_hash_bridgeable?`/
+    # `literal_hash_rhs`'s own `hash.key?` check and silently emit
+    # `literal_rhs(nil)` for a field that is genuinely, unrecoverably
+    # missing — exactly the gap their own "should have caught this"
+    # guard exists to catch, and must keep catching after this.
+    def complete_hash_default(hash, target_type, value_objects_by_name)
+      vo = value_objects_by_name[target_type]
+      return hash unless vo && !vo[:closed_set]
+
+      vo[:attributes].each_with_object({}) do |field, completed|
+        key = [field[:name].to_sym, field[:name].to_s].find { |k| hash.key?(k) }
+        if key
+          completed[field[:name].to_sym] = hash[key]
+        elsif !field[:default].nil?
+          completed[field[:name].to_sym] = field[:default]
+        end
+      end
     end
   end
 end

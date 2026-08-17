@@ -74,7 +74,19 @@ else
   # ever exercised against the shape its future input actually has.
   def json_shaped(ir) = JSON.parse(JSON.generate(ir), symbolize_names: true)
 
-  target_registry = Hecksagain::Runtime::Registry.new
+  # `root:` — WITHOUT IT, a domain declaring `uses_embryonaut_bluebook`
+  # (lifeadelics is the first real one) refuses here with "needs a
+  # registry with a root to vendor from": EmbryonautBluebook.load!
+  # resolves `<root>/vendor/embryonaut_bluebooks/<name>/bluebook/` off
+  # this registry's own root, same as any other boot
+  # (Runtime::Loader.boot's own `root: File.dirname(directory)`) — this
+  # generator built its own bare registry before vendoring existed as a
+  # feature and was never updated once it did. `domain` itself IS the
+  # root here (not its parent) — a domain's `vendor/` sits directly
+  # inside its own directory (`<domain>/vendor/embryonaut_bluebooks/`),
+  # not beside it the way Runtime::Loader.boot's `directory` (the
+  # nested `bluebook/` subfolder one level down) needs its OWN parent.
+  target_registry = Hecksagain::Runtime::Registry.new(root: File.expand_path(domain))
   Hecksagain.with_registry(target_registry) do
     Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
     Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
