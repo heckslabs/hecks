@@ -2,7 +2,7 @@
 // RefusalWording::TEMPLATES (lib/hecksagain/runtime/refusal_wording.rb).
 // Do not hand-edit — re-run bin/project_refusal_wording instead.
 //
-// ONE VARIANT PER (refusal class, site) PAIR — 39 entries, every
+// ONE VARIANT PER (refusal class, site) PAIR — 42 entries, every
 // one Ruby's own table declares, not a subset picked for whichever Rust
 // call site happens to exist today. See bin/project_refusal_wording's
 // own header for the full argument (ground truth, why the whole table,
@@ -30,6 +30,7 @@
 pub enum RefusalSite {
     NotFoundCreatingNoIdentity,
     AlreadyExistsCreatingDuplicate,
+    AlreadyExistsEntityDuplicate,
     NotFoundActingNoIdentity,
     NotFoundRecordMissing,
     NotFoundEntityParentNoIdentity,
@@ -67,6 +68,8 @@ pub enum RefusalSite {
     InvariantViolationUndeclaredSet,
     UnauthorizedTenantRequired,
     UnauthorizedRoleMismatch,
+    AttributeAbsentAbsentRead,
+    ProjectionAbsentAbsentRead,
 }
 
 impl RefusalSite {
@@ -82,6 +85,7 @@ impl RefusalSite {
         match self {
             RefusalSite::NotFoundCreatingNoIdentity => "{command} creates a {aggregate} — pass {identity}:",
             RefusalSite::AlreadyExistsCreatingDuplicate => "{command} creates a {aggregate} that already exists — {identity} {offered}",
+            RefusalSite::AlreadyExistsEntityDuplicate => "a {entity} already exists on {aggregate} — {identity} {offered}",
             RefusalSite::NotFoundActingNoIdentity => "{command} acts on an existing {aggregate} — pass {identity}:",
             RefusalSite::NotFoundRecordMissing => "no {aggregate} with {identity} {offered}",
             RefusalSite::NotFoundEntityParentNoIdentity => "{command} acts on a {aggregate}'s {entity} — pass {identity}:",
@@ -119,6 +123,8 @@ impl RefusalSite {
             RefusalSite::InvariantViolationUndeclaredSet => "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds",
             RefusalSite::UnauthorizedTenantRequired => "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
             RefusalSite::UnauthorizedRoleMismatch => "{command} refused — role: {role}, and the caller stated {caller_role}",
+            RefusalSite::AttributeAbsentAbsentRead => "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true",
+            RefusalSite::ProjectionAbsentAbsentRead => "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait",
         }
     }
 
@@ -143,7 +149,7 @@ impl RefusalSite {
     /// exact variant directly, so nothing in this crate iterates `ALL`
     /// for dispatch; it exists for the `#[cfg(test)]` block below (and
     /// any future one) to walk the whole table generically.
-    pub const ALL: &'static [RefusalSite] = &[RefusalSite::NotFoundCreatingNoIdentity, RefusalSite::AlreadyExistsCreatingDuplicate, RefusalSite::NotFoundActingNoIdentity, RefusalSite::NotFoundRecordMissing, RefusalSite::NotFoundEntityParentNoIdentity, RefusalSite::UnknownVerbEntityUnknown, RefusalSite::NotFoundEntityElementNoIdentity, RefusalSite::NotFoundEntityElementMissing, RefusalSite::NotFoundReferenceTargetMissing, RefusalSite::NotFoundReadModelReferenceMissing, RefusalSite::TypeMismatchReadModelObjectReference, RefusalSite::UnknownVerbNoQuery, RefusalSite::UnknownVerbEntityQueryMissing, RefusalSite::UnknownVerbEntityHoldsNoList, RefusalSite::UnknownVerbEntityNoCommand, RefusalSite::UnknownVerbAggregateNoCommand, RefusalSite::UnknownVerbPortNoOperation, RefusalSite::UnknownVerbNoDomain, RefusalSite::UnknownVerbNoReadModel, RefusalSite::UnknownVerbNotFullyQualified, RefusalSite::UnknownVerbNoAggregate, RefusalSite::LifecycleRefusedTransitionBlocked, RefusalSite::TypeMismatchValueObjectShape, RefusalSite::TypeMismatchReferenceAsObject, RefusalSite::TypeMismatchMultiFieldScalar, RefusalSite::TypeMismatchCompositeIdentity, RefusalSite::TypeMismatchNumericField, RefusalSite::TypeMismatchPatternMismatch, RefusalSite::TypeMismatchArithmeticAmount, RefusalSite::TypeMismatchArithmeticCurrent, RefusalSite::TypeMismatchArithmeticSharedField, RefusalSite::UnknownArgumentUnknownArgs, RefusalSite::AbsentArgumentAbsentArgs, RefusalSite::InvariantViolationClosedSetMember, RefusalSite::InvariantViolationValueObjectInvariant, RefusalSite::InvariantViolationAdmitsDeclaredSet, RefusalSite::InvariantViolationUndeclaredSet, RefusalSite::UnauthorizedTenantRequired, RefusalSite::UnauthorizedRoleMismatch];
+    pub const ALL: &'static [RefusalSite] = &[RefusalSite::NotFoundCreatingNoIdentity, RefusalSite::AlreadyExistsCreatingDuplicate, RefusalSite::AlreadyExistsEntityDuplicate, RefusalSite::NotFoundActingNoIdentity, RefusalSite::NotFoundRecordMissing, RefusalSite::NotFoundEntityParentNoIdentity, RefusalSite::UnknownVerbEntityUnknown, RefusalSite::NotFoundEntityElementNoIdentity, RefusalSite::NotFoundEntityElementMissing, RefusalSite::NotFoundReferenceTargetMissing, RefusalSite::NotFoundReadModelReferenceMissing, RefusalSite::TypeMismatchReadModelObjectReference, RefusalSite::UnknownVerbNoQuery, RefusalSite::UnknownVerbEntityQueryMissing, RefusalSite::UnknownVerbEntityHoldsNoList, RefusalSite::UnknownVerbEntityNoCommand, RefusalSite::UnknownVerbAggregateNoCommand, RefusalSite::UnknownVerbPortNoOperation, RefusalSite::UnknownVerbNoDomain, RefusalSite::UnknownVerbNoReadModel, RefusalSite::UnknownVerbNotFullyQualified, RefusalSite::UnknownVerbNoAggregate, RefusalSite::LifecycleRefusedTransitionBlocked, RefusalSite::TypeMismatchValueObjectShape, RefusalSite::TypeMismatchReferenceAsObject, RefusalSite::TypeMismatchMultiFieldScalar, RefusalSite::TypeMismatchCompositeIdentity, RefusalSite::TypeMismatchNumericField, RefusalSite::TypeMismatchPatternMismatch, RefusalSite::TypeMismatchArithmeticAmount, RefusalSite::TypeMismatchArithmeticCurrent, RefusalSite::TypeMismatchArithmeticSharedField, RefusalSite::UnknownArgumentUnknownArgs, RefusalSite::AbsentArgumentAbsentArgs, RefusalSite::InvariantViolationClosedSetMember, RefusalSite::InvariantViolationValueObjectInvariant, RefusalSite::InvariantViolationAdmitsDeclaredSet, RefusalSite::InvariantViolationUndeclaredSet, RefusalSite::UnauthorizedTenantRequired, RefusalSite::UnauthorizedRoleMismatch, RefusalSite::AttributeAbsentAbsentRead, RefusalSite::ProjectionAbsentAbsentRead];
 }
 
 #[cfg(test)]
