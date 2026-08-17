@@ -1,9 +1,13 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class ValueObjectBuilder
+        GRAMMAR_CONTEXT = "ValueObject"
+
         include AttributeCollector
         include RuleReference
+        include WordGate
 
         def initialize(name, owner_value_objects: [])
           @name       = name

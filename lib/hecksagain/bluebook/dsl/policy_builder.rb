@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class PolicyBuilder
+        GRAMMAR_CONTEXT = "Policy"
+
+        include WordGate
+
         def initialize(name)
           @name = name
         end

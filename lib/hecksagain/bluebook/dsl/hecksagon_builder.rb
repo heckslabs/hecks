@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class HecksagonBuilder
+        GRAMMAR_CONTEXT = "Hecksagon"
+
+        include WordGate
+
         class << self
           attr_accessor :collector
         end

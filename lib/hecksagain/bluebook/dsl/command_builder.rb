@@ -1,9 +1,13 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class CommandBuilder
+        GRAMMAR_CONTEXT = "Command"
+
         include AttributeCollector
         include RuleReference
+        include WordGate
 
         # Vendored addition, not (yet) upstream hecksagain (migration plan
         # task 4): a sentinel for "this keyword was never passed", distinct

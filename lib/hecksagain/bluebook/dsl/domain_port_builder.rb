@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class DomainPortBuilder
+        GRAMMAR_CONTEXT = "DomainPort"
+
+        include WordGate
+
         def initialize(name, owner: nil)
           @name       = name
           @owner      = owner
