@@ -9,10 +9,10 @@ by `bin/reference` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
-These three words open the three kinds of file a domain is written
-across, so the page declares one small domain in all three — what it
-is, how this deployment stores it, and what values that deployment
-needs:
+These words open the several kinds of file a domain is written
+across, so the page declares one small domain across all of them —
+what it is, how this deployment stores it, what values that
+deployment needs, and one resource door with a real implementation:
 
 ```ruby bluebook
 Hecks.bluebook "FileReference" do
@@ -52,6 +52,11 @@ end
 Hecks.port("dispatch_door") do
   verb   "persisted_by"
   signal :reply
+end
+
+Hecks.adapter("dispatch_memory") do
+  port  "dispatch_door"
+  field :namespace
 end
 ```
 
@@ -137,5 +142,23 @@ Read back off the registry, the same way a world is:
 
 ```ruby
 runtime.registry.ports["dispatch_door"].verb  # => "persisted_by"
+```
+
+## adapter
+
+<!-- generated:begin word=adapter -->
+`adapter name do ... end` — opens a `Adapter` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Opens a `.adapter` file — a real, swappable implementation of one resource port (Memory, Postgres, Sqlite, ...), naming which fields (and which secrets) a world's own wiring for it must supply. A sibling artifact too. See the Adapter reference page for the words inside.
+
+Read back off the registry, the same way a port is:
+
+```ruby
+runtime.registry.adapters["dispatch_memory"].port  # => "dispatch_door"
 ```
 

@@ -1,0 +1,68 @@
+Hecks.bluebook "Adapter" do
+  vision "The .adapter language, declared in itself. An adapter is a real, swappable implementation of one resource port — Memory, Postgres, Sqlite, and the rest — naming which fields (and which secrets) a world's own wiring for it must supply."
+  core
+
+  aggregate "Adapter" do
+    description "One .adapter — a real implementation of one resource port, and the config values a world's own wiring must give it."
+
+    identified_by :name
+
+    attribute :name,    AdapterName
+    attribute :port,    AdapterPortName
+    attribute :fields,  list_of(AdapterField)
+    attribute :secrets, list_of(AdapterField)
+
+    value_object "AdapterName" do
+      attribute :value, String
+      invariant("an adapter names itself") { !value.to_s.empty? }
+    end
+
+    value_object "AdapterPortName" do
+      attribute :value, String
+      invariant("an adapter's port name says something") { !value.to_s.empty? }
+    end
+
+    value_object "AdapterField" do
+      attribute :value, String
+      invariant("a field names itself") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Register a real implementation of one resource port"
+
+      attribute :name, AdapterName
+      # OPTIONAL — real, pre-existing AdapterBuilder behavior (spec/
+      # dsl_spec.rb's own "field names a config value..." and "secret
+      # names one too..." each build an adapter with only `field`/
+      # `secret`, never calling `port` at all).
+      attribute :port, AdapterPortName, optional: true
+
+      emits "AdapterDeclared"
+    end
+
+    command "AddField" do
+      role "Deployment"
+      goal "Name a value this adapter's own world-level wiring must supply"
+
+      reference_to Adapter
+      attribute :value, AdapterField
+
+      sets :fields, append: { value: :value }
+
+      emits "AdapterFieldAdded"
+    end
+
+    command "AddSecret" do
+      role "Deployment"
+      goal "Name a SENSITIVE value this adapter's own world-level wiring must supply, kept apart from plain fields"
+
+      reference_to Adapter
+      attribute :value, AdapterField
+
+      sets :secrets, append: { value: :value }
+
+      emits "AdapterSecretAdded"
+    end
+  end
+end

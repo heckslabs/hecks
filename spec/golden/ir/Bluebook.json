@@ -9168,6 +9168,12 @@
                 "name",
                 "Port"
               ]
+            ],
+            [
+              [
+                "name",
+                "Adapter"
+              ]
             ]
           ],
           "name": "Context"
@@ -9632,6 +9638,32 @@
               [
                 "opens",
                 "Port"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "adapter"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Adapter"
+              ],
+              [
+                "opens",
+                "Adapter"
               ],
               [
                 "fills",
@@ -12272,6 +12304,84 @@
               [
                 "fills",
                 "signal"
+              ]
+            ],
+            [
+              [
+                "word",
+                "port"
+              ],
+              [
+                "context",
+                "Adapter"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "port"
+              ]
+            ],
+            [
+              [
+                "word",
+                "field"
+              ],
+              [
+                "context",
+                "Adapter"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "fields"
+              ]
+            ],
+            [
+              [
+                "word",
+                "secret"
+              ],
+              [
+                "context",
+                "Adapter"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "secrets"
               ]
             ]
           ],
@@ -17822,6 +17932,126 @@
               [
                 "fills",
                 "signal"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "adapter"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "port"
+              ],
+              [
+                "context",
+                "Adapter"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "port"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "field"
+              ],
+              [
+                "context",
+                "Adapter"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "fields"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "secret"
+              ],
+              [
+                "context",
+                "Adapter"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "secrets"
               ]
             ]
           ],

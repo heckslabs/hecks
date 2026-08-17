@@ -86,7 +86,7 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String,
                 one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
                          "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon",
-                         "World", "DomainPort", "PortOperation", "Port"]
+                         "World", "DomainPort", "PortOperation", "Port", "Adapter"]
     end
 
     # WHAT A WORD'S BLOCK IS, and the three answers are genuinely different
@@ -284,16 +284,17 @@ Hecks.bluebook "Bluebook" do
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
 
-      # `.port` — a SIBLING ARTIFACT too (own file extension, own builder,
-      # own load step, same as `hecksagon`/`world`), and unlike those two
-      # its own inner vocabulary (verb/signal) IS fully self-hosted now:
-      # port.bluebook declares a real `Port` aggregate, and PortJudge
-      # (mirroring WorldJudge) dispatches every built .port into it.
-      # `.adapter`/`.translation` stay excluded (see NOT_A_WORD, spec/
-      # syntax_conformance_spec.rb) until their own slices land the same
-      # way. Whole-project table-unification survey, item #13's remaining
-      # builders.
+      # `.port`/`.adapter` — SIBLING ARTIFACTS too (own file extension, own
+      # builder, own load step, same as `hecksagon`/`world`), and unlike
+      # those two their own inner vocabulary IS fully self-hosted now:
+      # port.bluebook/adapter.bluebook each declare a real aggregate, and
+      # PortJudge/AdapterJudge (mirroring WorldJudge) dispatch every built
+      # .port/.adapter into them. `.translation` stays excluded (see
+      # NOT_A_WORD, spec/syntax_conformance_spec.rb) until its own slice
+      # lands the same way. Whole-project table-unification survey, item
+      # #13's remaining builders.
       member word: "port",            context: "File",     body: "keywords", inner: "Port",           opens: "Port",           fills: ""
+      member word: "adapter",         context: "File",     body: "keywords", inner: "Adapter",        opens: "Adapter",        fills: ""
 
       member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
       member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
@@ -650,6 +651,17 @@ Hecks.bluebook "Bluebook" do
       # collision).
       member word: "verb",            context: "Port",      body: "none", inner: "", opens: "", fills: "verb"
       member word: "signal",          context: "Port",      body: "none", inner: "", opens: "", fills: "signal"
+
+      # `.adapter`'s OWN three words — AdapterBuilder, read directly.
+      # `field`/`secret` are each called ONCE PER value (`field :a` then
+      # `field :b`, two separate calls, not one call with several
+      # positional args) — the same repeatable-word shape every other
+      # accumulating word in this language already has (`given`,
+      # `attribute`, ...), not the `identified_by`-style single-call
+      # `variadic: "true"` shape.
+      member word: "port",            context: "Adapter",   body: "none", inner: "", opens: "", fills: "port"
+      member word: "field",           context: "Adapter",   body: "none", inner: "", opens: "", fills: "fields"
+      member word: "secret",          context: "Adapter",   body: "none", inner: "", opens: "", fills: "secrets"
     end
 
     # WHAT EACH WORD TAKES.
@@ -1131,6 +1143,17 @@ Hecks.bluebook "Bluebook" do
       # argument already uses above.
       member keyword: "verb",            context: "Port", at: "1", named: "", kind: "text",   required: "true", fills: "verb"
       member keyword: "signal",          context: "Port", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
+
+      # `.adapter`'s own entry-point argument — AdapterBuilder.build(name,
+      # &block), read directly.
+      member keyword: "adapter",         context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
+
+      # `.adapter`'s OWN three words. `port`'s own argument is text
+      # (`@port = value.to_s`); `field`/`secret`'s own are symbols
+      # (`@fields << name.to_sym` / `@secrets << name.to_sym`).
+      member keyword: "port",            context: "Adapter", at: "1", named: "", kind: "text",   required: "true", fills: "port"
+      member keyword: "field",           context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "fields"
+      member keyword: "secret",          context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "secrets"
     end
 
     # S14, ADR 0026 — "`Status` becomes a real `lifecycle` with declared

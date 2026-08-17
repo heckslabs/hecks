@@ -48,7 +48,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # ARE `Hecks.port "..." do verb "..." ; signal :... end` calls.
     # Whole-project table-unification survey, item #13's remaining
     # builders.
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports", "*.port")
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports", "*.port"),
+    # `.adapter` — same reasoning, one artifact over: 6+ real, non-
+    # synthetic driven adapters (Memory, Postgres, Sqlite, D1, ...).
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven", "*.adapter")
   ].freeze
 
   def corpus_files
