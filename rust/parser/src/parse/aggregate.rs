@@ -71,11 +71,24 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// "in-between" scope to check first — an aggregate is not nested inside
 /// anything else `given` could mean here — so, unlike the command-level
 /// version, there is only ONE pool to check: `chapter_named_givens`.
+///
+/// KEYED BY (owner name, `Given`) PAIRS, not a flat `Given` list — a
+/// SECOND aggregate can independently declare the SAME description under
+/// a genuinely DIFFERENT canonical (real corpus: `Account`'s own
+/// "customer is active" reads bare `customer.status`; `ATMCard`'s own
+/// reads `account.customer.status`, reached through `Account`), so this
+/// mirrors `AggregateBuilder#given`'s own Ruby-side `declared_by:`
+/// disambiguation (`docs/resolution-rules/chapter-given.md`) rather than
+/// the earlier single-candidate-only shape: an OPTIONAL `declared_by:
+/// SomeAggregate` argument picks the exact owner when more than one
+/// candidate is registered under the same description; omitted, it
+/// resolves only when EXACTLY one candidate exists — never guesses among
+/// several.
 fn try_reference_named_chapter_given(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
-    chapter_named_givens: &[ir::Given],
+    chapter_named_givens: &[(String, ir::Given)],
 ) -> ParseResult<Option<ir::Given>> {
     let Some(&line) = lines.get(*pos) else { return Ok(None) };
     let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
@@ -85,21 +98,58 @@ fn try_reference_named_chapter_given(
 
     let args = super::argument_gate(file, "given", "Aggregate", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "given", &args, 1)?;
-    let resolved = chapter_named_givens
+    let declared_by = super::named_raw(&args, "declared_by").map(|raw| naming::demodulise(raw.trim()));
+
+    let candidates: Vec<&(String, ir::Given)> = chapter_named_givens
         .iter()
-        .find(|given| given.description.as_deref() == Some(description.as_str()))
-        .cloned()
-        .ok_or_else(|| {
-            Diagnostic::new(
-                file,
-                line.number,
-                format!(
-                    "'{description}' names no precondition any aggregate in this chapter has \
-                     declared yet — declare it once with a block, before the aggregates that \
-                     reference it"
-                ),
-            )
-        })?;
+        .filter(|(_, given)| given.description.as_deref() == Some(description.as_str()))
+        .collect();
+
+    let resolved = if let Some(owner) = declared_by {
+        candidates
+            .iter()
+            .find(|(candidate_owner, _)| candidate_owner == &owner)
+            .map(|(_, given)| given.clone())
+            .ok_or_else(|| {
+                Diagnostic::new(
+                    file,
+                    line.number,
+                    format!(
+                        "'{description}' names no precondition {owner} declares in this chapter \
+                         — {owner} either hasn't declared '{description}', or declared_by: named \
+                         the wrong aggregate"
+                    ),
+                )
+            })?
+    } else {
+        match candidates.as_slice() {
+            [] => {
+                return Err(Diagnostic::new(
+                    file,
+                    line.number,
+                    format!(
+                        "'{description}' names no precondition any aggregate in this chapter has \
+                         declared yet — declare it once with a block, before the aggregates that \
+                         reference it"
+                    ),
+                ))
+            }
+            [(_, given)] => given.clone(),
+            _ => {
+                let owners: Vec<&str> = candidates.iter().map(|(owner, _)| owner.as_str()).collect();
+                return Err(Diagnostic::new(
+                    file,
+                    line.number,
+                    format!(
+                        "'{description}' is ambiguous in this chapter — {} each declare a \
+                         DIFFERENT predicate under this same description; name which one with \
+                         declared_by:",
+                        owners.join(", ")
+                    ),
+                ));
+            }
+        }
+    };
 
     *pos += 1;
     Ok(Some(resolved))
@@ -110,7 +160,7 @@ pub fn parse_body(
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
-    chapter_named_givens: &mut Vec<ir::Given>,
+    chapter_named_givens: &mut Vec<(String, ir::Given)>,
 ) -> ParseResult<(ir::Aggregate, Vec<ir::Policy>)> {
     let mut aggregate = ir::Aggregate { name: name.to_string(), ..Default::default() };
     let mut pending_identity: Option<super::PendingIdentity> = None;
@@ -245,13 +295,23 @@ pub fn parse_body(
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
                 let built = ir::Given { description: Some(description.clone()), canonical: canonical::apply(&raw) };
                 aggregate.preconditions.push(built.clone());
-                // WRITE-THROUGH, first-declared-wins — mirrors `entity::
-                // parse_body`'s own identical write-through to ITS pool,
-                // one level up (Rust has no `Hash#||=`, so this checks
-                // "no existing entry with this description" before
-                // pushing).
-                if !chapter_named_givens.iter().any(|g| g.description.as_deref() == Some(description.as_str())) {
-                    chapter_named_givens.push(built);
+                // WRITE-THROUGH, first-declared-wins PER OWNER — keyed
+                // by (description, this aggregate's own name), not
+                // description alone (Ruby's own `pool[description]
+                // [owner_name] ||=`, one Rust `Vec<(owner, Given)>` pair
+                // standing in for that nested Hash — Rust has no
+                // `Hash#||=`, so this checks "no existing entry for THIS
+                // exact [description, owner] pair" before pushing). A
+                // DIFFERENT owner independently declaring the identical
+                // description registers its OWN entry alongside, never
+                // overwriting another owner's — see
+                // `try_reference_named_chapter_given`'s own header for
+                // why (the real corpus case this disambiguates).
+                if !chapter_named_givens
+                    .iter()
+                    .any(|(owner, g)| owner == name && g.description.as_deref() == Some(description.as_str()))
+                {
+                    chapter_named_givens.push((name.to_string(), built));
                 }
             }
             // A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR
