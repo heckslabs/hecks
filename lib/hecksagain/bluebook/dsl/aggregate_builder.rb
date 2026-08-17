@@ -382,7 +382,7 @@ module Hecksagain
         def drain_pending!
           @entities = @pending_entities.map do |name, block|
             EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets,
-                                       owner_named_givens: @entity_named_givens, &block)
+                                      owner_named_givens:  @entity_named_givens, &block)
           end
 
           @commands = @pending_commands.map do |name, from, block|
