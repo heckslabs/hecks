@@ -1,0 +1,9 @@
+{
+  "domain": "examples/banking",
+  "note": "InvariantViolation/admits_declared_set — the OTHER door from refusal_wording_closed_set_member.json (that fixture's own value_object's own one_of-declared field; this one is a command/entity-command argument's own usage-level `admits:` declaration, ExternalTransfer.direction: `attribute :direction, MovementDirection, admits: \"Account::LedgerDirection\"`). Item #4, whole-project table-unification survey — added because no rust_conformance fixture exercised this specific check end-to-end (verified live via Hecksagain::Fuzzing::Replay before this fixture existed: Ruby says 'direction admits Account::LedgerDirection — \"credit\", \"debit\" — got \"bogus\"'). Register a customer, open their account, then request an external transfer with a direction value neither \"credit\" nor \"debit\" admits.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"customer": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}}},
+    {"verb": "Banking::ExternalTransfer.Request", "args": {"account": "acct-1", "end_to_end": {"value": "e2e-1"}, "amount": {"cents": 500}, "beneficiary": {"value": "Bob"}, "direction": {"value": "bogus"}}}
+  ]
+}

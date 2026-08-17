@@ -1,0 +1,9 @@
+{
+  "domain": "examples/banking",
+  "note": "TypeMismatch/pattern_mismatch — a command argument's own `pattern:`-bearing field (ExternalTransfer.EndToEndReference: `attribute :value, String, pattern: '[^ \\t\\n\\r]'`). Item #4, whole-project table-unification survey — added because no rust_conformance fixture exercised this specific check end-to-end, even though rust/src/kernel/pattern.rs (the hand-written matcher backing every generated pattern: call site) had zero prior real-dispatch coverage in this corpus (verified live via Hecksagain::Fuzzing::Replay before this fixture existed: Ruby says 'EndToEndReference.value must match [^ \\t\\n\\r], got \"   \"'). Register a customer, open their account, then request an external transfer with a whitespace-only end_to_end reference.",
+  "steps": [
+    {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
+    {"verb": "Banking::Account.Open", "args": {"customer": "cust-1", "number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}}},
+    {"verb": "Banking::ExternalTransfer.Request", "args": {"account": "acct-1", "end_to_end": {"value": "   "}, "amount": {"cents": 500}, "beneficiary": {"value": "Bob"}, "direction": {"value": "credit"}}}
+  ]
+}
