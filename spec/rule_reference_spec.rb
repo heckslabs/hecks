@@ -18,13 +18,35 @@ RSpec.describe "Hecksagain::Bluebook::DSL::RuleReference" do
     end
   end
 
-  describe "RESOLUTION_RULES" do
-    it "names a primitive every entry actually is" do
-      known = %i[hash_chain owner_keyed sibling_scan]
+  describe "#lookup" do
+    def known_primitives = %w[hash_chain owner_keyed sibling_scan]
 
-      Hecksagain::Bluebook::DSL::RuleReference::RESOLUTION_RULES.each_value do |rule|
-        expect(known).to include(rule[:primitive])
+    it "reads the REAL self-hosted table (Keyword#resolves_via) once bootstrapping is done, " \
+       "the same generated data rust/parser/src/keywords.rs is generated from" do
+      table = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+      populated = table.reject { |row| row[:resolves_via].to_s == "" }
+
+      expect(populated).not_to be_empty
+      populated.each { |row| expect(known_primitives).to include(row[:resolves_via]) }
+    end
+
+    it "names a primitive every BOOTSTRAP_FALLBACK entry actually is — the ONE window " \
+       "(MetaValidator.bootstrapping?) where the real table cannot be read yet" do
+      Hecksagain::Bluebook::DSL::RuleReference::BOOTSTRAP_FALLBACK.each_value do |rule|
+        expect(known_primitives).to include(rule[:resolves_via])
       end
+    end
+  end
+
+  describe "#verify_resolves_via!" do
+    it "raises when the grammar table disagrees with what a builder is about to do" do
+      Hecksagain::Bluebook::MetaValidator.grammar_registry # ensure bootstrapping is over
+
+      expect(Hecksagain::Bluebook::MetaValidator.bootstrapping?).to be(false)
+      expect { Hecksagain::Bluebook::DSL::RuleReference.verify_resolves_via!("given", "Aggregate", "hash_chain") }
+        .to raise_error(/the grammar table and the implementation have drifted/)
+      expect { Hecksagain::Bluebook::DSL::RuleReference.verify_resolves_via!("given", "Aggregate", "owner_keyed") }
+        .not_to raise_error
     end
   end
 

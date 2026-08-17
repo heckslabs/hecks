@@ -97,6 +97,7 @@ module Hecksagain
         # PRIMITIVE 3 (RuleReference#resolve_sibling_scan) — see that
         # method's own comment for why this is a live scan, not a pool.
         def reference_named_invariant(description)
+          verify_resolves_via!("invariant", "ValueObject", "sibling_scan")
           named = resolve_sibling_scan(@owner_value_objects, description, reader: :invariants) ||
                   raise(Malformed,
                         "#{@name}'s invariant #{description.inspect} names no rule a sibling value " \

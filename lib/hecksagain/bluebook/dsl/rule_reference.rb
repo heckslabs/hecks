@@ -19,17 +19,20 @@ module Hecksagain
       # multi-pool fallback CHAIN; ONE pool keyed by declaring OWNER,
       # needing disambiguation; a LIVE SCAN over already-built sibling
       # objects with no separate pool at all) — forcing them into one
-      # shape would be a real behavior change (see RESOLUTION_RULES,
-      # below, for which construct uses which), not the pure internal
-      # refactor this module is. `build_rule` is the one piece that WAS
-      # genuinely identical across all 7 declaring methods (`given`×3,
+      # shape would be a real behavior change (see `#lookup`, below, for
+      # which construct uses which), not the pure internal refactor this
+      # module is. `build_rule` is the one piece that WAS genuinely
+      # identical across all 7 declaring methods (`given`×3,
       # `invariant`×3, `ensures`×1) before this file existed — extract
       # predicate source, refuse if extraction failed, build the struct.
       #
-      # spec/rule_reference_spec.rb cross-checks RESOLUTION_RULES against
-      # what each builder's own method actually calls, the same
-      # generator-and-gate-read-one-source discipline
-      # `Assembly::Contracts` already holds itself to on the read side.
+      # `#lookup`/`#verify_resolves_via!` read WHICH construct uses which
+      # primitive off the self-hosted grammar table itself
+      # (`Keyword#resolves_via`, `syntax.bluebook`) — not a Ruby-only
+      # Hash cross-checked afterward (this file's OWN earlier shape, one
+      # round ago) — so a real domain's own boot, not just `bundle exec
+      # rspec`, fails loudly the moment the table and this file's own
+      # hand-written resolution methods disagree.
       module RuleReference
         module_function
 
@@ -100,22 +103,69 @@ module Hecksagain
                   .find { |rule| rule.description == description }
         end
 
-        # WHICH CONSTRUCT USES WHICH PRIMITIVE — documentation AND a real
-        # cross-checked table (spec/rule_reference_spec.rb), not just a
-        # comment. `pools`/`pool`/`siblings` name the INSTANCE VARIABLE(s)
-        # the primitive is called against, for the spec's own reflection
-        # to verify against; they are not read live by anything at
-        # runtime — each builder's own method still calls the primitive
-        # directly, with its own local `@ivar`s, exactly the way any
-        # other Ruby method call to a shared module method works.
-        RESOLUTION_RULES = {
-          "Command"     => { kind: "given", primitive: :hash_chain,
-                              pools: %i[@named_givens @entity_shared_givens] },
-          "Aggregate"   => { kind: "given", primitive: :owner_keyed,
-                              pool: :@chapter_named_givens, disambiguator: :declared_by },
-          "ValueObject" => { kind: "invariant", primitive: :sibling_scan,
-                              siblings: :@owner_value_objects, reader: :invariants }
+        # WHICH CONSTRUCT USES WHICH PRIMITIVE — no longer a Ruby-only
+        # Hash (that WAS this constant's own shape, one round ago): the
+        # user's own correction — "my goal is that if they read the same
+        # table they behave identically" — means a table only Ruby ever
+        # reads cannot deliver that, no matter how faithfully it is
+        # cross-checked afterward. `Keyword#resolves_via`/`#disambiguator`
+        # (self-hosted, `syntax.bluebook`) is the REAL table now — the
+        # SAME generated data `rust/parser/src/keywords.rs` is generated
+        # from (`bin/project_parser_table`). `#lookup` reads it live.
+        #
+        # THE ONE UNAVOIDABLE EXCEPTION: the meta-domain's own bootstrap
+        # (`MetaValidator.load_grammar_into`) dispatches `given`/
+        # `invariant` on ITSELF 61 times while building the very grammar
+        # table that would answer "how does given/Aggregate resolve" —
+        # `MetaValidator.grammar_registry`/`SyntaxBoot.call` are not
+        # ready yet, and cannot be made ready without ALREADY having
+        # resolved a `given` somewhere upstream. `MetaValidator.
+        # bootstrapping?` is the SAME guard `MetaValidator.call` (the
+        # judge) already uses to skip self-judging during this exact
+        # window — `#lookup` uses it too, falling back to
+        # `BOOTSTRAP_FALLBACK` (below) ONLY while it's true. Every REAL
+        # domain (banking, pizzas, compliance, any future one) boots
+        # AFTER `grammar_registry` is fully built and memoized, so reads
+        # the real table, every time, no exception.
+        BOOTSTRAP_FALLBACK = {
+          %w[given Aggregate]       => { resolves_via: "owner_keyed", disambiguator: "declared_by" },
+          %w[given Command]         => { resolves_via: "hash_chain" },
+          %w[invariant ValueObject] => { resolves_via: "sibling_scan" }
         }.freeze
+
+        def lookup(word, context)
+          if MetaValidator.bootstrapping?
+            BOOTSTRAP_FALLBACK[[word, context]] || {}
+          else
+            row = MetaValidator::SyntaxBoot.call[:keywords]
+                                           .find { |r| r[:word] == word && r[:context] == context }
+            return {} unless row
+
+            { resolves_via: row[:resolves_via], disambiguator: row[:disambiguator] }
+              .transform_values { |value| value.to_s.empty? ? nil : value }
+          end
+        end
+
+        # A LIVE CROSS-CHECK, not a spec-only one — every REAL domain's
+        # own boot (not just `bundle exec rspec`) now genuinely fails
+        # loudly if a construct's own hand-written resolution method
+        # ever disagrees with what the self-hosted grammar table claims
+        # for it. Each of the three `reference_named_*` methods below
+        # calls this FIRST, naming the primitive it is ABOUT to use —
+        # if `syntax.bluebook`'s own `resolves_via` for this exact
+        # (word, context) pair ever names something else, this is a
+        # real drift between the language's own self-description and
+        # its own implementation, caught at the next boot of ANYTHING,
+        # not just the next `rspec` run.
+        def verify_resolves_via!(word, context, expected_primitive)
+          actual = lookup(word, context)[:resolves_via]
+          return if actual == expected_primitive
+
+          raise "internal: syntax.bluebook says #{word}/#{context} resolves via " \
+                "#{actual.inspect}, but #{word}'s own Ruby builder is about to use " \
+                "#{expected_primitive.inspect} — the grammar table and the " \
+                "implementation have drifted"
+        end
       end
     end
   end
