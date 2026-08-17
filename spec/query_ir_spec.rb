@@ -108,6 +108,53 @@ RSpec.describe Hecksagain::QueryIR do
     end
   end
 
+  describe ".impact_preview" do
+    it "reports a fully-propagated field's real touchpoints all present — Aggregate#preconditions" do
+      preview = described_class.impact_preview("Aggregate", "preconditions")
+
+      expect(preview[:name]).to eq("Aggregate")
+      expect(preview[:field]).to eq("preconditions")
+      by_touchpoint = preview[:touchpoints].to_h { |t| [t[:touchpoint], t[:present]] }
+      expect(by_touchpoint.values).to all(eq(true))
+      expect(by_touchpoint.keys).to include("meta-domain grammar declares it", "Reconstruction's hand-typed method reads it")
+    end
+
+    it "reports a field that names nothing real as absent everywhere it applies" do
+      preview = described_class.impact_preview("Aggregate", "totally_unclaimed_field_name")
+      applicable = preview[:touchpoints].reject { |t| t[:present].nil? }
+
+      expect(applicable).not_to be_empty
+      expect(applicable).to all(include(present: false))
+    end
+
+    # Reconstruction's hand-typed aggregate(row)/entity(row) are the
+    # ONLY two — every other construct genuinely has no method for this
+    # touchpoint to ask about, so it must read `nil` ("does not apply"),
+    # never collapse into `false` ("not done yet") — those mean
+    # different things to someone reading this mid-round.
+    it "reports Reconstruction's touchpoint as not-applicable (nil), not false, for a construct with no hand-typed method" do
+      preview = described_class.impact_preview("Command", "givens")
+      reconstruction = preview[:touchpoints].find { |t| t[:touchpoint] == "Reconstruction's hand-typed method reads it" }
+
+      expect(reconstruction[:present]).to be_nil
+    end
+
+    it "refuses a construct the language does not declare" do
+      expect { described_class.impact_preview("Nonsense", "field") }.to raise_error(ArgumentError, /no such construct/)
+    end
+  end
+
+  describe ".format_impact_preview" do
+    it "renders yes/NOT YET/n/a and a summary count of applicable touchpoints only" do
+      text = described_class.format_impact_preview(described_class.impact_preview("Command", "givens"))
+
+      expect(text).to include("== Command#givens ==")
+      expect(text).to match(/\[\s*yes\]/)
+      expect(text).to match(/\[\s*n\/a\]/)
+      expect(text).to match(%r{\d+/\d+ applicable touchpoint\(s\)})
+    end
+  end
+
   describe ".format_constructs" do
     it "renders a clean diff without a MISSING/UNACCOUNTED line" do
       text = described_class.format_constructs(described_class.constructs(["Entity"]))

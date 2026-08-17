@@ -26,6 +26,13 @@
 #     default), grouped by (kind, description, canonical), reporting
 #     every group with more than one independently-declared rule.
 #
+#   bin/query_ir impact Name field
+#     The six propagation touchpoints .claude/skills/bluebook-
+#     construct-creator/SKILL.md walks in prose, checked structurally
+#     for one construct/field pair — which ones already show signs of
+#     it, which don't. Advisory, not a gate (see the doc comment on
+#     Hecksagain::QueryIR.impact_preview for what a NOT YET can mean).
+#
 # Boots the lightweight way (Hecksagain::Codemod's own path) — no live
 # Postgres needed for a Postgres-backed domain like compliance.
 
@@ -47,15 +54,30 @@ def run_duplicates(args)
   puts Hecksagain::QueryIR.format_duplicates(Hecksagain::QueryIR.duplicates(domains: domains, include_meta: use_meta))
 end
 
+def run_impact(args)
+  name, field = args
+  unless name && field
+    warn "usage: bin/query_ir impact Name field"
+    exit 1
+  end
+
+  puts Hecksagain::QueryIR.format_impact_preview(Hecksagain::QueryIR.impact_preview(name, field))
+rescue ArgumentError => e
+  warn e.message
+  exit 1
+end
+
 command = ARGV.shift
 case command
 when "constructs" then run_constructs(ARGV)
 when "duplicates" then run_duplicates(ARGV)
+when "impact"     then run_impact(ARGV)
 else
   warn <<~USAGE
     Usage:
       bin/query_ir constructs [Name ...]
       bin/query_ir duplicates [--meta] [domain_dir ...]
+      bin/query_ir impact Name field
   USAGE
   exit 1
 end

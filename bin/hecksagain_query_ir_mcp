@@ -55,6 +55,24 @@ TOOLS = [
         }
       }
     }
+  },
+  {
+    name: "query_ir_impact",
+    description: "For one construct/field pair, which of the six propagation touchpoints .claude/skills/bluebook-construct-creator/SKILL.md walks in prose already show signs of it, and which don't: the meta-domain grammar, docs/resolution-rules/, Assembly::Contracts, Reconstruction's hand-typed aggregate(row)/entity(row) (only applicable to Aggregate/Entity), the fuzzer's FEATURE_COVERAGE/GUARANTEED_BY_CONSTRUCTION, and the Rust mirror. Advisory, not a gate — use mid-round to see what's left, or as a pre-commit sanity check.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "Construct name (e.g. \"Aggregate\")."
+        },
+        field: {
+          type: "string",
+          description: "The field name to check (e.g. \"preconditions\")."
+        }
+      },
+      required: %w[name field]
+    }
   }
 ].freeze
 
@@ -71,6 +89,8 @@ def call_tool(name, arguments)
     domains = arguments["domains"] && !arguments["domains"].empty? ? arguments["domains"] : nil
     include_meta = arguments.fetch("include_meta", true)
     tool_result(Hecksagain::QueryIR.format_duplicates(Hecksagain::QueryIR.duplicates(domains: domains, include_meta: include_meta)))
+  when "query_ir_impact"
+    tool_result(Hecksagain::QueryIR.format_impact_preview(Hecksagain::QueryIR.impact_preview(arguments["name"], arguments["field"])))
   else
     tool_result("no such tool: #{name.inspect} — known: #{TOOLS.map { |t| t[:name] }.join(', ')}", error: true)
   end
