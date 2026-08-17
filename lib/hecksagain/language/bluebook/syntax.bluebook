@@ -786,6 +786,13 @@ Hecks.bluebook "Bluebook" do
       # (the `at: "1"` row alone, no `required` on a block it never
       # takes) when it names one of THESE back instead.
       member keyword: "given",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # DISAMBIGUATES a chapter-wide bare reference when the SAME
+      # description means two genuinely different predicates across
+      # sibling aggregates (`docs/resolution-rules/chapter-given.md`)
+      # — never read into any stored IR field itself (a `Given`'s own
+      # shape is unchanged), purely a declare-time lookup key, the
+      # reason `fills:` names itself rather than a real attribute.
+      member keyword: "given",           context: "Aggregate", at: "",  named: "declared_by", kind: "constant", required: "false", fills: "declared_by"
       # S12, ADR 0025 — `projects :customer_status, from:
       # :"customer.status"`. The positional name is a symbol the same
       # way `attribute`'s own is (line above, one level up); `from:` is

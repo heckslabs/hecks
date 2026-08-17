@@ -939,8 +939,11 @@ Hecks.bluebook "Banking", version: "v1" do
     given("payment is disputed") { status == "disputed" }
     given("payment is captured") { status == "captured" }
     given("payment is authorized") { status == "authorized" }
-    given("account is open") { account.status == "open" }
-    given("customer is active") { account.customer.status == "active" }
+    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — `ATMCard`'s
+    # own declaration; `declared_by:` required since `Account`'s own
+    # "customer is active" is a genuinely different canonical.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
     description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
 
     reference_to Account
@@ -1090,8 +1093,14 @@ Hecks.bluebook "Banking", version: "v1" do
 
   aggregate "ExternalTransfer" do
     given("transfer is sent") { status == "sent" }
-    given("account is open") { account.status == "open" }
-    given("customer is active") { account.customer.status == "active" }
+    # REFERENCED, NOT REDECLARED — see `CardPayment`'s own comment on
+    # this same reference.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
+    # `Transfer`'s own declaration — unambiguous chapter-wide (no
+    # OTHER aggregate declares a different canonical under this
+    # description), so no declared_by: needed.
+    given("transfer is requested")
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 
     reference_to Account
@@ -1149,7 +1158,7 @@ Hecks.bluebook "Banking", version: "v1" do
       reference_to ExternalTransfer
       given("customer is active")
       given("account is open")
-      given("transfer is requested") { status == "requested" }
+      given("transfer is requested")
       emits "ExternalTransferSent"
     end
 
@@ -1177,8 +1186,10 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "ScheduledPayment" do
     given("payment is failed") { status == "failed" }
     given("payment is scheduled") { status == "scheduled" }
-    given("account is open") { account.status == "open" }
-    given("customer is active") { account.customer.status == "active" }
+    # REFERENCED, NOT REDECLARED — see `CardPayment`'s own comment on
+    # this same reference.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
     description "An instruction held for a future date, which may execute once or be cancelled before it does."
 
     reference_to Account
@@ -1329,7 +1340,10 @@ Hecks.bluebook "Banking", version: "v1" do
     # REFERENCED, NOT REDECLARED (chapter-wide sharing) — `Account`'s
     # own declaration, above, since both hold a DIRECT
     # `reference_to Customer` and so resolve the identical predicate.
-    given("customer is active")
+    # `declared_by:` now required — `ATMCard`'s own, textually
+    # different "customer is active" (reached through Account, not
+    # Customer directly) also shares this chapter's own pool.
+    given("customer is active", declared_by: Account)
     description "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face."
 
     reference_to Customer
@@ -1566,8 +1580,9 @@ Hecks.bluebook "Banking", version: "v1" do
   aggregate "OnboardingCase" do
     given("case is screening") { status == "screening" }
     # REFERENCED, NOT REDECLARED (chapter-wide sharing) — see
-    # `SafeDepositBox`'s own comment on this same reference.
-    given("customer is active")
+    # `SafeDepositBox`'s own comment on this same reference and on why
+    # `declared_by:` is required.
+    given("customer is active", declared_by: Account)
     description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
 
     # `reference_to` mints `customer`, no `_id` suffix (ADR 0025) — the
@@ -1639,6 +1654,11 @@ Hecks.bluebook "Banking", version: "v1" do
   end
 
   aggregate "Statement" do
+    # REFERENCED, NOT REDECLARED — `ATMCard`'s own declaration,
+    # shared chapter-wide; `declared_by:` required since `Account`'s
+    # own "customer is active" is a genuinely different canonical.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
     description "A snapshot of one account's activity over one period, generated once and never revised."
 
     reference_to Account
@@ -1705,8 +1725,8 @@ Hecks.bluebook "Banking", version: "v1" do
       attribute :closing_balance, StatementAmount
       attribute :generated_on,    StatementDate
       attribute :frequency,       StatementFrequency
-      given("customer is active") { account.customer.status == "active" }
-      given("account is open") { account.status == "open" }
+      given("customer is active")
+      given("account is open")
 
       emits "StatementGenerated"
     end

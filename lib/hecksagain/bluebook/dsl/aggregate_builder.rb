@@ -241,8 +241,25 @@ module Hecksagain
         # canonical predicate applies — this mechanism does not, and
         # cannot, check that itself; see that doc for which real corpus
         # cases do and do not qualify).
-        def given(description, &predicate)
-          return reference_named_chapter_given(description) unless predicate
+        #
+        # `declared_by:` DISAMBIGUATES the same description meaning TWO
+        # genuinely different predicates chapter-wide — real, live:
+        # `Account`'s own "customer is active" reads bare
+        # `customer.status` (a DIRECT `reference_to Customer`); `ATMCard`'s
+        # own (shared onward with `CardPayment`/`ExternalTransfer`/
+        # `ScheduledPayment`/`Statement`) reads `account.customer.status`
+        # (reached THROUGH `Account`) — the identical business fact, a
+        # genuinely different runtime path, correctly kept as the SAME
+        # domain wording rather than invented a second spelling for "the
+        # same idea, one more hop away" (S10, ADR 0025's own "one idea,
+        # one spelling"). Omit it when the description is unambiguous
+        # chapter-wide (the common case, and the ONLY case this took
+        # before this parameter existed) — required only once a SECOND,
+        # textually-different canonical registers under the same
+        # description; see `reference_named_chapter_given`'s own
+        # ambiguity error for how that surfaces.
+        def given(description, declared_by: nil, &predicate)
+          return reference_named_chapter_given(description, declared_by: declared_by) unless predicate
 
           canonical = Ports::Extraction.canonical(predicate)
 
@@ -255,23 +272,45 @@ module Hecksagain
 
           named = Given.new(description: description, canonical: canonical, predicate: predicate)
           @named_givens[description] = named
-          # WRITE-THROUGH, first-declared-wins — the SAME `||=` shape
-          # `EntityBuilder#given`'s own write-through to ITS owner
-          # already uses, one level wider: whichever aggregate in this
-          # chapter declares a description FIRST is the one every
-          # later sibling's bare reference resolves to.
-          @chapter_named_givens[description] ||= named
+          # WRITE-THROUGH, first-declared-wins PER OWNER — keyed by
+          # [description, this aggregate's own name], not description
+          # alone: two DIFFERENT aggregates independently declaring the
+          # SAME description are two DISTINCT candidates a later bare
+          # reference chooses between (via `declared_by:` once there is
+          # more than one), never silently merged into one slot the way
+          # a bare description-only key would.
+          @chapter_named_givens[description] ||= {}
+          @chapter_named_givens[description][@name] ||= named
         end
 
         private
 
-        def reference_named_chapter_given(description)
-          named = @chapter_named_givens[description] ||
-                  raise(Malformed,
-                        "#{@name}'s given #{description.inspect} names no precondition " \
-                        "any aggregate in this chapter has declared yet — declare it once " \
-                        "with a block (some aggregate's own given(#{description.inspect}) " \
-                        "{ ... }), before the aggregates that reference it")
+        def reference_named_chapter_given(description, declared_by:)
+          candidates = @chapter_named_givens[description] || {}
+
+          named =
+            if declared_by
+              owner = Naming.demodulise(declared_by)
+              candidates[owner] ||
+                raise(Malformed,
+                      "#{@name}'s given #{description.inspect} names no precondition " \
+                      "#{owner} declares in this chapter — #{owner} either hasn't declared " \
+                      "#{description.inspect}, or declared_by: named the wrong aggregate")
+            elsif candidates.size == 1
+              candidates.values.first
+            elsif candidates.empty?
+              raise(Malformed,
+                    "#{@name}'s given #{description.inspect} names no precondition " \
+                    "any aggregate in this chapter has declared yet — declare it once " \
+                    "with a block (some aggregate's own given(#{description.inspect}) " \
+                    "{ ... }), before the aggregates that reference it")
+            else
+              raise(Malformed,
+                    "#{@name}'s given #{description.inspect} is ambiguous in this chapter — " \
+                    "#{candidates.keys.join(', ')} each declare a DIFFERENT predicate under " \
+                    "this same description; name which one with declared_by: (e.g. " \
+                    "given(#{description.inspect}, declared_by: #{candidates.keys.first}))")
+            end
 
           @named_givens[description] = named
         end

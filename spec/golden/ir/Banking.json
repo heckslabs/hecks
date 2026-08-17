@@ -3875,6 +3875,10 @@
         {
           "canonical": "account.customer.status == \"active\"",
           "description": "customer is active"
+        },
+        {
+          "canonical": "status == \"requested\"",
+          "description": "transfer is requested"
         }
       ],
       "projected_fields": [
@@ -5777,7 +5781,14 @@
 
       ],
       "preconditions": [
-
+        {
+          "canonical": "account.status == \"open\"",
+          "description": "account is open"
+        },
+        {
+          "canonical": "account.customer.status == \"active\"",
+          "description": "customer is active"
+        }
       ],
       "projected_fields": [
 
