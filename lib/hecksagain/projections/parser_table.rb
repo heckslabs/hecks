@@ -37,7 +37,7 @@ module Hecksagain
 
       def closed_set_members(bluebook, name) = rows(bluebook, name).map { |row| row[:name] }
 
-      KEYWORD_FIELDS  = %i[word context body inner opens fills status was].freeze
+      KEYWORD_FIELDS  = %i[word context body inner opens fills status was resolves_via disambiguator].freeze
       ARGUMENT_FIELDS = %i[keyword context at named kind required fills selects
                            pair_key_fills pair_value_fills pairs_shape status variadic].freeze
 
@@ -96,6 +96,15 @@ module Hecksagain
               pub fills: &'static str,
               pub status: &'static str,
               pub was: &'static str,
+              /// Which shared Hecksagain::Bluebook::DSL::RuleReference
+              /// primitive this word's own bare form resolves through,
+              /// once it has one ("hash_chain" / "owner_keyed" /
+              /// "sibling_scan") — "" for every word that only ever
+              /// declares.
+              pub resolves_via: &'static str,
+              /// Which disambiguator keyword argument a bare reference
+              /// may supply — "declared_by" today, "" otherwise.
+              pub disambiguator: &'static str,
           }
 
           #[derive(Debug, Clone, Copy)]

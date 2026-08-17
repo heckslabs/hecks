@@ -106,7 +106,8 @@ module Hecksagain
                              name: v("Syntax"), position: v(index),
                              word: v(row[:word]), context: v(row[:context]), body: v(row[:body]),
                              inner: v(row[:inner]), opens: v(row[:opens]), fills: v(row[:fills]),
-                             was: optional(row[:was]))
+                             was: optional(row[:was]),
+                             resolves_via: optional(row[:resolves_via]), disambiguator: optional(row[:disambiguator]))
 
             next unless row[:status].to_s == "deprecated"
 
