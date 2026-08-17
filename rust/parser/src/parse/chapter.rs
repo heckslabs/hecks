@@ -258,7 +258,10 @@ fn parse_body_into(
     // `@chapter_named_givens` — on EVERY call, even when several files
     // (the self-hosted meta-domain's own nine) declare the SAME chapter
     // name; sharing never crosses a file boundary either side.
-    let mut chapter_named_givens: Vec<ir::Given> = Vec::new();
+    // (owner aggregate name, its own `Given`) pairs — see `aggregate::
+    // try_reference_named_chapter_given`'s own header for why this is
+    // keyed by owner too, not a flat `Given` list.
+    let mut chapter_named_givens: Vec<(String, ir::Given)> = Vec::new();
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? else {

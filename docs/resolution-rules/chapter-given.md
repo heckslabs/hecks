@@ -143,8 +143,15 @@ having to change.
 
 ## Reference mirror
 
-NOT YET MIRRORED — the FIRST version of this rule (single-owner-per-
-description, no `declared_by:`) IS mirrored (`rust/parser/src/parse/
-{chapter,aggregate}.rs`, `Vec<ir::Given>`-shaped pool); the `declared_by:`
-disambiguation is a follow-up Rust-mirror round of its own, since the
-pool's own shape needs to change (owner-keyed, not a flat list) to match.
+`rust/parser/src/parse/chapter.rs` (`chapter_named_givens: Vec<(String,
+ir::Given)>`, owner name paired with each `Given` — one Rust `Vec` of
+pairs standing in for Ruby's nested `pool[description][owner] `Hash`) and
+`rust/parser/src/parse/aggregate.rs` (`parse_body`'s own write-through,
+keyed by `[owner == this aggregate's name, description]` before pushing;
+`try_reference_named_chapter_given`'s own four-branch resolution —
+`declared_by:` parsed via `super::named_raw(&args, "declared_by")` +
+`naming::demodulise`, mirroring `reference_to`'s own bare-constant
+handling one call-site over). Verified: `cargo test` 69/69,
+`parser_parity_spec.rb --tag io` 35/35 including `banking` (the real
+`declared_by: ATMCard` corpus usage) and the self-hosted
+`bluebook_language` member.
