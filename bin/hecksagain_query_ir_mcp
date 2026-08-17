@@ -57,21 +57,21 @@ TOOLS = [
     }
   },
   {
-    name: "query_ir_impact",
+    name:        "query_ir_impact",
     description: "For one construct/field pair, which of the six propagation touchpoints .claude/skills/bluebook-construct-creator/SKILL.md walks in prose already show signs of it, and which don't: the meta-domain grammar, docs/resolution-rules/, Assembly::Contracts, Reconstruction's hand-typed aggregate(row)/entity(row) (only applicable to Aggregate/Entity), the fuzzer's FEATURE_COVERAGE/GUARANTEED_BY_CONSTRUCTION, and the Rust mirror. Advisory, not a gate — use mid-round to see what's left, or as a pre-commit sanity check.",
     inputSchema: {
-      type: "object",
+      type:       "object",
       properties: {
-        name: {
-          type: "string",
+        name:  {
+          type:        "string",
           description: "Construct name (e.g. \"Aggregate\")."
         },
         field: {
-          type: "string",
+          type:        "string",
           description: "The field name to check (e.g. \"preconditions\")."
         }
       },
-      required: %w[name field]
+      required:   %w[name field]
     }
   }
 ].freeze

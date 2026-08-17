@@ -278,8 +278,8 @@ module Hecksagain
       field = field.to_s
 
       {
-        name: name,
-        field: field,
+        name:        name,
+        field:       field,
         touchpoints: [
           { touchpoint: "meta-domain grammar declares it", present: meta_declared(name).map(&:to_s).include?(field) },
           { touchpoint: "docs/resolution-rules/ names it", present: resolution_rule_mentions?(field) },
