@@ -780,11 +780,15 @@ Hecks.bluebook "Bluebook" do
       # one row's own `kind`, not just the first. Empty (not variadic)
       # for every other argument, which is every one of them but this.
       attribute :variadic, String
+      # ABSENT means "apply the uniform, kind-driven coercion" — see
+      # entity "Argument"'s own matching attribute, above, for the full
+      # story (item #13's full metaprogrammed dispatch, slice 1).
+      attribute :coerce, String
 
       member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
 
-      member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision"
+      member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision", coerce: "false"
       member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
       member keyword: "attaches_to",     context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "attaches_to", variadic: "true"
       member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
@@ -792,7 +796,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
-      member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
       # ORIGIN, not identity — captured raw, the exact same shape
       # `attribute ..., default:` already uses for a literal Hash
       # (`kind: "literal"`, see that row below): no structure imposed
@@ -916,7 +920,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "projects",        context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
       member keyword: "projects",        context: "Aggregate", at: "",  named: "from",     kind: "symbol",   required: "true",  fills: "from"
 
-      member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "description",     context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
       # ADR 0028 — see Aggregate's own `given` row above (this file's own
       # "Argument" section) — the same shape, one level down: a piece's
       # own `given` always takes a block (a fresh declaration), so this
@@ -952,7 +956,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "reference_to",    context: "Entity", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
 
       member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role"
-      member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal"
+      member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal", coerce: "false"
       # See Aggregate's own `provenance` row — identical shape, one level down.
       member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
       # A COMMAND'S REFERENCE MAY BE OPTIONAL AND AN AGGREGATE'S MAY NOT — a
@@ -1086,7 +1090,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 
-      member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
       member keyword: "attribute",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
       # See Aggregate's own `attribute` rows, above — same shape.
       member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
@@ -1115,7 +1119,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
       member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
 
-      member keyword: "description",     context: "ReadModel", at: "1", named: "",        kind: "text",     required: "true",  fills: "description"
+      member keyword: "description",     context: "ReadModel", at: "1", named: "",        kind: "text",     required: "true",  fills: "description", coerce: "false"
       member keyword: "reference_to",    context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "reference_target"
       member keyword: "reference_to",    context: "ReadModel", at: "",  named: "as",      kind: "symbol",   required: "false", fills: "reference_name"
       member keyword: "include",         context: "ReadModel", at: "1", named: "",        kind: "constant", required: "true",  fills: "aggregate"
@@ -1346,6 +1350,21 @@ Hecks.bluebook "Bluebook" do
       attribute :pair_value_fills, ArgumentSeedText, optional: true
       attribute :pairs_shape,      ArgumentSeedText, optional: true
       attribute :variadic,         ArgumentSeedText, optional: true
+      # ABSENT means "apply the uniform, kind-driven coercion" (text ->
+      # .to_s, symbol -> .to_sym) — item #13's full metaprogrammed
+      # dispatch (slice 1, whole-project table-unification survey) reads
+      # this to decide whether a GENERATED fill method may coerce its own
+      # argument before storing it. `"false"` marks the six real
+      # exceptions a full builder-method audit found (read the real Ruby
+      # source, not inferred): `vision`/`description`(x4)/`goal` all
+      # store a `kind: "text"` argument RAW, with no `.to_s` at all —
+      # `.to_s` on an actual String is a same-object no-op for every real
+      # corpus use, but a direct Ruby API call passing something else
+      # (`vision(42)`) would see genuinely different stored behavior, so
+      # this couldn't be assumed uniform across every text-kind row the
+      # way it turned out to genuinely be for every OTHER text-kind
+      # argument in the whole grammar.
+      attribute :coerce,           ArgumentSeedText, optional: true
 
       lifecycle :status, default: "admitted" do
         transition "Deprecate" => "deprecated", from: "admitted"
@@ -1418,7 +1437,7 @@ Hecks.bluebook "Bluebook" do
                                   named: :named, kind: :kind, required: :required, fills: :fills,
                                   selects: :selects, pair_key_fills: :pair_key_fills,
                                   pair_value_fills: :pair_value_fills, pairs_shape: :pairs_shape,
-                                  variadic: :variadic }
+                                  variadic: :variadic, coerce: :coerce }
 
       emits "ArgumentAdmitted"
     end

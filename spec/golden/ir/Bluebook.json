@@ -8561,6 +8561,15 @@
               "optional": true,
               "pattern": null,
               "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
             }
           ],
           "emits": [
@@ -8578,6 +8587,7 @@
             {
               "fields": {
                 "at": ":at",
+                "coerce": ":coerce",
                 "context": ":context",
                 "fills": ":fills",
                 "keyword": ":keyword",
@@ -8899,6 +8909,15 @@
               "default": null,
               "list": false,
               "name": "variadic",
+              "optional": true,
+              "pattern": null,
+              "type": "ArgumentSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
               "optional": true,
               "pattern": null,
               "type": "ArgumentSeedText"
@@ -12855,6 +12874,15 @@
               "optional": false,
               "pattern": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -12950,6 +12978,10 @@
               [
                 "fills",
                 "vision"
+              ],
+              [
+                "coerce",
+                "false"
               ]
             ],
             [
@@ -13164,6 +13196,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "coerce",
+                "false"
               ]
             ],
             [
@@ -14286,6 +14322,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "coerce",
+                "false"
               ]
             ],
             [
@@ -14958,6 +14998,10 @@
               [
                 "fills",
                 "goal"
+              ],
+              [
+                "coerce",
+                "false"
               ]
             ],
             [
@@ -16522,6 +16566,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "coerce",
+                "false"
               ]
             ],
             [
@@ -17044,6 +17092,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "coerce",
+                "false"
               ]
             ],
             [

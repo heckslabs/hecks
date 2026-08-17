@@ -44,7 +44,10 @@ module Hecksagain
         # `operation` already lives under, so a project's own resource ports
         # read next to their binding instead of in a separate file. One port,
         # one shape or the other — never both.
-        def verb(value) = @verb = value.to_s
+        # `verb` — item #13's full metaprogrammed dispatch, slice 1
+        # (whole-project table-unification survey): a bare, kind-driven
+        # coerce-and-assign with nothing else, now executed by
+        # `GenericDispatch`.
 
         def build
           raise Malformed, "#{@name} declares both a verb and operations — a port is one or the other, not both" if @verb && !@operations.empty?

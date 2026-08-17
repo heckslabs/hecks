@@ -11,7 +11,9 @@ module Hecksagain
           @name = name
         end
 
-        def on(event_name) = @on_event = event_name.to_s
+        # `on` — item #13's full metaprogrammed dispatch, slice 1
+        # (whole-project table-unification survey): a bare, kind-driven
+        # coerce-and-assign, now executed by `GenericDispatch`.
 
         # `with:` — WHAT THE TRIGGER IS GIVEN, when the event's own shape
         # is not it. Omitted, the whole event payload forwards verbatim,
@@ -51,7 +53,8 @@ module Hecksagain
           @with_spec = (with || {}).to_a
         end
 
-        def across(domain_name) = @target_domain = domain_name.to_s
+        # `across` — item #13's full metaprogrammed dispatch, slice 1:
+        # same shape as `on`, above.
 
         # THE GUARD — same extraction CommandBuilder#given/#ensures already
         # use (Ports::Extraction reads the block's SOURCE ; the block itself
@@ -85,7 +88,8 @@ module Hecksagain
         # (SagaInterpreter#qualified). Runtime::PolicyInterpreter runs the
         # named query against the triggering event's own payload and fires
         # `trigger` once per row, instead of once for the event.
-        def for_each(verb) = @for_each = verb.to_s
+        # `for_each` — item #13's full metaprogrammed dispatch, slice 1:
+        # same shape as `on`, above.
 
         def build
           Policy.new(

@@ -32,11 +32,11 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "DomainPortBuilder"           => [
       Hecksagain::Bluebook::DSL::DomainPortBuilder,
-      %i[operation tells asks verb]
+      %i[operation tells asks]
     ],
     "PortOperationBuilder"        => [
       Hecksagain::Bluebook::DSL::PortOperationBuilder,
-      %i[reference_to emits answers refuses attribute list_of attributes]
+      %i[reference_to emits attribute list_of attributes]
     ],
     "AdapterBuilder"              => [
       Hecksagain::Bluebook::DSL::AdapterBuilder,

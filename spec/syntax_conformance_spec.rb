@@ -196,6 +196,25 @@ RSpec.describe "the declared syntax" do
     builder.instance_method(word)
   end
 
+  # A word `GenericDispatch` (item #13's full metaprogrammed dispatch,
+  # slice 1, whole-project table-unification survey) now executes has no
+  # real method left to introspect at all — its own argument shape IS
+  # the table row these specs would otherwise be cross-checking a real
+  # method's parameters against, so there is nothing left to check:
+  # `GenericDispatch.shape_for` reading `at:`/`kind:`/`required:`/
+  # `named:` directly off the SAME `ARGUMENTS` rows this spec file
+  # itself walks is the guarantee, by construction, not something a
+  # SEPARATE method-parameter comparison could add to. `Hecks` (the
+  # `File` context's own builder) is never migrated in this slice —
+  # `GenericDispatch`'s own header names why — so it's excluded outright
+  # rather than asked whether it "answers" a word the normal way.
+  def generically_dispatched?(word, context)
+    builder = BUILDER.fetch(context)
+    return false if builder.equal?(Hecks)
+
+    !builder.method_defined?(word.to_sym) && D::GenericDispatch.handles?(context, word.to_s)
+  end
+
   def declared_in(context) = LIVE_KEYWORDS.select { |row| row[:context] == context }
 
   # ---------------------------------------------------------------- the cells
@@ -247,7 +266,14 @@ RSpec.describe "the declared syntax" do
     describe context do
       it "declares only words the builder answers" do
         undeclared = declared_in(context).map { |row| row[:word].to_sym }.uniq
-                                         .reject { |word| BUILDER.fetch(context).equal?(Hecks) ? Hecks.respond_to?(word) : BUILDER.fetch(context).method_defined?(word) }
+                                         .reject do |word|
+                                           if BUILDER.fetch(context).equal?(Hecks)
+                                             Hecks.respond_to?(word)
+                                           else
+                                             BUILDER.fetch(context).method_defined?(word) ||
+                                               generically_dispatched?(word, context)
+                                           end
+                                         end
 
         expect(undeclared).to be_empty,
                               "#{context} declares #{undeclared.inspect}, which " \
@@ -347,6 +373,8 @@ RSpec.describe "the declared syntax" do
 
   it "declares every keyword argument each word's builder takes, and no other" do
     LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
+      next if generically_dispatched?(word, context)
+
       params  = method_for(word, context).parameters
       taken   = params.select { |kind, _| %i[key keyreq].include?(kind) }.map { |_, name| name.to_s }
       spelled = args.reject { |row| row[:named].empty? }.map { |row| row[:named] }.uniq
@@ -363,6 +391,8 @@ RSpec.describe "the declared syntax" do
 
   it "declares no more positionals than each word's builder takes" do
     LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
+      next if generically_dispatched?(word, context)
+
       positional = args.reject { |row| row[:at].empty? }
       next if positional.empty?
 
@@ -387,6 +417,8 @@ RSpec.describe "the declared syntax" do
   # but a required one may never be declared optional.
   it "never calls an argument optional that the builder demands" do
     LIVE_ARGUMENTS.group_by { |row| [row[:keyword], row[:context]] }.each do |(word, context), args|
+      next if generically_dispatched?(word, context)
+
       params = method_for(word, context).parameters
 
       params.each_with_index do |(kind, name), index|

@@ -123,7 +123,8 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Argument#pair_key_fills"    => "same as Syntax#arguments, one level in",
     "Argument#pair_value_fills"  => "same as Syntax#arguments, one level in",
     "Argument#pairs_shape"       => "same as Syntax#arguments, one level in",
-    "Argument#variadic"          => "same as Syntax#arguments, one level in"
+    "Argument#variadic"          => "same as Syntax#arguments, one level in",
+    "Argument#coerce"            => "same as Syntax#arguments, one level in"
   }.freeze
 
   it "claims, exempts, guarantees, or names a gap for every feature the language's own grammar declares" do

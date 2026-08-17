@@ -1,3 +1,4 @@
+require_relative "generic_dispatch"
 module Hecksagain
   module Bluebook
     module DSL
@@ -16,19 +17,23 @@ module Hecksagain
       # own generic `NoMethodError`, naming nothing about what the
       # language actually admits. This module closes that gap.
       #
-      # `method_missing`/`respond_to_missing?` ONLY — deliberately, not
-      # a rewrite of any EXISTING hand-written builder method. A word
-      # this builder class already responds to (an ordinary `def`, or a
+      # `method_missing`/`respond_to_missing?` ONLY — a word this
+      # builder class already answers with an ordinary `def` (or a
       # shared mixin method like `AttributeCollector#attribute`) never
       # reaches this module at all; Ruby's own method lookup finds it
-      # first. This is the SAFEST possible first slice of "Ruby's own
-      # builders read the same table Rust's parser already does" — zero
-      # behavior change for every currently-valid line in the entire
-      # corpus (proven via the same whole-corpus SHA comparison this
-      # arc's own earlier rounds already established as the bar), while
-      # a mistyped or wrongly-contexted word NOW gets the same real,
+      # first, and item #13's later slices haven't removed every one of
+      # those yet. This WAS "zero behavior change for every currently-
+      # valid line in the entire corpus" in its own first slice — since
+      # item #13's full metaprogrammed dispatch (slice 1, whole-project
+      # table-unification survey) started REMOVING the hand-written
+      # methods this module's own admissibility check used to defer to,
+      # some words now execute for real here too, via `GenericDispatch`
+      # — see that module's own header for exactly which ones, and the
+      # full account of what was verified before each was migrated. A
+      # mistyped or wrongly-contexted word still gets the same real,
       # helpful, table-driven refusal Rust's own `word_gate` already
-      # gives, instead of Ruby's own generic `NoMethodError`.
+      # gives, instead of Ruby's own generic `NoMethodError` — that half
+      # is genuinely unchanged.
       #
       # `self.class::GRAMMAR_CONTEXT` — each including class names which
       # row of the self-hosted `Context` closed set it corresponds to
@@ -58,20 +63,31 @@ module Hecksagain
 
         private
 
-        def method_missing(word, *_args, **_kwargs, &)
+        def method_missing(word, *args, **kwargs, &block)
           return super if MetaValidator.bootstrapping?
 
           context = self.class::GRAMMAR_CONTEXT
-          rows = MetaValidator::SyntaxBoot.call[:keywords]
-          admitted = rows.select { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) }
+          rows = MetaValidator::SyntaxBoot.call
+          keywords = rows[:keywords]
+          admitted = keywords.select { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) }
 
-          return super if admitted.empty? && !admitted_anywhere?(rows, word)
+          return super if admitted.empty? && !admitted_anywhere?(keywords, word)
 
           if admitted.empty?
-            legal = rows.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
+            legal = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
             raise Malformed,
                   "'#{word}' is not a word #{context} admits — legal words here: #{legal.join(', ')}"
           end
+
+          # ITEM #13's FULL METAPROGRAMMED DISPATCH — the word IS
+          # admitted here, and this builder has no hand-written method
+          # left for it; before falling through to the "not yet
+          # implemented" refusal every word without one still gets,
+          # offer it to GenericDispatch — the SAFE, verified subset of
+          # words whose whole behavior is now executed off this same
+          # table, not just checked against it.
+          dispatched = GenericDispatch.try(self, context, word.to_s, args, kwargs, block, rows)
+          return dispatched unless dispatched.equal?(GenericDispatch::NOT_HANDLED)
 
           raise Malformed,
                 "'#{word}' is admitted by #{context}'s own grammar, but #{self.class} has no " \

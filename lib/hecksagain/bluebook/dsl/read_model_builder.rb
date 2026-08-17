@@ -64,7 +64,10 @@ module Hecksagain
         # EMPTY" reading `Lifecycle`'s own optional fields already rely
         # on for the Judge's setter dispatch (Behaviour::ReadModel#
         # count?, ReadModelInterpreter#aggregation_target).
-        def count = @count = true
+        # `count` — item #13's full metaprogrammed dispatch, slice 1
+        # (whole-project table-unification survey): the ONLY Keyword row
+        # filling `count` — a bare marker, now stored as literal `true`
+        # by `GenericDispatch` off that same table fact.
 
         # `median(field)` -- the median VALUE of one numeric field
         # across the eligible many-side head's own rows. EVEN COUNT: the
@@ -76,7 +79,9 @@ module Hecksagain
         # carrying one) -- checked once, at read time, by
         # ReadModelInterpreter#aggregation_target, the same place
         # `group_by`'s own field names are checked.
-        def median(field) = @median_field = field.to_sym
+        # `median` — item #13's full metaprogrammed dispatch, slice 1:
+        # same shape as `count`, above (a bare, kind-driven coerce-and-
+        # assign).
 
         # `reference_to` is now OPTIONAL — a read model with no root is a
         # BULK one: every `include`d head reads its own aggregate whole

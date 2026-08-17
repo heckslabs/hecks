@@ -14,9 +14,10 @@ module Hecksagain
           @handlers = []
         end
 
-        def correlates_by(field) = @correlates_by = field.to_sym
-        def starts_on(event)     = @starts_on = event.to_s
-        def ends_on(event)       = @ends_on = event.to_s
+        # `correlates_by`/`starts_on`/`ends_on` — item #13's full
+        # metaprogrammed dispatch, slice 1 (whole-project table-
+        # unification survey): each a bare, kind-driven coerce-and-
+        # assign with nothing else, now executed by `GenericDispatch`.
 
         # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025 — "events and
         # reactions"): the SAME word `Lifecycle#transition` already

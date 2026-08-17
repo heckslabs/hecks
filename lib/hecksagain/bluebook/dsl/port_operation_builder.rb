@@ -33,9 +33,10 @@ module Hecksagain
         # rather than two `emits` because a reader has to be able to tell them
         # apart without reading the adapter: one is the thing you wanted, the
         # other is the thing you have to handle.
-        def answers(event_name) = @answers = event_name.to_s
-
-        def refuses(event_name) = @refuses = event_name.to_s
+        # `answers`/`refuses` — item #13's full metaprogrammed dispatch,
+        # slice 1 (whole-project table-unification survey): both a bare,
+        # kind-driven coerce-and-assign with nothing else, now executed
+        # by `GenericDispatch`.
 
         def build
           outbound = @direction == :outbound
