@@ -73,6 +73,13 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     let mut pending_entities: Vec<(String, super::PendingBody)> = Vec::new();
     let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> = Vec::new();
     let mut pending_queries: Vec<(String, super::PendingBody)> = Vec::new();
+    // THE ROOT of the cross-entity given pool
+    // (`docs/resolution-rules/cross-entity-given.md`) — ONE `Vec`, owned
+    // here, threaded as a mutable borrow into every piece this aggregate
+    // builds however deep (`entity::parse_body`'s own header). Always
+    // empty when read back for THIS aggregate's own commands, below — an
+    // aggregate-owned command has no sibling piece to reach across.
+    let mut entity_named_givens: Vec<ir::Given> = Vec::new();
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Aggregate")? else {
@@ -282,10 +289,16 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     // each `pending_*` Vec was pushed to in textual order and `.map` walks
     // it in that same order, so `aggregate.entities`/`.commands`/
     // `.queries` end up in the SAME order they always did.
-    aggregate.entities = pending_entities
-        .into_iter()
-        .map(|(e_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| entity::parse_body(f, l, p, &e_name, &aggregate.value_objects)))
-        .collect::<ParseResult<Vec<_>>>()?;
+    // AN EXPLICIT LOOP — see `entity::parse_body`'s own identical
+    // conversion, one level down, for why: `entity_named_givens` reborrows
+    // sequentially into each piece's own recursive build, so a
+    // LATER-declared piece sees an EARLIER sibling's write-through.
+    let mut entities = Vec::with_capacity(pending_entities.len());
+    for (e_name, pending) in pending_entities {
+        let built = super::build_deferred(file, lines, &pending, |f, l, p| entity::parse_body(f, l, p, &e_name, &aggregate.value_objects, &mut entity_named_givens))?;
+        entities.push(built);
+    }
+    aggregate.entities = entities;
 
     aggregate.commands = pending_commands
         .into_iter()
@@ -299,6 +312,7 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                     name,
                     from.clone(),
                     &aggregate.preconditions,
+                    &[],
                     &aggregate.attributes,
                     &aggregate.value_objects,
                     &aggregate.entities,

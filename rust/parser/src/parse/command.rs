@@ -77,23 +77,41 @@ pub fn parse_from(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
 /// placeholder canonical. `CommandBuilder#reference_named_given` (Ruby)
 /// duplicates the resolved `Given` verbatim into the command's own
 /// `givens`; this mirrors that, resolving by `description` against
-/// whatever the OWNING aggregate has declared `preconditions` SO FAR —
-/// the same textual-order dependency `AggregateBuilder#given`'s own
-/// comment names ("DECLARE BEFORE THE COMMANDS THAT REFERENCE IT"),
-/// automatically satisfied here since `aggregate::parse_body` hands in
-/// its own `preconditions` Vec mid-walk, already containing every
-/// `given` parsed earlier in the same source order. An ENTITY's own
-/// commands get `&[]` (`EntityBuilder#command` never forwards
-/// `named_givens:` at all — Ruby's own `reference_named_given` always
-/// raises there), so a bare `given` inside an entity's command fails
-/// resolution here too, matching Ruby's refusal.
+/// whatever the OWNING aggregate OR ENTITY has declared `preconditions`
+/// SO FAR — the same textual-order dependency `AggregateBuilder#given`'s
+/// own comment names ("DECLARE BEFORE THE COMMANDS THAT REFERENCE IT"),
+/// automatically satisfied here since both `aggregate::parse_body` and
+/// `entity::parse_body` hand in their OWN `preconditions` Vec mid-walk,
+/// already containing every `given` parsed earlier in the same source
+/// order (ADR 0028 gave entities their own `preconditions`, superseding
+/// the entity-commands-always-refuse behavior this comment used to
+/// describe). `entity_shared_givens` is the SECOND, cross-entity fallback
+/// (`docs/resolution-rules/cross-entity-given.md`) — always empty for an
+/// aggregate-owned command.
 ///
 /// Peeks the next physical line WITHOUT consuming it unless it actually
 /// matches (word `given`, `Opener::None`) — anything else (including a
 /// `given { ... }`/`given do ... end` fresh declaration, or any other
 /// word entirely) falls through untouched to the ordinary `next_line`
 /// gate below, which already handles it.
-fn try_reference_named_given(file: &str, lines: &[SourceLine], pos: &mut usize, preconditions: &[ir::Given]) -> ParseResult<Option<ir::Given>> {
+/// `entity_shared_givens` — the cross-entity fallback pool
+/// `docs/resolution-rules/cross-entity-given.md` names, and
+/// `parse::entity`'s own header explains the threading of. Checked
+/// SECOND, only after `preconditions` (this command's own direct owner)
+/// comes up empty — via `.chain(...)`, the same priority Ruby's own
+/// `@named_givens[description] || @entity_shared_givens[description]`
+/// gives (own owner wins; the two never actually collide in practice,
+/// since a piece's OWN `preconditions` and its aggregate's shared pool
+/// are populated from disjoint declaration sites, but the order still
+/// matches). Always `&[]` from `parse::aggregate`'s own call — an
+/// aggregate-owned command has no sibling PIECE to reach across.
+fn try_reference_named_given(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    preconditions: &[ir::Given],
+    entity_shared_givens: &[ir::Given],
+) -> ParseResult<Option<ir::Given>> {
     let Some(&line) = lines.get(*pos) else { return Ok(None) };
     let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
     if call.word != "given" || !matches!(call.opener, Opener::None) {
@@ -102,16 +120,22 @@ fn try_reference_named_given(file: &str, lines: &[SourceLine], pos: &mut usize, 
 
     let args = super::argument_gate(file, "given", "Command", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "given", &args, 1)?;
-    let resolved = preconditions.iter().find(|given| given.description.as_deref() == Some(description.as_str())).cloned().ok_or_else(|| {
-        Diagnostic::new(
-            file,
-            line.number,
-            format!(
-                "'{description}' names no precondition the owning aggregate declares — declare it \
-                 once with a block, before the commands that reference it"
-            ),
-        )
-    })?;
+    let resolved = preconditions
+        .iter()
+        .chain(entity_shared_givens.iter())
+        .find(|given| given.description.as_deref() == Some(description.as_str()))
+        .cloned()
+        .ok_or_else(|| {
+            Diagnostic::new(
+                file,
+                line.number,
+                format!(
+                    "'{description}' names no precondition the owning aggregate or entity declares, \
+                     and no sibling piece under the same aggregate declares it either — declare it \
+                     once with a block, before the commands that reference it"
+                ),
+            )
+        })?;
 
     *pos += 1;
     Ok(Some(resolved))
@@ -151,6 +175,7 @@ pub fn parse_body(
     owner: &str,
     from: Option<ir::CommandFrom>,
     preconditions: &[ir::Given],
+    entity_shared_givens: &[ir::Given],
     owner_attributes: &[ir::Attribute],
     owner_value_objects: &[ir::ValueObject],
     owner_entities: &[ir::Entity],
@@ -158,7 +183,7 @@ pub fn parse_body(
     let mut command = ir::Command { name: name.to_string(), from, ..Default::default() };
 
     loop {
-        if let Some(given) = try_reference_named_given(file, lines, pos, preconditions)? {
+        if let Some(given) = try_reference_named_given(file, lines, pos, preconditions, entity_shared_givens)? {
             command.givens.push(given);
             continue;
         }
