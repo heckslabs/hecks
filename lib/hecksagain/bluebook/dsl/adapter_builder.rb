@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class AdapterBuilder
+        GRAMMAR_CONTEXT = "Adapter"
+
+        include WordGate
+
         def initialize(name)
           @name    = name
           @fields  = []
@@ -15,7 +20,7 @@ module Hecksagain
         def secret(name) = @secrets << name.to_sym
 
         def build
-          Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets)
+          MetaValidator.call_adapter(Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets))
         end
 
         def self.build(name, &block)
