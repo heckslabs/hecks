@@ -21,7 +21,7 @@ use crate::build::{identity, naming, references};
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
-use crate::lex::SourceLine;
+use crate::lex::{self, LineShape, Opener, SourceLine};
 use crate::ruby_value;
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
@@ -59,7 +59,59 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// `BluebookBuilder#build`'s own `@aggregates.flat_map(&:policies) +
 /// @policies` produces (every aggregate's own policies, in aggregate
 /// order, THEN every chapter-level one).
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<(ir::Aggregate, Vec<ir::Policy>)> {
+/// BARE `given(desc)` — CHAPTER-WIDE REFERENCE
+/// (`docs/resolution-rules/chapter-given.md`). Mirrors `parse::command::
+/// try_reference_named_given`'s own shape one level up: peeks the next
+/// physical line WITHOUT consuming it unless it actually matches (word
+/// `given`, `Opener::None`) — anything else (a fresh `given("x") { ... }`
+/// declaration, or any other word entirely) falls through untouched to
+/// the ordinary `next_line` gate, which already handles it.
+///
+/// `AggregateBuilder#given`'s own bare-reference form has no narrower
+/// "in-between" scope to check first — an aggregate is not nested inside
+/// anything else `given` could mean here — so, unlike the command-level
+/// version, there is only ONE pool to check: `chapter_named_givens`.
+fn try_reference_named_chapter_given(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    chapter_named_givens: &[ir::Given],
+) -> ParseResult<Option<ir::Given>> {
+    let Some(&line) = lines.get(*pos) else { return Ok(None) };
+    let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
+    if call.word != "given" || !matches!(call.opener, Opener::None) {
+        return Ok(None);
+    }
+
+    let args = super::argument_gate(file, "given", "Aggregate", &call.args, line.number)?;
+    let description = super::positional_text(file, line.number, "given", &args, 1)?;
+    let resolved = chapter_named_givens
+        .iter()
+        .find(|given| given.description.as_deref() == Some(description.as_str()))
+        .cloned()
+        .ok_or_else(|| {
+            Diagnostic::new(
+                file,
+                line.number,
+                format!(
+                    "'{description}' names no precondition any aggregate in this chapter has \
+                     declared yet — declare it once with a block, before the aggregates that \
+                     reference it"
+                ),
+            )
+        })?;
+
+    *pos += 1;
+    Ok(Some(resolved))
+}
+
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+    chapter_named_givens: &mut Vec<ir::Given>,
+) -> ParseResult<(ir::Aggregate, Vec<ir::Policy>)> {
     let mut aggregate = ir::Aggregate { name: name.to_string(), ..Default::default() };
     let mut pending_identity: Option<super::PendingIdentity> = None;
     let mut closed_sets: Vec<ir::ValueObject> = Vec::new();
@@ -82,6 +134,20 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     let mut entity_named_givens: Vec<ir::Given> = Vec::new();
 
     loop {
+        // BARE `given(desc)` — CHAPTER-WIDE REFERENCE
+        // (`docs/resolution-rules/chapter-given.md`) — peeked BEFORE the
+        // ordinary grammar-gated `next_line` below, the identical trick
+        // `parse::command::try_reference_named_given`'s own header
+        // explains: `syntax.bluebook`'s own grammar row for `given`/
+        // Aggregate still declares `body: "source"` (block required) —
+        // unchanged, on purpose, since a FRESH declaration still needs
+        // one — so a genuinely bare `given` has to be recognized and
+        // consumed HERE, by raw lexing, before that gate would refuse it.
+        if let Some(given) = try_reference_named_chapter_given(file, lines, pos, chapter_named_givens)? {
+            aggregate.preconditions.push(given);
+            continue;
+        }
+
         let Some(gated) = super::next_line(file, lines, pos, "Aggregate")? else {
             break;
         };
@@ -168,17 +234,25 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             }
             // A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10,
             // ADR 0025) — block REQUIRED here (`syntax.bluebook`'s own
-            // row: only ONE row for `given`/Aggregate, `body: "source"`)
-            // — a fresh declaration, never a bare reference; only a
-            // COMMAND's own `given` can omit the block (`parse::command`'s
-            // own header explains why that form needs no Rust code of its
-            // own). DECLARATION-ONLY — Rust never resolves a command's
-            // own block-less `given` back against this list; see
-            // `ir::Aggregate.preconditions`'s own comment.
+            // row: only ONE row for `given`/Aggregate, `body: "source"`),
+            // a fresh declaration. The BARE form (no block, a CHAPTER-
+            // WIDE reference — `docs/resolution-rules/chapter-given.md`)
+            // is peeked and consumed BEFORE `next_line` ever reaches this
+            // match arm at all — see `try_reference_named_chapter_given`,
+            // above the loop.
             "given" => {
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                aggregate.preconditions.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+                let built = ir::Given { description: Some(description.clone()), canonical: canonical::apply(&raw) };
+                aggregate.preconditions.push(built.clone());
+                // WRITE-THROUGH, first-declared-wins — mirrors `entity::
+                // parse_body`'s own identical write-through to ITS pool,
+                // one level up (Rust has no `Hash#||=`, so this checks
+                // "no existing entry with this description" before
+                // pushing).
+                if !chapter_named_givens.iter().any(|g| g.description.as_deref() == Some(description.as_str())) {
+                    chapter_named_givens.push(built);
+                }
             }
             // A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR
             // 0025 — "Consistency across aggregate boundaries") —
