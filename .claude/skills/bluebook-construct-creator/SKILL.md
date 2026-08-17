@@ -5,13 +5,23 @@ description: Add a new "declared once, referenced by name" resolution rule to th
 
 # Adding a bluebook resolution rule, fast
 
-Five rounds of this exact workflow are on `main`: `sets :field` importing
+Nine rounds of this exact workflow are on `main`: `sets :field` importing
 an owner's attribute, `sets :list, append: {...}` importing a list
 element's attribute, the ADR 0028 deferred-construction restructure that
 removed the declaration-order limit both of those carried, `EntityBuilder
-#given`, and `ValueObjectBuilder#invariant`'s own sibling-reference form.
-This skill is that experience, operationalized — read it before starting
-a sixth, don't re-derive it from scratch.
+#given`, `ValueObjectBuilder#invariant`'s own sibling-reference form,
+cross-entity given sharing (one piece's own `given`, shared with any
+sibling piece under the same aggregate —
+`docs/resolution-rules/cross-entity-given.md`), chapter-wide given sharing
+(one aggregate's own `given`, shared with any other aggregate in the same
+chapter — `docs/resolution-rules/chapter-given.md`), a reusable "hoist
+un-shared local declarations" codemod (`bin/codemod_hoist_local_givens`,
+generalizing the exact fix LedgerEntry got by hand in round 4), and
+`EntityBuilder#invariant` (a genuinely new IR field + real, additive
+runtime enforcement — the one round in this list that ISN'T pure builder
+sugar; see its own note in "Pick the feature," below). This skill is that
+experience, operationalized — read it before starting a tenth, don't
+re-derive it from scratch.
 
 ## 1. Pick the feature — real duplication, not a hypothetical
 
@@ -36,12 +46,26 @@ in the commit message, don't invent a synthetic example.
   first — if the runtime doesn't already generically iterate the field
   you're about to populate (the way `enforce_givens`/`enforce_invariants`
   already iterate `command.givens`/`aggregate.invariants` regardless of
-  where the entry came from), you've picked a feature, not a sugar. Real
-  miss this arc made: `EntityBuilder#invariant` was rejected mid-round
-  because `Admissibility#enforce_invariants`'s own comment says "there is
-  no separate entity invariant... on purpose" — building it properly
-  meant new `EntityInterpreter` enforcement, a different and much bigger
-  task than declaration sugar.
+  where the entry came from), you've picked a feature, not a sugar. This
+  is a REAL DISQUALIFIER for the fast workflow this skill covers, but not
+  necessarily a dead end forever — `EntityBuilder#invariant` was rejected
+  on exactly this basis once (`Admissibility#enforce_invariants`'s own
+  comment: "there is no separate entity invariant... on purpose," since
+  an entity mutation already re-checks the enclosing aggregate), then
+  later BUILT successfully as a real, bigger round once there was
+  explicit appetite for the larger scope: the resolving design was NOT a
+  separate enforcement path — `enforce_invariants` gained an ADDITIVE
+  recursive walk (checking every INSTANCE an entity-holding list attribute
+  contains against that piece's own declared rules, reusing
+  `EntityInterpreter#element_of`'s own `list?`/`type.to_s == entity_name`
+  instance-discovery lookup and `enforce_givens`'s own `parent:`-threading
+  shape) — recognizing that "every element of a list-of-pieces
+  individually satisfies its own shape" was already part of what the
+  aggregate's own consistency meant, not a new boundary. If a rejected
+  candidate later gets real appetite, look for this same move first: can
+  the "new enforcement" be phrased as an ADDITIVE extension of an
+  existing check-loop, rather than a genuinely parallel enforcement path,
+  before assuming it needs one.
 - The predicate text would need to be REWRITTEN to be shared (e.g. one
   side reads `customer.status`, the other needs `parent.customer.status`
   for the identical idea) — not resolvable by copying a `Given`/
@@ -105,12 +129,31 @@ rounds by just doing it first. Give the agent:
   every subsequent Rust mirror has copied one construct over).
 - Explicit scope: `rust/` only, no `git commit`, don't touch `lib/`/
   `docs/`/`bin/`/`spec/`/`examples/`.
+- **Explicit worktree instruction, every time, no exceptions**: "create
+  and work in your OWN fresh isolated worktree — `git worktree add`,
+  never edit files directly in the shared main checkout, including for
+  any follow-up step after your main commit." Say this even though it
+  seems obvious; it has been violated twice by different agents, each
+  time leaving an orphaned, uncommitted edit sitting in the shared
+  checkout that blocked an unrelated sibling round's own merge (see
+  "Known pitfalls," below).
 - Verify-before-finish requirements: `cargo test --no-fail-fast` in
   `rust/parser`, and `bundle exec rspec spec/parser_parity_spec.rb --tag
-  io` green, specifically naming which corpus members must pass.
+  io` green — name EVERY corpus member that must pass, not just the one
+  your own real-corpus example touches; the self-hosted meta-domain
+  (`bluebook_language`) can independently exercise the same new
+  construct in its own grammar description of itself, and missing that
+  is exactly how a round has shipped with real, silent Rust breakage
+  before.
 
 While it runs, do steps 5–7 yourself in the same worktree (disjoint
-files — no conflict).
+files — no conflict). Once it reports back, INDEPENDENTLY re-run
+`bundle exec rspec spec/parser_parity_spec.rb --tag io` yourself before
+treating the round as finished — this spec is tagged `:io` and excluded
+from both the default `bundle exec rspec` run and the pre-push hook's
+own default profile, so trusting a green gate sweep (yours or an agent's)
+without this explicit re-run is exactly how "Rust mirror not yet
+dispatched" has slipped onto `main` unnoticed before.
 
 ## 5. Self-hosting propagation — ONLY if you added a new `Construct#field`
 
@@ -247,3 +290,103 @@ not discovery.
   genuinely new resolution rule (not needed for a rule that's just the
   same mechanism on a new construct, like this skill's own rounds 4–5 —
   only for a new ALGORITHM, like rounds 1–2's order-preservation logic).
+- **Widening a sharing scope (aggregate → its own entity tree → the whole
+  chapter) makes description-only text matching dangerous, in two
+  DIFFERENT ways — both bit real corpus, not hypothetically.** (1) A
+  wider TEXT WINDOW can accidentally include a NESTED construct's own
+  unrelated declaration under the identical description — a codemod
+  scanning `ATMCard`'s own window for `given("customer is active")`
+  caught its nested `Withdrawal` entity's own, differently-scoped
+  declaration too, and silently rewired it wrong; fix: carve nested
+  `entity ... end` blocks out of any text-window scan before matching by
+  description alone. (2) At CHAPTER width specifically, the SAME
+  description can legitimately mean two DIFFERENT canonicals (`Account`'s
+  own `customer.status == "active"` vs. `ATMCard`'s own
+  `account.customer.status == "active"` — same words, a genuinely
+  different predicate, since they reach "the customer" through different
+  reference chains). Never convert a candidate to a bare reference
+  without independently verifying its OWN canonical text matches the
+  declaration it would resolve to — a bare reference is deliberately
+  trusting, not re-validating, so that verification has to happen BEFORE
+  the edit, by you or a codemod's own `find_candidates`, never skipped.
+  See `docs/resolution-rules/chapter-given.md`'s own "Known limitations"
+  for the full real-corpus case this scoped around rather than got wrong.
+- **A "hoist un-shared local declarations to one shared point" codemod's
+  own safety net needs a DIFFERENT invariant than `Hecksagain::Codemod`'s
+  default byte-identical-IR check.** That default is right for a rule
+  that IMPORTS an already-existing value (round 2's append-fields) but
+  WRONG for a hoist: converting N local declarations into one shared
+  declaration + N references genuinely GROWS the owner's own
+  `preconditions`/`invariants` list (a local, command-scoped rule was
+  invisible to it before; the owner's new declaration is not) — that
+  growth is the intended effect, not a regression to catch. The real
+  invariant for this codemod family is narrower: every command's own
+  EFFECTIVE rule set (kind/description/canonical, ignoring which
+  construct's "(declared)" list it now shows up on) is unchanged.
+  `bin/codemod_hoist_local_givens` is the reference implementation of
+  this narrower check — copy it rather than reusing the default
+  byte-identical comparison for the next hoist-shaped codemod.
+- **`bin/query_ir duplicates` (`lib/hecksagain/query_ir.rb`'s
+  `declaration_count`) needs a matching update EVERY TIME a new sharing
+  scope ships**, and it can only ever be a lagging structural snapshot —
+  it reads the exported IR, which by design cannot distinguish "I
+  declared this myself" from "I referenced someone else's declaration"
+  (the same fact `collect_rules`' own top comment already gives for why
+  object identity carries no signal: `MetaValidator.call`'s
+  `Assembly.call` rebuilds the whole graph fresh from flat rows, so a
+  referenced rule and a locally-declared one are structurally
+  indistinguishable by the time anything reads `chapter.aggregates`).
+  Cross-entity sharing needed teaching it "covered by ANY `(declared)`
+  entry sharing the same root aggregate," not just an exact-owner match.
+  Chapter-wide sharing could NOT be taught at all — a chapter-referenced
+  given write-throughs into its own aggregate's `@named_givens` exactly
+  like a local declaration would, so the exported IR is genuinely
+  identical either way; that gap is now a documented, permanent,
+  accepted limitation, not a bug to keep chasing. Read
+  `declaration_count`'s own comment before assuming a new sharing scope
+  will "just work" with the existing query.
+- **A round is not actually done — Ruby OR Rust — until you have
+  independently re-run the thing that proves it**, not once you've read
+  an agent's own report claiming it. `parser_parity_spec` is tagged
+  `:io` and excluded from BOTH the default `bundle exec rspec` run AND
+  the pre-push hook's own default profile — a Ruby-only round's full
+  gate sweep, and even a real `git push`, can report 100% green while
+  genuinely leaving Rust parity broken on `main`. This happened for
+  real: a Ruby-side round's own commit message admitted "Rust mirror NOT
+  YET DISPATCHED," that admission got missed, and `main` sat with 5 of
+  35 `parser_parity_spec` examples failing (including the self-hosted
+  meta-domain, which can independently exercise a brand-new construct in
+  its OWN grammar description of itself) for real wall-clock time before
+  a SIBLING round's own Rust-mirror agent hit the resulting mess and
+  correctly refused to guess past it. Explicitly run `bundle exec rspec
+  spec/parser_parity_spec.rb --tag io` yourself and read every line
+  before calling any round — yours or a dispatched agent's — finished.
+- **A Rust-mirror agent must create and work in its OWN fresh isolated
+  worktree, every time, including for a "just one more thing" follow-up
+  after its main commit** — never the shared main checkout, even
+  briefly. Say this explicitly in the dispatch prompt; it has been
+  gotten wrong twice by different agents in ways that left uncommitted,
+  orphaned edits sitting in the shared checkout, blocking a completely
+  unrelated sibling round's own merge. If you find such an orphan,
+  `git stash` it (labeled, never discard outright) rather than guessing
+  whether it's safe to lose, and read the diff before deciding whether
+  to reuse or replace it.
+- **Trust `git status` in an agent's own worktree over any "running" /
+  "idle" status label before killing OR before assuming it's safe to
+  proceed past it** — a background task tracker's own status can lag
+  well behind reality in both directions: an agent showing "running"
+  long after its real work already landed, or one that looks idle but
+  still has genuinely live, uncommitted changes sitting in its worktree.
+  `git status --short` inside that SPECIFIC worktree directory is cheap
+  and ground-truth; a status label is not.
+- **A commit message claiming "Merge X" is not proof it IS one.**
+  `git log -1 --parents <sha>` (or `git cat-file -p <sha>` and read the
+  `parent` lines) should show TWO parents for a real `--no-ff` merge; an
+  agent that used `--squash` or otherwise re-committed a branch's content
+  instead produces a single-parent commit with a misleading message,
+  which silently breaks anything relying on branch ancestry afterward
+  (`git branch --contains`, `git merge-base --is-ancestor`, `git branch
+  -d`'s own "not fully merged" check — which is actually correct in this
+  case, and the right signal to go verify content equality with `git
+  diff <old-branch-tip> <the-commit-that-claims-to-have-merged-it>`
+  before force-deleting).
