@@ -3,6 +3,7 @@ module Hecksagain
     module DSL
       class CommandBuilder
         include AttributeCollector
+        include RuleReference
 
         # Vendored addition, not (yet) upstream hecksagain (migration plan
         # task 4): a sentinel for "this keyword was never passed", distinct
@@ -118,36 +119,25 @@ module Hecksagain
         def given(description, &predicate)
           return reference_named_given(description) unless predicate
 
-          canonical = Ports::Extraction.canonical(predicate)
-
           # moved to the language: given "a rule says what it means", on Verb.Rule
 
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s given #{description.inspect} did not survive " \
-                  "extraction — its source could not be read, so no other " \
-                  "runtime could ever evaluate it"
-          end
-
-          @givens << Given.new(
-            description: description,
-            canonical:   canonical,
-            predicate:   predicate
-          )
+          @givens << build_rule(Given, description, predicate, owner_name: @name, word: "given",
+                                 extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
         end
 
         private
 
-        # FIRST this command's own owner (as always), THEN — only for a
-        # piece-owned command, where it is real — a SIBLING piece's own
-        # entity-level declaration under the SAME aggregate
-        # (`@entity_shared_givens`, threaded from `EntityBuilder#given`'s
-        # own write-through). "customer is active" declared once on
-        # `Visit`, referenced bare by `KeyIssuance.Return` — two
-        # different pieces, same aggregate, same predicate — is exactly
-        # the shape this second lookup exists for.
+        # PRIMITIVE 1 (RuleReference#resolve_hash_chain) — FIRST this
+        # command's own owner (as always), THEN — only for a piece-owned
+        # command, where it is real — a SIBLING piece's own entity-level
+        # declaration under the SAME aggregate (`@entity_shared_givens`,
+        # threaded from `EntityBuilder#given`'s own write-through).
+        # "customer is active" declared once on `Visit`, referenced bare
+        # by `KeyIssuance.Return` — two different pieces, same aggregate,
+        # same predicate — is exactly the shape this second pool exists
+        # for.
         def reference_named_given(description)
-          named = @named_givens[description] || @entity_shared_givens[description] ||
+          named = resolve_hash_chain([@named_givens, @entity_shared_givens], description) ||
                   raise(Malformed,
                         "#{@name}'s given #{description.inspect} names no precondition " \
                         "#{@owner} declares, and no sibling piece under the same " \
@@ -166,20 +156,8 @@ module Hecksagain
         # balance.cents + amount.cents }`. Same extraction, same Rule
         # shape, same refusal form; EnsuresNotMet instead of GivenNotMet.
         def ensures(description, &predicate)
-          canonical = Ports::Extraction.canonical(predicate)
-
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s ensures #{description.inspect} did not survive " \
-                  "extraction — a postcondition is carried as text, and this " \
-                  "one has none"
-          end
-
-          @ensures << Given.new(
-            description: description,
-            canonical:   canonical,
-            predicate:   predicate
-          )
+          @ensures << build_rule(Given, description, predicate, owner_name: @name, word: "ensures",
+                                  extraction_failure: "a postcondition is carried as text, and this one has none")
         end
 
         # `sets` is the word; `then_set` is the spelling every existing
