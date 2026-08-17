@@ -211,6 +211,27 @@ module Hecksagain
     # aggregate — not just under its OWN exact owner — matching the
     # DSL's own pool, threaded unchanged through an aggregate's whole
     # entity tree (`AggregateBuilder#entity`'s own comment).
+    #
+    # A KNOWN, ACCEPTED GAP this does NOT (and structurally cannot)
+    # close: CHAPTER-WIDE given sharing (`AggregateBuilder#given`'s own
+    # bare form, `docs/resolution-rules/chapter-given.md`) — `Account`,
+    # `SafeDepositBox`, and `OnboardingCase` each still show as their
+    # own "(declared)" owner here even AFTER `SafeDepositBox`/
+    # `OnboardingCase` were converted to bare chapter-wide references,
+    # because a REFERENCED given still write-throughs into its own
+    # aggregate's `@named_givens` — the SAME reason `collect_rules`'
+    # own top comment already gives for why object identity carries no
+    # signal past a bluebook's own build: the EXPORTED IR cannot tell
+    # "I declared this myself" apart from "I referenced someone else's
+    # declaration," because by the time anything reads `chapter.
+    # aggregates`, both look identical. Closing this would mean reading
+    # SOURCE TEXT (bare `given(desc)` vs. block `given(desc) { ... }`),
+    # not the built IR this query is deliberately built on — a
+    # different, source-level tool, not a fix to this one. Treat a
+    # still-flagged group naming multiple aggregates as "verify by
+    # hand whether this is ALREADY a chapter-wide reference before
+    # assuming it's fresh duplication," not as an automatic signal
+    # either way.
     def declaration_count(rules)
       declared = rules.select { |r| r.location.end_with?(" (declared)") }
       declared_owners = declared.map { |r| owner_of(r.location) }.to_set

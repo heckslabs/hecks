@@ -5,7 +5,7 @@ module Hecksagain
         include AttributeCollector
         include IdentityDeclaration
 
-        def initialize(name)
+        def initialize(name, chapter_named_givens: {})
           @name          = name
           @value_objects = []
           @commands      = []
@@ -21,6 +21,11 @@ module Hecksagain
           # comment. ONE hash for the whole aggregate, threaded unchanged
           # into every piece nested under it, however deep.
           @entity_named_givens = {}
+          # ONE LEVEL WIDER STILL — the CHAPTER's own pool, threaded in
+          # from `BluebookBuilder#aggregate`, shared with every OTHER
+          # aggregate the same chapter builds. See `#given`'s own
+          # comment for what this closes.
+          @chapter_named_givens = chapter_named_givens
           # DEFERRED CONSTRUCTION — `entity`/`command`/`query` push a
           # pending descriptor here instead of building immediately; see
           # `#drain_pending!`'s own comment for why.
@@ -222,7 +227,23 @@ module Hecksagain
         # OWN build time (`CommandBuilder#given`), against whatever this
         # aggregate has declared SO FAR, the one ordering constraint this
         # word carries that `identified_by`/`attribute` do not.
+        # BARE — NO BLOCK — REFERENCES a SIBLING AGGREGATE's own
+        # already-declared precondition, one level wider than the
+        # existing bare-command-references-its-own-aggregate shape
+        # (`CommandBuilder#reference_named_given`): `SafeDepositBox`/
+        # `OnboardingCase` both name back `Account`'s own "customer is
+        # active" rather than retyping `customer.status == "active"` a
+        # third and fourth time. Resolved against `@chapter_named_givens`
+        # — see `BluebookBuilder#aggregate`'s own comment for how that
+        # pool is threaded, and `docs/resolution-rules/chapter-given.md`
+        # for the full algorithm and its known limitations (a bare
+        # reference trusts its own author to have verified the SAME
+        # canonical predicate applies — this mechanism does not, and
+        # cannot, check that itself; see that doc for which real corpus
+        # cases do and do not qualify).
         def given(description, &predicate)
+          return reference_named_chapter_given(description) unless predicate
+
           canonical = Ports::Extraction.canonical(predicate)
 
           if canonical.to_s.empty?
@@ -232,8 +253,30 @@ module Hecksagain
                   "runtime could ever evaluate it"
           end
 
-          @named_givens[description] = Given.new(description: description, canonical: canonical, predicate: predicate)
+          named = Given.new(description: description, canonical: canonical, predicate: predicate)
+          @named_givens[description] = named
+          # WRITE-THROUGH, first-declared-wins — the SAME `||=` shape
+          # `EntityBuilder#given`'s own write-through to ITS owner
+          # already uses, one level wider: whichever aggregate in this
+          # chapter declares a description FIRST is the one every
+          # later sibling's bare reference resolves to.
+          @chapter_named_givens[description] ||= named
         end
+
+        private
+
+        def reference_named_chapter_given(description)
+          named = @chapter_named_givens[description] ||
+                  raise(Malformed,
+                        "#{@name}'s given #{description.inspect} names no precondition " \
+                        "any aggregate in this chapter has declared yet — declare it once " \
+                        "with a block (some aggregate's own given(#{description.inspect}) " \
+                        "{ ... }), before the aggregates that reference it")
+
+          @named_givens[description] = named
+        end
+
+        public
 
         # THE AGGREGATE BOUNDARY IS WHAT AN INVARIANT DEFINES (S10, ADR
         # 0025 — "Rules") — checked after every command, before save,
@@ -291,8 +334,8 @@ module Hecksagain
           ir
         end
 
-        def self.build(name, &block)
-          builder = new(name)
+        def self.build(name, chapter_named_givens: {}, &block)
+          builder = new(name, chapter_named_givens: chapter_named_givens)
           builder.instance_eval(&block) if block
           builder.build
         end
