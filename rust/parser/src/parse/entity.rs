@@ -41,7 +41,25 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// (`identified_by LedgerSequence, as: :sequence`) resolves against the
 /// aggregate's, exactly like `EntityBuilder#resolve_pending_identity!`
 /// does with the `owner_value_objects:` it was constructed with.
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str, owner_value_objects: &[ir::ValueObject]) -> ParseResult<ir::Entity> {
+///
+/// `entity_named_givens` — see `docs/resolution-rules/cross-entity-given.md`
+/// (the mirrored resolution rule's own spec) and `parse::aggregate`'s own
+/// header. ONE growing `Vec`, owned by the root aggregate, threaded as a
+/// mutable borrow through every piece nested under it however deep (S17's
+/// own recursion) — `EntityBuilder#given`'s Ruby-side write-through
+/// (`@owner_named_givens[description] ||= named`), mirrored here as
+/// "push only if no earlier entry already carries this description"
+/// since Rust has no `Hash#||=` to reach for. A SIBLING piece's own
+/// command reads it back via `command::try_reference_named_given`'s new
+/// second lookup.
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+    owner_value_objects: &[ir::ValueObject],
+    entity_named_givens: &mut Vec<ir::Given>,
+) -> ParseResult<ir::Entity> {
     let mut entity = ir::Entity { name: name.to_string(), ..Default::default() };
     let mut pending_identity: Option<super::PendingIdentity> = None;
     // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header
@@ -89,7 +107,13 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
             "given" => {
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                entity.preconditions.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+                let built = ir::Given { description: Some(description.clone()), canonical: canonical::apply(&raw) };
+                entity.preconditions.push(built.clone());
+                // WRITE-THROUGH, first-declared-wins — see this function's
+                // own header.
+                if !entity_named_givens.iter().any(|g| g.description.as_deref() == Some(description.as_str())) {
+                    entity_named_givens.push(built);
+                }
             }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
@@ -127,10 +151,20 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
     // not just ones declared textually before it), then queries.
     // `owner_value_objects` passes straight through unchanged at every
     // depth — see the "entity" match arm's own comment above.
-    entity.entities = pending_entities
-        .into_iter()
-        .map(|(e_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| parse_body(f, l, p, &e_name, owner_value_objects)))
-        .collect::<ParseResult<Vec<_>>>()?;
+    // AN EXPLICIT LOOP, not `.into_iter().map(...).collect()` — every
+    // OTHER `pending_*` drain in this file stays a `.map()` (no shared
+    // mutable state to thread), but this one needs `entity_named_givens`
+    // reborrowed sequentially into each nested piece's own recursive
+    // `parse_body` call, one at a time, so a LATER-declared sibling can
+    // see an EARLIER sibling's own write-through (the same textual-order
+    // dependency `AggregateBuilder#drain_pending!`'s own sequential
+    // `.map` already gives Ruby, for the identical reason).
+    let mut nested_entities = Vec::with_capacity(pending_entities.len());
+    for (e_name, pending) in pending_entities {
+        let built = super::build_deferred(file, lines, &pending, |f, l, p| parse_body(f, l, p, &e_name, owner_value_objects, entity_named_givens))?;
+        nested_entities.push(built);
+    }
+    entity.entities = nested_entities;
 
     // ADR 0028 — an entity now offers its OWN preconditions, the same
     // way an aggregate always has (`EntityBuilder#command` now forwards
@@ -139,7 +173,12 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
     // bare `given(...)` inside one of THIS entity's own commands
     // resolves against `entity.preconditions`, declared textually so far
     // (the same ordering caveat `parse::aggregate`'s own call already
-    // carries), via `command::try_reference_named_given`.
+    // carries), via `command::try_reference_named_given`. `entity_named_
+    // givens` (immutably borrowed here — every recursive write above has
+    // already finished) is the SAME cross-entity fallback pool
+    // `parse::aggregate`'s own call passes as `&[]` for an aggregate-
+    // owned command, real here for a piece-owned one.
+    let entity_named_givens_slice: &[ir::Given] = entity_named_givens.as_slice();
     entity.commands = pending_commands
         .into_iter()
         .map(|(c_name, from, pending)| {
@@ -152,6 +191,7 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str,
                     name,
                     from.clone(),
                     &entity.preconditions,
+                    entity_named_givens_slice,
                     &entity.attributes,
                     owner_value_objects,
                     &entity.entities,
