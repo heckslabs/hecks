@@ -132,4 +132,88 @@ Hecks.bluebook "Deploy" do
       emits "LambdaTargetDeclared"
     end
   end
+
+  # `bin/project_tenant`'S OWN VALIDATED SHAPE — same split LambdaTarget
+  # draws with `bin/project_deploy`: this aggregate validates, that
+  # script GENERATES/ACTS (writes `environments/<slug>.world`, ensures
+  # the Postgres schema, boots once to prove it). Deliberately NOT a
+  # saga/process manager with durable runtime state — every step
+  # `bin/project_tenant` takes is already idempotent by construction
+  # (`CREATE SCHEMA IF NOT EXISTS` — PostgresEra#connect_for's own,
+  # File.write of the overlay — a plain overwrite, `Hecks.boot` itself),
+  # the same "generator script, not a business process" shape
+  # `bin/project_deploy` already is; a saga's own resumability earns
+  # its cost coordinating a real distributed transaction across
+  # multiple ports with real failure boundaries (Payments::Payment's
+  # own PaymentGateway, say) — three local, idempotent, single-process
+  # steps have no such boundary to resume across. A durable, reactable
+  # RUNTIME fact ("this tenant exists, is active, is suspended") is a
+  # different, later, business-facing thing — deliberately not built
+  # here, and deliberately not named Deploy::Tenant to avoid colliding
+  # with this validation-only aggregate should it ever land.
+  aggregate "Tenant" do
+    description "One tenant's validated identity — which realm and Postgres schema `bin/project_tenant` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
+
+    identified_by :slug
+
+    attribute :slug,   Slug
+    attribute :domain, DomainName
+    attribute :realm,  Realm
+    attribute :schema, Schema
+
+    # LOWERCASE, NO SPACES — a slug becomes both the `environments/
+    # <slug>.world` filename and (by convention, not enforced here —
+    # `schema` is its own, separately-declared field precisely so a
+    # tenant CAN choose a different schema name than its slug)
+    # ordinarily the schema name too.
+    value_object "Slug" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a tenant slug is named") { !value.to_s.empty? }
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+      invariant("a tenant names the domain it is for") { !value.to_s.empty? }
+    end
+
+    value_object "Realm" do
+      attribute :value, String
+      invariant("a tenant realm is named") { !value.to_s.empty? }
+    end
+
+    # POSTGRES'S OWN REAL IDENTIFIER RULES, loosely — lowercase (this
+    # adapter never quotes a mixed-case identifier back out consistently
+    # once created), letters/digits/underscores, starting with a letter.
+    # NOT a byte-length ceiling too (Postgres's own real 63-byte
+    # NAMEDATALEN limit) — the expression grammar invariants compile
+    # through admits a narrow arithmetic/comparison subset, not
+    # arbitrary method dispatch (`bytesize` included; found live,
+    # writing this: `Bluebook::Expression::Evaluator` tries to resolve
+    # a dotted chain as a FIELD lookup, not a method call, the same
+    # "admits + but not -, no parentheses" narrowness
+    # embryonaut_bluebooks/payments' own Refund command already
+    # documents). Postgres itself refuses a too-long identifier loudly
+    # on its own; not worth fighting the expression grammar for a
+    # corner case this rare.
+    value_object "Schema" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a schema is named") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      goal "Validate one tenant's shape before bin/project_tenant provisions its schema and overlay world"
+
+      attribute :slug,   Slug
+      attribute :domain, DomainName
+      attribute :realm,  Realm
+      attribute :schema, Schema
+
+      sets :slug
+      sets :domain
+      sets :realm
+      sets :schema
+
+      emits "TenantDeclared"
+    end
+  end
 end
