@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # THE NAME A FAN-OUT'S ROW ID ARRIVES UNDER.

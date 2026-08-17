@@ -26,7 +26,7 @@ module Hecksagain
       def self.for(registry:, app_name:)
         config = Forms.config(app_name) ||
                  raise(ArgumentError, "no app #{app_name.inspect} configured — " \
-                                       "call Hecksagain::Forms.configure(#{app_name.inspect}) { expose \"...\" } first")
+                                      "call Hecksagain::Forms.configure(#{app_name.inspect}) { expose \"...\" } first")
         new(registry: registry, exposed: config.exposes)
       end
 
@@ -132,9 +132,10 @@ module Hecksagain
       def command_form(domain, aggregate, command, action, status: 200, values: nil, error: nil, prefill: {})
         html("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}",
              CommandFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, command: command,
-                                         action: action, values: values, error: error, prefill: prefill),
-             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [command.hecks_name, nil]],
-             status: status)
+                                        action: action, values: values, error: error, prefill: prefill),
+             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
+                           [command.hecks_name, nil]],
+             status:      status)
       end
 
       def submit_command(request, domain, aggregate, command, action)
@@ -180,9 +181,10 @@ module Hecksagain
         results, error = asked.empty? ? [nil, nil] : run_query(domain, aggregate, query, fields, asked)
         html("#{domain}::#{aggregate.hecks_name}.#{query.hecks_name}",
              QueryFormRenderer.render(registry: @registry, domain: domain, aggregate: aggregate, query: query,
-                                       action: action, params: asked, results: results, error: error),
-             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"], [query.hecks_name, nil]],
-             status: error ? 422 : 200)
+                                      action: action, params: asked, results: results, error: error),
+             breadcrumbs: [[domain, "/"], [aggregate.hecks_name, "/#{domain}/#{aggregate.hecks_name}.html"],
+                           [query.hecks_name, nil]],
+             status:      error ? 422 : 200)
       end
 
       def query_json(domain, aggregate, query, asked)

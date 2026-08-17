@@ -146,7 +146,7 @@ module Hecksagain
       def port_name_for(ctx)
         owning = ctx.aggregate.ports.find { |port| port.operations.any? { |op| op.equal?(ctx.operation) } }
         owning&.name or raise WiringError,
-                             "#{ctx.operation.hecks_name} belongs to no port on #{ctx.aggregate.hecks_name}"
+                              "#{ctx.operation.hecks_name} belongs to no port on #{ctx.aggregate.hecks_name}"
       end
 
       def adapter_for(ctx)

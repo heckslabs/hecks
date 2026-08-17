@@ -137,8 +137,8 @@ when "argument-admit", "argument-deprecate", "argument-retire"
   end
 else
   abort "usage: bin/evolve status|propose|admit|deprecate|retire <word> --context <Context> " \
-        "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]\n" \
-        "   or: bin/evolve argument-propose|argument-admit|argument-deprecate|argument-retire " \
+        "[--body none|keywords|source|rows] [--inner X] [--opens X] [--fills x]\n   " \
+        "or: bin/evolve argument-propose|argument-admit|argument-deprecate|argument-retire " \
         "<keyword> --context <Context> [--kind K] [--at N] [--named NAME] [--required true|false] " \
         "[--fills F]"
 end

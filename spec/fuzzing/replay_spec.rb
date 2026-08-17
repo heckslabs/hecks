@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require "hecksagain/fuzzing"
 
@@ -8,9 +7,9 @@ RSpec.describe "Hecksagain::Fuzzing::Replay" do
 
   def create_step
     { "verb" => "Pizzas::Order.CreatePizza",
-      "args" => { "name" => { "value" => "Margherita" },
+      "args" => { "name"  => { "value" => "Margherita" },
                   "pizza" => { "price_cents" => { "cents" => 1200 },
-                               "size" => { "value" => "large" } } } }
+                               "size"        => { "value" => "large" } } } }
   end
 
   def topping_step

@@ -56,7 +56,7 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
   # in `governance`/`identity` via `uses_framework`; `pizzas` attaches
   # none).
   PARITY_DOMAINS = {
-    "examples/pizzas" => %w[pizzas meta],
+    "examples/pizzas"  => %w[pizzas meta],
     "examples/banking" => %w[banking governance identity meta],
   }.freeze
 
@@ -101,14 +101,15 @@ RSpec.describe "bin/project_rust opt-in Rust pipeline parity", io: true do
         ruby_files = files_in(ruby_dir)
         rust_files = files_in(rust_dir)
         expect(rust_files).to eq(ruby_files - IGNORED_BASENAMES),
-          "#{dir}: the opt-in path's own file list differs from the default path's (beyond the named manifest.json gap) — " \
-          "ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
+                              "#{dir}: the opt-in path's own file list differs from the default path's (beyond the named manifest.json gap) — " \
+                              "ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
 
         (ruby_files - IGNORED_BASENAMES).each do |basename|
           ruby_text = File.read(File.join(ruby_dir, basename))
           rust_text = File.read(File.join(rust_dir, basename))
 
-          expect(rust_text).to eq(ruby_text), "#{dir}/#{basename}: the opt-in Rust path's output does not byte-match the default Ruby path's"
+          expect(rust_text).to eq(ruby_text),
+                               "#{dir}/#{basename}: the opt-in Rust path's output does not byte-match the default Ruby path's"
         end
       end
     ensure

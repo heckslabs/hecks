@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # `Behaviour::Command#addressing_key_for` — the fix for a real bug found

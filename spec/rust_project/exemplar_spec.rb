@@ -30,7 +30,7 @@ RSpec.describe RustProjection::Exemplar do
 
       out = described_class.render("leaf", "tmpl_scalar" => "self.balance")
 
-      expect(out).to eq('if !self.balance.is_empty() { return Ok(()); }')
+      expect(out).to eq("if !self.balance.is_empty() { return Ok(()); }")
     end
 
     it "substitutes the longest marker first so one marker can't eat part of another" do
@@ -106,7 +106,7 @@ RSpec.describe RustProjection::Exemplar do
       out = described_class.compose(
         "record_struct",
         { "TmplType" => "Account" },
-        field_id: "record_struct:FIELD",
+        field_id:        "record_struct:FIELD",
         field_subs_list: [{ "tmpl_field" => "balance" }, { "tmpl_field" => "currency" }]
       )
 
@@ -159,7 +159,7 @@ RSpec.describe RustProjection::Exemplar do
         "codec",
         { "TmplType" => "Kind" },
         slots: {
-          "codec:TO_JSON_ARM" => described_class.render_each("codec:TO_JSON_ARM", row_subs),
+          "codec:TO_JSON_ARM"   => described_class.render_each("codec:TO_JSON_ARM", row_subs),
           "codec:FROM_JSON_ARM" => described_class.render_each("codec:FROM_JSON_ARM", row_subs),
         }
       )
@@ -210,7 +210,7 @@ RSpec.describe RustProjection::Exemplar do
       out = described_class.compose(
         "plain_struct",
         { "TmplType" => "AccountNumber" },
-        field_id: "struct_field",
+        field_id:        "struct_field",
         field_subs_list: [{ "TmplFieldType" => "String", "tmpl_field" => "value" }]
       )
 
@@ -223,7 +223,8 @@ RSpec.describe RustProjection::Exemplar do
     end
 
     it "renders the real closed_set_table_row_field shape, no trailing comma (Ruby supplies the join)" do
-      out = described_class.render("closed_set_table_row_field", "tmpl_field" => "cadence", "tmpl_value_placeholder()" => '"monthly"')
+      out = described_class.render("closed_set_table_row_field", "tmpl_field"               => "cadence",
+                                                                 "tmpl_value_placeholder()" => '"monthly"')
       expect(out).to eq('cadence: "monthly"')
     end
 
@@ -232,9 +233,9 @@ RSpec.describe RustProjection::Exemplar do
 
       out = described_class.render(
         "closed_set_table_codec",
-        "TmplTableRow" => "StatementFrequency",
+        "TmplTableRow"                => "StatementFrequency",
         "tmpl_to_json_fields_block()" => to_json_line,
-        "TMPL_TABLE" => "STATEMENT_FREQUENCY",
+        "TMPL_TABLE"                  => "STATEMENT_FREQUENCY",
         "tmpl_from_json_conditions()" => 'v.get("cadence").and_then(crate::kernel::Json::as_str) == Some(row.cadence)'
       )
 
@@ -262,7 +263,7 @@ RSpec.describe RustProjection::Exemplar do
       out = described_class.compose(
         "closed_set_enum",
         { "TmplKind" => "LedgerDirection" },
-        field_id: "closed_set_enum:VARIANT",
+        field_id:        "closed_set_enum:VARIANT",
         field_subs_list: [{ "TmplMemberA" => "Credit" }, { "TmplMemberA" => "Debit" }]
       )
 
@@ -284,10 +285,10 @@ RSpec.describe RustProjection::Exemplar do
       out = described_class.assemble(
         "closed_set_codec",
         {
-          "TmplKind" => "LedgerDirection",
-          '"tmpl_field_name"' => '"value"',
-          "tmpl_field_name" => "value",
-          '"tmpl_closed_set_type"' => '"LedgerDirection"',
+          "TmplKind"                   => "LedgerDirection",
+          '"tmpl_field_name"'          => '"value"',
+          "tmpl_field_name"            => "value",
+          '"tmpl_closed_set_type"'     => '"LedgerDirection"',
           '"tmpl_closed_set_admitted"' => '"\"credit\", \"debit\""',
         },
         slots: {
@@ -327,8 +328,8 @@ RSpec.describe RustProjection::Exemplar do
       out = described_class.render(
         "admits_check",
         '["tmpl_member_a", "tmpl_member_b"]' => '["credit", "debit"]',
-        "tmpl_scalar" => "args.direction.value",
-        '"tmpl_prefix_text"' => '"direction admits Account::LedgerDirection — \"credit\", \"debit\" — got "'
+        "tmpl_scalar"                        => "args.direction.value",
+        '"tmpl_prefix_text"'                 => '"direction admits Account::LedgerDirection — \"credit\", \"debit\" — got "'
       )
 
       expect(out).to eq(

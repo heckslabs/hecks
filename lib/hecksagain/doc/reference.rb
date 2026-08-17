@@ -57,7 +57,7 @@ module Hecksagain
       # one through the real admission/lifecycle door, and hands back the
       # same shape `rows` used to produce — nothing below this needed to
       # change.
-      def keywords  = @keywords  ||= Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+      def keywords  = @keywords ||= Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
       def arguments = @arguments ||= Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
 
       def status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
@@ -246,10 +246,10 @@ module Hecksagain
       # exists on disk either.
       def readme_regions(root)
         {
-          "guides" => guide_index(root),
+          "guides"    => guide_index(root),
           "reference" => reference_index(root),
-          "tools" => tool_table(root),
-          "corpus" => corpus_roster(root)
+          "tools"     => tool_table(root),
+          "corpus"    => corpus_roster(root)
         }
       end
 

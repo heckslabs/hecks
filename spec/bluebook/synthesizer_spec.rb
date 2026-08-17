@@ -77,7 +77,7 @@ RSpec.describe Hecksagain::Bluebook::Synthesizer do
       args = described_class.args_for(chapter, order, command)
 
       expect(args).to eq(
-        name: { value: "smoke-test" },
+        name:  { value: "smoke-test" },
         pizza: { price_cents: { cents: 0 }, size: { value: "small" } }
       )
     end

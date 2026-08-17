@@ -112,7 +112,7 @@ module Hecksagain
         # they come back as Symbols.
         def projected_field(row)
           ProjectedField.new(name: row[:name].to_sym, reference: row[:reference].to_sym,
-                              remote_field: row[:remote_field].to_sym)
+                             remote_field: row[:remote_field].to_sym)
         end
 
         # `Mutation#to_h` branches on the operation, so this does too.
@@ -214,7 +214,6 @@ module Hecksagain
 
           value
         end
-
       end
     end
   end

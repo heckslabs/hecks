@@ -55,7 +55,7 @@ module Hecksagain
       attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :computes, :rekeys, :backfills
 
       def initialize(name:, was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
-                      computes: [], rekeys: [], backfills: [])
+                     computes: [], rekeys: [], backfills: [])
         @name      = name.to_s
         @was       = was&.to_s
         @renames   = renames

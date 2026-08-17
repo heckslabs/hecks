@@ -70,9 +70,9 @@ RSpec.describe "every list the language declares, filled more than once" do
     # so the plurality is real and already exercised at every boot by
     # SyntaxBoot's own merge, just not on this particular list.
     "attaches_to" =>
-      "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
-      "no golden IR fixture reaches it because Paging is a grammar " \
-      "chapter, not a frozen corpus member.",
+                     "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
+                     "no golden IR fixture reaches it because Paging is a grammar " \
+                     "chapter, not a frozen corpus member.",
 
     # EMPTY, and every entry that was here is now a corpus member instead.
     #

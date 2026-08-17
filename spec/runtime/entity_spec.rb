@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 RSpec.describe "an entity" do
@@ -24,8 +23,10 @@ RSpec.describe "an entity" do
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
     runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
-    runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },  amount: { cents: 2_500, currency: "USD" },  narrative: { text: "Groceries" })
+    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" },
+narrative: { text: "Opening" })
+    runtime.dispatch("Banking::Account.Debit", number: { value: "a1" },  amount: { cents: 2_500, currency: "USD" },
+narrative: { text: "Groceries" })
   end
 
   it "is born with its declared identity and its lifecycle's default" do
@@ -49,7 +50,8 @@ RSpec.describe "an entity" do
     # before invariants, so a blank narrative is refused as a TypeMismatch,
     # not an InvariantViolation, before sets ever appends the entry.
     expect do
-      runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" }, narrative: { text: "" })
+      runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 100, currency: "USD" },
+narrative: { text: "" })
     end.to raise_error(Hecksagain::Runtime::TypeMismatch,
                        'Narrative.text must match [^ \t\n\r], got ""')
   end
@@ -61,9 +63,9 @@ RSpec.describe "an entity" do
                      number: { value: "a1" }, sequence: { value: 2 }, narrative: { text: "Posted in error" })
 
     ledger = Banking::Account.find("a1").ledger
-    expect(ledger[1][:state]).to     eq("reversed")
+    expect(ledger[1][:state]).to eq("reversed")
     expect(ledger[1][:narrative].to_h).to eq(text: "Posted in error")
-    expect(ledger[0][:state]).to     eq("posted")
+    expect(ledger[0][:state]).to eq("posted")
     expect(ledger[0][:narrative].to_h).to eq(text: "Opening")
   end
 
@@ -93,8 +95,8 @@ RSpec.describe "an entity" do
     expect do
       runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
                        number: { value: "a1" }, sequence: { value: 99 }, narrative: { text: "Ghost" })
-    # The message names the declared PATH now ("sequence.value"), not just the
-    # head — the same precision every construct's not-found message carries.
+      # The message names the declared PATH now ("sequence.value"), not just the
+      # head — the same precision every construct's not-found message carries.
     end.to raise_error(Hecksagain::Runtime::NotFound,
                        'no LedgerEntry with sequence.value 99 on Account "a1"')
   end
@@ -108,8 +110,8 @@ RSpec.describe "an entity" do
     rows = runtime.query("Banking::Account.LedgerEntry.Reversed")
     materialized = rows.map { |row| row.transform_values { |value| Hecksagain::Runtime::Value.materialize(value) } }
     expect(materialized).to eq([
-      { account: "a1", sequence: { value: 2 }, amount: { cents: 2_500, currency: "USD" }, narrative: { text: "Posted in error" },
-        direction: { value: "debit" }, state: "reversed" }
-    ])
+                                 { account: "a1", sequence: { value: 2 }, amount: { cents: 2_500, currency: "USD" }, narrative: { text: "Posted in error" },
+                                   direction: { value: "debit" }, state: "reversed" }
+                               ])
   end
 end

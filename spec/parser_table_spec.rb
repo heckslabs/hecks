@@ -23,7 +23,7 @@ RSpec.describe "the generated parser table" do
   it "is exactly what bin/project_parser_table would regenerate from syntax.bluebook right now" do
     expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run bin/project_parser_table"
 
-    committed  = File.read(committed_path)
+    committed = File.read(committed_path)
     regenerated = Hecksagain::Projector.call(
       :parser_table,
       bluebook: Hecksagain::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")

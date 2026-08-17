@@ -21,8 +21,10 @@ module Hecksagain
         end
 
         def extra_options_to_h
-          options_to_h.reject { |key, value| value.nil? || value == [] || (key == :null_semantics && value == { mode: "native" }) }
-                         .reject { |key, _| %i[wheres order_by limit].include?(key) }
+          options_to_h.reject { |key, value|
+            value.nil? || value == [] || (key == :null_semantics && value == { mode: "native" })
+          }
+                      .reject { |key, _| %i[wheres order_by limit].include?(key) }
         end
       end
     end

@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require "hecksagain/fuzzing"
 
@@ -60,7 +59,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
             attribute :customer_id, AccountCustomerId
             sets :account_id
             sets :customer_id
-            sets :status,      to: { value: "open" }
+            sets :status, to: { value: "open" }
             emits "Opened"
           end
 
@@ -81,7 +80,7 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
         end
 
         policy "ReviewOnFlag" do
-          on       "Customer.Flagged"
+          on "Customer.Flagged"
           where { risk == "high" }
           for_each "Account.OpenForCustomer"
           trigger  Account::Review
@@ -103,9 +102,9 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
   end
 
   def open_two_accounts_for(runtime, customer_id)
-    runtime.dispatch("Fanout::Account.Open", account_id: { value: "#{customer_id}-a1" },
+    runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
                                              customer_id: { value: customer_id })
-    runtime.dispatch("Fanout::Account.Open", account_id: { value: "#{customer_id}-a2" },
+    runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
                                              customer_id: { value: customer_id })
   end
 
@@ -118,7 +117,9 @@ RSpec.describe "Hecksagain::Fuzzing::Replay.fan_out_findings" do
   def flag(runtime, customer_id, risk)
     account = runtime.registry.bluebook("Fanout").aggregate("Account")
     snapshot = { ["Fanout", "Account"] =>
-                   runtime.registry.repository("Fanout", account).all.to_h { |record| [record.id, record.state.dup] } }
+                                          runtime.registry.repository("Fanout", account).all.to_h { |record|
+                                            [record.id, record.state.dup]
+                                          } }
 
     mark = runtime.reactions.size
     result = runtime.dispatch("Fanout::Customer.Flag", customer_id: { value: customer_id }, risk: { value: risk })

@@ -21,9 +21,7 @@ module Hecksagain
       raise Invalid, "FQN must be Realm::Domain::Aggregate.verb — got #{text.inspect}" if separator.empty?
 
       segments = head.split("::", -1)
-      unless [1, 2, 3].include?(segments.length) && segments.none?(&:empty?) && !verb.empty?
-        raise Invalid, "FQN must be Realm::Domain::Aggregate.verb — got #{text.inspect}"
-      end
+      raise Invalid, "FQN must be Realm::Domain::Aggregate.verb — got #{text.inspect}" unless [1, 2, 3].include?(segments.length) && segments.none?(&:empty?) && !verb.empty?
 
       realm, domain_spec, aggregate = case segments.length
                                       when 3 then segments
@@ -43,6 +41,7 @@ module Hecksagain
              end
 
       raise Invalid, "domain-level FQNs are query-only — got #{text.inspect}" if aggregate.nil? && kind == :command
+
       new(realm: realm, domain: domain, version: version, aggregate: aggregate, verb: verb, kind: kind)
     end
 
@@ -78,14 +77,16 @@ module Hecksagain
 
     def self.split_domain(value)
       domain, version, extra = value.to_s.split("@", 3)
-      raise Invalid, "FQN domain version is malformed: #{value.inspect}" if domain.empty? || extra || (value.include?("@") && version.to_s.empty?)
+      raise Invalid,
+            "FQN domain version is malformed: #{value.inspect}" if domain.empty? || extra || (value.include?("@") && version.to_s.empty?)
 
       [domain, version]
     end
 
     def segment(value, label)
       text = value.to_s
-      raise Invalid, "FQN #{label} cannot be empty or contain a separator" if text.empty? || text.include?("::") || text.include?(".") || text.include?("@")
+      raise Invalid,
+            "FQN #{label} cannot be empty or contain a separator" if text.empty? || text.include?("::") || text.include?(".") || text.include?("@")
 
       text
     end

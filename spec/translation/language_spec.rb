@@ -61,7 +61,8 @@ RSpec.describe "the translation language" do
       filled = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { name: "Acme" })
       expect(lineage.translate(filled).state).to eq(name: "Acme", tier: "standard")
 
-      already_there = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1", state: { name: "Acme", tier: "gold" })
+      already_there = Hecksagain::Ports::Persistence::Entry.new(operation: "save", id: "a1",
+                                                                state: { name: "Acme", tier: "gold" })
       expect(lineage.translate(already_there).state).to eq(name: "Acme", tier: "gold")
     end
   end
@@ -76,24 +77,68 @@ RSpec.describe "the translation language" do
 
     it "refuses every required-field omission with the pinned wording" do
       {
-        proc { aggregate("Account") { rename nil, to: :amount } } => "a rename needs a source name",
-        proc { aggregate("Account") { rename :cost, to: "" } } => "a rename needs a destination name (to:)",
-        proc { aggregate("Account") { move "price.cents", to: "" } } => "a move needs a destination path (to:)",
-        proc { aggregate("Account") { move "", to: "price_cents" } } => "a move needs a source path",
-        proc { aggregate("Account") { convert "code", to: "", values: { 1 => "a" } } } => "a convert needs a destination path (to:)",
+        proc { aggregate("Account") { rename nil, to: :amount } }                      => "a rename needs a source name",
+        proc {
+          aggregate("Account") {
+            rename :cost, to: ""
+          }
+        }                                                                              => "a rename needs a destination name (to:)",
+        proc {
+          aggregate("Account") {
+            move "price.cents", to: ""
+          }
+        }                                                                              => "a move needs a destination path (to:)",
+        proc { aggregate("Account") { move "", to: "price_cents" } }                   => "a move needs a source path",
+        proc {
+          aggregate("Account") {
+            convert "code", to: "", values: { 1 => "a" }
+          }
+        }                                                                              => "a convert needs a destination path (to:)",
         proc { aggregate("Account") { convert "", to: "code", values: { 1 => "a" } } } => "a convert needs a source path",
-        proc { aggregate("Account") { convert "code", to: "code", values: {} } } => "a convert needs a values: table",
-        proc { aggregate("Account") { convert "code", to: "code", values: nil } } => "a convert needs a values: table",
-        proc { aggregate("Account") { drop "" } } => "a drop needs a name",
-        proc { aggregate("Account") { retype "", to: "Cash" } } => "a retype needs a source type name",
-        proc { aggregate("Account") { retype "Money", to: "" } } => "a retype needs a destination type name (to:)",
-        proc { aggregate("Account") { compute "price_cents", to: "", sql: "x" } } => "a compute needs a destination path (to:)",
-        proc { aggregate("Account") { compute "", to: "price_dollars", sql: "x" } } => "a compute needs a source path",
-        proc { aggregate("Account") { compute "price_cents", to: "price_dollars", sql: "" } } => "a compute needs its sql: expression",
-        proc { aggregate("Account") { backfill "", default: "x" } } => "a backfill needs a name",
-        proc { aggregate("Account") { backfill :tier, default: nil } } => "a backfill needs a default: value",
-        proc { retired "" } => "a retired needs an aggregate name",
-        proc { aggregate("") } => "an aggregate translation needs a name"
+        proc {
+          aggregate("Account") {
+            convert "code", to: "code", values: {}
+          }
+        }                                                                              => "a convert needs a values: table",
+        proc {
+          aggregate("Account") {
+            convert "code", to: "code", values: nil
+          }
+        }                                                                              => "a convert needs a values: table",
+        proc { aggregate("Account") { drop "" } }                                      => "a drop needs a name",
+        proc {
+          aggregate("Account") {
+            retype "", to: "Cash"
+          }
+        }                                                                              => "a retype needs a source type name",
+        proc {
+          aggregate("Account") {
+            retype "Money", to: ""
+          }
+        }                                                                              => "a retype needs a destination type name (to:)",
+        proc {
+          aggregate("Account") {
+            compute "price_cents", to: "", sql: "x"
+          }
+        }                                                                              => "a compute needs a destination path (to:)",
+        proc { aggregate("Account") { compute "", to: "price_dollars", sql: "x" } }    => "a compute needs a source path",
+        proc {
+          aggregate("Account") {
+            compute "price_cents", to: "price_dollars", sql: ""
+          }
+        }                                                                              => "a compute needs its sql: expression",
+        proc { aggregate("Account") { backfill "", default: "x" } }                    => "a backfill needs a name",
+        proc {
+          aggregate("Account") {
+            backfill :tier, default: nil
+          }
+        }                                                                              => "a backfill needs a default: value",
+        proc {
+          retired ""
+        }                                                                              => "a retired needs an aggregate name",
+        proc {
+          aggregate("")
+        }                                                                              => "an aggregate translation needs a name"
       }.each do |declaration, wanted|
         expect(refusal_for(&declaration)).to eq(wanted)
       end

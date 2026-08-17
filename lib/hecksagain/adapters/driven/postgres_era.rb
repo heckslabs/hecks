@@ -156,9 +156,7 @@ module Hecksagain
         return @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY id)).map { |row| instance(row) } unless order_by
 
         name = order_by.to_s.split(".").first
-        unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
-          raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by"
-        end
+        raise Runtime::WiringError, "#{@aggregate.name} has no attribute #{order_by.inspect} to order by" unless @aggregate.lifecycle&.field.to_s == name || @aggregate.attribute(name)
 
         spec = QuerySpecification::Common::OrderBy.new(field: order_by, direction: direction)
         @db.exec(%(SELECT id, state FROM #{quoted_head} ORDER BY #{order_clause(spec, nil)})).map { |row| instance(row) }
@@ -486,7 +484,11 @@ module Hecksagain
       end
 
       def cached_where_fields
-        declared_queries.flat_map { |q| q.wheres.map { |clause| clause.field.to_s } }.uniq.select { |field| cacheable_field?(field) }
+        declared_queries.flat_map { |q|
+          q.wheres.map { |clause|
+            clause.field.to_s
+          }
+        }.uniq.select { |field| cacheable_field?(field) }
       end
 
       def declared_queries
@@ -517,7 +519,8 @@ module Hecksagain
       # unaccelerated, exactly as `super` would have evaluated it.
       def cache_eligible?(clause, value)
         @field_caches.key?(clause.field.to_s) &&
-          QuerySpecification::Common::NullPolicy.sql_predicate(query_expression(clause.field, value: value), clause.op, value).nil?
+          QuerySpecification::Common::NullPolicy.sql_predicate(query_expression(clause.field, value: value), clause.op,
+                                                               value).nil?
       end
 
       # PHASE ONE — candidate ids, no reduction touched. One SELECT per
@@ -534,7 +537,8 @@ module Hecksagain
         binds = []
         clauses = cached.map do |clause, value|
           cache_table = @lineage.field_cache(table, @era, clause.field.to_s)
-          "SELECT id FROM #{quote_ident(cache_table)} WHERE #{where_clause(clause.op.to_s, quote_ident('value'), value, binds, field: clause.field)}"
+          "SELECT id FROM #{quote_ident(cache_table)} WHERE #{where_clause(clause.op.to_s, quote_ident('value'), value, binds,
+                                                                           field: clause.field)}"
         end
         @db.exec_params(clauses.join("\nINTERSECT\n"), binds).map { |row| row["id"] }
       end

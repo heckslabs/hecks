@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require "tmpdir"
 
@@ -102,6 +101,7 @@ RSpec.describe "a read model's query options" do
           read_model "Solo" do
             reference_to Account
             include Account
+
             where(ref: "a1")
           end
         end
@@ -150,6 +150,7 @@ RSpec.describe "a read model's query options" do
             include Account
             include Entry
             include Note
+
             limit 1
           end
         end
@@ -312,6 +313,7 @@ RSpec.describe "a read model's query options" do
             reference_to Account
             include Account
             include CardPayment
+
             median :merchant
           end
 
@@ -319,6 +321,7 @@ RSpec.describe "a read model's query options" do
             reference_to Account
             include Account
             include CardPayment
+
             median :no_such_field
           end
         end
@@ -445,6 +448,7 @@ RSpec.describe "a read model's query options" do
 
             read_model "Both" do
               include Account
+
               count
               median :ref
             end
@@ -473,6 +477,7 @@ RSpec.describe "a read model's query options" do
 
             read_model "Both" do
               include Account
+
               group_by :ref
               count
             end
@@ -510,6 +515,7 @@ RSpec.describe "a read model's query options" do
             read_model "Both" do
               include Account
               include Entry
+
               count
             end
           end
@@ -558,7 +564,7 @@ RSpec.describe "a rootless read model's own group_by" do
     Banking::Customer.register!(reference: { value: "c1" }, name: { given: "A", family: "B" },
                                 email: { address: "a@example.com" })
     Banking::Account.open!(customer: "c1", number: { value: "a1" }, kind: { name: "current" }, daily_limit: { cents: 0 })
-    Banking::Account.open!(customer: "c1", number: { value: "a2" }, kind: { name: "savings" },  daily_limit: { cents: 0 })
+    Banking::Account.open!(customer: "c1", number: { value: "a2" }, kind: { name: "savings" }, daily_limit: { cents: 0 })
     Banking::Account.open!(customer: "c1", number: { value: "a3" }, kind: { name: "current" }, daily_limit: { cents: 0 })
   end
 
@@ -637,6 +643,7 @@ RSpec.describe "a rootless read model's own group_by" do
 
         read_model "Grouped" do
           include Gadget
+
           group_by :group, :ref
         end
       end
@@ -695,6 +702,7 @@ RSpec.describe "a rootless read model's own group_by" do
           read_model "Solo" do
             reference_to Account
             include Account
+
             group_by :ref
           end
         end
@@ -731,6 +739,7 @@ RSpec.describe "a rootless read model's own group_by" do
           read_model "Both" do
             include Account
             include Entry
+
             group_by :ref
           end
         end

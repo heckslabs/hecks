@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # A PROCEDURE coordinates. It is a SAGA when it also knows how to undo itself.

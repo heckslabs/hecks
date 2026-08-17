@@ -20,7 +20,6 @@ module Hecksagain
 
         super.merge(source: classified_source)
       end
-
     end
 
     # A command, as a RUBY CLASS.
@@ -96,8 +95,6 @@ module Hecksagain
           @provenance = provenance
           settle
         end
-
-
       end
     end
   end

@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The declared syntax must equal the surface the builders actually answer.
@@ -122,10 +121,10 @@ RSpec.describe "the declared syntax" do
   #     excluded is each body's OPEN verb vocabulary (method_missing/ConstShim),
   #     named per-context below rather than by blanket File-level exclusion.
   NOT_A_WORD = {
-    "Bluebook" => {
+    "Bluebook"  => {
       classification: "an attr_reader BluebookBuilder.build reads when merging one chapter across files"
     },
-    "File" => {
+    "File"      => {
       boot:             "the runtime facade, not a declaration",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
@@ -135,16 +134,16 @@ RSpec.describe "the declared syntax" do
       data_translation: "a sibling artifact — translations/ has its own builder and its own file"
     },
     "Hecksagon" => {
-      binds:              "the builder's own collected Bind records, read by whoever owns them",
-      subscriptions:      "the builder's own collected subscription strings, read by whoever owns them",
-      framework_members:  "the builder's own collected framework-member names, read by whoever owns them",
+      binds:             "the builder's own collected Bind records, read by whoever owns them",
+      subscriptions:     "the builder's own collected subscription strings, read by whoever owns them",
+      framework_members: "the builder's own collected framework-member names, read by whoever owns them",
       # THE OPEN VERB CATCH-ALL, DOMAIN-LEVEL. `persisted_by "Heki"` bare
       # (no aggregate) reaches HecksagonBuilder#method_missing the same
       # way World's own does — the verb is whichever bind-shaped word a
       # domain declares, not a closed set this table could enumerate.
-      method_missing: "the open domain-level-default-bind catch-all — same boundary as World's own"
+      method_missing:    "the open domain-level-default-bind catch-all — same boundary as World's own"
     },
-    "World" => {
+    "World"     => {
       # THE OPEN VERB-SETTINGS CATCH-ALL. `posted_by("Carrier") { office
       # "EC1" }` reaches WorldBuilder#method_missing — the verb is
       # whichever port a domain declares, not a closed set this table
@@ -153,7 +152,7 @@ RSpec.describe "the declared syntax" do
       method_missing: "the open port-verb settings catch-all — .world's adapter-binding " \
                       "vocabulary is per-application, not a fixed set the language can enumerate"
     },
-    "*" => {
+    "*"         => {
       build:              "the builder's closing act, called by self.build",
       attributes:         "AttributeCollector's collection, read by whoever owns it",
       closed_sets:        "AttributeCollector's synthesised sets, installed by the aggregate",
@@ -240,7 +239,7 @@ RSpec.describe "the declared syntax" do
     describe context do
       it "declares only words the builder answers" do
         undeclared = declared_in(context).map { |row| row[:word].to_sym }.uniq
-                       .reject { |word| BUILDER.fetch(context).equal?(Hecks) ? Hecks.respond_to?(word) : BUILDER.fetch(context).method_defined?(word) }
+                                         .reject { |word| BUILDER.fetch(context).equal?(Hecks) ? Hecks.respond_to?(word) : BUILDER.fetch(context).method_defined?(word) }
 
         expect(undeclared).to be_empty,
                               "#{context} declares #{undeclared.inspect}, which " \
@@ -269,8 +268,8 @@ RSpec.describe "the declared syntax" do
 
       if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
         declared += LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
-                            .map { |row| row[:word].to_sym }
-                            .select { |word| builder.instance_method(word).owner.equal?(D::AttributeCollector) }
+                                 .map { |row| row[:word].to_sym }
+                                 .select { |word| builder.instance_method(word).owner.equal?(D::AttributeCollector) }
       end
 
       answered = contexts.flat_map { |ctx| self.class.words_answered_by(ctx) }.uniq
@@ -293,7 +292,7 @@ RSpec.describe "the declared syntax" do
       expect(answered).to include(row[:word].to_sym),
                           "#{row[:context]}.#{row[:word]} — the new spelling has no builder"
       expect(answered).to include(row[:was].to_sym),
-                          "#{row[:context]}.#{row[:word]} was #{row[:was]}, and the old "                           "spelling stopped parsing — a rename never strands the old era"
+                          "#{row[:context]}.#{row[:word]} was #{row[:was]}, and the old " "spelling stopped parsing — a rename never strands the old era"
       expect(row[:was]).not_to eq(row[:word]), "#{row[:context]}.#{row[:word]} renames itself"
     end
   end
@@ -362,7 +361,7 @@ RSpec.describe "the declared syntax" do
       params = method_for(word, context).parameters
       next if params.any? { |kind, _| kind == :rest } # `one_of("small", "large")` is variadic
 
-      room   = params.count { |kind, _| %i[req opt].include?(kind) }
+      room = params.count { |kind, _| %i[req opt].include?(kind) }
       # An inline hash at a call site binds to a positional Hash parameter or to
       # a **keyrest, and the SPELLING does not distinguish them — `where(a: 1)`
       # and `member a: 1` are typed identically and land differently.
@@ -500,7 +499,7 @@ RSpec.describe "the declared syntax" do
   META_ONLY_CATEGORIES = %w[Vocabulary Syntax Keyword Argument].freeze
 
   it "opens every category the judge dispatches" do
-    plan   = Hecksagain::Bluebook::MetaValidator::Plan.for(
+    plan = Hecksagain::Bluebook::MetaValidator::Plan.for(
       Hecksagain::Bluebook::MetaValidator.grammar_registry
     ).names - META_ONLY_CATEGORIES
     opened = KEYWORDS.map { |row| row[:opens] }.reject(&:empty?).uniq
@@ -536,5 +535,4 @@ RSpec.describe "the declared syntax" do
       end
     end
   end
-
 end

@@ -104,13 +104,13 @@ module Hecksagain
             held_bluebook = shadow(latest[:held_text])
             diffed = Translation::Scaffold.diff(held_bluebook, bluebook)
             edge = Translation::Scaffold::Edge.new(
-              domain: bluebook.name,
-              from: latest[:label],
-              to: hash[0, Runtime::StorageShape::LABEL_LENGTH],
-              ordinal: latest[:ordinal] + 1,
-              label: hash[0, Runtime::StorageShape::LABEL_LENGTH],
+              domain:     bluebook.name,
+              from:       latest[:label],
+              to:         hash[0, Runtime::StorageShape::LABEL_LENGTH],
+              ordinal:    latest[:ordinal] + 1,
+              label:      hash[0, Runtime::StorageShape::LABEL_LENGTH],
               aggregates: diffed[:aggregates],
-              retired: diffed[:retired]
+              retired:    diffed[:retired]
             )
             Translation::Scaffold.write!(directory, edge)
           end

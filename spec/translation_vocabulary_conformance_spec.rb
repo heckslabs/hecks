@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The translation chapter's Rule.Kind closed set must equal the rule

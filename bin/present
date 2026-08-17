@@ -21,7 +21,7 @@ require "hecksagain/forms"
 require "rackup"
 
 ROOT = File.expand_path("..", __dir__)
-BANKING_BLUEBOOK  = File.join(ROOT, "examples/banking/bluebook/banking.bluebook")
+BANKING_BLUEBOOK = File.join(ROOT, "examples/banking/bluebook/banking.bluebook")
 # DELIBERATELY NOT UNDER examples/ AT ALL, let alone alongside
 # banking.bluebook itself — every top-level entry under examples/ is its
 # own scanned corpus member (spec/corpus_spec.rb's EXAMPLE_ROOTS,

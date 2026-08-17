@@ -89,13 +89,13 @@ module Hecksagain
           # a per-boot projection, installed by `Loader.bind_runtime` once a
           # dispatcher exists to close over (facade/surface.rb).
           bluebook = Bluebook::Chapter.new(name: @name, version: @version, vision: @vision,
-                                      aggregates: @aggregates,
-                                      read_models: @read_models,
-                                      policies: policies,
-                                      process_managers: @process_managers,
-                                      classification: @classification,
-                                      formerly_known_as: @formerly_known_as,
-                                      attaches_to: @attaches_to || [])
+                                           aggregates: @aggregates,
+                                           read_models: @read_models,
+                                           policies: policies,
+                                           process_managers: @process_managers,
+                                           classification: @classification,
+                                           formerly_known_as: @formerly_known_as,
+                                           attaches_to: @attaches_to || [])
 
           # Every hop AggregateBuilder#seal_query_field recognised and
           # deferred gets checked for real here — the earliest point a
@@ -224,7 +224,7 @@ module Hecksagain
 
             source_event = policy.for_each.to_s.empty? ? policy.on_event : nil
             check_with_spec!(policy.trigger_command, source_event, policy.with_spec, lookup,
-                              "#{policy.name}'s trigger")
+                             "#{policy.name}'s trigger")
           end
 
           @process_managers.each do |pm|
@@ -233,7 +233,7 @@ module Hecksagain
                 next if dispatch.with_spec.to_a.empty?
 
                 check_with_spec!(dispatch.command_name, handler.event_type, dispatch.with_spec, lookup,
-                                  "#{pm.name}'s dispatch #{dispatch.command_name}", pm: pm)
+                                 "#{pm.name}'s dispatch #{dispatch.command_name}", pm: pm)
               end
             end
           end
@@ -258,9 +258,7 @@ module Hecksagain
           correlation   = pm && pm.correlates_by && pm.correlation_head
 
           with_spec.each do |field, source|
-            if target && !command_declares?(target, field)
-              raise Malformed, "#{label}'s with: names #{field.inspect}, which #{command_ref} does not declare"
-            end
+            raise Malformed, "#{label}'s with: names #{field.inspect}, which #{command_ref} does not declare" if target && !command_declares?(target, field)
 
             next unless source.is_a?(::Symbol)
             next if source == correlation
@@ -700,9 +698,7 @@ module Hecksagain
                    "e.g. #{type_name.downcase}.value"
           end
 
-          if Attribute::PRIMITIVES.include?(type_name)
-            return "#{type_name} is already a scalar — #{segments.join('.')} has nothing left to reach"
-          end
+          return "#{type_name} is already a scalar — #{segments.join('.')} has nothing left to reach" if Attribute::PRIMITIVES.include?(type_name)
 
           shape = owner.value_object(type_name)
           return "#{type_name} is not a value object this domain declares" unless shape

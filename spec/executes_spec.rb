@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The language does not only judge a bluebook — it HOLDS one, and gives it back.
@@ -218,9 +217,9 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
     # way back out ; see the next test).
     held = held_account_attributes
 
-    expect(held["number"]).to     eq("Banking:Account:AccountNumber")  # a value object
-    expect(held["customer"]).to eq("Banking:Customer")              # another head
-    expect(held["ledger"]).to     eq("Banking:Account:LedgerEntry")    # a piece it holds
+    expect(held["number"]).to eq("Banking:Account:AccountNumber") # a value object
+    expect(held["customer"]).to eq("Banking:Customer") # another head
+    expect(held["ledger"]).to eq("Banking:Account:LedgerEntry") # a piece it holds
   end
 
   it "re-encodes a reference into the type the IR spells" do

@@ -91,7 +91,8 @@ module Hecksagain
                   "from: :\"customer.status\""
           end
 
-          @projected_fields << ProjectedField.new(name: name.to_sym, reference: reference.to_sym, remote_field: remote_field.to_sym)
+          @projected_fields << ProjectedField.new(name: name.to_sym, reference: reference.to_sym,
+                                                  remote_field: remote_field.to_sym)
         end
 
         # `has_many`, `has_one`, `belongs_to` — LEGACY (ADR 0025,
@@ -246,21 +247,21 @@ module Hecksagain
           seal_projected_fields
 
           ir = Aggregate.new(
-            name:          @name,
-            description:   @description,
-            attributes:    attributes,
-            value_objects: @value_objects + closed_sets,
-            commands:      @commands,
-            invariants:    @invariants,
-            preconditions: @named_givens.values,
-            projected_fields: @projected_fields,
-            identified_by: @identity_paths,
-            lifecycle:     @lifecycle,
-            entities:      @entities,
-            queries:       @queries,
-            policies:      @policies,
+            name:              @name,
+            description:       @description,
+            attributes:        attributes,
+            value_objects:     @value_objects + closed_sets,
+            commands:          @commands,
+            invariants:        @invariants,
+            preconditions:     @named_givens.values,
+            projected_fields:  @projected_fields,
+            identified_by:     @identity_paths,
+            lifecycle:         @lifecycle,
+            entities:          @entities,
+            queries:           @queries,
+            policies:          @policies,
             reference_targets: @reference_targets + entity_reference_targets,
-            provenance:    @provenance
+            provenance:        @provenance
           )
 
           # After the IR exists, on purpose : a reference is declared IN the
@@ -680,7 +681,6 @@ module Hecksagain
         def declared_value_object(type_name)
           (@value_objects + closed_sets).find { |shape| shape.hecks_name.to_s == type_name }
         end
-
       end
     end
   end

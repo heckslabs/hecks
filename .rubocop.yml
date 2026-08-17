@@ -1,0 +1,226 @@
+inherit_from: .rubocop_todo.yml
+
+inherit_mode:
+  merge:
+    - Exclude
+
+plugins:
+  - rubocop-rspec
+
+# LEAN ON PURPOSE — this codebase's own established style is long,
+# deliberate prose comments above methods/modules, module_function-heavy
+# modules, Struct-based value types, and comfortably long lines in both
+# comments and code. Fighting that with strict defaults would produce a
+# noisy gate nobody trusts rather than a real one. Cops are tuned to fit
+# what is already here, not to force a rewrite; anything genuinely
+# pre-existing and out of scope for a first pass lives in
+# .rubocop_todo.yml instead of being silently disabled here.
+# extensionless bin/ scripts (`bin/query_ir`, `bin/reference`, ...) are
+# real Ruby carrying a `#!/usr/bin/env ruby` shebang — Include admits
+# them explicitly since rubocop only recognises a file as Ruby by
+# extension or shebang otherwise, and this repo's own tools deserve the
+# same gate as lib/.
+AllCops:
+  TargetRubyVersion: 3.3
+  NewCops: enable
+  Include:
+    - "bin/*"
+    - "**/*.rb"
+  Exclude:
+    - "rust/**/*"
+    - "vendor/**/*"
+    # GENERATED, DO NOT EDIT (each file's own header says so) —
+    # projected from the language's own meta-domain by bin/project_
+    # vocabulary/bin/project_model/bin/parser_table, byte-pinned by
+    # spec/vocabulary_table_spec.rb, spec/model_generator_spec.rb,
+    # spec/parser_table_spec.rb. Linting the ARTIFACT rather than its
+    # generator just creates permanent drift on the next regen — a
+    # real instance of this found live: autocorrecting
+    # lib/hecksagain/vocabulary.rb's hash-literal spacing broke
+    # vocabulary_table_spec.rb because the generator itself still
+    # emits the old, un-autocorrected style.
+    - "lib/hecksagain/vocabulary.rb"
+    - "lib/hecksagain/projections/parser_table.rb"
+    - "lib/hecksagain/bluebook/policy.rb"
+    # PRE-EXISTING, UNRELATED TO THIS CONFIG — `ruby -c bin/project_deploy`
+    # itself fails (confirmed independently of rubocop): two heredocs
+    # opened on separate lines of the SAME `if/else` interpolation
+    # (`<<~GOOGLE` in the `if` branch, `<<~NOOAUTH` in the `else`)
+    # around line 1131 — Ruby consumes a heredoc's body starting from
+    # the NEXT line after it's opened, so `<<~GOOGLE`'s body silently
+    # swallows the literal text "else", "<<~NOOAUTH...", and "end}"
+    # rather than stopping at its own intended content. A real,
+    # separate bug in the deploy tooling, not a rubocop config
+    # decision — flagged rather than fixed here; fixing it means
+    # restructuring the heredoc pair (e.g. hoisting both opens onto
+    # one line, or building the branch as a plain string first) with
+    # care for the actual generated CloudFormation template, well
+    # outside a lint-gate task's scope.
+    - "bin/project_deploy"
+
+# frozen_string_literal — this codebase has exactly one file that opts
+# in (Gemfile) and 282 that don't; enforcing it now would be a
+# repo-wide mechanical change with no bug behind it. Left off rather
+# than either fighting every file or granting a blanket exception that
+# defeats the cop's own point.
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+# THE DELIBERATE PROSE. Every real design rationale in this codebase
+# lives in a comment directly above the method/class it explains —
+# long on purpose, sentence-cased on purpose. None of the comment-shape
+# cops below have any signal to offer here.
+Layout/LineLength:
+  Max: 130
+  AllowedPatterns:
+    - '\A\s*#' # a full-line comment can run long; code itself still holds to 130
+
+Style/DocumentationMethod:
+  Enabled: false
+
+# THIS CODEBASE'S OWN ACTUAL, UNIFORM CONVENTIONS — not preferences
+# imposed on it. Double-quoted strings and table-aligned hash literals
+# are the style essentially everywhere already (14480 and 802 offenses
+# respectively under the cops' own defaults, before this section
+# existed — a mismatched DEFAULT, not a real backlog).
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+Layout/HashAlignment:
+  EnforcedHashRocketStyle: table
+  EnforcedColonStyle: table
+
+# Percent-literal arrays (%w/%i) are not this codebase's habit —
+# quoted literals stay explicit even for short word/symbol lists, and
+# forcing the rewrite adds churn with no correctness behind it.
+Style/WordArray:
+  Enabled: false
+Style/SymbolArray:
+  Enabled: false
+
+Style/CommentedKeyword:
+  Enabled: false
+
+# module_function IS the pattern (QueryIR, Codemod, Naming, and others
+# all declare a module's entire public surface as function-style calls
+# on purpose, matching how each is actually used — Hecksagain::QueryIR.
+# constructs(...), never QueryIR.new.constructs(...)).
+Style/ModuleFunction:
+  Enabled: false
+
+# Struct-based value types throughout (Given, Rule, Mutation, ...) —
+# the language's own IR is built from them deliberately, not a lint
+# gap.
+Style/OpenStructUse:
+  Enabled: false
+
+# METRICS — real, but loosened to match already-large, already-correct
+# files (command_builder.rb, aggregate_builder.rb) rather than forcing
+# a split that has nothing to do with this pass. Still catches genuinely
+# NEW runaway complexity going forward.
+Metrics/ClassLength:
+  Max: 350
+Metrics/ModuleLength:
+  Max: 350
+  Exclude:
+    - "spec/**/*" # an RSpec describe block is one big module by construction; RSpec/*Length cops below own this instead
+Metrics/MethodLength:
+  Max: 40
+Metrics/AbcSize:
+  Max: 45
+Metrics/CyclomaticComplexity:
+  Max: 12
+Metrics/PerceivedComplexity:
+  Max: 12
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*" # RSpec/*Length below owns spec files' block shape instead
+
+# SPEC-SPECIFIC. This corpus's own specs favor long, descriptive `it`
+# strings and deep-but-meaningful context nesting (domain lifecycle
+# states genuinely nest) — loosened, not disabled, so a real runaway
+# still gets caught.
+RSpec/ExampleLength:
+  Max: 25
+RSpec/MultipleExpectations:
+  Max: 10
+RSpec/NestedGroups:
+  Max: 5
+RSpec/DescribeClass:
+  Enabled: false # many spec files describe a WORD ("the DSL reference"), a behavior, or a domain scenario, not one Ruby class
+RSpec/MultipleMemoizedHelpers:
+  Max: 12
+
+# Security/Eval and Lint/SuppressedException already have real, named
+# suppressions in this codebase (spec/support/doctest.rb,
+# spec/adapters/driven/postgres_era/*_spec.rb) predating this config —
+# left at their defaults on purpose so those inline
+# `# rubocop:disable` comments keep meaning something, rather than
+# turning the cop off globally and making the inline comments no-ops.
+
+# CONTROL-FLOW-RESTRUCTURING COPS, disabled rather than autocorrected —
+# a real bug found live building this config: autocorrecting
+# `port_operation_builder.rb`'s `if @owner; raise ... unless
+# operation.identity_attribute(@owner); end` merged the nested
+# unless INTO the outer if's condition twice
+# (`if @owner && !operation.identity_attribute(@owner) &&
+# !operation.identity_attribute(@owner)`), a duplicate-condition
+# corruption from Style/SoleNestedConditional's own autocorrect,
+# caught only because the full spec suite (1561 examples) was run
+# after autocorrect and 5 came back red. These cops rewrite the SHAPE
+# of a conditional, not just its formatting — real value when a human
+# applies the suggestion deliberately, too much blind-autocorrect risk
+# to leave enabled-and-unattended in a pre-push gate. Left DISABLED
+# rather than silently relied upon.
+Style/SoleNestedConditional:
+  Enabled: false
+Style/IfInsideElse:
+  Enabled: false
+Style/Next:
+  Enabled: false
+Style/GuardClause:
+  Enabled: false
+
+# A SECOND, DIFFERENT real bug caught the same way:
+# Lint/UnusedBlockArgument's autocorrect renamed `query "ForDecision"
+# do |decision| where decision: :decision end` to `|_decision|` —
+# correct in general (the local variable `decision` is never
+# referenced inside the block body) but wrong here specifically,
+# because QueryBuilder#derive_from_owner! reads the block's own
+# PARAMETER NAME via `block.parameters` reflection, not as a Ruby
+# variable — `spec/dsl_spec.rb`'s own "a query's own block parameter,
+# derived from the owner's already-declared attribute" is built
+# entirely around a parameter name carrying meaning a linter cannot
+# see. Left DISABLED for the same reason as the control-flow cops
+# above: a codebase whose DSL builders read block-parameter names by
+# reflection cannot safely blind-autocorrect "unused" arguments.
+Lint/UnusedBlockArgument:
+  Enabled: false
+
+# A THIRD, WORSE bug from the same blind-autocorrect pass, this one
+# from an RSpec structural cop rather than Style: merging
+# spec/adapters/query_agreement_spec.rb's two separate `before do`
+# blocks into one moved `next unless d1_available?` (originally
+# scoped to just the D1-table-scrubbing block) ahead of the
+# RECORDS.each seeding loop that populates all five engines under
+# test — so on any machine without D1 credentials configured (the
+# common case), the merge silently skipped seeding every record,
+# and every query in the spec started passing "expected: [...],
+# got: []" for the wrong reason entirely. Caught only because the
+# io-tagged suite (spec/adapters/query_agreement_spec.rb --tag io,
+# excluded from the default local run, part of pre-push) was run
+# after autocorrect.
+#
+# THE PATTERN ACROSS ALL THREE — SoleNestedConditional (a duplicate
+# condition), UnusedBlockArgument (broken DSL reflection),
+# ScatteredSetup (an early-return moved past code that has to run
+# unconditionally): every one of them RESTRUCTURES control flow or
+# code ORDER, not just formatting. So rather than keep discovering
+# these one at a time and disabling each newly-found offender,
+# `--autocorrect` in this repo is now run scoped to an explicit
+# ALLOWLIST (Layout/*, plus the two Style cops reconfigured above to
+# match this codebase's own convention) — see the skill/doc note on
+# `bin/... rubocop` usage. Every cop OUTSIDE that allowlist is
+# report-only: a real signal in `.rubocop_todo.yml` and in ordinary
+# `rubocop` runs, never blind-applied.
+RSpec/ScatteredSetup:
+  Enabled: false

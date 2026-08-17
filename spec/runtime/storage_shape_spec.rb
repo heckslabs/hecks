@@ -21,8 +21,8 @@ RSpec.describe "the storage-shape projection" do
   BASE = project_fixture(File.join(FIXTURES, "base.bluebook"))
 
   VARIANTS = Dir.glob(File.join(FIXTURES, "*.bluebook"))
-               .reject { |path| File.basename(path) == "base.bluebook" }
-               .sort.freeze
+                .reject { |path| File.basename(path) == "base.bluebook" }
+                .sort.freeze
 
   it "has fixtures for both verdicts" do
     names = VARIANTS.map { |path| File.basename(path) }

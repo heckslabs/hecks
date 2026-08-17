@@ -81,7 +81,8 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
     queried = @files[:makefile].scan(/--stack-name \$\(STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
 
     expect(queried).not_to be_empty
-    expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(STACK), but template.yaml's Outputs only declares #{declared}"
+    expect(queried - declared).to eq([]),
+                                  "Makefile queries #{queried - declared} against $(STACK), but template.yaml's Outputs only declares #{declared}"
   end
 
   it "gives every Makefile OutputKey lookup against the bastion stack a real bastion.yaml Output" do
@@ -89,7 +90,8 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
     queried = @files[:makefile].scan(/--stack-name \$\(BASTION_STACK\) --query "Stacks\[0\]\.Outputs\[\?OutputKey=='(\w+)'\]/).flatten
 
     expect(queried).not_to be_empty
-    expect(queried - declared).to eq([]), "Makefile queries #{queried - declared} against $(BASTION_STACK), but bastion.yaml's Outputs only declares #{declared}"
+    expect(queried - declared).to eq([]),
+                                  "Makefile queries #{queried - declared} against $(BASTION_STACK), but bastion.yaml's Outputs only declares #{declared}"
   end
 
   it "fills every bastion.yaml Parameter from the Makefile's --parameter-overrides, and no others" do
@@ -98,6 +100,7 @@ RSpec.describe "bin/project_deploy's stack<->bastion structural contract, in its
     filled = overrides_line.scan(/(\w+)=/).flatten
 
     expect(declared).not_to be_empty
-    expect(filled.sort).to eq(declared.sort), "bastion.yaml declares Parameters #{declared}, but --parameter-overrides fills #{filled}"
+    expect(filled.sort).to eq(declared.sort),
+                           "bastion.yaml declares Parameters #{declared}, but --parameter-overrides fills #{filled}"
   end
 end

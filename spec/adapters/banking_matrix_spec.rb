@@ -5,10 +5,10 @@ require "json"
 RSpec.describe "Banking across persistence adapters" do
   ADAPTER_MATRIX_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
   ADAPTERS = {
-    "Memory" => InMemoryDomain::MEMORY_ADAPTER,
-    "Heki"   => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
+    "Memory"            => InMemoryDomain::MEMORY_ADAPTER,
+    "Heki"              => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
     "SqlitePersistence" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"),
-    "SqliteProjection" => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter")
+    "SqliteProjection"  => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter")
   }.freeze
   AUTHORITATIVE_ADAPTERS = %w[Memory Heki SqlitePersistence].freeze
 
@@ -119,7 +119,9 @@ RSpec.describe "Banking across persistence adapters" do
     bluebook.aggregates.flat_map do |aggregate|
       direct = aggregate.public_send(kind).map { |declaration| "Banking::#{aggregate.hecks_name}.#{verb_name(declaration)}" }
       nested = aggregate.entities.flat_map do |entity|
-        entity.public_send(kind).map { |declaration| "Banking::#{aggregate.hecks_name}.#{entity.hecks_name}.#{verb_name(declaration)}" }
+        entity.public_send(kind).map { |declaration|
+          "Banking::#{aggregate.hecks_name}.#{entity.hecks_name}.#{verb_name(declaration)}"
+        }
       end
       direct + nested
     end.sort
@@ -130,20 +132,27 @@ RSpec.describe "Banking across persistence adapters" do
       runtime = boot(adapter)
       runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
                                                    email: { address: "ada@example.com" })
-      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
-      runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" }, narrative: { text: "Opening" })
-      runtime.dispatch("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" }, narrative: { text: "Lunch" })
+      runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
+daily_limit: { cents: 1_000 })
+      runtime.dispatch("Banking::Account.Credit", number: { value: "a" }, amount: { cents: 500, currency: "USD" },
+narrative: { text: "Opening" })
+      runtime.dispatch("Banking::Account.Debit", number: { value: "a" }, amount: { cents: 125, currency: "USD" },
+narrative: { text: "Lunch" })
 
       account = runtime.registry.repository("Banking", runtime.registry.bluebook("Banking").aggregate("Account")).find("a")
       expect(account[:balance].to_h).to eq(cents: 375, currency: "USD")
-      expect(account[:ledger].map { |entry| entry[:amount].to_h }).to eq([{ cents: 500, currency: "USD" }, { cents: 125, currency: "USD" }])
+      expect(account[:ledger].map { |entry|
+        entry[:amount].to_h
+      }).to eq([{ cents: 500, currency: "USD" }, { cents: 125, currency: "USD" }])
     end
   end
 
   it "reads the projection after catch-up and keeps all three stores in parity" do
     runtime = boot("Heki", projected: true)
-    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" }, email: { address: "ada@example.com" })
-    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" }, daily_limit: { cents: 1_000 })
+    runtime.dispatch("Banking::Customer.Register", reference: { value: "c" }, name: { given: "Ada", family: "Lovelace" },
+email: { address: "ada@example.com" })
+    runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a" }, kind: { name: "current" },
+daily_limit: { cents: 1_000 })
 
     before = runtime.query("Banking.customer_portfolio", customer: "c")
     workers = runtime.registry.bluebooks.fetch("Banking").aggregates.filter_map do |aggregate|

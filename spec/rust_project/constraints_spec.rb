@@ -48,7 +48,8 @@ RSpec.describe RustProjection::Projector do
 
   describe ".emit_admits_check" do
     let(:aggregates_by_name) do
-      { "Thing" => { value_objects: [{ name: "Status", closed_set: true, members: [[[:value, "open"]], [[:value, "closed"]]] }] } }
+      { "Thing" => { value_objects: [{ name: "Status", closed_set: true,
+members: [[[:value, "open"]], [[:value, "closed"]]] }] } }
     end
     let(:attr) { OPTIONAL_STRING_ATTR.merge(name: "status", admits: "Thing::Status") }
 

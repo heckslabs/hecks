@@ -37,8 +37,6 @@ module Hecksagain
         @subscriptions      = subscriptions
         @framework_members  = framework_members
       end
-
-
     end
 
     class World
@@ -55,8 +53,6 @@ module Hecksagain
         @latest   = latest&.to_s
         @settings = settings
       end
-
-
     end
   end
 end

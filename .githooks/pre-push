@@ -96,4 +96,12 @@ if ! "$ROOT/bin/doc_coverage"; then
   exit 1
 fi
 
-printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified.\n\n'
+printf '\n[pre-push] rubocop — static style/correctness gate\n\n'
+
+if ! (cd "$ROOT" && bundle exec rubocop -c .rubocop.yml); then
+  printf '\n[pre-push] BLOCKED — rubocop found an offense.\n'
+  printf '           Fix it, or push with --no-verify and say why.\n\n'
+  exit 1
+fi
+
+printf '\n[pre-push] suite green, fuzzer green, engines agree, model checks clean, every word exemplified, rubocop clean.\n\n'

@@ -82,7 +82,6 @@ module Hecksagain
       end
       private :spell
 
-
       # Held because a declared vocabulary pins it — spec/vocabulary_conformance
       # holds `Primitive`'s members to this list. The `primitive?` predicate that
       # used to read it had no caller anywhere and is gone.

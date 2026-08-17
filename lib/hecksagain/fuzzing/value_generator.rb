@@ -22,7 +22,7 @@ module Hecksagain
     module ValueGenerator
       module_function
 
-      EDGE_CASE_PROBABILITY    = 0.2
+      EDGE_CASE_PROBABILITY = 0.2
       INVALID_MEMBER_PROBABILITY = 0.1
       INVALID_REFERENCE_PROBABILITY = 0.2
       # `Value.for_attribute` → `fields_for`'s own bare-scalar branch
@@ -73,7 +73,8 @@ module Hecksagain
             member.to_h { |field, value| [field.to_s, value] }
           else
             value_object.attributes.to_h do |field|
-              [field.name.to_s, value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
+              [field.name.to_s,
+               value_for(field, aggregate, random: random, known_ids: known_ids, context: value_object.hecks_name)]
             end
           end
 
@@ -93,7 +94,9 @@ module Hecksagain
       # admitted rows — deliberately, to exercise the refusal a `one_of`
       # exists to enforce, not just its happy path.
       def invalid_member(value_object, random:)
-        value_object.attributes.to_h { |field| [field.name.to_s, primitive(field.type.to_s, random: random, name: field.name.to_s)] }
+        value_object.attributes.to_h { |field|
+          [field.name.to_s, primitive(field.type.to_s, random: random, name: field.name.to_s)]
+        }
       end
 
       # THE ID ITSELF. This minted `{"value" => id}` back when a reference was

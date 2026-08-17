@@ -70,7 +70,6 @@ module Hecksagain
       snake(demodulise(type)).to_sym
     end
 
-
     def split_dotted(dotted)
       first, second = dotted.to_s.split(".", 2)
       [first.to_s, second.to_s]

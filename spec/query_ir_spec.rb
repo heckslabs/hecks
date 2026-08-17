@@ -56,8 +56,8 @@ RSpec.describe Hecksagain::QueryIR do
     # commands" from that separate, real, cross-aggregate case.
     it "does not flag a single owner's own commands referencing its declared given as N fresh duplicates" do
       raw = described_class.send(:collect_rules, Hecksagain::Codemod.load_bluebook(
-        Dir.glob(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/*.bluebook")).first
-      ))
+                                                   Dir.glob(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/*.bluebook")).first
+                                                 ))
       account_given = raw.select do |r|
         r.kind == "given" && r.description == "customer is active" &&
           r.canonical == "customer.status == \"active\"" &&
@@ -119,7 +119,10 @@ RSpec.describe Hecksagain::QueryIR do
 
   describe ".format_duplicates" do
     it "names how many groups and declarations, at the end" do
-      text = described_class.format_duplicates(described_class.duplicates(domains: [File.join(InMemoryDomain::ROOT, "examples/banking")], include_meta: false))
+      text = described_class.format_duplicates(described_class.duplicates(
+                                                 domains: [File.join(InMemoryDomain::ROOT,
+                                                                     "examples/banking")], include_meta: false
+                                               ))
       expect(text).to match(/\d+ duplicate group\(s\), \d+ declarations total/)
     end
 

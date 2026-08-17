@@ -67,7 +67,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
     return nil unless cargo_toml =~ /^#{Regexp.escape(domain_feature)}\s*=\s*\[\]/
 
     built = system("cargo", "build", "--no-default-features", "--features", domain_feature,
-                    chdir: RUST_DIR, out: File::NULL, err: File::NULL)
+                   chdir: RUST_DIR, out: File::NULL, err: File::NULL)
     return nil unless built
 
     binary = File.join(RUST_DIR, "target", "debug", "rust")
@@ -191,7 +191,7 @@ RSpec.describe "Rust conformance (native binary)", io: true do
 
       cross_domain = cross_domain_policy_names(rust_output)
       ruby_reactions = JSON.parse(JSON.generate(ruby_result[:reactions]))
-                          .reject { |r| cross_domain.include?(r["policy"]) || known_reaction_gap?(r) }
+                           .reject { |r| cross_domain.include?(r["policy"]) || known_reaction_gap?(r) }
       rust_reactions = rust_output.fetch("reactions").reject { |r| known_reaction_gap?(r) }
       expect(rust_reactions).to eq(ruby_reactions)
     end
@@ -224,7 +224,8 @@ RSpec.describe "Rust conformance (native binary)", io: true do
     binary = build_rust_for("banking")
     skip "rust/Cargo.toml has no banking feature — run bin/project_rust for it first" unless binary
 
-    stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.OpenForSuspendedCustomers" }] }))
+    stdout, status = Open3.capture2(binary,
+                                    stdin_data: JSON.generate({ "steps" => [{ "query" => "Banking::Account.OpenForSuspendedCustomers" }] }))
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
 
     rust_output = JSON.parse(stdout)

@@ -236,7 +236,7 @@ RSpec.describe "the translation scaffold" do
       aggregates: diffed[:aggregates], retired: diffed[:retired]
     )
     rendered = Hecksagain::Translation::Scaffold.render(edge)
-    expect(rendered).to include('unresolved :pen, candidates: [:pencil, :stylus]')
+    expect(rendered).to include("unresolved :pen, candidates: [:pencil, :stylus]")
 
     registry = Hecksagain::Runtime::Registry.new
     expect do

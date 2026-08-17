@@ -135,7 +135,7 @@ module Hecksagain
 
         def validate!
           raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
-            "nothing would tie its events to one instance" unless @correlates_by
+                                       "nothing would tie its events to one instance" unless @correlates_by
 
           # THE FIELD, NAMED — never the value object that carries it. A bare
           # `correlates_by :end_to_end` reads whatever the payload holds under
@@ -148,14 +148,14 @@ module Hecksagain
           # does not know or care whether the field IS a value object, only
           # that the declaration cannot leave that question open.
           raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
-            "field rather than one of its scalars — say which one, e.g. " \
-            "#{@correlates_by}.value" unless @correlates_by.to_s.include?(".")
+                                       "field rather than one of its scalars — say which one, e.g. " \
+                                       "#{@correlates_by}.value" unless @correlates_by.to_s.include?(".")
 
           raise InvalidProcessManager, "#{@name} declares no starts_on — " \
-            "nothing would ever begin it" if @starts_on.to_s.empty?
+                                       "nothing would ever begin it" if @starts_on.to_s.empty?
 
           raise InvalidProcessManager, "#{@name} declares no transitions — " \
-            "it would start and then ignore every event" if @handlers.empty?
+                                       "it would start and then ignore every event" if @handlers.empty?
         end
 
         class HandlerBuilder

@@ -118,7 +118,9 @@ module Hecksagain
         current_entries.reject { |entry| entry.fqn.aggregate.nil? }
                        .group_by { |entry| [entry.fqn.aggregate, entry.fqn.verb] }
                        .each do |(aggregate, verb), candidates|
-          shortcut_target(aggregate).define_singleton_method(verb) { |**args| installer.send(:dispatch_short, candidates, **args) }
+          shortcut_target(aggregate).define_singleton_method(verb) { |**args|
+            installer.send(:dispatch_short, candidates, **args)
+          }
         end
       end
 
@@ -135,7 +137,8 @@ module Hecksagain
 
       def shortcut_target(aggregate)
         constant = Object.const_get(aggregate, false) if Object.const_defined?(aggregate, false)
-        raise NameError, "cannot install Bluebook shortcut #{aggregate}: it is not a module" if constant && !constant.is_a?(Module)
+        raise NameError,
+              "cannot install Bluebook shortcut #{aggregate}: it is not a module" if constant && !constant.is_a?(Module)
 
         constant || Object.const_set(aggregate, Module.new)
       end
@@ -143,7 +146,8 @@ module Hecksagain
       def namespace_for(realm, domain, aggregate)
         [realm, domain, aggregate].compact.reduce(Object) do |parent, name|
           constant = parent.const_get(name, false) if parent.const_defined?(name, false)
-          raise NameError, "cannot install Bluebook route under #{parent}::#{name}: it is not a module" if constant && !constant.is_a?(Module)
+          raise NameError,
+                "cannot install Bluebook route under #{parent}::#{name}: it is not a module" if constant && !constant.is_a?(Module)
 
           constant || parent.const_set(name, Module.new)
         end

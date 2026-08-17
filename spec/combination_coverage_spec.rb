@@ -120,6 +120,8 @@ RSpec.describe "every pair of declared forms, met on one aggregate" do
 
     rare = %w[composite_id two_entities composite_piece multi_emit reference_attr closed_set]
     expect(rare.select { |form| box.last[form] }).to eq(rare),
-                                                     "Banking::SafeDepositBox no longer carries #{rare.reject { |f| box.last[f] }.join(', ')}"
+                                                     "Banking::SafeDepositBox no longer carries #{rare.reject { |f|
+                                                       box.last[f]
+                                                     }.join(', ')}"
   end
 end

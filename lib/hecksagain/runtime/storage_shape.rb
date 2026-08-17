@@ -44,7 +44,7 @@ module Hecksagain
       def project(bluebook)
         domain = JSON.parse(JSON.generate(bluebook.to_h))
         {
-          "name" => bluebook.name,
+          "name"       => bluebook.name,
           "aggregates" => (domain["aggregates"] || [])
                           .map { |aggregate| project_aggregate(aggregate) }
                           .sort_by { |aggregate| aggregate["name"] }
@@ -73,17 +73,17 @@ module Hecksagain
 
       def project_aggregate(aggregate)
         {
-          "name" => aggregate["name"],
+          "name"            => aggregate["name"],
           # The declared identity paths, AS A LIST, in declaration order —
           # order is semantic (the paths join in order to form the id).
           # No "id" fallback: an aggregate that declares nothing has [],
           # and that is a real declared state, distinct from an aggregate
           # identified by a field named "id".
-          "identity" => Array(aggregate["identified_by"]).map(&:to_s),
+          "identity"        => Array(aggregate["identified_by"]).map(&:to_s),
           "lifecycle_field" => aggregate.dig("lifecycle", "field"),
-          "attributes" => (aggregate["attributes"] || [])
-                          .map { |attribute| project_attribute(aggregate, attribute, []) }
-                          .sort_by { |attribute| attribute["name"] }
+          "attributes"      => (aggregate["attributes"] || [])
+                               .map { |attribute| project_attribute(aggregate, attribute, []) }
+                               .sort_by { |attribute| attribute["name"] }
         }
       end
 
@@ -104,7 +104,7 @@ module Hecksagain
         return type_name if container.nil? || seen.include?(type_name)
 
         {
-          "type" => type_name,
+          "type"    => type_name,
           "members" => (container["attributes"] || [])
                        .map { |member| project_attribute(aggregate, member, seen + [type_name]) }
                        .sort_by { |member| member["name"] }

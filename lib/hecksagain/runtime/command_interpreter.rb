@@ -75,7 +75,9 @@ module Hecksagain
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) { @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.aggregate) }
+        step(:enforce_givens) {
+          @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.aggregate)
+        }
       end
 
       def step_admissible_transition(ctx)
@@ -94,7 +96,11 @@ module Hecksagain
         # arithmetic via Value#with, append builds a new array), never
         # edit a held value in place.
         ctx.old_state = ctx.instance.state.dup unless ctx.command.ensures.empty?
-        step(:apply_mutations) { ctx.command.mutations.each { |mutation| apply(ctx.instance, ctx.aggregate, mutation, ctx.args) } }
+        step(:apply_mutations) {
+          ctx.command.mutations.each { |mutation|
+            apply(ctx.instance, ctx.aggregate, mutation, ctx.args)
+          }
+        }
       end
 
       def step_advance_lifecycle(ctx)
@@ -104,7 +110,9 @@ module Hecksagain
       end
 
       def step_enforce_ensures(ctx)
-        step(:enforce_ensures) { @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state, domain: ctx.domain) }
+        step(:enforce_ensures) {
+          @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state, domain: ctx.domain)
+        }
       end
 
       def step_enforce_invariants(ctx)
@@ -116,7 +124,9 @@ module Hecksagain
       end
 
       def step_emit(ctx)
-        ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository, ctx.correlation) }
+        ctx.result = step(:emit) {
+          @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository, ctx.correlation)
+        }
       end
 
       def hydrate(repository, aggregate, command, args)
@@ -135,8 +145,8 @@ module Hecksagain
           # them fell through to here.
           id = identity_of(aggregate, args) ||
                raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
-                                                      command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                      identity: identity_reading(aggregate)))
+                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                     identity: identity_reading(aggregate)))
           # A SECOND CREATION IS NOT A FRESH ONE. Nothing here checked whether
           # the derived id already named a record, so the same creating
           # command dispatched twice with the same identity silently built a
@@ -146,9 +156,9 @@ module Hecksagain
           # mistake in a way a minted reference cannot.
           if repository.find(id)
             raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                        command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                        identity: identity_reading(aggregate),
-                                                        offered: Rendering.describe(id)))
+                                                       command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                       identity: identity_reading(aggregate),
+                                                       offered: Rendering.describe(id)))
           end
 
           Instance.new(aggregate: aggregate, id: id)
@@ -166,13 +176,13 @@ module Hecksagain
                identity_from(aggregate, args, :id) ||
                identity_from(aggregate, args, reference_key(command)) ||
                raise(NotFound, RefusalWording.render("NotFound", "acting_no_identity",
-                                                      command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                      identity: identity_reading(aggregate)))
+                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                     identity: identity_reading(aggregate)))
           found = repository.find(id) ||
                   raise(NotFound, RefusalWording.render("NotFound", "record_missing",
-                                                         aggregate: aggregate.hecks_name,
-                                                         identity: identity_reading(aggregate),
-                                                         offered: Rendering.describe(id)))
+                                                        aggregate: aggregate.hecks_name,
+                                                        identity:  identity_reading(aggregate),
+                                                        offered:   Rendering.describe(id)))
           found.dup
         end
       end

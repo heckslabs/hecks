@@ -39,9 +39,9 @@ module Hecksagain
 
         Verdict.new(
           violations: violations,
-          dropped: declared ? declared.drops.map(&:to_s) : [],
-          unfed: unfed(aggregate, declared, after),
-          samples: samples_for(declared, before, after)
+          dropped:    declared ? declared.drops.map(&:to_s) : [],
+          unfed:      unfed(aggregate, declared, after),
+          samples:    samples_for(declared, before, after)
         )
       end
 

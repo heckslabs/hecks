@@ -281,14 +281,15 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   let(:sqlite)   { Hecksagain::Adapters::Sqlite.new(aggregate: aggregate, settings: { database: "agreement.db" }, root: @dir) }
   let(:postgres) { postgres_available? ? Hecksagain::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }) : nil }
   let(:plain_postgres) do
-    postgres_available? ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_AGREEMENT_DB }) : nil
+    postgres_available? ? Hecksagain::Adapters::Postgres.new(aggregate: aggregate,
+                                                             settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB }) : nil
   end
   let(:d1) do
     next nil unless d1_available?
 
     Hecksagain::Adapters::D1.new(
       aggregate: aggregate,
-      settings: {
+      settings:  {
         account_id:  ENV.fetch("CLOUDFLARE_ACCOUNT_ID"),
         database_id: ENV.fetch("CLOUDFLARE_D1_DATABASE_ID"),
         api_token:   ENV.fetch("CLOUDFLARE_D1_API_TOKEN")
@@ -317,11 +318,16 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   # so a case cannot pass by accident on a single-row coincidence, and
   # ordering has a real tie to break among the nulls.
   RECORDS = {
-    "r1" => { status: "open",   balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },   tags: [{ name: "red" }],   note: { value: "flagged: high, risk today" },      rating: { value: 100 }, label: { value: "alpha" } },
-    "r2" => { status: "open",   balance: { cents: 500 }, box: { price: { cents: 500 } }, name: { value: "Carol" }, tags: [{ name: "blue" }],  note: { value: "high risk, but flagged separately" } },
-    "r3" => { status: "closed", balance: { cents: 900 }, box: { price: { cents: 900 } }, name: { value: "Alice" }, tags: [{ name: "green" }], note: { value: "nothing unusual" },               rating: { value: 300 }, label: { value: "beta" } },
-    "r4" => { status: "closed", balance: { cents: 300 }, box: { price: { cents: 300 } }, name: { value: "Dave" },  tags: [{ name: "red" }],   note: { value: "high, risk, reviewed" } },
-    "r5" => { status: "open",   balance: { cents: 700 }, box: { price: { cents: 700 } }, name: { value: "Bob" },   tags: [{ name: "blue" }],  note: { value: "low risk" },                       rating: { value: 500 }, label: { value: "phase" } }
+    "r1" => { status: "open",   balance: { cents: 100 }, box: { price: { cents: 100 } }, name: { value: "Eve" },
+tags: [{ name: "red" }],   note: { value: "flagged: high, risk today" },      rating: { value: 100 }, label: { value: "alpha" } },
+    "r2" => { status: "open",   balance: { cents: 500 }, box: { price: { cents: 500 } }, name: { value: "Carol" },
+tags: [{ name: "blue" }],  note: { value: "high risk, but flagged separately" } },
+    "r3" => { status: "closed", balance: { cents: 900 }, box: { price: { cents: 900 } }, name: { value: "Alice" },
+tags: [{ name: "green" }], note: { value: "nothing unusual" }, rating: { value: 300 }, label: { value: "beta" } },
+    "r4" => { status: "closed", balance: { cents: 300 }, box: { price: { cents: 300 } }, name: { value: "Dave" },
+tags: [{ name: "red" }],   note: { value: "high, risk, reviewed" } },
+    "r5" => { status: "open",   balance: { cents: 700 }, box: { price: { cents: 700 } }, name: { value: "Bob" },
+tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, label: { value: "phase" } }
   }.freeze
 
   before do

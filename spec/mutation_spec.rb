@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 RSpec.describe "sets arithmetic" do
@@ -67,9 +66,9 @@ RSpec.describe "sets arithmetic" do
     runtime.dispatch("TillRoom::Till.PayOut", number: { value: "till-1" }, amount: { cents: 2_500 })
 
     expect(TillRoom::Till.find("till-1").marks.map(&:to_h)).to eq([
-      { amount: 10_000, direction: "in" },
-      { amount: 2_500,  direction: "out" }
-    ])
+                                                                    { amount: 10_000, direction: "in" },
+                                                                    { amount: 2_500, direction: "out" }
+                                                                  ])
   end
 
   # A mutation names a target — but must the target EXIST?

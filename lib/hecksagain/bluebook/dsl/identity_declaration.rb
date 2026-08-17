@@ -91,7 +91,8 @@ module Hecksagain
             if target.to_s[0] =~ /[A-Z]/
               @identity_type_pending = [target, as, attributes.size]
             else
-              raise Malformed, "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
+              raise Malformed,
+                    "#{@name}.identified_by :#{target} takes no as: — as: only applies to identified_by ValueObject" if as
 
               @identity_field_pending = target
             end

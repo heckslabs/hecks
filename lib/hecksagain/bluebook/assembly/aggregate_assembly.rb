@@ -24,16 +24,16 @@ module Hecksagain
 
           ir = Build.call(
             "Aggregate", @row,
-            value_objects: shapes,
-            commands:      commands,
-            entities:      entities,
-            queries:       asks,
-            lifecycle:     lifecycle_of(@row),
+            value_objects:     shapes,
+            commands:          commands,
+            entities:          entities,
+            queries:           asks,
+            lifecycle:         lifecycle_of(@row),
             # A policy declared inside a head is HOISTED onto the chapter by the
             # builder, and `Aggregate#to_h` never carried it — so the language does
             # not record which head a chapter-level policy was written in. The
             # chapter holds them all, which is what `PolicyInterpreter` reads.
-            policies:      [],
+            policies:          [],
             reference_targets: reference_targets(fields)
           )
 

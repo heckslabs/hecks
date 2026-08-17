@@ -1,4 +1,3 @@
-
 require_relative "hecksagain/version"
 # The closed sets the runtime computes with, generated from
 # vocabulary.bluebook. Plain data, required first, because some of
@@ -65,12 +64,18 @@ module Hecksagain
     # `CommandRules::Authorization`'s own header.
     def as_caller(role:, actor_id: nil, &block) = Runtime.as_caller(role: role, actor_id: actor_id, &block)
 
-    def bluebook(name, version: nil, &block) = collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))
+    def bluebook(name, version: nil, &block)
+      collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &block))
+    end
+
     def hecksagon(name, &block) = collect(:add_hecksagon, Bluebook::DSL::HecksagonBuilder.build(name, &block))
-    def port(name, &block)    = collect(:add_port,    Bluebook::DSL::PortBuilder.build(name, &block))
+    def port(name, &block) = collect(:add_port, Bluebook::DSL::PortBuilder.build(name, &block))
     def adapter(name, &block)   = collect(:add_adapter,   Bluebook::DSL::AdapterBuilder.build(name, &block))
     def world(name, &block)     = collect(:add_world,     Bluebook::DSL::WorldBuilder.build(name, &block))
-    def data_translation(name, from:, to:, &block) = collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &block))
+
+    def data_translation(name, from:, to:, &block)
+      collect(:add_translation, Bluebook::DSL::TranslationBuilder.build(name, from: from, to: to, &block))
+    end
 
     private
 

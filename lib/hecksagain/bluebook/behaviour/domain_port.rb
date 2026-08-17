@@ -11,7 +11,6 @@ module Hecksagain
         # what it acts for, and `identity_attribute` is how that is found.
         def references = nil
 
-
         def identity_attribute(owner_name)
           @attributes.find { |attribute| attribute.reference? && attribute.type.target_name == owner_name.to_s }
         end

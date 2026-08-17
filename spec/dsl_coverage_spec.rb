@@ -8,57 +8,57 @@ RSpec.describe "the DSL surface is fully covered" do
       Hecksagain.singleton_class,
       %i[boot with_registry bluebook hecksagon port adapter world data_translation current_registry as_caller]
     ],
-    "BluebookBuilder" => [
+    "BluebookBuilder"             => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
       %i[vision formerly_known_as attaches_to core supporting generic aggregate report read_model policy process_manager
          classification]
     ],
-    "AggregateBuilder" => [
+    "AggregateBuilder"            => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
       %i[description provenance identified_by reference_to has_many has_one belongs_to value_object command lifecycle
          entity query policy attribute list_of attributes invariant given projects]
     ],
-    "ValueObjectBuilder" => [
+    "ValueObjectBuilder"          => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
       %i[invariant one_of member attribute list_of attributes]
     ],
-    "CommandBuilder" => [
+    "CommandBuilder"              => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
       %i[role goal provenance reference_to given ensures then_set sets emits attribute list_of attributes]
     ],
-    "PortBuilder" => [
+    "PortBuilder"                 => [
       Hecksagain::Bluebook::DSL::PortBuilder,
       %i[verb signal]
     ],
-    "DomainPortBuilder" => [
+    "DomainPortBuilder"           => [
       Hecksagain::Bluebook::DSL::DomainPortBuilder,
       %i[operation tells asks verb]
     ],
-    "PortOperationBuilder" => [
+    "PortOperationBuilder"        => [
       Hecksagain::Bluebook::DSL::PortOperationBuilder,
       %i[reference_to emits answers refuses attribute list_of attributes]
     ],
-    "AdapterBuilder" => [
+    "AdapterBuilder"              => [
       Hecksagain::Bluebook::DSL::AdapterBuilder,
       %i[port field secret]
     ],
-    "WorldBuilder" => [
+    "WorldBuilder"                => [
       Hecksagain::Bluebook::DSL::WorldBuilder,
       %i[realm latest method_missing]
     ],
-    "SettingsCollector" => [
+    "SettingsCollector"           => [
       Hecksagain::Bluebook::DSL::SettingsCollector,
       %i[method_missing to_h]
     ],
-    "BindingProxy" => [
+    "BindingProxy"                => [
       Hecksagain::Bluebook::DSL::BindingProxy,
       %i[port method_missing to_s]
     ],
-    "HecksagonBuilder" => [
+    "HecksagonBuilder"            => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
       %i[binds subscribe subscriptions port uses_framework framework_members method_missing]
     ],
-    "TranslationBuilder" => [
+    "TranslationBuilder"          => [
       Hecksagain::Bluebook::DSL::TranslationBuilder,
       %i[aggregate retired method_missing]
     ],
@@ -71,7 +71,7 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED.each do |label, (subject, declared)|
     it "#{label} has no method without a test" do
       actual = subject.public_instance_methods(false) - PLUMBING
-      actual -= %i[collector collector=] 
+      actual -= %i[collector collector=]
 
       undeclared = actual - declared
 

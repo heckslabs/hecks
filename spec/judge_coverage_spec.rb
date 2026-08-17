@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # Every VERB the language declares must be OFFERED to it.
@@ -103,9 +102,9 @@ RSpec.describe "the judge's coverage of the language" do
 
   def declared_verbs
     Hecksagain::Bluebook::MetaValidator.grammar_registry
-      .bluebook("Bluebook").aggregates
-      .reject { |aggregate| META_ONLY_AGGREGATES.include?(aggregate.hecks_name) }
-      .flat_map { |aggregate| aggregate_verbs(aggregate) }
+                                       .bluebook("Bluebook").aggregates
+                                       .reject { |aggregate| META_ONLY_AGGREGATES.include?(aggregate.hecks_name) }
+                                       .flat_map { |aggregate| aggregate_verbs(aggregate) }
   end
 
   # S17, ADR 0026 — Member is a genuine entity now, nested under

@@ -122,7 +122,7 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
   describe "the optional saga-persistence capability (§2/§3/§4)" do
     it "saves a saga instance and reads it back through each_saga" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
-                         state: "awaiting_credit", memory: { amount: 100 })
+                        state: "awaiting_credit", memory: { amount: 100 })
 
       rows = adapter.each_saga.to_a
       expect(rows).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }]])
@@ -380,7 +380,7 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
 
       def widget_instance(id, cents:)
         Hecksagain::Runtime::Instance.new(aggregate: widget, id: id,
-                                           state: { sku: { value: id }, price: { cents: cents } })
+                                          state: { sku: { value: id }, price: { cents: cents } })
       end
 
       before do
@@ -477,8 +477,8 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
 
     it "stores the reference as a bare id" do
       refs_adapter.save(Hecksagain::Runtime::Instance.new(
-        aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
-      ))
+                          aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
+                        ))
 
       db = PG.connect(dbname: SPEC_DB)
       raw = JSON.parse(db.exec("SELECT state FROM ticket_head WHERE id = 't1'")[0]["state"])
@@ -488,11 +488,11 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
 
     it "matches a where clause on the reference field" do
       refs_adapter.save(Hecksagain::Runtime::Instance.new(
-        aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
-      ))
+                          aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, team: "team-a" }
+                        ))
       refs_adapter.save(Hecksagain::Runtime::Instance.new(
-        aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, team: "team-b" }
-      ))
+                          aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, team: "team-b" }
+                        ))
 
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
         [Struct.new(:field, :op, :value).new("team", "eq", "team-a")], nil, nil, nil, nil
@@ -511,11 +511,11 @@ RSpec.describe Hecksagain::Adapters::PostgresEra,
       expect(ticket.attribute(:invoices).type.to_s).to eq("Reference<Invoice>")
 
       refs_adapter.save(Hecksagain::Runtime::Instance.new(
-        aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, invoices: "inv-1" }
-      ))
+                          aggregate: ticket, id: "t1", state: { number: { "value" => "t1" }, invoices: "inv-1" }
+                        ))
       refs_adapter.save(Hecksagain::Runtime::Instance.new(
-        aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, invoices: "inv-2" }
-      ))
+                          aggregate: ticket, id: "t2", state: { number: { "value" => "t2" }, invoices: "inv-2" }
+                        ))
 
       declared = Struct.new(:wheres, :order_by, :limit, :offset, :null_semantics).new(
         [Struct.new(:field, :op, :value).new("invoices", "eq", "inv-1")], nil, nil, nil, nil

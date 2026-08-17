@@ -245,7 +245,7 @@ module Hecksagain
 
           named = { set: to, append: append, increment: increment, decrement: decrement,
                     multiply: multiply, clamp: clamp, remove: remove }
-              .reject { |_, source| source.equal?(UNSET) }
+                  .reject { |_, source| source.equal?(UNSET) }
 
           # THE OMITTABLE CASE. No operation was named at all — not even a
           # bare `to:` — so this is `sets :field` alone, which means
@@ -437,7 +437,7 @@ module Hecksagain
 
           named = { set: set_source, append: append, increment: increment, decrement: decrement,
                     multiply: multiply, clamp: clamp, remove: remove }
-              .reject { |_, source| source.equal?(UNSET) }
+                  .reject { |_, source| source.equal?(UNSET) }
 
           if named.empty?
             raise Malformed,

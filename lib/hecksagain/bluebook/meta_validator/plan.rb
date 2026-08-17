@@ -198,18 +198,18 @@ module Hecksagain
           rest       = aggregate.commands - [declare].compact
 
           Category.new(
-            name:       aggregate.hecks_name,
-            declare:    declare&.hecks_name,
-            parent:     owner || parent&.type&.target_name,
-            parent_key: parent_key,
-            fields:     declared_fields(declare),
-            appends:    appends_in(rest),
-            alternates: alternates_in(rest),
-            setters:    setters_in(rest),
-            sealers:    sealers_in(rest),
+            name:           aggregate.hecks_name,
+            declare:        declare&.hecks_name,
+            parent:         owner || parent&.type&.target_name,
+            parent_key:     parent_key,
+            fields:         declared_fields(declare),
+            appends:        appends_in(rest),
+            alternates:     alternates_in(rest),
+            setters:        setters_in(rest),
+            sealers:        sealers_in(rest),
             # EVERY command, not `rest` — the creating command carries the parent
             # link, which is the most common reference of all.
-            references: references_in(aggregate.commands),
+            references:     references_in(aggregate.commands),
             # HOW THE CATEGORY NAMES ITS RECORDS, read from the language rather
             # than restated. The judge has to know a record's id BEFORE it
             # dispatches, because the children it walks next carry it as their

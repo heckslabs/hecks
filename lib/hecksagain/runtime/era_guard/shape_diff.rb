@@ -7,7 +7,9 @@ module Hecksagain
       # call it too.
       module ShapeDiff
         def shape(aggregate)
-          aggregate.attributes.map { |attribute| [attribute.name, attribute_signature(aggregate, attribute.type)] }.sort_by(&:first)
+          aggregate.attributes.map { |attribute|
+            [attribute.name, attribute_signature(aggregate, attribute.type)]
+          }.sort_by(&:first)
         end
 
         # A plain type name for a primitive; `[type_name, member_signatures]`
@@ -18,7 +20,9 @@ module Hecksagain
           container = nested_type(aggregate, type_name)
           return type_name if container.nil? || seen.include?(type_name)
 
-          members = container.attributes.map { |member| [member.name, attribute_signature(aggregate, member.type, seen + [type_name])] }.sort_by(&:first)
+          members = container.attributes.map { |member|
+            [member.name, attribute_signature(aggregate, member.type, seen + [type_name])]
+          }.sort_by(&:first)
           [type_name, members]
         end
 
@@ -114,7 +118,8 @@ module Hecksagain
             current_member = current_container.attribute(held_member.name)
             next ["#{path}.#{held_member.name}"] unless current_member
 
-            diff_type("#{path}.#{held_member.name}", held_member.type, current_member.type, held_aggregate, aggregate, lineage, seen + [current_type])
+            diff_type("#{path}.#{held_member.name}", held_member.type, current_member.type, held_aggregate, aggregate, lineage,
+                      seen + [current_type])
           end
         end
       end

@@ -26,6 +26,7 @@ module Hecksagain
     # host swap this file rather than edit thirteen.
     module Model
       extend Projector::Target
+
       projects_as :model, declares: "Bluebook", emits: :files
 
       # PER-CONSTRUCT RUBY FACTS. `coerce` is the only fiddly column: a

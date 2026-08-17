@@ -34,9 +34,9 @@ RSpec.describe Hecksagain::Runtime::CapabilityGraph do
       graph = registry.capability_graph
 
       expect(graph.fulfillments).to eq(
-        "persistence"          => ["Memory"],
-        "extraction"           => ["Prism"],
-        "identity_generation"  => []
+        "persistence"         => ["Memory"],
+        "extraction"          => ["Prism"],
+        "identity_generation" => []
       )
     end
 

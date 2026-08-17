@@ -46,13 +46,13 @@ module Hecksagain
       # property did not exist. That is the question the coverage gate
       # actually asks.
       FEATURE_COVERAGE = {
-        lifecycle_values_are_declared: %w[Aggregate#state_field Aggregate#state_start Aggregate#transitions
-                                           Entity#state_field Entity#state_start Entity#transitions],
-        saga_advances_follow_declared_handlers: %w[Handler#from_state Handler#to_state Handler#event_type],
-        query_answers_match_reference: %w[Query#wheres Query#order_field Query#order_way Query#limit],
-        paging_offset_partitions_correctly: %w[Query#options],
-        authorize_scopes_or_refuses: %w[Query#options],
-        guard_refusals_are_declared: %w[Command#givens Command#ensures],
+        lifecycle_values_are_declared:                    %w[Aggregate#state_field Aggregate#state_start Aggregate#transitions
+                                                             Entity#state_field Entity#state_start Entity#transitions],
+        saga_advances_follow_declared_handlers:           %w[Handler#from_state Handler#to_state Handler#event_type],
+        query_answers_match_reference:                    %w[Query#wheres Query#order_field Query#order_way Query#limit],
+        paging_offset_partitions_correctly:               %w[Query#options],
+        authorize_scopes_or_refuses:                      %w[Query#options],
+        guard_refusals_are_declared:                      %w[Command#givens Command#ensures],
         lifecycle_guard_and_given_violations_are_refused: %w[Command#from Aggregate#preconditions Entity#preconditions],
         # Dispatch#command_name/Dispatch#with_spec are NOT claimable
         # feature names — META_DOMAIN_ALL_FEATURES only walks ONE level
@@ -68,14 +68,14 @@ module Hecksagain
         # named — a Dispatch's own command_name/with_spec are exactly
         # what dispatch_args resolves and this property checks — the
         # grammar just has no feature string for either one.
-        dispatch_binding_fidelity: %w[Handler#dispatches Policy#with_spec],
-        mutations_match_recompute: %w[Command#mutations],
-        sagas_rehydrate_cleanly: %w[ProcessManager#states ProcessManager#correlates_by
-                                     ProcessManager#starts_on ProcessManager#ends_on],
-        fanout_dispatches_once_per_matching_row: %w[Policy#for_each Policy#where],
-        aggregation_matches_recompute: %w[ReadModel#count ReadModel#median_field],
-        stored_records_satisfy_declared_invariants: %w[Aggregate#invariants],
-        group_by_matches_recompute: %w[ReadModel#group_by]
+        dispatch_binding_fidelity:                        %w[Handler#dispatches Policy#with_spec],
+        mutations_match_recompute:                        %w[Command#mutations],
+        sagas_rehydrate_cleanly:                          %w[ProcessManager#states ProcessManager#correlates_by
+                                                             ProcessManager#starts_on ProcessManager#ends_on],
+        fanout_dispatches_once_per_matching_row:          %w[Policy#for_each Policy#where],
+        aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field],
+        stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants],
+        group_by_matches_recompute:                       %w[ReadModel#group_by]
       }.freeze
 
       # FEATURES A REPLAY PROPERTY COULD NEVER CATCH VIOLATED, because the
@@ -117,9 +117,9 @@ module Hecksagain
       # confirmed live before the fix (SafeDepositBox's Visit/KeyIssuance —
       # see spec/runtime/safe_deposit_box_spec.rb).
       GUARANTEED_BY_CONSTRUCTION = {
-        "Aggregate#attributes" => "every field's pattern/closed-set/type passes through Value.build's one coercion door " \
-          "(value/coercion.rb#check_patterns, value/admission.rb) before it can exist — a stored value that violated " \
-          "its own declared shape was never producible to begin with",
+        "Aggregate#attributes"    => "every field's pattern/closed-set/type passes through Value.build's one coercion door " \
+                                     "(value/coercion.rb#check_patterns, value/admission.rb) before it can exist — a stored value that violated " \
+                                     "its own declared shape was never producible to begin with",
         "Aggregate#value_objects" => "the shape being coerced above — same door, same guarantee",
         # S17, ADR 0026 — the list `saga_advances_follow_declared_handlers`
         # (below) already walks to find each handler's own event_type/
@@ -128,29 +128,29 @@ module Hecksagain
         # holds them, so the list itself is exercised by the same door.
         "ProcessManager#handlers" => "saga_advances_follow_declared_handlers already walks this list to find event_type/from_state/to_state — same door, same guarantee",
         "Aggregate#identified_by" => "CommandInterpreter's data-driven dispatch order refuses AlreadyExists " \
-          "(command_interpreter.rb, command.creates?) for every creating command uniformly, before a duplicate id " \
-          "can ever be stored — collision is refused at the door, not produced and later caught",
-        "Entity#identified_by" => "MutationApplier#check_entity_collision (command_interpreter/mutation_applier.rb) " \
-          "checks Array(current) against every part of the entity's own identity before an append can land, on " \
-          "both branches identity arrives by (caller-supplied, or composite) — the same AlreadyExists refusal " \
-          "Aggregate#identified_by gets above, one level down. Auto-minted entities never reach the check " \
-          "(current.size + 1 can't repeat unless something remove:s from the list between mints, which no real " \
-          "domain does today — see the comment on #entity_element itself)",
-        "Command#attributes" => "command arguments are coerced through the SAME Value.build door as any other " \
-          "attribute — an accepted dispatch's own args already passed pattern/admits/invariant checks",
-        "Command#emits" => "CommandRules::Emission#emit iterates command.emits ITSELF to construct every announced " \
-          "Event (command_rules/emission.rb) — there is no other path to emit, so a command can never announce a " \
-          "name its own declaration doesn't list",
-        "Query#attributes" => "query arguments are coerced through the same Value.build door — same guarantee as " \
-          "Command#attributes",
-        "Entity#attributes" => "same coercion door, one level in — an entity's own attributes are Value-typed exactly " \
-          "the way an aggregate's are",
-        "ValueObject#attributes" => "the shape Value.build enforces IS this declaration — the guarantee and the " \
-          "feature are the same fact seen from two sides",
-        "ValueObject#invariants" => "run inside the SAME coercion call (coercion.rb, before construction returns) " \
-          "that pattern-checks a VO's fields — a VO whose invariant did not hold could not finish being built",
-        "ValueObject#rows" => "closed-set membership is checked in value/admission.rb, the second half of the same " \
-          "one construction door",
+                                     "(command_interpreter.rb, command.creates?) for every creating command uniformly, before a duplicate id " \
+                                     "can ever be stored — collision is refused at the door, not produced and later caught",
+        "Entity#identified_by"    => "MutationApplier#check_entity_collision (command_interpreter/mutation_applier.rb) " \
+                                     "checks Array(current) against every part of the entity's own identity before an append can land, on " \
+                                     "both branches identity arrives by (caller-supplied, or composite) — the same AlreadyExists refusal " \
+                                     "Aggregate#identified_by gets above, one level down. Auto-minted entities never reach the check " \
+                                     "(current.size + 1 can't repeat unless something remove:s from the list between mints, which no real " \
+                                     "domain does today — see the comment on #entity_element itself)",
+        "Command#attributes"      => "command arguments are coerced through the SAME Value.build door as any other " \
+                                     "attribute — an accepted dispatch's own args already passed pattern/admits/invariant checks",
+        "Command#emits"           => "CommandRules::Emission#emit iterates command.emits ITSELF to construct every announced " \
+                                     "Event (command_rules/emission.rb) — there is no other path to emit, so a command can never announce a " \
+                                     "name its own declaration doesn't list",
+        "Query#attributes"        => "query arguments are coerced through the same Value.build door — same guarantee as " \
+                                     "Command#attributes",
+        "Entity#attributes"       => "same coercion door, one level in — an entity's own attributes are Value-typed exactly " \
+                                     "the way an aggregate's are",
+        "ValueObject#attributes"  => "the shape Value.build enforces IS this declaration — the guarantee and the " \
+                                     "feature are the same fact seen from two sides",
+        "ValueObject#invariants"  => "run inside the SAME coercion call (coercion.rb, before construction returns) " \
+                                     "that pattern-checks a VO's fields — a VO whose invariant did not hold could not finish being built",
+        "ValueObject#rows"        => "closed-set membership is checked in value/admission.rb, the second half of the same " \
+                                     "one construction door",
         # S17, ADR 0026 — Member is a genuine entity now (nested under
         # ValueObject), so this reads "Member#pairs", not "Member#shape" —
         # the free-text, un-parsed spelling a standalone root once needed
@@ -159,8 +159,8 @@ module Hecksagain
         # "ValueObject#rows" already counts, seen from the other side — a
         # value object cannot declare admitted rows without a members list
         # to hold them, and vice versa.
-        "ValueObject#members" => "the members list IS what ValueObject#rows counts — same door, same guarantee",
-        "Member#pairs" => "one level into ValueObject#rows — same door"
+        "ValueObject#members"     => "the members list IS what ValueObject#rows counts — same door, same guarantee",
+        "Member#pairs"            => "one level into ValueObject#rows — same door"
       }.freeze
 
       # Every lifecycle field a replay leaves an instance holding is one
@@ -884,9 +884,7 @@ module Hecksagain
           conversations.filter_map do |correlation, instance|
             problems = []
 
-            if pm && !pm.declares_state?(instance[:state])
-              problems << "holds state #{instance[:state].inspect}, which #{pm_name} never declares"
-            end
+            problems << "holds state #{instance[:state].inspect}, which #{pm_name} never declares" if pm && !pm.declares_state?(instance[:state])
 
             rehydrated = JSON.parse(JSON.generate(instance[:memory]), symbolize_names: true)
             if rehydrated != instance[:memory]
@@ -923,6 +921,7 @@ module Hecksagain
 
           if expected.nil?
             next if actual.empty?
+
             next "#{finding[:policy]} on #{finding[:on]}: where did not hold, but dispatched to #{actual.inspect}"
           end
 
@@ -1088,20 +1087,20 @@ module Hecksagain
       # except determinism, which needs to replay TWICE itself and so
       # takes the steps directly rather than a single history.
       def check(history)
-        { lifecycle_values_are_declared: lifecycle_values_are_declared(history),
-          saga_advances_follow_declared_handlers: saga_advances_follow_declared_handlers(history),
-          query_answers_match_reference: query_answers_match_reference(history),
-          guard_refusals_are_declared: guard_refusals_are_declared(history),
-          sagas_rehydrate_cleanly: sagas_rehydrate_cleanly(history),
-          fanout_dispatches_once_per_matching_row: fanout_dispatches_once_per_matching_row(history),
-          aggregation_matches_recompute: aggregation_matches_recompute(history),
-          stored_records_satisfy_declared_invariants: stored_records_satisfy_declared_invariants(history),
-          group_by_matches_recompute: group_by_matches_recompute(history),
-          paging_offset_partitions_correctly: paging_offset_partitions_correctly(history),
+        { lifecycle_values_are_declared:                    lifecycle_values_are_declared(history),
+          saga_advances_follow_declared_handlers:           saga_advances_follow_declared_handlers(history),
+          query_answers_match_reference:                    query_answers_match_reference(history),
+          guard_refusals_are_declared:                      guard_refusals_are_declared(history),
+          sagas_rehydrate_cleanly:                          sagas_rehydrate_cleanly(history),
+          fanout_dispatches_once_per_matching_row:          fanout_dispatches_once_per_matching_row(history),
+          aggregation_matches_recompute:                    aggregation_matches_recompute(history),
+          stored_records_satisfy_declared_invariants:       stored_records_satisfy_declared_invariants(history),
+          group_by_matches_recompute:                       group_by_matches_recompute(history),
+          paging_offset_partitions_correctly:               paging_offset_partitions_correctly(history),
           lifecycle_guard_and_given_violations_are_refused: lifecycle_guard_and_given_violations_are_refused(history),
-          authorize_scopes_or_refuses: authorize_scopes_or_refuses(history),
-          dispatch_binding_fidelity: dispatch_binding_fidelity(history),
-          mutations_match_recompute: mutations_match_recompute(history) }
+          authorize_scopes_or_refuses:                      authorize_scopes_or_refuses(history),
+          dispatch_binding_fidelity:                        dispatch_binding_fidelity(history),
+          mutations_match_recompute:                        mutations_match_recompute(history) }
       end
     end
   end

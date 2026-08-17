@@ -94,9 +94,9 @@ module Hecksagain
         # by anything this boot does.
         def declare_syntax(runtime, bluebook)
           syntax = bluebook.aggregate("Syntax")
-          runtime.dispatch("Bluebook::Bluebook.Declare", name: v(bluebook.hecks_name),
-                           vision: v("the language's own grammar table, dispatched into itself"),
-                           classification: v("core"))
+          runtime.dispatch("Bluebook::Bluebook.Declare", name:           v(bluebook.hecks_name),
+                                                         vision:         v("the language's own grammar table, dispatched into itself"),
+                                                         classification: v("core"))
           runtime.dispatch("Bluebook::Syntax.Declare", bluebook: bluebook.hecks_name, name: v(syntax.hecks_name))
         end
 
@@ -172,7 +172,7 @@ module Hecksagain
         # `status` included — so `ParserTable`/`syntax_conformance_spec`
         # need not know or care that a real dispatch happened in between.
         def read_back(runtime, bluebook)
-          syntax    = bluebook.aggregate("Syntax")
+          syntax = bluebook.aggregate("Syntax")
           repository = runtime.registry.repository("Bluebook", syntax)
           instance   = repository.find(Naming.identity([syntax.hecks_name]))
 

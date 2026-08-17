@@ -63,9 +63,12 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
       Dir.glob(File.join(domain, "*.hecksagon")).sort.first
   end
 
-  PARITY_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*")).select { |path| File.directory?(path) }.sort.freeze
+  PARITY_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*")).select { |path|
+    File.directory?(path)
+  }.sort.freeze
   PARITY_GRAMMAR_CHAPTERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook")).sort.freeze
-  PARITY_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook")).sort.freeze
+  PARITY_FRAMEWORK_MEMBERS = Dir.glob(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook",
+                                                "*.bluebook")).sort.freeze
   # STAGE 5's OWN TARGET — narrow, load-bearing unit-test fixtures for
   # OTHER Ruby specs (era/lineage bumps, model-checker findings, dispatch
   # ordering, reflex/hop-chain tests), never previously pointed at by

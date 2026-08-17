@@ -37,7 +37,6 @@ module Hecksagain
         freeze
       end
 
-
       def type_name = @value_object.hecks_name
       def [](field) = @fields[field.to_sym]
       def key?(field) = @fields.key?(field.to_sym)

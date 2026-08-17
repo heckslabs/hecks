@@ -9,7 +9,6 @@ require_relative "refusal_wording"
 require_relative "tenant_scope"
 require_relative "value"
 
-
 module Hecksagain
   module Runtime
     class QueryInterpreter
@@ -41,7 +40,8 @@ module Hecksagain
         # comparator itself, and for why an ordinary aggregate-level
         # Memory query needs the registry passed explicitly rather than
         # closing over an instance variable.
-        if (native = Ports::Query.execute(repository, declared, args, context: { domain: domain, aggregate: aggregate, registry: @registry }))
+        if (native = Ports::Query.execute(repository, declared, args,
+                                          context: { domain: domain, aggregate: aggregate, registry: @registry }))
           records = native
           # `record.state.merge(id: record.id)` — id LAST, not first. See
           # Instance#to_h's own comment: an aggregate free to declare its
@@ -80,7 +80,7 @@ module Hecksagain
         args = normalize_args(aggregate, declared, args)
         declared = TenantScope.apply(declared, args)
         reference_interpret(@registry.repository(domain, aggregate).all, declared, args,
-                             domain: domain, shape: aggregate)
+                            domain: domain, shape: aggregate)
       end
 
       private
@@ -88,7 +88,7 @@ module Hecksagain
       def declared_query(aggregate, query_name)
         aggregate.query(query_name) ||
           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_query",
-                                                    aggregate: aggregate.hecks_name, query: query_name.inspect))
+                                                   aggregate: aggregate.hecks_name, query: query_name.inspect))
       end
 
       def interpret(records, declared, args, domain: nil)
@@ -114,7 +114,11 @@ module Hecksagain
       # has no concept of a reference at all — it would just read the
       # raw id straight off the record and compare THAT).
       def reference_interpret(records, declared, args, domain:, shape:)
-        matched = records.select { |r| declared.wheres.all? { |w| reference_where_holds?(w, r, args, domain: domain, shape: shape) } }
+        matched = records.select { |r|
+          declared.wheres.all? { |w|
+            reference_where_holds?(w, r, args, domain: domain, shape: shape)
+          }
+        }
         ordered = ordered(matched, declared.order_by, declared.null_semantics)
         # OFFSET FIRST, THEN LIMIT — same fix, same reasoning, as
         # #interpret's own rows above.
@@ -153,14 +157,14 @@ module Hecksagain
         entity_name, query_name = Naming.split_dotted(dotted)
         entity = aggregate.entities.find { |piece| piece.hecks_name == entity_name } ||
                  raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                           aggregate: aggregate.hecks_name, entity: entity_name.inspect))
+                                                          aggregate: aggregate.hecks_name, entity: entity_name.inspect))
         declared = entity.query(query_name) ||
                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_query_missing",
-                                                             entity: entity_name, query: query_name.inspect))
+                                                            entity: entity_name, query: query_name.inspect))
         declared = TenantScope.apply(declared, args)
         list_attr = aggregate.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
                     raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
-                                                              aggregate: aggregate.hecks_name, entity: entity_name))
+                                                             aggregate: aggregate.hecks_name, entity: entity_name))
 
         parent_key = Naming.reference_key(aggregate.hecks_name)
         rows = @registry.repository(domain, aggregate).all.flat_map do |record|

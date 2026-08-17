@@ -56,7 +56,12 @@ module Hecksagain
         private
 
         def same_entry?(left, right) = left.operation == right.operation && left.id == right.id && left.state == right.state
-        def consistent?(entries, present) = present.length <= entries.length && entries.first(present.length).zip(present).all? { |left, right| same_entry?(left, right) }
+
+        def consistent?(entries, present)
+          present.length <= entries.length && entries.first(present.length).zip(present).all? { |left, right|
+            same_entry?(left, right)
+          }
+        end
       end
 
       # The authoritative append-only journal is the durable projection queue.

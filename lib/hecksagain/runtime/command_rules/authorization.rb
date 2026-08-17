@@ -45,8 +45,8 @@ module Hecksagain
           return if authorized
 
           raise Unauthorized, RefusalWording.render("Unauthorized", "role_mismatch",
-                                                     command: command.hecks_name, role: command.role,
-                                                     caller_role: caller.role)
+                                                    command: command.hecks_name, role: command.role,
+                                                    caller_role: caller.role)
         end
 
         private

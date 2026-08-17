@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The postcondition — Design by Contract's third leg, `given` being the
@@ -240,7 +239,8 @@ RSpec.describe "a command's ensures" do
     it "leaves an entity element untouched in Memory when its own ensures refuses" do
       runtime = coin
       runtime.dispatch("Coin::Purse.Open", number: { value: "p1" })
-      runtime.dispatch("Coin::Purse.AddCoin", number: { value: "p1" }, serial: { value: "c1" }, label: { value: "heads" }, cents: { cents: 25 })
+      runtime.dispatch("Coin::Purse.AddCoin", number: { value: "p1" }, serial: { value: "c1" }, label: { value: "heads" },
+cents: { cents: 25 })
 
       expect { runtime.dispatch("Coin::Purse.Coin.Reface", number: { value: "p1" }, serial: { value: "c1" }, new_label: { value: "tails" }) }
         .to raise_error(Hecksagain::Runtime::EnsuresNotMet)

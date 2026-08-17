@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require "stringio"
 
@@ -127,9 +126,9 @@ RSpec.describe "a construct's identity" do
         # `number:` was written TWICE — the first a copy of the customer id — and
         # Ruby warned on every run while silently keeping the second. What this
         # test is about is the CUSTOMER pointing at nothing, not the number.
-        banking.dispatch("Banking::Account.Open", customer: "nobody-registered-this",
-                                                  number: { value: "ACC-1" },
-                                                  kind: { name: "current" },
+        banking.dispatch("Banking::Account.Open", customer:    "nobody-registered-this",
+                                                  number:      { value: "ACC-1" },
+                                                  kind:        { name: "current" },
                                                   daily_limit: { cents: 100 })
       }.to raise_error(Hecksagain::Runtime::NotFound, /no Customer with/)
     end

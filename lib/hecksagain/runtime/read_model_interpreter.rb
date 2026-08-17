@@ -46,9 +46,7 @@ module Hecksagain
         # than narrowed.
         unless rootless || model.group_by.any? || model.count? || model.median_field
           repository = @registry.read_repository(domain, bluebook.aggregate(model.reference_target))
-          if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
-            return repository.query_read_model(domain, model, args, bluebook)
-          end
+          return repository.query_read_model(domain, model, args, bluebook) if repository.respond_to?(:query_read_model) && repository.adapter.respond_to?(:query_read_model)
         end
 
         # ROOT FIRST, ALWAYS — regardless of `include` order in the
@@ -221,12 +219,14 @@ module Hecksagain
       def fetch(bluebook, domain, aggregate_name, id)
         @registry.read_repository(domain, bluebook.aggregate(aggregate_name)).find(id) ||
           raise(NotFound, RefusalWording.render("NotFound", "read_model_reference_missing",
-                                                 aggregate: aggregate_name, offered: Rendering.describe(id)))
+                                                aggregate: aggregate_name, offered: Rendering.describe(id)))
       end
+
       def records(bluebook, domain, aggregate_name)
         aggregate = bluebook.aggregate(aggregate_name)
         aggregate ? @registry.read_repository(domain, aggregate).all : []
       end
+
       # A stored reference holds the target's id inside the REFERENCE
       # ATTRIBUTE's own declared shape, so reading it is reading that shape —
       # a different thing from the identity unwrap that was removed. An
@@ -252,11 +252,13 @@ module Hecksagain
 
       # A reference is the id, in the argument and in the stored row alike.
       def reference(value) = value.to_s
+
       def reference_fields(aggregate, target)
         aggregate.attributes
                  .select { |attribute| attribute.reference? && attribute.type.target_name == target.to_s }
                  .map(&:name)
       end
+
       def matching(records) = records.select { |record| yield(record) }.sort_by(&:id)
       def row(record) = record.to_h
     end

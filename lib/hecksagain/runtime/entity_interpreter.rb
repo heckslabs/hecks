@@ -40,8 +40,8 @@ module Hecksagain
       # apply_mutations, advance_lifecycle, element_identity, ...) reads
       # exactly as it always has. Only `locate_element` walks the chain.
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
-                            :args, :repository, :instance, :chain, :element, :view, :transition,
-                            :old_element, :result)
+                           :args, :repository, :instance, :chain, :element, :view, :transition,
+                           :old_element, :result)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -52,14 +52,14 @@ module Hecksagain
         *entity_names, command_name = dotted.to_s.split(".")
         if entity_names.empty?
           raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                    aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
+                                                   aggregate: aggregate.hecks_name, entity: dotted.to_s.inspect)
         end
 
         chain  = walk_entity_chain(aggregate, entity_names)
         entity = chain.last
         command = entity.command(command_name) ||
                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
-                                                            entity: entity.hecks_name, command: command_name.inspect))
+                                                           entity: entity.hecks_name, command: command_name.inspect))
 
         ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
         ctx.chain = chain
@@ -82,7 +82,7 @@ module Hecksagain
         entity_names.map do |name|
           found = owner.entities.find { |piece| piece.hecks_name == name } ||
                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
-                                                            aggregate: owner.hecks_name, entity: name.inspect))
+                                                           aggregate: owner.hecks_name, entity: name.inspect))
           owner = found
           found
         end
@@ -102,7 +102,9 @@ module Hecksagain
 
       def step_hydrate_parent(ctx)
         ctx.repository = @registry.repository(ctx.domain, ctx.aggregate)
-        ctx.instance = step(:hydrate_parent) { parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args) }
+        ctx.instance = step(:hydrate_parent) {
+          parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args)
+        }
       end
 
       def step_locate_element(ctx)
@@ -114,7 +116,9 @@ module Hecksagain
       end
 
       def step_enforce_givens(ctx)
-        step(:enforce_givens) { @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance) }
+        step(:enforce_givens) {
+          @rules.enforce_givens(ctx.view, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.entity, parent: ctx.instance)
+        }
       end
 
       def step_admissible_transition(ctx)
@@ -123,7 +127,11 @@ module Hecksagain
 
       def step_apply_mutations(ctx)
         ctx.old_element = ctx.element.dup unless ctx.command.ensures.empty?
-        step(:apply_mutations) { ctx.command.mutations.each { |mutation| apply_to_element(ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args) } }
+        step(:apply_mutations) {
+          ctx.command.mutations.each { |mutation|
+            apply_to_element(ctx.aggregate, ctx.entity, ctx.element, mutation, ctx.args)
+          }
+        }
       end
 
       def step_advance_lifecycle(ctx)
@@ -169,13 +177,13 @@ module Hecksagain
         parent_id = Identity.of(aggregate, args) ||
                     Identity.from(aggregate, args, :id) ||
                     raise(NotFound, RefusalWording.render("NotFound", "entity_parent_no_identity",
-                                                           command: command_name, aggregate: aggregate.hecks_name,
-                                                           entity: entity_name, identity: Identity.reading(aggregate)))
+                                                          command: command_name, aggregate: aggregate.hecks_name,
+                                                          entity: entity_name, identity: Identity.reading(aggregate)))
         found = repository.find(parent_id) ||
                 raise(NotFound, RefusalWording.render("NotFound", "record_missing",
-                                                       aggregate: aggregate.hecks_name,
-                                                       identity: Identity.reading(aggregate),
-                                                       offered: Rendering.describe(parent_id)))
+                                                      aggregate: aggregate.hecks_name,
+                                                      identity:  Identity.reading(aggregate),
+                                                      offered:   Rendering.describe(parent_id)))
         found.dup
       end
 
@@ -210,14 +218,14 @@ module Hecksagain
         entity_name = entity.hecks_name
         list_attr = owner.attributes.find { |a| a.list? && a.type.to_s == entity_name } ||
                     raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_holds_no_list",
-                                                              aggregate: owner.hecks_name, entity: entity_name))
+                                                             aggregate: owner.hecks_name, entity: entity_name))
 
         wants = entity.identity_paths.map do |path|
           head = path.to_s.split(".").first.to_sym
           raw  = args[head] ||
                  raise(NotFound, RefusalWording.render("NotFound", "entity_element_no_identity",
-                                                        command: command_name, entity: entity_name,
-                                                        identity: Identity.reading(entity)))
+                                                       command: command_name, entity: entity_name,
+                                                       identity: Identity.reading(entity)))
 
           [head, path, Value.for_attribute(root_aggregate, entity.attribute(head), raw)]
         end

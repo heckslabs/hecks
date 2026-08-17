@@ -51,7 +51,7 @@ lineage.ensure_base!
 
 if lineage.eras.empty?
   lineage.hold_first!(File.read(Dir[File.join(directory, "*.bluebook")].first),
-                        projection: Hecksagain::Runtime::StorageShape.project(bluebook))
+                      projection: Hecksagain::Runtime::StorageShape.project(bluebook))
   puts "#{bluebook.name} held era 1 just now — no edge to audit."
   db.close
   exit 0
@@ -92,7 +92,8 @@ bluebook.aggregates.each do |aggregate|
   rescue PG::Error => error
     abort "REFUSED: #{error.message.strip}"
   end
-  before = chain.size > 1 ? lineage.translated_latest(aggregate, era, chain[0..-2]) : lineage.ancestor_latest(aggregate, era, chain)
+  before = chain.size > 1 ? lineage.translated_latest(aggregate, era,
+                                                      chain[0..-2]) : lineage.ancestor_latest(aggregate, era, chain)
   verdict = Hecksagain::Translation::Audit.check(aggregate: aggregate, declared: declared, before: before, after: after)
 
   puts "── #{bluebook.name}::#{aggregate.name} (edge #{edge.from} → #{edge.to}, #{after.size} record#{after.size == 1 ? '' : 's'})"

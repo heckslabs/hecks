@@ -71,9 +71,9 @@ def check(category_dir, names, source)
 end
 
 rows = check("attribute_shapes", Hecksagain::Runtime::Value::Coercion::SHAPES,
-              "Coercion::SHAPES") +
+             "Coercion::SHAPES") +
        check("expression_operators", Hecksagain::Grammar.admitted_operators.map { |op| op[:category] }.uniq,
-              "Grammar.admitted_operators's own category field")
+             "Grammar.admitted_operators's own category field")
 
 missing = rows.reject { |row| row[:present] }
 

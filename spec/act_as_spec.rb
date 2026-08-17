@@ -57,7 +57,7 @@ RSpec.describe "act_as — a role acting as another, checked against Governance"
   end
 
   let(:governance) { governance_runtime }
-  let(:pizzas)      { pizzas_runtime }
+  let(:pizzas) { pizzas_runtime }
 
   # THE APPLICATION-LEVEL CHECK. Not library code — the same reasoning
   # `Ports::IdentityGeneration`'s own spec demonstrates a real dispatch

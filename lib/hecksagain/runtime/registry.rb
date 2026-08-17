@@ -21,7 +21,7 @@ module Hecksagain
         @root         = root
         @bluebooks    = {}
         @hecksagons   = {}
-        @ports     = {}
+        @ports = {}
         @adapters     = {}
         @worlds       = {}
         @translations = []
@@ -67,9 +67,9 @@ module Hecksagain
         @bluebook_builders[name.to_s] ||= yield
       end
 
-      def add_bluebook(item)  = @bluebooks[item.name]  = item
+      def add_bluebook(item)  = @bluebooks[item.name] = item
       def add_hecksagon(item) = @hecksagons[item.domain] = item
-      def add_port(item)    = @ports[item.name]   = item
+      def add_port(item) = @ports[item.name] = item
       def add_adapter(item)   = @adapters[item.name]   = item
       def add_world(item)     = @worlds[item.domain]   = item
       def add_translation(item) = @translations << item
@@ -101,7 +101,7 @@ module Hecksagain
 
         projection = (@projection_repositories[key] ||= begin
           projection = Ports::Persistence::RepositoryFactory.build(self, domain, aggregate, binding,
-                                                                    recover: true, settings_verb: Ports::Projection::VERB)
+                                                                   recover: true, settings_verb: Ports::Projection::VERB)
           projection
         end)
         authoritative = repository(domain, aggregate)
@@ -122,7 +122,6 @@ module Hecksagain
       rescue StandardError
         false
       end
-
     end
   end
 end

@@ -5,7 +5,6 @@ require_relative "refusal_wording"
 require_relative "value"
 require_relative "../bluebook/expression/evaluator"
 
-
 module Hecksagain
   module Runtime
     class PolicyInterpreter
@@ -77,7 +76,7 @@ module Hecksagain
 
         if @door.reaction_depth_reached?
           return record.merge(delivered: false,
-                              reason: "reaction depth #{@door.max_reaction_depth} reached")
+                              reason:    "reaction depth #{@door.max_reaction_depth} reached")
         end
 
         @door.reenter(target, **trigger_args(policy, event))
@@ -233,7 +232,7 @@ module Hecksagain
 
         if @door.reaction_depth_reached?
           return row_record.merge(delivered: false,
-                                  reason: "reaction depth #{@door.max_reaction_depth} reached")
+                                  reason:    "reaction depth #{@door.max_reaction_depth} reached")
         end
 
         # ALREADY MERGED, by `trigger_args` — the row key belongs in the
@@ -258,7 +257,7 @@ module Hecksagain
                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
         bluebook.aggregate(aggregate_name) ||
           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate",
-                                                    domain: domain, aggregate: aggregate_name.inspect))
+                                                   domain: domain, aggregate: aggregate_name.inspect))
       end
     end
   end

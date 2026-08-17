@@ -19,17 +19,17 @@ RSpec.describe Hecksagain::Bluebook::PatternSubset do
     # nothing errors, engines just quietly disagree about whether a value is
     # valid.
     {
-      '(a)\1'          => "backreference",
-      '(?<x>a)\k<x>'   => "named backreference",
-      '^(?=.*[A-Z]).+$' => "lookahead",
-      '(?<=a)b'        => "lookbehind",
-      '(?>ab)'         => "atomic group",
-      'a*+'            => "possessive quantifier",
-      '^\d{4}$'        => "perl character class",
-      '^\w+$'          => "perl character class",
-      '^[^@\s]+$'      => "perl character class",
-      '^[[:digit:]]$'  => "posix bracket class",
-      '^[[:alpha:]]+$' => "posix bracket class"
+      '(a)\1'           => "backreference",
+      '(?<x>a)\k<x>'    => "named backreference",
+      "^(?=.*[A-Z]).+$" => "lookahead",
+      "(?<=a)b"         => "lookbehind",
+      "(?>ab)"          => "atomic group",
+      "a*+"             => "possessive quantifier",
+      '^\d{4}$'         => "perl character class",
+      '^\w+$'           => "perl character class",
+      '^[^@\s]+$'       => "perl character class",
+      "^[[:digit:]]$"   => "posix bracket class",
+      "^[[:alpha:]]+$"  => "posix bracket class"
     }.each do |pattern, construct|
       it "refuses #{pattern} as a #{construct}" do
         rejection = described_class.validate(pattern)
@@ -42,13 +42,13 @@ RSpec.describe Hecksagain::Bluebook::PatternSubset do
 
   describe "the shapes a domain actually needs" do
     [
-      '^[A-Z]{3}-[0-9]{4}$',
-      '^[0-9]{5}(-[0-9]{4})?$',
+      "^[A-Z]{3}-[0-9]{4}$",
+      "^[0-9]{5}(-[0-9]{4})?$",
       '^\+?[0-9 ()-]{7,20}$',
       '^[^@ ]+@[^@ ]+\.[^@ ]+$',
-      '^(red|green|blue)$',
-      '^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$',
-      ''
+      "^(red|green|blue)$",
+      "^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+      ""
     ].each do |pattern|
       it "admits #{pattern.inspect}" do
         expect(described_class.validate(pattern)).to be_nil
@@ -58,7 +58,7 @@ RSpec.describe Hecksagain::Bluebook::PatternSubset do
     # An ESCAPED construct is a literal, not a violation.
     it "reads an escaped construct as the characters it spells" do
       expect(described_class.validate('\(\?=')).to be_nil
-      expect(described_class.validate('(?<year>[0-9]{4})')).to be_nil
+      expect(described_class.validate("(?<year>[0-9]{4})")).to be_nil
       expect(described_class.validate('\0')).to be_nil
     end
   end

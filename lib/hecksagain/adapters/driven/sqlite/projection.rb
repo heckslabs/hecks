@@ -19,7 +19,10 @@ module Hecksagain
 
         columns = (["id"] + persisted_fields.map { |field| field[:name].to_s }).map { |column| quote_ident(column) }
         values  = [entry.id.to_s] + persisted_fields.map { |field| encode_field(field, entry.state[field[:name]]) }
-        @db.execute("INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{Array.new(columns.size, '?').join(', ')})", values)
+        @db.execute(
+          "INSERT OR REPLACE INTO #{quoted_table} (#{columns.join(', ')}) VALUES (#{Array.new(columns.size,
+                                                                                              '?').join(', ')})", values
+        )
         entry
       end
 

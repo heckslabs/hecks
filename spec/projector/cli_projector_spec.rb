@@ -127,7 +127,7 @@ RSpec.describe Hecksagain::Projector::CliProjector do
 
     it "shows one verb's arguments and every way it refuses" do
       help = described_class.call(bluebook: registry.bluebook("Banking"),
-                                  options: { verb: "account.freeze_account" })[:usage]
+                                  options:  { verb: "account.freeze_account" })[:usage]
 
       expect(help).to include("dispatches Banking::Account.FreezeAccount")
       expect(help).to include("issued by")
@@ -139,7 +139,7 @@ RSpec.describe Hecksagain::Projector::CliProjector do
     # WITHOUT `ask:` A QUESTION'S HELP PRINTS THE COMMAND THAT SHARES ITS NAME.
     it "picks the namespace the caller asked about" do
       question = described_class.call(bluebook: registry.bluebook("Banking"),
-                                      options: { verb: "account.open", ask: true })[:usage]
+                                      options:  { verb: "account.open", ask: true })[:usage]
 
       expect(question).to include("reads Banking::Account.Open")
       expect(question).to include("bin/run ask open")

@@ -19,7 +19,8 @@ RSpec.describe "an entity's own list-typed attribute" do
   # loads whatever path won instead of its own — reproduced for real:
   # this file passed alone and failed only inside the full suite,
   # loading rebuild_sweep_spec's own fixture instead of its own.
-  ENTITY_LIST_MUTATIONS_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/entity_list_mutations/entity_list_mutations.bluebook")
+  ENTITY_LIST_MUTATIONS_FIXTURE = File.join(InMemoryDomain::ROOT,
+                                            "spec/fixtures/entity_list_mutations/entity_list_mutations.bluebook")
 
   def boot
     registry = Hecksagain::Runtime::Registry.new

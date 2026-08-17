@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The language's rules, expressed in the language.
@@ -13,7 +12,6 @@ require "spec_helper"
 # same defect the whole corpus keeps producing, and porting rules is exactly
 # the activity most likely to produce it.
 RSpec.describe "the language's own rules" do
-
   def boot_meta
     registry = Hecksagain::Runtime::Registry.new
     Hecksagain::Bluebook::MetaValidator.load_grammar_into(registry)
@@ -54,8 +52,10 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an aggregate whose description says nothing" do
-    expect { @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
-                               name: v("B"), description: v("")) }
+    expect {
+      @runtime.dispatch("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
+                               name: v("B"), description: v(""))
+    }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /a description says something/)
   end
 
@@ -67,8 +67,10 @@ RSpec.describe "the language's own rules" do
   # "attributes must use value-object types" is no longer a predicate — the
   # type IS a reference to the value object, so an undeclared one cannot resolve
   it "refuses an attribute whose type is not a declared value object" do
-    expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"),
-                               type: "#{@aggregate_id}.Nonexistent", list: v("false")) }
+    expect {
+      @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"),
+                               type: "#{@aggregate_id}.Nonexistent", list: v("false"))
+    }
       .to raise_error(Hecksagain::Runtime::NotFound, /no ValueObject with/)
   end
 
@@ -103,8 +105,10 @@ RSpec.describe "the language's own rules" do
     end
 
     it "refuses a mutation with no target" do
-      expect { @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v(""), op: v("set"),
-                                 field: v(""), kind: v("literal"), source: v('"x"')) }
+      expect {
+        @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v(""), op: v("set"),
+                                 field: v(""), kind: v("literal"), source: v('"x"'))
+      }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a mutation names a target/)
     end
 
@@ -120,8 +124,10 @@ RSpec.describe "the language's own rules" do
     # could only say "an op is one the runtime applies" and leave the reader to
     # find out which.
     it "refuses a mutation whose op the runtime does not apply" do
-      expect { @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v("x"), op: v("frobnicate"),
-                                 field: v(""), kind: v("literal"), source: v('"x"')) }
+      expect {
+        @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v("x"), op: v("frobnicate"),
+                                 field: v(""), kind: v("literal"), source: v('"x"'))
+      }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
     end
 

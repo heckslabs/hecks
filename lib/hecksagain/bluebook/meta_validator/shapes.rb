@@ -18,20 +18,20 @@ module Hecksagain
           type = text(field[:type]).to_s
 
           {
-            name: text(field[:name])&.to_sym,
-            type: owned_type(type, aggregate_id) || reference_type(type),
-            list: text(field[:list]).to_s == "true",
-            default: decode_literal(text(field[:default])),
+            name:     text(field[:name])&.to_sym,
+            type:     owned_type(type, aggregate_id) || reference_type(type),
+            list:     text(field[:list]).to_s == "true",
+            default:  decode_literal(text(field[:default])),
             # Read back the same way `list` is — both are booleans about the
             # attribute, held as text, and dropping either would rebuild a
             # bluebook that no longer says what it said.
             optional: text(field[:optional]).to_s == "true",
-            pattern: presence(text(field[:pattern])),
+            pattern:  presence(text(field[:pattern])),
             # THE ROUND TRIP IS THE ONLY WAY IN. The grammar registry keeps the
             # ASSEMBLED graph — the language as its own judge read it back — so a
             # fact dropped here is a fact no downstream projection ever sees, no
             # matter how plainly the .bluebook file declares it.
-            admits: presence(text(field[:admits]))
+            admits:   presence(text(field[:admits]))
           }
         end
 
@@ -99,7 +99,9 @@ module Hecksagain
         # S12, ADR 0025 — `projects :name, from: :"reference.remote_field"`,
         # read back the same three plain identifiers `rule` above reads
         # description/canonical as.
-        def projected_field(row) = { name: text(row[:name]), reference: text(row[:reference]), remote_field: text(row[:remote_field]) }
+        def projected_field(row)
+          { name: text(row[:name]), reference: text(row[:reference]), remote_field: text(row[:remote_field]) }
+        end
 
         # `provenance from: {...}` rides the same literal encoding `default:`
         # does — an object literal, self-describing via Hecksagain::Literal — one

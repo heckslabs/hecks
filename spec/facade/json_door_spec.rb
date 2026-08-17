@@ -12,7 +12,7 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
   # reserve real-adapter specs for testing that adapter itself.
   def order(dispatcher)
     Pizzas::Order.create_pizza!(
-      name: { value: "Margherita" },
+      name:  { value: "Margherita" },
       pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
     )
   end
@@ -97,17 +97,17 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
   describe ".deep_symbolize" do
     it "symbolizes hash keys and maps arrays, arbitrarily deep, leaving scalars alone" do
       parsed = {
-        "pizza" => { "price_cents" => { "cents" => 1200 }, "size" => { "value" => "large" } },
+        "pizza"    => { "price_cents" => { "cents" => 1200 }, "size" => { "value" => "large" } },
         "toppings" => [{ "name" => "basil", "amount" => 2 }, { "name" => "olives", "amount" => 1 }],
-        "name" => { "value" => "Margherita" }
+        "name"     => { "value" => "Margherita" }
       }
 
       result = json_door.deep_symbolize(parsed)
 
       expect(result).to eq(
-        pizza: { price_cents: { cents: 1200 }, size: { value: "large" } },
+        pizza:    { price_cents: { cents: 1200 }, size: { value: "large" } },
         toppings: [{ name: "basil", amount: 2 }, { name: "olives", amount: 1 }],
-        name: { value: "Margherita" }
+        name:     { value: "Margherita" }
       )
     end
   end
@@ -120,12 +120,12 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
       result = json_door.materialize(pizza)
 
       expect(result).to eq(
-        id: pizza.id,
-        name: { value: "Margherita" },
-        pizza: { price_cents: { cents: 1200 }, size: { value: "large" } },
-        toppings: [],
+        id:            pizza.id,
+        name:          { value: "Margherita" },
+        pizza:         { price_cents: { cents: 1200 }, size: { value: "large" } },
+        toppings:      [],
         customer_name: nil,
-        status: "available"
+        status:        "available"
       )
       # Not just equal in VALUE — nothing left is still a Runtime::Value,
       # two levels down (Order -> Pizza -> Price), which `#eq` alone

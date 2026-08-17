@@ -27,17 +27,17 @@ module Hecksagain
         def build
           seal_cursor
           Query.new(
-            name:        @name,
-            description: @description,
-            attributes:  attributes,
-            wheres:      @wheres,
-            order_by:    @order_by,
-            limit:       @limit,
-            offset:      @offset,
-            cursor:      @cursor,
-            authorization: @authorization,
+            name:           @name,
+            description:    @description,
+            attributes:     attributes,
+            wheres:         @wheres,
+            order_by:       @order_by,
+            limit:          @limit,
+            offset:         @offset,
+            cursor:         @cursor,
+            authorization:  @authorization,
             null_semantics: @null_semantics,
-            inspection: @inspection
+            inspection:     @inspection
           )
         end
 

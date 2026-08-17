@@ -67,7 +67,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
   # reason (the target itself, `meta` — every run regenerates it — plus
   # any framework chapter it attaches).
   HB_PARITY_DOMAINS = {
-    "examples/pizzas" => %w[pizzas meta],
+    "examples/pizzas"  => %w[pizzas meta],
     "examples/banking" => %w[banking governance identity meta],
   }.freeze
 
@@ -116,13 +116,14 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
         ruby_files = files_in(ruby_dir)
         rust_files = files_in(rust_dir)
         expect(rust_files).to eq(ruby_files),
-          "#{dir}: hecks-build's own file list differs from the opt-in Ruby pipeline's — " \
-          "ruby: #{ruby_files.inspect}, hecks-build: #{rust_files.inspect}"
+                              "#{dir}: hecks-build's own file list differs from the opt-in Ruby pipeline's — " \
+                              "ruby: #{ruby_files.inspect}, hecks-build: #{rust_files.inspect}"
 
         ruby_files.each do |basename|
           ruby_text = File.read(File.join(ruby_dir, basename))
           rust_text = File.read(File.join(rust_dir, basename))
-          expect(rust_text).to eq(ruby_text), "#{dir}/#{basename}: hecks-build's output does not byte-match the opt-in Ruby pipeline's"
+          expect(rust_text).to eq(ruby_text),
+                               "#{dir}/#{basename}: hecks-build's output does not byte-match the opt-in Ruby pipeline's"
         end
       end
 
@@ -130,7 +131,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", io: true do
       # feature both pipelines set to THIS run's own target should agree
       # too (both ran, back to back, targeting the same domain).
       hecks_build_cargo_toml = File.read(HB_CARGO_TOML)
-      expect(hecks_build_cargo_toml).to eq(ruby_cargo_toml), "rust/Cargo.toml: hecks-build's own [features] sync does not byte-match the opt-in Ruby pipeline's"
+      expect(hecks_build_cargo_toml).to eq(ruby_cargo_toml),
+                                        "rust/Cargo.toml: hecks-build's own [features] sync does not byte-match the opt-in Ruby pipeline's"
     ensure
       FileUtils.remove_entry(ruby_snapshot) if ruby_snapshot
     end

@@ -54,8 +54,12 @@ module Hecksagain
           aggregate.queries.each  { |q| claim(questions, name_for(aggregate, q), query_spec(bluebook, aggregate, nil, q)) }
 
           aggregate.entities.each do |entity|
-            entity.commands.each { |c| claim(verbs, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c)) }
-            entity.queries.each  { |q| claim(questions, name_for(aggregate, q, entity), query_spec(bluebook, aggregate, entity, q)) }
+            entity.commands.each { |c|
+              claim(verbs, name_for(aggregate, c, entity), command_spec(bluebook, aggregate, entity, c))
+            }
+            entity.queries.each { |q|
+              claim(questions, name_for(aggregate, q, entity), query_spec(bluebook, aggregate, entity, q))
+            }
           end
 
           # A PORT IS A VERB TOO, and leaving it off the map was a real gap

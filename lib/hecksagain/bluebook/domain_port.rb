@@ -88,8 +88,6 @@ module Hecksagain
         @name       = name.to_s
         @operations = operations
       end
-
-
     end
   end
 end

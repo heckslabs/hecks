@@ -130,9 +130,15 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   # CODEGEN_PENDING_MEMBERS below for what's genuinely still open and why).
   CODEGEN_CORPUS_MEMBERS = [
     ["pizzas", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/pizzas/bluebook/pizzas.bluebook"), "Pizzas") }],
-    ["identity", -> { domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"), "Identity") }],
-    ["governance", -> { domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/governance.bluebook"), "Governance") }],
-    ["compliance", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance") }],
+    ["identity", -> {
+      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/identity.bluebook"), "Identity")
+    }],
+    ["governance", -> {
+      domain_ir(File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook/governance.bluebook"), "Governance")
+    }],
+    ["compliance", -> {
+      domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")
+    }],
     ["banking", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"), "Banking") }],
     ["bluebook_language", -> { meta_ir }],
   ].freeze
@@ -142,10 +148,10 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
   # doesn't require it to, unlike Stage 6's parsing-side table).
   CODEGEN_PENDING_MEMBERS = {
     "embryonaut" => "Its own bluebook source lives in a separate, sibling repository (embryonaut_console) not " \
-                     "checked out here — only rust/src/generated/embryonaut's own already-compiled output exists " \
-                     "in THIS repo, with no `.bluebook` this spec's own Kernel.load-based domain_ir helper can " \
-                     "load. A real follow-up item once that repo's source is reachable from a codegen-parity run, " \
-                     "not a shape/algorithm gap in rust/codegen itself.",
+                    "checked out here — only rust/src/generated/embryonaut's own already-compiled output exists " \
+                    "in THIS repo, with no `.bluebook` this spec's own Kernel.load-based domain_ir helper can " \
+                    "load. A real follow-up item once that repo's source is reachable from a codegen-parity run, " \
+                    "not a shape/algorithm gap in rust/codegen itself.",
   }.freeze
 
   # Corpus members that reach FULL whole-file byte-exactness — every
@@ -195,7 +201,8 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
         compared_names.each do |basename|
           ruby_path = File.join(ruby_dir, basename)
           rust_path = File.join(rust_dir, basename)
-          expect(File.exist?(ruby_path)).to be(true), "#{name}/#{basename}: Ruby's own DomainGenerator.call didn't write this file — compared_names is stale"
+          expect(File.exist?(ruby_path)).to be(true),
+                                            "#{name}/#{basename}: Ruby's own DomainGenerator.call didn't write this file — compared_names is stale"
           expect(File.exist?(rust_path)).to be(true), "#{name}/#{basename}: hecks-codegen domain didn't write this file"
 
           ruby_text = File.read(ruby_path)
@@ -237,14 +244,14 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
         ruby_files = Dir.glob(File.join(ruby_dir, "*.rs")).map { |p| File.basename(p) }.sort
         rust_files = Dir.glob(File.join(rust_dir, "*.rs")).map { |p| File.basename(p) }.sort
         expect(rust_files).to eq(ruby_files),
-                               "#{name}: the SET of generated aggregate files differs (unsupported-attribute " \
-                               "skip decisions disagree) — ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
+                              "#{name}: the SET of generated aggregate files differs (unsupported-attribute " \
+                              "skip decisions disagree) — ruby: #{ruby_files.inspect}, rust: #{rust_files.inspect}"
 
         ruby_files.each do |basename|
           ruby_text = File.read(File.join(ruby_dir, basename))
           rust_text = File.read(File.join(rust_dir, basename))
           expect(rust_text).to eq(ruby_text),
-                                "#{name}/#{basename}: Rust codegen's prelude output does not byte-match Ruby's"
+                               "#{name}/#{basename}: Rust codegen's prelude output does not byte-match Ruby's"
         end
       end
     end

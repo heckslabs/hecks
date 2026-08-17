@@ -206,7 +206,8 @@ module Hecksagain
           return StringLiteral.new(value: expr[1..-2])        if quoted?(expr)
           return BoolLiteral.new(value: true)                 if expr == "true"
           return BoolLiteral.new(value: false)                if expr == "false"
-          return NilLiteral.new                                if expr == "nil"
+          return NilLiteral.new if expr == "nil"
+
           elements = array_elements(expr)
           return ArrayLiteral.new(elements: elements.map { |element| parse(element) }) if elements
 
@@ -226,8 +227,8 @@ module Hecksagain
 
           if expr =~ /\A(.+)\.match\?\(\/(.*)\/([a-z]*)\)\z/m
             return MatchesRegex.new(receiver: parse(Regexp.last_match(1)),
-                                     pattern: Regexp.last_match(2),
-                                     flags: Regexp.last_match(3))
+                                    pattern:  Regexp.last_match(2),
+                                    flags:    Regexp.last_match(3))
           end
 
           return Presence.new(receiver: parse(Regexp.last_match(1)), negated: false) if expr =~ /\A(.+)\.present\?\z/
@@ -271,9 +272,9 @@ module Hecksagain
             next unless match
 
             return BlockPredicate.new(
-              mode: mode,
-              receiver: parse(match[1]),
-              param: match[2],
+              mode:      mode,
+              receiver:  parse(match[1]),
+              param:     match[2],
               predicate: Evaluator.parse(match[3])
             )
           end
@@ -359,7 +360,7 @@ module Hecksagain
           text = case receiver_value
                  when String, Symbol      then receiver_value.to_s
                  when Integer, Float      then receiver_value.to_s
-                 when NilClass             then ""
+                 when NilClass then ""
                  else
                    raise EvaluationError, "match? expects a scalar, got #{receiver_value.class}"
                  end

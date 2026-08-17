@@ -37,7 +37,6 @@ module Hecksagain
         @default     = default.to_s
         @transitions = transitions
       end
-
     end
   end
 end

@@ -22,17 +22,19 @@ RSpec.describe Hecksagain::Ports::Projection::Worker do
     def entries = @entries
     def all = @rows.values
     def append(entry) = (@entries << entry; entry)
+
     def project(entry)
       entry.delete? ? @rows.delete(entry.id) : @rows[entry.id] = entry.state.dup
       entry
     end
+
     def reset! = (@entries.clear; @rows.clear; self)
   end
 
   it "rebuilds an account projection from durable journal entries and reports a checkpoint" do
     authoritative = ProjectionStore.new([
-      ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 500 })
-    ])
+                                          ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 500 })
+                                        ])
     projection = ProjectionStore.new
 
     worker = described_class.new(authoritative, projection)
@@ -44,11 +46,11 @@ RSpec.describe Hecksagain::Ports::Projection::Worker do
 
   it "rejects a stale projection under the strict policy" do
     authoritative = ProjectionStore.new([
-      ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 500 })
-    ])
+                                          ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 500 })
+                                        ])
     projection = ProjectionStore.new([
-      ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 450 })
-    ])
+                                       ProjectionEntry.new(operation: "save", id: "acct-ada", state: { balance: 450 })
+                                     ])
 
     expect { described_class.new(authoritative, projection, policy: :strict).catch_up! }
       .to raise_error(Hecksagain::Runtime::WiringError, /does not match/)

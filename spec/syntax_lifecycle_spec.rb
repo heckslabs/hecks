@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # Every word of the bluebook surface now stands somewhere in its own
@@ -28,7 +27,7 @@ RSpec.describe "the syntax lifecycle" do
     syntax.value_objects.find { |vo| vo.hecks_name == name }.members.map(&:to_h)
   end
 
-  WORD_STATUSES  = rows("Status").map { |row| row[:name] }
+  WORD_STATUSES = rows("Status").map { |row| row[:name] }
   # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax now,
   # dispatched through a real lifecycle rather than merely declared —
   # `SyntaxBoot.call` reads them back post-dispatch, same shape `rows`
@@ -55,8 +54,8 @@ RSpec.describe "the syntax lifecycle" do
   it "gives every keyword and argument a status the set admits" do
     (WORD_ROWS + ARGUMENT_ROWS).each do |row|
       expect(WORD_STATUSES).to include(status_of(row)),
-                          "#{row[:word] || row[:keyword]} in #{row[:context]} carries " \
-                          "status #{row[:status].inspect}, which the language does not admit"
+                               "#{row[:word] || row[:keyword]} in #{row[:context]} carries " \
+                               "status #{row[:status].inspect}, which the language does not admit"
     end
   end
 
@@ -75,7 +74,7 @@ RSpec.describe "the syntax lifecycle" do
     # the other, never both, and every hidden word really is proposed or
     # retired rather than merely absent from a stale visible list.
     visible = WORD_ROWS.reject { |row| %w[proposed retired].include?(status_of(row)) }
-                      .map { |row| row[:word] }
+                       .map { |row| row[:word] }
     hidden = WORD_ROWS.map { |row| row[:word] } - visible
 
     expect(visible & hidden).to be_empty

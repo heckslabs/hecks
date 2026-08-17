@@ -54,16 +54,16 @@ module Hecksagain
 
         def to_h
           {
-            name:             text(@chapter[:name]),
-            version:          text(@chapter[:version]),
-            vision:           text(@chapter[:vision]),
-            classification:   text(@chapter[:classification]),
+            name:              text(@chapter[:name]),
+            version:           text(@chapter[:version]),
+            vision:            text(@chapter[:vision]),
+            classification:    text(@chapter[:classification]),
             formerly_known_as: text(@chapter[:formerly_known_as]),
-            attaches_to:      attached_contexts(@chapter),
-            aggregates:       declared("Aggregate", chapter_id).map { |row| aggregate(row) },
-            read_models:      declared("ReadModel", chapter_id).map { |row| read_model(row) },
-            policies:         declared("Policy", chapter_id).map { |row| policy(row) },
-            process_managers: declared("ProcessManager", chapter_id).map { |row| process_manager(row) }
+            attaches_to:       attached_contexts(@chapter),
+            aggregates:        declared("Aggregate", chapter_id).map { |row| aggregate(row) },
+            read_models:       declared("ReadModel", chapter_id).map { |row| read_model(row) },
+            policies:          declared("Policy", chapter_id).map { |row| policy(row) },
+            process_managers:  declared("ProcessManager", chapter_id).map { |row| process_manager(row) }
           }
         end
 
@@ -166,27 +166,27 @@ module Hecksagain
           id = row[:id]
 
           {
-            name:          text(row[:name]),
-            description:   text(row[:description]),
-            identified_by: identity_paths(row),
-            attributes:    Array(row[:attributes]).map { |field| attribute(field, id) },
-            value_objects: declared("ValueObject", id).map { |shape| value_object(shape) },
-            commands:      own("Command", id).map { |verb| command(verb) },
+            name:             text(row[:name]),
+            description:      text(row[:description]),
+            identified_by:    identity_paths(row),
+            attributes:       Array(row[:attributes]).map { |field| attribute(field, id) },
+            value_objects:    declared("ValueObject", id).map { |shape| value_object(shape) },
+            commands:         own("Command", id).map { |verb| command(verb) },
             # THE AGGREGATE BOUNDARY, and the precondition a command may
             # reference by name (S10, ADR 0025 — "Rules") — the same
             # `rule` reader `command`'s own givens/ensures already use
             # (Assembly::Contracts' generic `declaration()` path), read
             # here by hand because `aggregate(row)` itself is hand-typed,
             # unlike `command`/`value_object`/`query` below.
-            invariants:    Array(row[:invariants]).map { |held| rule(held) },
-            preconditions: Array(row[:preconditions]).map { |held| rule(held) },
+            invariants:       Array(row[:invariants]).map { |held| rule(held) },
+            preconditions:    Array(row[:preconditions]).map { |held| rule(held) },
             # S12, ADR 0025 — same reason invariants/preconditions are
             # read by hand two lines up: `aggregate(row)` is hand-typed.
             projected_fields: Array(row[:projected_fields]).map { |held| projected_field(held) },
-            lifecycle:     lifecycle(row),
-            entities:      direct_entities(id, id).map { |piece| entity(piece) },
-            queries:       own("Query", id).map { |ask| query(ask) },
-            provenance:    provenance(row)
+            lifecycle:        lifecycle(row),
+            entities:         direct_entities(id, id).map { |piece| entity(piece) },
+            queries:          own("Query", id).map { |ask| query(ask) },
+            provenance:       provenance(row)
           }
         end
 
@@ -232,8 +232,8 @@ module Hecksagain
 
         def entity(row)
           {
-            name:        text(row[:name]),
-            description: text(row[:description]),
+            name:          text(row[:name]),
+            description:   text(row[:description]),
             # The same shape as an aggregate's now. It was a String here and a
             # Symbol there — the IR was not uniform about it, and only a round trip
             # ever said so.

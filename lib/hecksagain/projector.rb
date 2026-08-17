@@ -159,7 +159,6 @@ module Hecksagain
         path
       end
     end
-
   end
 end
 

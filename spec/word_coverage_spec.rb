@@ -73,70 +73,70 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # when written), not an assumption; delete an entry once the corpus
   # grows to cover it and this spec will say so on its own.
   EXEMPT = {
-    "cursor (Query)" =>
-      "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
-      "implements cursor pagination, so any real declaration would refuse the bluebook " \
-      "that carried it. \"A real chapter uses cursor\" and \"the corpus builds\" are " \
-      "mutually exclusive claims. S15 (ADR 0026) removes it from the core grammar; " \
-      "landing a corpus use here first would be work S15 immediately discards.",
-    "cursor (ReadModel)" =>
-      "same as cursor (Query) — refused unconditionally by ReadModelBuilder#seal_cursor.",
-    "inspect_query (Query)" =>
-      "a real declaration would be vacuous: no adapter in this codebase implements the " \
-      "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate reading), " \
-      "so a corpus member declaring it would exercise nothing this doctest does not " \
-      "already. The gap is upstream of the DSL word, in the adapter layer.",
-    "inspect_query (ReadModel)" =>
-      "even more vacuous than the Query form — the read model runtime never reaches the " \
-      "code this word gates at all, so a real declaration is strictly inert.",
-    "tells (DomainPort)" =>
-      "identical to operation, which pizzas' real PaymentGateway.Receive already proves " \
-      "for real — the two words fill the same PortOperation construct, so a second " \
-      "corpus use under a different spelling would mean inventing a second inbound " \
-      "integration this codebase does not otherwise need, for a word that changes " \
-      "nothing about what the runtime does once declared.",
-    "verb (DomainPort)" =>
-      "every resource port a real domain here needs (persisted_by/projected_by/" \
-      "opened_by) is a framework-level default, never a project's own `port \"X\" do " \
-      "verb \"...\" end` — nothing in examples/ or lib/hecksagain/framework/ needs a " \
-      "swappable resource port of its own. writing-an-adapter.md's own worked example " \
-      "is the closest this repo has, and it is a guide, not a corpus member.",
-    "asks (DomainPort)" =>
-      "the OUTBOUND port direction (the domain asking the outside a question and " \
-      "reading back an answer/refusal) has no real external integration modeled " \
-      "anywhere in this corpus — every real port here (pizzas' PaymentGateway) is " \
-      "inbound (`operation`). ADR 0025's own count claimed this passed; re-checked " \
-      "against the current corpus while writing this spec and found it does not — a " \
-      "real, previously-unnoticed drift, not a fact carried over from the ADR.",
-    "answers (PortOperation)" =>
-      "same finding as asks (DomainPort) — an `asks` operation's own happy ending, " \
-      "and there is no real `asks` operation to carry one.",
-    "refuses (PortOperation)" =>
-      "same finding as asks (DomainPort) — an `asks` operation's own refused ending.",
-    "attaches_to (Bluebook)" =>
-      "genuinely, load-bearingly used for real — lib/hecksagain/language/bluebook/" \
-      "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \
-      "at every boot by SyntaxBoot's own generic discovery (ADR 0026, S15) — but that " \
-      "file sits inside lib/hecksagain/language/bluebook, excluded from CORPUS_GLOBS " \
-      "on purpose (the language describing itself is not what this corpus counts, the " \
-      "same reason every core grammar word's own name is not scanned as a use of " \
-      "itself). A sub-language chapter is caught by the same exclusion its own words " \
-      "are, even though — unlike formerly_known_as below — it is not a synthetic gap; " \
-      "it is a real declaration the scanner is not pointed at.",
+    "cursor (Query)"               =>
+                                      "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
+                                      "implements cursor pagination, so any real declaration would refuse the bluebook " \
+                                      "that carried it. \"A real chapter uses cursor\" and \"the corpus builds\" are " \
+                                      "mutually exclusive claims. S15 (ADR 0026) removes it from the core grammar; " \
+                                      "landing a corpus use here first would be work S15 immediately discards.",
+    "cursor (ReadModel)"           =>
+                                      "same as cursor (Query) — refused unconditionally by ReadModelBuilder#seal_cursor.",
+    "inspect_query (Query)"        =>
+                                      "a real declaration would be vacuous: no adapter in this codebase implements the " \
+                                      "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate reading), " \
+                                      "so a corpus member declaring it would exercise nothing this doctest does not " \
+                                      "already. The gap is upstream of the DSL word, in the adapter layer.",
+    "inspect_query (ReadModel)"    =>
+                                      "even more vacuous than the Query form — the read model runtime never reaches the " \
+                                      "code this word gates at all, so a real declaration is strictly inert.",
+    "tells (DomainPort)"           =>
+                                      "identical to operation, which pizzas' real PaymentGateway.Receive already proves " \
+                                      "for real — the two words fill the same PortOperation construct, so a second " \
+                                      "corpus use under a different spelling would mean inventing a second inbound " \
+                                      "integration this codebase does not otherwise need, for a word that changes " \
+                                      "nothing about what the runtime does once declared.",
+    "verb (DomainPort)"            =>
+                                      "every resource port a real domain here needs (persisted_by/projected_by/" \
+                                      "opened_by) is a framework-level default, never a project's own `port \"X\" do " \
+                                      "verb \"...\" end` — nothing in examples/ or lib/hecksagain/framework/ needs a " \
+                                      "swappable resource port of its own. writing-an-adapter.md's own worked example " \
+                                      "is the closest this repo has, and it is a guide, not a corpus member.",
+    "asks (DomainPort)"            =>
+                                      "the OUTBOUND port direction (the domain asking the outside a question and " \
+                                      "reading back an answer/refusal) has no real external integration modeled " \
+                                      "anywhere in this corpus — every real port here (pizzas' PaymentGateway) is " \
+                                      "inbound (`operation`). ADR 0025's own count claimed this passed; re-checked " \
+                                      "against the current corpus while writing this spec and found it does not — a " \
+                                      "real, previously-unnoticed drift, not a fact carried over from the ADR.",
+    "answers (PortOperation)"      =>
+                                      "same finding as asks (DomainPort) — an `asks` operation's own happy ending, " \
+                                      "and there is no real `asks` operation to carry one.",
+    "refuses (PortOperation)"      =>
+                                      "same finding as asks (DomainPort) — an `asks` operation's own refused ending.",
+    "attaches_to (Bluebook)"       =>
+                                      "genuinely, load-bearingly used for real — lib/hecksagain/language/bluebook/" \
+                                      "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \
+                                      "at every boot by SyntaxBoot's own generic discovery (ADR 0026, S15) — but that " \
+                                      "file sits inside lib/hecksagain/language/bluebook, excluded from CORPUS_GLOBS " \
+                                      "on purpose (the language describing itself is not what this corpus counts, the " \
+                                      "same reason every core grammar word's own name is not scanned as a use of " \
+                                      "itself). A sub-language chapter is caught by the same exclusion its own words " \
+                                      "are, even though — unlike formerly_known_as below — it is not a synthetic gap; " \
+                                      "it is a real declaration the scanner is not pointed at.",
     "formerly_known_as (Bluebook)" =>
-      "no bluebook in THIS repository's own corpus renames itself — real, external " \
-      "use is what this word is for: embryonautfoundersapp.bluebook (the sibling " \
-      "embryonaut_console repo) declares `formerly_known_as \"Embryonaut\"` for real, " \
-      "bridging real production journal/era/approval rows the day it deployed under " \
-      "the new name. Written up in docs/reference/bluebook.md's own section, naming " \
-      "the consumer, per principle 4's own wording.",
-    "has_many (Aggregate)" =>
-      "refused unconditionally at build outside MetaValidator.shadow_parsing? " \
-      "(AggregateBuilder#has_many) — the same structural impossibility cursor has. " \
-      "reference_to mints the identical attribute now; a live declaration exists only " \
-      "to be refused, never to succeed.",
-    "has_one (Aggregate)" => "same as has_many (Aggregate) — AggregateBuilder#has_one.",
-    "belongs_to (Aggregate)" => "same as has_many (Aggregate) — AggregateBuilder#belongs_to."
+                                      "no bluebook in THIS repository's own corpus renames itself — real, external " \
+                                      "use is what this word is for: embryonautfoundersapp.bluebook (the sibling " \
+                                      "embryonaut_console repo) declares `formerly_known_as \"Embryonaut\"` for real, " \
+                                      "bridging real production journal/era/approval rows the day it deployed under " \
+                                      "the new name. Written up in docs/reference/bluebook.md's own section, naming " \
+                                      "the consumer, per principle 4's own wording.",
+    "has_many (Aggregate)"         =>
+                                      "refused unconditionally at build outside MetaValidator.shadow_parsing? " \
+                                      "(AggregateBuilder#has_many) — the same structural impossibility cursor has. " \
+                                      "reference_to mints the identical attribute now; a live declaration exists only " \
+                                      "to be refused, never to succeed.",
+    "has_one (Aggregate)"          => "same as has_many (Aggregate) — AggregateBuilder#has_one.",
+    "belongs_to (Aggregate)"       => "same as has_many (Aggregate) — AggregateBuilder#belongs_to."
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do

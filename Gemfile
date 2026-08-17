@@ -54,4 +54,13 @@ group :development, :test do
   # ActiveRecord to lean on for that, unlike parallel_tests' own
   # built-in Rails support).
   gem "parallel_tests", "~> 4.7"
+
+  # A REAL, LEAN GATE — .rubocop.yml is tuned to this codebase's own
+  # already-established style (long deliberate prose comments,
+  # module_function-heavy modules, Struct-based value types) rather than
+  # a generic default fought line by line. rubocop-rspec covers the 174
+  # files under spec/ with RSpec-aware cops a plain rubocop run has no
+  # opinion on at all.
+  gem "rubocop", "~> 1.69", require: false
+  gem "rubocop-rspec", "~> 3.3", require: false
 end

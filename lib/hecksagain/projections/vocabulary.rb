@@ -20,6 +20,7 @@ module Hecksagain
     # produce.
     module Vocabulary
       extend Projector::Target
+
       projects_as :vocabulary, declares: "Vocabulary"
 
       HEADER = <<~RUBY.freeze
