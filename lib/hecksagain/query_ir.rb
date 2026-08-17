@@ -1,6 +1,7 @@
 require "set"
 require_relative "codemod"
 require_relative "projections/model"
+require_relative "fuzzing/properties"
 
 module Hecksagain
   # THE SHARED CORE behind `bin/query_ir` (a text CLI) and
@@ -213,6 +214,112 @@ module Hecksagain
         end
         lines.join("\n")
       end.join("\n\n")
+    end
+
+    # ONE HAND-TYPED CONSTRUCT-NAME PER RECONSTRUCTION METHOD — the only
+    # two `MetaValidator::Reconstruction` methods NOT driven generically
+    # through `Assembly::Contracts`' own table (its own header explains
+    # why: `aggregate(row)`/`entity(row)` predate the table and were
+    # never migrated). `impact_preview`'s own touchpoint 4 is checked
+    # ONLY for these two — every other construct is read generically, so
+    # asking "does Command's own reconstruction method mention this
+    # field" is a question with no method to check.
+    RECONSTRUCTION_METHODS = { "Aggregate" => :aggregate, "Entity" => :entity }.freeze
+
+    # THE SIX TOUCHPOINTS `.claude/skills/bluebook-construct-creator/
+    # SKILL.md` walks in prose, checked structurally instead of by hand
+    # — for a construct/field pair NOT yet fully propagated (typically
+    # mid-round, deciding what's left), or as a sanity check before the
+    # final gate sweep of a round already believed done. Every check
+    # here is BEST-EFFORT and ADVISORY, not a gate: a `false` does not
+    # always mean "not yet done" (a field can be legitimately exempt —
+    # `Deviations`' own named categories, `GUARANTEED_BY_CONSTRUCTION`,
+    # or `META_DOMAIN_KNOWN_GAPS`, the last of which lives in
+    # spec/fuzzing/meta_domain_coverage_spec.rb, a SPEC file this
+    # module deliberately never requires — see `CONSTRUCTS`' own
+    # comment on the same principle). Read the touchpoint's own
+    # existing gate (`model_shape_conformance_spec.rb`,
+    # `assembly_spec.rb`, `meta_domain_coverage_spec.rb`) before trusting
+    # a `false` here as a real gap.
+    def impact_preview(name, field)
+      CONSTRUCTS.fetch(name) { raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}" }
+      field = field.to_s
+
+      {
+        name: name,
+        field: field,
+        touchpoints: [
+          { touchpoint: "meta-domain grammar declares it", present: meta_declared(name).map(&:to_s).include?(field) },
+          { touchpoint: "docs/resolution-rules/ names it", present: resolution_rule_mentions?(field) },
+          { touchpoint: "Assembly::Contracts consumes it", present: contract_consumes?(name, field) },
+          { touchpoint: "Reconstruction's hand-typed method reads it", present: reconstruction_reads?(name, field) },
+          { touchpoint: "fuzzer FEATURE_COVERAGE/GUARANTEED_BY_CONSTRUCTION claims it", present: fuzzer_claims?(name, field) },
+          { touchpoint: "Rust mirror (rust/parser/src/parse/*.rs) mentions it", present: rust_mentions?(field) }
+        ]
+      }
+    end
+
+    def resolution_rule_mentions?(field)
+      Dir.glob(File.join(Codemod::ROOT, "docs/resolution-rules/*.md")).any? { |path| File.read(path).include?(field) }
+    end
+    private_class_method :resolution_rule_mentions?
+
+    def contract_consumes?(name, field)
+      contract = Hecksagain::Bluebook::Assembly.contract(name)
+      contract.fields.key?(field.to_sym) || contract.derived.key?(field.to_sym)
+    rescue KeyError
+      false
+    end
+    private_class_method :contract_consumes?
+
+    # `Method#source_location` finds where the hand-typed method starts;
+    # the method's own body ends at the next line indented no deeper
+    # than its own `def` — the same boundary Ruby itself uses, read back
+    # textually because there is no live AST here, only a file to grep a
+    # slice of. `nil` (not `false`) for every OTHER construct — this
+    # touchpoint genuinely does not apply to them (`RECONSTRUCTION_
+    # METHODS` only names the two hand-typed methods), and collapsing
+    # "does not apply" into "not done" would misreport a construct that
+    # was never supposed to have this touchpoint at all.
+    def reconstruction_reads?(name, field)
+      method_name = RECONSTRUCTION_METHODS[name]
+      return nil unless method_name
+
+      file, start_line = Hecksagain::Bluebook::MetaValidator::Reconstruction.instance_method(method_name).source_location
+      lines = File.readlines(file)
+      def_line = lines[start_line - 1]
+      indent = def_line[/\A\s*/]
+
+      body = lines[start_line..].take_while { |line| line.strip.empty? || line[/\A\s*/].size > indent.size || !line.lstrip.start_with?("def ") }
+      body.join.include?("#{field}:")
+    end
+    private_class_method :reconstruction_reads?
+
+    def fuzzer_claims?(name, field)
+      key = "#{name}##{field}"
+      Hecksagain::Fuzzing::Properties::FEATURE_COVERAGE.values.flatten.include?(key) ||
+        Hecksagain::Fuzzing::Properties::GUARANTEED_BY_CONSTRUCTION.key?(key)
+    end
+    private_class_method :fuzzer_claims?
+
+    def rust_mentions?(field)
+      Dir.glob(File.join(Codemod::ROOT, "rust/parser/src/parse/*.rs")).any? { |path| File.read(path).include?(field) }
+    end
+    private_class_method :rust_mentions?
+
+    def format_impact_preview(preview)
+      lines = ["== #{preview[:name]}##{preview[:field]} =="]
+      preview[:touchpoints].each do |t|
+        mark = t[:present].nil? ? "n/a" : (t[:present] ? "yes" : "NOT YET")
+        lines << "  [#{mark.rjust(7)}] #{t[:touchpoint]}"
+      end
+      done = preview[:touchpoints].count { |t| t[:present] == true }
+      total = preview[:touchpoints].count { |t| !t[:present].nil? }
+      lines << ""
+      lines << "#{done}/#{total} applicable touchpoint(s) show signs of this field — advisory, not a gate; " \
+               "a NOT YET can be a legitimate exemption (Deviations, GUARANTEED_BY_CONSTRUCTION, or a spec-only " \
+               "META_DOMAIN_KNOWN_GAPS entry this module deliberately never reads)."
+      lines.join("\n")
     end
 
     def format_duplicates(groups)
