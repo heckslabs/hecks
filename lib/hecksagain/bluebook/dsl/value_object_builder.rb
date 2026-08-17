@@ -3,6 +3,7 @@ module Hecksagain
     module DSL
       class ValueObjectBuilder
         include AttributeCollector
+        include RuleReference
 
         def initialize(name, owner_value_objects: [])
           @name       = name
@@ -85,27 +86,18 @@ module Hecksagain
         def invariant(description, &predicate)
           return reference_named_invariant(description) unless predicate
 
-          canonical = Ports::Extraction.canonical(predicate)
-
           # moved to the language: given "a rule says what it means", on Shape.Assert
 
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s invariant #{description.inspect} did not survive " \
-                  "extraction — it would be a rule the IR cannot carry"
-          end
-
-          @invariants << Invariant.new(
-            description: description,
-            canonical:   canonical,
-            predicate:   predicate
-          )
+          @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
+                                     extraction_failure: "it would be a rule the IR cannot carry")
         end
 
         private
 
+        # PRIMITIVE 3 (RuleReference#resolve_sibling_scan) — see that
+        # method's own comment for why this is a live scan, not a pool.
         def reference_named_invariant(description)
-          named = @owner_value_objects.flat_map(&:invariants).find { |rule| rule.description == description } ||
+          named = resolve_sibling_scan(@owner_value_objects, description, reader: :invariants) ||
                   raise(Malformed,
                         "#{@name}'s invariant #{description.inspect} names no rule a sibling value " \
                         "object on this aggregate declares — declare it once with a block, on the " \

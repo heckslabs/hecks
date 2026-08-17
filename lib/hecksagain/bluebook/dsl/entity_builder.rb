@@ -4,6 +4,7 @@ module Hecksagain
       class EntityBuilder
         include AttributeCollector
         include IdentityDeclaration
+        include RuleReference
 
         def initialize(name, owner_value_objects: [], owner_named_givens: {})
           @name         = name
@@ -103,16 +104,8 @@ module Hecksagain
         # `@named_givens` holds AT THE COMMAND'S OWN BUILD TIME, not by
         # magic.
         def given(description, &predicate)
-          canonical = Ports::Extraction.canonical(predicate)
-
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s given #{description.inspect} did not survive " \
-                  "extraction — its source could not be read, so no other " \
-                  "runtime could ever evaluate it"
-          end
-
-          named = Given.new(description: description, canonical: canonical, predicate: predicate)
+          named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
+                              extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
           @named_givens[description] = named
           # WRITE-THROUGH, first-declared-wins (`||=`) — a SECOND piece
           # under the same aggregate independently declaring the exact
@@ -137,15 +130,8 @@ module Hecksagain
         # cross-entity write-through pattern to extend, not a reason to
         # invent a second one here speculatively.
         def invariant(description, &predicate)
-          canonical = Ports::Extraction.canonical(predicate)
-
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s invariant #{description.inspect} did not survive " \
-                  "extraction — it would be a rule the IR cannot carry"
-          end
-
-          @invariants << Invariant.new(description: description, canonical: canonical, predicate: predicate)
+          @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
+                                     extraction_failure: "it would be a rule the IR cannot carry")
         end
 
         def build

@@ -4,6 +4,7 @@ module Hecksagain
       class AggregateBuilder
         include AttributeCollector
         include IdentityDeclaration
+        include RuleReference
 
         def initialize(name, chapter_named_givens: {})
           @name          = name
@@ -261,16 +262,8 @@ module Hecksagain
         def given(description, declared_by: nil, &predicate)
           return reference_named_chapter_given(description, declared_by: declared_by) unless predicate
 
-          canonical = Ports::Extraction.canonical(predicate)
-
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s given #{description.inspect} did not survive " \
-                  "extraction — its source could not be read, so no other " \
-                  "runtime could ever evaluate it"
-          end
-
-          named = Given.new(description: description, canonical: canonical, predicate: predicate)
+          named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
+                              extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
           @named_givens[description] = named
           # WRITE-THROUGH, first-declared-wins PER OWNER — keyed by
           # [description, this aggregate's own name], not description
@@ -285,8 +278,13 @@ module Hecksagain
 
         private
 
+        # PRIMITIVE 2 (RuleReference#resolve_owner_keyed) — see that
+        # method's own comment for the pool shape; the four branches
+        # below (exact owner / unambiguous single candidate / none /
+        # ambiguous) are this construct's OWN refusal wording, not
+        # shared, since `declared_by:` only exists here so far.
         def reference_named_chapter_given(description, declared_by:)
-          candidates = @chapter_named_givens[description] || {}
+          candidates = resolve_owner_keyed(@chapter_named_givens, description)
 
           named =
             if declared_by
@@ -328,15 +326,8 @@ module Hecksagain
         # four that only increase it said nothing at all — completeness
         # depended on someone noticing which commands could decrease it.
         def invariant(description, &predicate)
-          canonical = Ports::Extraction.canonical(predicate)
-
-          if canonical.to_s.empty?
-            raise Malformed,
-                  "#{@name}'s invariant #{description.inspect} did not survive " \
-                  "extraction — it would be a rule the IR cannot carry"
-          end
-
-          @invariants << Invariant.new(description: description, canonical: canonical, predicate: predicate)
+          @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
+                                     extraction_failure: "it would be a rule the IR cannot carry")
         end
 
         def build
