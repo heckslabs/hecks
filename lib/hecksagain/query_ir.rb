@@ -1,4 +1,5 @@
 require "set"
+require_relative "bluebook"
 require_relative "codemod"
 require_relative "projections/model"
 require_relative "fuzzing/properties"

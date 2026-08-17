@@ -5,6 +5,11 @@
       "scope": "deploy:lambda_target.declare",
       "verb": "Deploy::LambdaTarget.Declare",
       "role": null
+    },
+    {
+      "scope": "deploy:tenant.declare",
+      "verb": "Deploy::Tenant.Declare",
+      "role": null
     }
   ],
   "roles": [

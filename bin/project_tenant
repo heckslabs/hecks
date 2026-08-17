@@ -1,0 +1,108 @@
+#!/usr/bin/env ruby
+
+# THE TENANT PROVISIONER — same split bin/project_deploy already draws
+# between VALIDATING a declared shape (lib/hecksagain/deploy's own
+# Tenant.Declare) and GENERATING/ACTING on it (this script). Three
+# local, idempotent steps, in order: write the tenant's own
+# `environments/<slug>.world` overlay, boot the domain once under it
+# (proving it genuinely works, not just that the file parses — the
+# same "verified live" discipline every deploy in this codebase holds
+# itself to), then run the tenant_capable? gate against the result.
+#
+# `Runtime.boot(dir, environment: slug)` (Registry#add_world's own
+# merge) is what actually makes this an overlay rather than a second,
+# competing domain declaration — see Runtime::Loader.boot's own
+# comment for the mechanism, and deploy.bluebook's own comment on
+# `Tenant` for why this stays a plain generator script rather than a
+# saga: every step here is already safe to re-run, so there is no
+# partial-progress state worth checkpointing.
+#
+# THE OVERLAY REPLACES, NOT MERGES, THE BASE persisted_by SETTINGS FOR
+# THE SAME ADAPTER — Registry#merge_worlds' own documented shallow-merge
+# shape (a key an overlay declares replaces that key's WHOLE resolved
+# hash, it does not deep-merge field by field). So `--database` is
+# REQUIRED here even when the base `.world` already names one — the
+# generated overlay is this tenant's own complete persisted_by
+# settings for the domain-level default bind, not a diff against the
+# base's.
+#
+#   bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME \
+#     --schema=NAME --database=NAME [--adapter=PostgresEra]
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "hecksagain"
+require "fileutils"
+require "optparse"
+
+directory = ARGV.shift
+slug      = ARGV.shift
+(directory && slug) or abort "usage: bin/project_tenant <domain-directory> <slug> --domain=NAME --realm=NAME --schema=NAME --database=NAME [--adapter=PostgresEra]"
+
+options = { adapter: "PostgresEra" }
+OptionParser.new do |parser|
+  parser.on("--domain=NAME")   { |v| options[:domain] = v }
+  parser.on("--realm=NAME")    { |v| options[:realm] = v }
+  parser.on("--schema=NAME")   { |v| options[:schema] = v }
+  parser.on("--database=NAME") { |v| options[:database] = v }
+  parser.on("--adapter=NAME")  { |v| options[:adapter] = v }
+end.parse!(ARGV)
+
+%i[domain realm schema database].each do |flag|
+  options[flag] or abort "bin/project_tenant needs --#{flag}"
+end
+
+domain_directory = File.expand_path(directory)
+File.directory?(domain_directory) or abort "no such domain directory: #{domain_directory}"
+
+# VALIDATED, not hand-checked — dispatches into lib/hecksagain/deploy's
+# own Tenant.Declare (the same given/invariant machinery LambdaTarget's
+# own validation already is), before this script writes or connects to
+# anything.
+deploy_dispatcher = Hecks.boot(File.expand_path("../lib/hecksagain/deploy", __dir__))
+begin
+  deploy_dispatcher.dispatch(
+    "Deploy::Tenant.Declare",
+    slug:   { value: slug },
+    domain: { value: options[:domain] },
+    realm:  { value: options[:realm] },
+    schema: { value: options[:schema] }
+  )
+rescue *Hecksagain::Runtime::DOMAIN_REFUSALS => e
+  abort "tenant #{slug.inspect} is invalid: #{e.message}"
+end
+
+# THE OVERLAY ITSELF — a plain File.write, idempotent by construction
+# (re-running this script for the same tenant just rewrites the
+# identical content).
+overlay_path = File.join(domain_directory, "environments", "#{slug}.world")
+FileUtils.mkdir_p(File.dirname(overlay_path))
+File.write(overlay_path, <<~WORLD)
+  Hecks.world "#{options[:domain]}" do
+    realm "#{options[:realm]}"
+    persisted_by("#{options[:adapter]}") do
+      database "#{options[:database]}"
+      schema   "#{options[:schema]}"
+    end
+  end
+WORLD
+
+puts "wrote #{overlay_path}"
+
+# BOOTED ONCE, FOR REAL — PostgresEra#connect_for's own `CREATE SCHEMA
+# IF NOT EXISTS` (idempotent, same self-healing discipline every other
+# provisioning step in this adapter already holds itself to) means this
+# is also the schema's own provisioning step, not just a smoke test.
+dispatcher = Hecks.boot(domain_directory, environment: slug, install_facade: false)
+puts "booted #{options[:domain]} for tenant #{slug.inspect} under realm #{options[:realm].inspect}"
+
+# THE GATE, CHECKED AFTER A REAL BOOT — belt-and-suspenders: a domain
+# whose bound adapter cannot actually keep two tenants apart should
+# never reach this point silently. Checked per bluebook this registry
+# declares, not just the one named --domain, the same completeness
+# refuse_ungoverned_roles! already holds itself to across every
+# hecksagon a boot merges.
+dispatcher.registry.bluebooks.each_key do |name|
+  Hecksagain::Runtime::TenantCheck.refuse_unless_tenant_capable!(dispatcher.registry, name)
+end
+
+puts "#{options[:domain]} is tenant_capable? for #{slug.inspect} — safe to host alongside other tenants"

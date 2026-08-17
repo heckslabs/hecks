@@ -93,7 +93,21 @@ module Hecksagain
         # adapter. A domain with no `schema` setting keeps Postgres's
         # own default search_path (public), same as before this existed.
         schema = settings[:schema] || settings["schema"]
-        connection.exec("SET search_path TO #{connection.quote_ident(schema)}") if schema.to_s != ""
+        if schema.to_s != ""
+          # THE SCHEMA ITSELF, IDEMPOTENTLY — a domain naming a `schema:`
+          # nobody has created yet used to fail on its FIRST table-
+          # creation attempt with Postgres's own "no schema has been
+          # selected to create in", found live provisioning tenant_
+          # isolation_spec.rb's own multi-schema fixture by hand before
+          # this existed. `CREATE SCHEMA IF NOT EXISTS` is exactly the
+          # same self-healing idempotency this adapter's own table/era
+          # provisioning already holds itself to (see the comment right
+          # below on `client_min_messages`) — a schema that already
+          # exists is the ORDINARY case for every boot after the first,
+          # not news.
+          connection.exec("CREATE SCHEMA IF NOT EXISTS #{connection.quote_ident(schema)}")
+          connection.exec("SET search_path TO #{connection.quote_ident(schema)}")
+        end
 
         # QUIET ON PURPOSE. Provisioning re-runs its own idempotent
         # `CREATE ... IF NOT EXISTS` checks on every boot — a schema that

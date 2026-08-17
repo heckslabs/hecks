@@ -171,16 +171,11 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     admin.exec("CREATE DATABASE #{db}")
     admin.close
 
-    # THE SCHEMAS THEMSELVES — a real deploy's `Deploy::Tenant`
-    # provisioning saga (Q13, not yet built) would create these as part
-    # of onboarding a tenant; this spec does it directly, same
-    # convention postgres_era_spec.rb's own storehouse_a/storehouse_b
-    # example already establishes for the identical shared-instance
-    # scenario.
-    scoped = PG.connect(dbname: db)
-    scoped.exec("CREATE SCHEMA tenant_acme")
-    scoped.exec("CREATE SCHEMA tenant_bloom")
-    scoped.close
+    # NO CREATE SCHEMA HERE — deliberately. PostgresEra#connect_for
+    # itself now creates a declared `schema:` idempotently on connect
+    # (found needing exactly this the first time this spec ran); this
+    # boots straight into schemas nobody has created yet, proving that
+    # self-healing rather than working around its absence.
 
     begin
       Dir.mktmpdir do |dir|
