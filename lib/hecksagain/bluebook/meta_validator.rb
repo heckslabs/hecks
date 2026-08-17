@@ -42,6 +42,10 @@ module Hecksagain
       WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
       # so is a hecksagon — the same reasoning, one file over
       HECKSAGON_GRAMMAR = File.expand_path("../language/hecksagon.bluebook", __dir__).freeze
+      # so is a port — whole-project table-unification survey, item #13's
+      # remaining builders. Backs the new PortJudge door the same way
+      # WORLD_GRAMMAR backs WorldJudge.
+      PORT_GRAMMAR = File.expand_path("../language/port.bluebook", __dir__).freeze
 
       # ADR 0026's OWN SEAM: THE CORE DOES NOT NAME ITS EXTENSION POINTS.
       #
@@ -166,6 +170,20 @@ module Hecksagain
 
         raise DSL::Malformed,
               "#{world.domain}'s world is not well formed; #{refusals.join('; ')}"
+      end
+
+      # A port is not a bluebook either — same door shape as call_world,
+      # one artifact over. Whole-project table-unification survey, item
+      # #13's remaining builders.
+      def self.call_port(port)
+        return port if disabled? || bootstrapping? || shadow_parsing?
+
+        key = Digest::SHA256.hexdigest(JSON.generate([port.name, port.verb, port.signal]))
+        refusals = verdicts[key] ||= PortJudge.new(port).refusals
+        return port if refusals.empty?
+
+        raise DSL::Malformed,
+              "#{port.name}'s port is not well formed; #{refusals.join('; ')}"
       end
 
       # THE LANGUAGE HANDS THE GRAPH BACK.
@@ -307,6 +325,7 @@ module Hecksagain
           GRAMMAR_FILES.each { |file| Kernel.load(file) }
           Kernel.load(WORLD_GRAMMAR)
           Kernel.load(HECKSAGON_GRAMMAR)
+          Kernel.load(PORT_GRAMMAR)
         end
         registry
       ensure

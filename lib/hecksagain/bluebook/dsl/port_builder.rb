@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class PortBuilder
+        GRAMMAR_CONTEXT = "Port"
+
+        include WordGate
+
         def initialize(name)
           @name   = name
           @signal = :reply
@@ -11,7 +16,7 @@ module Hecksagain
         def signal(value) = @signal = value.to_sym
 
         def build
-          Port.new(name: @name, verb: @verb, signal: @signal)
+          MetaValidator.call_port(Port.new(name: @name, verb: @verb, signal: @signal))
         end
 
         def self.build(name, &block)

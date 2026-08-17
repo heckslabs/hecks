@@ -96,7 +96,8 @@ RSpec.describe "the declared syntax" do
     "Hecksagon"      => D::HecksagonBuilder,
     "World"          => D::WorldBuilder,
     "DomainPort"     => D::DomainPortBuilder,
-    "PortOperation"  => D::PortOperationBuilder
+    "PortOperation"  => D::PortOperationBuilder,
+    "Port"           => D::PortBuilder
   }.freeze
 
   # PUBLIC AND NOT A WORD — each with its reason, because an unexplained
@@ -129,7 +130,12 @@ RSpec.describe "the declared syntax" do
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
       as_caller:        "the runtime facade, not a declaration",
-      port:             "a sibling artifact — .port has its own builder and its own file",
+      # `port` is REMOVED from here (whole-project table-unification
+      # survey, item #13's remaining builders) — it's a genuine, closed-
+      # set File word now, admitted the same as `bluebook`/`hecksagon`/
+      # `world`, backed by a real self-hosted port.bluebook chapter and
+      # PortJudge. `adapter`/`data_translation` stay excluded until their
+      # own slices land the same way.
       adapter:          "a sibling artifact — .adapter has its own builder and its own file",
       data_translation: "a sibling artifact — translations/ has its own builder and its own file"
     },
@@ -440,10 +446,11 @@ RSpec.describe "the declared syntax" do
   # it — so its words are checked against both. `Type` is a position, not a
   # record, so nothing it declares may claim to fill anything.
   CATEGORY_OF = {
-    # `hecksagon`/`world` are File-context words too, and fill fields on
-    # THEIR OWN chapters' aggregates, not Bluebook's — broadened the same
-    # way Lifecycle already checks against two categories, not one.
-    "File"           => %w[Bluebook Hecksagon World],
+    # `hecksagon`/`world`/`port` are File-context words too, and fill
+    # fields on THEIR OWN chapters' aggregates, not Bluebook's —
+    # broadened the same way Lifecycle already checks against two
+    # categories, not one.
+    "File"           => %w[Bluebook Hecksagon World Port],
     "Bluebook"       => %w[Bluebook],
     "Aggregate"      => %w[Aggregate],
     "Entity"         => %w[Entity],
@@ -460,7 +467,11 @@ RSpec.describe "the declared syntax" do
     "Hecksagon"      => %w[Hecksagon],
     "World"          => %w[World],
     "DomainPort"     => %w[DomainPort],
-    "PortOperation"  => %w[PortOperation]
+    "PortOperation"  => %w[PortOperation],
+    # port.bluebook — a genuine SIBLING chapter, the same as World/
+    # Hecksagon, declaring a real `Port` aggregate PortJudge dispatches
+    # every built .port into.
+    "Port"           => %w[Port]
   }.freeze
 
   # Hecksagon and World are SIBLING chapters, not aggregates inside
@@ -483,7 +494,7 @@ RSpec.describe "the declared syntax" do
 
   def self.all_meta_aggregates
     registry     = Hecksagain::Bluebook::MetaValidator.grammar_registry
-    aggregates   = %w[Bluebook Hecksagon World].flat_map { |chapter| registry.bluebook(chapter).aggregates }
+    aggregates   = %w[Bluebook Hecksagon World Port].flat_map { |chapter| registry.bluebook(chapter).aggregates }
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end
 

@@ -1,0 +1,45 @@
+Hecks.bluebook "Port" do
+  vision "The .port language, declared in itself. A port names one resource door a domain's own aggregates call by verb — persisted_by, posted_by, whatever a chapter spells — bound to a real driven adapter at the world level. A sibling artifact to the bluebook, not part of one: the same port name is reused across every domain that needs the same kind of door."
+  core
+
+  aggregate "Port" do
+    description "One .port — a resource door a domain's own aggregates call by verb, and whether calling it answers with a value (reply) or fires an effect with nothing to hand back (effect)."
+
+    identified_by :name
+
+    attribute :name,   PortName
+    attribute :verb,   PortVerb
+    attribute :signal, PortSignal
+
+    value_object "PortName" do
+      attribute :value, String
+      invariant("a port names itself") { !value.to_s.empty? }
+    end
+
+    value_object "PortVerb" do
+      attribute :value, String
+      invariant("a port's verb says something") { !value.to_s.empty? }
+    end
+
+    value_object "PortSignal" do
+      attribute :value, String, one_of: ["reply", "effect"]
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Open a resource door a domain's own aggregates may call by verb"
+
+      attribute :name,   PortName
+      # OPTIONAL — real, pre-existing PortBuilder behavior (spec/dsl_spec
+      # .rb's own "signal says whether the domain gets a value back..."
+      # builds a port with only `signal`, never calling `verb` at all;
+      # `def verb(value)` has no default, unlike `signal`'s `:reply`).
+      # Same asymmetry world.bluebook's own Declare command already has
+      # for `realm`/`latest`.
+      attribute :verb,   PortVerb, optional: true
+      attribute :signal, PortSignal
+
+      emits "PortDeclared"
+    end
+  end
+end

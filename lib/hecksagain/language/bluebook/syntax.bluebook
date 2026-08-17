@@ -86,7 +86,7 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String,
                 one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
                          "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon",
-                         "World", "DomainPort", "PortOperation"]
+                         "World", "DomainPort", "PortOperation", "Port"]
     end
 
     # WHAT A WORD'S BLOCK IS, and the three answers are genuinely different
@@ -283,6 +283,17 @@ Hecks.bluebook "Bluebook" do
       # real grammar boundary, named rather than half-covered.
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
+
+      # `.port` — a SIBLING ARTIFACT too (own file extension, own builder,
+      # own load step, same as `hecksagon`/`world`), and unlike those two
+      # its own inner vocabulary (verb/signal) IS fully self-hosted now:
+      # port.bluebook declares a real `Port` aggregate, and PortJudge
+      # (mirroring WorldJudge) dispatches every built .port into it.
+      # `.adapter`/`.translation` stay excluded (see NOT_A_WORD, spec/
+      # syntax_conformance_spec.rb) until their own slices land the same
+      # way. Whole-project table-unification survey, item #13's remaining
+      # builders.
+      member word: "port",            context: "File",     body: "keywords", inner: "Port",           opens: "Port",           fills: ""
 
       member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
       member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
@@ -630,6 +641,15 @@ Hecks.bluebook "Bluebook" do
       # above.
       member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm"
       member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest"
+
+      # `.port`'s OWN two words — PortBuilder, read directly, real fields
+      # on port.bluebook's own `Port` aggregate now. NOT the SAME "verb"
+      # `DomainPort` context already declares above (a different
+      # word/context pair on the same table, the way `port` itself
+      # already exists in both `File` and `Hecksagon` context without
+      # collision).
+      member word: "verb",            context: "Port",      body: "none", inner: "", opens: "", fills: "verb"
+      member word: "signal",          context: "Port",      body: "none", inner: "", opens: "", fills: "signal"
     end
 
     # WHAT EACH WORD TAKES.
@@ -1100,6 +1120,17 @@ Hecks.bluebook "Bluebook" do
       member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
       member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
       member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
+
+      # `.port`'s own entry-point argument — PortBuilder.build(name, &block),
+      # read directly.
+      member keyword: "port",            context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
+
+      # `.port`'s OWN two words. `verb`'s own argument is text
+      # (`@verb = value.to_s`); `signal`'s is a symbol (`@signal =
+      # value.to_sym`), the same `kind:` `identified_by`'s own field-name
+      # argument already uses above.
+      member keyword: "verb",            context: "Port", at: "1", named: "", kind: "text",   required: "true", fills: "verb"
+      member keyword: "signal",          context: "Port", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
     end
 
     # S14, ADR 0026 — "`Status` becomes a real `lifecycle` with declared

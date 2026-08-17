@@ -48,6 +48,11 @@ end
 Hecks.world("FileReference") do
   realm "Examples"
 end
+
+Hecks.port("dispatch_door") do
+  verb   "persisted_by"
+  signal :reply
+end
 ```
 
 ## bluebook
@@ -114,5 +119,23 @@ the third file's business alone:
 
 ```ruby
 runtime.registry.world("FileReference").realm  # => "Examples"
+```
+
+## port
+
+<!-- generated:begin word=port -->
+`port name do ... end` — opens a `Port` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Opens a `.port` file — a resource door a domain's own aggregates call by verb (`persisted_by`, `posted_by`, ...), bound to a real driven adapter at the world level. A sibling artifact too, reused across every domain that needs the same kind of door: `persistence`, `extraction`, and every other port under `lib/hecksagain/ports/` are real examples. See the Port reference page for the words inside.
+
+Read back off the registry, the same way a world is:
+
+```ruby
+runtime.registry.ports["dispatch_door"].verb  # => "persisted_by"
 ```
 

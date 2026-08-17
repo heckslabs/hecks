@@ -40,7 +40,15 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.world"),
     File.join(InMemoryDomain::ROOT, "lib/hecksagain/grammar", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.bluebook"),
-    File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.hecksagon")
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/framework/bluebook", "*.hecksagon"),
+    # `.port` — REAL, non-synthetic production declarations (13 real
+    # ports the framework itself binds against), unlike the S15 Paging
+    # precedent's own seed-row false-positive risk (a naive whole-token
+    # scan matching DATA, not a real use of the word) — these genuinely
+    # ARE `Hecks.port "..." do verb "..." ; signal :... end` calls.
+    # Whole-project table-unification survey, item #13's remaining
+    # builders.
+    File.join(InMemoryDomain::ROOT, "lib/hecksagain/ports", "*.port")
   ].freeze
 
   def corpus_files
@@ -60,9 +68,20 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # string literal) but none of the words checked below have one in
   # this corpus — confirmed by reading each finding this spec reports
   # before writing its exemption.
-  def corpus_uses?(word)
+  # `exclude_extension:` — a naive whole-token scan cannot tell one
+  # CONTEXT'S spelling of a word from another's (`verb` inside a `.port`
+  # file's own `Port` context vs `verb` inside a `.bluebook`'s own
+  # nested `domain_port` block's `DomainPort` context — same word,
+  # different grammar, same S15 Paging precedent's own "naive scanner,
+  # not context-aware" finding) — but a FILE EXTENSION genuinely can:
+  # a `.port` file structurally cannot ever contain a `DomainPort`-
+  # context word, so excluding it from a `DomainPort` exemption's own
+  # staleness check is a real, structural narrowing, not a guess.
+  def corpus_uses?(word, exclude_extension: nil)
     pattern = /\b#{Regexp.escape(word)}\b/
     corpus_files.any? do |path|
+      next false if exclude_extension && File.extname(path) == exclude_extension
+
       File.foreach(path).any? { |line| !line.lstrip.start_with?("#") && line.match?(pattern) }
     end
   end
@@ -167,7 +186,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
   it "carries no exemption the corpus has outgrown" do
     stale = EXEMPT.keys.select do |name|
       word, context = name.match(/\A(.+) \((.+)\)\z/)&.captures
-      word && corpus_uses?(word)
+      # `DomainPort`'s own words can never appear for real in a `.port`
+      # file (a structurally different context/file type — see
+      # corpus_uses?'s own header) — excluded here so adding real `.port`
+      # coverage for `Port`'s own words (verb/signal) doesn't collide
+      # with this SIBLING context's own, still-genuinely-unused claim.
+      word && corpus_uses?(word, exclude_extension: context == "DomainPort" ? ".port" : nil)
     end
 
     expect(stale).to be_empty,

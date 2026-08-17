@@ -9162,6 +9162,12 @@
                 "name",
                 "PortOperation"
               ]
+            ],
+            [
+              [
+                "name",
+                "Port"
+              ]
             ]
           ],
           "name": "Context"
@@ -9600,6 +9606,32 @@
               [
                 "opens",
                 "World"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "port"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Port"
+              ],
+              [
+                "opens",
+                "Port"
               ],
               [
                 "fills",
@@ -12188,6 +12220,58 @@
               [
                 "fills",
                 "latest"
+              ]
+            ],
+            [
+              [
+                "word",
+                "verb"
+              ],
+              [
+                "context",
+                "Port"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "verb"
+              ]
+            ],
+            [
+              [
+                "word",
+                "signal"
+              ],
+              [
+                "context",
+                "Port"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "signal"
               ]
             ]
           ],
@@ -17648,6 +17732,96 @@
               [
                 "pairs_shape",
                 "verbatim"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "port"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "verb"
+              ],
+              [
+                "context",
+                "Port"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "verb"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "signal"
+              ],
+              [
+                "context",
+                "Port"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "signal"
               ]
             ]
           ],
