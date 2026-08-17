@@ -85,9 +85,42 @@ RSpec.describe "every live DSL word, used somewhere real" do
     corpus_files.any? do |path|
       next false if exclude_extension && File.extname(path) == exclude_extension
 
-      File.foreach(path).any? { |line| !line.lstrip.start_with?("#") && line.match?(pattern) }
+      File.foreach(path).any? do |line|
+        next false if line.lstrip.start_with?("#")
+
+        match = line.match(pattern)
+        match && !inside_quotes?(line, match.begin(0))
+      end
     end
   end
+
+  # THE OTHER FALSE-POSITIVE RISK the header above already names — "the
+  # word inside a string literal" — turned into a real check, not just a
+  # read-every-finding promise, once Translation/TranslationAggregate's
+  # own coverage (item #13's remaining builders) hit it for real:
+  # `lib/hecksagain/grammar/translation.bluebook`'s own UNRELATED `Rule
+  # .Kind` closed set (`one_of: ["rename", "move", "convert", ...]`) and
+  # ordinary English prose (`given("a retired rule ...")`) both contain
+  # this language's own rule-word SPELLINGS as plain string DATA, not as
+  # a live keyword call. A real call in this codebase is always a
+  # bareword — `rename :old, to: :new`, `retired "OldAggregate"` — never
+  # itself quoted; only the call's own ARGUMENTS are. A double-quote
+  # parity count up to the match's own position tells the two apart: an
+  # odd count of `"` before it means the match sits inside an still-open
+  # quote, so it is DATA, not a call.
+  def inside_quotes?(line, index)
+    line[0...index].count('"').odd?
+  end
+
+  # Shared reasoning for 8 of the 9 Translation-family entries below —
+  # see the comment on the first of them for the full finding.
+  TRANSLATION_RULE_GAP =
+    "no real translation edge in this corpus exercises this rule kind — " \
+    "examples/pizzas/bluebook/translations/2-77625c.bluebook (the one real " \
+    "translation this repository has) only exercises `aggregate ... was:` and " \
+    "`move ... to:`. `corpus_uses?`'s naive whole-token scan reports a false " \
+    "positive for this word regardless (see the comment on the first entry in " \
+    "this group), so this exemption also stands in for that scanner gap."
 
   # UNREACHED ON PURPOSE, each naming why — the same shape
   # plurality_coverage_spec.rb's ALLOWED_SINGLETON is. Every entry here
@@ -167,7 +200,44 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "aggregate — a full settle/refund/dispute lifecycle shared across every project " \
                                               "that needs one rather than reimplemented per project. Written up in " \
                                               "docs/reference/hecksagon.md's own section, naming the consumer, per principle " \
-                                              "4's own wording — same shape formerly_known_as (Bluebook) above already is."
+                                              "4's own wording — same shape formerly_known_as (Bluebook) above already is.",
+    # Translation/TranslationAggregate — item #13's remaining builders.
+    # `corpus_uses?` is a NAIVE whole-token scan (its own header already
+    # names this risk) with no context awareness at all, and every one of
+    # these 9 words happens to collide with an UNRELATED real corpus use
+    # of the same spelling: `retired`/`rename`/`convert`/`drop`/`retype`/
+    # `compute`/`rekey`/`backfill`/`unresolved` all appear as plain STRING
+    # VALUES inside lib/hecksagain/grammar/translation.bluebook's own
+    # unrelated `Rule.Kind` closed set (a pre-existing, different self-
+    # hosted "Translation" domain — governs proposing/executing/admitting
+    # individual rules for bin/evolve's scaffold tooling, never loaded
+    # into the same registry as this one) — plus `retired` also collides
+    # with the word "retired" appearing as a plain lifecycle STATUS
+    # STRING in banking.bluebook/expression.bluebook. Read and confirmed
+    # by hand, one file at a time, not assumed: `examples/pizzas/bluebook/
+    # translations/2-77625c.bluebook` is the one REAL translation this
+    # corpus has (a genuine `Hecks.data_translation "Pizzas", ... do
+    # aggregate "Order", was: "Pizza" do move ... end end` — which is why
+    # `data_translation (File)`, `aggregate (Translation)`, and `move
+    # (TranslationAggregate)` need no exemption here, all three genuinely
+    # covered), and it exercises exactly two of the nine rule words
+    # (`aggregate ... was:`, `move ... to:`). The other nine rule kinds
+    # this language admits have no real edge exercising them anywhere in
+    # this repository yet — a real gap in the CORPUS, not in the words.
+    "retired (Translation)"                => TRANSLATION_RULE_GAP,
+    "rename (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
+    "convert (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
+    "drop (TranslationAggregate)"          => TRANSLATION_RULE_GAP,
+    "retype (TranslationAggregate)"        => TRANSLATION_RULE_GAP,
+    "compute (TranslationAggregate)"       => TRANSLATION_RULE_GAP,
+    "rekey (TranslationAggregate)"         => TRANSLATION_RULE_GAP,
+    "backfill (TranslationAggregate)"      => TRANSLATION_RULE_GAP,
+    "unresolved (TranslationAggregate)"    =>
+                                              "same finding as the rest of this group, plus a second, independent reason: " \
+                                              "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
+                                              "unresolved always raises Malformed) — a real declaration exists only to be " \
+                                              "refused, the same structural-impossibility shape `cursor (Query)` above " \
+                                              "already is, never to succeed and land in a corpus record."
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do

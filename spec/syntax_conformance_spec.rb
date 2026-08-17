@@ -79,26 +79,28 @@ RSpec.describe "the declared syntax" do
   # That is why the completeness check below groups contexts BY BUILDER rather
   # than comparing each context to a class of its own.
   BUILDER = {
-    "File"           => Hecks,
-    "Bluebook"       => D::BluebookBuilder,
-    "Aggregate"      => D::AggregateBuilder,
-    "Entity"         => D::EntityBuilder,
-    "Command"        => D::CommandBuilder,
-    "Query"          => D::QueryBuilder,
-    "ValueObject"    => D::ValueObjectBuilder,
-    "OneOf"          => D::ValueObjectBuilder,
-    "Lifecycle"      => D::LifecycleBuilder,
-    "Policy"         => D::PolicyBuilder,
-    "ProcessManager" => D::ProcessManagerBuilder,
-    "Handler"        => D::ProcessManagerBuilder::HandlerBuilder,
-    "ReadModel"      => D::ReadModelBuilder,
-    "Type"           => D::AttributeCollector,
-    "Hecksagon"      => D::HecksagonBuilder,
-    "World"          => D::WorldBuilder,
-    "DomainPort"     => D::DomainPortBuilder,
-    "PortOperation"  => D::PortOperationBuilder,
-    "Port"           => D::PortBuilder,
-    "Adapter"        => D::AdapterBuilder
+    "File"                 => Hecks,
+    "Bluebook"             => D::BluebookBuilder,
+    "Aggregate"            => D::AggregateBuilder,
+    "Entity"               => D::EntityBuilder,
+    "Command"              => D::CommandBuilder,
+    "Query"                => D::QueryBuilder,
+    "ValueObject"          => D::ValueObjectBuilder,
+    "OneOf"                => D::ValueObjectBuilder,
+    "Lifecycle"            => D::LifecycleBuilder,
+    "Policy"               => D::PolicyBuilder,
+    "ProcessManager"       => D::ProcessManagerBuilder,
+    "Handler"              => D::ProcessManagerBuilder::HandlerBuilder,
+    "ReadModel"            => D::ReadModelBuilder,
+    "Type"                 => D::AttributeCollector,
+    "Hecksagon"            => D::HecksagonBuilder,
+    "World"                => D::WorldBuilder,
+    "DomainPort"           => D::DomainPortBuilder,
+    "PortOperation"        => D::PortOperationBuilder,
+    "Port"                 => D::PortBuilder,
+    "Adapter"              => D::AdapterBuilder,
+    "Translation"          => D::TranslationBuilder,
+    "TranslationAggregate" => D::TranslationAggregateBuilder
   }.freeze
 
   # PUBLIC AND NOT A WORD — each with its reason, because an unexplained
@@ -130,15 +132,13 @@ RSpec.describe "the declared syntax" do
       boot:             "the runtime facade, not a declaration",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
-      as_caller:        "the runtime facade, not a declaration",
-      # `port`/`adapter` are REMOVED from here (whole-project table-
-      # unification survey, item #13's remaining builders) — both are
-      # genuine, closed-set File words now, admitted the same as
-      # `bluebook`/`hecksagon`/`world`, backed by real self-hosted
-      # port.bluebook/adapter.bluebook chapters and PortJudge/
-      # AdapterJudge. `data_translation` stays excluded until its own
-      # slice lands the same way.
-      data_translation: "a sibling artifact — translations/ has its own builder and its own file"
+      as_caller:        "the runtime facade, not a declaration"
+      # `port`/`adapter`/`data_translation` are REMOVED from here
+      # (whole-project table-unification survey, item #13's remaining
+      # builders) — all three are genuine, closed-set File words now,
+      # admitted the same as `bluebook`/`hecksagon`/`world`, backed by
+      # real self-hosted port.bluebook/adapter.bluebook/translation
+      # .bluebook chapters and PortJudge/AdapterJudge/TranslationJudge.
     },
     "Hecksagon" => {
       binds:              "the builder's own collected Bind records, read by whoever owns them",
@@ -452,32 +452,38 @@ RSpec.describe "the declared syntax" do
     # fields on THEIR OWN chapters' aggregates, not Bluebook's —
     # broadened the same way Lifecycle already checks against two
     # categories, not one.
-    "File"           => %w[Bluebook Hecksagon World Port Adapter],
-    "Bluebook"       => %w[Bluebook],
-    "Aggregate"      => %w[Aggregate],
-    "Entity"         => %w[Entity],
-    "Command"        => %w[Command],
-    "Query"          => %w[Query],
-    "ValueObject"    => %w[ValueObject],
-    "OneOf"          => %w[ValueObject],
-    "Lifecycle"      => %w[Aggregate Entity],
-    "Policy"         => %w[Policy],
-    "ProcessManager" => %w[ProcessManager],
-    "Handler"        => %w[Dispatch],
-    "ReadModel"      => %w[ReadModel],
-    "Type"           => [],
-    "Hecksagon"      => %w[Hecksagon],
-    "World"          => %w[World],
-    "DomainPort"     => %w[DomainPort],
-    "PortOperation"  => %w[PortOperation],
+    "File"                 => %w[Bluebook Hecksagon World Port Adapter Translation],
+    "Bluebook"             => %w[Bluebook],
+    "Aggregate"            => %w[Aggregate],
+    "Entity"               => %w[Entity],
+    "Command"              => %w[Command],
+    "Query"                => %w[Query],
+    "ValueObject"          => %w[ValueObject],
+    "OneOf"                => %w[ValueObject],
+    "Lifecycle"            => %w[Aggregate Entity],
+    "Policy"               => %w[Policy],
+    "ProcessManager"       => %w[ProcessManager],
+    "Handler"              => %w[Dispatch],
+    "ReadModel"            => %w[ReadModel],
+    "Type"                 => [],
+    "Hecksagon"            => %w[Hecksagon],
+    "World"                => %w[World],
+    "DomainPort"           => %w[DomainPort],
+    "PortOperation"        => %w[PortOperation],
     # port.bluebook — a genuine SIBLING chapter, the same as World/
     # Hecksagon, declaring a real `Port` aggregate PortJudge dispatches
     # every built .port into.
-    "Port"           => %w[Port],
+    "Port"                 => %w[Port],
     # adapter.bluebook — a genuine SIBLING chapter, the same as Port/
     # World/Hecksagon, declaring a real `Adapter` aggregate AdapterJudge
     # dispatches every built .adapter into.
-    "Adapter"        => %w[Adapter]
+    "Adapter"              => %w[Adapter],
+    # translation.bluebook — the same shape, one more artifact over.
+    # `Translation`'s own words fill the Translation aggregate;
+    # `TranslationAggregate`'s own rule words fill the nested
+    # TranslationAggregate aggregate.
+    "Translation"          => %w[Translation],
+    "TranslationAggregate" => %w[TranslationAggregate]
   }.freeze
 
   # Hecksagon and World are SIBLING chapters, not aggregates inside
@@ -500,7 +506,7 @@ RSpec.describe "the declared syntax" do
 
   def self.all_meta_aggregates
     registry     = Hecksagain::Bluebook::MetaValidator.grammar_registry
-    aggregates   = %w[Bluebook Hecksagon World Port Adapter].flat_map { |chapter| registry.bluebook(chapter).aggregates }
+    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation].flat_map { |chapter| registry.bluebook(chapter).aggregates }
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end
 

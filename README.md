@@ -89,7 +89,7 @@ own examples run against the real runtime on every push.
 ## Reference
 
 <!-- generated:begin id=reference -->
-[The DSL reference](docs/reference/index.md) — 20 contexts, generated from `lib/hecksagain/language/bluebook/syntax.bluebook` and held to it by `spec/reference_golden_spec.rb`.
+[The DSL reference](docs/reference/index.md) — 22 contexts, generated from `lib/hecksagain/language/bluebook/syntax.bluebook` and held to it by `spec/reference_golden_spec.rb`.
 <!-- generated:end -->
 
 ## Writing a bluebook

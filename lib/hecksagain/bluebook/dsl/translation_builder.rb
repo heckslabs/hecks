@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class TranslationAggregateBuilder
+        GRAMMAR_CONTEXT = "TranslationAggregate"
+
+        include WordGate
+
         def initialize(name, was: nil)
           raise Malformed, "an aggregate translation needs a name" if name.to_s.empty?
 
@@ -113,13 +118,14 @@ module Hecksagain
           raise Malformed, unresolved_message(name, candidates)
         end
 
-        def method_missing(rule, *_args, **_kwargs, &_block)
-          raise Malformed,
-                "a translation rule must be rename, move, convert, drop, retype, compute, rekey, backfill, or " \
-                "unresolved — got '#{rule}'"
-        end
-
-        private def respond_to_missing?(_name, _include_private = false) = true
+        # `method_missing`/`respond_to_missing?` used to be hand-written
+        # here, giving a hand-typed "must be rename, move, convert, ..."
+        # list on every genuinely undefined call — WordGate (`include`d
+        # above) now answers the same question off the self-hosted
+        # grammar table instead, the exact "hardcoded legal-word list"
+        # this whole arc's item #13 exists to close. A word admitted
+        # elsewhere in the grammar but not in this context still gets a
+        # richer, table-driven refusal than the old generic one did.
 
         def build
           TranslationAggregate.new(
@@ -159,6 +165,10 @@ module Hecksagain
       end
 
       class TranslationBuilder
+        GRAMMAR_CONTEXT = "Translation"
+
+        include WordGate
+
         def initialize(domain, from:, to:)
           raise Malformed, "a translation names no domain" if domain.to_s.empty?
           raise Malformed, "#{domain}'s translation says nothing about its origin era (from:)" if from.to_s.empty?
@@ -185,14 +195,17 @@ module Hecksagain
           @retired << name.to_s
         end
 
-        def method_missing(name, *_args, **_kwargs, &_block)
-          raise Malformed,
-                "a translation does not understand '#{name}' — it declares aggregate blocks and retired aggregates"
+        # `method_missing`/`respond_to_missing?` — same removal as
+        # TranslationAggregateBuilder's own, one level up: WordGate
+        # (`include`d above) answers off the self-hosted grammar table
+        # now instead of a hand-typed "it declares aggregate blocks and
+        # retired aggregates" message.
+
+        def build
+          MetaValidator.call_translation(
+            Translation.new(domain: @domain, from: @from, to: @to, aggregates: @aggregates, retired: @retired)
+          )
         end
-
-        private def respond_to_missing?(_name, _include_private = false) = true
-
-        def build = Translation.new(domain: @domain, from: @from, to: @to, aggregates: @aggregates, retired: @retired)
 
         def self.build(domain, from:, to:, &block)
           builder = new(domain, from: from, to: to)

@@ -157,11 +157,23 @@ RSpec.describe "the translation language" do
     end
 
     it "refuses an unknown rule rather than skipping it" do
-      expect(refusal_for { aggregate("Account") { renmae :cost, to: :amount } })
-        .to eq("a translation rule must be rename, move, convert, drop, retype, compute, rekey, backfill, or " \
-               "unresolved — got 'renmae'")
-      expect(refusal_for { banana "Account" })
-        .to eq("a translation does not understand 'banana' — it declares aggregate blocks and retired aggregates")
+      # WordGate (item #13's remaining builders) replaced the builder's
+      # own hand-written method_missing — a word admitted SOMEWHERE ELSE
+      # in the grammar (Aggregate context) but not inside a
+      # TranslationAggregate body gets WordGate's own richer, table-
+      # driven refusal, naming this context's real legal words.
+      expect(refusal_for { aggregate("Account") { identified_by :cost } })
+        .to eq("'identified_by' is not a word TranslationAggregate admits — legal words here: backfill, " \
+               "compute, convert, drop, move, rekey, rename, retype, unresolved")
+
+      # A genuine typo, admitted NOWHERE in the whole grammar — WordGate
+      # steps aside entirely for these (word_gate.rb's own comment), so
+      # this is Ruby's own plain NoMethodError, not a translation-level
+      # refusal `refusal_for` (which only rescues Malformed) can catch.
+      expect { build_translation { aggregate("Account") { renmae :cost, to: :amount } } }
+        .to raise_error(NoMethodError, /renmae/)
+      expect { build_translation { banana "Account" } }
+        .to raise_error(NoMethodError, /banana/)
     end
 
     it "an unresolved placeholder can only boot into a refusal, never a guess" do

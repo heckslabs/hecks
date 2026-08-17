@@ -47,16 +47,25 @@ RSpec.describe "the declared translation rule kinds" do
     expect(Hecksagain::Bluebook::DSL::TranslationBuilder.public_instance_methods(false)).to include(:retired)
   end
 
-  it "names the same kinds method_missing refuses toward" do
+  # WordGate (item #13's remaining builders) replaced the builder's own
+  # hand-written method_missing — a genuine typo (`banana`, admitted
+  # nowhere in the whole grammar) now falls through to Ruby's own plain
+  # NoMethodError instead, so the OLD probe (any unknown word producing
+  # a full "must be X, Y, or Z" list) no longer applies. A word admitted
+  # SOMEWHERE ELSE in the grammar but not in this context still gets
+  # WordGate's own richer, table-driven refusal, which names this
+  # context's full legal-word list — `identified_by` (real, Aggregate
+  # context) stands in for the old `banana` probe.
+  it "names the same kinds WordGate refuses toward" do
     builder = Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.new("Account")
     message = begin
-      builder.banana
+      builder.identified_by :whatever
       nil
     rescue Hecksagain::Bluebook::DSL::Malformed => e
       e.message
     end
 
-    named = message[/must be (.+?) — got/, 1].split(",").map { |word| word.strip.sub(/\Aor\s+/, "") }
+    named = message[/legal words here: (.+)\z/, 1].split(", ")
     expect(named).to match_array(AGGREGATE_RULES)
   end
 end

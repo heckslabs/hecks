@@ -86,7 +86,8 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String,
                 one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
                          "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon",
-                         "World", "DomainPort", "PortOperation", "Port", "Adapter"]
+                         "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation",
+                         "TranslationAggregate"]
     end
 
     # WHAT A WORD'S BLOCK IS, and the three answers are genuinely different
@@ -284,19 +285,26 @@ Hecks.bluebook "Bluebook" do
       member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
       member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
 
-      # `.port`/`.adapter` — SIBLING ARTIFACTS too (own file extension, own
+      # `.port`/`.adapter`/`data_translation` — SIBLING ARTIFACTS too (own
       # builder, own load step, same as `hecksagon`/`world`), and unlike
       # those two their own inner vocabulary IS fully self-hosted now:
-      # port.bluebook/adapter.bluebook each declare a real aggregate, and
-      # PortJudge/AdapterJudge (mirroring WorldJudge) dispatch every built
-      # .port/.adapter into them. `.translation` stays excluded (see
-      # NOT_A_WORD, spec/syntax_conformance_spec.rb) until its own slice
-      # lands the same way. Whole-project table-unification survey, item
-      # #13's remaining builders.
+      # port.bluebook/adapter.bluebook/translation.bluebook each declare
+      # real aggregates, and PortJudge/AdapterJudge/TranslationJudge
+      # (mirroring WorldJudge) dispatch every built one into them. `port`/
+      # `adapter` are real file extensions (own directory, own loader
+      # glob); `data_translation` is NOT — it has no dedicated extension,
+      # only the established `translations/*.bluebook` convention
+      # (`bin/scaffold_translation`, `bin/project_deploy`'s own comment:
+      # "deliberately NOT translations/*.bluebook" auto-loaded), so its
+      # own File-context word is spelled `data_translation`, not a bare
+      # `translation` that would misleadingly imply a sibling extension.
+      # Whole-project table-unification survey, item #13's remaining
+      # builders — all three slices now land.
       member word: "port",            context: "File",     body: "keywords", inner: "Port",           opens: "Port",           fills: ""
       member word: "adapter",         context: "File",     body: "keywords", inner: "Adapter",        opens: "Adapter",        fills: ""
+      member word: "data_translation", context: "File",    body: "keywords", inner: "Translation",    opens: "Translation",    fills: ""
 
-      member word: "vision",          context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "vision"
+      member word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision"
       member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
       # ADR 0026's OWN SEAM — a sub-language chapter names the core
       # contexts its own `Syntax` aggregate contributes rows for. See
@@ -465,7 +473,7 @@ Hecks.bluebook "Bluebook" do
       # policy does not apply to this event (PolicyInterpreter#policies_for
       # filters it out silently, the same as an `event_qualifier` miss) —
       # so there is no message for a description to become.
-      member word: "where",           context: "Policy",    body: "source", inner: "", opens: "",       fills: "where"
+      member word: "where",           context: "Policy",    body: "source", inner: "", opens: "", fills: "where"
       # `for_each "Aggregate.query_name"` — fan-out: the policy's `trigger`
       # fires once per row a declared query answers, instead of once for
       # the event. The query runs against the SAME domain the event
@@ -473,7 +481,7 @@ Hecks.bluebook "Bluebook" do
       # (`"Domain::Aggregate.query_name"`) — mirrors how a saga's own
       # `dispatch` verb defaults to its process manager's domain
       # (`SagaInterpreter#qualified`).
-      member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "",       fills: "for_each"
+      member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "", fills: "for_each"
 
       member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
       member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
@@ -610,7 +618,7 @@ Hecks.bluebook "Bluebook" do
       # consuming project's own checkout (see EmbryonautBluebook's own
       # header). Same shape otherwise: a fact recorded onto this
       # hecksagon's own `vendored_bluebooks`, and a load.
-      member word: "uses_embryonaut_bluebook",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
+      member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
 
       # THE PRIMARY PORT — the boundary between a domain and its adapters,
       # in hexagonal terms, is exactly what a hecksagon already IS for
@@ -670,6 +678,30 @@ Hecks.bluebook "Bluebook" do
       member word: "port",            context: "Adapter",   body: "none", inner: "", opens: "", fills: "port"
       member word: "field",           context: "Adapter",   body: "none", inner: "", opens: "", fills: "fields"
       member word: "secret",          context: "Adapter",   body: "none", inner: "", opens: "", fills: "secrets"
+
+      # `data_translation`'s OWN two words. `aggregate` opens a NESTED
+      # aggregate-translation body, the same shape `bluebook`'s own
+      # `aggregate` word already has one level up — a DIFFERENT
+      # word/context pair on the same table (Bluebook's own `aggregate`
+      # opens "Aggregate"; this one opens "TranslationAggregate").
+      member word: "aggregate",       context: "Translation", body: "keywords", inner: "TranslationAggregate", opens: "TranslationAggregate", fills: ""
+      member word: "retired",         context: "Translation", body: "none",     inner: "",                     opens: "",                     fills: "retired"
+
+      # `data_translation`'s own nine rule words, TranslationAggregateBuilder
+      # read directly. `unresolved` is a DELIBERATE FAILURE MARKER — the
+      # scaffold's own way of writing "cannot decide" — so it `fills`
+      # nothing and TranslationJudge never dispatches for it (the whole
+      # builder raises before `.build` is ever reached, the same reason
+      # this word never reaches a real corpus record either way).
+      member word: "rename",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "renames"
+      member word: "move",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "moves"
+      member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts"
+      member word: "drop",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "drops"
+      member word: "retype",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "retypes"
+      member word: "compute",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "computes"
+      member word: "rekey",           context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys"
+      member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills"
+      member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: ""
     end
 
     # WHAT EACH WORD TAKES.
@@ -732,7 +764,7 @@ Hecks.bluebook "Bluebook" do
       attribute :pair_key_fills,   String
       attribute :pair_value_fills, String
       attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
-      attribute :status,   String, default: "admitted", admits: "Syntax::Status"
+      attribute :status, String, default: "admitted", admits: "Syntax::Status"
       # A REPEATABLE POSITIONAL — the one row spells the kind of MANY,
       # the same shape `one_of`'s own Type-context row already documents
       # ("`one_of("small", "large")` takes any number of literals. The
@@ -747,7 +779,7 @@ Hecks.bluebook "Bluebook" do
       # means every positional from 1 onward is checked against that
       # one row's own `kind`, not just the first. Empty (not variadic)
       # for every other argument, which is every one of them but this.
-      attribute :variadic,  String
+      attribute :variadic, String
 
       member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
@@ -756,7 +788,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
       member keyword: "attaches_to",     context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "attaches_to", variadic: "true"
       member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-      member keyword: "read_model",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
@@ -992,7 +1024,7 @@ Hecks.bluebook "Bluebook" do
       # `admitted_sets` — a separate, already-typed mechanism). So this
       # needs no sibling-schema resolution at all, only the same flat
       # capture `dispatch`'s own `with:` already uses.
-      member keyword: "member",          context: "ValueObject", at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
+      member keyword: "member",          context: "ValueObject", at: "1", named: "", kind: "pairs", required: "true", fills: "members", pairs_shape: "verbatim"
       member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
 
       member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
@@ -1050,7 +1082,7 @@ Hecks.bluebook "Bluebook" do
 
       # Same two-row shape as Policy's own `trigger`, above — a bare
       # constant live, the old quoted-text row kept for shadow-parsing.
-      member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "constant", required: "true",  fills: "command_name"
+      member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "constant", required: "true", fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
 
@@ -1119,14 +1151,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
       member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
       member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
-      member keyword: "uses_embryonaut_bluebook",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
+      member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
       member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
-      member keyword: "reference_to",    context: "PortOperation", at: "1", named: "",     kind: "constant", required: "true",  fills: "type"
-      member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as",    kind: "symbol",   required: "false", fills: "name"
+      member keyword: "reference_to",    context: "PortOperation", at: "1", named: "", kind: "constant", required: "true", fills: "type"
+      member keyword: "reference_to",    context: "PortOperation", at: "",  named: "as", kind: "symbol", required: "false", fills: "name"
       member keyword: "attribute",       context: "PortOperation", at: "1", named: "",        kind: "symbol",   required: "true",  fills: "name"
       # See Aggregate's own `attribute` rows, above — same shape.
       member keyword: "attribute",       context: "PortOperation", at: "2", named: "",        kind: "constant", required: "true",  fills: "type"
@@ -1163,6 +1195,47 @@ Hecks.bluebook "Bluebook" do
       member keyword: "port",            context: "Adapter", at: "1", named: "", kind: "text",   required: "true", fills: "port"
       member keyword: "field",           context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "fields"
       member keyword: "secret",          context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "secrets"
+
+      # `data_translation`'s own entry-point argument — TranslationBuilder
+      # .build(name, from:, to:, &block), read directly.
+      member keyword: "data_translation", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "data_translation", context: "File", at: "",  named: "from", kind: "text", required: "true", fills: "from"
+      member keyword: "data_translation", context: "File", at: "",  named: "to",   kind: "text", required: "true", fills: "to"
+
+      # `data_translation`'s OWN two words. `aggregate(name, was: nil,
+      # &block)`; `retired(name)`.
+      member keyword: "aggregate",       context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name"
+      member keyword: "aggregate",       context: "Translation", at: "",  named: "was",  kind: "text", required: "false", fills: "was"
+      member keyword: "retired",         context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name"
+
+      # `data_translation`'s own nine rule words — TranslationAggregateBuilder,
+      # read directly. Symbol vs text follows each real method's own
+      # argument (`rename :old, to: :new` / `drop :legacy` / `backfill
+      # :standing, ...` are symbols; `move "a", to: "b"` / `retype "A",
+      # to: "B"` / `convert "a", to: "b", values: {...}` / `compute "a",
+      # to: "b", sql: "..."` are text — the source/destination PATHS a
+      # dotted string can reach into, unlike a rename's own bare field
+      # name). `values:`/`default:` are `literal` — arbitrary, open-ended
+      # captures, the SAME kind `provenance from:` already uses, never a
+      # fixed shape a closed self-hosted record could enumerate.
+      member keyword: "rename",          context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "old_name"
+      member keyword: "rename",          context: "TranslationAggregate", at: "",  named: "to", kind: "symbol", required: "true", fills: "to"
+      member keyword: "move",            context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
+      member keyword: "move",            context: "TranslationAggregate", at: "",  named: "to", kind: "text", required: "true", fills: "to"
+      member keyword: "convert",         context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
+      member keyword: "convert",         context: "TranslationAggregate", at: "",  named: "to",      kind: "text",    required: "true", fills: "to"
+      member keyword: "convert",         context: "TranslationAggregate", at: "",  named: "values",  kind: "literal", required: "true", fills: "values"
+      member keyword: "drop",            context: "TranslationAggregate", at: "1", named: "",       kind: "symbol",  required: "true", fills: "name"
+      member keyword: "retype",          context: "TranslationAggregate", at: "1", named: "",       kind: "text",    required: "true", fills: "old_type"
+      member keyword: "retype",          context: "TranslationAggregate", at: "",  named: "to", kind: "text", required: "true", fills: "to"
+      member keyword: "compute",         context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
+      member keyword: "compute",         context: "TranslationAggregate", at: "",  named: "to",      kind: "text",    required: "true", fills: "to"
+      member keyword: "compute",         context: "TranslationAggregate", at: "",  named: "sql",     kind: "text",    required: "true", fills: "sql"
+      member keyword: "rekey",           context: "TranslationAggregate", at: "",  named: "sql",     kind: "text",    required: "true", fills: "sql"
+      member keyword: "backfill",        context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name"
+      member keyword: "backfill",        context: "TranslationAggregate", at: "",  named: "default", kind: "literal", required: "true", fills: "default"
+      member keyword: "unresolved",      context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name"
+      member keyword: "unresolved",      context: "TranslationAggregate", at: "",  named: "candidates", kind: "list", required: "false", fills: "candidates"
     end
 
     # S14, ADR 0026 — "`Status` becomes a real `lifecycle` with declared

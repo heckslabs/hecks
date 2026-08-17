@@ -58,6 +58,12 @@ Hecks.adapter("dispatch_memory") do
   port  "dispatch_door"
   field :namespace
 end
+
+Hecks.data_translation("FileReference", from: "1", to: "2") do
+  aggregate "Dispatch" do
+    rename :label, to: :note
+  end
+end
 ```
 
 ## bluebook
@@ -160,5 +166,25 @@ Read back off the registry, the same way a port is:
 
 ```ruby
 runtime.registry.adapters["dispatch_memory"].port  # => "dispatch_door"
+```
+
+## data_translation
+
+<!-- generated:begin word=data_translation -->
+`data_translation name, from:, to: do ... end` — opens a `Translation` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+| `from:` | text | true | from |
+| `to:` | text | true | to |
+<!-- generated:end -->
+
+Opens a translation — how this domain's own stored data moves from one pinned era to the next, aggregate by aggregate. Unlike the other four file kinds, this one has no dedicated extension; the real convention (`bin/scaffold_translation`, `bin/project_deploy`) is a `translations/*.bluebook` file, deliberately excluded from the ordinary boot-time load so an unresolved edge cannot silently participate in it. Never runs against a live registry; it is read by an era-diff tool as a plan, not dispatched. See the Translation reference page for the words inside.
+
+Read back the same way any other file's own declaration is:
+
+```ruby
+runtime.registry.translations.last.aggregates.map(&:name)  # => ["Dispatch"]
 ```
 

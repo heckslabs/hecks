@@ -247,19 +247,36 @@ RSpec.describe "the DSL surface" do
         end
       end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /leaves :cost unresolved/)
 
+      # WordGate (item #13's remaining builders) replaced the builder's
+      # own hand-written method_missing — a genuine typo, admitted
+      # NOWHERE in the whole grammar, now steps aside entirely
+      # (word_gate.rb's own comment) and falls through to Ruby's own
+      # plain NoMethodError rather than a DSL-level Malformed.
       expect do
         in_registry do
           Hecks.data_translation("Translated", from: "1", to: "2") do
             aggregate("Thing") { renmae :cost, to: :amount }
           end
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /got 'renmae'/)
+      end.to raise_error(NoMethodError, /renmae/)
+
+      # A word admitted SOMEWHERE ELSE in the grammar (Aggregate context)
+      # but not inside a TranslationAggregate body still gets WordGate's
+      # own richer, table-driven refusal, naming this context's real
+      # legal words.
+      expect do
+        in_registry do
+          Hecks.data_translation("Translated", from: "1", to: "2") do
+            aggregate("Thing") { identified_by :cost }
+          end
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /not a word TranslationAggregate admits/)
 
       expect do
         in_registry do
           Hecks.data_translation("Translated", from: "1", to: "2") { banana "Thing" }
         end
-      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /does not understand 'banana'/)
+      end.to raise_error(NoMethodError, /banana/)
     end
 
     # A real `Hecks.boot`, not `boot_in_memory` — examples/pizzas' own

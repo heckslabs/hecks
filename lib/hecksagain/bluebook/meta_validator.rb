@@ -48,6 +48,9 @@ module Hecksagain
       PORT_GRAMMAR = File.expand_path("../language/port.bluebook", __dir__).freeze
       # so is an adapter — same reasoning, one file over. Backs AdapterJudge.
       ADAPTER_GRAMMAR = File.expand_path("../language/adapter.bluebook", __dir__).freeze
+      # so is a translation — same reasoning, one file over. Backs
+      # TranslationJudge.
+      TRANSLATION_GRAMMAR = File.expand_path("../language/translation.bluebook", __dir__).freeze
 
       # ADR 0026's OWN SEAM: THE CORE DOES NOT NAME ITS EXTENSION POINTS.
       #
@@ -202,6 +205,37 @@ module Hecksagain
               "#{adapter.name}'s adapter is not well formed; #{refusals.join('; ')}"
       end
 
+      # A translation is not a bluebook either — same door shape, one more
+      # artifact over (a `translations/*.bluebook` edge — `data_translation`'s
+      # own real, established convention; there is no separate extension).
+      # TranslationJudge walks the WHOLE built translation (every nested
+      # aggregate's own rule table) in one pass — only
+      # TranslationBuilder's own top-level `build` calls this;
+      # TranslationAggregateBuilder#build stays a plain struct constructor,
+      # the same way `WorldJudge` judges every `Wiring` a `.world` declares
+      # in ONE pass over `World::World.Declare`'s own caller, not from a
+      # separate door per binding. Whole-project table-unification survey,
+      # item #13's remaining builders.
+      def self.call_translation(translation)
+        return translation if disabled? || bootstrapping? || shadow_parsing?
+
+        # `Translation`/`TranslationAggregate` are plain classes (attr_
+        # reader, not Struct — lib/hecksagain/bluebook/translation.rb),
+        # so neither carries a `.to_h`; `.inspect` is JSON-safe (a plain
+        # string) and, unlike a Struct's own memoization-friendly `.to_h`,
+        # doesn't need one — the small correctness cost is that its
+        # embedded object-id prefix makes two structurally-identical
+        # translations hash differently, so `verdicts` simply never
+        # cache-hits here (an efficiency loss, not a correctness one —
+        # judged fresh every time instead of memoized).
+        key = Digest::SHA256.hexdigest(translation.inspect)
+        refusals = verdicts[key] ||= TranslationJudge.new(translation).refusals
+        return translation if refusals.empty?
+
+        raise DSL::Malformed,
+              "#{translation.domain}'s translation is not well formed; #{refusals.join('; ')}"
+      end
+
       # THE LANGUAGE HANDS THE GRAPH BACK.
       #
       # This used to return the bluebook it was given — dispatch every declaration
@@ -343,6 +377,7 @@ module Hecksagain
           Kernel.load(HECKSAGON_GRAMMAR)
           Kernel.load(PORT_GRAMMAR)
           Kernel.load(ADAPTER_GRAMMAR)
+          Kernel.load(TRANSLATION_GRAMMAR)
         end
         registry
       ensure
