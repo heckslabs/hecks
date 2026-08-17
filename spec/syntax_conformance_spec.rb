@@ -403,6 +403,36 @@ RSpec.describe "the declared syntax" do
     end
   end
 
+  # `selects` IS THE OPERATION `sets`' own named argument means — the same
+  # field `rust/parser/src/keywords.rs`'s `ArgumentRow.selects` already
+  # carries (`"op=set"`, `"op=append"`, ...), read here for the first time
+  # (whole-project table-unification survey, item #1 — confirmed via grep
+  # that nothing consumed it until now). `sets` is the ONLY keyword that
+  # ever populates it, so this is complete coverage of every non-empty
+  # `selects` row in the entire table, not a `sets`-only special case that
+  # happens to cover everything today.
+  #
+  # `named` (the kwarg's own SPELLING) is already held to `CommandBuilder#
+  # sets`'s parameter list by "declares every keyword argument..." above —
+  # this checks the one fact that check cannot: `to:` is the one kwarg
+  # whose OWN NAME differs from the op it selects (`selects: "op=set"`),
+  # so `named == op` alone would silently pass even if the language and the
+  # builder disagreed about what `to:` actually DOES.
+  it "selects the same op CommandBuilder::KWARG_TO_OP maps each named argument to" do
+    sets_rows = ARGUMENTS.select { |row| row[:keyword] == "sets" && row[:context] == "Command" && !row[:selects].empty? }
+    expect(sets_rows).not_to be_empty
+
+    live = D::CommandBuilder::KWARG_TO_OP.transform_keys(&:to_s).transform_values(&:to_s)
+
+    sets_rows.each do |row|
+      declared_op = row[:selects].delete_prefix("op=")
+      expect(live[row[:named]]).to eq(declared_op),
+                                   "sets' #{row[:named]}: selects op=#{declared_op} in the language, " \
+                                   "but CommandBuilder::KWARG_TO_OP maps it to #{live[row[:named]].inspect}"
+    end
+    expect(sets_rows.map { |row| row[:named] }).to match_array(live.keys)
+  end
+
   # ---------------------------------------------------------- words ⇄ language
 
   # A context's category is where its `fills` must land. `Lifecycle` has none of

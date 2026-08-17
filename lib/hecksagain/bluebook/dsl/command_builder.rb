@@ -227,6 +227,17 @@ module Hecksagain
         # :number` says nothing `sets :number` doesn't). `from:` — a
         # pure synonym for `to:` the language's own refusal message had
         # already forgotten about — is gone; write `to:`.
+        # THE OP EACH KWARG SELECTS — `spec/syntax_conformance_spec.rb`'s own
+        # "selects the same op..." check holds this constant to the self-
+        # hosted table's own `Argument#selects` column (`"op=set"`,
+        # `"op=append"`, ...; whole-project table-unification survey, item
+        # #1), the same field `rust/parser/src/keywords.rs`'s `ArgumentRow.
+        # selects` already carries. `to:` is the one kwarg whose own name
+        # differs from the op it selects — every other kwarg selects the op
+        # of its own name.
+        KWARG_TO_OP = { to: :set, append: :append, increment: :increment, decrement: :decrement,
+                        multiply: :multiply, clamp: :clamp, remove: :remove }.freeze
+
         def sets(target, positional_to = UNSET, to: UNSET, append: UNSET,
                  increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
           # moved to the language: given "a mutation names a target", on Verb.Change
@@ -243,9 +254,10 @@ module Hecksagain
                   "sets :#{target} alone already means the same"
           end
 
-          named = { set: to, append: append, increment: increment, decrement: decrement,
+          given = { to: to, append: append, increment: increment, decrement: decrement,
                     multiply: multiply, clamp: clamp, remove: remove }
                   .reject { |_, source| source.equal?(UNSET) }
+          named = given.to_h { |kwarg, source| [KWARG_TO_OP.fetch(kwarg), source] }
 
           # THE OMITTABLE CASE. No operation was named at all — not even a
           # bare `to:` — so this is `sets :field` alone, which means
