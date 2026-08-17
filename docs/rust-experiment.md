@@ -1,10 +1,27 @@
 # The Rust experiment: what it found, and why it's retired
 
-**Status: decided.** This records why the parallel Rust runtime and the parity
-discipline built around it are being removed, what the experiment actually
-taught along the way, and what that lesson does and doesn't settle going
-forward. Not a eulogy — the finding was real and is worth keeping even though
-the implementation isn't.
+> **REVERSED, 2026-08-07.** This document is a historical record of the
+> FIRST Rust attempt's retirement (2026-08-03) — the decision below did not
+> hold. Rust was restarted fresh on `feat/rust-projection` days later and is
+> now very much alive: `rust/parser` parses `.bluebook` source directly,
+> `rust/codegen`/`rust/project` generate real compiled domains, and
+> `rust/src/kernel` is the hand-written runtime deployed live on AWS Lambda.
+> `.githooks/pre-push`'s own header comment still cites this document as if
+> the retirement held — it doesn't; there is a second, real runtime now, and
+> an entire arc's worth of work (see memory `project_tables_arc_both_sides_
+> read_same_table` if you have access to it, or the commit history around
+> "table-unification") is built on keeping it in agreement with Ruby. The
+> lesson below (declarative `.bluebook` for structure/vocabulary/rules;
+> hand-written + differentially-checked for the empirical half — parsing,
+> dispatch, adapter I/O) held up well through that second attempt and is
+> still worth reading as-is; only the "retire it" CONCLUSION is stale.
+
+**Status: decided, then reversed — kept for the lesson, not the conclusion.**
+This records why the parallel Rust runtime and the parity discipline built
+around it were removed THE FIRST TIME, what the experiment actually taught
+along the way, and what that lesson does and doesn't settle going forward.
+Not a eulogy — the finding was real and is worth keeping even though the
+implementation it was written about came back.
 
 ## What was attempted
 

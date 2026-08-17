@@ -5,12 +5,20 @@
 #
 # Used to run `bin/parity` here specifically: two runtimes, three domains,
 # four stages, ~40s, deliberately kept OUT of the fast rspec loop that runs
-# constantly. That comparison is retired (see docs/rust-experiment.md) —
-# there is one runtime now, so the "whole truth" check IS the suite itself,
-# plus the static model checker (unreachable lifecycle states, dead
-# transitions, saga states no handler chain reaches — facts the runtime
-# itself never checks at dispatch time, the same reason it existed
-# alongside parity before).
+# constantly. That FIRST comparison mechanism is retired for good
+# (docs/rust-experiment.md is itself a historical record now — read its own
+# top banner before citing it as current) — but Rust was restarted days
+# later and is very much alive, deployed live, with its own real
+# differential harness (spec/rust_conformance_spec.rb, spec/codegen_parity
+# _spec.rb, spec/parser_parity_spec.rb). Those stay OUT of this fast local
+# hook on purpose, same reasoning the `io: true` comment below gives for
+# query_agreement_spec.rb's own narrower exception — they want a Rust
+# toolchain and real build time neither belongs in a ~40s local push gate,
+# so CI runs them instead (`.github/workflows/*.yml`). What's true locally
+# is: the RUBY suite plus the static model checker (unreachable lifecycle
+# states, dead transitions, saga states no handler chain reaches — facts
+# the runtime itself never checks at dispatch time) is the "whole truth"
+# check FOR RUBY; Rust's own truth is CI's job, not this hook's.
 #
 # Install:  git config core.hooksPath .githooks   (relative — see below)
 # Bypass:   git push --no-verify   (say why — a red suite is a real answer)
