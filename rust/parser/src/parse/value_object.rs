@@ -64,6 +64,8 @@ fn try_reference_named_invariant(
         return Ok(None);
     }
 
+    super::verify_resolves_via(file, line.number, "invariant", "ValueObject", "sibling_scan")?;
+
     let args = super::argument_gate(file, "invariant", "ValueObject", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "invariant", &args, 1)?;
     let resolved = owner_value_objects
