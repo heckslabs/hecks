@@ -203,6 +203,49 @@ carries the entity's declared predicate, not a copy:
 ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canonical)  # => ["parent.customer.status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
 ```
 
+## invariant
+
+<!-- generated:begin word=invariant -->
+`invariant description do ... end` — fills `invariants`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | description |
+<!-- generated:end -->
+
+The SAME word an aggregate declares (see aggregate.md's own
+"invariant") and a value object declares (value_object.md's own),
+checked one level further down than either: not once against the
+aggregate's own flat state, and not once per VALUE OBJECT instance,
+but against EVERY INSTANCE of this piece the aggregate holds — a
+`list_of` field's every element, checked the same two points
+(after every mutation, before save) the aggregate's own invariants
+already run at (`Admissibility#enforce_invariants`'s own recursive
+walk). No reference-by-name form, unlike `given` — no known corpus
+need yet for one piece's own invariant to be shared with a sibling
+piece; `given`'s own cross-entity write-through is where that
+capability would extend from if the need shows up.
+
+`Visit` declares one — `"a written note is not blank"` — checked
+against every visit `SafeDepositBox` holds, not just the one a
+command just touched:
+
+```ruby
+visit = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox")
+               .entities.find { |e| e.hecks_name == "Visit" }
+visit.invariants.map(&:description)  # => ["a written note is not blank"]
+```
+
+Something a VALUE OBJECT invariant on `VisitNote` itself could not
+express: `note` is OPTIONAL, so a VO invariant on it never even runs
+when a visit carries none — correct for absence, but blind to
+"present, and empty." Only the OWNING piece, reading its own optional
+field, can tell those two apart:
+
+```ruby
+visit.invariants.first.canonical  # => "!note || !note.text.to_s.empty?"
+```
+
 ## command
 
 <!-- generated:begin word=command -->

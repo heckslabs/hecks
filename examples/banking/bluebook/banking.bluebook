@@ -1406,6 +1406,18 @@ Hecks.bluebook "Banking", version: "v1" do
       # gets written down.
       attribute :note,     VisitNote, optional: true
 
+      # A PIECE'S OWN SHAPE RULE (round 7) — `note` may be LEFT OUT
+      # entirely (the comment just above), but if a vault officer
+      # attaches one, an EMPTY string is not "the exception written
+      # down," it is nothing written down wearing a note-shaped costume
+      # — exactly the shape a VALUE OBJECT invariant on `VisitNote`
+      # itself cannot express (an optional field's own VO invariant
+      # never runs at all when the field is genuinely absent, which is
+      # correct for absence but leaves "present, and empty" wholly
+      # unchecked; only the OWNING piece, reading its own optional
+      # field, can tell those two apart).
+      invariant("a written note is not blank") { !note || !note.text.to_s.empty? }
+
       # DECLARED ONCE, SHARED ACROSS SIBLING PIECES — not just this
       # piece's own commands (round 4's own reach), but ANY piece
       # nested under the SAME aggregate: `KeyIssuance.Return`, below,

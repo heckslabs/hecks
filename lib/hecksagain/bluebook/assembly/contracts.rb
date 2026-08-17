@@ -170,11 +170,15 @@ module Hecksagain
             # ADR 0028 — the SAME shape Aggregate's own `preconditions`
             # already carries, one level down: a piece's own named
             # `given`, referenced back by one of its own commands.
-            preconditions: [:preconditions, [:each, :given]]
+            preconditions: [:preconditions, [:each, :given]],
+            # Round 7 — the SAME shape Aggregate's own `invariants`
+            # already carries, one level down: checked against every
+            # instance of this piece, not the aggregate's own flat state.
+            invariants:    [:invariants,    [:each, :invariant]]
           },
           rows: { transitions: :transition_rows, identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each, :shape_field],
-                   preconditions: [:each, :rule] },
+                   preconditions: [:each, :rule], invariants: [:each, :rule] },
           derived: {
             position:    :walk,
             owner:       :parent,

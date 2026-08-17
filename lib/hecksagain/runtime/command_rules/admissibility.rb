@@ -3,6 +3,7 @@ require_relative "../../rendering"
 require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../value"
+require_relative "../instance"
 
 module Hecksagain
   module Runtime
@@ -210,6 +211,53 @@ module Hecksagain
             next if Bluebook::Expression::Evaluator.call(invariant.canonical, state, attrs)
 
             raise InvariantViolation, "#{aggregate.hecks_name} refused — #{invariant.description}"
+          end
+
+          check_entity_invariants(aggregate, subject, domain: domain)
+        end
+
+        # A PIECE'S OWN SHAPE RULE, checked against EVERY INSTANCE the
+        # aggregate holds — not a separate boundary from the aggregate's
+        # own invariants just above (same two checkpoints: after every
+        # mutation, before save), just a WIDER one: the aggregate's own
+        # consistency includes each of its pieces individually looking
+        # right, the same way `ValueObject#invariants` already checks
+        # each of ITS OWN instances one construct up. RECURSES into
+        # nested pieces (S17, ADR 0026 — Dispatch inside Handler) the
+        # same way `check_entity_invariants`'s own caller recurses
+        # nowhere else needs to, since a piece's `entities` are already
+        # exactly as reachable as an aggregate's.
+        #
+        # `list_attr` reuses the EXACT lookup `EntityInterpreter#
+        # element_of` already makes to locate a SINGLE addressed
+        # element by identity — this reads every element instead, but
+        # the "which field on the owner holds this piece's own
+        # instances" question is the identical one. A piece declaring
+        # invariants that nothing on its owner actually holds (no
+        # matching list attribute) is a static-analysis gap for a
+        # future gate, not a runtime concern here — `next` past it
+        # rather than raising mid-enforcement for an unrelated command.
+        def check_entity_invariants(owner_construct, owner_instance, domain:)
+          owner_construct.entities.each do |entity|
+            next if entity.invariants.empty?
+
+            list_attr = owner_construct.attributes.find { |a| a.list? && a.type.to_s == entity.hecks_name }
+            next unless list_attr
+
+            Array(owner_instance[list_attr.name]).each do |element|
+              wrapped = Instance.new(aggregate: entity, id: nil, state: element)
+              element_state = GuardState.new(wrapped)
+              attrs = dereference(domain, entity, wrapped)
+                        .merge(parent: owner_instance.state.merge(dereference(domain, owner_construct, owner_instance)))
+
+              entity.invariants.each do |invariant|
+                next if Bluebook::Expression::Evaluator.call(invariant.canonical, element_state, attrs)
+
+                raise InvariantViolation, "#{entity.hecks_name} refused — #{invariant.description}"
+              end
+
+              check_entity_invariants(entity, wrapped, domain: domain)
+            end
           end
         end
 

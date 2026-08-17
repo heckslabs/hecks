@@ -132,6 +132,11 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:entity.invariant",
+      "verb": "Bluebook::Entity.Invariant",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:entity.lifecycle",
       "verb": "Bluebook::Entity.Lifecycle",
       "role": "Language"

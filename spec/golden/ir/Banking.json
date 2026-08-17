@@ -1206,6 +1206,9 @@
           "identified_by": [
             "sequence.value"
           ],
+          "invariants": [
+
+          ],
           "lifecycle": {
             "default": "posted",
             "field": "state",
@@ -2136,6 +2139,9 @@
           ],
           "identified_by": [
             "sequence.value"
+          ],
+          "invariants": [
+
           ],
           "lifecycle": {
             "default": "taken",
@@ -4954,6 +4960,12 @@
             "date.value",
             "sequence.value"
           ],
+          "invariants": [
+            {
+              "canonical": "!note || !note.text.to_s.empty?",
+              "description": "a written note is not blank"
+            }
+          ],
           "lifecycle": {
             "default": "logged",
             "field": "state",
@@ -5059,6 +5071,9 @@
           ],
           "identified_by": [
             "serial.value"
+          ],
+          "invariants": [
+
           ],
           "lifecycle": {
             "default": "issued",

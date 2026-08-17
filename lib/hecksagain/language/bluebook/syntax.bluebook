@@ -346,6 +346,12 @@ Hecks.bluebook "Bluebook" do
       # gained the same structural capability its own owning aggregate
       # already had.
       member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions"
+      # A PIECE'S OWN SHAPE RULE — checked against EVERY instance of
+      # this piece the aggregate holds, not this ONE aggregate's own
+      # flat state (`ValueObject`'s own row above, one construct over,
+      # is the closer sibling here than `Aggregate`'s own `invariant`
+      # is — both check every instance, not one record).
+      member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants"
       member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
       member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
       member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
@@ -795,6 +801,9 @@ Hecks.bluebook "Bluebook" do
       # own `given` always takes a block (a fresh declaration), so this
       # is the only row it needs.
       member keyword: "given",           context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      # `ValueObject`'s own `invariant` row, one level down — a piece's
+      # own `invariant` always takes a block too, same reason.
+      member keyword: "invariant",       context: "Entity", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       # See Aggregate's own three rows above — the same method, one level down.
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true"
       member keyword: "identified_by",   context: "Entity", at: "1", named: "",         kind: "constant", required: "false", fills: "type", status: "deprecated"

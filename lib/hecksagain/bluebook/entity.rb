@@ -52,21 +52,31 @@ module Hecksagain
         # relationship `Aggregate.preconditions` already has to its own
         # commands.
         preconditions: -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        # A piece's OWN shape rule, checked against EVERY instance of
+        # this piece the aggregate holds (Admissibility#enforce_
+        # invariants' own recursive walk) — the SAME relationship
+        # `ValueObject#invariants` already has to its own instances,
+        # one level up the construct tree. Not a separate enforcement
+        # boundary; still checked at the SAME two points (after every
+        # mutation, before save) the aggregate's own invariants always
+        # were — see that method's own comment for why this does not
+        # contradict "there is no separate entity invariant."
+        invariants:    -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         lifecycle:     one(:lifecycle)
       )
 
       class << self
         attr_reader :description, :identified_by, :identity_paths, :identity_heads,
-                    :attributes, :commands, :queries, :entities, :preconditions, :lifecycle
+                    :attributes, :commands, :queries, :entities, :preconditions, :invariants, :lifecycle
 
         def declare(name:, description: nil, identified_by: nil, attributes: [],
-                    commands: [], queries: [], entities: [], preconditions: [], lifecycle: nil)
+                    commands: [], queries: [], entities: [], preconditions: [], invariants: [], lifecycle: nil)
           piece = Class.new(self)
           piece.hecks_name = name.to_s
           piece.absorb(description: description, identified_by: identified_by,
                        attributes: attributes, commands: commands,
                        queries: queries, entities: entities, preconditions: preconditions,
-                       lifecycle: lifecycle)
+                       invariants: invariants, lifecycle: lifecycle)
           piece.stamp_children
           piece
         end
@@ -74,7 +84,7 @@ module Hecksagain
         # Assigns what the language declares, then hands off to the
         # behaviour's own `settle` — derived identity and the name
         # indexes, neither of which the declaration states.
-        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, lifecycle:)
+        def absorb(description:, identified_by:, attributes:, commands:, queries:, entities:, preconditions:, invariants:, lifecycle:)
           @description    = description
           @identified_by  = identified_by
           @attributes     = attributes
@@ -82,6 +92,7 @@ module Hecksagain
           @queries        = queries
           @entities       = entities
           @preconditions  = preconditions
+          @invariants     = invariants
           @lifecycle      = lifecycle
 
           settle

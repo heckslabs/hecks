@@ -74,7 +74,7 @@ module Hecksagain
                                                              ProcessManager#starts_on ProcessManager#ends_on],
         fanout_dispatches_once_per_matching_row:          %w[Policy#for_each Policy#where],
         aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field],
-        stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants],
+        stored_records_satisfy_declared_invariants:       %w[Aggregate#invariants Entity#invariants],
         group_by_matches_recompute:                       %w[ReadModel#group_by]
       }.freeze
 
@@ -830,6 +830,19 @@ module Hecksagain
       #
       # Real target: Account's own `invariant("the balance never goes
       # negative") { balance.cents >= 0 }`.
+      #
+      # Entity#invariants (round 7) closes here too, not for free —
+      # `stored_records_satisfy_declared_invariants` only ever checked
+      # the AGGREGATE's own flat state; a piece's own invariant is
+      # checked against every ELEMENT of a `list_of` field, a genuinely
+      # different walk `check_piece_invariants` below makes,
+      # independently of `Admissibility#check_entity_invariants` (the
+      # live enforcement path this property exists to catch drifting
+      # from) — same reasoning `stored_records_satisfy_declared_
+      # invariants`' own top-level check already applies one level up.
+      #
+      # Real target: SafeDepositBox's own Visit — `invariant("a written
+      # note is not blank") { !note || !note.text.to_s.empty? }`.
       def stored_records_satisfy_declared_invariants(history)
         bluebooks = history.fetch(:bluebooks)
 
@@ -843,12 +856,38 @@ module Hecksagain
           violated = aggregate.invariants.find do |invariant|
             !Bluebook::Expression::Evaluator.call(invariant.canonical, state)
           end
-          next unless violated
+          next "#{key} violates #{aggregate_name}'s own declared invariant #{violated.description.inspect}" if violated
 
-          "#{key} violates #{aggregate_name}'s own declared invariant #{violated.description.inspect}"
+          check_piece_invariants(aggregate, state, key)
         end
 
         offenders.empty? || offenders.join("; ")
+      end
+
+      # A PIECE'S OWN INVARIANT, checked against every element a
+      # `list_of` field holds — the SAME lookup `Admissibility#
+      # check_entity_invariants` makes (`owner.attributes.find { |a|
+      # a.list? && a.type.to_s == entity.hecks_name }`), independently
+      # reapplied here against a STORED record's own plain Hash state
+      # rather than a live `Instance`.
+      def check_piece_invariants(owner_construct, owner_state, key)
+        owner_construct.entities.each do |entity|
+          next if entity.invariants.empty?
+
+          list_attr = owner_construct.attributes.find { |a| a.list? && a.type.to_s == entity.hecks_name }
+          next unless list_attr
+
+          Array(owner_state[list_attr.name]).each do |element|
+            violated = entity.invariants.find do |invariant|
+              !Bluebook::Expression::Evaluator.call(invariant.canonical, element)
+            end
+            return "#{key}'s own #{entity.hecks_name} violates its declared invariant #{violated.description.inspect}" if violated
+
+            nested = check_piece_invariants(entity, element, key)
+            return nested if nested
+          end
+        end
+        nil
       end
 
       # A SAGA INSTANCE'S OWN CHECKPOINT SURVIVES BEING WRITTEN AND READ

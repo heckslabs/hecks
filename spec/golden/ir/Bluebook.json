@@ -4172,6 +4172,9 @@
           "identified_by": [
             "position.value"
           ],
+          "invariants": [
+
+          ],
           "lifecycle": null,
           "name": "Member",
           "preconditions": [
@@ -4586,6 +4589,15 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "invariants",
+          "optional": false,
+          "pattern": null,
+          "type": "Rule"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "state_field",
           "optional": false,
@@ -4901,6 +4913,60 @@
             }
           ],
           "name": "Precondition",
+          "provenance": null,
+          "references": "Entity",
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "description",
+              "optional": true,
+              "pattern": null,
+              "type": "EntityText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "canonical",
+              "optional": false,
+              "pattern": null,
+              "type": "EntityText"
+            }
+          ],
+          "emits": [
+            "PieceInvariantAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!description.value.to_s.empty?",
+              "description": "a rule says what it means"
+            },
+            {
+              "canonical": "!canonical.value.to_s.empty?",
+              "description": "a rule survives extraction"
+            }
+          ],
+          "goal": "Attach one shape rule this piece's own instances must hold",
+          "mutations": [
+            {
+              "fields": {
+                "canonical": ":canonical",
+                "description": ":description"
+              },
+              "op": "append",
+              "target": "invariants"
+            }
+          ],
+          "name": "Invariant",
           "provenance": null,
           "references": "Entity",
           "role": "Language"
@@ -6106,6 +6172,9 @@
               "identified_by": [
                 "command_name.value"
               ],
+              "invariants": [
+
+              ],
               "lifecycle": null,
               "name": "Dispatch",
               "preconditions": [
@@ -6118,6 +6187,9 @@
           ],
           "identified_by": [
             "event_type.value"
+          ],
+          "invariants": [
+
           ],
           "lifecycle": null,
           "name": "Handler",
@@ -8600,6 +8672,9 @@
           "identified_by": [
             "position.value"
           ],
+          "invariants": [
+
+          ],
           "lifecycle": {
             "default": "admitted",
             "field": "status",
@@ -8803,6 +8878,9 @@
           ],
           "identified_by": [
             "position.value"
+          ],
+          "invariants": [
+
           ],
           "lifecycle": {
             "default": "admitted",
@@ -10212,6 +10290,32 @@
               [
                 "fills",
                 "preconditions"
+              ]
+            ],
+            [
+              [
+                "word",
+                "invariant"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "invariants"
               ]
             ],
             [
@@ -13436,6 +13540,36 @@
               [
                 "keyword",
                 "given"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "invariant"
               ],
               [
                 "context",

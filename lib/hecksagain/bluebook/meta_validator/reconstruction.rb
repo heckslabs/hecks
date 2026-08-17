@@ -244,6 +244,10 @@ module Hecksagain
             # hand for the identical reason: `entity(row)` is hand-typed
             # too, unlike `command`/`value_object`/`query`.
             preconditions: Array(row[:preconditions]).map { |held| rule(held) },
+            # Round 7 — the SAME shape `aggregate(row)`'s own
+            # `invariants:` reads, one level down: a piece's own shape
+            # rule, checked against every instance of this piece.
+            invariants:    Array(row[:invariants]).map { |held| rule(held) },
             commands:      within("Command", row).map { |verb| command(verb) },
             queries:       within("Query", row).map { |ask| query(ask) },
             # S17, ADR 0026 — Dispatch, inside Handler : an entity's own

@@ -22,6 +22,11 @@ Hecks.bluebook "Bluebook" do
     # again here rather than shared: a value object is aggregate-scoped
     # in this self-hosting domain).
     attribute :preconditions, list_of(Rule)
+    # A PIECE'S OWN SHAPE RULE — the SAME Rule shape, checked (round 7)
+    # against EVERY INSTANCE this piece's own aggregate holds, not the
+    # aggregate's own flat state — `ValueObject#invariants`'s own
+    # relationship to ITS OWN instances, one construct over.
+    attribute :invariants,    list_of(Rule)
     attribute :state_field, EntityText
     attribute :state_start, EntityText
     attribute :transitions, list_of(PieceTransition)
@@ -177,6 +182,26 @@ Hecks.bluebook "Bluebook" do
       sets :preconditions, append: { description: :description, canonical: :canonical }
 
       emits "PiecePreconditionAttached"
+    end
+
+    # A PIECE'S OWN SHAPE RULE, DECLARED ONCE (round 7) — see
+    # Aggregate.Invariant, the identical shape one level down: checked
+    # against every instance of this piece, not this ONE aggregate's
+    # own flat state.
+    command "Invariant" do
+      role "Language"
+      goal "Attach one shape rule this piece's own instances must hold"
+
+      reference_to Entity
+      attribute :description, EntityText, optional: true
+      attribute :canonical,   EntityText
+
+      given("a rule says what it means")  { !description.value.to_s.empty? }
+      given("a rule survives extraction") { !canonical.value.to_s.empty? }
+
+      sets :invariants, append: { description: :description, canonical: :canonical }
+
+      emits "PieceInvariantAttached"
     end
 
     command "Lifecycle" do

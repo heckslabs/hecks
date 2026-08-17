@@ -11,6 +11,7 @@ module Hecksagain
           @queries      = []
           @entities     = []
           @named_givens = {}
+          @invariants   = []
           @owner_value_objects = owner_value_objects
           # THE AGGREGATE-WIDE cross-entity given pool — ONE hash, the
           # SAME object, threaded unchanged through every piece nested
@@ -124,6 +125,29 @@ module Hecksagain
           @owner_named_givens[description] ||= named
         end
 
+        # A PIECE'S OWN SHAPE RULE (S10, ADR 0025's own "Rules" shape,
+        # one level down from `ValueObjectBuilder#invariant`, whose
+        # extraction/error pattern this mirrors) — checked against
+        # EVERY INSTANCE of this piece the aggregate holds, not once
+        # against the aggregate's own flat state
+        # (`Admissibility#enforce_invariants`'s own recursive walk).
+        # No reference-by-name form (unlike `given`) — no known corpus
+        # need for a piece's own invariant to be shared with a SIBLING
+        # piece yet; if that need shows up, it is `given`'s own
+        # cross-entity write-through pattern to extend, not a reason to
+        # invent a second one here speculatively.
+        def invariant(description, &predicate)
+          canonical = Ports::Extraction.canonical(predicate)
+
+          if canonical.to_s.empty?
+            raise Malformed,
+                  "#{@name}'s invariant #{description.inspect} did not survive " \
+                  "extraction — it would be a rule the IR cannot carry"
+          end
+
+          @invariants << Invariant.new(description: description, canonical: canonical, predicate: predicate)
+        end
+
         def build
           drain_pending!
           resolve_pending_identity!
@@ -137,6 +161,7 @@ module Hecksagain
             queries:       @queries,
             entities:      @entities,
             preconditions: @named_givens.values,
+            invariants:    @invariants,
             lifecycle:     @lifecycle
           )
         end
