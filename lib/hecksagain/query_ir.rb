@@ -194,9 +194,30 @@ module Hecksagain
                .map { |(kind, description, canonical), rules, _| { kind: kind, description: description, canonical: canonical, locations: rules.map(&:location) } }
     end
 
+    # `given` ONLY (not `invariant`/`ensures`) also covers CROSS-ENTITY
+    # coverage — one piece's own entity-level declaration, shared with
+    # any OTHER piece nested under the SAME root aggregate (real corpus
+    # this closes: SafeDepositBox's own `Visit`/`KeyIssuance`, two
+    # different pieces on one head). A rule owned by a nested entity
+    # (its own owner path has more than one segment) is covered when
+    # SOME "(declared)" entry exists ANYWHERE under that SAME root
+    # aggregate — not just under its OWN exact owner — matching the
+    # DSL's own pool, threaded unchanged through an aggregate's whole
+    # entity tree (`AggregateBuilder#entity`'s own comment).
     def declaration_count(rules)
-      declared_owners = rules.select { |r| r.location.end_with?(" (declared)") }.map { |r| owner_of(r.location) }.to_set
-      standalone = rules.reject { |r| declared_owners.include?(owner_of(r.location)) }
+      declared = rules.select { |r| r.location.end_with?(" (declared)") }
+      declared_owners = declared.map { |r| owner_of(r.location) }.to_set
+      declared_given_roots = declared.select { |r| r.kind == "given" }
+                                     .map { |r| owner_of(r.location).split(".").first }.to_set
+
+      standalone = rules.reject do |r|
+        owner = owner_of(r.location)
+        next true if declared_owners.include?(owner)
+        next true if r.kind == "given" && owner.include?(".") && declared_given_roots.include?(owner.split(".").first)
+
+        false
+      end
+
       declared_owners.size + standalone.size
     end
     private_class_method :declaration_count

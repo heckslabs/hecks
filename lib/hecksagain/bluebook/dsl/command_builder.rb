@@ -19,7 +19,8 @@ module Hecksagain
         UNSET = Object.new.freeze
         private_constant :UNSET
 
-        def initialize(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [])
+        def initialize(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [],
+                       entity_shared_givens: {})
           @name              = name
           @owner             = owner
           @givens            = []
@@ -29,6 +30,13 @@ module Hecksagain
           @named_givens      = named_givens
           @owner_attributes  = owner_attributes
           @owner_constructs  = owner_constructs
+          # THE AGGREGATE-WIDE cross-entity pool — see
+          # `AggregateBuilder#entity`'s own comment and `EntityBuilder#
+          # given`'s. Empty (never populated) for an AGGREGATE-owned
+          # command, which already checks its own owner's `named_givens`
+          # directly and has no siblings to reach across; real only for
+          # an ENTITY-owned command's own bare reference.
+          @entity_shared_givens = entity_shared_givens
           # NORMALIZED the exact same way `StateTransition#from` already
           # is — one state or several, a single spelling either way,
           # both read back through `Array(...)` at check time.
@@ -130,11 +138,20 @@ module Hecksagain
 
         private
 
+        # FIRST this command's own owner (as always), THEN — only for a
+        # piece-owned command, where it is real — a SIBLING piece's own
+        # entity-level declaration under the SAME aggregate
+        # (`@entity_shared_givens`, threaded from `EntityBuilder#given`'s
+        # own write-through). "customer is active" declared once on
+        # `Visit`, referenced bare by `KeyIssuance.Return` — two
+        # different pieces, same aggregate, same predicate — is exactly
+        # the shape this second lookup exists for.
         def reference_named_given(description)
-          named = @named_givens[description] ||
+          named = @named_givens[description] || @entity_shared_givens[description] ||
                   raise(Malformed,
                         "#{@name}'s given #{description.inspect} names no precondition " \
-                        "#{@owner} declares — declare it once with a block " \
+                        "#{@owner} declares, and no sibling piece under the same " \
+                        "aggregate declares it either — declare it once with a block " \
                         "(#{@owner}'s own given(#{description.inspect}) { ... }), before " \
                         "the commands that reference it")
 
@@ -298,9 +315,11 @@ module Hecksagain
           )
         end
 
-        def self.build(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [], &block)
+        def self.build(name, owner: nil, from: nil, named_givens: {}, owner_attributes: [], owner_constructs: [],
+                       entity_shared_givens: {}, &block)
           builder = new(name, owner: owner, from: from, named_givens: named_givens,
-                        owner_attributes: owner_attributes, owner_constructs: owner_constructs)
+                        owner_attributes: owner_attributes, owner_constructs: owner_constructs,
+                        entity_shared_givens: entity_shared_givens)
           builder.instance_eval(&block) if block
           builder.build
         end

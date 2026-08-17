@@ -4967,7 +4967,14 @@
           },
           "name": "Visit",
           "preconditions": [
-
+            {
+              "canonical": "parent.customer.status == \"active\"",
+              "description": "customer is active"
+            },
+            {
+              "canonical": "parent.status == \"rented\"",
+              "description": "box is rented"
+            }
           ],
           "queries": [
             {

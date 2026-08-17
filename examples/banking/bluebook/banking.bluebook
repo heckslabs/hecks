@@ -1403,6 +1403,18 @@ Hecks.bluebook "Banking", version: "v1" do
       # gets written down.
       attribute :note,     VisitNote, optional: true
 
+      # DECLARED ONCE, SHARED ACROSS SIBLING PIECES — not just this
+      # piece's own commands (round 4's own reach), but ANY piece
+      # nested under the SAME aggregate: `KeyIssuance.Return`, below,
+      # references both bare rather than retyping the identical
+      # `parent.`-qualified predicate a second time. Neither can
+      # reference SafeDepositBox's OWN "customer is active" instead —
+      # a genuinely different canonical (`customer.status`, not
+      # `parent.customer.status`), the wrong relative path for a
+      # piece's own command to evaluate.
+      given("customer is active") { parent.customer.status == "active" }
+      given("box is rented") { parent.status == "rented" }
+
       lifecycle :state, default: "logged" do
         transition "Annotate" => "logged", from: "logged"
       end
@@ -1414,8 +1426,8 @@ Hecks.bluebook "Banking", version: "v1" do
         attribute :date,     VisitDate
         attribute :sequence, VisitSequence
         attribute :note,     VisitNote
-        given("customer is active") { parent.customer.status == "active" }
-        given("box is rented") { parent.status == "rented" }
+        given("customer is active")
+        given("box is rented")
         given("visit is logged") { state == "logged" }
 
         sets :note
@@ -1450,8 +1462,12 @@ Hecks.bluebook "Banking", version: "v1" do
         goal "Take a key back when a holder is done with it"
 
         attribute :serial, KeySerial
-        given("customer is active") { parent.customer.status == "active" }
-        given("box is rented") { parent.status == "rented" }
+        # REFERENCED, NOT REDECLARED — `Visit`'s own declaration, above,
+        # shared across sibling pieces the SAME aggregate nests (the
+        # cross-entity given pool a piece's own command falls back to
+        # when its OWN piece declares nothing under this name).
+        given("customer is active")
+        given("box is rented")
         given("only an issued key is returned") { status == "issued" }
 
         emits "KeyReturned"
