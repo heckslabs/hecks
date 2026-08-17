@@ -3,19 +3,19 @@
   "note": "spec/rust_conformance_spec.rb's own fixture — the NAMED/declared bluebook query, the STRING form of the \"query\" step (kernel/cli.rs's own header on the two shapes), proven for real for every real declared query in the corpus that `rust/project/queries.rb`'s eligibility gate actually admits: Banking's own CardPayment.Pending/Disputed/Flagged and ExternalTransfer.Sent (all wheres-only, no order_by/limit), plus Governance's RoleAssignment.AssignmentsForActor and RoleTransition.Allowed and Identity's ExternalIdentifier.ResolvedBy — three framework-chapter queries reachable here only because banking.hecksagon's own `uses_framework \"Governance\"`/`uses_framework \"Identity\"` pull them into this SAME compiled Store (bin/project_rust's own merged-registry step). Seeds three card payments (one left authorized, one captured-then-disputed, one authorized-and-tagged high_risk), two external transfers (`ExternalTransfer.Request` alone already lands \"sent\" — the ExternalSettlement process manager auto-dispatches Send on every request, unconditionally; the second is then Recalled, proving Sent excludes a transfer that moved past \"sent\"), a second, unrelated role assignment and role transition (proving both queries filter, not just list everything), and two external identifiers under the same issuer but different subjects (proving ResolvedBy's own two-clause `where` narrows to the exact pair asked for). Every `query` step below is a real declared query Ruby answers through `Runtime::QueryInterpreter#interpret`, not the ad hoc OBJECT-shaped filter (query_filters.json covers that shape) — this is the STRING form, args and all. The first two CardPayment.Authorize calls pass `tags: []` explicitly rather than omitting the (optional) argument, the same query_filters.json's own workaround for the same real, PRE-EXISTING, unrelated payload gap (Rust's typed-args-to_json always emits the key as null; Ruby's raw-args payload omits it entirely) — this fixture doesn't exist to prove or fix that either.",
   "steps": [
     {"verb": "Banking::Customer.Register", "args": {"reference": {"value": "cust-1"}, "name": {"given": "Ada", "family": "Lovelace"}, "email": {"address": "ada@example.com"}}},
-    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer_id": "cust-1"}},
+    {"verb": "Banking::Account.Open", "args": {"number": {"value": "acct-1"}, "kind": {"name": "current"}, "daily_limit": {"cents": 100000}, "customer": "cust-1"}},
 
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-1", "authorisation": {"value": "pay-open"}, "amount": {"cents": 500}, "merchant": {"value": "Grocer"}, "tags": []}},
+    {"verb": "Banking::CardPayment.Authorize", "args": {"account": "acct-1", "authorisation": {"value": "pay-open"}, "amount": {"cents": 500}, "merchant": {"value": "Grocer"}, "tags": []}},
 
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-1", "authorisation": {"value": "pay-disputed"}, "amount": {"cents": 900}, "merchant": {"value": "Airline"}, "tags": []}},
+    {"verb": "Banking::CardPayment.Authorize", "args": {"account": "acct-1", "authorisation": {"value": "pay-disputed"}, "amount": {"cents": 900}, "merchant": {"value": "Airline"}, "tags": []}},
     {"verb": "Banking::CardPayment.Capture", "args": {"authorisation": {"value": "pay-disputed"}}},
     {"verb": "Banking::CardPayment.Dispute", "args": {"authorisation": {"value": "pay-disputed"}, "disputed_by": "cust-1"}},
 
-    {"verb": "Banking::CardPayment.Authorize", "args": {"account_id": "acct-1", "authorisation": {"value": "pay-flagged"}, "amount": {"cents": 250}, "merchant": {"value": "Risky Co"}, "tags": [{"value": "high_risk"}]}},
+    {"verb": "Banking::CardPayment.Authorize", "args": {"account": "acct-1", "authorisation": {"value": "pay-flagged"}, "amount": {"cents": 250}, "merchant": {"value": "Risky Co"}, "tags": [{"value": "high_risk"}]}},
 
-    {"verb": "Banking::ExternalTransfer.Request", "args": {"account_id": "acct-1", "end_to_end": {"value": "ext-sent"}, "amount": {"cents": 200}, "beneficiary": {"value": "Other Bank"}, "direction": {"value": "debit"}}},
+    {"verb": "Banking::ExternalTransfer.Request", "args": {"account": "acct-1", "end_to_end": {"value": "ext-sent"}, "amount": {"cents": 200}, "beneficiary": {"value": "Other Bank"}, "direction": {"value": "debit"}}},
 
-    {"verb": "Banking::ExternalTransfer.Request", "args": {"account_id": "acct-1", "end_to_end": {"value": "ext-recalled"}, "amount": {"cents": 75}, "beneficiary": {"value": "Someone Else"}, "direction": {"value": "debit"}}},
+    {"verb": "Banking::ExternalTransfer.Request", "args": {"account": "acct-1", "end_to_end": {"value": "ext-recalled"}, "amount": {"cents": 75}, "beneficiary": {"value": "Someone Else"}, "direction": {"value": "debit"}}},
     {"verb": "Banking::ExternalTransfer.Recall", "args": {"end_to_end": {"value": "ext-recalled"}}},
 
     {"verb": "Governance::RoleAssignment.Assign", "args": {"actor_id": {"value": "gov-actor-1"}, "role_name": {"value": "Teller"}, "scope": {"value": "Branch-1"}, "starts_at": {"value": "2026-01-01"}}},
@@ -27,8 +27,8 @@
 
     {"verb": "Identity::Identity.Register", "args": {"identity_id": {"value": "id-1"}}},
     {"verb": "Identity::Identity.Register", "args": {"identity_id": {"value": "id-2"}}},
-    {"verb": "Identity::ExternalIdentifier.Link", "args": {"identity_id": "id-1", "key": {"value": "google:sub-1"}, "issuer": {"value": "google"}, "subject": {"value": "sub-1"}}},
-    {"verb": "Identity::ExternalIdentifier.Link", "args": {"identity_id": "id-2", "key": {"value": "google:sub-2"}, "issuer": {"value": "google"}, "subject": {"value": "sub-2"}}},
+    {"verb": "Identity::ExternalIdentifier.Link", "args": {"identity": "id-1", "key": {"value": "google:sub-1"}, "issuer": {"value": "google"}, "subject": {"value": "sub-1"}}},
+    {"verb": "Identity::ExternalIdentifier.Link", "args": {"identity": "id-2", "key": {"value": "google:sub-2"}, "issuer": {"value": "google"}, "subject": {"value": "sub-2"}}},
 
     {"query": "Banking::CardPayment.Pending"},
     {"query": "Banking::CardPayment.Disputed"},

@@ -667,12 +667,18 @@ fn advance_saga<S: AggregateScan>(
         ]));
 
         let memory = sagas.get(&key).map(|instance| instance.memory.clone()).unwrap_or(Json::Null);
+        // `event.aggregate` is already `"{domain}::{aggregate}"`
+        // (`dispatch.rs`'s own `aggregate_qualified_name`) — the same
+        // fact `SagaInterpreter#deliver_saga_dispatch`'s own `domain`
+        // argument names, read here rather than threaded as a whole new
+        // parameter from every caller above this one.
+        let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
         let mut refused = false;
         for spec in handler.dispatches {
             let args = build_dispatch_args(pm, spec, event, &correlation, &memory);
             let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.clone())].into_iter().collect();
             let delivered = deliver_saga_dispatch(
-                store, dispatch_fn, tables, sagas, pm, spec, &args, &correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
+                store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, &correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
             );
             if delivered == Some(false) {
                 refused = true;
@@ -700,6 +706,7 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     sagas: &mut HashMap<(String, String), SagaInstance>,
     pm: &ProcessManagerDef,
     spec: &DispatchSpec,
+    domain_name: &str,
     args: &Json,
     correlation: &str,
     depth: usize,
@@ -710,6 +717,13 @@ fn deliver_saga_dispatch<S: AggregateScan>(
     saga_log: &mut Vec<Json>,
     stamp: &HashMap<String, String>,
 ) -> Option<bool> {
+    // `record`'s own `dispatch` field stays BARE — `SagaInterpreter#
+    // deliver_saga_dispatch`'s own `record = { ..., dispatch: spec.
+    // command_name }`, read directly: Ruby logs the UNqualified name and
+    // qualifies separately, only at the actual dispatch call below. This
+    // mirrors that exact split, not a codegen-time bake — `spec.
+    // command_name` itself stays bare on the wire (DispatchSpec's own
+    // static table), matching the wire format everywhere else.
     let record = |extra: Vec<(&str, Json)>| -> Json {
         let mut fields = vec![
             ("process_manager", Json::str(pm.name.to_string())),
@@ -728,13 +742,31 @@ fn deliver_saga_dispatch<S: AggregateScan>(
         return None;
     }
 
+    // `SagaInterpreter#qualified` (saga_interpreter.rb), read directly:
+    // `command_name.include?("::") ? command_name : "#{domain}::#{command_name}"`
+    // — `spec.command_name` is bare on the wire (confirmed via `bin/ir`
+    // against the real exported IR; the OLD comment above `emit_process_
+    // manager_table`/`domain_generator.rb`'s manifest loop claiming it was
+    // "ALREADY fully domain-qualified on the wire" was simply wrong), so
+    // `dispatch_by_name`'s own fully-qualified match arms
+    // (`"Banking::Account.Debit"`) could never route to it — a 100%
+    // failure rate for every process-manager dispatch this kernel has
+    // ever run, previously masked because no rust_conformance fixture
+    // ever reached a real same-domain saga dispatch. Item #3, whole-
+    // project table-unification survey.
+    let qualified = if spec.command_name.contains("::") {
+        spec.command_name.to_string()
+    } else {
+        format!("{domain_name}::{}", spec.command_name)
+    };
+
     // `caller_role: None` — same `Caller.without` reasoning as
     // `react_policies`: a saga leg is system-triggered. `saga_correlation:
     // Some(stamp)` — THE stamp this file's header describes, applied by
     // `orchestrate` to every event this recursive dispatch itself
     // produces.
     let outcome = orchestrate(
-        store, dispatch_fn, tables, sagas, spec.command_name, args, None, Some(stamp), depth + 1,
+        store, dispatch_fn, tables, sagas, &qualified, args, None, Some(stamp), depth + 1,
         all_events, mutations, cross_domain, reaction_log, saga_log,
     );
     match outcome {
@@ -839,11 +871,14 @@ fn compensate<S: AggregateScan>(
         ("to", Json::str(compensation.to_state.to_string())),
     ]));
 
+    // See `advance_saga`'s own identical comment — same derivation, same
+    // reason.
+    let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
     for spec in compensation.dispatches {
         let args = build_dispatch_args(pm, spec, event, correlation, memory);
         let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
         deliver_saga_dispatch(
-            store, dispatch_fn, tables, sagas, pm, spec, &args, correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
+            store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
         );
     }
 }
