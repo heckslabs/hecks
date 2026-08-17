@@ -1,8 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class PortOperationBuilder
+        GRAMMAR_CONTEXT = "PortOperation"
+
         include AttributeCollector
+        include WordGate
 
         def initialize(name, owner: nil, direction: :inbound)
           @name      = name

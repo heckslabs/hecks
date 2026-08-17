@@ -1,8 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class ReadModelBuilder
+        GRAMMAR_CONTEXT = "ReadModel"
+
         include QuerySpecification::Common::DSL
+        include WordGate
 
         def initialize(name)
           @name = name

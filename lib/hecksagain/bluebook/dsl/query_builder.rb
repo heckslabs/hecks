@@ -1,9 +1,13 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class QueryBuilder
+        GRAMMAR_CONTEXT = "Query"
+
         include AttributeCollector
         include QuerySpecification::Common::DSL
+        include WordGate
 
         def initialize(name)
           @name   = name

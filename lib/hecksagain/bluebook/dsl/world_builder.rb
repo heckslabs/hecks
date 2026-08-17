@@ -1,3 +1,4 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
@@ -14,6 +15,10 @@ module Hecksagain
       end
 
       class WorldBuilder
+        GRAMMAR_CONTEXT = "World"
+
+        include WordGate
+
         def initialize(domain)
           @domain   = domain
           @settings = {}

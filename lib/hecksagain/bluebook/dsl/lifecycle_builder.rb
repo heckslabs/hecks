@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class LifecycleBuilder
+        GRAMMAR_CONTEXT = "Lifecycle"
+
+        include WordGate
+
         def initialize(field, default:)
           @field       = field
           @default     = default

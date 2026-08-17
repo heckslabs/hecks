@@ -1,10 +1,14 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class AggregateBuilder
+        GRAMMAR_CONTEXT = "Aggregate"
+
         include AttributeCollector
         include IdentityDeclaration
         include RuleReference
+        include WordGate
 
         def initialize(name, chapter_named_givens: {})
           @name          = name

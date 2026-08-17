@@ -1,7 +1,12 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class BluebookBuilder
+        GRAMMAR_CONTEXT = "Bluebook"
+
+        include WordGate
+
         attr_reader :classification
 
         def initialize(name, version: nil)

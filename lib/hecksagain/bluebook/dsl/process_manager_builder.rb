@@ -1,8 +1,13 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class ProcessManagerBuilder
+        GRAMMAR_CONTEXT = "ProcessManager"
+
         class InvalidProcessManager < StandardError; end
+
+        include WordGate
 
         def initialize(name)
           @name     = name
@@ -159,7 +164,11 @@ module Hecksagain
         end
 
         class HandlerBuilder
+          GRAMMAR_CONTEXT = "Handler"
+
           attr_reader :dispatches
+
+          include WordGate
 
           def initialize = @dispatches = []
 

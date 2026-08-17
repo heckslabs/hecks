@@ -1,10 +1,14 @@
+require_relative "word_gate"
 module Hecksagain
   module Bluebook
     module DSL
       class EntityBuilder
+        GRAMMAR_CONTEXT = "Entity"
+
         include AttributeCollector
         include IdentityDeclaration
         include RuleReference
+        include WordGate
 
         def initialize(name, owner_value_objects: [], owner_named_givens: {})
           @name         = name
