@@ -35,13 +35,18 @@ module Hecksagain
       module_function
 
       # THE AD HOC FILTER'S OWN COMPARATOR ROSTER — read directly from
-      # QuerySpecification::Common::COMPARATORS (the same eight names
-      # Vocabulary::QueryComparator declares, and rust/src/kernel/
-      # query_comparators.rs's own ground truth), never re-typed. A
+      # QuerySpecification::Common::COMPARATORS (the same nine names
+      # Vocabulary::QueryComparator declares), never re-typed. A
       # declared bluebook query never sees an `op:` outside this set —
       # `admits: "Vocabulary::QueryComparator"` refuses one at DECLARE
       # time — but a `"filter"`-shaped query step (below) has no
       # declare-time gate at all, so this method gates it here instead.
+      #
+      # NOT rust/src/kernel/query_comparators.rs's own ground truth —
+      # that hand-maintained Rust enum is missing `none_in_state` (the
+      # 9th comparator, added after the enum was written) and has
+      # already drifted; do not treat it as authoritative until item #9
+      # of the whole-project table-unification survey closes that gap.
       FILTER_COMPARATORS = Hecksagain::QuerySpecification::Common::COMPARATORS.map(&:to_s).freeze
 
       # THE TWO CLASSES `#enforce_givens`/`#enforce_lifecycle_guard`

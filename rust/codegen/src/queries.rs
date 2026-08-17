@@ -101,6 +101,13 @@ pub fn query_where_skip_reason(where_clause: &Json, aggregate: &Json, value_obje
     }
 
     let op = where_clause.get("op").map(Json::to_s).unwrap_or_default();
+    if !known_query_comparator(&op) {
+        return Some(format!(
+            "where clause on {} uses op {} — Vocabulary::QueryComparator admits it, but rust/src/kernel/query_comparators.rs's own hand-maintained enum has no matching variant yet (item #9, whole-project table-unification survey); not generated until that catches up",
+            naming::ruby_inspect_string(&field),
+            naming::ruby_inspect_string(&op)
+        ));
+    }
     if COMPARATORS_NEEDING_NUMERIC_FIDELITY.contains(&op.as_str()) {
         return Some(format!(
             "where clause on {} uses op {} against a LITERAL value — gt/gte/lt/lte need real Json::Num-vs-Json::Str fidelity this generator can't recover from the exported IR (WhereClause#to_h renders every literal through QuerySpecification.render_value's own .to_s)",
@@ -247,6 +254,18 @@ pub fn query_conditions(query: &Json) -> Vec<Condition> {
         .collect()
 }
 
+// `Vocabulary::QueryComparator` itself declares NINE names (`none_in_state`
+// was added later — vocabulary.bluebook's own comment calls it "a vendored
+// addition") but `rust/src/kernel/query_comparators.rs`'s own hand-
+// maintained enum was never updated to match — only these eight are real
+// Rust variants. `query_where_skip_reason` (above) checks this BEFORE a
+// query reaches `query_comparator_variant` below, so the `panic!` there
+// stays the "should be unreachable" backstop it always was, not the
+// primary gate.
+fn known_query_comparator(op: &str) -> bool {
+    matches!(op, "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "in" | "contains")
+}
+
 fn query_comparator_variant(op: &str) -> &'static str {
     match op {
         "eq" => "Eq",
@@ -257,7 +276,7 @@ fn query_comparator_variant(op: &str) -> &'static str {
         "lte" => "Lte",
         "in" => "In",
         "contains" => "Contains",
-        other => panic!("unknown query comparator {other:?} — query_comparator_variant doesn't cover this shape (grammar-validated at declare time, so this should be unreachable for a real declared query)"),
+        other => panic!("unknown query comparator {other:?} — query_comparator_variant doesn't cover this shape (grammar-validated at declare time, so this should be unreachable for a real declared query; query_where_skip_reason should have already skipped it with an honest reason)"),
     }
 }
 

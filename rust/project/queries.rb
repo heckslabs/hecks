@@ -182,6 +182,11 @@ module RustProjection
       return nil if raw_value.start_with?(":") # Symbol-valued — resolved from real, correctly-typed wire args at dispatch time
 
       op = where[:op].to_s
+      unless QUERY_COMPARATOR_VARIANTS.key?(op)
+        return "where clause on #{field.inspect} uses op #{op.inspect} — Vocabulary::QueryComparator admits it, " \
+               "but rust/src/kernel/query_comparators.rs's own hand-maintained enum has no matching variant yet " \
+               "(item #9, whole-project table-unification survey); not generated until that catches up"
+      end
       if COMPARATORS_NEEDING_NUMERIC_FIDELITY.include?(op)
         return "where clause on #{field.inspect} uses op #{op.inspect} against a LITERAL value — gt/gte/lt/lte need " \
                "real Json::Num-vs-Json::Str fidelity this generator can't recover from the exported IR " \
@@ -325,7 +330,14 @@ module RustProjection
     # `where[:op]` (one of `Hecksagain::QuerySpecification::Common::
     # COMPARATORS`, grammar-validated at bluebook declare time —
     # `admits: "Vocabulary::QueryComparator"`) to its Rust `QueryComparator`
-    # variant name — the exact eight `query_comparators.rs` itself declares.
+    # variant name. `Vocabulary::QueryComparator` itself declares NINE names
+    # (`none_in_state` was added later — vocabulary.bluebook's own comment
+    # calls it "a vendored addition") but `rust/src/kernel/query_
+    # comparators.rs`'s own hand-maintained enum was never updated to match
+    # — only the eight this hash still lists are real Rust variants.
+    # `query_where_skip_reason` (above) checks this BEFORE a query reaches
+    # `query_comparator_variant` below, so the `raise` there stays the
+    # "should be unreachable" backstop it always was, not the primary gate.
     QUERY_COMPARATOR_VARIANTS = {
       "eq" => "Eq", "ne" => "Ne", "gt" => "Gt", "gte" => "Gte",
       "lt" => "Lt", "lte" => "Lte", "in" => "In", "contains" => "Contains",
@@ -334,7 +346,8 @@ module RustProjection
     def query_comparator_variant(op)
       QUERY_COMPARATOR_VARIANTS.fetch(op) do
         raise "unknown query comparator #{op.inspect} — query_comparator_variant doesn't cover this shape " \
-              "(grammar-validated at declare time, so this should be unreachable for a real declared query)"
+              "(grammar-validated at declare time, so this should be unreachable for a real declared query; " \
+              "query_where_skip_reason should have already skipped it with an honest reason)"
       end
     end
 
