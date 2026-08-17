@@ -8348,6 +8348,24 @@
               "optional": true,
               "pattern": null,
               "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": null,
+              "list": false,
+              "name": "resolves_via",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": null,
+              "list": false,
+              "name": "disambiguator",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
             }
           ],
           "emits": [
@@ -8366,10 +8384,12 @@
               "fields": {
                 "body": ":body",
                 "context": ":context",
+                "disambiguator": ":disambiguator",
                 "fills": ":fills",
                 "inner": ":inner",
                 "opens": ":opens",
                 "position": ":position",
+                "resolves_via": ":resolves_via",
                 "was": ":was",
                 "word": ":word"
               },
@@ -8612,6 +8632,24 @@
               "default": null,
               "list": false,
               "name": "was",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": null,
+              "list": false,
+              "name": "resolves_via",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": null,
+              "list": false,
+              "name": "disambiguator",
               "optional": true,
               "pattern": null,
               "type": "KeywordSeedText"
@@ -9194,6 +9232,70 @@
             [
               [
                 "name",
+                "hash_chain"
+              ]
+            ],
+            [
+              [
+                "name",
+                "owner_keyed"
+              ]
+            ],
+            [
+              [
+                "name",
+                "sibling_scan"
+              ]
+            ]
+          ],
+          "name": "ResolutionScope"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "declared_by"
+              ]
+            ]
+          ],
+          "name": "Disambiguator"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
                 "text"
               ]
             ],
@@ -9356,6 +9458,24 @@
               "default": null,
               "list": false,
               "name": "was",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": "",
+              "list": false,
+              "name": "resolves_via",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": "",
+              "list": false,
+              "name": "disambiguator",
               "optional": false,
               "pattern": null,
               "type": "String"
@@ -10160,6 +10280,14 @@
               [
                 "fills",
                 "preconditions"
+              ],
+              [
+                "resolves_via",
+                "owner_keyed"
+              ],
+              [
+                "disambiguator",
+                "declared_by"
               ]
             ],
             [
@@ -10602,6 +10730,10 @@
               [
                 "fills",
                 "givens"
+              ],
+              [
+                "resolves_via",
+                "hash_chain"
               ]
             ],
             [
@@ -10762,6 +10894,10 @@
               [
                 "fills",
                 "invariants"
+              ],
+              [
+                "resolves_via",
+                "sibling_scan"
               ]
             ],
             [

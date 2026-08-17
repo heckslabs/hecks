@@ -121,6 +121,35 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String, one_of: ["proposed", "admitted", "deprecated", "retired"]
     end
 
+    # WHICH OF THE THREE SHARED RESOLUTION PRIMITIVES (Hecksagain::
+    # Bluebook::DSL::RuleReference — a "declared once, referenced by
+    # name" family word's own bare form resolves through, once it has
+    # one: `hash_chain` (an ordered chain of flat pools, first match
+    # wins — `given` on Command), `owner_keyed` (one pool keyed by
+    # declaring owner, needing `disambiguator` below to pick among more
+    # than one candidate — `given` on Aggregate), `sibling_scan` (a
+    # live scan over already-built sibling objects, no separate pool at
+    # all — `invariant` on ValueObject). BLANK for every OTHER word —
+    # most of the language declares once and is never referenced back,
+    # so `Keyword#resolves_via` stays optional rather than forcing every
+    # existing row to spell "none."
+    value_object "ResolutionScope" do
+      attribute :name, String, one_of: ["hash_chain", "owner_keyed", "sibling_scan"]
+    end
+
+    # WHICH DISAMBIGUATOR KEYWORD a bare reference may supply when its
+    # own `resolves_via` is `owner_keyed` and more than one candidate is
+    # registered — `declared_by:` is the only one that exists today
+    # (`AggregateBuilder#given`'s own chapter-wide sharing,
+    # docs/resolution-rules/chapter-given.md). A closed set of one,
+    # deliberately, not a boolean flag — the SAME reason `Body`/`Status`
+    # above are closed sets rather than booleans even where today's
+    # count is small: a second disambiguator kind, if this family ever
+    # grows one, is a new MEMBER of this set, not a second attribute.
+    value_object "Disambiguator" do
+      attribute :name, String, one_of: ["declared_by"]
+    end
+
     # WHAT AN ARGUMENT LOOKS LIKE WHEN IT IS TYPED. Lexical, not semantic — two
     # arguments of the same kind are read the same way and mean whatever the
     # field they fill means.
@@ -228,6 +257,14 @@ Hecks.bluebook "Bluebook" do
       # forever. One hop only: renaming an already-renamed word refuses
       # until the language grows real eras for its own words.
       attribute :was,     String
+      # See `Keyword#resolves_via`/`#disambiguator`'s own comments —
+      # the SAME two columns, one level up (this is the SEED row a real
+      # `Keyword` entity record gets dispatched FROM,
+      # `SyntaxBoot#admit_keywords`). Blank ("", `default:`'s own empty
+      # string) for every row except the ~7 given/invariant/ensures
+      # rows that actually name one.
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
       # The outside of every body. `Hecks.bluebook` is reached through the
       # `Hecks` receiver rather than an enclosing builder, which is the only
@@ -318,10 +355,15 @@ Hecks.bluebook "Bluebook" do
       member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants"
       # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
       # 0025) — the SAME word `given` already carries inside `command`,
-      # one level up: block required here (a declaration, never a bare
-      # reference at the aggregate's own level — only a COMMAND's own
-      # `given` can omit the block to name one of these back).
-      member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions"
+      # one level up. NO LONGER "block required, never a bare reference
+      # at the aggregate's own level" (this comment's own earlier text,
+      # before chapter-wide sharing existed) — a bare `given(desc)` HERE
+      # now resolves chapter-wide too (Hecksagain::Bluebook::DSL::
+      # RuleReference's own `owner_keyed` primitive,
+      # docs/resolution-rules/chapter-given.md), `declared_by:`
+      # disambiguating when more than one aggregate in the chapter
+      # declares the identical description.
+      member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by"
       # A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
       # "Consistency across aggregate boundaries") — no block, the same
       # shape `attribute` already is one level up: a value declared,
@@ -368,7 +410,7 @@ Hecks.bluebook "Bluebook" do
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
       member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
-      member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens"
+      member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain"
       # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
       # spelling; `then_set` is the era every existing bluebook was written
       # under, and every one of them still boots — the corpus itself is the
@@ -382,7 +424,7 @@ Hecks.bluebook "Bluebook" do
       # open map of pairs cannot be a list element), so ValueObject keeps
       # `rows` and the rows themselves live one category down.
       member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows"
-      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants"
+      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan"
 
       # BARE NOW, DIRECTLY IN A VALUE_OBJECT'S OWN BODY (S3, ADR 0025 —
       # "closed sets lose the wrapper block"). Used to be typed only
@@ -1100,6 +1142,18 @@ Hecks.bluebook "Bluebook" do
       attribute :opens,   KeywordSeedText
       attribute :fills,   KeywordSeedText
       attribute :was,     KeywordSeedText, optional: true
+      # WHICH SHARED PRIMITIVE (Hecksagain::Bluebook::DSL::
+      # RuleReference) this word's own bare form resolves through, once
+      # it has one — see `ResolutionScope`'s own comment, above, for the
+      # three real values and which existing word declares each.
+      # BLANK for every other word.
+      attribute :resolves_via,   KeywordSeedText, admits: "Syntax::ResolutionScope", optional: true
+      # WHICH DISAMBIGUATOR keyword argument a bare reference may supply
+      # when `resolves_via` is `owner_keyed` — see `Disambiguator`'s own
+      # comment. BLANK unless `resolves_via` is `owner_keyed` AND more
+      # than one candidate can register (today: only `given` on
+      # Aggregate).
+      attribute :disambiguator,  KeywordSeedText, admits: "Syntax::Disambiguator", optional: true
 
       lifecycle :status, default: "admitted" do
         # NOT `proposed` : nothing in the real table is ever declared
@@ -1212,7 +1266,8 @@ Hecks.bluebook "Bluebook" do
       reference_to Syntax
 
       sets :keywords, append: { position: :position, word: :word, context: :context, body: :body,
-                                 inner: :inner, opens: :opens, fills: :fills, was: :was }
+                                 inner: :inner, opens: :opens, fills: :fills, was: :was,
+                                 resolves_via: :resolves_via, disambiguator: :disambiguator }
 
       emits "KeywordAdmitted"
     end

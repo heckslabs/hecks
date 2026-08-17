@@ -289,13 +289,15 @@ module Hecksagain
         "Keyword"        => Contract.new(
           holder: nil, make: nil,
           fields: {
-            word:    [:word,    :plain],
-            context: [:context, :plain],
-            body:    [:body,    :plain],
-            inner:   [:inner,   :plain],
-            opens:   [:opens,   :plain],
-            fills:   [:fills,   :plain],
-            was:     [:was,     :plain]
+            word:          [:word,          :plain],
+            context:       [:context,       :plain],
+            body:          [:body,          :plain],
+            inner:         [:inner,         :plain],
+            opens:         [:opens,         :plain],
+            fills:         [:fills,         :plain],
+            was:           [:was,           :plain],
+            resolves_via:  [:resolves_via,  :plain],
+            disambiguator: [:disambiguator, :plain]
           },
           derived: { position: :walk }
         ),
