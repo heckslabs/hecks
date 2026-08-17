@@ -215,7 +215,15 @@ pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_n
         let field = naming::rust_ident_field(crate::attr::name(attr));
 
         if !crate::attr::list(attr) {
-            let value_expr = if crate::attr::optional(attr) { "v".to_string() } else { format!("args.{field}") };
+            // RAW FIELD EXPRESSION, UNCONDITIONALLY — port of `rust/project/
+            // commands.rb#invariant_checks_for`'s own fix; see that file's
+            // comment for the full argument. `types.rs`'s own value-object-
+            // field door passes `self.{field}` raw and never wraps the
+            // result itself, trusting `constraints.rs`'s own internal
+            // optional-handling to be self-contained — this door used to
+            // double-wrap whenever an attribute was BOTH `optional: true`
+            // and carried `admits:`/`pattern:`, a real compile failure.
+            let value_expr = format!("args.{field}");
             let constraints: Vec<String> = [
                 crate::constraints::emit_admits_check(exemplar, &value_expr, attr, aggregates_by_name, value_objects_by_name),
                 crate::constraints::emit_pattern_check(exemplar, &value_expr, attr, &crate::attr::name(attr).to_string(), value_objects_by_name),
@@ -224,11 +232,7 @@ pub fn invariant_checks_for(exemplar: &Exemplar, command: &Json, aggregates_by_n
             .flatten()
             .collect();
             for c in constraints {
-                if crate::attr::optional(attr) {
-                    lines.push(format!("        if let Some(v) = &args.{field} {{ {c} }}"));
-                } else {
-                    lines.push(format!("        {c}"));
-                }
+                lines.push(format!("        {c}"));
             }
         }
 

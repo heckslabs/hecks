@@ -318,9 +318,9 @@ impl crate::kernel::Fielded for AuthorizeArgs {
         match name {
             "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "authorisation" => Some(Field::Nested(&self.authorisation)),
+            "tags" => self.tags.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
             "amount" => Some(Field::Nested(&self.amount)),
             "merchant" => Some(Field::Nested(&self.merchant)),
-            "tags" => self.tags.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -331,18 +331,18 @@ impl crate::kernel::Fielded for AuthorizeArgs {
 pub struct AuthorizeArgs {
     pub account: String,
     pub authorisation: AuthorisationCode,
+    pub tags: Option<Vec<Tag>>,
     pub amount: PaymentAmount,
     pub merchant: MerchantName,
-    pub tags: Option<Vec<Tag>>,
 }
 
 pub fn dispatch_authorize(
     repo: &mut impl crate::kernel::Repository<CardPayment>, args: AuthorizeArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<CardPayment> {
         args.authorisation.check_invariants()?;
+        if let Some(items) = &args.tags { for item in items { item.check_invariants()?; } }
         args.amount.check_invariants()?;
         args.merchant.check_invariants()?;
-        if let Some(items) = &args.tags { for item in items { item.check_invariants()?; } }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
@@ -389,28 +389,28 @@ impl AuthorizeArgs {
         crate::kernel::Json::Object(vec![
         ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("authorisation".to_string(), self.authorisation.to_json()),
+        ("tags".to_string(), self.tags.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)),
         ("amount".to_string(), self.amount.to_json()),
         ("merchant".to_string(), self.merchant.to_json()),
-        ("tags".to_string(), self.tags.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
 
 impl AuthorizeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account", "authorisation", "amount", "merchant", "tags", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["account", "authorisation", "tags", "amount", "merchant", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Authorize does not declare {} — it takes account, authorisation, amount, merchant, tags",
+        "Authorize does not declare {} — it takes account, authorisation, tags, amount, merchant",
         unknown.join(", ")
     )));
 }
         Ok(Self {
         account: { let x = v.require("account", "AuthorizeArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()))? },
         authorisation: AuthorisationCode::from_json(&v.require("authorisation", "AuthorizeArgs")?.coerce_single_field("value"))?,
+        tags: match v.get("tags") { Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, },
         amount: PaymentAmount::from_json(&v.require("amount", "AuthorizeArgs")?.coerce_single_field("cents"))?,
         merchant: MerchantName::from_json(&v.require("merchant", "AuthorizeArgs")?.coerce_single_field("value"))?,
-        tags: match v.get("tags") { Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, },
         })
     }
 }

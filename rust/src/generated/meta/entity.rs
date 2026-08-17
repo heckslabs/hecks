@@ -112,6 +112,57 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Rule {
+    pub description: Option<String>,
+    pub canonical: String,
+}
+
+impl crate::kernel::Fielded for Rule {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "description" => self.description.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "canonical" => Some(Field::Value(Value::Str(self.canonical.clone()))),
+            _ => None,
+        }
+    }
+}
+
+
+impl Rule {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+
+        Ok(())
+    }
+}
+
+impl Rule {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("description".to_string(), self.description.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("canonical".to_string(), crate::kernel::Json::Str(self.canonical.clone())),
+        ])
+    }
+}
+
+impl Rule {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Rule does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        description: match v.get("description") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Rule.description: expected String".to_string()))?), None => None, },
+        canonical: { let x = v.require("canonical", "Rule")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Rule.canonical: expected String".to_string()))? },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct IdentityPath {
     pub value: String,
 }
@@ -339,6 +390,8 @@ pub struct Entity {
     pub description: Option<EntityName>,
     pub identified_by: Vec<IdentityPath>,
     pub attributes: Vec<PieceField>,
+    pub preconditions: Vec<Rule>,
+    pub invariants: Vec<Rule>,
     pub state_field: Option<EntityText>,
     pub state_start: Option<EntityText>,
     pub transitions: Vec<PieceTransition>,
@@ -355,6 +408,8 @@ impl crate::kernel::Fielded for Entity {
             "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "identified_by" => Some(Field::Value(Value::List(self.identified_by.len()))),
             "attributes" => Some(Field::Value(Value::List(self.attributes.len()))),
+            "preconditions" => Some(Field::Value(Value::List(self.preconditions.len()))),
+            "invariants" => Some(Field::Value(Value::List(self.invariants.len()))),
             "state_field" => self.state_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "state_start" => self.state_start.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "transitions" => Some(Field::Value(Value::List(self.transitions.len()))),
@@ -373,6 +428,8 @@ impl Entity {
         ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("identified_by".to_string(), crate::kernel::Json::Array(self.identified_by.iter().map(|x| x.to_json()).collect())),
         ("attributes".to_string(), crate::kernel::Json::Array(self.attributes.iter().map(|x| x.to_json()).collect())),
+        ("preconditions".to_string(), crate::kernel::Json::Array(self.preconditions.iter().map(|x| x.to_json()).collect())),
+        ("invariants".to_string(), crate::kernel::Json::Array(self.invariants.iter().map(|x| x.to_json()).collect())),
         ("state_field".to_string(), self.state_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("state_start".to_string(), self.state_start.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("transitions".to_string(), crate::kernel::Json::Array(self.transitions.iter().map(|x| x.to_json()).collect())),
@@ -390,6 +447,8 @@ impl Entity {
         description: match v.get("description") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityName::from_json(&x.coerce_single_field("value"))?), },
         identified_by: match v.get("identified_by").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(IdentityPath::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         attributes: match v.get("attributes").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceField::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        preconditions: match v.get("preconditions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
+        invariants: match v.get("invariants").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Rule::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         state_field: match v.get("state_field") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
         state_start: match v.get("state_start") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), },
         transitions: match v.get("transitions").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(PieceTransition::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
@@ -465,6 +524,8 @@ pub fn dispatch_declare(
             description: args.description.clone(),
             identified_by: vec![],
             attributes: vec![],
+            preconditions: vec![],
+            invariants: vec![],
             state_field: None,
             state_start: None,
             transitions: vec![],
@@ -762,6 +823,160 @@ if !unknown.is_empty() {
         pattern: match v.get("pattern") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
         default: match v.get("default") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
         admits: match v.get("admits") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        })
+    }
+}
+
+impl crate::kernel::Fielded for PreconditionArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "canonical" => Some(Field::Nested(&self.canonical)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct PreconditionArgs {
+    pub description: Option<EntityText>,
+    pub canonical: EntityText,
+}
+
+pub fn dispatch_precondition(
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: PreconditionArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Entity> {
+        if let Some(v) = &args.description { v.check_invariants()?; }
+        args.canonical.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Precondition",
+        "Bluebook::Entity",
+        "Entity",
+        "aggregate, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
+            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))) },
+        ],
+        None,
+        |record| {
+        record.preconditions.push(Rule { description: args.description.clone().map(|v| v.value.clone()), canonical: args.canonical.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["PiecePreconditionAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl PreconditionArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("canonical".to_string(), self.canonical.to_json()),
+        ])
+    }
+}
+
+impl PreconditionArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical", "id", "entity", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Precondition does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        description: match v.get("description") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        canonical: EntityText::from_json(&v.require("canonical", "PreconditionArgs")?.coerce_single_field("value"))?,
+        })
+    }
+}
+
+impl crate::kernel::Fielded for InvariantArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "canonical" => Some(Field::Nested(&self.canonical)),
+            _ => None,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct InvariantArgs {
+    pub description: Option<EntityText>,
+    pub canonical: EntityText,
+}
+
+pub fn dispatch_invariant(
+    repo: &mut impl crate::kernel::Repository<Entity>, id: &str, args: InvariantArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+) -> crate::kernel::DispatchResult<Entity> {
+        if let Some(v) = &args.description { v.check_invariants()?; }
+        args.canonical.check_invariants()?;
+    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Invariant",
+        "Bluebook::Entity",
+        "Entity",
+        "aggregate, name.value",
+        &with_references,
+        &[
+            crate::kernel::GivenSpec { description: "a rule says what it means", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("description.value"))))))) },
+            crate::kernel::GivenSpec { description: "a rule survives extraction", expr: Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup("canonical.value"))))))) },
+        ],
+        None,
+        |record| {
+        record.invariants.push(Rule { description: args.description.clone().map(|v| v.value.clone()), canonical: args.canonical.value.clone() });
+            Ok(())
+        },
+        &[
+
+        ],
+        &["PieceInvariantAttached"],
+        args.to_json(),
+        mutations,
+    )
+}
+
+impl InvariantArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("canonical".to_string(), self.canonical.to_json()),
+        ])
+    }
+}
+
+impl InvariantArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+let unknown = v.unknown_keys(&["description", "canonical", "id", "entity", "aggregate", "name"]);
+if !unknown.is_empty() {
+    return Err(crate::kernel::Refusal::UnknownArgument(format!(
+        "Invariant does not declare {} — it takes description, canonical",
+        unknown.join(", ")
+    )));
+}
+        Ok(Self {
+        description: match v.get("description") { Some(x) => Some(EntityText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        canonical: EntityText::from_json(&v.require("canonical", "InvariantArgs")?.coerce_single_field("value"))?,
         })
     }
 }

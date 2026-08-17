@@ -214,10 +214,26 @@ module RustProjection
         lines = []
 
         unless attr[:list]
-          value_expr = attr[:optional] ? "v" : "args.#{field}"
+          # RAW FIELD EXPRESSION, UNCONDITIONALLY — `types.rb`'s own value-
+          # object-field door (the OTHER caller of `emit_admits_check`/
+          # `emit_pattern_check`) passes `self.#{field}` raw and never wraps
+          # the result itself, trusting `constraints.rb`'s own internal
+          # `optional_scalar_expr`/`wrap_if_optional` to do the ENTIRE
+          # optional-handling, self-contained. This door used to pre-
+          # substitute "v" AND wrap the result in its own outer
+          # `if let Some(v) = ...` — double-wrapping whenever an attribute
+          # was BOTH `optional: true` and carried `admits:`/`pattern:`
+          # (`&&Type` where `&Type` was expected, a real `cargo build`
+          # failure), because `constraints.rb` unconditionally wraps again
+          # for any `attr[:optional]` attribute. No command/entity-command
+          # argument in the corpus combined the two until `Keyword#
+          # resolves_via`/`#disambiguator` (Round I, self-hosted grammar) —
+          # found regenerating `rust/src/generated/meta/syntax.rs` for the
+          # first time since that round landed.
+          value_expr = "args.#{field}"
           constraints = [emit_admits_check(value_expr, attr, aggregates_by_name, value_objects_by_name),
                          emit_pattern_check(value_expr, attr, attr[:name].to_s, value_objects_by_name)].compact
-          constraints.each { |c| lines << (attr[:optional] ? "        if let Some(v) = &args.#{field} { #{c} }" : "        #{c}") }
+          constraints.each { |c| lines << "        #{c}" }
         end
 
         if value_objects_by_name.key?(attr[:type]) && !value_objects_by_name[attr[:type]][:closed_set]

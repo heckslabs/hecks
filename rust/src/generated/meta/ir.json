@@ -90,13 +90,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "NormalisationRule",
@@ -147,13 +143,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "BluebookName",
@@ -175,9 +167,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Vision",
@@ -199,9 +189,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Classification",
@@ -223,9 +211,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Version",
@@ -247,9 +233,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "FormerlyKnownAs",
@@ -271,9 +255,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "AttachesToContext",
@@ -295,9 +277,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -353,15 +333,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ChapterDeclared"
           ],
@@ -384,9 +358,7 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
+          "givens": [],
           "ensures": [
             {
               "description": "the list grew by exactly one",
@@ -460,12 +432,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "normalisations",
@@ -486,19 +454,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "Called",
@@ -525,9 +485,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -686,9 +644,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Description",
@@ -710,9 +666,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "IdentityField",
@@ -727,13 +681,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "IdentityPath",
@@ -748,13 +698,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Field",
@@ -823,13 +769,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ValueName",
@@ -844,13 +786,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Transition",
@@ -883,13 +821,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Rule",
@@ -913,13 +847,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ProjectedField",
@@ -952,13 +882,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -973,13 +899,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "FieldName",
@@ -1001,9 +923,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "TypeName",
@@ -1025,9 +945,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "LiteralText",
@@ -1042,13 +960,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ListFlag",
@@ -1070,9 +984,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -1128,15 +1040,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "RootDeclared"
           ],
@@ -1165,9 +1071,7 @@
               "canonical": "!path.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "identified_by",
@@ -1253,12 +1157,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -1350,12 +1250,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -1447,12 +1343,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -1499,12 +1391,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "state_field",
@@ -1563,12 +1451,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "transitions",
@@ -1591,21 +1475,15 @@
           "role": "Language",
           "goal": "Close an aggregate — the checks that need every declaration present",
           "references": "Aggregate",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "an aggregate says what it is known by",
               "canonical": "!identified_by.empty?"
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "RootSealed"
           ],
@@ -1628,12 +1506,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "value_objects",
@@ -1684,9 +1558,7 @@
               "canonical": "!canonical.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "invariants",
@@ -1738,9 +1610,7 @@
               "canonical": "!canonical.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "preconditions",
@@ -1805,9 +1675,7 @@
               "canonical": "!remote_field.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "projected_fields",
@@ -1826,19 +1694,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "DeclaredIn",
@@ -1868,9 +1728,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -2029,9 +1887,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Actor",
@@ -2046,13 +1902,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Goal",
@@ -2067,13 +1919,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "EventName",
@@ -2088,13 +1936,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Announcement",
@@ -2109,13 +1953,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Argument",
@@ -2184,13 +2024,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Rule",
@@ -2214,13 +2050,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Change",
@@ -2271,13 +2103,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "CommandText",
@@ -2292,13 +2120,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -2313,13 +2137,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ArgName",
@@ -2341,9 +2161,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ArgType",
@@ -2358,13 +2176,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "RuleText",
@@ -2379,13 +2193,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "FieldRef",
@@ -2400,13 +2210,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "OpName",
@@ -2421,13 +2227,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -2510,15 +2312,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "VerbDeclared"
           ],
@@ -2595,12 +2391,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -2692,12 +2484,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -2754,9 +2542,7 @@
               "canonical": "!canonical.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "givens",
@@ -2808,9 +2594,7 @@
               "canonical": "!canonical.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "ensures",
@@ -2889,9 +2673,7 @@
               "canonical": "!op.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "mutations",
@@ -2937,9 +2719,7 @@
               "canonical": "references.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "references",
@@ -2978,9 +2758,7 @@
               "canonical": "!announces.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "emits",
@@ -2997,19 +2775,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "DeclaredIn",
@@ -3039,9 +2809,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -3173,9 +2941,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "QueryText",
@@ -3190,13 +2956,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Filter",
@@ -3229,13 +2991,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "AskArgument",
@@ -3304,13 +3062,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "AskOption",
@@ -3352,13 +3106,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -3373,13 +3123,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -3462,15 +3208,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "AskDeclared"
           ],
@@ -3511,12 +3251,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "wheres",
@@ -3583,9 +3319,7 @@
               "canonical": "!option.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "options",
@@ -3674,12 +3408,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -3702,19 +3432,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "DeclaredIn",
@@ -3744,9 +3466,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -3835,13 +3555,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ValueObjectName",
@@ -3863,9 +3579,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ShapeField",
@@ -3949,9 +3663,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Assertion",
@@ -3986,9 +3698,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "MemberPosition",
@@ -4003,13 +3713,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "MemberText",
@@ -4024,13 +3730,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Pair",
@@ -4061,9 +3763,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -4078,13 +3778,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ValueObjectText",
@@ -4099,13 +3795,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -4143,15 +3835,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ShapeDeclared"
           ],
@@ -4228,12 +3914,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -4277,9 +3959,7 @@
               "canonical": "rows.value > 0"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "rows",
@@ -4331,9 +4011,7 @@
               "canonical": "!canonical.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "invariants",
@@ -4366,12 +4044,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "members",
@@ -4388,15 +4062,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -4457,9 +4125,7 @@
                   "canonical": "!key.value.to_s.empty?"
                 }
               ],
-              "ensures": [
-
-              ],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "pairs",
@@ -4477,12 +4143,10 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": null
         }
       ],
@@ -4515,9 +4179,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -4583,6 +4245,24 @@
           "admits": null
         },
         {
+          "name": "preconditions",
+          "type": "Rule",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
+          "name": "invariants",
+          "type": "Rule",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null
+        },
+        {
           "name": "state_field",
           "type": "EntityText",
           "list": false,
@@ -4640,9 +4320,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "EntityText",
@@ -4657,13 +4335,35 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
+        },
+        {
+          "name": "Rule",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "canonical",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": false,
+          "members": []
         },
         {
           "name": "IdentityPath",
@@ -4678,13 +4378,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PieceField",
@@ -4753,13 +4449,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PieceTransition",
@@ -4792,13 +4484,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -4813,13 +4501,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -4875,15 +4559,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "PieceDeclared"
           ],
@@ -4912,9 +4590,7 @@
               "canonical": "!path.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "identified_by",
@@ -4935,21 +4611,15 @@
           "role": "Language",
           "goal": "Close an entity — the checks that need every declaration present",
           "references": "Entity",
-          "attributes": [
-
-          ],
+          "attributes": [],
           "givens": [
             {
               "description": "an entity says what it is known by",
               "canonical": "!identified_by.empty?"
             }
           ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "PieceSealed"
           ],
@@ -5026,12 +4696,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "attributes",
@@ -5049,6 +4715,110 @@
           ],
           "emits": [
             "PieceAttributeAttached"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Precondition",
+          "role": "Language",
+          "goal": "Declare one precondition this piece's own commands can reference by name",
+          "references": "Entity",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "EntityText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "canonical",
+              "type": "EntityText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a rule says what it means",
+              "canonical": "!description.value.to_s.empty?"
+            },
+            {
+              "description": "a rule survives extraction",
+              "canonical": "!canonical.value.to_s.empty?"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "preconditions",
+              "op": "append",
+              "fields": {
+                "description": ":description",
+                "canonical": ":canonical"
+              }
+            }
+          ],
+          "emits": [
+            "PiecePreconditionAttached"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Invariant",
+          "role": "Language",
+          "goal": "Attach one shape rule this piece's own instances must hold",
+          "references": "Entity",
+          "attributes": [
+            {
+              "name": "description",
+              "type": "EntityText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null
+            },
+            {
+              "name": "canonical",
+              "type": "EntityText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "a rule says what it means",
+              "canonical": "!description.value.to_s.empty?"
+            },
+            {
+              "description": "a rule survives extraction",
+              "canonical": "!canonical.value.to_s.empty?"
+            }
+          ],
+          "ensures": [],
+          "mutations": [
+            {
+              "target": "invariants",
+              "op": "append",
+              "fields": {
+                "description": ":description",
+                "canonical": ":canonical"
+              }
+            }
+          ],
+          "emits": [
+            "PieceInvariantAttached"
           ],
           "from": null,
           "provenance": null
@@ -5078,12 +4848,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "state_field",
@@ -5142,12 +4908,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "transitions",
@@ -5166,19 +4928,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "DeclaredIn",
@@ -5208,9 +4962,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -5333,9 +5085,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "PolicyText",
@@ -5350,13 +5100,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Binding",
@@ -5380,13 +5126,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -5401,13 +5143,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -5499,15 +5237,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ReactionDeclared"
           ],
@@ -5539,12 +5271,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "with_spec",
@@ -5562,19 +5290,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "DeclaredIn",
@@ -5604,9 +5324,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -5711,9 +5429,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ProcessManagerText",
@@ -5728,13 +5444,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "SagaState",
@@ -5749,13 +5461,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "HandlerText",
@@ -5770,13 +5478,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "DispatchText",
@@ -5791,13 +5495,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Binding",
@@ -5821,13 +5521,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -5842,13 +5538,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -5913,15 +5605,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "SagaDeclared"
           ],
@@ -5944,12 +5630,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "states",
@@ -5999,12 +5681,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "handlers",
@@ -6023,15 +5701,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -6095,12 +5767,8 @@
                   "admits": null
                 }
               ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
+              "givens": [],
+              "ensures": [],
               "mutations": [
                 {
                   "target": "dispatches",
@@ -6117,9 +5785,7 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
+          "queries": [],
           "entities": [
             {
               "name": "Dispatch",
@@ -6173,12 +5839,8 @@
                       "admits": null
                     }
                   ],
-                  "givens": [
-
-                  ],
-                  "ensures": [
-
-                  ],
+                  "givens": [],
+                  "ensures": [],
                   "mutations": [
                     {
                       "target": "with_spec",
@@ -6196,15 +5858,15 @@
                   "provenance": null
                 }
               ],
-              "queries": [
-
-              ],
-              "entities": [
-
-              ],
+              "queries": [],
+              "entities": [],
+              "preconditions": [],
+              "invariants": [],
               "lifecycle": null
             }
           ],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": null
         }
       ],
@@ -6237,9 +5899,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     },
     {
@@ -6280,9 +5940,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Comparison",
@@ -6324,9 +5982,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6461,9 +6117,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6520,9 +6174,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6560,9 +6212,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6616,9 +6266,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6654,9 +6302,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6704,9 +6350,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6745,9 +6389,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6835,9 +6477,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6909,9 +6549,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -6965,9 +6603,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -7075,9 +6711,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -7173,9 +6807,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -7295,9 +6927,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -7903,9 +7533,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -7947,9 +7575,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -8011,28 +7637,14 @@
           ]
         }
       ],
-      "commands": [
-
-      ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "commands": [],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "entities": [],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -8091,9 +7703,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Context",
@@ -8108,9 +7718,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -8236,9 +7844,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -8280,9 +7886,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -8312,6 +7916,66 @@
           ]
         },
         {
+          "name": "ResolutionScope",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "hash_chain"
+              ]
+            ],
+            [
+              [
+                "name",
+                "owner_keyed"
+              ]
+            ],
+            [
+              [
+                "name",
+                "sibling_scan"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "Disambiguator",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null
+            }
+          ],
+          "invariants": [],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "declared_by"
+              ]
+            ]
+          ]
+        },
+        {
           "name": "ArgumentKind",
           "attributes": [
             {
@@ -8324,9 +7988,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -8392,9 +8054,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -8497,11 +8157,27 @@
               "optional": false,
               "pattern": null,
               "admits": null
+            },
+            {
+              "name": "resolves_via",
+              "type": "String",
+              "list": false,
+              "default": "",
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::ResolutionScope"
+            },
+            {
+              "name": "disambiguator",
+              "type": "String",
+              "list": false,
+              "default": "",
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disambiguator"
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -9298,6 +8974,14 @@
               [
                 "fills",
                 "preconditions"
+              ],
+              [
+                "resolves_via",
+                "owner_keyed"
+              ],
+              [
+                "disambiguator",
+                "declared_by"
               ]
             ],
             [
@@ -9402,6 +9086,58 @@
               [
                 "fills",
                 "identified_by"
+              ]
+            ],
+            [
+              [
+                "word",
+                "given"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "preconditions"
+              ]
+            ],
+            [
+              [
+                "word",
+                "invariant"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "body",
+                "source"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "invariants"
               ]
             ],
             [
@@ -9688,6 +9424,10 @@
               [
                 "fills",
                 "givens"
+              ],
+              [
+                "resolves_via",
+                "hash_chain"
               ]
             ],
             [
@@ -9848,6 +9588,10 @@
               [
                 "fills",
                 "invariants"
+              ],
+              [
+                "resolves_via",
+                "sibling_scan"
               ]
             ],
             [
@@ -11221,9 +10965,7 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": true,
           "members": [
             [
@@ -12535,6 +12277,36 @@
             [
               [
                 "keyword",
+                "given"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "declared_by"
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "declared_by"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "projects"
               ],
               [
@@ -12596,6 +12368,66 @@
               [
                 "keyword",
                 "description"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "given"
+              ],
+              [
+                "context",
+                "Entity"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "description"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "invariant"
               ],
               [
                 "context",
@@ -16483,13 +16315,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ArgumentPosition",
@@ -16504,13 +16332,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "KeywordSeedText",
@@ -16525,13 +16349,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ArgumentSeedText",
@@ -16546,13 +16366,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -16581,15 +16397,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "SyntaxDeclared"
           ],
@@ -16673,14 +16483,28 @@
               "optional": true,
               "pattern": null,
               "admits": null
+            },
+            {
+              "name": "resolves_via",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": "Syntax::ResolutionScope"
+            },
+            {
+              "name": "disambiguator",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": "Syntax::Disambiguator"
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "keywords",
@@ -16693,7 +16517,9 @@
                 "inner": ":inner",
                 "opens": ":opens",
                 "fills": ":fills",
-                "was": ":was"
+                "was": ":was",
+                "resolves_via": ":resolves_via",
+                "disambiguator": ":disambiguator"
               }
             }
           ],
@@ -16827,12 +16653,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "arguments",
@@ -16861,15 +16683,9 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
       "entities": [
         {
@@ -16950,6 +16766,24 @@
               "optional": true,
               "pattern": null,
               "admits": null
+            },
+            {
+              "name": "resolves_via",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": "Syntax::ResolutionScope"
+            },
+            {
+              "name": "disambiguator",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": "Syntax::Disambiguator"
             }
           ],
           "commands": [
@@ -16958,18 +16792,10 @@
               "role": "Language",
               "goal": "Mark a word as on its way out, still read",
               "references": null,
-              "attributes": [
-
-              ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
-              "mutations": [
-
-              ],
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
               "emits": [
                 "KeywordDeprecated"
               ],
@@ -16981,18 +16807,10 @@
               "role": "Language",
               "goal": "Remove a word from every generated parser table",
               "references": null,
-              "attributes": [
-
-              ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
-              "mutations": [
-
-              ],
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
               "emits": [
                 "KeywordRetired"
               ],
@@ -17000,12 +16818,10 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": {
             "field": "status",
             "default": "admitted",
@@ -17159,18 +16975,10 @@
               "role": "Language",
               "goal": "Mark an argument as on its way out, still read",
               "references": null,
-              "attributes": [
-
-              ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
-              "mutations": [
-
-              ],
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
               "emits": [
                 "ArgumentDeprecated"
               ],
@@ -17182,18 +16990,10 @@
               "role": "Language",
               "goal": "Remove an argument from every generated parser table",
               "references": null,
-              "attributes": [
-
-              ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
-              "mutations": [
-
-              ],
+              "attributes": [],
+              "givens": [],
+              "ensures": [],
+              "mutations": [],
               "emits": [
                 "ArgumentRetired"
               ],
@@ -17201,12 +17001,10 @@
               "provenance": null
             }
           ],
-          "queries": [
-
-          ],
-          "entities": [
-
-          ],
+          "queries": [],
+          "entities": [],
+          "preconditions": [],
+          "invariants": [],
           "lifecycle": {
             "field": "status",
             "default": "admitted",
@@ -17230,12 +17028,8 @@
           }
         }
       ],
-      "queries": [
-
-      ],
-      "ports": [
-
-      ],
+      "queries": [],
+      "ports": [],
       "provenance": null
     },
     {
@@ -17376,9 +17170,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ReadModelText",
@@ -17393,13 +17185,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ProjectionPurpose",
@@ -17421,9 +17209,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Head",
@@ -17456,13 +17242,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "ProjectionOption",
@@ -17504,13 +17286,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "GroupByField",
@@ -17532,9 +17310,7 @@
             }
           ],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         },
         {
           "name": "Position",
@@ -17549,13 +17325,9 @@
               "admits": null
             }
           ],
-          "invariants": [
-
-          ],
+          "invariants": [],
           "closed_set": false,
-          "members": [
-
-          ]
+          "members": []
         }
       ],
       "commands": [
@@ -17629,15 +17401,9 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "mutations": [
-
-          ],
+          "givens": [],
+          "ensures": [],
+          "mutations": [],
           "emits": [
             "ProjectionDeclared"
           ],
@@ -17678,12 +17444,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "aggregate_heads",
@@ -17723,9 +17485,7 @@
               "canonical": "!field.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "group_by",
@@ -17757,12 +17517,8 @@
               "admits": null
             }
           ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
+          "givens": [],
+          "ensures": [],
           "mutations": [
             {
               "target": "count",
@@ -17801,9 +17557,7 @@
               "canonical": "!median_field.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "median_field",
@@ -17869,9 +17623,7 @@
               "canonical": "!option.value.to_s.empty?"
             }
           ],
-          "ensures": [
-
-          ],
+          "ensures": [],
           "mutations": [
             {
               "target": "options",
@@ -17891,19 +17643,11 @@
           "provenance": null
         }
       ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
+      "invariants": [],
+      "preconditions": [],
+      "projected_fields": [],
       "lifecycle": null,
-      "entities": [
-
-      ],
+      "entities": [],
       "queries": [
         {
           "name": "DeclaredIn",
@@ -17933,9 +17677,7 @@
           "limit": null
         }
       ],
-      "ports": [
-
-      ],
+      "ports": [],
       "provenance": null
     }
   ],
@@ -17946,9 +17688,7 @@
       "reference_name": "bluebook",
       "reference_target": "Bluebook",
       "query_name": "whole_bluebook",
-      "wheres": [
-
-      ],
+      "wheres": [],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -18013,20 +17753,12 @@
           "many": true
         }
       ],
-      "group_by": [
-
-      ]
+      "group_by": []
     }
   ],
-  "policies": [
-
-  ],
-  "process_managers": [
-
-  ],
-  "attaches_to": [
-
-  ],
+  "policies": [],
+  "process_managers": [],
+  "attaches_to": [],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

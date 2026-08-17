@@ -528,6 +528,24 @@ pub fn dispatch_by_name(
               let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
               crate::generated::meta::entity::dispatch_attribute(&mut store.entity, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
+          "Bluebook::Entity.Precondition" => {
+              let id = crate::generated::meta::entity::Entity::extract_id(args_json)?;
+              let args = crate::generated::meta::entity::PreconditionArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Language"), "Precondition", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::meta::entity::dispatch_precondition(&mut store.entity, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
+          "Bluebook::Entity.Invariant" => {
+              let id = crate::generated::meta::entity::Entity::extract_id(args_json)?;
+              let args = crate::generated::meta::entity::InvariantArgs::from_json(args_json)?;
+              crate::kernel::check_role(Some("Language"), "Invariant", caller_role)?;
+              let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Entity", &id);
+              let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              crate::generated::meta::entity::dispatch_invariant(&mut store.entity, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
+          }
           "Bluebook::Entity.Lifecycle" => {
               let id = crate::generated::meta::entity::Entity::extract_id(args_json)?;
               let args = crate::generated::meta::entity::LifecycleArgs::from_json(args_json)?;

@@ -258,6 +258,18 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Entity.Precondition",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bluebook::Entity.Invariant",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Entity.Lifecycle",
     "generated": true,
     "routed": true
