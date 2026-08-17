@@ -9,8 +9,12 @@ require_relative "support/postgres_probe"
 # real tmpdir fixture and reads back what it actually produced, the
 # same way bin/project_deploy's own contract spec does.
 RSpec.describe "bin/project_tenant", io: true do
-  ROOT = File.expand_path("..", __dir__).freeze
-  SCRIPT = File.join(ROOT, "bin/project_tenant").freeze
+  # InMemoryDomain::ROOT, not a locally-aliased bare ROOT — see
+  # word_coverage_spec.rb's own comment: a bare ROOT once collided with
+  # another spec file's identical constant, caught by
+  # load_hygiene_spec.rb's "no two spec files disagree about a
+  # top-level constant" gate.
+  SCRIPT = File.join(InMemoryDomain::ROOT, "bin/project_tenant").freeze
   DB = "hecksagain_project_tenant_spec".freeze
 
   def fixture(dir)

@@ -28,7 +28,38 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
 require "fileutils"
 
-domain = ARGV.shift or abort "usage: bin/project_deploy <domain>"
+require "optparse"
+
+# `--tenant=<slug> [--schema=<name>]` — THE RUST/LAMBDA SIDE OF
+# multi-tenant hosting (Runtime::TenantCheck's own header has the full
+# story for the Ruby side). Real infrastructure already carries almost
+# all of this: rust/host's own HECKS_SCHEMA (main.rs) already sets
+# `SET search_path` at boot the identical way Ruby's own PostgresEra#
+# connect_for does, and `deployed_to("AwsLambda") { schema "..." }`
+# already generates it into the CloudFormation template for "Shared"
+# database mode — the ENTIRE isolation mechanism this needs already
+# exists and is already deployed (Embryonaut's own real migration onto
+# it). What was actually missing was per-TENANT generation of the same
+# domain, not a new capability: `--tenant` overrides `deploy_settings`
+# BEFORE `infra_name`/`hecks_schema` are computed from it below, so
+# every one of the ~2000 lines that already read those two variables
+# correctly (stack name, logical ids, the schema itself) needs no
+# change at all — the same reason this is additive rather than a
+# retrofit. `stack_name` is APPENDED to, never replaced outright — the
+# comment right below on why a stack name must stay pinned applies
+# per-tenant too: `bin/project_deploy foo --tenant=acme` run twice must
+# regenerate the SAME acme stack, not two different ones.
+tenant_options = {}
+OptionParser.new do |parser|
+  parser.on("--tenant=SLUG") { |v| tenant_options[:tenant] = v }
+  parser.on("--schema=NAME") { |v| tenant_options[:schema] = v }
+end.parse!(ARGV)
+
+if tenant_options[:schema] && !tenant_options[:tenant]
+  abort "--schema needs --tenant=<slug> — a schema override with no tenant to scope it to is meaningless"
+end
+
+domain = ARGV.shift or abort "usage: bin/project_deploy <domain> [--tenant=<slug>] [--schema=<name>]"
 root = File.expand_path("..", __dir__)
 domain_name = File.basename(domain)
 world_file = File.join(domain, "bluebook", "#{domain_name}.world")
@@ -55,6 +86,18 @@ world = registry.worlds.values.first or
 declared_domain_name = world.domain
 
 deploy_settings = world.for_verb("deployed_to")
+
+# THE TENANT OVERRIDE ITSELF — see this file's own header comment on
+# `--tenant`/`--schema` for the full reasoning. Applied here, before
+# `infra_name`/`hecks_schema` are computed below, so both read it the
+# same way they already read any other `deployed_to` setting.
+if tenant_options[:tenant]
+  base_stack_name = deploy_settings[:stack_name] || domain_name
+  deploy_settings = deploy_settings.merge(
+    stack_name: "#{base_stack_name}-#{tenant_options[:tenant]}",
+    schema:     tenant_options[:schema] || tenant_options[:tenant]
+  )
+end
 
 # EVERY AWS-FACING NAME BELOW — stack, Lambda logical id (and so the
 # RDS logical id derived from it, `#{logical_id}Db`), S3 prefixes,
