@@ -48,6 +48,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "literal",
                 "value": {
@@ -80,6 +81,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "literal",
                 "value": {

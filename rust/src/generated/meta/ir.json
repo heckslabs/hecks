@@ -369,6 +369,7 @@
             {
               "target": "attaches_to",
               "op": "append",
+              "sign": "",
               "fields": {
                 "value": ":context"
               }
@@ -438,6 +439,7 @@
             {
               "target": "normalisations",
               "op": "append",
+              "sign": "",
               "fields": {
                 "strategy": ":strategy",
                 "source_token": ":source_token",
@@ -1076,6 +1078,7 @@
             {
               "target": "identified_by",
               "op": "append",
+              "sign": "",
               "fields": {
                 "value": ":path"
               }
@@ -1163,6 +1166,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":type",
@@ -1256,6 +1260,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":points_at",
@@ -1349,6 +1354,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":holds",
@@ -1397,6 +1403,7 @@
             {
               "target": "state_field",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_field"
@@ -1405,6 +1412,7 @@
             {
               "target": "state_start",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_start"
@@ -1457,6 +1465,7 @@
             {
               "target": "transitions",
               "op": "append",
+              "sign": "",
               "fields": {
                 "command": ":command",
                 "from_state": ":from_state",
@@ -1512,6 +1521,7 @@
             {
               "target": "value_objects",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name"
               }
@@ -1563,6 +1573,7 @@
             {
               "target": "invariants",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -1615,6 +1626,7 @@
             {
               "target": "preconditions",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -1680,6 +1692,7 @@
             {
               "target": "projected_fields",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "reference": ":reference",
@@ -2397,6 +2410,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":type",
@@ -2490,6 +2504,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":points_at",
@@ -2547,6 +2562,7 @@
             {
               "target": "givens",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -2599,6 +2615,7 @@
             {
               "target": "ensures",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -2678,6 +2695,7 @@
             {
               "target": "mutations",
               "op": "append",
+              "sign": "",
               "fields": {
                 "target": ":target",
                 "op": ":op",
@@ -2724,6 +2742,7 @@
             {
               "target": "references",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "root"
@@ -2763,6 +2782,7 @@
             {
               "target": "emits",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":announces"
               }
@@ -3257,6 +3277,7 @@
             {
               "target": "wheres",
               "op": "append",
+              "sign": "",
               "fields": {
                 "field": ":field",
                 "op": ":op",
@@ -3324,6 +3345,7 @@
             {
               "target": "options",
               "op": "append",
+              "sign": "",
               "fields": {
                 "option": ":option",
                 "key": ":key",
@@ -3414,6 +3436,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":type",
@@ -3920,6 +3943,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":type",
@@ -3964,6 +3988,7 @@
             {
               "target": "rows",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "rows"
@@ -4016,6 +4041,7 @@
             {
               "target": "invariants",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -4050,6 +4076,7 @@
             {
               "target": "members",
               "op": "append",
+              "sign": "",
               "fields": {
                 "position": ":position"
               }
@@ -4130,6 +4157,7 @@
                 {
                   "target": "pairs",
                   "op": "append",
+                  "sign": "",
                   "fields": {
                     "key": ":key",
                     "value": ":value"
@@ -4595,6 +4623,7 @@
             {
               "target": "identified_by",
               "op": "append",
+              "sign": "",
               "fields": {
                 "value": ":path"
               }
@@ -4702,6 +4731,7 @@
             {
               "target": "attributes",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name",
                 "type": ":type",
@@ -4759,6 +4789,7 @@
             {
               "target": "preconditions",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -4811,6 +4842,7 @@
             {
               "target": "invariants",
               "op": "append",
+              "sign": "",
               "fields": {
                 "description": ":description",
                 "canonical": ":canonical"
@@ -4854,6 +4886,7 @@
             {
               "target": "state_field",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_field"
@@ -4862,6 +4895,7 @@
             {
               "target": "state_start",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_start"
@@ -4914,6 +4948,7 @@
             {
               "target": "transitions",
               "op": "append",
+              "sign": "",
               "fields": {
                 "command": ":command",
                 "from_state": ":from_state",
@@ -5277,6 +5312,7 @@
             {
               "target": "with_spec",
               "op": "append",
+              "sign": "",
               "fields": {
                 "key": ":key",
                 "value": ":value"
@@ -5636,6 +5672,7 @@
             {
               "target": "states",
               "op": "append",
+              "sign": "",
               "fields": {
                 "name": ":name"
               }
@@ -5687,6 +5724,7 @@
             {
               "target": "handlers",
               "op": "append",
+              "sign": "",
               "fields": {
                 "event_type": ":event_type",
                 "from_state": ":from_state",
@@ -5773,6 +5811,7 @@
                 {
                   "target": "dispatches",
                   "op": "append",
+                  "sign": "",
                   "fields": {
                     "command_name": ":command_name"
                   }
@@ -5845,6 +5884,7 @@
                     {
                       "target": "with_spec",
                       "op": "append",
+                      "sign": "",
                       "fields": {
                         "key": ":key",
                         "value": ":value"
@@ -16509,6 +16549,7 @@
             {
               "target": "keywords",
               "op": "append",
+              "sign": "",
               "fields": {
                 "position": ":position",
                 "word": ":word",
@@ -16659,6 +16700,7 @@
             {
               "target": "arguments",
               "op": "append",
+              "sign": "",
               "fields": {
                 "position": ":position",
                 "keyword": ":keyword",
@@ -17450,6 +17492,7 @@
             {
               "target": "aggregate_heads",
               "op": "append",
+              "sign": "",
               "fields": {
                 "aggregate": ":aggregate",
                 "as": ":as",
@@ -17490,6 +17533,7 @@
             {
               "target": "group_by",
               "op": "append",
+              "sign": "",
               "fields": {
                 "field": ":field"
               }
@@ -17523,6 +17567,7 @@
             {
               "target": "count",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "count"
@@ -17562,6 +17607,7 @@
             {
               "target": "median_field",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "median_field"
@@ -17628,6 +17674,7 @@
             {
               "target": "options",
               "op": "append",
+              "sign": "",
               "fields": {
                 "option": ":option",
                 "key": ":key",

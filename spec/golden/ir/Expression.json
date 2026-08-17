@@ -210,6 +210,7 @@
                 "target": ":target"
               },
               "op": "append",
+              "sign": "",
               "target": "renderings"
             }
           ],
@@ -750,6 +751,7 @@
                 "target": ":target"
               },
               "op": "append",
+              "sign": "",
               "target": "readings"
             }
           ],
@@ -1323,6 +1325,7 @@
                 "name": ":name"
               },
               "op": "append",
+              "sign": "",
               "target": "references"
             }
           ],

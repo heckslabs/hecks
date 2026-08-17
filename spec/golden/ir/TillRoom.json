@@ -108,6 +108,7 @@
           "mutations": [
             {
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -120,10 +121,12 @@
                 "direction": "\"in\""
               },
               "op": "append",
+              "sign": "",
               "target": "marks"
             },
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "note"
@@ -162,6 +165,7 @@
           "mutations": [
             {
               "op": "decrement",
+              "sign": "-1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -174,6 +178,7 @@
                 "direction": "\"out\""
               },
               "op": "append",
+              "sign": "",
               "target": "marks"
             }
           ],
@@ -200,6 +205,7 @@
           "mutations": [
             {
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "literal",
                 "value": {

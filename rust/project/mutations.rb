@@ -488,7 +488,14 @@ module RustProjection
         vo_type = rust_ident(target_attr[:type])
         field_ident = rust_ident_field(integer_field)
         amount_expr = arithmetic_amount_expr(mutation[:source], command, value_objects_by_name, integer_field)
-        sign = mutation[:op].to_s == "increment" ? "+" : "-"
+        # THE IR'S OWN sign FIELD, not re-derived from the op NAME — item
+        # #5 of the whole-project table-unification survey.
+        # `Bluebook::Mutation.sign_for` (command.rb) computes this once,
+        # off `Vocabulary::MutationOp` (the same table Runtime::
+        # CommandRules::Arithmetic::MUTATION_OPS is held equal to by
+        # spec/vocabulary_conformance_spec.rb) — this used to restate the
+        # fact independently via `mutation[:op].to_s == "increment"`.
+        sign = mutation[:sign].to_s == "1" ? "+" : "-"
         current = optional ? "record.#{target_field}.clone().unwrap()" : "record.#{target_field}.clone()"
         updated = "#{vo_type} { #{field_ident}: current.#{field_ident} #{sign} (#{amount_expr}), ..current }"
         Exemplar.render(

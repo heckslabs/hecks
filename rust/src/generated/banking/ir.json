@@ -188,6 +188,7 @@
             {
               "target": "reference",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "reference"
@@ -196,6 +197,7 @@
             {
               "target": "name",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "name"
@@ -204,6 +206,7 @@
             {
               "target": "email",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "email"
@@ -243,6 +246,7 @@
             {
               "target": "standing",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "standing"
@@ -272,6 +276,7 @@
             {
               "target": "standing",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "literal",
                 "value": {
@@ -757,6 +762,7 @@
             {
               "target": "number",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "number"
@@ -765,6 +771,7 @@
             {
               "target": "kind",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "kind"
@@ -773,6 +780,7 @@
             {
               "target": "daily_limit",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "daily_limit"
@@ -821,6 +829,7 @@
             {
               "target": "balance",
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -829,6 +838,7 @@
             {
               "target": "ledger",
               "op": "append",
+              "sign": "",
               "fields": {
                 "amount": ":amount",
                 "narrative": ":narrative",
@@ -895,6 +905,7 @@
             {
               "target": "balance",
               "op": "decrement",
+              "sign": "-1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -903,6 +914,7 @@
             {
               "target": "ledger",
               "op": "append",
+              "sign": "",
               "fields": {
                 "amount": ":amount",
                 "narrative": ":narrative",
@@ -1023,6 +1035,7 @@
             {
               "target": "balance",
               "op": "decrement",
+              "sign": "-1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1031,6 +1044,7 @@
             {
               "target": "fees_cents",
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1074,6 +1088,7 @@
             {
               "target": "balance",
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1082,6 +1097,7 @@
             {
               "target": "fees_cents",
               "op": "decrement",
+              "sign": "-1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1121,6 +1137,7 @@
             {
               "target": "balance",
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1129,6 +1146,7 @@
             {
               "target": "interest_cents",
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1176,6 +1194,7 @@
             {
               "target": "balance",
               "op": "decrement",
+              "sign": "-1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1184,6 +1203,7 @@
             {
               "target": "interest_cents",
               "op": "decrement",
+              "sign": "-1",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -1340,6 +1360,7 @@
                 {
                   "target": "amount",
                   "op": "increment",
+                  "sign": "1",
                   "source": {
                     "kind": "argument",
                     "name": "adjustment"
@@ -1348,6 +1369,7 @@
                 {
                   "target": "narrative",
                   "op": "set",
+                  "sign": "",
                   "source": {
                     "kind": "argument",
                     "name": "narrative"
@@ -1395,6 +1417,7 @@
                 {
                   "target": "narrative",
                   "op": "set",
+                  "sign": "",
                   "source": {
                     "kind": "argument",
                     "name": "narrative"
@@ -1897,6 +1920,7 @@
             {
               "target": "serial",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "serial"
@@ -1905,6 +1929,7 @@
             {
               "target": "daily_fee",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "daily_fee"
@@ -1948,6 +1973,7 @@
             {
               "target": "nickname",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "nickname"
@@ -2000,6 +2026,7 @@
             {
               "target": "withdrawals",
               "op": "append",
+              "sign": "",
               "fields": {
                 "cents": ":cents",
                 "narrative": ":narrative"
@@ -2174,6 +2201,7 @@
                 {
                   "target": "narrative",
                   "op": "set",
+                  "sign": "",
                   "source": {
                     "kind": "argument",
                     "name": "narrative"
@@ -2469,6 +2497,7 @@
             {
               "target": "amount",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -2477,6 +2506,7 @@
             {
               "target": "narrative",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "narrative"
@@ -2485,6 +2515,7 @@
             {
               "target": "source",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "source"
@@ -2493,6 +2524,7 @@
             {
               "target": "destination",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "destination"
@@ -2954,6 +2986,7 @@
             {
               "target": "amount",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -2962,6 +2995,7 @@
             {
               "target": "merchant",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "merchant"
@@ -2970,6 +3004,7 @@
             {
               "target": "tags",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "tags"
@@ -3129,6 +3164,7 @@
             {
               "target": "disputed_by",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "disputed_by"
@@ -3517,6 +3553,7 @@
             {
               "target": "amount",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -3525,6 +3562,7 @@
             {
               "target": "beneficiary",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "beneficiary"
@@ -3533,6 +3571,7 @@
             {
               "target": "direction",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "direction"
@@ -3959,6 +3998,7 @@
             {
               "target": "amount",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "amount"
@@ -3967,6 +4007,7 @@
             {
               "target": "recipient",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "recipient"
@@ -3975,6 +4016,7 @@
             {
               "target": "due_on",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "due_on"
@@ -4105,6 +4147,7 @@
             {
               "target": "attempts",
               "op": "increment",
+              "sign": "1",
               "source": {
                 "kind": "literal",
                 "value": {
@@ -4515,6 +4558,7 @@
             {
               "target": "size",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "size"
@@ -4601,6 +4645,7 @@
             {
               "target": "visits",
               "op": "append",
+              "sign": "",
               "fields": {
                 "date": ":date",
                 "sequence": ":sequence",
@@ -4645,6 +4690,7 @@
             {
               "target": "keys",
               "op": "append",
+              "sign": "",
               "fields": {
                 "serial": ":serial"
               }
@@ -4778,6 +4824,7 @@
                 {
                   "target": "note",
                   "op": "set",
+                  "sign": "",
                   "source": {
                     "kind": "argument",
                     "name": "note"
@@ -5065,6 +5112,7 @@
             {
               "target": "reference",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "reference"
@@ -5073,6 +5121,7 @@
             {
               "target": "account_number",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "account_number"

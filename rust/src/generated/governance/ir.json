@@ -225,6 +225,7 @@
             {
               "target": "ends_at",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "ends_at"
@@ -411,6 +412,7 @@
             {
               "target": "ends_at",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "ends_at"

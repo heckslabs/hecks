@@ -91,6 +91,7 @@
                 "value": ":event"
               },
               "op": "append",
+              "sign": "",
               "target": "subscriptions"
             }
           ],
@@ -128,6 +129,7 @@
                 "value": ":member"
               },
               "op": "append",
+              "sign": "",
               "target": "framework_members"
             }
           ],

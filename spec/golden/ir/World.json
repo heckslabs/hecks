@@ -333,6 +333,7 @@
                 "value": ":value"
               },
               "op": "append",
+              "sign": "",
               "target": "settings"
             }
           ],

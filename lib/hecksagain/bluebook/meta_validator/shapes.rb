@@ -208,8 +208,17 @@ module Hecksagain
             .map { |(target, op), bindings| mutation(target, op, bindings) }
         end
 
+        # `sign:` — read the SAME way the declared side computes it
+        # (`Bluebook::Mutation.sign_for`, item #5 of the whole-project
+        # table-unification survey), not stored on any row here — the
+        # meta-domain's own Change entity carries no `sign` field of its
+        # own (it is a pure function of `op`, nothing to persist), so
+        # reconstruction recomputes it the same way a freshly-built
+        # Mutation's own `to_h` lambda does, rather than leaving the key
+        # silently absent (spec/round_trip_spec's whole point: a field the
+        # language does not hold is a named gap, not a byte-for-byte one).
         def mutation(target, op, bindings)
-          base = { target: target.to_sym, op: op.to_sym }
+          base = { target: target.to_sym, op: op.to_sym, sign: Hecksagain::Bluebook::Mutation.sign_for(op) }
           return base.merge(fields: appended(bindings)) if op == "append"
 
           base.merge(source: classified(bindings.first))

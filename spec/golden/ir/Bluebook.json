@@ -166,6 +166,7 @@
                 "value": ":context"
               },
               "op": "append",
+              "sign": "",
               "target": "attaches_to"
             }
           ],
@@ -243,6 +244,7 @@
                 "strategy": ":strategy"
               },
               "op": "append",
+              "sign": "",
               "target": "normalisations"
             }
           ],
@@ -754,6 +756,7 @@
                 "value": ":path"
               },
               "op": "append",
+              "sign": "",
               "target": "identified_by"
             }
           ],
@@ -851,6 +854,7 @@
                 "type": ":type"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -948,6 +952,7 @@
                 "type": ":points_at"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -1045,6 +1050,7 @@
                 "type": ":holds"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -1088,6 +1094,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_field"
@@ -1096,6 +1103,7 @@
             },
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_start"
@@ -1157,6 +1165,7 @@
                 "to_state": ":to_state"
               },
               "op": "append",
+              "sign": "",
               "target": "transitions"
             }
           ],
@@ -1220,6 +1229,7 @@
                 "name": ":name"
               },
               "op": "append",
+              "sign": "",
               "target": "value_objects"
             }
           ],
@@ -1274,6 +1284,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "invariants"
             }
           ],
@@ -1328,6 +1339,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "preconditions"
             }
           ],
@@ -1396,6 +1408,7 @@
                 "remote_field": ":remote_field"
               },
               "op": "append",
+              "sign": "",
               "target": "projected_fields"
             }
           ],
@@ -2181,6 +2194,7 @@
                 "type": ":type"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -2278,6 +2292,7 @@
                 "type": ":points_at"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -2332,6 +2347,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "givens"
             }
           ],
@@ -2386,6 +2402,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "ensures"
             }
           ],
@@ -2470,6 +2487,7 @@
                 "target": ":target"
               },
               "op": "append",
+              "sign": "",
               "target": "mutations"
             }
           ],
@@ -2511,6 +2529,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "root"
@@ -2555,6 +2574,7 @@
                 "name": ":announces"
               },
               "op": "append",
+              "sign": "",
               "target": "emits"
             }
           ],
@@ -3285,6 +3305,7 @@
                 "value": ":value"
               },
               "op": "append",
+              "sign": "",
               "target": "wheres"
             }
           ],
@@ -3355,6 +3376,7 @@
                 "value": ":value"
               },
               "op": "append",
+              "sign": "",
               "target": "options"
             }
           ],
@@ -3452,6 +3474,7 @@
                 "type": ":type"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -3949,6 +3972,7 @@
                 "type": ":type"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -3986,6 +4010,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "rows"
@@ -4044,6 +4069,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "invariants"
             }
           ],
@@ -4081,6 +4107,7 @@
                 "position": ":position"
               },
               "op": "append",
+              "sign": "",
               "target": "members"
             }
           ],
@@ -4156,6 +4183,7 @@
                     "value": ":value"
                   },
                   "op": "append",
+                  "sign": "",
                   "target": "pairs"
                 }
               ],
@@ -4732,6 +4760,7 @@
                 "value": ":path"
               },
               "op": "append",
+              "sign": "",
               "target": "identified_by"
             }
           ],
@@ -4855,6 +4884,7 @@
                 "type": ":type"
               },
               "op": "append",
+              "sign": "",
               "target": "attributes"
             }
           ],
@@ -4909,6 +4939,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "preconditions"
             }
           ],
@@ -4963,6 +4994,7 @@
                 "description": ":description"
               },
               "op": "append",
+              "sign": "",
               "target": "invariants"
             }
           ],
@@ -5006,6 +5038,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_field"
@@ -5014,6 +5047,7 @@
             },
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "state_start"
@@ -5075,6 +5109,7 @@
                 "to_state": ":to_state"
               },
               "op": "append",
+              "sign": "",
               "target": "transitions"
             }
           ],
@@ -5606,6 +5641,7 @@
                 "value": ":value"
               },
               "op": "append",
+              "sign": "",
               "target": "with_spec"
             }
           ],
@@ -5947,6 +5983,7 @@
                 "name": ":name"
               },
               "op": "append",
+              "sign": "",
               "target": "states"
             }
           ],
@@ -6004,6 +6041,7 @@
                 "to_state": ":to_state"
               },
               "op": "append",
+              "sign": "",
               "target": "handlers"
             }
           ],
@@ -6084,6 +6122,7 @@
                     "command_name": ":command_name"
                   },
                   "op": "append",
+                  "sign": "",
                   "target": "dispatches"
                 }
               ],
@@ -6156,6 +6195,7 @@
                         "value": ":value"
                       },
                       "op": "append",
+                      "sign": "",
                       "target": "with_spec"
                     }
                   ],
@@ -8394,6 +8434,7 @@
                 "word": ":word"
               },
               "op": "append",
+              "sign": "",
               "target": "keywords"
             }
           ],
@@ -8551,6 +8592,7 @@
                 "variadic": ":variadic"
               },
               "op": "append",
+              "sign": "",
               "target": "arguments"
             }
           ],
@@ -17943,6 +17985,7 @@
                 "many": ":many"
               },
               "op": "append",
+              "sign": "",
               "target": "aggregate_heads"
             }
           ],
@@ -17983,6 +18026,7 @@
                 "field": ":field"
               },
               "op": "append",
+              "sign": "",
               "target": "group_by"
             }
           ],
@@ -18017,6 +18061,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "count"
@@ -18058,6 +18103,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "median_field"
@@ -18132,6 +18178,7 @@
                 "value": ":value"
               },
               "op": "append",
+              "sign": "",
               "target": "options"
             }
           ],

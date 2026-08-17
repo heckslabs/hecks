@@ -126,6 +126,7 @@
                 "name": ":topping"
               },
               "op": "append",
+              "sign": "",
               "target": "toppings"
             }
           ],
@@ -180,6 +181,7 @@
           "mutations": [
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "customer_name"
@@ -188,6 +190,7 @@
             },
             {
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "literal",
                 "value": "sold"

@@ -390,7 +390,10 @@ fn emit_mutation_line_body(
             let vo_type = naming::rust_ident(crate::attr::type_name(target_attr));
             let field_ident = naming::rust_ident_field(&integer_field);
             let amount_expr = crate::bridging::arithmetic_amount_expr(mutation.get("source").unwrap_or(&Json::Null), command, value_objects_by_name, &integer_field).expect("arithmetic amount must resolve");
-            let sign = if op == "increment" { "+" } else { "-" };
+            // THE IR'S OWN sign FIELD, not re-derived from the op NAME —
+            // port of rust/project/mutations.rb's own fix; see that
+            // file's comment for the full argument.
+            let sign = if mutation.get("sign").map(Json::to_s).unwrap_or_default() == "1" { "+" } else { "-" };
             let current = if optional { format!("record.{target_field}.clone().unwrap()") } else { format!("record.{target_field}.clone()") };
             let updated = format!("{vo_type} {{ {field_ident}: current.{field_ident} {sign} ({amount_expr}), ..current }}");
             exemplar.render(

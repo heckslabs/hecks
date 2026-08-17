@@ -1,4 +1,5 @@
 require_relative "behaviour/command"
+require_relative "../vocabulary"
 
 module Hecksagain
   module Bluebook
@@ -8,7 +9,26 @@ module Hecksagain
       include Hecksagain::IR
       include Behaviour::Mutation
 
-      emits_ir(target: :target, op: :op)
+      # `sign:` — item #5 of the whole-project table-unification survey.
+      # `increment`/`decrement`'s own +1/-1 used to be re-derived from the
+      # op NAME by two independent Rust codegen scripts (rust/project/
+      # mutations.rb, rust/codegen/src/mutations.rs — a ternary on
+      # `op == "increment"` in each), even though the fact was already
+      # table-driven on the Ruby runtime side
+      # (Runtime::CommandRules::Arithmetic::MUTATION_OPS, held equal to
+      # Vocabulary::MutationOp by spec/vocabulary_conformance_spec.rb).
+      # Reads `Vocabulary::MutationOp` directly (plain data, no framework
+      # dependency — safe during parsing, same reason `RuleReference`'s
+      # own bootstrap concerns don't apply here) rather than requiring
+      # Runtime::CommandRules from the bluebook/IR layer, which would be a
+      # real layering inversion (runtime depends on bluebook, not the
+      # reverse). "" (not nil) for ops with no sign, matching every other
+      # optional IR text field's own absent-is-empty-string convention.
+      def self.sign_for(op)
+        Hecksagain::Vocabulary.rows("MutationOp").find { |row| row["name"] == op.to_s }&.fetch("sign", "") || ""
+      end
+
+      emits_ir(target: :target, op: :op, sign: -> { Mutation.sign_for(op) })
 
       # THE ONE GENUINELY BRANCHING EMISSION in the model: an append
       # binds several fields at once and carries `fields:`, everything
