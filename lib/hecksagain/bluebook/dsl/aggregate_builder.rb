@@ -284,6 +284,7 @@ module Hecksagain
         # ambiguous) are this construct's OWN refusal wording, not
         # shared, since `declared_by:` only exists here so far.
         def reference_named_chapter_given(description, declared_by:)
+          verify_resolves_via!("given", "Aggregate", "owner_keyed")
           candidates = resolve_owner_keyed(@chapter_named_givens, description)
 
           named =

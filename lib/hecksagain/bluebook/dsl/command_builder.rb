@@ -137,6 +137,7 @@ module Hecksagain
         # same predicate — is exactly the shape this second pool exists
         # for.
         def reference_named_given(description)
+          verify_resolves_via!("given", "Command", "hash_chain")
           named = resolve_hash_chain([@named_givens, @entity_shared_givens], description) ||
                   raise(Malformed,
                         "#{@name}'s given #{description.inspect} names no precondition " \
