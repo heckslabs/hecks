@@ -23,8 +23,8 @@ module Hecksagain
       # is wrong here (it would explode a plain record Hash into its own
       # key/value pairs), so the two shapes are told apart explicitly.
       def react(event, domain)
-        policies_for(event, domain).each do |policy|
-          result = deliver(policy, event, domain)
+        policies_for(event).each do |policy, home_domain|
+          result = deliver(policy, event, home_domain)
           next if result.nil?
 
           (result.is_a?(Array) ? result : [result]).each { |record| @registry.reaction_log << record }
@@ -33,15 +33,33 @@ module Hecksagain
 
       private
 
-      def policies_for(event, domain)
-        bluebook = @registry.bluebook(domain)
-        return [] unless bluebook
-
+      # SCANS EVERY LOADED BLUEBOOK, not just the emitting command's own —
+      # a policy commonly lives in the CONSUMER's bluebook, reacting
+      # passively to an event a different domain's aggregate emits (the
+      # corpus-standard shape : `world/conception/bluebook/domain_cell.bluebook`'s
+      # ConceiveOnAbsorption reacts `on "DomainAbsorbed"`, an event
+      # `body/organs/bluebook/gut.bluebook`'s Gut.Absorb emits — two
+      # different bluebooks, joined only by the event's NAME). Restricting
+      # the scan to the emitting domain's own bluebook (the previous
+      # shape) silently drops every cross-domain reaction : the policy is
+      # never even a candidate, no refusal, no log entry, nothing —
+      # confirmed against the corpus's own .behaviors fixtures, several of
+      # which encode this exact cross-bluebook cascade as their contract.
+      #
+      # Returns [policy, home_domain] pairs rather than bare policies —
+      # `deliver`/`deliver_for_each` fall back to the REACTING policy's
+      # OWN domain (not the emitting one) when a trigger or for_each route
+      # is bare, and that fallback has to travel with each match now that
+      # a single event can surface policies from several different homes.
+      def policies_for(event)
         emitting = Naming.demodulise(event.aggregate)
 
-        bluebook.policies.select do |policy|
-          policy.event_name == event.name &&
-            (policy.event_qualifier.nil? || policy.event_qualifier == emitting)
+        @registry.bluebooks.each_value.flat_map do |bluebook|
+          matching = bluebook.policies.select do |policy|
+            policy.event_name == event.name &&
+              (policy.event_qualifier.nil? || policy.event_qualifier == emitting)
+          end
+          matching.map { |policy| [policy, bluebook.name] }
         end
       end
 
