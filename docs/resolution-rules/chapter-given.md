@@ -102,4 +102,5 @@ asks — genuinely the same rule, not just the same words.
 
 ## Reference mirror
 
-NOT YET MIRRORED.
+- `rust/parser/src/parse/chapter.rs` — `parse_body_into` (`chapter_named_givens: Vec<ir::Given>`, scoped PER FILE, not across `parse_chapter`'s own multi-file loop — matching Ruby's `Hecks.bluebook` minting a fresh `BluebookBuilder`, and therefore a fresh pool, on every call, even when several files declare the same chapter name).
+- `rust/parser/src/parse/aggregate.rs` — `parse_body` (gains `chapter_named_givens: &mut Vec<ir::Given>`), `try_reference_named_chapter_given` (the bare-form peek, mirroring `parse::command::try_reference_named_given`'s own shape one level up), the `"given"` match arm's own write-through.
