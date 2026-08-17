@@ -13,14 +13,19 @@
 //
 // Because a real dispatch site now exists, `bin/project_kernel_
 // capabilities` no longer regenerates this file (see its own header,
-// where that decision is made and explained). The eight variant NAMES
-// are still exactly `Hecksagain::QuerySpecification::Common::COMPARATORS`
+// where that decision is made and explained). The variant NAMES are
+// still exactly `Hecksagain::QuerySpecification::Common::COMPARATORS`
 // (lib/hecksagain/query_specification/common/comparators.rb) — the same
 // set `Vocabulary::QueryComparator` (language/bluebook/vocabulary.bluebook)
-// declares and spec/vocabulary_conformance_spec holds the runtime to.
-// That ground truth didn't change; only who's responsible for keeping
-// this file in sync with it did — a human, now, the same way every OTHER
-// hand-written interpretation file under rust/src/kernel/ already is.
+// declares and spec/vocabulary_conformance_spec holds the runtime to. NINE
+// now, not eight — `NoneInState` (item #9, whole-project table-
+// unification survey) closed the gap this header used to describe: for a
+// long stretch, `Vocabulary::QueryComparator` had already grown a ninth
+// name (`none_in_state`, "a vendored addition" per vocabulary.bluebook's
+// own comment) that this enum simply never caught up to. That ground
+// truth didn't change; only who's responsible for keeping this file in
+// sync with it did — a human, now, the same way every OTHER hand-written
+// interpretation file under rust/src/kernel/ already is.
 //
 // GROUND TRUTH FOR THE MATCHING LOGIC ITSELF, read directly rather than
 // guessed at: `Ports::Query::InMemory#holds?` (lib/hecksagain/ports/
@@ -53,6 +58,14 @@
 // hop/a type-unrecoverable literal comparator are the REMAINING gap —
 // `rust/project/queries.rb`'s own header has the full argument for why
 // each of those specifically stays ungenerated rather than forced.
+// `NoneInState` is a NINTH remaining gap, of a different shape — its own
+// enum variant, `parse`, and matching logic (`none_in_state_matches`,
+// below) all exist and are proven correct, but `rust/project/queries.rb`
+// still deliberately never generates a `none_in_state` condition (that
+// file's own comment on `QUERY_COMPARATOR_VARIANTS` has the real reason:
+// no generated call site can hand it the cross-domain search list it
+// needs yet, so generating one today would silently answer every row
+// `true` rather than a real anti-join).
 
 use super::Json;
 
@@ -66,6 +79,14 @@ pub enum QueryComparator {
     Lte,
     In,
     Contains,
+    /// THE NINTH, LATE-ADDED comparator — `Vocabulary::QueryComparator`
+    /// declared it long before this enum caught up (item #9, whole-
+    /// project table-unification survey). A CROSS-AGGREGATE ANTI-JOIN,
+    /// not a plain value comparison — `held`/`want` alone can never
+    /// answer it, so it is deliberately NOT wired into `matches` below
+    /// the way the other eight are; see `none_in_state_matches` and
+    /// `repository.rs`'s `filter_entries_cross_domain`.
+    NoneInState,
 }
 
 impl QueryComparator {
@@ -78,6 +99,7 @@ impl QueryComparator {
         QueryComparator::Lte,
         QueryComparator::In,
         QueryComparator::Contains,
+        QueryComparator::NoneInState,
     ];
 
     /// The wire's `op` string, read against the closed set — `None` for
@@ -105,6 +127,7 @@ impl QueryComparator {
             "lte" => Some(QueryComparator::Lte),
             "in" => Some(QueryComparator::In),
             "contains" => Some(QueryComparator::Contains),
+            "none_in_state" => Some(QueryComparator::NoneInState),
             _ => None,
         }
     }
@@ -124,8 +147,72 @@ impl QueryComparator {
             QueryComparator::Lte => ordered(held, want) && as_f64(held) <= as_f64(want),
             QueryComparator::In => members(want).iter().any(|member| member == &to_s(held)),
             QueryComparator::Contains => contains(held, want),
+            // `held`/`want` alone can never answer this — it needs a
+            // REPOSITORY (possibly another domain's own), which this
+            // total, side-channel-free function has no way to receive.
+            // `repository.rs`'s `filter_entries_cross_domain` special-
+            // cases `NoneInState` and calls `none_in_state_matches`
+            // BEFORE ever reaching here — this arm exists only so the
+            // match stays exhaustive, and its answer is the SAME safe
+            // default `none_in_state_matches` itself falls back to with
+            // no repository access (Ruby's own `return true unless
+            // registry` — "not excluded" rather than a wrong answer or a
+            // panic), for the one caller that could ever reach it: a
+            // future direct `.matches()` call that bypasses the cross-
+            // domain-aware path this comparator actually needs.
+            QueryComparator::NoneInState => true,
         }
     }
+}
+
+/// `Comparison#none_in_state?` (lib/hecksagain/query_specification/
+/// common/comparison.rb), ported directly — the ONE comparator this
+/// kernel answers with real repository access rather than a pure `held`/
+/// `want` comparison. `want` is `"Aggregate:state"` (already `comparable`
+/// -reduced like every other comparator's own `want`, but this one's
+/// value is always a plain string wire literal in practice — the where-
+/// clause's own RHS, never a caller-bound arg); `held` is the referring
+/// record's own foreign-key field, read the SAME `comparable`-reduced way
+/// every other comparator's `held` already is.
+///
+/// `cross_domain` — `(domain name, that domain's own AggregateScan)`
+/// pairs, searched in order, first match wins — mirrors Ruby's own
+/// `find_aggregate_by_name`'s `registry.bluebooks.each` exactly (a bare
+/// aggregate name is ambiguous across domains in principle; Ruby doesn't
+/// refuse on the ambiguity, it picks the first, since a where-clause
+/// never raises). An EMPTY slice — every real production caller today,
+/// `filter_entries`'s own thin wrapper below — answers `true`
+/// unconditionally, the same "not excluded" default Ruby's own `return
+/// true unless registry` falls back to when nothing is threaded through:
+/// no REAL deployed Lambda ever populates a second domain's own Store in
+/// the same running process (rust/src/generated/mod.rs's own header —
+/// `active` is a Cargo-feature choice of exactly one), so this default is
+/// not a placeholder waiting to be wired up, it is the honest, permanent
+/// answer for every real caller that exists today. The search-every-
+/// domain MECHANISM itself is proven correct below (`#[cfg(test)]`)
+/// against a synthetic multi-domain fixture, matching Ruby's own code
+/// path — not against anything a real corpus or a real deployment
+/// exercises, since nothing does.
+pub fn none_in_state_matches(cross_domain: &[(&str, &dyn super::AggregateScan)], held: &Json, want: &Json) -> bool {
+    let Some((aggregate_name, state)) = to_s(want).split_once(':').map(|(a, s)| (a.to_string(), s.to_string()))
+    else {
+        return true;
+    };
+    let held_id = to_s(held);
+
+    for (domain_name, store) in cross_domain {
+        let qualified = format!("{domain_name}::{aggregate_name}");
+        let Some(entries) = store.scan(&qualified) else { continue };
+
+        let Some((_, record)) = entries.iter().find(|(id, _)| *id == held_id) else { return true };
+        let record_state = comparable(&record.dig("state").cloned().unwrap_or(Json::Null));
+        return to_s(&record_state) != state;
+    }
+
+    // No domain in the search list declares this aggregate at all —
+    // Ruby's own `find_aggregate_by_name` returns `nil` the same way,
+    // and `none_in_state?` reads that the same as "not excluded".
+    true
 }
 
 /// gt/gte/lt/lte are numeric-only and silently FALSE otherwise — ported
@@ -221,4 +308,117 @@ fn contains(held: &Json, want: &Json) -> bool {
         return members(held).iter().any(|member| member == &to_s(want));
     }
     to_s(held).contains(&to_s(want))
+}
+
+// Item #9, whole-project table-unification survey — `none_in_state_matches`
+// had zero coverage of its own before this (the real corpus's one usage,
+// spec/query_none_in_state_growth_spec.rb, exercises Ruby's OWN
+// `none_in_state?` end to end, never this Rust port). Proven here against
+// a hand-rolled multi-domain `AggregateScan` fixture — the SAME-DOMAIN
+// cases mirror that Ruby spec's own scenario exactly (a `Claim` a
+// `Board::Assignment` points at, "held" vs "released" vs never-filed); the
+// CROSS-DOMAIN cases have no real corpus or deployment analog at all (this
+// file's own header on `none_in_state_matches` has the full story) — they
+// prove the search-every-domain MECHANISM matches Ruby's own
+// `registry.bluebooks.each`/`find_aggregate_by_name`, first-match-wins
+// included, not that any real caller exercises it. `#[cfg(test)]` only —
+// compiled out of every real build.
+#[cfg(test)]
+mod none_in_state_tests {
+    use super::{none_in_state_matches, Json};
+    use crate::kernel::AggregateScan;
+
+    /// A hand-rolled stand-in for a real generated `Store` — `domain`
+    /// plus `(bare aggregate name, entries)` pairs, searched by the SAME
+    /// domain-qualified name (`"Domain::Aggregate"`) a real `Store::scan`
+    /// matches against. Real generated stores never coexist like this in
+    /// one process (see this module's own header) — this fixture is what
+    /// lets the search-every-domain mechanism be proven correct anyway.
+    struct FakeStore {
+        domain: &'static str,
+        aggregates: Vec<(&'static str, Vec<(String, Json)>)>,
+    }
+
+    impl AggregateScan for FakeStore {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            let bare = aggregate.strip_prefix(&format!("{}::", self.domain))?;
+            self.aggregates.iter().find(|(name, _)| *name == bare).map(|(_, entries)| entries.clone())
+        }
+    }
+
+    /// One stored record whose own `state` attribute is a single-field
+    /// value object — `ClaimState { value: "held" }`, matching the real
+    /// corpus fixture's own shape exactly (`comparable` unwraps this the
+    /// same way it unwraps any other single-field VO).
+    fn record_in_state(state: &str) -> Json {
+        Json::obj(vec![("state", Json::obj(vec![("value", Json::str(state))]))])
+    }
+
+    #[test]
+    fn with_no_domains_to_search_answers_vacuously_true() {
+        // Ruby's own `return true unless registry` — the default every
+        // real production caller gets today (repository.rs's own
+        // `filter_entries` passes an empty list).
+        assert!(none_in_state_matches(&[], &Json::str("c1"), &Json::str("Claim:held")));
+    }
+
+    #[test]
+    fn excludes_a_row_whose_target_is_currently_in_the_named_state() {
+        let store = FakeStore { domain: "AntiJoinGrowth", aggregates: vec![("Claim", vec![("c1".into(), record_in_state("held"))])] };
+        let stores: Vec<(&str, &dyn AggregateScan)> = vec![("AntiJoinGrowth", &store)];
+        assert!(!none_in_state_matches(&stores, &Json::str("c1"), &Json::str("Claim:held")));
+    }
+
+    #[test]
+    fn keeps_a_row_whose_target_has_moved_out_of_the_named_state() {
+        let store = FakeStore { domain: "AntiJoinGrowth", aggregates: vec![("Claim", vec![("c2".into(), record_in_state("released"))])] };
+        let stores: Vec<(&str, &dyn AggregateScan)> = vec![("AntiJoinGrowth", &store)];
+        assert!(none_in_state_matches(&stores, &Json::str("c2"), &Json::str("Claim:held")));
+    }
+
+    #[test]
+    fn keeps_a_row_whose_target_was_never_filed_at_all() {
+        // "no record in that state" reads the same as "a record, but not
+        // in that state" — the real spec fixture's own "nonexistent"
+        // case, ported.
+        let store = FakeStore { domain: "AntiJoinGrowth", aggregates: vec![("Claim", vec![])] };
+        let stores: Vec<(&str, &dyn AggregateScan)> = vec![("AntiJoinGrowth", &store)];
+        assert!(none_in_state_matches(&stores, &Json::str("nonexistent"), &Json::str("Claim:held")));
+    }
+
+    #[test]
+    fn keeps_every_row_when_no_domain_declares_the_named_aggregate_at_all() {
+        let store = FakeStore { domain: "AntiJoinGrowth", aggregates: vec![] };
+        let stores: Vec<(&str, &dyn AggregateScan)> = vec![("AntiJoinGrowth", &store)];
+        assert!(none_in_state_matches(&stores, &Json::str("c1"), &Json::str("NoSuchAggregate:held")));
+    }
+
+    #[test]
+    fn searches_a_second_domain_when_the_first_does_not_declare_the_aggregate() {
+        // THE CROSS-DOMAIN CASE — no real corpus or deployment analog
+        // (this file's own header), but Ruby's own `find_aggregate_by_
+        // name` genuinely searches every loaded domain, so this proves
+        // the Rust mechanism matches that exactly.
+        let domain_a = FakeStore { domain: "DomainA", aggregates: vec![("Widget", vec![])] };
+        let domain_b =
+            FakeStore { domain: "DomainB", aggregates: vec![("Claim", vec![("c1".into(), record_in_state("held"))])] };
+        let stores: Vec<(&str, &dyn AggregateScan)> = vec![("DomainA", &domain_a), ("DomainB", &domain_b)];
+        assert!(!none_in_state_matches(&stores, &Json::str("c1"), &Json::str("Claim:held")));
+    }
+
+    #[test]
+    fn first_match_wins_when_two_domains_declare_the_same_bare_aggregate_name() {
+        // Mirrors Ruby's OWN documented ambiguity policy
+        // (comparison.rb's `find_aggregate_by_name`: "ambiguity ...
+        // picks the first match rather than refusing") — proving the
+        // SEARCH ORDER itself, not merely that some match exists:
+        // DomainA's own "c1" is "held" (excludes); DomainB's is
+        // "released" (would keep) — if the search consulted DomainB
+        // instead of stopping at DomainA, this would wrongly read `true`.
+        let first = FakeStore { domain: "DomainA", aggregates: vec![("Claim", vec![("c1".into(), record_in_state("held"))])] };
+        let second =
+            FakeStore { domain: "DomainB", aggregates: vec![("Claim", vec![("c1".into(), record_in_state("released"))])] };
+        let stores: Vec<(&str, &dyn AggregateScan)> = vec![("DomainA", &first), ("DomainB", &second)];
+        assert!(!none_in_state_matches(&stores, &Json::str("c1"), &Json::str("Claim:held")));
+    }
 }

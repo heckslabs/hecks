@@ -184,8 +184,13 @@ module RustProjection
       op = where[:op].to_s
       unless QUERY_COMPARATOR_VARIANTS.key?(op)
         return "where clause on #{field.inspect} uses op #{op.inspect} — Vocabulary::QueryComparator admits it, " \
-               "but rust/src/kernel/query_comparators.rs's own hand-maintained enum has no matching variant yet " \
-               "(item #9, whole-project table-unification survey); not generated until that catches up"
+               "and rust/src/kernel/query_comparators.rs's own QueryComparator::NoneInState variant now exists " \
+               "and is proven correct (item #9, whole-project table-unification survey) — but no generated " \
+               "domain has any way to hand it a cross-domain search list at the call site (named_query::run's " \
+               "own thin `run_cross_domain([])` wrapper is what every generated QUERIES table actually calls), " \
+               "so generating this condition today would silently answer every row 'true' rather than a real " \
+               "anti-join — deliberately left ungenerated until a real cross-domain-search call site exists, " \
+               "the same honest-refusal-over-silently-wrong choice this generator makes everywhere else"
       end
       if COMPARATORS_NEEDING_NUMERIC_FIDELITY.include?(op)
         return "where clause on #{field.inspect} uses op #{op.inspect} against a LITERAL value — gt/gte/lt/lte need " \
@@ -332,9 +337,15 @@ module RustProjection
     # `admits: "Vocabulary::QueryComparator"`) to its Rust `QueryComparator`
     # variant name. `Vocabulary::QueryComparator` itself declares NINE names
     # (`none_in_state` was added later — vocabulary.bluebook's own comment
-    # calls it "a vendored addition") but `rust/src/kernel/query_
-    # comparators.rs`'s own hand-maintained enum was never updated to match
-    # — only the eight this hash still lists are real Rust variants.
+    # calls it "a vendored addition") — `rust/src/kernel/query_comparators
+    # .rs`'s own `QueryComparator::NoneInState` variant DOES exist now
+    # (item #9, whole-project table-unification survey), proven correct
+    # against a synthetic multi-domain fixture, but this hash still
+    # DELIBERATELY excludes it: `query_where_skip_reason` (above)'s own
+    # comment has the real reason (no generated call site can hand it a
+    # cross-domain search list yet — generating it today would silently
+    # answer every row `true`, never a real anti-join). Only the eight
+    # this hash lists get a real generated row.
     # `query_where_skip_reason` (above) checks this BEFORE a query reaches
     # `query_comparator_variant` below, so the `raise` there stays the
     # "should be unreachable" backstop it always was, not the primary gate.

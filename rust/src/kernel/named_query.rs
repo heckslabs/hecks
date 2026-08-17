@@ -122,6 +122,25 @@ pub enum QueryConditionValue {
 /// here is domain-specific, only the `QueryDef` data a generated `QUERIES`
 /// table hands it is.
 pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json) -> Result<Vec<(String, Json)>, Refusal> {
+    run_cross_domain(store, def, args, &[])
+}
+
+/// `run`'s own real implementation, with one addition: an explicit
+/// `cross_domain` search list threaded straight through to `repository::
+/// filter_entries_cross_domain` for any condition using `NoneInState`
+/// (see that function's own header, and query_comparators.rs's). `run`
+/// above passes an empty list, matching `filter_entries`'s own thin-
+/// wrapper shape — every real declared `query "X" do ... end` a
+/// generated `QUERIES` table carries dispatches through the plain,
+/// unchanged `run` today; a `none_in_state` condition inside one answers
+/// vacuously true (Ruby's own no-registry default) the same as any other
+/// caller that hasn't threaded a cross-domain search list through.
+pub fn run_cross_domain(
+    store: &impl AggregateScan,
+    def: &QueryDef,
+    args: &Json,
+    cross_domain: &[(&str, &dyn AggregateScan)],
+) -> Result<Vec<(String, Json)>, Refusal> {
     let mut entries = store
         .scan(def.aggregate)
         .ok_or_else(|| Refusal::TypeMismatch(format!("unknown aggregate {:?}", def.aggregate)))?;
@@ -131,7 +150,8 @@ pub fn run(store: &impl AggregateScan, def: &QueryDef, args: &Json) -> Result<Ve
             QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
             QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
         };
-        entries = repository::filter_entries(entries, condition.field, condition.comparator, &want);
+        entries =
+            repository::filter_entries_cross_domain(entries, condition.field, condition.comparator, &want, cross_domain);
     }
 
     Ok(query_ordering::apply(entries, def.order_by.as_ref(), def.limit.as_ref(), args))

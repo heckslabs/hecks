@@ -150,12 +150,40 @@ pub fn filter_entries(
     comparator: super::query_comparators::QueryComparator,
     want: &super::Json,
 ) -> Vec<(String, super::Json)> {
+    filter_entries_cross_domain(entries, field, comparator, want, &[])
+}
+
+/// `filter_entries`'s own real implementation, with one addition: an
+/// explicit `cross_domain` search list for `NoneInState` (query_
+/// comparators.rs's own header has the full story on why that one
+/// comparator alone needs repository access `matches` cannot provide).
+/// `filter_entries` above is a thin, behavior-preserving wrapper passing
+/// an EMPTY list — every existing caller (every generated domain's own
+/// `registry.rs`, `named_query::run`, `cli.rs`'s ad hoc filter step) goes
+/// on calling the plain, unchanged `filter_entries` and gets `NoneInState`
+/// -as-vacuously-true, the honest default for a comparator no real
+/// deployed process can currently answer for real (see `none_in_state_
+/// matches`'s own header). Split out, rather than adding a defaulted
+/// parameter to `filter_entries` itself, so every one of those existing
+/// call sites keeps compiling completely unchanged.
+pub fn filter_entries_cross_domain(
+    entries: Vec<(String, super::Json)>,
+    field: &str,
+    comparator: super::query_comparators::QueryComparator,
+    want: &super::Json,
+    cross_domain: &[(&str, &dyn AggregateScan)],
+) -> Vec<(String, super::Json)> {
     let want = super::query_comparators::comparable(want);
     let mut matched: Vec<(String, super::Json)> = entries
         .into_iter()
         .filter(|(_, record)| {
             let held = record.dig(field).cloned().unwrap_or(super::Json::Null);
-            comparator.matches(&super::query_comparators::comparable(&held), &want)
+            let held = super::query_comparators::comparable(&held);
+            if comparator == super::query_comparators::QueryComparator::NoneInState {
+                super::query_comparators::none_in_state_matches(cross_domain, &held, &want)
+            } else {
+                comparator.matches(&held, &want)
+            }
         })
         .collect();
     matched.sort_by(|a, b| a.0.cmp(&b.0));
@@ -220,4 +248,76 @@ pub fn check_role(command_role: Option<&str>, command_name: &str, caller_role: O
         ("role", role),
         ("caller_role", caller),
     ])))
+}
+
+// Item #9, whole-project table-unification survey — an END-TO-END proof
+// that `filter_entries_cross_domain` reproduces spec/query_none_in_
+// state_growth_spec.rb's own real scenario exactly: a `Board::Assignment`
+// row's `claim_id` field, filtered by `none_in_state: "Claim:held"`,
+// against three `Claim` records (`held`, `released`, and one never filed
+// at all). Not `#[cfg(test)]`-only fixture invention — the SAME three
+// cases and the SAME expected surviving ids (`"c2"`, `"nonexistent"`) the
+// Ruby spec itself asserts (`contain_exactly("c2", "nonexistent")`),
+// proving this Rust port agrees with the real, adversarially-written
+// Ruby behavior, not merely with its own `none_in_state_matches` unit
+// tests (query_comparators.rs).
+#[cfg(test)]
+mod filter_entries_none_in_state_tests {
+    use super::{filter_entries_cross_domain, AggregateScan};
+    use crate::kernel::query_comparators::QueryComparator;
+    use crate::kernel::Json;
+
+    struct FakeStore {
+        domain: &'static str,
+        aggregates: Vec<(&'static str, Vec<(String, Json)>)>,
+    }
+
+    impl AggregateScan for FakeStore {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            let bare = aggregate.strip_prefix(&format!("{}::", self.domain))?;
+            self.aggregates.iter().find(|(name, _)| *name == bare).map(|(_, entries)| entries.clone())
+        }
+    }
+
+    fn claim_record(state: &str) -> Json {
+        Json::obj(vec![("state", Json::obj(vec![("value", Json::str(state))]))])
+    }
+
+    fn assignment_record(claim_id: &str) -> Json {
+        Json::obj(vec![("claim_id", Json::str(claim_id))])
+    }
+
+    #[test]
+    fn matches_the_real_ruby_spec_s_own_expected_surviving_ids() {
+        let claims = FakeStore {
+            domain: "AntiJoinGrowth",
+            aggregates: vec![(
+                "Claim",
+                vec![
+                    ("c1".into(), claim_record("held")),     // stays held -> excluded
+                    ("c2".into(), claim_record("released")), // no longer held -> kept
+                ],
+            )],
+        };
+        let cross_domain: Vec<(&str, &dyn AggregateScan)> = vec![("AntiJoinGrowth", &claims)];
+
+        let assignments = vec![
+            ("b1:c1".to_string(), assignment_record("c1")),
+            ("b1:c2".to_string(), assignment_record("c2")),
+            // "nonexistent" -> no Claim record at all -> kept
+            ("b1:c3".to_string(), assignment_record("nonexistent")),
+        ];
+
+        let matched = filter_entries_cross_domain(
+            assignments,
+            "claim_id",
+            QueryComparator::NoneInState,
+            &Json::str("Claim:held"),
+            &cross_domain,
+        );
+
+        let claim_ids: Vec<&str> =
+            matched.iter().map(|(_, record)| record.dig("claim_id").and_then(Json::as_str).unwrap()).collect();
+        assert_eq!(claim_ids, vec!["c2", "nonexistent"]);
+    }
 }

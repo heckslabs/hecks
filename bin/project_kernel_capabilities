@@ -70,10 +70,13 @@
 # way `cli.rs`/`dispatch.rs`/`repository.rs` already are. Regenerating it
 # here would have nothing left to do but overwrite that hand-written
 # dispatch logic with the old bare enum — so this script no longer
-# touches `query_comparators.rs` at all. If the grammar ever adds a NINTH
-# comparator, `QueryComparator::ALL`/`parse`/`matches` in that file need a
-# human's own hand, the same way a ninth `AttributeShape` would need a
-# human to write `rust/src/kernel/attribute_shapes/<name>.rs` — this
+# touches `query_comparators.rs` at all. This prediction already came
+# true once — `Vocabulary::QueryComparator` HAD grown a ninth name
+# (`none_in_state`) before this script's own comment above caught up to
+# say so; `QueryComparator::ALL`/`parse`/`matches`/`none_in_state_matches`
+# in that file got that human's own hand (item #9, whole-project table-
+# unification survey) — the same way a ninth `AttributeShape` would need
+# a human to write `rust/src/kernel/attribute_shapes/<name>.rs`. This
 # script's `emit_mod` only ever wrote the ROSTER for that capability,
 # never the interpretation, either.
 #
