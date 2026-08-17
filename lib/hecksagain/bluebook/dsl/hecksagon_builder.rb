@@ -65,7 +65,7 @@ module Hecksagain
 
         def build
           hecksagon = Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
-                                     framework_members: @framework_members)
+                                    framework_members: @framework_members)
           refuse_ungoverned_roles!(hecksagon)
           hecksagon
         end

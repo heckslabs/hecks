@@ -135,7 +135,7 @@ module Hecksagain
               created[aggregate.name] = result.instance.id
             rescue StandardError => e
               failures << Failure.new(domain: domain, aggregate: aggregate.name, command: command.hecks_name,
-                                       error: "#{e.class}: #{e.message}")
+                                      error: "#{e.class}: #{e.message}")
               next
             end
 
@@ -144,7 +144,7 @@ module Hecksagain
               dispatcher.dispatch("#{domain}::#{aggregate.name}.#{nc_command.hecks_name}", **nc_args)
             rescue StandardError => e
               failures << Failure.new(domain: domain, aggregate: aggregate.name, command: nc_command.hecks_name,
-                                       error: "#{e.class}: #{e.message}")
+                                      error: "#{e.class}: #{e.message}")
             end
           end
         end
@@ -156,7 +156,7 @@ module Hecksagain
           dispatcher.query("#{domain}.#{model.query_name}", model.reference_name => root_id)
         rescue StandardError => e
           failures << Failure.new(domain: domain, aggregate: model.name, command: "report(#{model.name})",
-                                   error: "#{e.class}: #{e.message}")
+                                  error: "#{e.class}: #{e.message}")
         end
 
         failures

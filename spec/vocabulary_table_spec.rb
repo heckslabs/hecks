@@ -21,7 +21,7 @@ RSpec.describe "the generated vocabulary table" do
     )
 
     expect(projected).to eq(committed),
-      "lib/hecksagain/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
+                         "lib/hecksagain/vocabulary.rb has drifted from vocabulary.bluebook — run bin/project_vocabulary"
   end
 
   # The point of generating rather than gating. spec/vocabulary_conformance_spec

@@ -101,15 +101,15 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
     adapter.save(instance("p3", name: { value: "Bare" }, pizza: { price_cents: { cents: 500 } }, status: "available"))
 
     available = Hecksagain::Bluebook::Query.new(
-      name: "Available",
-      wheres: [Hecksagain::QuerySpecification::Common::WhereClause.new(field: "status", op: :eq, value: "available")],
+      name:     "Available",
+      wheres:   [Hecksagain::QuerySpecification::Common::WhereClause.new(field: "status", op: :eq, value: "available")],
       order_by: Hecksagain::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
     )
     expect(adapter.query(available, {}).map(&:id)).to eq(%w[p3 p1])
 
     costing_less_than = Hecksagain::Bluebook::Query.new(
-      name: "CostingLessThan",
-      wheres: [Hecksagain::QuerySpecification::Common::WhereClause.new(field: "pizza.price_cents.cents", op: :lt, value: 1000)],
+      name:     "CostingLessThan",
+      wheres:   [Hecksagain::QuerySpecification::Common::WhereClause.new(field: "pizza.price_cents.cents", op: :lt, value: 1000)],
       order_by: Hecksagain::QuerySpecification::Common::OrderBy.new(field: "name", direction: :asc)
     )
     expect(adapter.query(costing_less_than, {}).map(&:id)).to eq(%w[p3 p1])
@@ -141,8 +141,8 @@ RSpec.describe "Hecksagain::Adapters::Sqlite automatic indexing" do
       end.not_to raise_error
 
       names = card_payment_adapter.instance_variable_get(:@db)
-                                   .execute("SELECT name FROM sqlite_master WHERE type = 'index'")
-                                   .map { |row| row["name"] }
+                                  .execute("SELECT name FROM sqlite_master WHERE type = 'index'")
+                                  .map { |row| row["name"] }
       expect(names.grep(/tag/i)).to eq([])
       # "Pending"/"Disputed" both `where(status: ...)` — the lifecycle
       # field still gets its own plain index, same as Order's.

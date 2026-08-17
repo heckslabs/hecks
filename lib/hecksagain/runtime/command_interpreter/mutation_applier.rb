@@ -103,7 +103,9 @@ module Hecksagain
               fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
             end
           end
-          element      = value_object ? Value.build(value_object, fields, aggregate) : entity_element(aggregate, element_type, instance[mutation.target], fields)
+          element = value_object ? Value.build(value_object, fields,
+                                               aggregate) : entity_element(aggregate, element_type, instance[mutation.target],
+                                                                           fields)
 
           # FROZEN, like every other value the domain hands back. An
           # appended list used to come back mutable, so a caller could
@@ -217,9 +219,9 @@ module Hecksagain
           return unless collision
 
           raise(AlreadyExists, RefusalWording.render("AlreadyExists", "entity_duplicate",
-                                                       entity: entity.hecks_name, aggregate: aggregate.hecks_name,
-                                                       identity: Identity.reading(entity),
-                                                       offered: heads.map { |head| Rendering.describe(fields[head]) }.join(", ")))
+                                                     entity: entity.hecks_name, aggregate: aggregate.hecks_name,
+                                                     identity: Identity.reading(entity),
+                                                     offered: heads.map { |head| Rendering.describe(fields[head]) }.join(", ")))
         end
       end
     end

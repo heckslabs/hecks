@@ -110,7 +110,7 @@ module Hecksagain
           end
           unless instance[:state] == handler.from_state
             @registry.saga_log << record.merge(advanced: false,
-                                               reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+                                               reason:   "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
             next false
           end
 
@@ -159,7 +159,7 @@ module Hecksagain
           # branch, calls `unwind` again, and finds the instance already
           # past `from_state`.
           @registry.saga_log << record.merge(delivered: false,
-                                             reason: "reaction depth #{@door.max_reaction_depth} reached")
+                                             reason:    "reaction depth #{@door.max_reaction_depth} reached")
           unwind(pm, event, instance, correlation, domain)
           return
         end
@@ -240,7 +240,7 @@ module Hecksagain
         advanced = @registry.saga_mutex.synchronize do
           unless instance[:state] == handler.from_state
             @registry.saga_log << record.merge(advanced: false,
-                                               reason: "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
+                                               reason:   "in #{instance[:state].inspect}, not #{handler.from_state.inspect}")
             next false
           end
 

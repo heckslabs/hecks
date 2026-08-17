@@ -81,7 +81,7 @@ module Hecksagain
           # want, refuse, and guarantee", which is the rest of the question.
           door.define_singleton_method(:docs) do |**options|
             Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
-                                  options: options.merge(aggregate: ir.hecks_name))
+                                  options:  options.merge(aggregate: ir.hecks_name))
           end
           door.define_singleton_method(:count)      { dispatcher.registry.repository(domain, ir).count }
           door.define_singleton_method(:events)     { dispatcher.events.select { |event| event.aggregate == fqn } }

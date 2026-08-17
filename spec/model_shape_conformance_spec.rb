@@ -16,15 +16,15 @@ require "spec_helper"
 # wire" had no home at all.
 RSpec.describe "the model's shape, held to the language" do
   MODEL_CONSTRUCTS = {
-    "Bluebook"          => Hecksagain::Bluebook::Chapter,
-    "Aggregate"         => Hecksagain::Bluebook::Aggregate,
-    "Command"           => Hecksagain::Bluebook::Command,
-    "Entity"            => Hecksagain::Bluebook::Entity,
-    "ValueObject"       => Hecksagain::Bluebook::ValueObject,
-    "Policy"            => Hecksagain::Bluebook::Policy,
-    "Query"             => Hecksagain::Bluebook::Query,
-    "ReadModel"         => Hecksagain::Bluebook::ReadModel,
-    "ProcessManager"    => Hecksagain::Bluebook::ProcessManager
+    "Bluebook"       => Hecksagain::Bluebook::Chapter,
+    "Aggregate"      => Hecksagain::Bluebook::Aggregate,
+    "Command"        => Hecksagain::Bluebook::Command,
+    "Entity"         => Hecksagain::Bluebook::Entity,
+    "ValueObject"    => Hecksagain::Bluebook::ValueObject,
+    "Policy"         => Hecksagain::Bluebook::Policy,
+    "Query"          => Hecksagain::Bluebook::Query,
+    "ReadModel"      => Hecksagain::Bluebook::ReadModel,
+    "ProcessManager" => Hecksagain::Bluebook::ProcessManager
   }.freeze
 
   # THE DEVIATION TABLES LIVE IN lib, not here. They began as this
@@ -64,16 +64,17 @@ RSpec.describe "the model's shape, held to the language" do
                       DEVIATIONS.unpacked(name).values.flatten
 
         expect(unaccounted).to be_empty,
-          "#{name} emits #{unaccounted.inspect}, which the language does not declare and " \
-          "no category above accounts for — either the language should declare it, or it " \
-          "belongs in one of CONTAINED/FOLDED/COMPUTED with a reason"
+                               "#{name} emits #{unaccounted.inspect}, which the language does not declare and " \
+                               "no category above accounts for — either the language should declare it, or it " \
+                               "belongs in one of CONTAINED/FOLDED/COMPUTED with a reason"
       end
     end
   end
 
   # The categories are only worth having if they are ALL load-bearing.
   it "uses every category it declares" do
-    [DEVIATIONS::CONTAINED, DEVIATIONS::FOLDED, DEVIATIONS::COMPUTED, DEVIATIONS::OFF_THE_WIRE, DEVIATIONS::DYNAMIC_TAIL, DEVIATIONS::UNPACKED].each do |table|
+    [DEVIATIONS::CONTAINED, DEVIATIONS::FOLDED, DEVIATIONS::COMPUTED, DEVIATIONS::OFF_THE_WIRE, DEVIATIONS::DYNAMIC_TAIL,
+     DEVIATIONS::UNPACKED].each do |table|
       expect(table).not_to be_empty
       expect(table.keys - MODEL_CONSTRUCTS.keys).to be_empty
     end

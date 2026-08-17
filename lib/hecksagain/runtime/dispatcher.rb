@@ -80,7 +80,7 @@ module Hecksagain
             if port
               operation = port.operation(sub) ||
                           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "port_no_operation",
-                                                                    port: head, operation: sub.inspect))
+                                                                   port: head, operation: sub.inspect))
               [nil, @port_ops.call(domain, aggregate, operation, args)]
             else
               @entities.call(domain, aggregate, command_name, args)
@@ -88,7 +88,7 @@ module Hecksagain
           else
             command = aggregate.command(command_name) ||
                       raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
-                                                                aggregate: aggregate_name, command: command_name.inspect))
+                                                               aggregate: aggregate_name, command: command_name.inspect))
             @commands.call(domain, aggregate, command, args, saga_correlation)
           end
 
@@ -141,7 +141,7 @@ module Hecksagain
                      raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
           model = bluebook.read_model(query_name) ||
                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_read_model",
-                                                            domain: domain, query: query_name.inspect))
+                                                           domain: domain, query: query_name.inspect))
           return @read_models.call(domain, model, args)
         end
 
@@ -190,7 +190,7 @@ module Hecksagain
                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_domain", domain: domain.inspect, verb: verb))
         bluebook.aggregate(aggregate_name) ||
           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate",
-                                                    domain: domain, aggregate: aggregate_name.inspect))
+                                                   domain: domain, aggregate: aggregate_name.inspect))
       end
     end
   end

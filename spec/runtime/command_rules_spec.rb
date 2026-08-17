@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 RSpec.describe "the rules a command obeys" do
@@ -28,7 +27,8 @@ RSpec.describe "the rules a command obeys" do
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
     runtime.dispatch("Banking::Account.Open", customer: "c", number: { value: "a1" },
                                               kind: { name: "current" }, daily_limit: { cents: 50_000 })
-    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" }, narrative: { text: "Opening" })
+    runtime.dispatch("Banking::Account.Credit", number: { value: "a1" }, amount: { cents: 10_000, currency: "USD" },
+narrative: { text: "Opening" })
     runtime
   end
 
@@ -120,7 +120,7 @@ RSpec.describe "the rules a command obeys" do
                        number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: 500, currency: "USD" }, narrative: narrative)
 
       entry = runtime.query("Banking::Account.LedgerEntry.Reversed")
-      expect(entry).to be_empty 
+      expect(entry).to be_empty
 
       state = runtime.dispatch("Banking::Account.LedgerEntry.Amend",
                                number: { value: "a1" }, sequence: { value: 1 }, adjustment: { cents: -200, currency: "USD" }, narrative: narrative)
@@ -262,7 +262,7 @@ RSpec.describe "the rules a command obeys" do
       end.not_to raise_error
 
       runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
-                       standing: { value: "chargeback investigation" })
+                                                    standing:  { value: "chargeback investigation" })
 
       expect do
         runtime.dispatch("Banking::Account.Credit", number: { value: "a1" },
@@ -289,7 +289,7 @@ RSpec.describe "the rules a command obeys" do
       end.not_to raise_error
 
       runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
-                       standing: { value: "chargeback investigation" })
+                                                    standing:  { value: "chargeback investigation" })
 
       expect do
         runtime.dispatch("Banking::CardPayment.Authorize", account: "a1",
@@ -319,7 +319,7 @@ RSpec.describe "the rules a command obeys" do
       end.not_to raise_error
 
       runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
-                       standing: { value: "chargeback investigation" })
+                                                    standing:  { value: "chargeback investigation" })
 
       expect do
         runtime.dispatch("Banking::OnboardingCase.Open", customer: "c",
@@ -363,7 +363,7 @@ RSpec.describe "the rules a command obeys" do
       end.not_to raise_error
 
       runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
-                       standing: { value: "chargeback investigation" })
+                                                    standing:  { value: "chargeback investigation" })
 
       expect do
         runtime.dispatch("Banking::Account.LedgerEntry.Reverse",
@@ -387,7 +387,7 @@ RSpec.describe "the rules a command obeys" do
     it "refuses on a bare CUSTOMER status guard — ATMCard.Issue for a suspended customer" do
       runtime = funded_account(boot_banking)
       runtime.dispatch("Banking::Customer.Suspend", reference: { value: "c" },
-                       standing: { value: "chargeback investigation" })
+                                                    standing:  { value: "chargeback investigation" })
 
       expect do
         runtime.dispatch("Banking::ATMCard.Issue", account: "a1",

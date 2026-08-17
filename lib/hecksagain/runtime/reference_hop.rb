@@ -72,7 +72,7 @@ module Hecksagain
       # second reading of the comparators.
       def matching_ids(domain, target, wheres, args, registry:)
         spec       = apply(QuerySpecification::Common::Options.new(wheres: wheres), args,
-                            registry: registry, domain: domain, aggregate: target)
+                           registry: registry, domain: domain, aggregate: target)
         repository = registry.repository(domain, target)
         rows       = Ports::Query.execute(repository, spec, args, context: { domain: domain, aggregate: target }) ||
                      Ports::Query::InMemory.execute(repository.all, spec, args)

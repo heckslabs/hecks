@@ -15,6 +15,7 @@ module Hecksagain
 
         def reference_to(type, as: nil)
           raise Malformed, "#{@name} already has a projection reference" if @reference_target
+
           @reference_target = Naming.demodulise(type)
           @reference_name   = (as || Naming.snake(@reference_target)).to_sym
         end
@@ -84,7 +85,8 @@ module Hecksagain
         # field values) has no root to speak of. Still needs to describe
         # SOMETHING — zero includes AND no reference is refused.
         def build
-          raise Malformed, "#{@name} needs an aggregate-head reference or at least one include" if !@reference_target && Array(@includes).empty?
+          raise Malformed,
+                "#{@name} needs an aggregate-head reference or at least one include" if !@reference_target && Array(@includes).empty?
 
           Array(@includes).each do |target, as|
             add_aggregate_head(target, as, many: target != @reference_target)
@@ -94,12 +96,12 @@ module Hecksagain
           seal_aggregation
           seal_cursor
           ReadModel.new(name: @name, description: @description, reference_name: @reference_name,
-                            reference_target: @reference_target, aggregate_heads: @aggregate_heads || [],
-                            wheres: @wheres || [], order_by: @order_by, limit: @limit, offset: @offset,
-                            cursor: @cursor,
-                            authorization: @authorization, null_semantics: @null_semantics,
-                            inspection: @inspection, group_by: @group_by || [],
-                            count: @count, median_field: @median_field)
+                        reference_target: @reference_target, aggregate_heads: @aggregate_heads || [],
+                        wheres: @wheres || [], order_by: @order_by, limit: @limit, offset: @offset,
+                        cursor: @cursor,
+                        authorization: @authorization, null_semantics: @null_semantics,
+                        inspection: @inspection, group_by: @group_by || [],
+                        count: @count, median_field: @median_field)
         end
 
         def self.build(name, &block)

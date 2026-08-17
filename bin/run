@@ -77,7 +77,7 @@ script = argv.first or abort USAGE
 # beginning with `{` is not a filename anybody meant.
 source =
   case script
-  when "-"      then $stdin.read
+  when "-" then $stdin.read
   when /\A\s*\{/ then script
   else
     File.exist?(script) ? File.read(script) : abort("no such script: #{script}")
@@ -164,8 +164,8 @@ Array(expectations["refusals"]).each do |expected|
   # story from a refusal that never happened, and the two are indistinguishable
   # until the actual errors are printed beside the wanted one.
   said = refusals.select { |refusal| refusal[:verb] == verb }.map { |refusal| refusal[:error] }.uniq
-  unmet << "matrix expected refusal missing: #{expected}\n" \
-           "  #{verb} actually refused with: #{said.empty? ? '(nothing — every attempt was accepted)' : said.inspect}"
+  unmet << "matrix expected refusal missing: #{expected}\n  " \
+           "#{verb} actually refused with: #{said.empty? ? '(nothing — every attempt was accepted)' : said.inspect}"
 end
 
 (expectations["instances"] || {}).each do |key, fields|

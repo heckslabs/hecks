@@ -34,20 +34,20 @@ module Hecksagain
       include Behaviour::Aggregate
 
       emits_ir(
-        name:          :name,
-        description:   :description,
-        identified_by: :identity_paths,
-        attributes:    many(:attributes),
-        value_objects: many(:value_objects),
-        commands:      many(:commands),
-        invariants:    -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        name:             :name,
+        description:      :description,
+        identified_by:    :identity_paths,
+        attributes:       many(:attributes),
+        value_objects:    many(:value_objects),
+        commands:         many(:commands),
+        invariants:       -> { invariants.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
         # 0025) — the aggregate's OWN named `given`s, the declaration a
         # referencing command's own (already-resolved) `givens` entry
         # came from. Both sides of "declared once, referenced many"
         # are real IR, the same shape a value object's TYPE and an
         # attribute's own reference to it both are.
-        preconditions: -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
+        preconditions:    -> { preconditions.map { |rule| { description: rule.description, canonical: rule.canonical } } },
         # S12, ADR 0025 — deliberately NOT folded into `attributes`:
         # `EraGuard::ShapeDiff` only ever walks `attributes` to decide
         # whether a NEW field leaves an existing record with something
@@ -55,17 +55,21 @@ module Hecksagain
         # is different — a record predating the `projects` declaration
         # is expected to be missing it until the rebuild sweep runs,
         # not a shape drift a translation needs to explain.
-        projected_fields: -> { projected_fields.map { |field| { name: field.name.to_s, reference: field.reference.to_s, remote_field: field.remote_field.to_s } } },
-        lifecycle:     one(:lifecycle),
-        entities:      many(:entities),
-        queries:       many(:queries),
+        projected_fields: -> {
+          projected_fields.map { |field|
+            { name: field.name.to_s, reference: field.reference.to_s, remote_field: field.remote_field.to_s }
+          }
+        },
+        lifecycle:        one(:lifecycle),
+        entities:         many(:entities),
+        queries:          many(:queries),
         # ADDITIVE — every domain that declares no port emits `ports: []`,
         # the same "regenerate deliberately" wire-format change
         # ir_golden_spec.rb's own header describes; no existing key
         # moves. See docs/decisions (rust/project/ports.rb) for the
         # first reader of this.
-        ports:         many(:ports),
-        provenance:    :provenance
+        ports:            many(:ports),
+        provenance:       :provenance
       )
 
       attr_reader :name, :description, :attributes, :value_objects, :commands, :invariants, :preconditions,

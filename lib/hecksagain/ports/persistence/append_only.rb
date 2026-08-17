@@ -15,21 +15,25 @@ module Hecksagain
       # entry stream and materialize current state from it.
       class AppendOnly
         attr_reader :adapter
+
         def aggregate = @adapter.aggregate
 
         def initialize(adapter)
           @adapter = adapter
           required = %i[append project entries]
           missing = required.reject { |method| adapter.respond_to?(method) }
-          raise Runtime::WiringError, "#{adapter.class} does not implement append-only persistence: #{missing.join(', ')}" unless missing.empty?
+          raise Runtime::WiringError,
+                "#{adapter.class} does not implement append-only persistence: #{missing.join(', ')}" unless missing.empty?
         end
 
         def find(id) = @adapter.find(id)
         def all(**opts) = @adapter.all(**opts)
         def count = @adapter.count
         def entries = @adapter.entries
+
         def reset!
           raise Runtime::WiringError, "append-only adapter cannot reset" unless @adapter.respond_to?(:reset!)
+
           @adapter.reset!
         end
         def events = @adapter.events if @adapter.respond_to?(:events)

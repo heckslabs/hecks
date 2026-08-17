@@ -56,7 +56,11 @@ RSpec.describe "the Rust parser's own coverage", io: true do
   # through a real lifecycle rather than merely declared — `SyntaxBoot.
   # call` hands back the same shape `rows("Keyword")` used to.
   DECLARED_PAIRS = Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-                     .select { |row| live?(row) }.map { |row| [row[:word], row[:context]] }.uniq.sort
+                                                                  .select { |row| live?(row) }.map { |row|
+    [
+      row[:word], row[:context]
+    ]
+  }.uniq.sort
 
   # EVERY (word, context) PAIR THIS PARSER GENUINELY BUILDS REAL IR FOR,
   # confirmed by `spec/parser_parity_spec.rb`'s byte-exact comparisons,

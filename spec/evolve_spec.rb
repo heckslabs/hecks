@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require "tmpdir"
 require "hecksagain/grammar/evolve"
@@ -187,7 +186,7 @@ RSpec.describe "the evolve surgery" do
       Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
                                                    named: "locale", path: path)
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "admitted",
-                                                       named: "locale", path: path)
+                                                      named: "locale", path: path)
 
       row = Hecksagain::Grammar::Evolve.argument_rows(path)
                                        .find { |r| r[:keyword] == "vision" && r[:named] == "locale" }
@@ -198,7 +197,7 @@ RSpec.describe "the evolve surgery" do
   it "deprecates and retires an argument by spelling the station" do
     with_copy do |path|
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
-                                                       to: "deprecated", named: "pattern", path: path)
+                                                      to: "deprecated", named: "pattern", path: path)
       row = Hecksagain::Grammar::Evolve.argument_rows(path)
                                        .find { |r| r[:keyword] == "attribute" && r[:context] == "Aggregate" && r[:named] == "pattern" }
       expect(row[:status]).to eq("deprecated")
@@ -209,12 +208,12 @@ RSpec.describe "the evolve surgery" do
     with_copy do |path|
       expect do
         Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
-                                                         to: "banished", named: "pattern", path: path)
+                                                        to: "banished", named: "pattern", path: path)
       end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not a station/)
 
       expect do
         Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
-                                                         to: "retired", named: "imagined", path: path)
+                                                        to: "retired", named: "imagined", path: path)
       end.to raise_error(Hecksagain::Grammar::Evolve::Refusal, /not declared/)
     end
   end
@@ -242,7 +241,7 @@ RSpec.describe "the evolve surgery" do
       Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
                                                    named: "locale", path: path)
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "retired",
-                                                       named: "locale", path: path)
+                                                      named: "locale", path: path)
 
       before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "ArgumentSeed" do$/)]
       after = File.read(path)

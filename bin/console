@@ -20,8 +20,8 @@ RUNTIME.registry.bluebooks.each_value do |bluebook|
 
   puts <<~DOMAIN
 
-    #{bluebook.name} — #{bluebook.vision}
-#{aggregates.join("\n")}
+        #{bluebook.name} — #{bluebook.vision}
+    #{aggregates.join("\n")}
   DOMAIN
 end
 

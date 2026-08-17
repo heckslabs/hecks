@@ -93,7 +93,7 @@ module Hecksagain
                   ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
                 SQL
               end,
-              upsert: lambda do |rows|
+              upsert:     lambda do |rows|
                 upsert_field_cache_rows!(name, rows)
               end
             )

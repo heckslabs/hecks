@@ -19,8 +19,8 @@ module Hecksagain
           # which a world's settings carry.
           adapter = registry.adapter_class(bind.adapter)
                             .new(aggregate: aggregate,
-                                 settings: settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s]),
-                                 root: registry.root)
+                                 settings:  settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s]),
+                                 root:      registry.root)
           repository = AppendOnly.new(adapter)
           recover ? repository.recover! : repository
         end

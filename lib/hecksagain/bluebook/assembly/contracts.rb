@@ -35,49 +35,49 @@ module Hecksagain
       def self.contract(category) = CONTRACTS.fetch(category.to_s)
 
       CONTRACTS = {
-        "Bluebook" => Contract.new(
+        "Bluebook"       => Contract.new(
           holder: Chapter, make: :new,
           fields: {
-            name:           [:name,           :plain],
-            version:        [:version,        :plain],
-            vision:         [:vision,         :plain],
-            classification: [:classification, :plain],
+            name:              [:name,           :plain],
+            version:           [:version,        :plain],
+            vision:            [:vision,         :plain],
+            classification:    [:classification, :plain],
             formerly_known_as: [:formerly_known_as, :plain],
-            attaches_to:    [:attaches_to,    :plain]
+            attaches_to:       [:attaches_to, :plain]
           },
           rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }
         ),
 
-        "Aggregate" => Contract.new(
+        "Aggregate"      => Contract.new(
           holder: Aggregate, make: :new,
           fields: {
-            name:          [:name,          :plain],
-            description:   [:description,   :plain],
-            identified_by: [:identified_by, :plain],
-            attributes:    [:attributes,    [:each, :attribute]],
+            name:             [:name,          :plain],
+            description:      [:description,   :plain],
+            identified_by:    [:identified_by, :plain],
+            attributes:       [:attributes,    [:each, :attribute]],
             # THE AGGREGATE BOUNDARY, and the precondition a command may
             # reference by name (S10, ADR 0025 — "Rules"). Same reader
             # shapes ValueObject's own `invariants`/Command's own
             # `givens` already use — `invariant` builds an Invariant,
             # `given` a Given, the same struct AggregateBuilder#given
             # hands a referencing command's own resolved list.
-            invariants:    [:invariants,    [:each, :invariant]],
-            preconditions: [:preconditions, [:each, :given]],
+            invariants:       [:invariants,    [:each, :invariant]],
+            preconditions:    [:preconditions, [:each, :given]],
             # S12, ADR 0025 — the local half of "projects :name, from:
             # :\"reference.remote_field\"", read the same way
             # invariants/preconditions above are: a synthetic command
             # (Aggregate.Projects) the judge dispatches once per
             # declaration, folded into a list on the owning aggregate.
             projected_fields: [:projected_fields, [:each, :projected_field]],
-            provenance:    [:provenance,    :plain]
+            provenance:       [:provenance, :plain]
           },
           rows: { transitions: :transition_rows, value_objects: :value_object_names, identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute],
                    invariants: [:each, :rule], preconditions: [:each, :rule],
                    projected_fields: [:each, :projected_field] },
           derived: {
-            position: :walk,
+            position:      :walk,
             state_field:   [:folded, :lifecycle, :field],
             state_start:   [:folded, :lifecycle, :default],
             transitions:   [:folded, :lifecycle, :transitions],
@@ -85,7 +85,7 @@ module Hecksagain
           }
         ),
 
-        "Command" => Contract.new(
+        "Command"        => Contract.new(
           holder: Command, make: :declare,
           fields: {
             name:       [:name,       :plain],
@@ -110,7 +110,7 @@ module Hecksagain
           derived: { position: :walk }
         ),
 
-        "ValueObject" => Contract.new(
+        "ValueObject"    => Contract.new(
           holder: ValueObject, make: :declare,
           fields: {
             name:       [:name,       :plain],
@@ -125,35 +125,35 @@ module Hecksagain
           derived: { position: :walk, rows: [:folded, %i[closed_set members], nil] }
         ),
 
-        "Query" => Contract.new(
+        "Query"          => Contract.new(
           holder: Query, make: :new,
           fields: {
-            name:        [:name,        :plain],
-            description: [:description, :plain],
-            attributes:  [:attributes,  [:each, :shape_field]],
-            wheres:          [:wheres,          [:each, :where_clause]],
-            order_by:        [:order_by,        :order_by],
-            limit:           [:limit,           :limit],
+            name:           [:name,        :plain],
+            description:    [:description, :plain],
+            attributes:     [:attributes,  [:each, :shape_field]],
+            wheres:         [:wheres,          [:each, :where_clause]],
+            order_by:       [:order_by,        :order_by],
+            limit:          [:limit,           :limit],
             # Held by the language as an OPEN MAP, so every one of these reads the
             # same way and a ninth option needs no new field on either side.
-            offset:          [:offset,          [:option, :offset]],
-            cursor:          [:cursor,          [:option, :cursor]],
-            null_semantics:  [:null_semantics,  [:option, :null_semantics]],
-            authorization:   [:authorization,   [:option, :authorization]],
-            inspection:      [:inspection,      [:option, :inspection]]
+            offset:         [:offset,          [:option, :offset]],
+            cursor:         [:cursor,          [:option, :cursor]],
+            null_semantics: [:null_semantics,  [:option, :null_semantics]],
+            authorization:  [:authorization,   [:option, :authorization]],
+            inspection:     [:inspection,      [:option, :inspection]]
           },
           rows: { wheres: :where_rows, options: :option_rows },
           reads: { attributes: [:each, :shape_field], wheres: [:each, :where_clause],
                   order_by: [:call, :order_by], limit: [:call, :limit] },
           derived: {
-            position: :walk,
+            position:    :walk,
             order_field: [:folded, :order_by, :field],
             order_way:   [:folded, :order_by, :direction],
             options:     [:folded, %i[offset cursor null_semantics authorization inspection], nil]
           }
         ),
 
-        "Entity" => Contract.new(
+        "Entity"         => Contract.new(
           holder: Entity, make: :declare,
           fields: {
             name:          [:name,          :plain],
@@ -176,7 +176,7 @@ module Hecksagain
           reads: { identified_by: [:each, :identity_path], attributes: [:each, :shape_field],
                    preconditions: [:each, :rule] },
           derived: {
-            position: :walk,
+            position:    :walk,
             owner:       :parent,
             state_field: [:folded, :lifecycle, :field],
             state_start: [:folded, :lifecycle, :default],
@@ -184,7 +184,7 @@ module Hecksagain
           }
         ),
 
-        "Policy" => Contract.new(
+        "Policy"         => Contract.new(
           holder: Policy, make: :new,
           fields: {
             name:            [:name,            :plain],
@@ -234,7 +234,7 @@ module Hecksagain
         # and the process manager it belongs to is structural now — which
         # list this element sits in, not a stored field to fold a parent
         # pointer out of.
-        "Handler" => Contract.new(
+        "Handler"        => Contract.new(
           holder: ProcessManagerHandler, make: :new,
           fields: {
             event_type: [:event_type, :plain],
@@ -256,7 +256,7 @@ module Hecksagain
         # `command_name` is Dispatch's own real, non-positional identity
         # — neither `position` nor `handler` is a stored field any more,
         # the same reason Handler's own contract, above, dropped them.
-        "Dispatch" => Contract.new(
+        "Dispatch"       => Contract.new(
           holder: DispatchSpec, make: :new,
           fields: {
             command_name: [:command_name, :plain],
@@ -276,13 +276,13 @@ module Hecksagain
         # entries exist purely so the introspection specs
         # (assembly_spec.rb) can hold them to the same "every field
         # claimed" discipline every other category answers to.
-        "Syntax" => Contract.new(
+        "Syntax"         => Contract.new(
           holder: nil, make: nil,
           fields: { name: [:name, :plain] },
           derived: { keywords: :children, arguments: :children }
         ),
 
-        "Keyword" => Contract.new(
+        "Keyword"        => Contract.new(
           holder: nil, make: nil,
           fields: {
             word:    [:word,    :plain],
@@ -296,14 +296,14 @@ module Hecksagain
           derived: { position: :walk }
         ),
 
-        "Argument" => Contract.new(
+        "Argument"       => Contract.new(
           holder: nil, make: nil,
           fields: {
             keyword:          [:keyword,          :plain],
             context:          [:context,          :plain],
             at:               [:at,               :plain],
             named:            [:named,            :plain],
-            kind:             [:kind,              :plain],
+            kind:             [:kind, :plain],
             required:         [:required,         :plain],
             fills:            [:fills,            :plain],
             selects:          [:selects,          :plain],
@@ -315,7 +315,7 @@ module Hecksagain
           derived: { position: :walk }
         ),
 
-        "ReadModel" => Contract.new(
+        "ReadModel"      => Contract.new(
           holder: ReadModel, make: :new,
           fields: {
             name:             [:name,             :plain],
@@ -370,7 +370,7 @@ module Hecksagain
                   # same String-or-nil `ReadModel#to_h`'s own `&.to_s` does.
                   count: :read_model_count },
           derived: {
-            position: :walk,
+            position:   :walk,
             query_name: [:computed, :query_name],
             options:    [:folded, %i[offset cursor null_semantics authorization inspection], nil]
           }
@@ -387,7 +387,7 @@ module Hecksagain
         # `entity_own_identity`, judge.rb) and `pairs` (still an open map,
         # still one row per entry, still why a value object cannot hold it
         # directly).
-        "Member" => Contract.new(
+        "Member"         => Contract.new(
           holder: nil, make: nil,
           fields: {},
           rows: { pairs: :pair_rows },

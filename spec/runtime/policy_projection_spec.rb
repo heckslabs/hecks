@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # `trigger ..., with:` — WHAT THE TRIGGER IS GIVEN.
@@ -46,7 +45,7 @@ RSpec.describe "a policy's trigger projection" do
             attribute :holder, Holder
             sets :code
             sets :holder
-            sets :note,   to: { text: "granted" }
+            sets :note, to: { text: "granted" }
             emits "PermitGranted"
           end
 

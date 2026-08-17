@@ -25,32 +25,32 @@ PROTOCOL_VERSION = "2024-11-05"
 
 TOOLS = [
   {
-    name: "query_ir_constructs",
+    name:        "query_ir_constructs",
     description: "For a bluebook IR construct (Aggregate, Entity, Command, Query, ValueObject, Policy, ReadModel, ProcessManager, Bluebook) or all of them, the real structural diff between what the Ruby class emits and what the self-hosted meta-domain declares for it. Use this instead of reading entity.rb/entity.bluebook (or the equivalent pair for another construct) by hand to check whether a new IR field has been fully propagated.",
     inputSchema: {
-      type: "object",
+      type:       "object",
       properties: {
         names: {
-          type: "array",
-          items: { type: "string" },
+          type:        "array",
+          items:       { type: "string" },
           description: "Construct names to check (e.g. [\"Entity\"]). Omit or leave empty for all constructs."
         }
       }
     }
   },
   {
-    name: "query_ir_duplicates",
+    name:        "query_ir_duplicates",
     description: "Every given/ensures/invariant DECLARATION across the real corpus (banking/pizzas/compliance) and the self-hosted meta-domain, grouped by (kind, description, canonical predicate), reporting every group with more than one independently-declared rule (already-deduped references, which share the same underlying rule object, are excluded). Use this to find real corpus duplication before proposing a new 'declared once, referenced by name' resolution rule.",
     inputSchema: {
-      type: "object",
+      type:       "object",
       properties: {
-        domains: {
-          type: "array",
-          items: { type: "string" },
+        domains:      {
+          type:        "array",
+          items:       { type: "string" },
           description: "Real example domain directories to scan (e.g. [\"examples/banking\"]). Omit for every real example domain."
         },
         include_meta: {
-          type: "boolean",
+          type:        "boolean",
           description: "Include the self-hosted meta-domain (lib/hecksagain/language/bluebook). Defaults to true."
         }
       }
@@ -115,8 +115,8 @@ def handle(request)
   when "initialize"
     send_response(id, {
                     protocolVersion: PROTOCOL_VERSION,
-                    capabilities: { tools: {} },
-                    serverInfo: { name: "hecksagain-query-ir", version: "1.0.0" }
+                    capabilities:    { tools: {} },
+                    serverInfo:      { name: "hecksagain-query-ir", version: "1.0.0" }
                   })
   when "notifications/initialized"
     nil # a notification — no id, no response

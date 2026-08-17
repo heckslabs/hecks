@@ -46,9 +46,9 @@ module Hecksagain
       # re-derives what the session already knows.
       def ask(state:, asked:)
         call(
-          system: SYSTEM_PREFIX + 'Given the domain model so far, ask the single best next ' \
-                  'discovery question. Reply as {"questions": [{"text": "...", "because": "..."}]} ' \
-                  "with exactly one entry. Never repeat a question already asked.",
+          system:  SYSTEM_PREFIX + "Given the domain model so far, ask the single best next " \
+                                   'discovery question. Reply as {"questions": [{"text": "...", "because": "..."}]} ' \
+                                   "with exactly one entry. Never repeat a question already asked.",
           payload: { state: state, already_asked: asked }
         )
       end
@@ -56,12 +56,12 @@ module Hecksagain
       # PROSE -> PROPOSED DECLARATIONS.
       def interpret(prose:, state:)
         call(
-          system: SYSTEM_PREFIX + 'Given the domain model so far and a sentence the human just said, ' \
-                  "propose zero or more declarations that capture what the sentence names as domain " \
-                  "fact. A verb must be fully qualified as Chapter::Aggregate.Command. Reply as " \
-                  '{"proposals": [{"verb": "...", "rationale": "...", "arguments": ' \
-                  '[{"name": "...", "field": "...", "value": "..."}]}]}. If the sentence carries no ' \
-                  'declaration (a question back, a clarification), reply {"proposals": []}.',
+          system:  SYSTEM_PREFIX + "Given the domain model so far and a sentence the human just said, " \
+                                   "propose zero or more declarations that capture what the sentence names as domain " \
+                                   "fact. A verb must be fully qualified as Chapter::Aggregate.Command. Reply as " \
+                                   '{"proposals": [{"verb": "...", "rationale": "...", "arguments": ' \
+                                   '[{"name": "...", "field": "...", "value": "..."}]}]}. If the sentence carries no ' \
+                                   'declaration (a question back, a clarification), reply {"proposals": []}.',
           payload: { state: state, prose: prose }
         )
       end
@@ -73,11 +73,11 @@ module Hecksagain
       def critique(declared:, refusals:, findings:)
         kinds = Ports::Agent::CRITIQUE_KINDS.join(", ")
         call(
-          system: SYSTEM_PREFIX + "Given a domain declaration, the refusals it already triggered, and " \
-                  "the mechanical findings already reported, judge it on TASTE — do not restate what is " \
-                  "already known. Only use one of these kinds: #{kinds}. Only use severity error or " \
-                  'warning. Reply as {"findings": [{"kind": "...", "severity": "...", "subject": "...", ' \
-                  '"message": "..."}]}. Reply {"findings": []} if there is nothing worth saying.',
+          system:  SYSTEM_PREFIX + "Given a domain declaration, the refusals it already triggered, and " \
+                                   "the mechanical findings already reported, judge it on TASTE — do not restate what is " \
+                                   "already known. Only use one of these kinds: #{kinds}. Only use severity error or " \
+                                   'warning. Reply as {"findings": [{"kind": "...", "severity": "...", "subject": "...", ' \
+                                   '"message": "..."}]}. Reply {"findings": []} if there is nothing worth saying.',
           payload: { declared: declared, refusals: refusals, findings: findings }
         )
       end
@@ -87,9 +87,9 @@ module Hecksagain
       # never a safe module-function name here.
       def suggest_name(meaning:, kind:, near:)
         call(
-          system: SYSTEM_PREFIX + "Suggest a name for a #{kind} meaning \"#{meaning}\", distinct from " \
-                  'the names already in use nearby. Reply as {"names": [{"name": "...", "because": ' \
-                  '"...", "rejected": ["...", "..."]}]} with exactly one entry.',
+          system:  SYSTEM_PREFIX + "Suggest a name for a #{kind} meaning \"#{meaning}\", distinct from " \
+                                   'the names already in use nearby. Reply as {"names": [{"name": "...", "because": ' \
+                                   '"...", "rejected": ["...", "..."]}]} with exactly one entry.',
           payload: { meaning: meaning, kind: kind, near: near }
         )
       end

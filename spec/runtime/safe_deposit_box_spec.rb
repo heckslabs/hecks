@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 RSpec.describe "a composite-identified aggregate with two entities" do

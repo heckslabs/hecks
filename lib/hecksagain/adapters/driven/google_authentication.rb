@@ -38,9 +38,9 @@ module Hecksagain
         require "oauth2"
         OAuth2::Client.new(
           ENV.fetch("GOOGLE_CLIENT_ID"), ENV.fetch("GOOGLE_CLIENT_SECRET"),
-          site: "https://oauth2.googleapis.com",
+          site:          "https://oauth2.googleapis.com",
           authorize_url: "https://accounts.google.com/o/oauth2/v2/auth",
-          token_url: "/token"
+          token_url:     "/token"
         )
       end
 
@@ -51,8 +51,8 @@ module Hecksagain
         state = SecureRandom.hex(24)
         url = client.auth_code.authorize_url(
           redirect_uri: ENV.fetch("GOOGLE_REDIRECT_URI"),
-          scope: "openid email profile",
-          state: state
+          scope:        "openid email profile",
+          state:        state
         )
         [url, state]
       end

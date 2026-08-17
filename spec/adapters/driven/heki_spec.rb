@@ -90,7 +90,7 @@ RSpec.describe Hecksagain::Adapters::Heki do
   describe "the optional saga-persistence capability (§2/§3/§4)" do
     it "saves a saga instance and reads it back through each_saga" do
       adapter.save_saga(process_manager: "Onboarding", correlation: "c1",
-                         state: "awaiting_credit", memory: { amount: 100 })
+                        state: "awaiting_credit", memory: { amount: 100 })
 
       expect(adapter.each_saga.to_a).to eq([["Onboarding", "c1", "awaiting_credit", { amount: 100 }]])
     end

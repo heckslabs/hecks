@@ -25,7 +25,7 @@ RSpec.describe Hecksagain::Fqn do
   end
 
   it "refuses an address whose verb cannot tell a command from a query" do
-      expect { described_class.parse("Acme::Banking::Account.MixedCase_Query") }
+    expect { described_class.parse("Acme::Banking::Account.MixedCase_Query") }
       .to raise_error(Hecksagain::Fqn::Invalid, /PascalCase command or snake_case query/)
   end
 

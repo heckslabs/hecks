@@ -91,8 +91,8 @@ module Hecksagain
       def self.reference_field(attribute, common)
         target = attribute.type.resolve
         Field.new(**common, kind: :reference, html_type: "text", target_aggregate: target,
-                  help: target ? "References an existing #{target.hecks_name} by id." :
-                        "References an aggregate in another domain — enter its id.")
+                            help: target ? "References an existing #{target.hecks_name} by id." :
+                                  "References an aggregate in another domain — enter its id.")
       end
 
       # `admits:` names a closed set declared ELSEWHERE (`"Account::
@@ -166,11 +166,11 @@ module Hecksagain
 
       def self.money_field(shape, common)
         cents = Field.new(path: "#{common[:path]}.cents", label: "Amount (cents)", kind: :number,
-                           html_type: "number", step: "1", optional: common[:optional],
-                           default: shape.attribute(:cents)&.default, help: "Whole cents — 1050 is $10.50.")
+                          html_type: "number", step: "1", optional: common[:optional],
+                          default: shape.attribute(:cents)&.default, help: "Whole cents — 1050 is $10.50.")
         currency = Field.new(path: "#{common[:path]}.currency", label: "Currency", kind: :text, html_type: "text",
-                              optional: true, default: shape.attribute(:currency)&.default || "USD",
-                              help: "Three-letter code.")
+                             optional: true, default: shape.attribute(:currency)&.default || "USD",
+                             help: "Three-letter code.")
         Field.new(path: common[:path], label: common[:label], kind: :money, optional: common[:optional],
                   children: [cents, currency])
       end

@@ -25,8 +25,8 @@ RSpec.describe "committed OIDC manifests (bin/project_oidc)" do
 
   it "found at least one committed manifest to check — this spec's own discovery is not stale" do
     expect(manifests).not_to be_empty,
-      "no oidc.json found under #{ROOT} — bin/project_oidc has never been run, or every " \
-      "manifest was deleted without updating this spec's own exclusion list"
+                             "no oidc.json found under #{ROOT} — bin/project_oidc has never been run, or every " \
+                             "manifest was deleted without updating this spec's own exclusion list"
   end
 
   manifests.each do |path|

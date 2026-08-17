@@ -226,7 +226,8 @@ module Hecksagain
           text, applied = apply_many(original, candidates)
 
           if applied.empty?
-            results[:skipped] << { file: file, reason: "candidates found but no matching source line", candidates: candidates.map(&@label) }
+            results[:skipped] << { file: file, reason: "candidates found but no matching source line",
+candidates: candidates.map(&@label) }
             next
           end
 

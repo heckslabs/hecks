@@ -72,7 +72,7 @@ RSpec.describe "Registry#saga_persistence" do
   it "resolves to the no-op store, not a raised error, when the anchor aggregate has no bind at all" do
     registry = fresh_registry
     declare_thing(registry, "Unbound")
-    Hecks.with_registry(registry) { Hecks.hecksagon("Unbound") { } }
+    Hecks.with_registry(registry) { Hecks.hecksagon("Unbound") {} }
 
     expect(registry.saga_persistence("Unbound")).to be(Hecksagain::Ports::Persistence::NULL_SAGA_STORE)
   end

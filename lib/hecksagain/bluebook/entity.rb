@@ -86,8 +86,6 @@ module Hecksagain
 
           settle
         end
-
-
       end
     end
   end

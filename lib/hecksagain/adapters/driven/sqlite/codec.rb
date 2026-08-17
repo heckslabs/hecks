@@ -13,9 +13,7 @@ module Hecksagain
             { name: attribute.name, attribute: attribute, sql_type: sql_type(attribute) }
           end
           lifecycle = @aggregate.lifecycle
-          if lifecycle && !fields.any? { |field| field[:name] == lifecycle.field }
-            fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" }
-          end
+          fields << { name: lifecycle.field, attribute: nil, sql_type: "TEXT" } if lifecycle && !fields.any? { |field| field[:name] == lifecycle.field }
           fields
         end
 

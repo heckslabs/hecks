@@ -16,7 +16,7 @@ RSpec.describe Hecksagain::Ports::Agent do
   end
 
   CLAUDE_CODE_ADAPTER = File.expand_path("../../lib/hecksagain/adapters/driven/claude_code.adapter", __dir__)
-  SCRIPTED_ADAPTER     = File.expand_path("../fixtures/scripted_agent.adapter", __dir__)
+  SCRIPTED_ADAPTER = File.expand_path("../fixtures/scripted_agent.adapter", __dir__)
 
   before { Hecksagain::Adapters::ScriptedAgent.reset! }
 
@@ -51,8 +51,8 @@ RSpec.describe Hecksagain::Ports::Agent do
       )
 
       questions = described_class.ask(registry, state: { chapter: "Loyalty" }, asked: [])
-      expect(questions).to eq([described_class::Question.new(text: "what identifies a Loyalty Member?",
-                                                               because: "no identity yet")])
+      expect(questions).to eq([described_class::Question.new(text:    "what identifies a Loyalty Member?",
+                                                             because: "no identity yet")])
     end
 
     it "interpret returns Proposal structs shaped as Interview::Proposal Argument rows" do

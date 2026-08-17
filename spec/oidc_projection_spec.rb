@@ -34,8 +34,8 @@ RSpec.describe "the OIDC client projection's integration layer" do
     runtime.dispatch(
       "Banking::Customer.Register",
       reference: { value: reference },
-      name: { given: "Dana", family: "Ng" },
-      email: { address: "dana@example.com" }
+      name:      { given: "Dana", family: "Ng" },
+      email:     { address: "dana@example.com" }
     )
   end
 
@@ -116,7 +116,8 @@ RSpec.describe "the OIDC client projection's integration layer" do
     via_google = authenticated_dispatch(business.registry, issuer: "google", subject: "sub-1", role: "Compliance officer") do
       business.dispatch("Banking::Customer.Suspend", id: customer.instance.id, standing: { value: "suspended" })
     end
-    via_microsoft = authenticated_dispatch(business.registry, issuer: "microsoft", subject: "sub-1", role: "Compliance officer") do
+    via_microsoft = authenticated_dispatch(business.registry, issuer: "microsoft", subject: "sub-1",
+role: "Compliance officer") do
       business.dispatch("Banking::Customer.Reinstate", id: customer.instance.id)
     end
 

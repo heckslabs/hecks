@@ -21,16 +21,16 @@ require "json"
 # matches before it), and non-ASCII digits and word characters — kept as
 # real edge cases worth pinning even with one engine now.
 CASES = [
-  ['^[A-Z]{3}-[0-9]{4}$',                       ["ABC-1234", "abc-1234", "xx\nABC-1234\nyy", "ABC-1234\n", "ABC-١٢٣٤"]],
-  ['^[0-9]{5}(-[0-9]{4})?$',                     ["12345", "12345-6789", "1234", "12345\nx", "١٢٣٤٥"]],
+  ["^[A-Z]{3}-[0-9]{4}$", ["ABC-1234", "abc-1234", "xx\nABC-1234\nyy", "ABC-1234\n", "ABC-١٢٣٤"]],
+  ["^[0-9]{5}(-[0-9]{4})?$",                     ["12345", "12345-6789", "1234", "12345\nx", "١٢٣٤٥"]],
   ['^[^@ ]+@[^@ ]+\.[^@ ]+$',                    ["a@b.co", "a b@c.co", "no-at-sign", "a@b.co\nevil", "\na@b.co", "café@x.co"]],
-  ['^(red|green|blue)$',                         ["red", "purple", "red\ngreen", "RED", "x\nred"]],
-  ['^[A-Za-z0-9_]+$',                            ["abc_1", "a b", "café", "abc\ndef"]],
+  ["^(red|green|blue)$",                         ["red", "purple", "red\ngreen", "RED", "x\nred"]],
+  ["^[A-Za-z0-9_]+$",                            ["abc_1", "a b", "café", "abc\ndef"]],
   ['^[ \t]*$',                                   ["", "   ", " ", "a", "\n", "\t"]],
-  ['^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$', ["12345678-1234-1234-1234-123456789abc", "nope"]],
+  ["^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$", ["12345678-1234-1234-1234-123456789abc", "nope"]],
   ['^\+?[0-9 ()-]{7,20}$',                       ["+44 20 1234", "abc", "+44 20 1234\nx"]],
   ['\Aonly\z',                                   ["only", "only\n", "x\nonly"]],
-  ['^a.c$',                                      ["abc", "a\nc", "a\tc", "aéc"]]
+  ["^a.c$",                                      ["abc", "a\nc", "a\tc", "aéc"]]
 ].freeze
 
 rows = CASES.flat_map do |pattern, inputs|

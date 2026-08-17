@@ -12,7 +12,8 @@ module Hecksagain
           File.readlines(@journal_path, chomp: true).reject(&:empty?).map do |line|
             value = JSON.parse(line)
             state = value["state"]&.transform_keys(&:to_sym)
-            Ports::Persistence::Entry.new(operation: value.fetch("operation"), id: value.fetch("id"), state: state, mirrors: value["mirrors"])
+            Ports::Persistence::Entry.new(operation: value.fetch("operation"), id: value.fetch("id"), state: state,
+                                          mirrors: value["mirrors"])
           end
         end
 

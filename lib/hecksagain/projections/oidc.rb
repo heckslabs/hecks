@@ -39,6 +39,7 @@ module Hecksagain
     # though the command did not exist.
     module OIDC
       extend Projector::Target
+
       projects_as :oidc
 
       module_function

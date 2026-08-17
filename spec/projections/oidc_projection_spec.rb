@@ -71,18 +71,18 @@ RSpec.describe Hecksagain::Projections::OIDC do
 
     it "names a one-level-nested entity command as a dotted verb" do
       expect(verbs).to include("Banking::SafeDepositBox.Visit.Annotate",
-                                "Banking::SafeDepositBox.KeyIssuance.Return",
-                                "Banking::Account.LedgerEntry.Amend",
-                                "Banking::Account.LedgerEntry.Reverse",
-                                "Banking::ATMCard.Withdrawal.Dispute")
+                               "Banking::SafeDepositBox.KeyIssuance.Return",
+                               "Banking::Account.LedgerEntry.Amend",
+                               "Banking::Account.LedgerEntry.Reverse",
+                               "Banking::ATMCard.Withdrawal.Dispute")
     end
 
     it "spells the matching scope in the same dotted shape, snake_cased" do
       expect(scopes).to include("banking:safe_deposit_box.visit.annotate",
-                                 "banking:safe_deposit_box.key_issuance.return",
-                                 "banking:account.ledger_entry.amend",
-                                 "banking:account.ledger_entry.reverse",
-                                 "banking:atm_card.withdrawal.dispute")
+                                "banking:safe_deposit_box.key_issuance.return",
+                                "banking:account.ledger_entry.amend",
+                                "banking:account.ledger_entry.reverse",
+                                "banking:atm_card.withdrawal.dispute")
     end
 
     it "carries the entity command's own role, the same as an aggregate command would" do

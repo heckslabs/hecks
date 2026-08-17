@@ -50,7 +50,6 @@ module Hecksagain
         @attributes  = attributes
       end
 
-
       # A query's shape is NOT fixed — `extra_options_to_h` carries
       # whatever options the specification layer grew (count, median,
       # group_by, scope_to). Declared emission covers the settled part

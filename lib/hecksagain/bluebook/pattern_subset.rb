@@ -25,32 +25,32 @@ module Hecksagain
 
       REASONS = {
         backreference:
-          "backreferences cannot be matched in linear time and portable " \
-          "engines refuse them ; a declared pattern may not depend on one",
+                             "backreferences cannot be matched in linear time and portable " \
+                             "engines refuse them ; a declared pattern may not depend on one",
         named_backreference:
-          "a named backreference is still a backreference — it cannot be " \
-          "matched in linear time ; a declared pattern may not depend on one",
+                             "a named backreference is still a backreference — it cannot be " \
+                             "matched in linear time ; a declared pattern may not depend on one",
         perl_class:
-          "engines read it in OPPOSITE directions : ASCII in some and " \
-          "Unicode in others, so an Arabic-Indic digit satisfies one and not " \
-          "the other. Spell the range you mean — [0-9], [A-Za-z0-9_], [ \t] " \
-          "— which every engine reads the same way",
+                             "engines read it in OPPOSITE directions : ASCII in some and " \
+                             "Unicode in others, so an Arabic-Indic digit satisfies one and not " \
+                             "the other. Spell the range you mean — [0-9], [A-Za-z0-9_], [ \t] " \
+                             "— which every engine reads the same way",
         posix_class:
-          "[:digit:] and friends flip between ASCII and Unicode across " \
-          "engines — the mirror of the perl classes, and wrong in the same " \
-          "way. Spell the range you mean",
+                             "[:digit:] and friends flip between ASCII and Unicode across " \
+                             "engines — the mirror of the perl classes, and wrong in the same " \
+                             "way. Spell the range you mean",
         lookahead:
-          "lookahead cannot be matched in linear time and portable engines " \
-          "refuse it ; a declared pattern may not depend on it",
+                             "lookahead cannot be matched in linear time and portable engines " \
+                             "refuse it ; a declared pattern may not depend on it",
         lookbehind:
-          "lookbehind cannot be matched in linear time and portable engines " \
-          "refuse it ; a declared pattern may not depend on it",
+                             "lookbehind cannot be matched in linear time and portable engines " \
+                             "refuse it ; a declared pattern may not depend on it",
         atomic_group:
-          "an atomic group is a backtracking-engine control knob — " \
-          "linear-time engines reject `(?>` as a syntax error",
+                             "an atomic group is a backtracking-engine control knob — " \
+                             "linear-time engines reject `(?>` as a syntax error",
         possessive:
-          "a possessive quantifier is a backtracking-engine control knob — " \
-          "linear-time engines reject it as a syntax error"
+                             "a possessive quantifier is a backtracking-engine control knob — " \
+                             "linear-time engines reject it as a syntax error"
       }.freeze
 
       module_function

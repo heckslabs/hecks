@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 RSpec.describe "a policy" do
@@ -192,7 +191,7 @@ RSpec.describe "a policy" do
               attribute :customer_id, AccountCustomerId
               sets :account_id
               sets :customer_id
-              sets :status,      to: { value: "open" }
+              sets :status, to: { value: "open" }
               emits "Opened"
             end
 
@@ -224,7 +223,7 @@ RSpec.describe "a policy" do
           # trigger AccountFreezeReview.Open"), self-contained in one
           # domain rather than crossing `across`.
           policy "ReviewOnFlag" do
-            on       "Customer.Flagged"
+            on "Customer.Flagged"
             where { risk == "high" }
             for_each "Account.OpenForCustomer"
             trigger  Account::Review
@@ -246,9 +245,9 @@ RSpec.describe "a policy" do
     end
 
     def open_two_accounts_for(runtime, customer_id)
-      runtime.dispatch("Fanout::Account.Open", account_id: { value: "#{customer_id}-a1" },
+      runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a1" },
                                                customer_id: { value: customer_id })
-      runtime.dispatch("Fanout::Account.Open", account_id: { value: "#{customer_id}-a2" },
+      runtime.dispatch("Fanout::Account.Open", account_id:  { value: "#{customer_id}-a2" },
                                                customer_id: { value: customer_id })
     end
 

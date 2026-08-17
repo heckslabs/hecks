@@ -63,7 +63,7 @@ RSpec.describe "a port operation, dispatched" do
 
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
-                                payment_id: "P1", amount: { cents: 4200 }, surprise: true)
+                               payment_id: "P1", amount: { cents: 4200 }, surprise: true)
     }.to raise_error(Hecksagain::Runtime::UnknownArgument)
   end
 
@@ -81,7 +81,7 @@ RSpec.describe "a port operation, dispatched" do
 
     expect {
       dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
-                                payment_id: "nonexistent", amount: { cents: 4200 })
+                               payment_id: "nonexistent", amount: { cents: 4200 })
     }.to raise_error(Hecksagain::Runtime::NotFound)
   end
 
@@ -90,7 +90,7 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     events = dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
-                                       payment_id: "P1", amount: { cents: 4200 })
+                                      payment_id: "P1", amount: { cents: 4200 })
 
     expect(events.length).to eq(1)
     event = events.first
@@ -106,7 +106,7 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
-                              payment_id: "P1", amount: { cents: 4200 })
+                             payment_id: "P1", amount: { cents: 4200 })
 
     payment = registry.repository("Payments", registry.bluebook("Payments").aggregate("Payment")).find("P1")
     expect(payment[:status]).to eq("received")
@@ -118,7 +118,7 @@ RSpec.describe "a port operation, dispatched" do
     open_payment(dispatcher)
 
     events = dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Decline",
-                                       payment_id: "P1", reason: { code: "insufficient_funds", message: "card declined" })
+                                      payment_id: "P1", reason: { code: "insufficient_funds", message: "card declined" })
 
     expect(events.first.name).to eq("PaymentDeclined")
 
@@ -131,10 +131,10 @@ RSpec.describe "a port operation, dispatched" do
     dispatcher, registry = boot
     open_payment(dispatcher)
     dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Receive",
-                              payment_id: "P1", amount: { cents: 4200 })
+                             payment_id: "P1", amount: { cents: 4200 })
 
     dispatcher.dispatch_port("Payments", "Payment", "PaymentGateway", "Decline",
-                              payment_id: "P1", reason: { code: "x", message: "y" })
+                             payment_id: "P1", reason: { code: "x", message: "y" })
 
     expect(registry.reaction_log.last[:delivered]).to be(false)
     payment = registry.repository("Payments", registry.bluebook("Payments").aggregate("Payment")).find("P1")
@@ -175,7 +175,7 @@ RSpec.describe "a port operation, dispatched" do
       open_payment(dispatcher)
 
       result = dispatcher.dispatch("Payments::Payment.PaymentGateway.Receive",
-                                    payment_id: "P1", amount: { cents: 4200 })
+                                   payment_id: "P1", amount: { cents: 4200 })
 
       expect(result.instance).to be_nil
       expect(result.id).to be_nil

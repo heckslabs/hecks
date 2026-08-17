@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # Every DomainRefusal wording that is not already data — `given`/`ensures`/a
@@ -23,7 +22,7 @@ RSpec.describe "the declared refusal wording" do
   REFUSAL_TEMPLATES_DECLARED = declared_templates
 
   REFUSAL_WORDING_RUBY_TABLE = Hecksagain::Runtime::RefusalWording::TEMPLATES
-                 .to_h { |(refusal, site), template| [[refusal, site], template] }
+                               .to_h { |(refusal, site), template| [[refusal, site], template] }
 
   it "declares at least one template, so a language regression doesn't silently empty this" do
     expect(REFUSAL_TEMPLATES_DECLARED).not_to be_empty
@@ -35,12 +34,12 @@ RSpec.describe "the declared refusal wording" do
 
   it "holds Ruby's table equal to the declared templates, both directions, wording included" do
     expect(REFUSAL_WORDING_RUBY_TABLE.keys.sort).to eq(REFUSAL_TEMPLATES_DECLARED.keys.sort),
-                                    "Ruby and the language disagree about which (refusal, site) pairs exist: " \
-                                    "#{(REFUSAL_WORDING_RUBY_TABLE.keys - REFUSAL_TEMPLATES_DECLARED.keys) + (REFUSAL_TEMPLATES_DECLARED.keys - REFUSAL_WORDING_RUBY_TABLE.keys)}"
+                                                    "Ruby and the language disagree about which (refusal, site) pairs exist: " \
+                                                    "#{(REFUSAL_WORDING_RUBY_TABLE.keys - REFUSAL_TEMPLATES_DECLARED.keys) + (REFUSAL_TEMPLATES_DECLARED.keys - REFUSAL_WORDING_RUBY_TABLE.keys)}"
 
     REFUSAL_TEMPLATES_DECLARED.each do |key, template|
       expect(REFUSAL_WORDING_RUBY_TABLE[key]).to eq(template), "#{key.inspect} reads #{REFUSAL_WORDING_RUBY_TABLE[key].inspect} in Ruby, " \
-                                               "which Vocabulary::RefusalTemplate declares as #{template.inspect}"
+                                                               "which Vocabulary::RefusalTemplate declares as #{template.inspect}"
     end
   end
 end

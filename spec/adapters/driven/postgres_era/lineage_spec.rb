@@ -220,8 +220,8 @@ RSpec.describe "lineage in the PostgresEra adapter",
     instance = Hecksagain::Runtime::Instance.new(
       aggregate: registry.bluebooks.values.first.aggregate("Acct"), id: "a1",
       state: state || {
-        cost: { "cents" => 100, "currency" => "USD" },
-        kind: { "label" => "biz" },
+        cost:        { "cents" => 100, "currency" => "USD" },
+        kind:        { "label" => "biz" },
         legacy_note: { "text" => "keep?" }
       }
     )
@@ -269,7 +269,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
     db = PG.connect(dbname: LINEAGE_DB)
 
     generic_wording = "cannot boot Ledger: the held text of era 1 was edited after it was frozen — " \
-                       "held era texts are storage facts; restore the original text, or reset the data"
+                      "held era texts are storage facts; restore the original text, or reset the data"
 
     # shape-changing edit
     db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE domain = 'Ledger' AND ordinal = 1", [V2_SOURCE])
@@ -410,8 +410,8 @@ RSpec.describe "lineage in the PostgresEra adapter",
 
   it "a convert meeting an unmapped value refuses the whole mint — the era is never half-born" do
     write_v1_record(
-      cost: { "cents" => 5, "currency" => "USD" },
-      kind: { "label" => "mystery" },
+      cost:        { "cents" => 5, "currency" => "USD" },
+      kind:        { "label" => "mystery" },
       legacy_note: { "text" => "x" }
     )
     from = label_of(V1_SOURCE)
@@ -518,10 +518,10 @@ RSpec.describe "lineage in the PostgresEra adapter",
     reg1 = check!(collide_v1)
     acct = reg1.bluebooks.values.first.aggregate("Acct")
     Hecksagain::Adapters::PostgresEra.new(aggregate: acct, settings: { database: LINEAGE_DB, domain: "Collide" })
-                                   .save(Hecksagain::Runtime::Instance.new(
-                                     aggregate: acct, id: "a1",
-                                     state: { amount: { "cents" => 500 }, kind: { "value" => "biz" }, team: "team-1" }
-                                   ))
+                                     .save(Hecksagain::Runtime::Instance.new(
+                                             aggregate: acct, id: "a1",
+                                             state: { amount: { "cents" => 500 }, kind: { "value" => "biz" }, team: "team-1" }
+                                           ))
 
     from = label_of(collide_v1)
     to = label_of(collide_v2)
@@ -565,7 +565,8 @@ RSpec.describe "lineage in the PostgresEra adapter",
     expect(old_registry.resolved_eras["Ledger"]).to eq(1)
 
     db = PG.connect(dbname: LINEAGE_DB)
-    state = JSON.generate(cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "late" })
+    state = JSON.generate(cost: { "cents" => 5, "currency" => "USD" }, kind: { "label" => "biz" },
+                          legacy_note: { "text" => "late" })
     ordinal = db.exec_params(
       "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2) RETURNING ordinal",
       ["a9", state]
@@ -588,7 +589,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
     # the aggregate to "Account")...
     old_world = Hecksagain::Adapters::PostgresEra.new(
       aggregate: old_registry.bluebooks.values.first.aggregate("Acct"),
-      settings: { database: owner_url, domain: "Ledger", era: 1 }
+      settings:  { database: owner_url, domain: "Ledger", era: 1 }
     )
     expect(old_world.find("a9").cost.to_h).to eq(cents: 5, currency: "USD")
     # ...the new head does NOT (the watermark is baked into the matview)...
@@ -612,7 +613,8 @@ RSpec.describe "lineage in the PostgresEra adapter",
     3_000.times do |i|
       db.exec_params(
         "INSERT INTO hecks_journal_ledger (era, aggregate, aggregate_id, operation, state) VALUES (1, 'acct', $1, 'save', $2)",
-        ["bulk-#{i}", JSON.generate(cost: { "cents" => i, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "x" })]
+        ["bulk-#{i}",
+         JSON.generate(cost: { "cents" => i, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "x" })]
       )
     end
     db.close
@@ -679,12 +681,12 @@ RSpec.describe "lineage in the PostgresEra adapter",
     # the new world updates a1 after the cut
     new_world = Hecksagain::Adapters::PostgresEra.new(
       aggregate: new_registry.bluebooks.values.first.aggregate("Account"),
-      settings: { database: LINEAGE_DB, domain: "Ledger", era: 2 }
+      settings:  { database: LINEAGE_DB, domain: "Ledger", era: 2 }
     )
     new_world.save(Hecksagain::Runtime::Instance.new(
-      aggregate: new_registry.bluebooks.values.first.aggregate("Account"), id: "a1",
-      state: { amount: { "cents" => 999 }, kind: { "label" => "business" }, denomination: { "code" => "USD" }, status: "open" }
-    ))
+                     aggregate: new_registry.bluebooks.values.first.aggregate("Account"), id: "a1",
+                     state: { amount: { "cents" => 999 }, kind: { "label" => "business" }, denomination: { "code" => "USD" }, status: "open" }
+                   ))
 
     # the old world keeps running: touches a1 too (the conflict), and
     # opens a9 (the mergeable tail)
@@ -694,13 +696,13 @@ RSpec.describe "lineage in the PostgresEra adapter",
       aggregate: acct, settings: { database: LINEAGE_DB, domain: "Ledger", era: 1 }
     )
     old_world.save(Hecksagain::Runtime::Instance.new(
-      aggregate: acct, id: "a1",
-      state: { cost: { "cents" => 111, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "old edit" } }
-    ))
+                     aggregate: acct, id: "a1",
+                     state: { cost: { "cents" => 111, "currency" => "USD" }, kind: { "label" => "biz" }, legacy_note: { "text" => "old edit" } }
+                   ))
     old_world.save(Hecksagain::Runtime::Instance.new(
-      aggregate: acct, id: "a9",
-      state: { cost: { "cents" => 5, "currency" => "EUR" }, kind: { "label" => "pers" }, legacy_note: { "text" => "late" } }
-    ))
+                     aggregate: acct, id: "a9",
+                     state: { cost: { "cents" => 5, "currency" => "EUR" }, kind: { "label" => "pers" }, legacy_note: { "text" => "late" } }
+                   ))
     [new_registry, edge]
   end
 
@@ -980,7 +982,8 @@ RSpec.describe "lineage in the PostgresEra adapter",
     person = registry.bluebooks.values.first.aggregate("Person")
     adapter = Hecksagain::Adapters::PostgresEra.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
     adapter.save(Hecksagain::Runtime::Instance.new(
-                   aggregate: person, id: "Chris Young", state: { name: { "value" => "Chris Young" }, title: { "value" => "CEO" } }
+                   aggregate: person, id: "Chris Young", state: { name:  { "value" => "Chris Young" },
+                                                                  title: { "value" => "CEO" } }
                  ))
 
     from = label_of(ROSTER_V1)
@@ -1335,7 +1338,8 @@ RSpec.describe "lineage in the PostgresEra adapter",
       load_registry(V3_SOURCE, translation_source: edges), load_registry(V3_SOURCE).bluebooks.values.first,
       lineage.eras[0..-2], l3
     )
-    full = db.exec("SELECT aggregate_id, operation, state FROM (#{lineage.chain_sql(account, 3, chain)}) full_build ORDER BY aggregate_id").values
+    full = db.exec("SELECT aggregate_id, operation, state FROM (#{lineage.chain_sql(account, 3,
+                                                                                    chain)}) full_build ORDER BY aggregate_id").values
     db.close
 
     expect(layered).to eq(full)
@@ -1357,7 +1361,7 @@ RSpec.describe "lineage in the PostgresEra adapter",
     # (or forgotten in the layer), this write would leak upward.
     stale = Hecksagain::Adapters::PostgresEra.new(
       aggregate: load_registry(V2_SOURCE).bluebooks.values.first.aggregate("Account"),
-      settings: { database: LINEAGE_DB, domain: "Ledger", era: 2 }
+      settings:  { database: LINEAGE_DB, domain: "Ledger", era: 2 }
     )
     stale.save(Hecksagain::Runtime::Instance.new(
                  aggregate: load_registry(V2_SOURCE).bluebooks.values.first.aggregate("Account"),

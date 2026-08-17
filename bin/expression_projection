@@ -82,12 +82,12 @@ stranded = Hecksagain::Grammar.self_bearing_operators.reject { |symbol, _| admit
 unless stranded.empty?
   abort stranded.map { |symbol, sites|
     "#{symbol} is self-bearing — the language's own predicates evaluate through it " \
-    "(#{sites.first(3).join('; ')}) — rewrite those guards before retiring it"
+      "(#{sites.first(3).join('; ')}) — rewrite those guards before retiring it"
   }.join("\n")
 end
 
 content = JSON.pretty_generate(
-  operators: operators,
+  operators:      operators,
   normalisations: Hecksagain::Grammar.admitted_normalisations(dispatcher)
 ) + "\n"
 

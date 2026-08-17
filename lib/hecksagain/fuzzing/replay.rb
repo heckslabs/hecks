@@ -242,7 +242,9 @@ module Hecksagain
 
           instances = snapshot_instances(runtime)
 
-          events = runtime.events.map { |event| { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload } }
+          events = runtime.events.map { |event|
+            { name: event.name, aggregate: event.aggregate, id: event.id, payload: event.payload }
+          }
 
           # THE LIVE PROCESS-MANAGER STORE, materialised to inert data —
           # `{ pm_name => { correlation => { state:, memory: } } }`, the
@@ -531,7 +533,7 @@ module Hecksagain
         expected = held ? expected_fan_out_rows(runtime, snapshot, policy, domain, payload) : nil
 
         actual = reactions_since.select { |r| r[:policy] == policy.name && r[:on] == event.name }
-                                 .filter_map { |r| r[:for_row] }
+                                .filter_map { |r| r[:for_row] }
 
         { policy: policy.name, on: event.name, expected_row_ids: expected, actual_row_ids: actual }
       end

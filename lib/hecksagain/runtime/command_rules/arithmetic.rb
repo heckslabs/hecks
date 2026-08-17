@@ -63,7 +63,7 @@ module Hecksagain
         end
 
         def arithmetic(current, amount, target, sign)
-          op      = sign.positive? ? "increment" : "decrement"
+          op = sign.positive? ? "increment" : "decrement"
           current ||= 0
 
           if current.is_a?(Value) && amount.is_a?(Value)
@@ -77,11 +77,11 @@ module Hecksagain
           # case; Float is now accepted the same way.
           unless amount.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
-                                                       op: op, target: target, offered: Rendering.describe(amount))
+                                                      op: op, target: target, offered: Rendering.describe(amount))
           end
           unless current.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
-                                                       op: op, target: target, offered: Rendering.describe(current))
+                                                      op: op, target: target, offered: Rendering.describe(current))
           end
 
           current + (sign * amount)
@@ -126,8 +126,8 @@ module Hecksagain
 
           unless amount.is_a?(Numeric) && current.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
-                                                       op: "multiply", target: target,
-                                                       offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
+                                                      op: "multiply", target: target,
+                                                      offered: Rendering.describe(current.is_a?(Numeric) ? amount : current))
           end
 
           current * amount
@@ -154,13 +154,13 @@ module Hecksagain
             fields = current.to_h
             field  = fields.keys.find { |f| fields[f].is_a?(Numeric) } or
               raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
-                                                         op: "clamp", target: target, offered: Rendering.describe(current))
+                                                        op: "clamp", target: target, offered: Rendering.describe(current))
             return current.with(field, fields[field].clamp(min, max))
           end
 
           unless current.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_current",
-                                                       op: "clamp", target: target, offered: Rendering.describe(current))
+                                                      op: "clamp", target: target, offered: Rendering.describe(current))
           end
 
           current.clamp(min, max)

@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 RSpec.describe "one_of" do
@@ -74,8 +73,8 @@ RSpec.describe "one_of" do
     expect do
       runtime.dispatch("Banking::Customer.Register",
                        reference: { value: "CUST-0009" },
-                       name: { given: "No", family: "Route" },
-                       email: { address: "nowhere" })
+                       name:      { given: "No", family: "Route" },
+                       email:     { address: "nowhere" })
     end.to raise_error(Hecksagain::Runtime::TypeMismatch,
                        'EmailAddress.address must match ^[^@ ]+@[^@ ]+\.[^@ ]+$, got "nowhere"')
   end

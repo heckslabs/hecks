@@ -20,6 +20,7 @@ module Hecksagain
     # projection never reaches for a path of its own choosing.
     module Reference
       extend Projector::Target
+
       projects_as :reference, declares: "Syntax", emits: :files
 
       module_function

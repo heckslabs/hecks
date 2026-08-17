@@ -388,7 +388,7 @@ RSpec.describe "the DSL surface" do
 
       expect(spelled.ensures.map(&:canonical)).to eq(["old.balance.cents <= balance.cents"])
       expect(spelled.to_h[:ensures]).to eq([{ description: "it landed",
-                                              canonical: "old.balance.cents <= balance.cents" }])
+                                              canonical:   "old.balance.cents <= balance.cents" }])
     end
 
     it "sets alone, with no operation named at all, means to: the same field — the omittable case" do
@@ -652,9 +652,9 @@ RSpec.describe "the DSL surface" do
       expect([model.name, model.query_name, model.reference_name, model.reference_target])
         .to eq(["CustomerPortfolio", "customer_portfolio", :reference, "Customer"])
       expect(model.aggregate_heads).to eq([
-        { aggregate: "Customer", as: :customer, many: false },
-        { aggregate: "Account", as: :accounts, many: true }
-      ])
+                                            { aggregate: "Customer", as: :customer, many: false },
+                                            { aggregate: "Account", as: :accounts, many: true }
+                                          ])
     end
 
     it "report is gone — read_model is the word now (ADR 0025 reverts the rename)" do
@@ -681,6 +681,7 @@ RSpec.describe "the DSL surface" do
         read_model("Portfolio") do
           description "a portfolio"
           include Account
+
           reference_to Customer
         end
       end.read_models.first
@@ -750,6 +751,7 @@ RSpec.describe "the DSL surface" do
         read_model "Portfolio" do
           reference_to Customer
           include Account
+
           where(status: "active")
           order_by :id, :desc
           limit 20
@@ -772,6 +774,7 @@ RSpec.describe "the DSL surface" do
           read_model "Portfolio" do
             reference_to Customer
             include Account
+
             cursor :after
           end
         end
@@ -799,7 +802,8 @@ RSpec.describe "the DSL surface" do
             reference_to Rider
           end
         end
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed,
+                       /reference cycle: (Rider -> Bicycle -> Rider|Bicycle -> Rider -> Bicycle)/)
     end
 
     # S9, ADR 0025 — an OWNED PIECE's own reference_to used to feed no
@@ -834,7 +838,7 @@ RSpec.describe "the DSL surface" do
           end
         end
       }.to raise_error(Hecksagain::Bluebook::DSL::Malformed,
-                        /reference cycle: (Board -> Product -> Board|Product -> Board -> Product)/)
+                       /reference cycle: (Board -> Product -> Board|Product -> Board -> Product)/)
     end
 
     it "allows one aggregate to reference another in a single direction" do
@@ -1485,9 +1489,9 @@ RSpec.describe "the DSL surface" do
       expect(machine.transitions.first.last.from).to eq(["sold", "draft"])
 
       expect(machine.to_h[:transitions]).to eq([
-        { command: "Archive", to_state: "archived", from_state: "sold" },
-        { command: "Archive", to_state: "archived", from_state: "draft" }
-      ])
+                                                 { command: "Archive", to_state: "archived", from_state: "sold" },
+                                                 { command: "Archive", to_state: "archived", from_state: "draft" }
+                                               ])
     end
 
     it "lifecycle picks the transition whose from: admits the current state" do
@@ -1787,7 +1791,11 @@ RSpec.describe "the DSL surface" do
 
         it "admits a WHERE hop with an ordered comparator — the target's own field decides, not the ask" do
           expect do
-            build_hop_bluebook(client: proc { value_object("Balance") { attribute :cents, Integer }; attribute :balance, Balance }) do
+            build_hop_bluebook(client: proc {
+              value_object("Balance") {
+                attribute :cents, Integer
+              }; attribute :balance, Balance
+            }) do
               query("HighValue") { where(:"client/balance.cents" => { gt: 500 }) }
             end
           end.not_to raise_error
@@ -1856,7 +1864,7 @@ RSpec.describe "the DSL surface" do
               end
             end
           end.to raise_error(Malformed,
-                              %r{Board::Card\.ForProduct asks about product/sku, which hops through Card's own reference})
+                             %r{Board::Card\.ForProduct asks about product/sku, which hops through Card's own reference})
         end
 
         it "refuses a hop whose tail lands on a value object rather than a scalar" do
@@ -1878,7 +1886,8 @@ RSpec.describe "the DSL surface" do
             build_hop_bluebook(client: client) do
               query("Bad") { where(:"client/box.price" => { gt: 500 }) }
             end
-          end.to raise_error(Malformed, /hops to Client and then asks about box\.price, which lands on a value object, not a scalar/)
+          end.to raise_error(Malformed,
+                             /hops to Client and then asks about box\.price, which lands on a value object, not a scalar/)
         end
 
         it "refuses an ordered comparator on a hop's tail when it holds no number" do
@@ -1886,7 +1895,8 @@ RSpec.describe "the DSL surface" do
             build_hop_bluebook do
               query("Bad") { where(:"client/status" => { gt: "active" }) }
             end
-          end.to raise_error(Malformed, %r{compares client/status with gt after hopping to Client.*is the lifecycle field, which holds text}m)
+          end.to raise_error(Malformed,
+                             %r{compares client/status with gt after hopping to Client.*is the lifecycle field, which holds text}m)
         end
 
         it "refuses an ordered comparator on a hop's tail that's a real attribute holding no number" do

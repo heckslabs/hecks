@@ -92,9 +92,10 @@ RSpec.describe Hecksagain::Router do
     Realm::Banking::Account.Open(id: "A-1", customer: "C-1", number: { value: "ACC-1" })
 
     expect(Realm::Banking.customer_portfolio(customer: "C-1")).to eq([
-      { customer: { id: "C-1", reference: { value: "C-1" }, name: { value: "Ada" } },
-        accounts: [{ id: "A-1", customer: "C-1", number: { value: "ACC-1" }, balance: { cents: 0 } }] }
-    ])
+                                                                       { customer: { id: "C-1", reference: { value: "C-1" }, name: { value: "Ada" } },
+                                                                         accounts: [{ id: "A-1", customer: "C-1",
+number: { value: "ACC-1" }, balance: { cents: 0 } }] }
+                                                                     ])
   ensure
     Object.send(:remove_const, :Realm) if Object.const_defined?(:Realm, false)
   end
@@ -306,8 +307,10 @@ RSpec.describe Hecksagain::Router do
     directory = File.join(@root, directory_name, "bluebook")
     FileUtils.mkdir_p(directory)
     version_clause = version ? ", version: #{version.inspect}" : ""
-    File.write(File.join(directory, "#{directory_name}.bluebook"), "Hecks.bluebook #{domain.inspect}#{version_clause} do\n#{body}\nend\n")
-    world = ["Hecks.world #{domain.inspect} do", "  realm #{realm.inspect}", ("  latest #{latest.inspect}" if latest), "end"].compact
+    File.write(File.join(directory, "#{directory_name}.bluebook"),
+               "Hecks.bluebook #{domain.inspect}#{version_clause} do\n#{body}\nend\n")
+    world = ["Hecks.world #{domain.inspect} do", "  realm #{realm.inspect}", ("  latest #{latest.inspect}" if latest),
+             "end"].compact
     File.write(File.join(directory, "#{directory_name}.world"), world.join("\n") + "\n")
   end
 end

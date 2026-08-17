@@ -23,7 +23,7 @@ RSpec.describe Hecksagain::Ports::Query do
 
   it "rejects contradictory pagination before an adapter is called" do
     specification = Hecksagain::Bluebook::Query.new(
-      name: "Accounts",
+      name:   "Accounts",
       offset: Hecksagain::QuerySpecification::Common::OffsetSpec.new(value: 5),
       cursor: Hecksagain::QuerySpecification::Common::CursorSpec.new(value: "next")
     )

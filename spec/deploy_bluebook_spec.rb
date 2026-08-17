@@ -196,7 +196,7 @@ RSpec.describe "the self-hosted Deploy bluebook" do
       expect(stderr).to include("declares database \"Shared\" but no owner")
     end
 
-    it 'never claims to have written bastion.yaml for a Shared-mode domain' do
+    it "never claims to have written bastion.yaml for a Shared-mode domain" do
       stdout, stderr, status = run_project_deploy(<<~WORLD)
         Hecks.world "Scratch" do
           deployed_to("AwsLambda") do

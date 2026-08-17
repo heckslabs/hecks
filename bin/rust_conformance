@@ -67,7 +67,9 @@ result = Hecksagain::Fuzzing::Replay.call(domain, steps)
 
 comparable = {
   "instances" => result[:instances].transform_values { |state| JSON.parse(JSON.generate(state)) },
-  "events"    => result[:events].map { |e| { "name" => e[:name], "aggregate" => e[:aggregate], "id" => e[:id].to_s, "payload" => JSON.parse(JSON.generate(e[:payload])) } },
+  "events"    => result[:events].map { |e|
+    { "name" => e[:name], "aggregate" => e[:aggregate], "id" => e[:id].to_s, "payload" => JSON.parse(JSON.generate(e[:payload])) }
+  },
   "refusals"  => result[:refusals].map { |r| { "verb" => r[:verb], "error" => r[:error] } }
 }
 

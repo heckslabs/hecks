@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # Every corpus member must LOAD.

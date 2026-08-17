@@ -102,7 +102,7 @@ module Hecksagain
                   ) latest WHERE operation = 'save' ORDER BY id LIMIT #{ResumableBackfill::CHUNK_SIZE}
                 SQL
               end,
-              upsert: lambda do |rows|
+              upsert:     lambda do |rows|
                 rows.each do |row|
                   @db.exec_params(
                     "INSERT INTO #{quote(name)} (id, ordinal, state) VALUES ($1, $2, $3) " \

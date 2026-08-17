@@ -11,21 +11,21 @@ require "spec_helper"
 RSpec.describe Hecksagain::Literal do
   describe ".render" do
     {
-      nil                            => "nil",
-      true                           => "true",
-      false                          => "false",
-      0                              => "0",
-      -12                            => "-12",
-      1.5                            => "1.5",
-      :amount                        => ":amount",
-      "open"                         => '"open"',
-      { value: "credit" }            => '{value: "credit"}',
-      { cents: 0 }                   => "{cents: 0}",
-      { a: 1, b: :two }              => "{a: 1, b: :two}",
-      { outer: { inner: "x" } }      => '{outer: {inner: "x"}}',
-      %w[open frozen]                => '["open", "frozen"]',
-      {}                             => "{}",
-      []                             => "[]"
+      nil                       => "nil",
+      true                      => "true",
+      false                     => "false",
+      0                         => "0",
+      -12                       => "-12",
+      1.5                       => "1.5",
+      :amount                   => ":amount",
+      "open"                    => '"open"',
+      { value: "credit" }       => '{value: "credit"}',
+      { cents: 0 }              => "{cents: 0}",
+      { a: 1, b: :two }         => "{a: 1, b: :two}",
+      { outer: { inner: "x" } } => '{outer: {inner: "x"}}',
+      %w[open frozen]           => '["open", "frozen"]',
+      {}                        => "{}",
+      []                        => "[]"
     }.each do |value, spelling|
       it "spells #{value.inspect} as #{spelling}" do
         expect(described_class.render(value)).to eq(spelling)

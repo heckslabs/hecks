@@ -58,6 +58,7 @@ module Hecksagain
     end
 
     private
+
     def local_verb(entry)
       return "#{entry.fqn.domain}.#{entry.declared_verb}" unless entry.fqn.aggregate
 

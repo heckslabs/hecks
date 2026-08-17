@@ -68,7 +68,7 @@ path, aggregate =
   if ARGV.empty?              then [here, nil]
   elsif ARGV.length > 1       then [ARGV[0], ARGV[1]]
   elsif File.directory?(ARGV[0]) then [ARGV[0], nil]
-  else                             [here, ARGV[0]]
+  else [here, ARGV[0]]
   end
 
 unless path

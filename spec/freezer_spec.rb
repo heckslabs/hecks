@@ -54,7 +54,7 @@ RSpec.describe Hecksagain::Freezer do
     let(:result) do
       runtime = boot_in_memory
       runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name: { value: "Margherita" },
+                       name:  { value: "Margherita" },
                        pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
     end
 
@@ -91,7 +91,7 @@ RSpec.describe Hecksagain::Freezer do
     let(:runtime) { boot_in_memory }
     let(:event) do
       runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name: { value: "Quattro" },
+                       name:  { value: "Quattro" },
                        pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
       runtime.events.last
     end
@@ -121,7 +121,7 @@ RSpec.describe Hecksagain::Freezer do
     it "leaves the log itself appendable" do
       before = runtime.events.size
       runtime.dispatch("Pizzas::Order.CreatePizza",
-                       name: { value: "Capricciosa" },
+                       name:  { value: "Capricciosa" },
                        pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
 
       expect(runtime.events.size).to eq(before + 1)
@@ -135,7 +135,7 @@ RSpec.describe Hecksagain::Freezer do
     let(:runtime) do
       rt = boot_in_memory
       rt.dispatch("Pizzas::Order.CreatePizza",
-                  name: { value: "Frozen" },
+                  name:  { value: "Frozen" },
                   pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
       rt
     end
@@ -172,7 +172,7 @@ RSpec.describe Hecksagain::Freezer do
     it "leaves an instance's state holder mutable, since a command's job is to change it" do
       runtime = boot_in_memory
       result = runtime.dispatch("Pizzas::Order.CreatePizza",
-                                name: { value: "Marinara" },
+                                name:  { value: "Marinara" },
                                 pizza: { name: { value: "M" }, price_cents: { cents: 500 } })
 
       expect(result.instance.to_h).not_to be_frozen

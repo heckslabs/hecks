@@ -60,7 +60,8 @@ RSpec.describe "Pizzas" do
   describe "selling a pizza" do
     it "emits PizzaPurchased and records the customer" do
       pizza  = topped
-      result = runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" }, amount: { cents: 1200 })
+      result = runtime.dispatch("Pizzas::Order.Purchase", name: pizza.id, customer_name: { value: "Chris" },
+amount: { cents: 1200 })
 
       expect(result.events.map(&:name)).to eq(["PizzaPurchased"])
       expect(result.state[:customer_name].to_h).to eq(value: "Chris")
@@ -69,7 +70,8 @@ RSpec.describe "Pizzas" do
 
     it "appends toppings as value objects" do
       pizza = topped
-      state = runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" }, amount: { value: 2 }).state
+      state = runtime.dispatch("Pizzas::Order.AddTopping", name: pizza.id, topping: { value: "Olive" },
+amount: { value: 2 }).state
 
       expect(state[:toppings].map(&:to_h)).to eq([{ name: "Basil", amount: 3 }, { name: "Olive", amount: 2 }])
     end

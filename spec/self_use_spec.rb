@@ -76,7 +76,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
   # under Syntax — S14 — are real declarations two and three levels
   # down, not just at the aggregate's own top level).
   SELF_USE_COUNTS = {
-    "entity" => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| count_entities(a) } },
+    "entity"                 => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| count_entities(a) } },
     "lifecycle / transition" => -> {
       SELF_USE_LANGUAGE.aggregates.sum do |a|
         count = a.lifecycle ? 1 : 0
@@ -84,12 +84,12 @@ RSpec.describe "the language uses everything the core grammar declares" do
         count
       end
     },
-    "policy" => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| a.policies.size } + SELF_USE_LANGUAGE.policies.size },
-    "process_manager" => -> { SELF_USE_LANGUAGE.process_managers.size },
-    "ensures" => -> { every_command.sum { |c| c.ensures.to_a.size } },
-    "provenance" => -> { every_command.count { |c| c.provenance } },
-    "group_by" => -> { SELF_USE_LANGUAGE.read_models.count { |r| !r.group_by.to_a.empty? } },
-    "authorize" => -> { every_query.count(&:authorization) }
+    "policy"                 => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| a.policies.size } + SELF_USE_LANGUAGE.policies.size },
+    "process_manager"        => -> { SELF_USE_LANGUAGE.process_managers.size },
+    "ensures"                => -> { every_command.sum { |c| c.ensures.to_a.size } },
+    "provenance"             => -> { every_command.count { |c| c.provenance } },
+    "group_by"               => -> { SELF_USE_LANGUAGE.read_models.count { |r| !r.group_by.to_a.empty? } },
+    "authorize"              => -> { every_query.count(&:authorization) }
   }.freeze
 
   # NAMED, REASONED — never a silent exclusion. Each entry is the ADR's
@@ -103,36 +103,36 @@ RSpec.describe "the language uses everything the core grammar declares" do
   # ever describes shape, never reacts to time, never involves more
   # than one caller.
   SELF_USE_KNOWN_GAPS = {
-    "policy" =>
-      "a policy reacts to an event with a trigger and (optionally) a with: " \
-      "projection — the language's own commands each mint one static record " \
-      "and react to nothing; inventing a reaction among them would be a " \
-      "policy in name only, satisfying the gate rather than describing a " \
-      "real cross-command consequence.",
+    "policy"          =>
+                         "a policy reacts to an event with a trigger and (optionally) a with: " \
+                         "projection — the language's own commands each mint one static record " \
+                         "and react to nothing; inventing a reaction among them would be a " \
+                         "policy in name only, satisfying the gate rather than describing a " \
+                         "real cross-command consequence.",
     "process_manager" =>
-      "a saga correlates several commands over time via the events they " \
-      "emit — nothing in the language's own description is a multi-step " \
-      "workflow; every declaration here is a single, complete, one-shot " \
-      "fact about a construct, with no \"and then\" for a saga to carry.",
-    "provenance" =>
-      "provenance records where a construct's SHAPE was ported from " \
-      "(banking's own use: \"HecksCanonical\", an external canonical " \
-      "model) — the language's own aggregates ARE the canonical " \
-      "definition, not a port of one; naming a source for something " \
-      "that has none would be fiction, not documentation.",
-    "group_by" =>
-      "the ADR's own \"Rejected alternatives\" names this exact risk " \
-      "(\"grouping words by context... is decoration... modelling to " \
-      "satisfy a tool\") for the read model this gate would have to " \
-      "invent — WholeBluebook already gathers everything a chapter holds " \
-      "in one read, and no real question the language needs answered " \
-      "about itself is a REDUCTION over its own records rather than the " \
-      "records themselves.",
-    "authorize" =>
-      "authorize gates a query behind a tenant/policy boundary — the " \
-      "language has no multi-tenant concept of its own; a grammar row is " \
-      "not scoped to a caller, and inventing a tenant for the language's " \
-      "own records to be walled off by would be pure decoration."
+                         "a saga correlates several commands over time via the events they " \
+                         "emit — nothing in the language's own description is a multi-step " \
+                         "workflow; every declaration here is a single, complete, one-shot " \
+                         "fact about a construct, with no \"and then\" for a saga to carry.",
+    "provenance"      =>
+                         "provenance records where a construct's SHAPE was ported from " \
+                         "(banking's own use: \"HecksCanonical\", an external canonical " \
+                         "model) — the language's own aggregates ARE the canonical " \
+                         "definition, not a port of one; naming a source for something " \
+                         "that has none would be fiction, not documentation.",
+    "group_by"        =>
+                         "the ADR's own \"Rejected alternatives\" names this exact risk " \
+                         "(\"grouping words by context... is decoration... modelling to " \
+                         "satisfy a tool\") for the read model this gate would have to " \
+                         "invent — WholeBluebook already gathers everything a chapter holds " \
+                         "in one read, and no real question the language needs answered " \
+                         "about itself is a REDUCTION over its own records rather than the " \
+                         "records themselves.",
+    "authorize"       =>
+                         "authorize gates a query behind a tenant/policy boundary — the " \
+                         "language has no multi-tenant concept of its own; a grammar row is " \
+                         "not scoped to a caller, and inventing a tenant for the language's " \
+                         "own records to be walled off by would be pure decoration."
   }.freeze
 
   it "uses every construct it declares, or names why not" do
@@ -156,22 +156,22 @@ RSpec.describe "the language uses everything the core grammar declares" do
     used = SELF_USE_COUNTS.reject { |feature, _| SELF_USE_KNOWN_GAPS.key?(feature) }
 
     expect(used).not_to be_empty, "every feature is a named gap — nothing is claimed as used, which is " \
-                                   "suspicious enough on its own to be worth a second look"
+                                  "suspicious enough on its own to be worth a second look"
   end
 
   it "carries no gap the language has outgrown" do
     stale = SELF_USE_KNOWN_GAPS.keys.select { |feature| SELF_USE_COUNTS.fetch(feature).call.positive? }
 
     expect(stale).to be_empty,
-                      "the language now declares #{stale.join(', ')} for real — " \
-                      "delete the SELF_USE_KNOWN_GAPS entry, the claim is used now"
+                     "the language now declares #{stale.join(', ')} for real — " \
+                     "delete the SELF_USE_KNOWN_GAPS entry, the claim is used now"
   end
 
   it "names no gap for a feature the counters do not track" do
     orphaned = SELF_USE_KNOWN_GAPS.keys - SELF_USE_COUNTS.keys
 
     expect(orphaned).to be_empty,
-                         "SELF_USE_KNOWN_GAPS names #{orphaned.join(', ')}, which SELF_USE_COUNTS does not " \
-                         "track — a gap entry for nothing this spec measures is dead weight"
+                        "SELF_USE_KNOWN_GAPS names #{orphaned.join(', ')}, which SELF_USE_COUNTS does not " \
+                        "track — a gap entry for nothing this spec measures is dead weight"
   end
 end

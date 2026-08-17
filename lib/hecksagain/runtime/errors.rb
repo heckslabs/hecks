@@ -1,7 +1,6 @@
 require_relative "value/invariant_violation"
 require_relative "../vocabulary"
 
-
 module Hecksagain
   module Runtime
     class UnknownVerb < StandardError; end

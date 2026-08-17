@@ -300,7 +300,7 @@ module Hecksagain
           plan = @plan.category("Entity")
           walk_all("Entity", node, aggregate,
                    aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
-                   owner: carried(plan, plan&.declare, "owner", id))
+                   owner:     carried(plan, plan&.declare, "owner", id))
         end
 
         # WHERE IT SITS AMONG ITS SIBLINGS IS A FACT ABOUT THE WALK, not about the

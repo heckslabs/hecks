@@ -176,7 +176,7 @@ module Doctest
       waves.each do |declarations, usages|
         runtime = boot(declarations) unless declarations.empty?
         usages.each do |block|
-          eval(transform(block), shared, @guide.path, block.line) # rubocop:disable Security/Eval
+          eval(transform(block), shared, @guide.path, block.line)
         end
       end
       true
@@ -256,7 +256,7 @@ module Doctest
 
     def eq(line, expected_source, expression)
       actual = yield
-      expected = eval(expected_source, binding, "#{@path} (expected at :#{line})") # rubocop:disable Security/Eval
+      expected = eval(expected_source, binding, "#{@path} (expected at :#{line})")
       return actual if actual == expected
 
       raise Mismatch, <<~WHY

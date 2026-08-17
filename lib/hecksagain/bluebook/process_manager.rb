@@ -48,7 +48,6 @@ module Hecksagain
     end
 
     class ProcessManager
-
       # The BLUEBOOK's name for this construct, asked the same way of a class
       # that has crossed over and of an IR object that has not. Collapses into
       # Construct when this one crosses.
@@ -82,9 +81,6 @@ module Hecksagain
         @states        = states
         @handlers      = handlers
       end
-
-
-
     end
   end
 end

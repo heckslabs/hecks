@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook")

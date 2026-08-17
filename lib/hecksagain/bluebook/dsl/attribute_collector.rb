@@ -52,7 +52,7 @@ module Hecksagain
 
           if type.equal?(UNSET)
             raise Malformed, "#{name} declares no type — attribute :#{name}, SomeType is required, " \
-                              "there is no default"
+                             "there is no default"
           end
 
           # `list_of("X")` carries the same quoted text one level down — a
@@ -62,8 +62,8 @@ module Hecksagain
           quoted = type.is_a?(ListOf) ? type.type : type
           if quoted.is_a?(::String)
             raise Malformed, "#{name}'s type #{quoted.inspect} is quoted text — give the bare constant " \
-                              "(#{quoted}) instead; a forward reference to a value object declared later " \
-                              "in the same block already resolves without quoting"
+                             "(#{quoted}) instead; a forward reference to a value object declared later " \
+                             "in the same block already resolves without quoting"
           end
 
           refuse_unshared_pattern(name, pattern) if pattern

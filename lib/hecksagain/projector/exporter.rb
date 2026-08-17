@@ -48,10 +48,10 @@ module Hecksagain
 
       def translation_hash(translation)
         {
-          domain: translation.domain,
-          from: translation.from,
-          to: translation.to,
-          retired: translation.retired,
+          domain:     translation.domain,
+          from:       translation.from,
+          to:         translation.to,
+          retired:    translation.retired,
           aggregates: translation.aggregates.map { |aggregate| translation_aggregate(aggregate) }
         }
       end
@@ -62,15 +62,15 @@ module Hecksagain
 
       def translation_aggregate(aggregate)
         {
-          name: aggregate.name,
-          was: aggregate.was,
-          renames: aggregate.renames.transform_keys(&:to_s).transform_values(&:to_s),
-          moves: aggregate.moves.map { |move| { from: move.from, to: move.to } },
+          name:     aggregate.name,
+          was:      aggregate.was,
+          renames:  aggregate.renames.transform_keys(&:to_s).transform_values(&:to_s),
+          moves:    aggregate.moves.map { |move| { from: move.from, to: move.to } },
           converts: aggregate.converts.map do |convert|
             { from: convert.from, to: convert.to, values: convert.values.map { |key, value| [key, value] } }
           end,
-          drops: aggregate.drops.map(&:to_s),
-          retypes: aggregate.retypes.map { |retype| { from: retype.from, to: retype.to } },
+          drops:    aggregate.drops.map(&:to_s),
+          retypes:  aggregate.retypes.map { |retype| { from: retype.from, to: retype.to } },
           computes: aggregate.computes.map { |compute| { from: compute.from, to: compute.to, sql: compute.sql } }
         }
       end

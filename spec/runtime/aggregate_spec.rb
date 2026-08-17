@@ -5,7 +5,6 @@ require "fileutils"
 RSpec.describe "a constructed aggregate" do
   before { boot_in_memory }
 
-
   it "names the domain and its aggregates" do
     expect(Pizzas.aggregates).to eq(["Order"])
     expect(Pizzas.vision).to include("sell it to a customer")
@@ -24,7 +23,9 @@ RSpec.describe "a constructed aggregate" do
 
   describe "a creating command" do
     it "is a module method returning the new record in hand" do
-      pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      pizza = Order.create_pizza!(name:  { value: "Margherita" },
+                                  pizza: { price_cents: { cents: 1200 },
+                                           size:        { value: "large" } })
 
       expect(pizza).to be_a(Hecksagain::Facade::Handle)
       expect(pizza.name.to_h).to eq(value: "Margherita")
@@ -36,7 +37,9 @@ RSpec.describe "a constructed aggregate" do
 
   describe "a command that references its aggregate" do
     it "is an instance method that never asks for an id" do
-      pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      pizza = Order.create_pizza!(name:  { value: "Margherita" },
+                                  pizza: { price_cents: { cents: 1200 },
+                                           size:        { value: "large" } })
       pizza.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
 
       expect(pizza.toppings.map(&:to_h)).to eq([{ name: "Basil", amount: 3 }])
@@ -44,9 +47,9 @@ RSpec.describe "a constructed aggregate" do
 
     it "returns self, so commands chain" do
       pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-              .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-              .add_topping!(topping: { value: "Olive" }, amount: { value: 2 })
-              .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+                   .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
+                   .add_topping!(topping: { value: "Olive" }, amount: { value: 2 })
+                   .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect(pizza.status).to eq("sold")
       expect(pizza.customer_name.to_h).to eq(value: "Chris")
@@ -56,7 +59,9 @@ RSpec.describe "a constructed aggregate" do
 
   describe "reading" do
     it "finds, lists, and counts through the bound adapter" do
-      pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      pizza = Order.create_pizza!(name:  { value: "Margherita" },
+                                  pizza: { price_cents: { cents: 1200 },
+                                           size:        { value: "large" } })
 
       expect(Order.count).to eq(1)
       expect(Order.find(pizza.id).name.to_h).to eq(value: "Margherita")
@@ -66,8 +71,8 @@ RSpec.describe "a constructed aggregate" do
 
     it "reports the events one instance announced" do
       pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
-              .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
-              .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
+                   .add_topping!(topping: { value: "Basil" }, amount: { value: 3 })
+                   .purchase!(customer_name: { value: "Chris" }, amount: { cents: 1200 })
 
       expect(pizza.events.map(&:name)).to eq(%w[PizzaCreated ToppingAdded PizzaPurchased])
       expect(pizza.events.last.name).to eq("PizzaPurchased")
@@ -83,7 +88,9 @@ RSpec.describe "a constructed aggregate" do
     end
 
     it "enforces the value object invariant" do
-      pizza = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
+      pizza = Order.create_pizza!(name:  { value: "Margherita" },
+                                  pizza: { price_cents: { cents: 1200 },
+                                           size:        { value: "large" } })
 
       expect { pizza.add_topping!(topping: { value: "Air" }, amount: { value: 0 }) }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /ToppingAmount .* an amount is positive/)

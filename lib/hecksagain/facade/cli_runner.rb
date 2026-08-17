@@ -48,7 +48,7 @@ module Hecksagain
         rest = argv[1..]
         if rest.include?("--help")
           help = Projector.call(:cli, bluebook: bluebook,
-                                      options: { program: program, verb: name, ask: asking })[:usage]
+                                      options:  { program: program, verb: name, ask: asking })[:usage]
           return [help, 0]
         end
 
@@ -70,8 +70,8 @@ module Hecksagain
         handle = runtime.dispatch(spec[:verb], **args)
         return [JSON.pretty_generate(answered(handle)), 0] if handle.state.nil?
 
-        [JSON.pretty_generate(id: handle.id,
-                              state: JsonDoor.materialize(handle.state),
+        [JSON.pretty_generate(id:     handle.id,
+                              state:  JsonDoor.materialize(handle.state),
                               events: handle.events.map(&:name)), 0]
       rescue Runtime::NotFound, Runtime::TypeMismatch => e
         # A BAD ARGUMENT AND A MISSING RECORD BOTH LAND HERE, and both want the
@@ -148,7 +148,7 @@ module Hecksagain
         # which record was asked about — it was stamped with it — and printing
         # `null` beside a payload that plainly says `SW-TOOL` would read as a
         # bug in something.
-        { id: handle.id || handle.events.first&.id,
+        { id:     handle.id || handle.events.first&.id,
           events: handle.events.map do |event|
             { name: event.name, payload: JsonDoor.materialize(event.payload) }
           end }

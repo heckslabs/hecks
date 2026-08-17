@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The plan is read from the language, so these are assertions ABOUT THE LANGUAGE
@@ -122,11 +121,11 @@ RSpec.describe Hecksagain::Bluebook::MetaValidator::Plan do
 
   it "names every verb the language declares, and no others" do
     declared = Hecksagain::Bluebook::MetaValidator.grammar_registry
-                 .bluebook("Bluebook").aggregates
-                 .flat_map do |a|
-                   a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } +
-                     a.entities.flat_map { |entity| entity_verbs(a.name, entity) }
-                 end
+                                                  .bluebook("Bluebook").aggregates
+                                                  .flat_map do |a|
+                                                    a.commands.map { |c| "Bluebook::#{a.name}.#{c.hecks_name}" } +
+                                                      a.entities.flat_map { |entity| entity_verbs(a.name, entity) }
+                                                  end
 
     expect(plan.verbs).to match_array(declared)
   end

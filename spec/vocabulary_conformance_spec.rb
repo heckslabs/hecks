@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # The declared vocabularies must equal the tables the runtime actually uses.
@@ -17,7 +16,6 @@ require "spec_helper"
 # constants to them. Add an operator to the evaluator without declaring it and
 # this fails ; declare one the evaluator does not implement and this fails.
 RSpec.describe "the declared vocabularies" do
-
   # The grammar registry's Bluebook chapter IS the judged one now — grammar_registry runs
   # the fixpoint at boot (judge the language through itself, keep the assembled
   # graph), so the typed member values this file compares against each
@@ -58,17 +56,17 @@ RSpec.describe "the declared vocabularies" do
   end
 
   {
-    "Comparison"            => -> { Hecksagain::Bluebook::Expression::Evaluator::COMPARISONS },
-    "QueryComparator"       => -> { Hecksagain::QuerySpecification::Common::COMPARATORS },
-    "SignTest"              => -> { Hecksagain::Bluebook::Expression::Resolver::SIGN_TESTS },
-    "IncludeHaystack"       => -> { Hecksagain::Bluebook::Expression::Evaluator::INCLUDE_HAYSTACKS },
-    "ToStringType"          => -> { Hecksagain::Bluebook::Expression::Resolver::TO_STRING_TYPES },
-    "SizedType"             => -> { Hecksagain::Bluebook::Expression::Resolver::SIZED_TYPES },
-    "Primitive"             => -> { Hecksagain::Bluebook::Attribute::PRIMITIVES },
-    "NormalisationStrategy" => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
-    "LoadOrder"             => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
-    "DomainRefusal"         => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
-    "Trigger"               => -> { [Hecksagain::Bluebook::ProcessManager::REFUSED] },
+    "Comparison"             => -> { Hecksagain::Bluebook::Expression::Evaluator::COMPARISONS },
+    "QueryComparator"        => -> { Hecksagain::QuerySpecification::Common::COMPARATORS },
+    "SignTest"               => -> { Hecksagain::Bluebook::Expression::Resolver::SIGN_TESTS },
+    "IncludeHaystack"        => -> { Hecksagain::Bluebook::Expression::Evaluator::INCLUDE_HAYSTACKS },
+    "ToStringType"           => -> { Hecksagain::Bluebook::Expression::Resolver::TO_STRING_TYPES },
+    "SizedType"              => -> { Hecksagain::Bluebook::Expression::Resolver::SIZED_TYPES },
+    "Primitive"              => -> { Hecksagain::Bluebook::Attribute::PRIMITIVES },
+    "NormalisationStrategy"  => -> { Hecksagain::Bluebook::Expression::CanonicalForm::STRATEGIES },
+    "LoadOrder"              => -> { Hecksagain::Adapters::Folder::DOMAIN_ORDER },
+    "DomainRefusal"          => -> { Hecksagain::Runtime::DOMAIN_REFUSALS.map { |e| e.name.split("::").last } },
+    "Trigger"                => -> { [Hecksagain::Bluebook::ProcessManager::REFUSED] },
     # AGGREGATE/ENTITY DISPATCH ORDER, THE SAME SPLIT AS EVERY VOCABULARY
     # ABOVE — CommandInterpreter/EntityInterpreter#DISPATCH_ORDER is a
     # hand-typed live table now (call is driven BY it), not read live off the
@@ -140,8 +138,8 @@ RSpec.describe "the declared vocabularies" do
 
     SIGN_TEST_ROWS.each do |row|
       expect(row[:compares_via]).to eq(live.fetch(row[:name])),
-              "#{row[:name]} declares compares_via #{row[:compares_via].inspect}, " \
-              "Resolver uses #{live.fetch(row[:name]).inspect}"
+                                    "#{row[:name]} declares compares_via #{row[:compares_via].inspect}, " \
+                                    "Resolver uses #{live.fetch(row[:name]).inspect}"
     end
   end
 
@@ -156,11 +154,11 @@ RSpec.describe "the declared vocabularies" do
 
     resolver = Hecksagain::Bluebook::Expression::Resolver
     expect(Hecksagain::Bluebook::Expression::Evaluator.includes?(
-      [resolver.parse("list"), resolver.parse("wanted")], { list: [1, 2, 3] }, { wanted: 2 }
-    )).to be(true), "Array membership should still use equal?, matching the declared strategy"
+             [resolver.parse("list"), resolver.parse("wanted")], { list: [1, 2, 3] }, { wanted: 2 }
+           )).to be(true), "Array membership should still use equal?, matching the declared strategy"
     expect(Hecksagain::Bluebook::Expression::Evaluator.includes?(
-      [resolver.parse("text"), resolver.parse("wanted")], { text: "hello" }, { wanted: "ell" }
-    )).to be(true), "String substring should still match, matching the declared strategy"
+             [resolver.parse("text"), resolver.parse("wanted")], { text: "hello" }, { wanted: "ell" }
+           )).to be(true), "String substring should still match, matching the declared strategy"
   end
 
   # increment/decrement share one arithmetic primitive, differing only by
@@ -177,8 +175,8 @@ RSpec.describe "the declared vocabularies" do
     MUTATION_OP_ROWS.each do |row|
       declared_sign = row[:sign] == "" ? nil : row[:sign]
       expect(declared_sign).to eq(live.fetch(row[:name])),
-              "#{row[:name]} declares sign #{row[:sign].inspect}, " \
-              "CommandRules computes #{live.fetch(row[:name]).inspect}"
+                               "#{row[:name]} declares sign #{row[:sign].inspect}, " \
+                               "CommandRules computes #{live.fetch(row[:name]).inspect}"
     end
   end
 
@@ -295,5 +293,4 @@ RSpec.describe "the declared vocabularies" do
     expect(entity_transitioning_trace).to include(:advance_lifecycle)
     expect(entity_acting_trace).not_to include(:advance_lifecycle)
   end
-
 end

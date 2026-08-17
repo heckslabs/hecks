@@ -158,7 +158,8 @@ module Hecksagain
         [".include?"] + walk_operators(node.haystack, evaluator) + walk_operators(node.needle, evaluator)
       when evaluator::Resolve then walk_operators(node.expr, evaluator)
       when resolver::Addition then ["+"] + walk_operators(node.left, evaluator) + walk_operators(node.right, evaluator)
-      when resolver::Modulo   then [".modulo"] + walk_operators(node.receiver, evaluator) + walk_operators(node.divisor, evaluator)
+      when resolver::Modulo   then [".modulo"] + walk_operators(node.receiver,
+                                                                evaluator) + walk_operators(node.divisor, evaluator)
       when Struct
         node.members.flat_map { |member| walk_operators(node[member], evaluator) }
       else

@@ -39,7 +39,7 @@ module Hecksagain
 
     def meta_declared(name)
       Hecksagain::Bluebook::MetaValidator.grammar_registry
-        .bluebook("Bluebook").aggregate(name).attributes.map(&:name)
+                                         .bluebook("Bluebook").aggregate(name).attributes.map(&:name)
     end
 
     # The real structural diff between what a Ruby IR class emits
@@ -48,7 +48,9 @@ module Hecksagain
     # makes, reusing its own Deviations data so this can never silently
     # drift from what that gate actually checks.
     def construct_diff(name)
-      klass = CONSTRUCTS.fetch(name) { raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}" }
+      klass = CONSTRUCTS.fetch(name) {
+        raise ArgumentError, "no such construct #{name.inspect} — known: #{CONSTRUCTS.keys.join(', ')}"
+      }
       declared = meta_declared(name)
       emitted  = klass.ir_spec.keys
 
@@ -101,23 +103,25 @@ module Hecksagain
       walk_construct = lambda do |construct, path|
         (construct.respond_to?(:preconditions) ? construct.preconditions : []).each do |rule|
           rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
-                             location: "#{path} (declared)")
+                            location: "#{path} (declared)")
         end
         (construct.respond_to?(:invariants) ? construct.invariants : []).each do |rule|
           rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
-                             location: "#{path} (declared)")
+                            location: "#{path} (declared)")
         end
         construct.commands.each do |command|
           command.givens.each do |rule|
             rules << Rule.new(kind: "given", description: rule.description, canonical: rule.canonical,
-                               location: "#{path}.#{command.hecks_name}")
+                              location: "#{path}.#{command.hecks_name}")
           end
           command.ensures.each do |rule|
             rules << Rule.new(kind: "ensures", description: rule.description, canonical: rule.canonical,
-                               location: "#{path}.#{command.hecks_name}")
+                              location: "#{path}.#{command.hecks_name}")
           end
         end
-        construct.entities.each { |piece| walk_construct.call(piece, "#{path}.#{piece.hecks_name}") } if construct.respond_to?(:entities)
+        construct.entities.each { |piece|
+          walk_construct.call(piece, "#{path}.#{piece.hecks_name}")
+        } if construct.respond_to?(:entities)
       end
 
       chapters.each do |chapter|
@@ -126,7 +130,7 @@ module Hecksagain
           aggregate.value_objects.each do |vo|
             vo.invariants.each do |rule|
               rules << Rule.new(kind: "invariant", description: rule.description, canonical: rule.canonical,
-                                 location: "#{aggregate.hecks_name}::#{vo.hecks_name} (declared)")
+                                location: "#{aggregate.hecks_name}::#{vo.hecks_name} (declared)")
             end
           end
         end
@@ -191,7 +195,10 @@ module Hecksagain
       all_rules.group_by { |r| [r.kind, r.description, r.canonical] }
                .map { |key, rules| [key, rules, declaration_count(rules)] }
                .select { |_, _, count| count > 1 }
-               .map { |(kind, description, canonical), rules, _| { kind: kind, description: description, canonical: canonical, locations: rules.map(&:location) } }
+               .map { |(kind, description, canonical), rules, _|
+        { kind: kind, description: description, canonical: canonical,
+      locations: rules.map(&:location) }
+      }
     end
 
     # `given` ONLY (not `invariant`/`ensures`) also covers CROSS-ENTITY

@@ -38,7 +38,7 @@ module Hecksagain
         def suggestions(raw)
           rows(raw, "names").map do |row|
             Suggestion.new(name: text!(row, "name"), because: text!(row, "because"),
-                            rejected: Array(row["rejected"]).map(&:to_s))
+                           rejected: Array(row["rejected"]).map(&:to_s))
           end
         end
 

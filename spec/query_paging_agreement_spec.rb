@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # LIMIT AND OFFSET TOGETHER, ON EVERY ENGINE, ANSWERING THE SAME.

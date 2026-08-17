@@ -93,7 +93,7 @@ RSpec.describe "load hygiene", io: true do
 
   it "loads the whole framework with the subsystem wrappers in reverse order" do
     wrappers = File.read(File.join(LIB, "hecksagain.rb"))
-               .scan(%r{^require_relative "(hecksagain/[^"]+)"}).flatten
+                   .scan(%r{^require_relative "(hecksagain/[^"]+)"}).flatten
 
     script = wrappers.reverse.map { |wrapper| "require #{wrapper.inspect}" }.join("; ")
     _out, err, status = Open3.capture3("ruby", "-I", LIB, "-e", script)

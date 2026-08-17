@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # A command takes the arguments it declares, and no others.

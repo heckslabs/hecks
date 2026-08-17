@@ -37,7 +37,7 @@ module Hecksagain
       # reordered.
       GRAMMAR_DIR   = File.expand_path("../language/bluebook", __dir__).freeze
       GRAMMAR_FILES = %w[bluebook aggregate behavior shape entity reaction vocabulary syntax projection]
-                        .map { |name| File.join(GRAMMAR_DIR, "#{name}.bluebook") }.freeze
+                      .map { |name| File.join(GRAMMAR_DIR, "#{name}.bluebook") }.freeze
       # a world is a SIBLING artifact, described in its own file
       WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
       # so is a hecksagon — the same reasoning, one file over

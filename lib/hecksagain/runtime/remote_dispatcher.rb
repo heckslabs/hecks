@@ -59,9 +59,11 @@ module Hecksagain
 
       def dispatch(verb, saga_correlation: nil, **args)
         domain, aggregate_name, = Naming.split_verb(verb) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
+                                  raise(UnknownVerb,
+                                        RefusalWording.render("UnknownVerb", "not_fully_qualified", verb: verb.inspect))
         aggregate = @registry.bluebook(domain)&.aggregate(aggregate_name) ||
-          raise(UnknownVerb, RefusalWording.render("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name.inspect))
+                    raise(UnknownVerb,
+                          RefusalWording.render("UnknownVerb", "no_aggregate", domain: domain, aggregate: aggregate_name.inspect))
 
         # NOT EVERY AGGREGATE IN A LAMBDA-ROUTED DOMAIN IS ITSELF
         # LAMBDA-BOUND — Member's real name->email rekey carries a
@@ -79,9 +81,7 @@ module Hecksagain
         # Lambda that has no way to represent its lineage history at
         # all.
         adapter_name = Ports::Persistence::BindingPolicy.resolve(@registry, domain, aggregate).adapter
-        unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
-          return @local.dispatch(verb, saga_correlation: saga_correlation, **args)
-        end
+        return @local.dispatch(verb, saga_correlation: saga_correlation, **args) unless @registry.adapter_class(adapter_name) <= Ports::Persistence::RemoteRuntime
 
         response = @client.dispatch(verb, args)
 
@@ -99,10 +99,11 @@ module Hecksagain
         # `.instance` to be.
         fqn = "#{domain}::#{aggregate.hecks_name}"
         mutation = response.fetch("mutations", []).last&.find { |m| m["aggregate"] == fqn } ||
-          raise(WiringError, "#{verb} was accepted but rust/host reported no mutation for #{fqn} — response: #{response.inspect}")
+                   raise(WiringError,
+                         "#{verb} was accepted but rust/host reported no mutation for #{fqn} — response: #{response.inspect}")
 
         instance = Instance.new(aggregate: aggregate, id: mutation["id"],
-                                 state: JSON.parse(JSON.generate(mutation["state"]), symbolize_names: true))
+                                state: JSON.parse(JSON.generate(mutation["state"]), symbolize_names: true))
 
         Result.new(verb: verb, instance: instance, events: step_events(response))
       end

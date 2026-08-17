@@ -33,7 +33,7 @@ FOLDER = Hecksagain::Adapters::Folder.new
 
 def domains
   Dir.glob(File.join(ROOT, "**/*.hecksagon"))
-     .map    { |path| FOLDER.domain_root(File.dirname(path)) }
+     .map { |path| FOLDER.domain_root(File.dirname(path)) }
      .compact
      .map    { |path| path.delete_prefix("#{ROOT}/") }
      .reject { |path| path.match?(%r{\A(rust|deploy|tmp|coverage)/}) }

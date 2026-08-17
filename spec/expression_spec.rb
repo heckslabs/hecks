@@ -196,7 +196,7 @@ RSpec.describe "the expression sublanguage" do
 
   describe "last" do
     it "reads the final segment of a split, composed the way Phrase checks its own terminal casing" do
-      matching    = "dispatch::lexicon::query::command_bus"
+      matching = "dispatch::lexicon::query::command_bus"
       not_matching = "dispatch::lexicon::query::other"
 
       expect(evaluate('value.split("::").last == "command_bus"', value: matching)).to be(true)
@@ -227,7 +227,7 @@ RSpec.describe "the expression sublanguage" do
     end
 
     it "raises when the receiver is not a list" do
-      expect { evaluate('value.all? { |s| s.length > 0 }', value: "oops") }
+      expect { evaluate("value.all? { |s| s.length > 0 }", value: "oops") }
         .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
     end
   end
@@ -291,7 +291,7 @@ RSpec.describe "the expression sublanguage" do
 
       theirs = begin
         locals = bindings.map { |name, value| "#{name} = #{value.inspect}; " }.join
-        eval("#{locals}#{expression}") 
+        eval("#{locals}#{expression}")
       rescue StandardError
         :raised
       end
@@ -403,7 +403,8 @@ RSpec.describe "the expression sublanguage" do
       first = Hecksagain::Adapters::Prism.tree_for(@tmp_file)
 
       File.write(@tmp_file, "2")
-      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).to equal(first), "still cached — a rewrite alone must not invalidate it"
+      expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).to equal(first),
+                                                                 "still cached — a rewrite alone must not invalidate it"
 
       Hecksagain::Adapters::Prism.forget(@tmp_file)
       expect(Hecksagain::Adapters::Prism.tree_for(@tmp_file)).not_to equal(first)

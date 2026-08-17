@@ -52,8 +52,6 @@ module Hecksagain
           @members    = members
           @closed_set = closed_set
         end
-
-
       end
     end
   end

@@ -27,7 +27,9 @@ module Hecksagain
         creators = aggregate.commands.select(&:creates?)
         return "" if creators.empty?
 
-        links = creators.map { |cmd| %(<a class="button" href="/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html">+ #{Escape.html(cmd.hecks_name)}</a>) }
+        links = creators.map { |cmd|
+          %(<a class="button" href="/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html">+ #{Escape.html(cmd.hecks_name)}</a>)
+        }
         %(<div class="actions">#{links.join}</div>)
       end
 
@@ -48,7 +50,9 @@ module Hecksagain
       end
 
       def self.state_table(state)
-        rows = state.map { |key, value| "<tr><th>#{Escape.html(Humanize.label(key.to_s))}</th><td>#{Escape.html(render_value(value))}</td></tr>" }
+        rows = state.map { |key, value|
+          "<tr><th>#{Escape.html(Humanize.label(key.to_s))}</th><td>#{Escape.html(render_value(value))}</td></tr>"
+        }
         %(<div class="table-scroll"><table><tbody>#{rows.join}</tbody></table></div>)
       end
 
@@ -98,8 +102,12 @@ module Hecksagain
         commands = aggregate.commands.reject(&:creates?)
         return "" if commands.empty? && aggregate.queries.empty?
 
-        cmd_items = commands.map { |c| %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{c.hecks_name}.html"><span>#{Escape.html(c.hecks_name)}</span><span class="kind">command</span></a></li>) }
-        query_items = aggregate.queries.map { |q| %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{q.hecks_name}.html"><span>#{Escape.html(q.hecks_name)}</span><span class="kind">query</span></a></li>) }
+        cmd_items = commands.map { |c|
+          %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{c.hecks_name}.html"><span>#{Escape.html(c.hecks_name)}</span><span class="kind">command</span></a></li>)
+        }
+        query_items = aggregate.queries.map { |q|
+          %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{q.hecks_name}.html"><span>#{Escape.html(q.hecks_name)}</span><span class="kind">query</span></a></li>)
+        }
         %(<h2>Every command &amp; query on #{Escape.html(aggregate.hecks_name)}</h2><ul class="verb-list">#{(cmd_items + query_items).join}</ul>)
       end
     end

@@ -34,9 +34,7 @@ module Hecksagain
       end
 
       def propose(word:, context:, body: "none", inner: "", opens: "", fills: "", path: syntax_path)
-        if keyword_rows(path).any? { |row| row[:word] == word && row[:context] == context }
-          raise Refusal, "#{context}.#{word} is already declared — one row per (word, context, form)"
-        end
+        raise Refusal, "#{context}.#{word} is already declared — one row per (word, context, form)" if keyword_rows(path).any? { |row| row[:word] == word && row[:context] == context }
 
         source = File.read(path)
         block  = keyword_block(source)
@@ -53,9 +51,7 @@ module Hecksagain
       end
 
       def set_status(word:, context:, to:, path: syntax_path)
-        unless %w[proposed admitted deprecated retired].include?(to)
-          raise Refusal, "#{to.inspect} is not a station a word's life admits"
-        end
+        raise Refusal, "#{to.inspect} is not a station a word's life admits" unless %w[proposed admitted deprecated retired].include?(to)
 
         source = File.read(path)
         block  = keyword_block(source)
@@ -84,9 +80,7 @@ module Hecksagain
         row = keyword_rows(path).find { |r| r[:word] == word && r[:context] == context }
         raise Refusal, "#{context}.#{word} is not declared" unless row
         raise Refusal, "#{context}.#{word} was already #{row[:was]} — one rename hop, then eras" if row[:was]
-        if keyword_rows(path).any? { |r| r[:word] == to && r[:context] == context }
-          raise Refusal, "#{context}.#{to} is already declared — a rename cannot land on a living word"
-        end
+        raise Refusal, "#{context}.#{to} is already declared — a rename cannot land on a living word" if keyword_rows(path).any? { |r| r[:word] == to && r[:context] == context }
 
         source = File.read(path)
         block  = keyword_block(source)
@@ -148,7 +142,7 @@ module Hecksagain
                            pairs_shape: nil, path: syntax_path)
         if argument_rows(path).any? { |r| argument_identity(r) == [keyword, context, at, named] }
           raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is " \
-                        "already declared — one row per (keyword, context, at, named)"
+                         "already declared — one row per (keyword, context, at, named)"
         end
 
         source = File.read(path)
@@ -165,15 +159,13 @@ module Hecksagain
       end
 
       def set_argument_status(keyword:, context:, to:, at: "", named: "", path: syntax_path)
-        unless %w[proposed admitted deprecated retired].include?(to)
-          raise Refusal, "#{to.inspect} is not a station an argument's life admits"
-        end
+        raise Refusal, "#{to.inspect} is not a station an argument's life admits" unless %w[proposed admitted deprecated retired].include?(to)
 
         source = File.read(path)
         block  = argument_block(source)
         rows   = block.lines.select { |line| argument_row?(line, keyword, context, at, named) }
         raise Refusal, "#{context}.#{keyword}'s argument at #{at.inspect}/named #{named.inspect} is not " \
-                      "declared" if rows.empty?
+                       "declared" if rows.empty?
 
         updated = block.lines.map do |line|
           next line unless argument_row?(line, keyword, context, at, named)

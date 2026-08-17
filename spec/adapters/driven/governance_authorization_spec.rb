@@ -30,8 +30,8 @@ RSpec.describe Hecksagain::Adapters::GovernanceAuthorization do
     runtime.dispatch(
       "Banking::Customer.Register",
       reference: { value: reference },
-      name: { given: "Dana", family: "Ng" },
-      email: { address: "dana@example.com" }
+      name:      { given: "Dana", family: "Ng" },
+      email:     { address: "dana@example.com" }
     )
   end
 

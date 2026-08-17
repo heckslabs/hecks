@@ -78,8 +78,8 @@ module Hecksagain
 
         (full - reached.to_a).each do |state|
           findings << Finding.new(kind: :unreachable_state, severity: :error, subject: subject,
-                                   message: "#{state.inspect} is declared (in a transition's from: or target) " \
-                                            "but no path from #{lifecycle.default.inspect} ever reaches it")
+                                  message: "#{state.inspect} is declared (in a transition's from: or target) " \
+                                           "but no path from #{lifecycle.default.inspect} ever reaches it")
         end
 
         lifecycle.transitions.each do |command, transition|
@@ -87,8 +87,8 @@ module Hecksagain
           next if Array(transition.from).any? { |source| reached.include?(source) }
 
           findings << Finding.new(kind: :dead_transition, severity: :error, subject: subject,
-                                   message: "#{command} from #{Array(transition.from).inspect} can never fire — " \
-                                            "none of those states is ever reached")
+                                  message: "#{command} from #{Array(transition.from).inspect} can never fire — " \
+                                           "none of those states is ever reached")
         end
 
         any_unconstrained = lifecycle.transitions.any? { |_, t| !t.constrained? }
@@ -97,8 +97,8 @@ module Hecksagain
           next if lifecycle.transitions.any? { |_, t| t.constrained? && Array(t.from).include?(state) }
 
           findings << Finding.new(kind: :stuck_state, severity: :warning, subject: subject,
-                                   message: "#{state.inspect} is reached but no transition ever leaves it — " \
-                                            "fine if that is meant to be terminal")
+                                  message: "#{state.inspect} is reached but no transition ever leaves it — " \
+                                           "fine if that is meant to be terminal")
         end
 
         findings
@@ -164,15 +164,15 @@ module Hecksagain
           next if emitted.include?(bare(event))
 
           findings << Finding.new(kind: :deaf_trigger, severity: :error, subject: pm.name,
-                                   message: "starts_on/ends_on names #{event.inspect}, which no command in this " \
-                                            "domain emits")
+                                  message: "starts_on/ends_on names #{event.inspect}, which no command in this " \
+                                           "domain emits")
         end
 
         reached = pm_reachable_states(pm, emitted)
         (Array(pm.states) - reached.to_a).each do |state|
           findings << Finding.new(kind: :unreachable_pm_state, severity: :error, subject: pm.name,
-                                   message: "#{state.inspect} is declared but no handler chain from " \
-                                            "#{pm.states.first.inspect} ever reaches it")
+                                  message: "#{state.inspect} is declared but no handler chain from " \
+                                           "#{pm.states.first.inspect} ever reaches it")
         end
 
         pm.handlers.each do |handler|
@@ -182,8 +182,8 @@ module Hecksagain
           # never satisfy on purpose.
           if handler.event_type != ProcessManager::REFUSED && !emitted.include?(bare(handler.event_type))
             findings << Finding.new(kind: :deaf_handler, severity: :error, subject: pm.name,
-                                     message: "a handler answers #{handler.event_type.inspect}, which no command " \
-                                              "in this domain emits")
+                                    message: "a handler answers #{handler.event_type.inspect}, which no command " \
+                                             "in this domain emits")
           end
 
           handler.dispatches.each do |dispatch|
@@ -196,16 +196,16 @@ module Hecksagain
             next if verbs.include?(qualified)
 
             findings << Finding.new(kind: :unknown_dispatch, severity: :error, subject: pm.name,
-                                     message: "dispatches #{dispatch.command_name.inspect}, which this domain " \
-                                              "declares no command at — cross-domain dispatch is out of this " \
-                                              "checker's scope, same as CommandRules#resolve_references")
+                                    message: "dispatches #{dispatch.command_name.inspect}, which this domain " \
+                                             "declares no command at — cross-domain dispatch is out of this " \
+                                             "checker's scope, same as CommandRules#resolve_references")
           end
         end
 
         if pm.saga? && !reached.include?(pm.saga.from_state)
           findings << Finding.new(kind: :dead_compensation, severity: :error, subject: pm.name,
-                                   message: "the compensation leaves #{pm.saga.from_state.inspect}, which no " \
-                                            "handler chain ever reaches — a refusal here can never fire it")
+                                  message: "the compensation leaves #{pm.saga.from_state.inspect}, which no " \
+                                           "handler chain ever reaches — a refusal here can never fire it")
         end
 
         findings
@@ -259,7 +259,7 @@ module Hecksagain
         # before the mismatch is ever reached.
         unless emitted.include?(policy.event_name)
           findings << Finding.new(kind: :deaf_policy, severity: :error, subject: policy.name,
-                                   message: "on #{policy.on_event.inspect}, which no command in this domain emits")
+                                  message: "on #{policy.on_event.inspect}, which no command in this domain emits")
         end
 
         # `trigger` is spelled "Aggregate.Command" (or "Entity.Command" one
@@ -269,8 +269,8 @@ module Hecksagain
         # never as bare command names.
         unless verbs_of(bluebook).include?("#{bluebook.name}::#{policy.trigger_command}")
           findings << Finding.new(kind: :unknown_trigger, severity: :error, subject: policy.name,
-                                   message: "trigger #{policy.trigger_command.inspect} resolves to no command " \
-                                            "this domain declares")
+                                  message: "trigger #{policy.trigger_command.inspect} resolves to no command " \
+                                           "this domain declares")
         end
 
         findings
@@ -305,7 +305,9 @@ module Hecksagain
         bluebook.aggregates.flat_map do |aggregate|
           verbs = aggregate.commands.map { |command| "#{bluebook.name}::#{aggregate.hecks_name}.#{command.hecks_name}" }
           verbs + aggregate.entities.flat_map do |entity|
-            entity.commands.map { |command| "#{bluebook.name}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}" }
+            entity.commands.map { |command|
+              "#{bluebook.name}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}"
+            }
           end
         end
       end

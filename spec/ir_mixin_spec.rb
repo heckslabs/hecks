@@ -84,8 +84,10 @@ RSpec.describe Hecksagain::IR do
     it "recurses into a list with many" do
       parent = Class.new do
         include Hecksagain::IR
+
         emits_ir(kids: many(:kids))
         attr_reader :kids
+
         def initialize(kids) = @kids = kids
       end
 
@@ -95,8 +97,10 @@ RSpec.describe Hecksagain::IR do
     it "recurses into a single child with one" do
       parent = Class.new do
         include Hecksagain::IR
+
         emits_ir(kid: one(:kid))
         attr_reader :kid
+
         def initialize(kid) = @kid = kid
       end
 
@@ -108,6 +112,7 @@ RSpec.describe Hecksagain::IR do
     it "answers nil for an absent child rather than raising" do
       parent = Class.new do
         include Hecksagain::IR
+
         emits_ir(kid: one(:kid))
         def kid = nil
       end

@@ -42,9 +42,7 @@ module Hecksagain
         def verb(value) = @verb = value.to_s
 
         def build
-          if @verb && !@operations.empty?
-            raise Malformed, "#{@name} declares both a verb and operations — a port is one or the other, not both"
-          end
+          raise Malformed, "#{@name} declares both a verb and operations — a port is one or the other, not both" if @verb && !@operations.empty?
 
           return Port.new(name: @name, verb: @verb, signal: :reply) if @verb
 

@@ -153,15 +153,15 @@ end
 shape_names = Hecksagain::Runtime::Value::Coercion::SHAPES
 emit_mod(
   File.join(ROOT, "rust/src/kernel/attribute_shapes/mod.rs"),
-  header: <<~HEADER.strip,
+  header:    <<~HEADER.strip,
     // Ground truth: Hecksagain::Runtime::Value::Coercion::SHAPES
     // (lib/hecksagain/runtime/value/coercion.rb) — the four branches
     // `for_attribute` itself takes, read directly rather than
     // re-derived here.
   HEADER
   enum_name: "AttributeShape",
-  names: shape_names,
-  doc_line: "Coercion::SHAPES"
+  names:     shape_names,
+  doc_line:  "Coercion::SHAPES"
 )
 
 # ── EXPRESSION OPERATORS ──────────────────────────────────────────────
@@ -171,15 +171,15 @@ emit_mod(
 operator_categories = Hecksagain::Grammar.admitted_operators.map { |op| op[:category] }.uniq
 emit_mod(
   File.join(ROOT, "rust/src/kernel/expression_operators/mod.rs"),
-  header: <<~HEADER.strip,
+  header:    <<~HEADER.strip,
     // Ground truth: Hecksagain::Grammar.admitted_operators (lib/hecksagain/
     // grammar.rb), the SAME live-booted call bin/expression_projection
     // uses — grouped by the `category` field Evaluator::PROJECTION already
     // partitions comparison operators by (evaluator.rb).
   HEADER
   enum_name: "OperatorCategory",
-  names: operator_categories,
-  doc_line: "Grammar.admitted_operators's own `category` field"
+  names:     operator_categories,
+  doc_line:  "Grammar.admitted_operators's own `category` field"
 )
 
 # ── QUERY COMPARATORS — no longer generated here. See this script's own

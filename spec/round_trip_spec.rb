@@ -1,4 +1,3 @@
-
 require "spec_helper"
 
 # THE SELF-HOSTING CLAIM, stated as a test.
@@ -130,7 +129,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as attaches_to aggregates read_models policies
-                                process_managers])
+                               process_managers])
     expect(Hecksagain::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
   end
 

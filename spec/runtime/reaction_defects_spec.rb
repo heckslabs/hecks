@@ -44,6 +44,7 @@ RSpec.describe "a reaction that cannot be delivered" do
     bluebook = Struct.new(:policies).new([policy])
     Class.new do
       attr_reader :reaction_log
+
       define_method(:initialize) { @reaction_log = [] }
       define_method(:bluebook) { |_domain| bluebook }
     end.new

@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require "hecksagain/fuzzing"
 
@@ -65,7 +64,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "lifecycle_values_are_declared names an instance holding an undeclared state" do
-      history = { bluebook: bluebook_for(PROPERTIES_PIZZAS),
+      history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
                   instances: { "Pizzas::Order#p1" => { status: "teleported" } } }
 
       result = Hecksagain::Fuzzing::Properties.lifecycle_values_are_declared(history)
@@ -74,7 +73,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "lifecycle_values_are_declared passes a genuinely declared state through" do
-      history = { bluebook: bluebook_for(PROPERTIES_PIZZAS),
+      history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
                   instances: { "Pizzas::Order#p1" => { status: "available" } } }
 
       expect(Hecksagain::Fuzzing::Properties.lifecycle_values_are_declared(history)).to eq(true)
@@ -82,7 +81,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "saga_advances_follow_declared_handlers names an advance no handler declares" do
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  sagas: [{ process_manager: "Settlement", on: "Invented", instance: "x",
+                  sagas:    [{ process_manager: "Settlement", on: "Invented", instance: "x",
                             advanced: true, from: "requested", to: "nowhere_declared" }] }
 
       result = Hecksagain::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)
@@ -92,7 +91,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "saga_advances_follow_declared_handlers passes a genuinely declared edge through" do
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  sagas: [{ process_manager: "Settlement", on: "TransferRequested", instance: "x",
+                  sagas:    [{ process_manager: "Settlement", on: "TransferRequested", instance: "x",
                             advanced: true, from: "requested", to: "requested" }] }
 
       expect(Hecksagain::Fuzzing::Properties.saga_advances_follow_declared_handlers(history)).to eq(true)
@@ -127,7 +126,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       second = Hecksagain::Fuzzing::Replay.call(
         PROPERTIES_PIZZAS,
         [{ "verb" => "Pizzas::Order.CreatePizza",
-           "args" => { "name" => { "value" => "X" },
+           "args" => { "name"  => { "value" => "X" },
                        "pizza" => { "price_cents" => { "cents" => 100 }, "size" => { "value" => "small" } } } }]
       )
       comparable = ->(h) { h.reject { |k, _| k == :bluebook || k == :bluebooks } }
@@ -146,7 +145,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
       }
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
+                  queries:   [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
                              rows: [{ id: "s1", status: "active", daily_fee: { amount: 1.0 }, serial: { value: "s1" } }] }] }
 
       result = Hecksagain::Fuzzing::Properties.paging_offset_partitions_correctly(history)
@@ -162,7 +161,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::ATMCard#s4" => { status: "active", daily_fee: { amount: 4.0 }, serial: { value: "s4" } }
       }
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
+                  queries:   [{ query: "Banking::ATMCard.ByFee", args: {}, instances_at: instances,
                              rows: [
                                { id: "s2", status: "active", daily_fee: { amount: 2.0 }, serial: { value: "s2" } },
                                { id: "s3", status: "active", daily_fee: { amount: 3.0 }, serial: { value: "s3" } },
@@ -176,7 +175,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     # :branch_code; authorize :vault_access, tenant: :branch_code`.
     it "authorize_scopes_or_refuses names a successful answer whose tenant field disagrees with the given arg" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking::SafeDepositBox.Rented", args: { branch_code: "DOWNTOWN" },
+                  queries:   [{ query: "Banking::SafeDepositBox.Rented", args: { branch_code: "DOWNTOWN" },
                              rows: [{ id: "UPTOWN:1", branch_code: { value: "UPTOWN" }, box_number: { value: 1 },
                                       status: "rented" }] }] }
 
@@ -187,7 +186,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "authorize_scopes_or_refuses names a successful answer with no tenant arg given at all" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking::SafeDepositBox.Rented", args: {},
+                  queries:   [{ query: "Banking::SafeDepositBox.Rented", args: {},
                              rows: [{ id: "DOWNTOWN:12", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                       status: "rented" }] }] }
 
@@ -198,7 +197,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "authorize_scopes_or_refuses names a refusal with no tenant given that used the wrong wording" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking::SafeDepositBox.Rented", args: {}, error: "a made up refusal" }] }
+                  queries:   [{ query: "Banking::SafeDepositBox.Rented", args: {}, error: "a made up refusal" }] }
 
       result = Hecksagain::Fuzzing::Properties.authorize_scopes_or_refuses(history)
       expect(result).to be_a(String)
@@ -207,7 +206,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "authorize_scopes_or_refuses passes a successful answer whose tenant field matches the given arg, and a correctly-worded refusal with no tenant" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  queries: [
+                  queries:   [
                     { query: "Banking::SafeDepositBox.Rented", args: { branch_code: "DOWNTOWN" },
                       rows: [{ id: "DOWNTOWN:12", branch_code: { value: "DOWNTOWN" }, box_number: { value: 12 },
                                status: "rented" }] },
@@ -250,7 +249,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     # plus a policy trigger's own 2-branch resolution (literal, payload).
     it "dispatch_binding_fidelity passes saga and policy dispatches correctly bound on every resolution branch" do
       history = {
-        saga_dispatches: [
+        saga_dispatches:   [
           { process_manager: "Settlement", instance: "ref-1", dispatch: "Account::Credit", on: "AccountDebited",
             correlation_head: :reference, event_payload: { source: "a1", amount: 500 },
             memory: { destination: "a2" },
@@ -269,12 +268,12 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "mutations_match_recompute names an append whose after-state disagrees with the recomputed element" do
-      history = { bluebooks: bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
+      history = { bluebooks:       bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
                   mutation_traces: [
-                    { verb: "EntityListMutations::Board.TaggedList.AddTag",
+                    { verb:   "EntityListMutations::Board.TaggedList.AddTag",
                       before: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
-                      after: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
-                      args: { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } }
+                      after:  { label: { value: "l1" }, count: { value: 0 }, tags: [] },
+                      args:   { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
       result = Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)
@@ -283,12 +282,12 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "mutations_match_recompute names a clamp whose after-state disagrees with the recomputed bound" do
-      history = { bluebooks: bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
+      history = { bluebooks:       bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
                   mutation_traces: [
-                    { verb: "EntityListMutations::Board.TaggedList.Clamp",
+                    { verb:   "EntityListMutations::Board.TaggedList.Clamp",
                       before: { label: { value: "l1" }, count: { value: 15 } },
-                      after: { label: { value: "l1" }, count: { value: 15 } },
-                      args: { name: { value: "b1" }, label: { value: "l1" } } }
+                      after:  { label: { value: "l1" }, count: { value: 15 } },
+                      args:   { name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
       result = Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)
@@ -297,24 +296,24 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "mutations_match_recompute passes append/remove/multiply/clamp all correctly recomputed" do
-      history = { bluebooks: bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
+      history = { bluebooks:       bluebooks_for(PROPERTIES_ENTITY_MUTATIONS),
                   mutation_traces: [
-                    { verb: "EntityListMutations::Board.TaggedList.AddTag",
+                    { verb:   "EntityListMutations::Board.TaggedList.AddTag",
                       before: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
-                      after: { label: { value: "l1" }, count: { value: 0 }, tags: [{ key: "k1", value: "v1" }] },
-                      args: { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } },
-                    { verb: "EntityListMutations::Board.TaggedList.RemoveTag",
+                      after:  { label: { value: "l1" }, count: { value: 0 }, tags: [{ key: "k1", value: "v1" }] },
+                      args:   { key: "k1", value: "v1", name: { value: "b1" }, label: { value: "l1" } } },
+                    { verb:   "EntityListMutations::Board.TaggedList.RemoveTag",
                       before: { label: { value: "l1" }, count: { value: 0 }, tags: [{ key: "k1", value: "v1" }] },
-                      after: { label: { value: "l1" }, count: { value: 0 }, tags: [] },
-                      args: { tag: { "key" => "k1", "value" => "v1" }, name: { value: "b1" }, label: { value: "l1" } } },
-                    { verb: "EntityListMutations::Board.TaggedList.Scale",
+                      after:  { label: { value: "l1" }, count: { value: 0 }, tags: [] },
+                      args:   { tag: { "key" => "k1", "value" => "v1" }, name: { value: "b1" }, label: { value: "l1" } } },
+                    { verb:   "EntityListMutations::Board.TaggedList.Scale",
                       before: { label: { value: "l1" }, count: { value: 4 } },
-                      after: { label: { value: "l1" }, count: { value: 12 } },
-                      args: { factor: 3, name: { value: "b1" }, label: { value: "l1" } } },
-                    { verb: "EntityListMutations::Board.TaggedList.Clamp",
+                      after:  { label: { value: "l1" }, count: { value: 12 } },
+                      args:   { factor: 3, name: { value: "b1" }, label: { value: "l1" } } },
+                    { verb:   "EntityListMutations::Board.TaggedList.Clamp",
                       before: { label: { value: "l1" }, count: { value: 15 } },
-                      after: { label: { value: "l1" }, count: { value: 10 } },
-                      args: { name: { value: "b1" }, label: { value: "l1" } } }
+                      after:  { label: { value: "l1" }, count: { value: 10 } },
+                      args:   { name: { value: "b1" }, label: { value: "l1" } } }
                   ] }
 
       expect(Hecksagain::Fuzzing::Properties.mutations_match_recompute(history)).to eq(true)
@@ -322,7 +321,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
 
     it "guard_refusals_are_declared names a refusal quoting text no given/ensures on the command declares" do
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
+                  refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — a made up reason",
                               kind: "Hecksagain::Runtime::GivenNotMet" }] }
 
       result = Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)
@@ -340,7 +339,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # which raises LifecycleRefused, never GivenNotMet, so it could
       # not stand in for "a real given" here even unchanged.
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  refusals: [{ verb: "Banking::Account.Credit", error: "Credit refused — customer is active",
+                  refusals:  [{ verb: "Banking::Account.Credit", error: "Credit refused — customer is active",
                               kind: "Hecksagain::Runtime::GivenNotMet" }] }
 
       expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
@@ -364,9 +363,9 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       expect(bluebooks.keys).to eq(%w[Expression Translation Governance])
 
       history = { bluebooks: bluebooks,
-                  refusals: [{ verb: "Translation::Map.Seal",
-                              error: "Seal refused — an empty edge explains nothing",
-                              kind: "Hecksagain::Runtime::GivenNotMet" }] }
+                  refusals:  [{ verb:  "Translation::Map.Seal",
+                                error: "Seal refused — an empty edge explains nothing",
+                                kind:  "Hecksagain::Runtime::GivenNotMet" }] }
 
       expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
@@ -377,9 +376,9 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # refusal identified by string alone would misread this as an
       # undeclared guard; identified by `kind:`, it is skipped outright.
       history = { bluebooks: bluebooks_for(PROPERTIES_BANKING),
-                  refusals: [{ verb: "Banking::Account.CloseAccount",
-                              error: "CloseAccount refused — status is closed, and CloseAccount moves it only from open, frozen",
-                              kind: "Hecksagain::Runtime::LifecycleRefused" }] }
+                  refusals:  [{ verb:  "Banking::Account.CloseAccount",
+                                error: "CloseAccount refused — status is closed, and CloseAccount moves it only from open, frozen",
+                                kind:  "Hecksagain::Runtime::LifecycleRefused" }] }
 
       expect(Hecksagain::Fuzzing::Properties.guard_refusals_are_declared(history)).to eq(true)
     end
@@ -418,7 +417,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "sagas_rehydrate_cleanly names a live instance holding a state its process manager never declares" do
-      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+      history = { bluebook:       bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" => { state: "teleported", memory: { a: 1 } } } } }
 
       result = Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
@@ -432,7 +431,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
       # a Symbol value back as a String, so this is corruption the
       # durable path would introduce on a REAL restart, not a
       # hypothetical one.
-      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+      history = { bluebook:       bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" => { state: "screening", memory: { kind: :wire } } } } }
 
       result = Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)
@@ -441,9 +440,11 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
     end
 
     it "sagas_rehydrate_cleanly passes a genuinely declared state and round-trip-safe memory through" do
-      history = { bluebook: bluebook_for(PROPERTIES_BANKING),
+      history = { bluebook:       bluebook_for(PROPERTIES_BANKING),
                   saga_instances: { "Onboarding" => { "corr-1" =>
-                    { state: "screening", memory: { customer: "delta juliet", reference: { value: "corr-1" } } } } } }
+                                                                  { state:  "screening",
+                                                                    memory: { customer:  "delta juliet",
+                                                                              reference: { value: "corr-1" } } } } } }
 
       expect(Hecksagain::Fuzzing::Properties.sagas_rehydrate_cleanly(history)).to eq(true)
     end
@@ -482,7 +483,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::CardPayment#p3" => { account: "acct-1", status: "authorized" }
       }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
+                  queries:  [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 99 }] }] }
 
       result = Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)
@@ -498,7 +499,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::CardPayment#p4" => { account: "acct-2", status: "disputed" }
       }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
+                  queries:  [{ query: "Banking.disputed_payment_count", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 2 }] }] }
 
       expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
@@ -510,7 +511,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::CardPayment#p2" => { account: "acct-1", status: "disputed", amount: { cents: 300 } }
       }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
+                  queries:  [{ query: "Banking.disputed_payment_median", args: { account: "acct-1" },
                              instances_at: instances, rows: [{ account: {}, card_payments: 200.0 }] }] }
 
       expect(Hecksagain::Fuzzing::Properties.aggregation_matches_recompute(history)).to eq(true)
@@ -548,7 +549,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::Account#a3" => { kind: "current", number: "a3", daily_limit: { cents: 0 } }
       }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
+                  queries:  [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
                              rows: [{ accounts: {} }] }] }
 
       result = Hecksagain::Fuzzing::Properties.group_by_matches_recompute(history)
@@ -562,7 +563,7 @@ RSpec.describe "Hecksagain::Fuzzing::Properties" do
         "Banking::Account#a2" => { kind: "savings", number: "a2", daily_limit: { cents: 0 } }
       }
       history = { bluebook: bluebook_for(PROPERTIES_BANKING),
-                  queries: [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
+                  queries:  [{ query: "Banking.accounts_by_kind", args: {}, instances_at: instances,
                              rows: [{ accounts: {
                                "current" => { "a1" => { daily_limit: { cents: 0 }, id: "a1" } },
                                "savings" => { "a2" => { daily_limit: { cents: 0 }, id: "a2" } }

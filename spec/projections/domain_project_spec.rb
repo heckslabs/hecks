@@ -119,6 +119,7 @@ RSpec.describe "Domain.project" do
       Dir.mktmpdir do |dir|
         tree = Module.new do
           extend Hecksagain::Projector::Target
+
           projects_as :tree_stub, emits: :files
           def self.call(bluebook:, options: {}) = { "a.txt" => "one", "nested/b.txt" => "two" }
         end
@@ -171,6 +172,7 @@ RSpec.describe "Domain.project" do
     it "defaults an undeclared target to the chapter capability" do
       legacy = Module.new do
         extend Hecksagain::Projector::Target
+
         def self.call(bluebook:, options: {}) = :ran
       end
       legacy.projects_as :legacy_capability_stub

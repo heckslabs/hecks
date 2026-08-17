@@ -1,4 +1,3 @@
-
 require "spec_helper"
 require_relative "support/doctest"
 require_relative "support/doctest_names"
