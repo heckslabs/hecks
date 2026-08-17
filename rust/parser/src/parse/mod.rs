@@ -141,6 +141,55 @@ pub fn body_gate<'a>(
     Err(Diagnostic::new(file, line, format!("'{word}' was written with {found}")).with_expected(legal))
 }
 
+/// A LIVE CROSS-CHECK against the self-hosted grammar table, mirroring
+/// Ruby's own `RuleReference#verify_resolves_via!` (lib/hecksagain/
+/// bluebook/dsl/rule_reference.rb) — each of the three hand-written
+/// bare-reference resolvers (`parse::aggregate::
+/// try_reference_named_chapter_given`, `parse::command::
+/// try_reference_named_given`, `parse::value_object::
+/// try_reference_named_invariant`) calls this FIRST, naming the
+/// primitive it is about to use. If `syntax.bluebook`'s own
+/// `resolves_via` for this exact (word, context) pair ever names
+/// something else, this is a real drift between the language's own
+/// self-description and its own implementation — caught here, not
+/// silently trusted.
+///
+/// UNLIKE THE RUBY SIDE, no bootstrapping guard is needed:
+/// `keywords.rs` is a STATIC, pre-generated file
+/// (`bin/project_parser_table`) that already exists complete and
+/// correct before any Rust parsing code ever runs — Rust's own parser
+/// never bootstraps itself the way Ruby's self-hosting does (it never
+/// parses `syntax.bluebook` to build its own grammar knowledge at
+/// Rust runtime; that already happened, in Ruby, at codegen time,
+/// before `cargo build` ever ran). There is no circularity here to
+/// gate against.
+pub fn verify_resolves_via(
+    file: &str,
+    line: usize,
+    word: &str,
+    context: &'static str,
+    expected: &str,
+) -> ParseResult<()> {
+    let actual = keywords::KEYWORDS
+        .iter()
+        .find(|k| k.word == word && k.context == context)
+        .map_or("", |k| k.resolves_via);
+
+    if actual == expected {
+        return Ok(());
+    }
+
+    Err(Diagnostic::new(
+        file,
+        line,
+        format!(
+            "internal: syntax.bluebook says {word}/{context} resolves via '{actual}', but \
+             {word}'s own Rust parser is about to use '{expected}' — the grammar table and \
+             the implementation have drifted"
+        ),
+    ))
+}
+
 pub(crate) fn kind_matches(declared: &str, actual: &str) -> bool {
     if declared == actual {
         return true;

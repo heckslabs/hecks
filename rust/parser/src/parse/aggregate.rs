@@ -96,6 +96,8 @@ fn try_reference_named_chapter_given(
         return Ok(None);
     }
 
+    super::verify_resolves_via(file, line.number, "given", "Aggregate", "owner_keyed")?;
+
     let args = super::argument_gate(file, "given", "Aggregate", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "given", &args, 1)?;
     let declared_by = super::named_raw(&args, "declared_by").map(|raw| naming::demodulise(raw.trim()));

@@ -118,6 +118,8 @@ fn try_reference_named_given(
         return Ok(None);
     }
 
+    super::verify_resolves_via(file, line.number, "given", "Command", "hash_chain")?;
+
     let args = super::argument_gate(file, "given", "Command", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "given", &args, 1)?;
     let resolved = preconditions
