@@ -6,6 +6,14 @@ require_relative "../../runtime/instance"
 module Hecksagain
   module Adapters
     class Memory
+      # TENANT-CAPABLE TRIVIALLY — see Runtime::TenantCheck's own header
+      # for the full reasoning. `@records` is a plain instance variable;
+      # two `Runtime.boot` calls build two entirely separate Registry
+      # objects and, through them, two entirely separate Memory
+      # instances, so two tenant boots never share this adapter's state
+      # by construction — nothing here needs to know "tenant" exists.
+      def self.tenant_capable? = true
+
       attr_reader :aggregate
 
       def initialize(aggregate:, settings: {}, root: nil)

@@ -47,6 +47,17 @@ module Hecksagain
       # PostgresEra carries an era_check! for the boot gate to delegate to.
       def self.lineage_capable? = true
 
+      # TENANT-CAPABLE — see Runtime::TenantCheck's own header for the
+      # full reasoning. `connect_for`'s own `schema:` setting (the
+      # Storehouse shared-instance mechanism, already built, already
+      # proven for eras) is what keeps two tenant boots' tables apart:
+      # each boot's own `SET search_path` means every unqualified
+      # reference this adapter and its lineage classes construct
+      # resolves into that boot's own schema, never another tenant's —
+      # proven for real, not assumed, by tenant_isolation_spec.rb, the
+      # same discipline lineage_capable? already holds itself to.
+      def self.tenant_capable? = true
+
       def self.era_check!(registry:, bluebook:, current_text:, settings:, directory: nil)
         LineageManager.check!(
           registry: registry, bluebook: bluebook, current_text: current_text,
