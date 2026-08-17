@@ -248,7 +248,7 @@ module Hecksagain
               wrapped = Instance.new(aggregate: entity, id: nil, state: element)
               element_state = GuardState.new(wrapped)
               attrs = dereference(domain, entity, wrapped)
-                        .merge(parent: owner_instance.state.merge(dereference(domain, owner_construct, owner_instance)))
+                      .merge(parent: owner_instance.state.merge(dereference(domain, owner_construct, owner_instance)))
 
               entity.invariants.each do |invariant|
                 next if Bluebook::Expression::Evaluator.call(invariant.canonical, element_state, attrs)

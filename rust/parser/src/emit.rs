@@ -373,6 +373,11 @@ fn entity_json(e: &ir::Entity) -> JsonValue {
         // EVERY entity, empty when unused, matching Ruby's own
         // unconditional `preconditions.map { ... }`.
         ("preconditions".to_string(), JsonValue::Array(e.preconditions.iter().map(given_json).collect())),
+        // Round 7 — `entity.rb`'s own `emits_ir` now names `invariants`,
+        // the SAME shape `Aggregate.invariants`/`ValueObject.invariants`
+        // already carry — exported for EVERY entity, empty when unused,
+        // matching Ruby's own unconditional `invariants.map { ... }`.
+        ("invariants".to_string(), JsonValue::Array(e.invariants.iter().map(given_json).collect())),
         ("lifecycle".to_string(), e.lifecycle.as_ref().map(lifecycle_json).unwrap_or(JsonValue::Null)),
     ])
 }

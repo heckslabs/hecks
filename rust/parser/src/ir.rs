@@ -240,6 +240,11 @@ pub struct Entity {
     // here, the same as `Aggregate.preconditions` — see that field's own
     // comment.
     pub preconditions: Vec<Given>,
+    // Round 7 — A PIECE'S OWN SHAPE RULE, checked against EVERY instance
+    // of this piece the aggregate holds — the SAME `{description:,
+    // canonical:}` shape `Aggregate.invariants`/`ValueObject.invariants`
+    // already carry, one level down.
+    pub invariants: Vec<Invariant>,
     pub lifecycle: Option<Lifecycle>,
 }
 

@@ -115,6 +115,18 @@ pub fn parse_body(
                     entity_named_givens.push(built);
                 }
             }
+            // Round 7 — A PIECE'S OWN SHAPE RULE, checked against EVERY
+            // instance of this piece the aggregate holds — the SAME
+            // move `parse::aggregate`'s own "invariant" arm already
+            // makes, one level down. Block REQUIRED (no reference-by-
+            // name form, matching `EntityBuilder#invariant`'s own
+            // Ruby-side comment: no known corpus need for a piece's own
+            // invariant to be shared with a sibling piece yet).
+            "invariant" => {
+                let description = super::positional_text(file, line, "invariant", &gated.args, 1)?;
+                let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
+                entity.invariants.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+            }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
                 let from = command::parse_from(file, line, &gated.args)?;
