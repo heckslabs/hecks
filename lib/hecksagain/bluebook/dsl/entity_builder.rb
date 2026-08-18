@@ -44,7 +44,10 @@ module Hecksagain
         # own head can (Card.assignee_id, a Team's own id), just never
         # to another PIECE, since there's no cross-piece addressing
         # anywhere in this language to resolve one against.
-        def reference_to(type, as: nil)
+        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # dispatch (slice 4b). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def reference_to_impl(type, as: nil)
           target = Naming.demodulise(type)
           attribute_impl(as || default_reference_name(target), Reference.new(target))
         end
@@ -107,7 +110,9 @@ module Hecksagain
         # (`CommandBuilder#reference_named_given`) still reads whatever
         # `@named_givens` holds AT THE COMMAND'S OWN BUILD TIME, not by
         # magic.
-        def given(description, &predicate)
+        # RENAMED FROM `given` — item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as reference_to_impl above.
+        def given_impl(description, &predicate)
           named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
                               extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
           @named_givens[description] = named
@@ -133,7 +138,9 @@ module Hecksagain
         # piece yet; if that need shows up, it is `given`'s own
         # cross-entity write-through pattern to extend, not a reason to
         # invent a second one here speculatively.
-        def invariant(description, &predicate)
+        # RENAMED FROM `invariant` — item #13's full metaprogrammed
+        # dispatch (slice 4b), same reasoning as given_impl above.
+        def invariant_impl(description, &predicate)
           @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
                                      extraction_failure: "it would be a rule the IR cannot carry")
         end

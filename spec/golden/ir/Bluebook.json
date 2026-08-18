@@ -10166,6 +10166,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
               ]
             ],
             [
@@ -10480,6 +10484,10 @@
               [
                 "fills",
                 "invariants"
+              ],
+              [
+                "calls",
+                "invariant_impl"
               ]
             ],
             [
@@ -10514,6 +10522,10 @@
               [
                 "disambiguator",
                 "declared_by"
+              ],
+              [
+                "calls",
+                "given_impl"
               ]
             ],
             [
@@ -10644,6 +10656,10 @@
               [
                 "fills",
                 "preconditions"
+              ],
+              [
+                "calls",
+                "given_impl"
               ]
             ],
             [
@@ -10670,6 +10686,10 @@
               [
                 "fills",
                 "invariants"
+              ],
+              [
+                "calls",
+                "invariant_impl"
               ]
             ],
             [
@@ -10804,6 +10824,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
               ]
             ],
             [
@@ -10938,6 +10962,10 @@
               [
                 "fills",
                 "references"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
               ]
             ],
             [
@@ -10968,6 +10996,10 @@
               [
                 "resolves_via",
                 "hash_chain"
+              ],
+              [
+                "calls",
+                "given_impl"
               ]
             ],
             [
@@ -11140,6 +11172,10 @@
               [
                 "resolves_via",
                 "sibling_scan"
+              ],
+              [
+                "calls",
+                "invariant_impl"
               ]
             ],
             [
@@ -11594,6 +11630,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
               ]
             ],
             [
@@ -11750,6 +11790,10 @@
               [
                 "fills",
                 "reference_target"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
               ]
             ],
             [
@@ -12270,6 +12314,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
               ]
             ],
             [

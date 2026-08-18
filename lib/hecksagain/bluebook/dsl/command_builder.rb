@@ -86,7 +86,10 @@ module Hecksagain
         # of fact that may or may not be given. The meta-domain's Verb.Declare
         # points at the Entity a command belongs to — and most commands belong to no
         # entity at all.
-        def reference_to(type, as: nil, optional: false)
+        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # dispatch (slice 4b). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def reference_to_impl(type, as: nil, optional: false)
           demodulised = Naming.demodulise(type)
           # moved to the language: given "a command names what it acts on", on Verb.ActsOn
 
@@ -129,7 +132,9 @@ module Hecksagain
         # named". Resolved against whatever the OWNING aggregate has
         # declared so far — see `AggregateBuilder#command`'s own
         # comment on why that means declaration order matters here.
-        def given(description, &predicate)
+        # RENAMED FROM `given` — item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as reference_to_impl above.
+        def given_impl(description, &predicate)
           return reference_named_given(description) unless predicate
 
           # moved to the language: given "a rule says what it means", on Verb.Rule

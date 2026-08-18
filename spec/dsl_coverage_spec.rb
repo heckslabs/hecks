@@ -15,21 +15,23 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AggregateBuilder"            => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
-      # `has_many`/`has_one`/`belongs_to` -> `*_impl` — item #13's full
-      # metaprogrammed dispatch (slice 4), same reasoning as role_impl.
-      %i[description provenance identified_by reference_to has_many_impl has_one_impl belongs_to_impl value_object
-         command lifecycle entity query policy attribute list_of attributes invariant given projects]
+      # `has_many`/`has_one`/`belongs_to`/`given`/`invariant`/
+      # `reference_to` -> `*_impl` — item #13's full metaprogrammed
+      # dispatch (slices 4/4b), same reasoning as role_impl.
+      %i[description provenance identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl value_object
+         command lifecycle entity query policy attribute list_of attributes invariant_impl given_impl projects]
     ],
     "ValueObjectBuilder"          => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
-      %i[invariant one_of member attribute list_of attributes]
+      # `invariant` -> `invariant_impl`, same reasoning, slice 4b.
+      %i[invariant_impl one_of member attribute list_of attributes]
     ],
     "CommandBuilder"              => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      # `role` -> `role_impl` — item #13's full metaprogrammed dispatch
-      # (slice 4). GenericDispatch forwards via calls:; role_impl is the
-      # real, directly-defined method.
-      %i[role_impl goal provenance reference_to given ensures then_set sets emits attribute list_of attributes]
+      # `role`/`given`/`reference_to` -> `*_impl` — item #13's full
+      # metaprogrammed dispatch (slices 4/4b). GenericDispatch forwards
+      # via calls:; these are the real, directly-defined methods.
+      %i[role_impl goal provenance reference_to_impl given_impl ensures then_set sets emits attribute list_of attributes]
     ],
     "PortBuilder"                 => [
       Hecksagain::Bluebook::DSL::PortBuilder,
@@ -41,7 +43,8 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "PortOperationBuilder"        => [
       Hecksagain::Bluebook::DSL::PortOperationBuilder,
-      %i[reference_to emits attribute list_of attributes]
+      # `reference_to` -> `reference_to_impl`, same reasoning, slice 4b.
+      %i[reference_to_impl emits attribute list_of attributes]
     ],
     "AdapterBuilder"              => [
       Hecksagain::Bluebook::DSL::AdapterBuilder,

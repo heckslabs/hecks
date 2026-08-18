@@ -341,7 +341,7 @@ Hecks.bluebook "Bluebook" do
       # follows, not by the arguments, which is the join's own limit
       # showing again rather than a fact left out.
       member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
-      member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "reference_to_impl"
       # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
       # already grew in the wild, declared in this table
       # only once it existed to declare it by. All three FILL the
@@ -375,7 +375,7 @@ Hecks.bluebook "Bluebook" do
       # one level up: checked after every command, before save, rather
       # than at coercion. `invariant` existed only inside `value_object`
       # before this; an aggregate-level rule had nowhere to live.
-      member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants"
+      member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants", calls: "invariant_impl"
       # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
       # 0025) — the SAME word `given` already carries inside `command`,
       # one level up. NO LONGER "block required, never a bare reference
@@ -386,7 +386,7 @@ Hecks.bluebook "Bluebook" do
       # docs/resolution-rules/chapter-given.md), `declared_by:`
       # disambiguating when more than one aggregate in the chapter
       # declares the identical description.
-      member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by"
+      member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl"
       # A FIELD READ THROUGH A REFERENCE, HELD LOCALLY (S12, ADR 0025 —
       # "Consistency across aggregate boundaries") — no block, the same
       # shape `attribute` already is one level up: a value declared,
@@ -410,18 +410,18 @@ Hecks.bluebook "Bluebook" do
       # (see the "Aggregate" row above, body/fills identical) — a piece
       # gained the same structural capability its own owning aggregate
       # already had.
-      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions"
+      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions", calls: "given_impl"
       # A PIECE'S OWN SHAPE RULE — checked against EVERY instance of
       # this piece the aggregate holds, not this ONE aggregate's own
       # flat state (`ValueObject`'s own row above, one construct over,
       # is the closer sibling here than `Aggregate`'s own `invariant`
       # is — both check every instance, not one record).
-      member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants"
+      member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants", calls: "invariant_impl"
       member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
       member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
       member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
       member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "attribute_impl"
-      member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
+      member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "reference_to_impl"
       # S17, ADR 0026 — a piece nested inside a piece. "That is what
       # `entity` is for, and `entity` is declared by the language and
       # used zero times in it" (the ADR's own words) — `Dispatch`,
@@ -432,8 +432,8 @@ Hecks.bluebook "Bluebook" do
       member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role", calls: "role_impl"
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
       member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
-      member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
-      member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain"
+      member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references", calls: "reference_to_impl"
+      member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain", calls: "given_impl"
       # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
       # spelling; `then_set` is the era every existing bluebook was written
       # under, and every one of them still boots — the corpus itself is the
@@ -447,7 +447,7 @@ Hecks.bluebook "Bluebook" do
       # open map of pairs cannot be a list element), so ValueObject keeps
       # `rows` and the rows themselves live one category down.
       member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows"
-      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan"
+      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan", calls: "invariant_impl"
 
       # BARE NOW, DIRECTLY IN A VALUE_OBJECT'S OWN BODY (S3, ADR 0025 —
       # "closed sets lose the wrapper block"). Used to be typed only
@@ -523,7 +523,7 @@ Hecks.bluebook "Bluebook" do
       # a plain attribute typed as a reference (Item.ByOwner's
       # `owner`, filtering by which Camper owns it, not a free string
       # that only happens to look like one).
-      member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
+      member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "reference_to_impl"
       member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres"
       member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field"
       # `limit`/`offset`/`cursor`/`nulls` moved to the Paging sub-language
@@ -543,7 +543,7 @@ Hecks.bluebook "Bluebook" do
       member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
 
       member word: "description",     context: "ReadModel", body: "none", inner: "", opens: "", fills: "description"
-      member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target"
+      member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target", calls: "reference_to_impl"
       member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
       member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
       # `count`/`median` are the OTHER two reductions `group_by` has
@@ -646,7 +646,7 @@ Hecks.bluebook "Bluebook" do
       # inbound fact. One or the other, never both — DomainPortBuilder#build
       # enforces it.
       member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
-      member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
+      member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes", calls: "reference_to_impl"
       member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes", calls: "attribute_impl"
       member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
       # AN ASK NAMES BOTH ENDINGS. Separate words rather than two `emits`

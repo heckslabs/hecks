@@ -146,13 +146,30 @@ module Hecksagain
         # during bootstrap, the same loud `NoMethodError` failure this
         # whole mechanism already had before slice 3 existed.
         BOOTSTRAP_CALLS_FALLBACK = {
-          %w[Aggregate attribute]     => :attribute_impl,
-          %w[Entity attribute]        => :attribute_impl,
-          %w[Command attribute]       => :attribute_impl,
-          %w[ValueObject attribute]   => :attribute_impl,
-          %w[Query attribute]         => :attribute_impl,
-          %w[PortOperation attribute] => :attribute_impl,
-          %w[Command role]            => :role_impl
+          %w[Aggregate attribute]        => :attribute_impl,
+          %w[Entity attribute]           => :attribute_impl,
+          %w[Command attribute]          => :attribute_impl,
+          %w[ValueObject attribute]      => :attribute_impl,
+          %w[Query attribute]            => :attribute_impl,
+          %w[PortOperation attribute]    => :attribute_impl,
+          %w[Command role]               => :role_impl,
+          # given/invariant/reference_to — slice 4b. Each is a SEPARATE
+          # per-builder implementation (not a shared mixin like
+          # attribute_impl), so every (context, word) pair below names
+          # its OWN builder's own method, even where several share a
+          # name.
+          %w[Aggregate given]            => :given_impl,
+          %w[Entity given]               => :given_impl,
+          %w[Command given]              => :given_impl,
+          %w[Aggregate invariant]        => :invariant_impl,
+          %w[Entity invariant]           => :invariant_impl,
+          %w[ValueObject invariant]      => :invariant_impl,
+          %w[Aggregate reference_to]     => :reference_to_impl,
+          %w[Entity reference_to]        => :reference_to_impl,
+          %w[Command reference_to]       => :reference_to_impl,
+          %w[Query reference_to]         => :reference_to_impl,
+          %w[ReadModel reference_to]     => :reference_to_impl,
+          %w[PortOperation reference_to] => :reference_to_impl
         }.freeze
 
         module_function

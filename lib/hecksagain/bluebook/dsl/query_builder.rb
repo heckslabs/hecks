@@ -23,7 +23,10 @@ module Hecksagain
         # exactly like any other. No "acts on itself" case to
         # distinguish here the way a command's own reference_to has —
         # a query has no root of its own to act on, only parameters.
-        def reference_to(type, as: nil, optional: false)
+        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # dispatch (slice 4b). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
         end

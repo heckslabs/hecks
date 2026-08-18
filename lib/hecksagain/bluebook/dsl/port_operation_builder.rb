@@ -20,7 +20,10 @@ module Hecksagain
         # to protect, so there is nothing for the self-reference branch to be
         # FOR here. `reference_to Payment, as: :payment_id` reads the same
         # even though the target happens to equal the owning aggregate.
-        def reference_to(type, as: nil)
+        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # dispatch (slice 4b). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def reference_to_impl(type, as: nil)
           target = Naming.demodulise(type)
           attribute_impl(as || default_reference_name(target), Reference.new(target))
         end

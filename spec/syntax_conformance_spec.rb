@@ -184,7 +184,13 @@ RSpec.describe "the declared syntax" do
       has_one_impl:       "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       belongs_to_impl:    "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       trigger_impl:       "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
-      dispatch_impl:      "HandlerBuilder's own real implementation, called by GenericDispatch's calls:"
+      dispatch_impl:      "HandlerBuilder's own real implementation, called by GenericDispatch's calls:",
+      # Same reasoning, slice 4b: `given`/`invariant`/`reference_to` are
+      # SEPARATE per-builder implementations (not one shared mixin like
+      # attribute_impl), each renamed the same way in its own file.
+      given_impl:         "the owning builder's own real implementation, called by GenericDispatch's calls:",
+      invariant_impl:     "the owning builder's own real implementation, called by GenericDispatch's calls:",
+      reference_to_impl:  "the owning builder's own real implementation, called by GenericDispatch's calls:"
     }
   }.freeze
 

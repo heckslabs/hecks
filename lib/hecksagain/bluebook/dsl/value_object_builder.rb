@@ -87,7 +87,10 @@ module Hecksagain
         # the referencing value object's own build time, against
         # whatever sibling value objects the aggregate has already
         # built, the same ordering rule `given` carries.
-        def invariant(description, &predicate)
+        # RENAMED FROM `invariant` — item #13's full metaprogrammed
+        # dispatch (slice 4b). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def invariant_impl(description, &predicate)
           return reference_named_invariant(description) unless predicate
 
           # moved to the language: given "a rule says what it means", on Shape.Assert

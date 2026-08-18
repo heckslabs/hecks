@@ -63,7 +63,11 @@ module Hecksagain
         # `camping_list_id`, never both) needs each reference optional
         # on the aggregate's own persisted schema, not just as a
         # command's input.
-        def reference_to(type, as: nil, optional: false)
+        # RENAMED FROM `reference_to` — item #13's full metaprogrammed
+        # dispatch (slice 4b). Bootstrap-reachable (every core/attached
+        # grammar chapter uses reference_to to describe itself), so also
+        # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
           attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
@@ -270,7 +274,10 @@ module Hecksagain
         # textually-different canonical registers under the same
         # description; see `reference_named_chapter_given`'s own
         # ambiguity error for how that surfaces.
-        def given(description, declared_by: nil, &predicate)
+        # RENAMED FROM `given` — item #13's full metaprogrammed dispatch
+        # (slice 4b), same reasoning as reference_to_impl above:
+        # bootstrap-reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        def given_impl(description, declared_by: nil, &predicate)
           return reference_named_chapter_given(description, declared_by: declared_by) unless predicate
 
           named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
@@ -337,7 +344,9 @@ module Hecksagain
         # texts across banking's six balance-moving commands, and the
         # four that only increase it said nothing at all — completeness
         # depended on someone noticing which commands could decrease it.
-        def invariant(description, &predicate)
+        # RENAMED FROM `invariant` — item #13's full metaprogrammed
+        # dispatch (slice 4b), same reasoning as given_impl above.
+        def invariant_impl(description, &predicate)
           @invariants << build_rule(Invariant, description, predicate, owner_name: @name, word: "invariant",
                                      extraction_failure: "it would be a rule the IR cannot carry")
         end
@@ -448,11 +457,11 @@ module Hecksagain
         # byte-identical to what those three did before this slice.
         def legacy_has_many(type, as:, optional: false)
           plural = Naming.demodulise(type)
-          reference_to(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym, optional: optional)
+          reference_to_impl(Naming.singularize(plural), as: as || Naming.snake(plural).to_sym, optional: optional)
         end
 
         def legacy_has_one(type, as:, optional: false)
-          reference_to(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym, optional: optional)
+          reference_to_impl(type, as: as || Naming.snake(Naming.demodulise(type)).to_sym, optional: optional)
         end
 
         # Every reference is told which Aggregate declares it, so it can
