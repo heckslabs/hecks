@@ -22,7 +22,7 @@ module Hecksagain
         # even though the target happens to equal the owning aggregate.
         def reference_to(type, as: nil)
           target = Naming.demodulise(type)
-          attribute(as || default_reference_name(target), Reference.new(target))
+          attribute_impl(as || default_reference_name(target), Reference.new(target))
         end
 
         def emits(event_name) = @emits << event_name.to_s

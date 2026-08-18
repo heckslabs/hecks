@@ -45,13 +45,25 @@ module Hecksagain
       # already is (`rule_reference.rb`'s own comment has the full
       # story) — the meta-domain's own bootstrap calls dozens of
       # keywords on itself before its own grammar table exists to
-      # check them against. UNLIKE `RuleReference`, there is no small
-      # `BOOTSTRAP_FALLBACK` here — covering all ~200 keyword rows with
-      # a second, hand-written Ruby table would defeat the entire
-      # point. During bootstrap, this module steps aside entirely
-      # (`super`, Ruby's own ordinary `NoMethodError`) — the exact
-      # behavior every builder already had before this module existed,
-      # for that one unavoidable window only.
+      # check them against. For most words, this module steps aside
+      # entirely during bootstrap (`super`, Ruby's own ordinary
+      # `NoMethodError`) — the exact behavior every builder already had
+      # before this module existed, and (unlike `RuleReference`) there
+      # is deliberately no fallback covering the whole ~200-row table —
+      # that would defeat the entire point.
+      #
+      # ONE NARROW EXCEPTION, added in item #13's full metaprogrammed
+      # dispatch (slice 3, whole-project table-unification survey):
+      # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`, a SMALL, EXPLICIT
+      # table naming the same (context, word) -> method pairs the real
+      # `calls:` column would say once it exists — used ONLY for words
+      # BOTH migrated to the `calls:` shape AND bootstrap-reachable
+      # (`attribute`, today). This is the one place in this whole arc a
+      # bootstrap fallback was worth building despite `RuleReference`'s
+      # own precedent against it: it duplicates NO logic, only a METHOD
+      # NAME — `attribute_impl`'s own real, hand-written body is called
+      # either way, bootstrap or not, so there is nothing here that can
+      # drift the way a full behavioral duplicate could.
       module WordGate
         # PRIVATE, matching Ruby's own convention for both (`Object`
         # defines them private too) — and load-bearing here, not just
@@ -64,7 +76,12 @@ module Hecksagain
         private
 
         def method_missing(word, *args, **kwargs, &block)
-          return super if MetaValidator.bootstrapping?
+          if MetaValidator.bootstrapping?
+            target = GenericDispatch::BOOTSTRAP_CALLS_FALLBACK[[self.class::GRAMMAR_CONTEXT, word.to_s]]
+            return send(target, *args, **kwargs, &block) if target
+
+            return super
+          end
 
           context = self.class::GRAMMAR_CONTEXT
           rows = MetaValidator::SyntaxBoot.call

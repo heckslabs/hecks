@@ -134,6 +134,26 @@ module Hecksagain
           %w[Bluebook read_model]      => :read_models
         }.freeze
 
+        # `WordGate#method_missing`'s OWN bootstrap-window fallback,
+        # consulted ONLY while `MetaValidator.bootstrapping?` (the real
+        # table doesn't exist yet to read `keyword[:calls]` from). Names
+        # the SAME (context, word) -> method pairs the real table's own
+        # `calls:` column carries for these rows — kept in sync by hand,
+        # the one place in this whole arc that was worth it: it
+        # duplicates a METHOD NAME, never the method's own logic, so
+        # there is nothing here that could drift into a WRONG ANSWER,
+        # only (if ever forgotten) into `attribute` staying unreachable
+        # during bootstrap, the same loud `NoMethodError` failure this
+        # whole mechanism already had before slice 3 existed.
+        BOOTSTRAP_CALLS_FALLBACK = {
+          %w[Aggregate attribute]     => :attribute_impl,
+          %w[Entity attribute]        => :attribute_impl,
+          %w[Command attribute]       => :attribute_impl,
+          %w[ValueObject attribute]   => :attribute_impl,
+          %w[Query attribute]         => :attribute_impl,
+          %w[PortOperation attribute] => :attribute_impl
+        }.freeze
+
         module_function
 
         # THE STATIC PREDICATE — does this (context, word) pair fall
@@ -159,19 +179,23 @@ module Hecksagain
           return NOT_HANDLED unless shape
 
           case shape[:kind]
-          when :opens_block  then try_opens_block(builder, shape[:keyword], args, kwargs, block)
-          when :zero_arg     then try_zero_arg(builder, shape[:keyword], args)
-          when :single_fill  then try_single_fill(builder, shape[:fills], shape[:argument], args, kwargs)
+          when :calls_through then try_calls_through(builder, shape[:calls], args, kwargs, block)
+          when :opens_block   then try_opens_block(builder, shape[:keyword], args, kwargs, block)
+          when :zero_arg      then try_zero_arg(builder, shape[:keyword], args)
+          when :single_fill   then try_single_fill(builder, shape[:fills], shape[:argument], args, kwargs)
           end
         end
 
         # THE ONE PLACE ROW SHAPE IS JUDGED — returns a small Hash naming
-        # which of the three safe shapes (context, word) is, or `nil` if
+        # which of the four safe shapes (context, word) is, or `nil` if
         # it falls outside this slice's own verified scope. No argument
         # values are read here; this only ever looks at the table.
         def shape_for(context, word, rows)
           keyword = rows[:keywords].find { |k| k[:context] == context && k[:word] == word && k[:status] != "retired" }
           return nil unless keyword
+
+          calls = keyword[:calls].to_s
+          return { kind: :calls_through, calls: calls } unless calls.empty?
 
           return { kind: :opens_block, keyword: keyword } if SAFE_OPENS_BLOCK.key?([context, word])
 
@@ -188,6 +212,19 @@ module Hecksagain
           return nil unless COERCE_BY_KIND.key?(arg[:kind])
 
           { kind: :single_fill, fills: fills, argument: arg }
+        end
+
+        # `keyword[:calls]` names a real Ruby method whose whole call —
+        # every positional, every kwarg, the block, all of it — forwards
+        # here UNCHANGED. No argument-shape interpretation at all,
+        # deliberately: the target method (`AttributeCollector#
+        # attribute_impl`, etc.) already does its own, real, hand-
+        # written argument handling; this is a pure, transparent `send`,
+        # the lowest-risk possible shape for a word whose own logic is
+        # too complex to re-derive from the table (type-quoting refusal,
+        # closed-set synthesis, pattern validation, ...).
+        def try_calls_through(builder, calls, args, kwargs, block)
+          builder.send(calls, *args, **kwargs, &block)
         end
 
         def try_opens_block(builder, keyword, args, kwargs, block)

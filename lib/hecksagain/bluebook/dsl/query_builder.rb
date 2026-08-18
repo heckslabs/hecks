@@ -25,7 +25,7 @@ module Hecksagain
         # a query has no root of its own to act on, only parameters.
         def reference_to(type, as: nil, optional: false)
           target = Naming.demodulise(type)
-          attribute(as || default_reference_name(target), Reference.new(target), optional: optional)
+          attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
         def build

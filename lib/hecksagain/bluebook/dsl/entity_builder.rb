@@ -46,7 +46,7 @@ module Hecksagain
         # anywhere in this language to resolve one against.
         def reference_to(type, as: nil)
           target = Naming.demodulise(type)
-          attribute(as || default_reference_name(target), Reference.new(target))
+          attribute_impl(as || default_reference_name(target), Reference.new(target))
         end
 
         # A PIECE is known by a field, not by a whole value object.

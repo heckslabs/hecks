@@ -266,6 +266,9 @@ Hecks.bluebook "Bluebook" do
       # rows that actually name one.
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      # See `entity "Keyword"`'s own matching attribute, above, for the
+      # full story (item #13's full metaprogrammed dispatch, slice 3).
+      attribute :calls, String, default: ""
 
       # The outside of every body. `Hecks.bluebook` is reached through the
       # `Hecks` receiver rather than an enclosing builder, which is the only
@@ -366,7 +369,7 @@ Hecks.bluebook "Bluebook" do
       member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: ""
       member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
       member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: ""
-      member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes"
+      member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "attribute_impl"
       # THE AGGREGATE BOUNDARY IS WHAT AN INVARIANT DEFINES (S10, ADR
       # 0025 — "Rules") — the same word `value_object` already carries,
       # one level up: checked after every command, before save, rather
@@ -417,7 +420,7 @@ Hecks.bluebook "Bluebook" do
       member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
       member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
       member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
-      member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
+      member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "attribute_impl"
       member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes"
       # S17, ADR 0026 — a piece nested inside a piece. "That is what
       # `entity` is for, and `entity` is declared by the language and
@@ -437,9 +440,9 @@ Hecks.bluebook "Bluebook" do
       # proof the rename machinery is safe.
       member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set"
       member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
-      member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes"
+      member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
 
-      member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes"
+      member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes", calls: "attribute_impl"
       # `one_of` fills the COUNT, not the rows. A member is its own root (an
       # open map of pairs cannot be a list element), so ValueObject keeps
       # `rows` and the rows themselves live one category down.
@@ -513,7 +516,7 @@ Hecks.bluebook "Bluebook" do
       member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: ""
 
       member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
-      member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes"
+      member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
       # ONLY THE CROSS-reference HALF `Command`'s own `reference_to`
       # has two of (line 324, above) — a query has no root of its
       # own to act on, so there's no "acts on itself" case here, just
@@ -644,7 +647,7 @@ Hecks.bluebook "Bluebook" do
       # enforces it.
       member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
       member word: "reference_to",    context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
-      member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes"
+      member word: "attribute",       context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "attributes", calls: "attribute_impl"
       member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
       # AN ASK NAMES BOTH ENDINGS. Separate words rather than two `emits`
       # because a reader has to tell them apart without opening the
@@ -1298,6 +1301,24 @@ Hecks.bluebook "Bluebook" do
       # than one candidate can register (today: only `given` on
       # Aggregate).
       attribute :disambiguator,  KeywordSeedText, admits: "Syntax::Disambiguator", optional: true
+      # THE ESCAPE HATCH — item #13's full metaprogrammed dispatch (slice
+      # 3, whole-project table-unification survey). BLANK for every word
+      # `GenericDispatch` fills/opens/zero-args directly off `fills:`/
+      # `opens:`. NON-EMPTY names a real Ruby method this word's whole
+      # call (args, kwargs, block, untouched) forwards to instead — for
+      # words whose own logic is genuinely too complex to re-derive from
+      # argument shape alone (`attribute`'s own type-quoting/closed-set-
+      # synthesis/pattern validation). The method itself stays exactly
+      # what it always was, hand-written, unchanged — this column only
+      # says WHICH one answers the word, the same way `resolves_via`
+      # already names which shared primitive a bare reference resolves
+      # through, one level up. Read DURING bootstrap too (`WordGate`'s
+      # own `BOOTSTRAP_CALLS_FALLBACK`, a small explicit table naming
+      # the SAME (context, word) -> method pairs this column would say,
+      # since the real table doesn't exist yet at that point) — the one
+      # place in this whole arc a bootstrap fallback was worth building,
+      # because it duplicates NO logic, only a method NAME.
+      attribute :calls, KeywordSeedText, optional: true
 
       lifecycle :status, default: "admitted" do
         # NOT `proposed` : nothing in the real table is ever declared
@@ -1445,7 +1466,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :keywords, append: { position: :position, word: :word, context: :context, body: :body,
                                  inner: :inner, opens: :opens, fills: :fills, was: :was,
-                                 resolves_via: :resolves_via, disambiguator: :disambiguator }
+                                 resolves_via: :resolves_via, disambiguator: :disambiguator, calls: :calls }
 
       emits "KeywordAdmitted"
     end

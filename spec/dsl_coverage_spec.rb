@@ -96,7 +96,11 @@ RSpec.describe "the DSL surface is fully covered" do
 
   it "AttributeCollector has no method without a test" do
     actual = Hecksagain::Bluebook::DSL::AttributeCollector.public_instance_methods(false)
-    expect(actual.sort).to eq(%i[attribute attributes closed_sets list_of one_of].sort)
+    # `attribute` -> `attribute_impl` — item #13's full metaprogrammed
+    # dispatch (slice 3, whole-project table-unification survey): the
+    # word `attribute` is no longer a real method any builder answers
+    # directly, `GenericDispatch` forwards to this renamed one instead.
+    expect(actual.sort).to eq(%i[attribute_impl attributes closed_sets list_of one_of].sort)
   end
 
   # S9, ADR 0025 — `identified_by`, split out of AttributeCollector into

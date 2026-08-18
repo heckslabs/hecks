@@ -297,7 +297,8 @@ module Hecksagain
             fills:         [:fills,         :plain],
             was:           [:was,           :plain],
             resolves_via:  [:resolves_via,  :plain],
-            disambiguator: [:disambiguator, :plain]
+            disambiguator: [:disambiguator, :plain],
+            calls:         [:calls,         :plain]
           },
           derived: { position: :walk }
         ),

@@ -104,7 +104,7 @@ module Hecksagain
         private
 
         def cross_reference(target, as, optional = false)
-          attribute(as || default_reference_name(target), Reference.new(target), optional: optional)
+          attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
         public

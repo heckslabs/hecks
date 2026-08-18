@@ -57,16 +57,16 @@ module Hecksagain
 
         # `optional:` — matching `CommandBuilder#reference_to`'s own
         # signature, which already had it; this one never forwarded it
-        # to `attribute()` even though `attribute()` itself already
-        # accepts it. A real gap: an aggregate that can point at ONE OF
-        # several targets (Item's own `personal_list_id`/
+        # to `attribute_impl()` even though `attribute_impl()` itself
+        # already accepts it. A real gap: an aggregate that can point at
+        # ONE OF several targets (Item's own `personal_list_id`/
         # `camping_list_id`, never both) needs each reference optional
         # on the aggregate's own persisted schema, not just as a
         # command's input.
         def reference_to(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
-          attribute(as || default_reference_name(target), Reference.new(target), optional: optional)
+          attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
         end
 
         # A RULE MAY ONLY READ WITHIN ITS OWN AGGREGATE BOUNDARY (S12,

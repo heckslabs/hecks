@@ -165,7 +165,16 @@ RSpec.describe "the declared syntax" do
       attributes:         "AttributeCollector's collection, read by whoever owns it",
       closed_sets:        "AttributeCollector's synthesised sets, installed by the aggregate",
       dispatches:         "HandlerBuilder's collection, read by ProcessManagerBuilder",
-      add_aggregate_head: "ReadModelBuilder's own build calls it; nothing types it"
+      add_aggregate_head: "ReadModelBuilder's own build calls it; nothing types it",
+      # `attribute_impl` — item #13's full metaprogrammed dispatch
+      # (slice 3, whole-project table-unification survey). Not a word
+      # itself: the `attribute` Keyword row's own `calls:` column names
+      # this as the real method it forwards to, unchanged, once its
+      # hand-written `def attribute` was removed. Every Keyword row for
+      # `attribute` still names the WORD "attribute", never
+      # "attribute_impl" — this is the target the word CALLS, not a
+      # second word the language would need its own row for.
+      attribute_impl:     "AttributeCollector's own real implementation, called by GenericDispatch's calls:"
     }
   }.freeze
 

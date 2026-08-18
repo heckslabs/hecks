@@ -57,8 +57,17 @@ module Hecksagain
       # one through the real admission/lifecycle door, and hands back the
       # same shape `rows` used to produce — nothing below this needed to
       # change.
-      def keywords  = @keywords ||= Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-      def arguments = @arguments ||= Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
+      #
+      # NO SEPARATE `@keywords ||=` HERE ANYMORE. This module used to
+      # memoize its own copy on top of `SyntaxBoot.call`'s own memo — a
+      # double cache with no way to invalidate either half, and a real
+      # bug: whichever call in the whole process happened to land first
+      # got locked in forever, even one caught mid-build missing every
+      # Paging-attached word (limit/offset/cursor/nulls). `SyntaxBoot.call`
+      # now carries the one guard that matters (`grammar_registry_ready?`)
+      # ; this delegates straight through instead of shadowing it.
+      def keywords  = Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+      def arguments = Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
 
       def status_of(row) = row[:status].to_s.empty? ? "admitted" : row[:status].to_s
       def live?(row)     = %w[admitted deprecated].include?(status_of(row))

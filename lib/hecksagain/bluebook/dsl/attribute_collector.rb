@@ -46,8 +46,20 @@ module Hecksagain
         # renders either one identically. Neither form appears in any frozen
         # era text (checked directly), so both are refused unconditionally —
         # nothing for `MetaValidator.shadow_parsing?` to answer for.
-        def attribute(name, type = UNSET, default: nil, optional: false, pattern: nil,
-                      admits: nil, one_of: nil)
+        # RENAMED FROM `attribute` — item #13's full metaprogrammed
+        # dispatch (slice 3, whole-project table-unification survey).
+        # The word `attribute` itself is no longer a real method any
+        # builder answers directly: every (context, word) Keyword row
+        # for it carries `calls: "attribute_impl"`, and `GenericDispatch`
+        # forwards the whole call here untouched — this method's own
+        # body is exactly what `attribute` always was, unchanged, just
+        # reached generically now rather than by Ruby's own direct
+        # method lookup. `attribute_collector_spec.rb` (`AttributeCollector
+        # has no method without a test` — dsl_coverage_spec.rb) and the
+        # bootstrap fallback (`GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`) both
+        # name this same string; they must never drift apart.
+        def attribute_impl(name, type = UNSET, default: nil, optional: false, pattern: nil,
+                           admits: nil, one_of: nil)
           # moved to the language: FieldName invariant, on Root.Attribute
 
           if type.equal?(UNSET)

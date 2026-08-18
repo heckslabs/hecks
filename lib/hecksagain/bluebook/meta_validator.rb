@@ -320,7 +320,11 @@ module Hecksagain
           # Assigned BEFORE the fixpoint judge below: judging re-enters
           # grammar_registry through fresh_runtime (judge.rb) and Plan.for
           # (judge.rb, reconstruction.rb) — a bare ||= would still be nil
-          # while its right-hand side evaluates, and recurse forever.
+          # while its right-hand side evaluates, and recurse forever. That
+          # reentrancy window is real: a caller landing here BEFORE the
+          # fixpoint/attach below have run sees the SAME registry object,
+          # correctly, but one still missing the attached chapters (Paging's
+          # `attaches_to` among them) — see grammar_registry_ready? below.
           @grammar_registry = registry
           # THE FIXPOINT MADE LOAD-BEARING. The bootstrap loaded the language
           # raw ; now the language judges itself, its records are read back,
@@ -331,8 +335,27 @@ module Hecksagain
           # anything at all.
           LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
           load_attached_grammar_into(registry)
+          # Stamped LAST, keyed by this registry's own identity rather than
+          # a bare boolean — a manual reset (fixpoint_spec.rb's own
+          # `@grammar_registry = nil`) makes @grammar_registry not equal
+          # this object_id again until a fresh build finishes, so a stale
+          # "ready" from the PREVIOUS cycle can never leak into the next.
+          @grammar_ready_for = registry.object_id
           registry
         end
+      end
+
+      # A REENTRANT CALL DURING THE FIXPOINT/ATTACH WINDOW ABOVE gets a
+      # real, correctly-mutating registry object back — no infinite loop,
+      # no wrong data for THAT caller's own purposes. But anything that
+      # MEMOIZES a snapshot derived from it (SyntaxBoot.call, chiefly) must
+      # not lock that snapshot in forever : this is the signal such a
+      # cache checks before trusting what it just read. Found live —
+      # SyntaxBoot.call had cached a Query keyword list missing every
+      # Paging-attached word (limit/offset/cursor/nulls) because something
+      # called it inside this exact window.
+      def self.grammar_registry_ready?
+        @grammar_registry && @grammar_ready_for == @grammar_registry.object_id
       end
 
       # ATTACHED CHAPTERS LOAD AFTER THE FIXPOINT, NOT DURING BOOTSTRAP —

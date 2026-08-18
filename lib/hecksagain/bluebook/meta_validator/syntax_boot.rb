@@ -39,8 +39,22 @@ module Hecksagain
         # something three separate callers (ParserTable, syntax_
         # conformance_spec, bin/reference) should each pay for on every
         # call.
+        #
+        # ONLY CACHED ONCE `grammar_registry` REPORTS ITSELF READY. A
+        # caller landing here while grammar_registry is still mid-build
+        # (the reentrancy window `grammar_registry`'s own comment
+        # describes) gets a real, freshly-computed answer — just not one
+        # this memoizes, since it would be missing every attached-chapter
+        # word (Paging's limit/offset/cursor/nulls, chiefly) and `@call`
+        # has no way to tell a stale snapshot from a good one afterward.
+        # Recomputing in that narrow window is cheap next to getting it
+        # wrong forever for the rest of the process.
         def call
-          @call ||= boot
+          return @call if @call && MetaValidator.grammar_registry_ready?
+
+          result = boot
+          @call = result if MetaValidator.grammar_registry_ready?
+          result
         end
 
         def boot
@@ -107,7 +121,8 @@ module Hecksagain
                              word: v(row[:word]), context: v(row[:context]), body: v(row[:body]),
                              inner: v(row[:inner]), opens: v(row[:opens]), fills: v(row[:fills]),
                              was: optional(row[:was]),
-                             resolves_via: optional(row[:resolves_via]), disambiguator: optional(row[:disambiguator]))
+                             resolves_via: optional(row[:resolves_via]), disambiguator: optional(row[:disambiguator]),
+                             calls: optional(row[:calls]))
 
             next unless row[:status].to_s == "deprecated"
 

@@ -112,6 +112,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Keyword#was"                => "same as Syntax#keywords, one level in",
     "Keyword#resolves_via"       => "same as Syntax#keywords, one level in",
     "Keyword#disambiguator"      => "same as Syntax#keywords, one level in",
+    "Keyword#calls"              => "same as Syntax#keywords, one level in",
     "Argument#keyword"           => "same as Syntax#arguments, one level in",
     "Argument#context"           => "same as Syntax#arguments, one level in",
     "Argument#at"                => "same as Syntax#arguments, one level in",

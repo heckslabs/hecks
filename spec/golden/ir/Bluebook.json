@@ -8406,6 +8406,15 @@
               "optional": true,
               "pattern": null,
               "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "calls",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
             }
           ],
           "emits": [
@@ -8423,6 +8432,7 @@
             {
               "fields": {
                 "body": ":body",
+                "calls": ":calls",
                 "context": ":context",
                 "disambiguator": ":disambiguator",
                 "fills": ":fills",
@@ -8712,6 +8722,15 @@
               "default": null,
               "list": false,
               "name": "disambiguator",
+              "optional": true,
+              "pattern": null,
+              "type": "KeywordSeedText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "calls",
               "optional": true,
               "pattern": null,
               "type": "KeywordSeedText"
@@ -9583,6 +9602,15 @@
               "optional": false,
               "pattern": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": "",
+              "list": false,
+              "name": "calls",
+              "optional": false,
+              "pattern": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -10410,6 +10438,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
               ]
             ],
             [
@@ -10730,6 +10762,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
               ]
             ],
             [
@@ -10998,6 +11034,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
               ]
             ],
             [
@@ -11024,6 +11064,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
               ]
             ],
             [
@@ -11496,6 +11540,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
               ]
             ],
             [
@@ -12224,6 +12272,10 @@
               [
                 "fills",
                 "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
               ]
             ],
             [
