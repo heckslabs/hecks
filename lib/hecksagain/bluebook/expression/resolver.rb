@@ -585,17 +585,17 @@ module Hecksagain
           return unwrap_scalar(fetch(expr, state, attrs)) unless expr.include?(".")
 
           head, *rest = expr.split(".")
-          rest.reduce(fetch(head, state, attrs)) do |value, segment|
+          unwrap_scalar(rest.reduce(fetch(head, state, attrs)) do |value, segment|
             break nil unless value.respond_to?(:[])
 
             value[segment.to_sym] || value[segment]
-          end
+          end)
         end
 
         # `field == "literal"` -- vendored addition, not (yet) upstream
         # hecksagain (migration plan task 8): the third-most pervasive
         # dispatch-time gap this pass found, same family as `.match?`/
-        # `.present?` above -- a BARE lookup of a single-field
+        # `.present?` above -- a lookup of a single-field
         # scalar-convenience value object (the exact shape `Value.
         # from_identifier`/`Value::Coercion#fields_for`'s own single-
         # field auto-unwrap already treats as "this VO IS its scalar"
@@ -610,13 +610,27 @@ module Hecksagain
         # route.bluebook, and subscription.bluebook, all equally silent
         # until a real dispatch (never validate) exercised the
         # predicate. Scoped narrowly to the single-field `{value: X}`
-        # shape only -- ONLY the dotted path's terminal (bare) lookup
-        # unwraps; a DOTTED lookup (`field.value`, `field.sub_field`)
-        # still walks the wrapper's own `#[]`, unaffected, because
-        # nothing in this corpus spells the scalar case that way (grep-
-        # confirmed zero `.value ==`/`.value.` usage anywhere) and a
-        # genuinely multi-field VO still needs `#[]` addressing to reach
-        # a specific field.
+        # shape only.
+        #
+        # UPDATE 2026-08-18: originally scoped to unwrap ONLY the bare
+        # (undotted) case, on the belief that a dotted lookup only ever
+        # reaches into a VO's OWN field (`field.value`, `field.sub_
+        # field`) and so should keep walking `#[]` untouched. That
+        # belief held for the single-hop case but not for the general
+        # one: a dotted lookup that NAVIGATES THROUGH an entity/list
+        # element to a nested field (`leg.voyage`, where `voyage` is
+        # itself a single-field VO) landed on the very same unwrapped-
+        # `Value` shape the bare case fixed, and hit the identical
+        # silent `Value#==` failure -- comparing it against a raw
+        # literal or another unwrapped VO returned false for everything,
+        # no error. The terminal value of a dotted walk deserves the
+        # same "this VO IS its scalar" treatment as a bare lookup's
+        # result; only the INTERMEDIATE hops need raw `#[]` addressing
+        # to keep navigating. `unwrap_scalar` is idempotent on an
+        # already-raw scalar (a String/Integer doesn't respond to
+        # `#to_h`), so this is safe for the existing `field.value`-
+        # shaped dotted lookups too -- they already returned a raw
+        # scalar and are unaffected.
         def unwrap_scalar(value)
           return value unless value.respond_to?(:to_h) && !value.is_a?(Hash) && !value.is_a?(Array)
 

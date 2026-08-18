@@ -248,7 +248,7 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  describe "bare-lookup single-field VO scalar unwrap" do
+  describe "single-field VO scalar unwrap" do
     SingleFieldDouble = Struct.new(:value) do
       def to_h = { value: value }
     end
@@ -260,10 +260,29 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('status == "inactive"', status: wrapped)).to be(false)
     end
 
-    it "leaves a dotted lookup walking the wrapper's own #[] untouched" do
+    it "leaves a dotted lookup reaching a VO's own #[]-addressed field untouched (already raw)" do
       wrapped = SingleFieldDouble.new("active")
 
       expect(evaluate('status.value == "active"', status: wrapped)).to be(true)
+    end
+
+    it "unwraps the terminal value of a dotted lookup that navigates to a nested single-field VO" do
+      # the leg.voyage shape: `leg` is an entity/hash, `voyage` is itself
+      # a single-field VO -- the dotted walk's intermediate hop reaches
+      # `leg` via #[], but the FINAL hop lands on a VO and must unwrap
+      # it the same as a bare lookup would, or `==` silently returns
+      # false for every comparison (Value#== only equals another Value).
+      leg = { voyage: SingleFieldDouble.new("SF-NY") }
+
+      expect(evaluate('leg.voyage == "SF-NY"', leg: leg)).to be(true)
+      expect(evaluate('leg.voyage == "SF-LA"', leg: leg)).to be(false)
+    end
+
+    it "unwraps both sides when comparing two nested single-field VOs directly" do
+      leg = { voyage: SingleFieldDouble.new("SF-NY") }
+      other_voyage = SingleFieldDouble.new("SF-NY")
+
+      expect(evaluate("leg.voyage == other_voyage", leg: leg, other_voyage: other_voyage)).to be(true)
     end
   end
 
