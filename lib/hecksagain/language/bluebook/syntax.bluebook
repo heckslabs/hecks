@@ -360,9 +360,9 @@ Hecks.bluebook "Bluebook" do
       # column exists to prevent. `deprecated` here is documentation
       # catching up to a fact the runtime already enforced; it changes
       # nothing about what admits or refuses.
-      member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated"
-      member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated"
-      member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated"
+      member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated", calls: "has_many_impl"
+      member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated", calls: "has_one_impl"
+      member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated", calls: "belongs_to_impl"
       member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field"
       member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: ""
       member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: ""
@@ -429,7 +429,7 @@ Hecks.bluebook "Bluebook" do
       # `Aggregate`'s own `entity` row above, one level down.
       member word: "entity",          context: "Entity", body: "keywords", inner: "Entity",     opens: "Entity",   fills: ""
 
-      member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role"
+      member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role", calls: "role_impl"
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
       member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references"
@@ -465,7 +465,7 @@ Hecks.bluebook "Bluebook" do
       member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions"
 
       member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
-      member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command"
+      member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command", calls: "trigger_impl"
       member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
       # `where { ... }` — a guard on whether the policy fires at all, read
       # against the triggering EVENT's own payload. Same extraction as
@@ -513,7 +513,7 @@ Hecks.bluebook "Bluebook" do
       # they serve both.
       member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
 
-      member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: ""
+      member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: "", calls: "dispatch_impl"
 
       member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
       member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
@@ -704,7 +704,7 @@ Hecks.bluebook "Bluebook" do
       member word: "compute",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "computes"
       member word: "rekey",           context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys"
       member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills"
-      member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: ""
+      member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "", calls: "unresolved_impl"
     end
 
     # WHAT EACH WORD TAKES.

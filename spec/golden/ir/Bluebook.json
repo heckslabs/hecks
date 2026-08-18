@@ -10196,6 +10196,10 @@
               [
                 "status",
                 "deprecated"
+              ],
+              [
+                "calls",
+                "has_many_impl"
               ]
             ],
             [
@@ -10226,6 +10230,10 @@
               [
                 "status",
                 "deprecated"
+              ],
+              [
+                "calls",
+                "has_one_impl"
               ]
             ],
             [
@@ -10256,6 +10264,10 @@
               [
                 "status",
                 "deprecated"
+              ],
+              [
+                "calls",
+                "belongs_to_impl"
               ]
             ],
             [
@@ -10844,6 +10856,10 @@
               [
                 "fills",
                 "role"
+              ],
+              [
+                "calls",
+                "role_impl"
               ]
             ],
             [
@@ -11254,6 +11270,10 @@
               [
                 "fills",
                 "trigger_command"
+              ],
+              [
+                "calls",
+                "trigger_impl"
               ]
             ],
             [
@@ -11488,6 +11508,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "calls",
+                "dispatch_impl"
               ]
             ],
             [
@@ -12822,6 +12846,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "calls",
+                "unresolved_impl"
               ]
             ]
           ],

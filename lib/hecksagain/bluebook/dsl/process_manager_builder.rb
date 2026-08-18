@@ -178,7 +178,10 @@ module Hecksagain
           # as `PolicyBuilder#trigger`'s own header — bare constant live,
           # quoted text only under shadow-parsing (S0a's bridge; frozen
           # era text still writes `dispatch "Banking::Account.Debit"`).
-          def dispatch(command_ref, with: nil)
+          #
+          # RENAMED FROM `dispatch` — item #13's full metaprogrammed
+          # dispatch (slice 4), same reasoning as trigger_impl above.
+          def dispatch_impl(command_ref, with: nil)
             if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
               raise InvalidProcessManager,
                     "dispatch #{command_ref.inspect} is quoted text — give the bare command constant " \

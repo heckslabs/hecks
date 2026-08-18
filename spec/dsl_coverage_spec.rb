@@ -15,8 +15,10 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "AggregateBuilder"            => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
-      %i[description provenance identified_by reference_to has_many has_one belongs_to value_object command lifecycle
-         entity query policy attribute list_of attributes invariant given projects]
+      # `has_many`/`has_one`/`belongs_to` -> `*_impl` — item #13's full
+      # metaprogrammed dispatch (slice 4), same reasoning as role_impl.
+      %i[description provenance identified_by reference_to has_many_impl has_one_impl belongs_to_impl value_object
+         command lifecycle entity query policy attribute list_of attributes invariant given projects]
     ],
     "ValueObjectBuilder"          => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
@@ -24,7 +26,10 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "CommandBuilder"              => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      %i[role goal provenance reference_to given ensures then_set sets emits attribute list_of attributes]
+      # `role` -> `role_impl` — item #13's full metaprogrammed dispatch
+      # (slice 4). GenericDispatch forwards via calls:; role_impl is the
+      # real, directly-defined method.
+      %i[role_impl goal provenance reference_to given ensures then_set sets emits attribute list_of attributes]
     ],
     "PortBuilder"                 => [
       Hecksagain::Bluebook::DSL::PortBuilder,
@@ -65,7 +70,8 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "TranslationAggregateBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationAggregateBuilder,
-      %i[rename move convert retype compute rekey backfill unresolved]
+      # `unresolved` -> `unresolved_impl`, same reasoning as role_impl above.
+      %i[rename move convert retype compute rekey backfill unresolved_impl]
     ]
   }.freeze
 

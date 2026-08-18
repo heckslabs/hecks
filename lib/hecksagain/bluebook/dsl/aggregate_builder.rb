@@ -122,7 +122,14 @@ module Hecksagain
         # Kept here, refusing live, ONLY so `MetaValidator.shadow_parsing?`
         # (S0a's own bridge) can still make sense of frozen era text that
         # used one — real, if rare: "Combined corpus uses: one."
-        def has_many(type, as: nil, optional: false)
+        #
+        # RENAMED FROM `has_many`/`has_one`/`belongs_to` — item #13's full
+        # metaprogrammed dispatch (slice 4). Each Keyword row's own
+        # `calls:` names the matching `_impl`; not bootstrap-reachable
+        # (checked directly — no core/attached chapter uses a retired
+        # word to describe itself), so no BOOTSTRAP_CALLS_FALLBACK entry
+        # is needed, unlike `attribute`/`role`.
+        def has_many_impl(type, as: nil, optional: false)
           return legacy_has_many(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
           raise Malformed,
@@ -130,13 +137,13 @@ module Hecksagain
                 "mints the same bare name now"
         end
 
-        def has_one(type, as: nil, optional: false)
+        def has_one_impl(type, as: nil, optional: false)
           return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
           raise Malformed, "#{@name}.has_one is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"
         end
 
-        def belongs_to(type, as: nil, optional: false)
+        def belongs_to_impl(type, as: nil, optional: false)
           return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
           raise Malformed, "#{@name}.belongs_to is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"

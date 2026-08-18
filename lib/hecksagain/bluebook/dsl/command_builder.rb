@@ -57,7 +57,16 @@ module Hecksagain
         # otherwise silently win while the first still looked declared,
         # exactly the failure mode `reference_to`'s own duplicate guard
         # (below) already exists to prevent for a command's root.
-        def role(value)
+        #
+        # RENAMED FROM `role` — item #13's full metaprogrammed dispatch
+        # (slice 4). This is a uniqueness gate on PRIOR STATE (`@role`
+        # already set), not a pure function of the argument's own value —
+        # a genuinely different shape than a plain fill, so it stays
+        # hand-written and is reached through `calls:` like `attribute`
+        # was in slice 3. Bootstrap-reachable (every self-hosted command
+        # declares a role), so also named in
+        # `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
+        def role_impl(value)
           raise Malformed,
                 "#{@name} declares role twice — a command carries ONE " \
                 "responsibility; the second would silently win and the " \

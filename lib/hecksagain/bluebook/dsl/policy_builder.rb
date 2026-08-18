@@ -42,7 +42,12 @@ module Hecksagain
         #
         # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era
         # text still writes the quoted form.
-        def trigger(command_ref, with: nil)
+        #
+        # RENAMED FROM `trigger` — item #13's full metaprogrammed
+        # dispatch (slice 4), same reasoning as has_many_impl above: not
+        # bootstrap-reachable, reached through calls: with no fallback
+        # needed.
+        def trigger_impl(command_ref, with: nil)
           if command_ref.is_a?(::String) && !MetaValidator.shadow_parsing?
             raise Malformed,
                   "#{@name}'s trigger #{command_ref.inspect} is quoted text — give the bare command " \

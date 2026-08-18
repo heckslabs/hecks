@@ -113,7 +113,19 @@ module Hecksagain
 
         # The scaffold writes this where it cannot decide; a file carrying
         # one can only boot into this refusal — never a guess.
-        def unresolved(name, candidates: [])
+        #
+        # RENAMED FROM `unresolved` — item #13's full metaprogrammed
+        # dispatch (slice 4). Builds its own message with real branching
+        # (empty vs. named candidates, a special :identity case), not a
+        # fixed string a boolean `refuses:` flag could express — reached
+        # through `calls:` instead, like `attribute`/`role`. NOT
+        # bootstrap-reachable: translation.bluebook (loaded during
+        # bootstrap, to describe the translation DSL itself) never
+        # writes `unresolved` — that word is only ever used by real,
+        # user-authored `.translation` files, loaded well after the
+        # grammar table exists — so no BOOTSTRAP_CALLS_FALLBACK entry is
+        # needed here (checked directly, not assumed).
+        def unresolved_impl(name, candidates: [])
           raise Malformed, unresolved_message(name, candidates)
         end
 

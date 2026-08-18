@@ -151,7 +151,8 @@ module Hecksagain
           %w[Command attribute]       => :attribute_impl,
           %w[ValueObject attribute]   => :attribute_impl,
           %w[Query attribute]         => :attribute_impl,
-          %w[PortOperation attribute] => :attribute_impl
+          %w[PortOperation attribute] => :attribute_impl,
+          %w[Command role]            => :role_impl
         }.freeze
 
         module_function

@@ -174,7 +174,17 @@ RSpec.describe "the declared syntax" do
       # `attribute` still names the WORD "attribute", never
       # "attribute_impl" — this is the target the word CALLS, not a
       # second word the language would need its own row for.
-      attribute_impl:     "AttributeCollector's own real implementation, called by GenericDispatch's calls:"
+      attribute_impl:     "AttributeCollector's own real implementation, called by GenericDispatch's calls:",
+      # Same reasoning, slice 4: `role`/`unresolved` renamed to
+      # `role_impl`/`unresolved_impl` so `calls:` can name them; the
+      # Keyword rows still say "role"/"unresolved", never these.
+      role_impl:          "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      unresolved_impl:    "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      has_many_impl:      "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      has_one_impl:       "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      belongs_to_impl:    "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      trigger_impl:       "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
+      dispatch_impl:      "HandlerBuilder's own real implementation, called by GenericDispatch's calls:"
     }
   }.freeze
 
