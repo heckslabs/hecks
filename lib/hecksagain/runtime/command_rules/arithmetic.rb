@@ -108,7 +108,21 @@ module Hecksagain
           current.with(field, current[field] + (sign * amount[field]))
         end
 
-        def sign_of(op) = MUTATION_OPS.find { |candidate| candidate.name == op.to_s }&.sign || -1
+        # Not a bare `.find(...)&.sign || -1` — that silently answered
+        # DECREMENT'S sign for BOTH an op this table has never heard of
+        # AND a declared, real op that simply carries no sign at all
+        # (set/append/multiply/clamp/remove — see MUTATION_OPS above).
+        # Callers today only ever reach this for :increment/:decrement
+        # (both MutationApplier#apply and EntityInterpreter#
+        # apply_to_element gate every other op through their own `case`
+        # first, each with its own loud WiringError backstop), so this
+        # raise is not a real runtime path yet — it is the same
+        # backstop one level down, in case a future caller reaches
+        # #sign_of directly for an op that was never meant to have one.
+        def sign_of(op)
+          MUTATION_OPS.find { |candidate| candidate.name == op.to_s }&.sign ||
+            raise(WiringError, "no sign declared for mutation op #{op.inspect} — add one before calling #sign_of")
+        end
 
         # Vendored addition, not (yet) upstream hecksagain (migration plan
         # task 4, i106): `current * amount` -- the scaling counterpart to

@@ -79,7 +79,17 @@ module Hecksagain
           when "in"       then members(want).include?(held.to_s)
           when "contains" then contains?(held, want)
           when "none_in_state" then none_in_state?(held, want, registry)
-          else                 held == want
+          else
+            # Every declared comparator has a `when` above (Vocabulary::
+            # QueryComparator, held equal to this list by
+            # spec/vocabulary_table_spec) — this is not a real runtime
+            # path today, only a backstop against the day a tenth
+            # comparator reaches the grammar and this method doesn't
+            # grow to match. Silently reading an unrecognized comparator
+            # as `eq` is exactly the failure this table already shipped
+            # once (see this file's own header) — an operator this
+            # method can't evaluate must refuse, not guess.
+            raise Runtime::WiringError, "no comparator handles #{operation.to_s.inspect} — add one before declaring it"
           end
         end
 

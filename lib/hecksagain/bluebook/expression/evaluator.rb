@@ -88,6 +88,17 @@ module Hecksagain
           when Compare then compare(node.operator, node.left, node.right, state, attrs)
           when Include then includes?([node.haystack, node.needle], state, attrs)
           when Resolve then truthy?(Resolver.interpret(node.expr, state, attrs))
+          else
+            # Every node `parse` can produce has a `when` above — a
+            # backstop against the day this grammar grows a new node
+            # type and `interpret` doesn't grow to match it. A missing
+            # arm here used to return bare `nil`, and `Or`/`And` fold
+            # that straight into the boolean algebra as ordinary falsy
+            # — reading exactly like "the rule legitimately does not
+            # hold" rather than "the runtime cannot evaluate this rule
+            # at all", the one silent no-op this language otherwise
+            # refuses.
+            raise EvaluationError, "no interpreter handles #{node.class} — add a case before parse can produce it"
           end
         end
 

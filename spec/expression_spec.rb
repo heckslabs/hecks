@@ -474,4 +474,26 @@ RSpec.describe "the expression sublanguage" do
       expect(resolved_again.receiver).to equal(receiver_leaf)
     end
   end
+
+  # `interpret`'s own `case` in both Evaluator and Resolver used to have no
+  # `else` at all — a node type `parse` never produces reaching it (today,
+  # only possible from a hand-built AST, not real corpus text) would return
+  # bare `nil` silently rather than refuse. Neither method's real `parse` can
+  # produce a node outside its own known set, so this exercises the backstop
+  # directly, past `parse`, the only way to reach it at all.
+  describe "interpret's own exhaustiveness backstop" do
+    UnknownNode = Struct.new(:whatever)
+
+    it "Evaluator.interpret refuses a node type it has no case for, rather than silently returning nil" do
+      expect do
+        Hecksagain::Bluebook::Expression::Evaluator.interpret(UnknownNode.new, {}, {})
+      end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /no interpreter handles/)
+    end
+
+    it "Resolver.interpret refuses a node type it has no case for, rather than silently returning nil" do
+      expect do
+        Hecksagain::Bluebook::Expression::Resolver.interpret(UnknownNode.new, {}, {})
+      end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /no interpreter handles/)
+    end
+  end
 end

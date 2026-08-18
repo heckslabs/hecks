@@ -322,6 +322,19 @@ module Hecksagain
             evaluate_block_predicate(node, interpret(node.receiver, state, attrs), state, attrs)
           when Lookup
             lookup(node.path, state, attrs)
+          else
+            # Every leaf node `parse` can produce has a `when` above —
+            # a backstop against the day this grammar grows a new leaf
+            # type (this file's own history: MatchesRegex/Presence/
+            # Split/Last/StartsWith/EndsWith/BlockPredicate were each
+            # added exactly this way, and each one — before it had an
+            # `interpret` arm — fell all the way through to the
+            # `Lookup` catch-all in `parse` and crashed downstream with
+            # an opaque type error, never here). A missing arm here
+            # would instead return bare `nil` silently, the one wrong-
+            # answer shape this leaf grammar has otherwise never
+            # allowed.
+            raise EvaluationError, "no interpreter handles #{node.class} — add a case before parse can produce it"
           end
         end
 

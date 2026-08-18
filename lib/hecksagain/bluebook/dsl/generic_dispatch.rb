@@ -249,6 +249,17 @@ module Hecksagain
           when :opens_block   then try_opens_block(builder, shape[:keyword], args, kwargs, block)
           when :zero_arg      then try_zero_arg(builder, shape[:keyword], args)
           when :single_fill   then try_single_fill(builder, shape[:fills], shape[:argument], args, kwargs)
+          else
+            # `shape_for` names exactly four kinds and this case
+            # matches all four — a backstop against the day a fifth is
+            # added there without a matching arm here. Falling through
+            # silently would return bare `nil` from what the caller
+            # (`WordGate#method_missing`) reads as "handled" (anything
+            # other than NOT_HANDLED counts), so a self-hosted DSL word
+            # would silently execute as a no-op instead of raising the
+            # same "not yet implemented" refusal a genuinely unmigrated
+            # word already gets.
+            raise Runtime::WiringError, "no dispatcher handles shape #{shape[:kind].inspect} — add one before shape_for can produce it"
           end
         end
 
