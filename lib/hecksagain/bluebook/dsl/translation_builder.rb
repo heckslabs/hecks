@@ -48,14 +48,13 @@ module Hecksagain
           @converts << TranslationConvert.new(old_path.to_s, to.to_s, values)
         end
 
-        # A declared, deliberate acknowledgment that an attribute's data
-        # does not survive the rename — the honest alternative to letting
-        # it vanish because nothing named it.
-        def drop(name)
-          raise Malformed, "a drop needs a name" if name.to_s.empty?
-
-          @drops << name.to_sym
-        end
+        # `drop` — item #13's full metaprogrammed dispatch, slice 2
+        # (whole-project table-unification survey): a declared,
+        # deliberate acknowledgment that an attribute's data does not
+        # survive the rename — the honest alternative to letting it
+        # vanish because nothing named it. A blank-guarded, kind-driven
+        # coerce-and-append with nothing else, now executed by
+        # `GenericDispatch`.
 
         # A value object's or entity's own type name changed, member
         # structure unchanged. The stored data never carries the type
@@ -187,13 +186,12 @@ module Hecksagain
           @aggregates << builder.build
         end
 
-        # An aggregate that is gone outright — not renamed. The deliberate
-        # alternative to a bogus `was:` claim on an unrelated aggregate.
-        def retired(name)
-          raise Malformed, "a retired needs an aggregate name" if name.to_s.empty?
-
-          @retired << name.to_s
-        end
+        # `retired` — item #13's full metaprogrammed dispatch, slice 2
+        # (whole-project table-unification survey): an aggregate that is
+        # gone outright — not renamed. The deliberate alternative to a
+        # bogus `was:` claim on an unrelated aggregate. Same shape
+        # `TranslationAggregateBuilder#drop` is, now executed by
+        # `GenericDispatch`.
 
         # `method_missing`/`respond_to_missing?` — same removal as
         # TranslationAggregateBuilder's own, one level up: WordGate

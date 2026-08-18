@@ -27,11 +27,22 @@ RSpec.describe "the declared translation rule kinds" do
 
   # The builder's own rule methods, introspected rather than listed — add a
   # rule to the DSL without declaring it and this fails; declare one the DSL
-  # does not implement and this fails.
+  # does not implement and this fails. A rule word "admitted" now means
+  # EITHER a real public method OR one `GenericDispatch` (item #13's full
+  # metaprogrammed dispatch) executes off the grammar table directly —
+  # `drop` moved to the second kind in slice 2 (whole-project table-
+  # unification survey) and no longer shows up in `public_instance_
+  # methods` at all, the same way `WordGate`'s own admissibility check
+  # never counted `method_missing` itself as an answered word.
+  GENERIC_DISPATCH = Hecksagain::Bluebook::DSL::GenericDispatch
   AGGREGATE_RULES = (
-    Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
-      [:build, :method_missing]
-  ).map(&:to_s).sort.freeze
+    (Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
+      [:build, :method_missing]).map(&:to_s) +
+      Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
+        .select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }
+        .map { |row| row[:word] }
+        .select { |word| GENERIC_DISPATCH.handles?("TranslationAggregate", word) }
+  ).uniq.sort.freeze
 
   it "declares Kind as a closed set, not an open string" do
     expect(KIND_OBJECT.closed_set?).to be(true)
@@ -44,7 +55,7 @@ RSpec.describe "the declared translation rule kinds" do
 
   it "declares retired, the edge-level kind, which the edge builder admits" do
     expect(DECLARED_KINDS).to include("retired")
-    expect(Hecksagain::Bluebook::DSL::TranslationBuilder.public_instance_methods(false)).to include(:retired)
+    expect(GENERIC_DISPATCH.handles?("Translation", "retired")).to be(true)
   end
 
   # WordGate (item #13's remaining builders) replaced the builder's own

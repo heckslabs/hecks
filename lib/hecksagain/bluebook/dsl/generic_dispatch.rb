@@ -1,7 +1,7 @@
 module Hecksagain
   module Bluebook
     module DSL
-      # ITEM #13's FULL METAPROGRAMMED DISPATCH — slice 1 of 4, whole-
+      # ITEM #13's FULL METAPROGRAMMED DISPATCH — slices 1-2 of 4, whole-
       # project table-unification survey. WordGate (the first slice,
       # already shipped) only CHECKS a word's admissibility; this module
       # EXECUTES the safe, mechanical subset of what a word actually
@@ -43,24 +43,46 @@ module Hecksagain
       #     verified to do NOTHING beyond "build the child, instance_
       #     eval the block against it, append the result" — see that
       #     constant's own comment
+      #   - (slice 2) a single-fill word whose row also names a `blank_
+      #     message:` — raises that EXACT Malformed text if the coerced
+      #     value is blank, before storing it, matching a real hand-
+      #     written guard exactly (`Translation#retired`/
+      #     `TranslationAggregate#drop`, the only two words in the whole
+      #     grammar with this precise shape — `required: "true"` alone
+      #     only gates Ruby's own arity, never a present-but-blank
+      #     value, and most `required: "true"` words do NOT raise on
+      #     blank, so this needed a real per-row signal, not an
+      #     assumption from `required:` alone)
       #
       # Explicitly OUT of this slice (found live, during the audit, not
       # assumed) — stays hand-written, unaffected, until a later slice's
-      # own new table columns (`refuses:`/`gated_by:`/`calls:`) can name
+      # own new table columns (`gated_by:`/`calls:`) can name
       # what it really does: variadic accumulation with a real transform
       # (`attaches_to`); source-block extraction (`ensures`, `where`);
-      # Struct/Hash-wrapping (`limit`, `group_by`, `rekey`); any guard
-      # clause (`role`, `retired`, `drop`, `rekey`); a side effect beyond
-      # storage (`uses_framework`, `uses_embryonaut_bluebook`); an
-      # opens-block word threading extra constructor args to its child
-      # (`asks`/`tells`/`operation`, `Bluebook#aggregate`, `Translation
-      # #aggregate`) or doing anything beyond a bare fold after building
-      # (`Aggregate#policy`'s stamp, `Aggregate#value_object`'s flatten,
-      # `Hecksagon#port`'s resolver-swap-and-branch); the DEFERRED-build
-      # queue pattern (`Aggregate`/`Entity`'s own `command`/`entity`/
-      # `query`); and every `File`-context word (routes through `Runtime
-      # .current_registry`, a side effect this module has no business
-      # performing).
+      # Struct/Hash-wrapping (`limit`, `group_by`, `rekey`); a guard
+      # clause NOT reducible to a plain blank-check (`role`'s own "raise
+      # if ALREADY set" uniqueness gate — a genuinely different shape
+      # from `retired`/`drop`'s own blank-check, needing its own
+      # design); a dynamically-BUILT refusal message rather than one
+      # fixed string (`TranslationAggregateBuilder#unresolved` — real
+      # branching logic choosing between several message shapes, not a
+      # simple "always refuses" flag; belongs with `calls:`, slice 4,
+      # where a table row can name the real Ruby helper that already
+      # builds it); a side effect beyond storage (`uses_framework`,
+      # `uses_embryonaut_bluebook`); an opens-block word threading extra
+      # constructor args to its child (`asks`/`tells`/`operation`,
+      # `Bluebook#aggregate`, `Translation#aggregate`) or doing anything
+      # beyond a bare fold after building (`Aggregate#policy`'s stamp,
+      # `Aggregate#value_object`'s flatten, `Hecksagon#port`'s resolver-
+      # swap-and-branch); the DEFERRED-build queue pattern (`Aggregate`/
+      # `Entity`'s own `command`/`entity`/`query`); the shadow_parsing?-
+      # gated words (`has_many`/`has_one`/`belongs_to`/`then_set`/
+      # `trigger`/`dispatch`/`one_of` — each delegates to its own
+      # `legacy_*` method under `MetaValidator.shadow_parsing?`, else
+      # refuses; a genuinely different two-branch shape per word, closer
+      # to `calls:`'s own territory than a simple fill); and every
+      # `File`-context word (routes through `Runtime.current_registry`,
+      # a side effect this module has no business performing).
       #
       # TWO FURTHER, DIFFERENT reasons a word can look table-safe and
       # still be excluded, both found live rather than assumed:
@@ -71,15 +93,16 @@ module Hecksagain
       #     `.adapter` files, plus every core `.bluebook` chapter, DURING
       #     that exact window. Any word those files actually call (found
       #     to be nearly every common one — `vision`/`core`/`generic`/
-      #     `supporting`/`description`/`goal`/`emits` describe literally
-      #     every self-hosted aggregate/command) has NO working method to
-      #     fall back on if its hand-written `def` is removed — `super`
-      #     from `WordGate#method_missing` just raises `NoMethodError`.
-      #     `PortBuilder`/`AdapterBuilder`/`BluebookBuilder` turned out
-      #     to be entirely off-limits to this slice for exactly this
-      #     reason, confirmed by cold-booting `MetaValidator.
-      #     grammar_registry` after each candidate removal, not assumed
-      #     safe from reading the table alone.
+      #     `supporting`/`description`/`goal`/`emits`/`role`/`identified_
+      #     by` describe literally every self-hosted aggregate/command)
+      #     has NO working method to fall back on if its hand-written
+      #     `def` is removed — `super` from `WordGate#method_missing`
+      #     just raises `NoMethodError`. `PortBuilder`/`AdapterBuilder`/
+      #     `BluebookBuilder` turned out to be entirely off-limits to
+      #     this slice for exactly this reason, confirmed by cold-
+      #     booting `MetaValidator.grammar_registry` after each
+      #     candidate removal, not assumed safe from reading the table
+      #     alone.
       #   - A CONFLICTING HAND-WRITTEN `method_missing`. `WorldBuilder`
       #     and `HecksagonBuilder` each define their OWN `method_missing`
       #     directly on the class (for genuinely open-ended settings/
@@ -200,6 +223,10 @@ module Hecksagain
           raise ArgumentError, "wrong number of arguments (given #{args.size}, expected 1)" unless args.size == 1
 
           value = arg[:coerce] == "false" ? args.first : args.first.public_send(coerce)
+
+          message = arg[:blank_message].to_s
+          raise Malformed, message if !message.empty? && value.to_s.empty?
+
           ivar = :"@#{fills}"
           current = builder.instance_variable_get(ivar)
 

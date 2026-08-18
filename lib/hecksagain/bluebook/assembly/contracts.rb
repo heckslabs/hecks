@@ -317,7 +317,8 @@ module Hecksagain
             pair_value_fills: [:pair_value_fills, :plain],
             pairs_shape:      [:pairs_shape,      :plain],
             variadic:         [:variadic,         :plain],
-            coerce:           [:coerce,           :plain]
+            coerce:           [:coerce,           :plain],
+            blank_message:    [:blank_message,    :plain]
           },
           derived: { position: :walk }
         ),

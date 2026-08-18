@@ -125,7 +125,7 @@ module Hecksagain
                              selects: optional(row[:selects]), pair_key_fills: optional(row[:pair_key_fills]),
                              pair_value_fills: optional(row[:pair_value_fills]),
                              pairs_shape: optional(row[:pairs_shape]), variadic: optional(row[:variadic]),
-                             coerce: optional(row[:coerce]))
+                             coerce: optional(row[:coerce]), blank_message: optional(row[:blank_message]))
 
             next unless row[:status].to_s == "deprecated"
 

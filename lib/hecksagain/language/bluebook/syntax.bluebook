@@ -784,6 +784,10 @@ Hecks.bluebook "Bluebook" do
       # entity "Argument"'s own matching attribute, above, for the full
       # story (item #13's full metaprogrammed dispatch, slice 1).
       attribute :coerce, String
+      # ABSENT means "an empty value is stored same as any other" — see
+      # entity "Argument"'s own matching attribute, above, for the full
+      # story (item #13's full metaprogrammed dispatch, slice 2).
+      attribute :blank_message, String
 
       member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
@@ -1210,7 +1214,7 @@ Hecks.bluebook "Bluebook" do
       # &block)`; `retired(name)`.
       member keyword: "aggregate",       context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name"
       member keyword: "aggregate",       context: "Translation", at: "",  named: "was",  kind: "text", required: "false", fills: "was"
-      member keyword: "retired",         context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name"
+      member keyword: "retired",         context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name", blank_message: "a retired needs an aggregate name"
 
       # `data_translation`'s own nine rule words — TranslationAggregateBuilder,
       # read directly. Symbol vs text follows each real method's own
@@ -1229,7 +1233,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "convert",         context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
       member keyword: "convert",         context: "TranslationAggregate", at: "",  named: "to",      kind: "text",    required: "true", fills: "to"
       member keyword: "convert",         context: "TranslationAggregate", at: "",  named: "values",  kind: "literal", required: "true", fills: "values"
-      member keyword: "drop",            context: "TranslationAggregate", at: "1", named: "",       kind: "symbol",  required: "true", fills: "name"
+      member keyword: "drop",            context: "TranslationAggregate", at: "1", named: "",       kind: "symbol",  required: "true", fills: "name", blank_message: "a drop needs a name"
       member keyword: "retype",          context: "TranslationAggregate", at: "1", named: "",       kind: "text",    required: "true", fills: "old_type"
       member keyword: "retype",          context: "TranslationAggregate", at: "",  named: "to", kind: "text", required: "true", fills: "to"
       member keyword: "compute",         context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
@@ -1365,6 +1369,25 @@ Hecks.bluebook "Bluebook" do
       # way it turned out to genuinely be for every OTHER text-kind
       # argument in the whole grammar.
       attribute :coerce,           ArgumentSeedText, optional: true
+      # ABSENT means "an empty value is stored same as any other" — item
+      # #13's full metaprogrammed dispatch (slice 2, whole-project
+      # table-unification survey). NON-EMPTY names the exact Malformed
+      # message a real word's own hand-written method raised on a blank
+      # value BEFORE storing it (`Translation#retired`: "a retired needs
+      # an aggregate name"; `TranslationAggregate#drop`: "a drop needs a
+      # name") — `required: "true"` alone only gates Ruby's own ARITY
+      # (an argument omitted entirely), never a present-but-blank one,
+      # so this is a genuinely separate fact the table did not already
+      # carry. Most `required: "true"` rows do NOT raise on blank
+      # (confirmed by reading every one migrated in slice 1 —
+      # `Policy#on`/`ProcessManager#correlates_by`/etc. all accept and
+      # store an empty string same as any other), so this could not be
+      # assumed uniform from `required:` either. Carries the REAL text
+      # rather than a generated one — refusal wording is itself a
+      # checked contract in this codebase (item #2, whole-project
+      # table-unification survey, `RefusalWording::TEMPLATES`), not
+      # throwaway UX text a generic template could safely replace.
+      attribute :blank_message,    ArgumentSeedText, optional: true
 
       lifecycle :status, default: "admitted" do
         transition "Deprecate" => "deprecated", from: "admitted"
@@ -1437,7 +1460,7 @@ Hecks.bluebook "Bluebook" do
                                   named: :named, kind: :kind, required: :required, fills: :fills,
                                   selects: :selects, pair_key_fills: :pair_key_fills,
                                   pair_value_fills: :pair_value_fills, pairs_shape: :pairs_shape,
-                                  variadic: :variadic, coerce: :coerce }
+                                  variadic: :variadic, coerce: :coerce, blank_message: :blank_message }
 
       emits "ArgumentAdmitted"
     end
