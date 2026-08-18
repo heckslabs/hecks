@@ -222,7 +222,18 @@ RSpec.describe "the declared syntax" do
       retype_impl:        "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       compute_impl:       "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       rekey_impl:         "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
-      backfill_impl:      "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:"
+      backfill_impl:      "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      # Slice 5 — the final three: Hecksagon#port/World#realm+latest
+      # (unblocked by WordGate#word_gate_dispatch's own new shared-
+      # helper mechanism), then_set (its own dedicated retired row now,
+      # not sets's own `was:`), and list_of/one_of (the new "Type"-
+      # context fallback).
+      port_impl:          "HecksagonBuilder's own real implementation, called by GenericDispatch's calls:",
+      realm_impl:         "WorldBuilder's own real implementation, called by GenericDispatch's calls:",
+      latest_impl:        "WorldBuilder's own real implementation, called by GenericDispatch's calls:",
+      then_set_impl:      "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      list_of_impl:       "AttributeCollector's own real implementation, called by GenericDispatch's calls:",
+      one_of_impl:        "the owning builder's own real implementation, called by GenericDispatch's calls:"
     }
   }.freeze
 
@@ -354,13 +365,25 @@ RSpec.describe "the declared syntax" do
     next if builder.equal?(D::AttributeCollector)
 
     it "declares every word #{builder} answers (#{contexts.join(', ')})" do
+      own_words = contexts.flat_map { |ctx| declared_in(ctx).map { |row| row[:word] } }.uniq
       declared = contexts.flat_map { |ctx| declared_in(ctx).flat_map { |row| [row[:word], row[:was].to_s].reject(&:empty?) } }
                          .map(&:to_sym).uniq
 
       if builder.is_a?(Class) && builder.include?(D::AttributeCollector)
+        # A Type-position word (`list_of`/`one_of`) counts as declared
+        # for this builder UNLESS the builder's OWN context already has
+        # a row of the same name (`ValueObject`'s own `one_of`, the
+        # block-wrapper form) — the identical "own context first, Type
+        # second" order `WordGate#word_gate_dispatch`'s own fallback
+        # checks, item #13's full metaprogrammed dispatch (slice 5).
+        # Neither word is ever a real method to introspect anymore
+        # (both renamed to `*_impl`, reached through `calls:`), so this
+        # reads the SAME table the runtime dispatch itself reads,
+        # rather than Ruby's own method ownership.
         declared += LIVE_KEYWORDS.select { |row| row[:context] == "Type" }
-                                 .map { |row| row[:word].to_sym }
-                                 .select { |word| builder.instance_method(word).owner.equal?(D::AttributeCollector) }
+                                 .map { |row| row[:word] }
+                                 .reject { |word| own_words.include?(word) }
+                                 .map(&:to_sym)
       end
 
       answered = contexts.flat_map { |ctx| self.class.words_answered_by(ctx) }.uniq

@@ -438,7 +438,18 @@ Hecks.bluebook "Bluebook" do
       # spelling; `then_set` is the era every existing bluebook was written
       # under, and every one of them still boots — the corpus itself is the
       # proof the rename machinery is safe.
-      member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set", calls: "sets_impl"
+      member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "sets_impl"
+      # `then_set` — item #13's full metaprogrammed dispatch (slice 5).
+      # NOT a `was:` on `sets` above (a pure rename with the SAME real
+      # behavior) — `then_set`'s own real behavior is nothing like
+      # `sets`'s (a distinct refusal, or `legacy_then_set`'s own
+      # different-shaped delegate under shadow-parsing), the same
+      # reason `has_many`/`has_one`/`belongs_to` already get their OWN
+      # dedicated `status: "deprecated"` row below rather than a `was:`
+      # on `reference_to`. Kept live only so `EraGuard.shadow_parse`
+      # can still make sense of frozen era text that used it (real:
+      # banking/pizzas era 1 both do).
+      member word: "then_set",        context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", status: "deprecated", calls: "then_set_impl"
       member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
       member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
 
@@ -446,7 +457,7 @@ Hecks.bluebook "Bluebook" do
       # `one_of` fills the COUNT, not the rows. A member is its own root (an
       # open map of pairs cannot be a list element), so ValueObject keeps
       # `rows` and the rows themselves live one category down.
-      member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows"
+      member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows", calls: "one_of_impl"
       member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan", calls: "invariant_impl"
 
       # BARE NOW, DIRECTLY IN A VALUE_OBJECT'S OWN BODY (S3, ADR 0025 —
@@ -600,8 +611,8 @@ Hecks.bluebook "Bluebook" do
       # object named for the attribute. `one_of` is spelled the same here and
       # in a value-object body and is not the same word — one takes a body of
       # rows, this one takes its rows as arguments.
-      member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: ""
-      member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: ""
+      member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "list_of_impl"
+      member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "one_of_impl"
       member word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures"
 
       # THE ONE FIXED WORD .hecksagon'S BODY HAS. Everything else in a
@@ -632,7 +643,7 @@ Hecks.bluebook "Bluebook" do
       # already reaches, so it carries no row of its own here — a real
       # method on BindingProxy/AggregateDoor, not a fixed word the language
       # could enumerate against an open aggregate name).
-      member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
+      member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
       member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "tells_impl"
       # THE TWO DIRECTIONS THROUGH ONE DOOR. `tells` is `operation` under
       # the name that says which way it points — an external fact arriving.
@@ -659,8 +670,8 @@ Hecks.bluebook "Bluebook" do
       # THE TWO FIXED WORDS .world'S BODY HAS, beyond the same open
       # verb-settings form (`posted_by("Carrier") { office "EC1" }`) named
       # above.
-      member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm"
-      member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest"
+      member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl"
+      member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl"
 
       # `.port`'s OWN two words — PortBuilder, read directly, real fields
       # on port.bluebook's own `Port` aggregate now. NOT the SAME "verb"
@@ -1005,6 +1016,18 @@ Hecks.bluebook "Bluebook" do
       member keyword: "sets",            context: "Command", at: "",  named: "multiply",  kind: "literal",  required: "false", fills: "source", selects: "op=multiply"
       member keyword: "sets",            context: "Command", at: "",  named: "clamp",     kind: "literal",  required: "false", fills: "source", selects: "op=clamp"
       member keyword: "sets",            context: "Command", at: "",  named: "remove",    kind: "literal",  required: "false", fills: "source", selects: "op=remove"
+      # `then_set` — retired, own dedicated row (see the Keyword row's
+      # own comment above). Same shape as `sets`, plus the one kwarg
+      # `sets` never carried (`from:`, `legacy_then_set`'s own).
+      member keyword: "then_set",        context: "Command", at: "1", named: "",           kind: "symbol",   required: "true",  fills: "target"
+      member keyword: "then_set",        context: "Command", at: "",  named: "to",         kind: "literal",  required: "false", fills: "source", selects: "op=set"
+      member keyword: "then_set",        context: "Command", at: "",  named: "from",       kind: "literal",  required: "false", fills: "source", selects: "op=set"
+      member keyword: "then_set",        context: "Command", at: "",  named: "append",     kind: "literal",  required: "false", fills: "source", selects: "op=append"
+      member keyword: "then_set",        context: "Command", at: "",  named: "increment",  kind: "literal",  required: "false", fills: "source", selects: "op=increment"
+      member keyword: "then_set",        context: "Command", at: "",  named: "decrement",  kind: "literal",  required: "false", fills: "source", selects: "op=decrement"
+      member keyword: "then_set",        context: "Command", at: "",  named: "multiply",   kind: "literal",  required: "false", fills: "source", selects: "op=multiply"
+      member keyword: "then_set",        context: "Command", at: "",  named: "clamp",      kind: "literal",  required: "false", fills: "source", selects: "op=clamp"
+      member keyword: "then_set",        context: "Command", at: "",  named: "remove",     kind: "literal",  required: "false", fills: "source", selects: "op=remove"
       member keyword: "emits",           context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "emits"
       member keyword: "attribute",       context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "name"
       # See Aggregate's own `attribute` rows, above — same shape.

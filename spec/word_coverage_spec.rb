@@ -192,6 +192,10 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "to be refused, never to succeed.",
     "has_one (Aggregate)"                  => "same as has_many (Aggregate) — AggregateBuilder#has_one.",
     "belongs_to (Aggregate)"               => "same as has_many (Aggregate) — AggregateBuilder#belongs_to.",
+    "then_set (Command)"                   =>
+                                              "same structural impossibility as has_many (Aggregate) — refused " \
+                                              "unconditionally at build outside MetaValidator.shadow_parsing? " \
+                                              "(CommandBuilder#then_set_impl); sets is the word now.",
     "uses_embryonaut_bluebook (Hecksagon)" =>
                                               "no hecksagon in THIS repository's own corpus vendors an embryonaut bluebook — " \
                                               "real, external use is what this word is for: lifeadelics/domain (a hecksagain-" \

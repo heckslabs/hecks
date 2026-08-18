@@ -11100,12 +11100,42 @@
                 "mutations"
               ],
               [
-                "was",
+                "calls",
+                "sets_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "then_set"
               ],
               [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mutations"
+              ],
+              [
+                "status",
+                "deprecated"
+              ],
+              [
                 "calls",
-                "sets_impl"
+                "then_set_impl"
               ]
             ],
             [
@@ -11218,6 +11248,10 @@
               [
                 "fills",
                 "rows"
+              ],
+              [
+                "calls",
+                "one_of_impl"
               ]
             ],
             [
@@ -12156,6 +12190,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "calls",
+                "list_of_impl"
               ]
             ],
             [
@@ -12182,6 +12220,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "calls",
+                "one_of_impl"
               ]
             ],
             [
@@ -12312,6 +12354,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "calls",
+                "port_impl"
               ]
             ],
             [
@@ -12592,6 +12638,10 @@
               [
                 "fills",
                 "realm"
+              ],
+              [
+                "calls",
+                "realm_impl"
               ]
             ],
             [
@@ -12618,6 +12668,10 @@
               [
                 "fills",
                 "latest"
+              ],
+              [
+                "calls",
+                "latest_impl"
               ]
             ],
             [
@@ -15750,6 +15804,308 @@
               [
                 "keyword",
                 "sets"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "remove"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=remove"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "target"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "to"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=set"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=set"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "append"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=append"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "increment"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=increment"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "decrement"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=decrement"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "multiply"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=multiply"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "clamp"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=clamp"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "then_set"
               ],
               [
                 "context",

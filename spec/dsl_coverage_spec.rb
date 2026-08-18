@@ -28,17 +28,18 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "ValueObjectBuilder"          => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
-      # `invariant`/`member` -> `*_impl`, same reasoning, slices 4b/4c.
-      %i[invariant_impl one_of member_impl attribute list_of attributes]
+      # `invariant`/`member`/`one_of` -> `*_impl`, same reasoning,
+      # slices 4b/4c/5.
+      %i[invariant_impl one_of_impl member_impl attribute list_of attributes]
     ],
     "CommandBuilder"              => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      # `role`/`given`/`reference_to` (slices 4/4b) and `provenance`/
-      # `sets` (slice 4c) -> `*_impl` — item #13's full metaprogrammed
-      # dispatch. GenericDispatch forwards via calls:; these are the
-      # real, directly-defined methods.
-      %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set sets_impl emits attribute
-         list_of attributes]
+      # `role`/`given`/`reference_to` (slices 4/4b), `provenance`/`sets`
+      # (slice 4c), and `then_set` (slice 5) -> `*_impl` — item #13's
+      # full metaprogrammed dispatch. GenericDispatch forwards via
+      # calls:; these are the real, directly-defined methods.
+      %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set_impl sets_impl emits
+         attribute list_of attributes]
     ],
     "PortBuilder"                 => [
       Hecksagain::Bluebook::DSL::PortBuilder,
@@ -64,7 +65,10 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "WorldBuilder"                => [
       Hecksagain::Bluebook::DSL::WorldBuilder,
-      %i[realm latest method_missing]
+      # `realm`/`latest` -> `*_impl` — item #13's full metaprogrammed
+      # dispatch (slice 5), reached through WordGate#word_gate_dispatch
+      # now, called explicitly from this class's own method_missing.
+      %i[realm_impl latest_impl method_missing]
     ],
     "SettingsCollector"           => [
       Hecksagain::Bluebook::DSL::SettingsCollector,
@@ -76,7 +80,8 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "HecksagonBuilder"            => [
       Hecksagain::Bluebook::DSL::HecksagonBuilder,
-      %i[binds subscribe subscriptions port uses_framework framework_members
+      # `port` -> `port_impl`, same reasoning, slice 5.
+      %i[binds subscribe subscriptions port_impl uses_framework framework_members
          uses_embryonaut_bluebook vendored_bluebooks method_missing]
     ],
     "TranslationBuilder"          => [
@@ -123,7 +128,9 @@ RSpec.describe "the DSL surface is fully covered" do
     # dispatch (slice 3, whole-project table-unification survey): the
     # word `attribute` is no longer a real method any builder answers
     # directly, `GenericDispatch` forwards to this renamed one instead.
-    expect(actual.sort).to eq(%i[attribute_impl attributes closed_sets list_of one_of].sort)
+    # `list_of`/`one_of` -> `*_impl`, slice 5, reached through
+    # WordGate#word_gate_dispatch's own new "Type"-context fallback.
+    expect(actual.sort).to eq(%i[attribute_impl attributes closed_sets list_of_impl one_of_impl].sort)
   end
 
   # S9, ADR 0025 — `identified_by`, split out of AttributeCollector into

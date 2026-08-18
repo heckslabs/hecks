@@ -66,7 +66,15 @@ module Hecksagain
         # loads after its bluebook, and this attaches to that real, final
         # object directly rather than building a second copy MetaValidator
         # would have to know how to reconstruct.
-        def port(name, &block)
+        # RENAMED FROM `port` — item #13's full metaprogrammed dispatch
+        # (slice 5). Not bootstrap-reachable (checked directly — no
+        # core/attached chapter declares a Hecksagon of its own). Reached
+        # through `WordGate#method_missing`'s new `word_gate_dispatch`,
+        # called explicitly below since `HecksagonBuilder`'s own
+        # class-level `method_missing` (the open-verb catch-all beneath
+        # this) always wins over the module's — see `word_gate.rb`'s own
+        # header for the full mechanism.
+        def port_impl(name, &block)
           bluebook_ir = Hecksagain.current_registry.bluebook(@domain) or
             raise Malformed, "#{@domain} declares no such bluebook — a port needs one to belong to"
 
@@ -116,6 +124,16 @@ module Hecksagain
         # gets a domain-level default for free too. See `Hecksagon#bind_for`
         # for the fallback lookup this feeds.
         def method_missing(verb, *args, **kwargs, &block)
+          # A closed-set grammar word (`port`, today) gets first refusal
+          # — item #13's full metaprogrammed dispatch (slice 5); see
+          # `WordGate#word_gate_dispatch`'s own header for why this class
+          # needs to call it explicitly rather than including it the
+          # ordinary way. Only once THAT says "not admitted" does the
+          # genuinely open-ended `persisted_by "Heki"`-style bind
+          # vocabulary below get a turn.
+          result = word_gate_dispatch(verb, args, kwargs, block)
+          return result unless result.equal?(WordGate::NOT_ADMITTED)
+
           return super unless args.first
 
           @binds << Bind.new(aggregate: nil, verb: verb.to_s, adapter: args.first.to_s, role: kwargs[:role]&.to_s)

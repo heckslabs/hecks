@@ -24,15 +24,26 @@ module Hecksagain
           @settings = {}
         end
 
-        def realm(value)
+        # RENAMED FROM `realm`/`latest` — item #13's full metaprogrammed
+        # dispatch (slice 5). Neither bootstrap-reachable (checked
+        # directly). Reached through `WordGate#method_missing`'s new
+        # `word_gate_dispatch`, called explicitly below since
+        # `WorldBuilder`'s own class-level `method_missing` (the
+        # open-verb catch-all beneath this) always wins over the
+        # module's — see `word_gate.rb`'s own header for the full
+        # mechanism.
+        def realm_impl(value)
           @realm = required(value, "realm")
         end
 
-        def latest(value)
+        def latest_impl(value)
           @latest = required(value, "latest version")
         end
 
         def method_missing(verb, *args, **kwargs, &block)
+          result = word_gate_dispatch(verb, args, kwargs, block)
+          return result unless result.equal?(WordGate::NOT_ADMITTED)
+
           collector = SettingsCollector.new
           collector.instance_eval(&block) if block
           value = { adapter: args.first.to_s }.merge(kwargs).merge(collector.to_h)

@@ -208,7 +208,7 @@ written as a sentence a caller can act on rather than a name.
 ## sets
 
 <!-- generated:begin word=sets -->
-`sets target, to:, append:, increment:, decrement:, multiply:, clamp:, remove:` — fills `mutations`, was `then_set`
+`sets target, to:, append:, increment:, decrement:, multiply:, clamp:, remove:` — fills `mutations`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -222,7 +222,7 @@ written as a sentence a caller can act on rather than a name.
 | `remove:` | literal | false | source |
 <!-- generated:end -->
 
-`sets` is the word — ADR 0025 reverts `then_set` (the language's own grammar already declared `sets`, `was: "then_set"`, before the DSL implementation caught up). `then_set` keeps booting only for frozen era text under the legacy grammar; live source refuses it, naming `sets`. One call, one op: `to:` overwrites the field, `append:` grows a list attribute by one value object built from the pairs you name, `increment:`/`decrement:` do arithmetic on a numeric field. `to:` is omittable when it would only repeat the target — `sets :serial` alone already means `to: :serial` — and writing the redundant form out is refused. See commands.md's "`sets` — one op per field" for the flattening rule `append:` applies to a single-member value object.
+`sets` is the word — ADR 0025 reverts `then_set` (the language's own grammar already declared `sets` before the DSL implementation caught up). `then_set` (below) keeps booting only for frozen era text under the legacy grammar; live source refuses it, naming `sets`. One call, one op: `to:` overwrites the field, `append:` grows a list attribute by one value object built from the pairs you name, `increment:`/`decrement:` do arithmetic on a numeric field. `to:` is omittable when it would only repeat the target — `sets :serial` alone already means `to: :serial` — and writing the redundant form out is refused. See commands.md's "`sets` — one op per field" for the flattening rule `append:` applies to a single-member value object.
 
 `to:` overwrites, `increment:` does arithmetic, `append:` grows a list —
 one op per call, three calls across two commands here:
@@ -242,6 +242,30 @@ between `increment:` and `to:`:
 ```ruby
 meter.advance!(units: { units: 5 }, note: { note: "second read" })
 meter.reading.units  # => 17
+```
+
+## then_set
+
+<!-- generated:begin word=then_set -->
+`then_set target, to:, from:, append:, increment:, decrement:, multiply:, clamp:, remove:` — fills `mutations`, **status: deprecated**
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | target |
+| `to:` | literal | false | source |
+| `from:` | literal | false | source |
+| `append:` | literal | false | source |
+| `increment:` | literal | false | source |
+| `decrement:` | literal | false | source |
+| `multiply:` | literal | false | source |
+| `clamp:` | literal | false | source |
+| `remove:` | literal | false | source |
+<!-- generated:end -->
+
+GONE — see `sets` above, the word ADR 0025 reverts to. Refuses live, unconditionally:
+
+```ruby
+Hecks.bluebook("MeterGone") { aggregate("Meter") { identified_by :serial; attribute :serial, Serial; value_object("Serial") { attribute :value, String }; command("Bump") { role "Owner"; then_set :serial, to: "x" } } }  # ~> Malformed: then_set is gone
 ```
 
 ## emits

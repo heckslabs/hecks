@@ -64,7 +64,34 @@ module Hecksagain
       # NAME — `attribute_impl`'s own real, hand-written body is called
       # either way, bootstrap or not, so there is nothing here that can
       # drift the way a full behavioral duplicate could.
+      #
+      # TWO FURTHER PIECES, both slice 5:
+      #   - `word_gate_dispatch` is the same admission+dispatch logic
+      #     `method_missing` below runs, factored out so a class with
+      #     its OWN class-level `method_missing` (`HecksagonBuilder`'s/
+      #     `WorldBuilder`'s genuinely open-ended verb vocabulary) can
+      #     call it directly and fall back to its own open-verb handling
+      #     only when this returns `NOT_ADMITTED` — a class-level `def`
+      #     always wins over an included module's in Ruby's own method
+      #     resolution, so their OWN `method_missing` is the only one
+      #     that ever runs for them, and this is what lets a real,
+      #     closed-set word (`port`/`realm`/`latest`) still reach
+      #     `GenericDispatch` despite that.
+      #   - the "Type"-position fallback inside `word_gate_dispatch`
+      #     itself, for `one_of`/`list_of` — called inside an
+      #     attribute's own type argument, with `self` as whatever
+      #     builder is currently `instance_eval`ing, never a dedicated
+      #     "Type" builder `self.class::GRAMMAR_CONTEXT` could ever
+      #     name. See that method's own comment.
       module WordGate
+        # A caller with its OWN class-level `method_missing`
+        # (`HecksagonBuilder`/`WorldBuilder` — see `word_gate_dispatch`'s
+        # own header) checks for this to tell "not a word the grammar
+        # admits at all" apart from every other outcome below (a real
+        # dispatch, or a raised refusal) — never raised itself, so a
+        # caller can fall through to its own open-ended handling instead.
+        NOT_ADMITTED = Object.new.freeze
+
         # PRIVATE, matching Ruby's own convention for both (`Object`
         # defines them private too) — and load-bearing here, not just
         # style: `spec/syntax_conformance_spec.rb`'s "declares every
@@ -77,18 +104,73 @@ module Hecksagain
 
         def method_missing(word, *args, **kwargs, &block)
           if MetaValidator.bootstrapping?
-            target = GenericDispatch::BOOTSTRAP_CALLS_FALLBACK[[self.class::GRAMMAR_CONTEXT, word.to_s]]
+            fallback = GenericDispatch::BOOTSTRAP_CALLS_FALLBACK
+            # Own context first, "Type" second — the same order the
+            # ordinary (non-bootstrapping) `word_gate_dispatch` path
+            # below checks them in, for the same reason: `list_of`/
+            # `one_of` used in an attribute's own type position never
+            # arrive with `self.class::GRAMMAR_CONTEXT == "Type"`.
+            target = fallback[[self.class::GRAMMAR_CONTEXT, word.to_s]] || fallback[["Type", word.to_s]]
             return send(target, *args, **kwargs, &block) if target
 
             return super
           end
 
+          result = word_gate_dispatch(word, args, kwargs, block)
+          return super if result.equal?(NOT_ADMITTED)
+
+          result
+        end
+
+        # THE CORE ADMISSION+DISPATCH LOGIC, factored out of
+        # `method_missing` — item #13's full metaprogrammed dispatch
+        # (slice 5, whole-project table-unification survey) — so a
+        # class with its OWN class-level `method_missing`
+        # (`HecksagonBuilder`'s/`WorldBuilder`'s genuinely open-ended
+        # verb vocabulary, `persisted_by "Heki"`/`posted_by "Carrier"`,
+        # can never BE a closed table) can still route a word THE
+        # GRAMMAR ADMITS through here first, falling back to its own
+        # open-verb handling only for what this doesn't recognize at
+        # all — unblocking `Hecksagon#port`/`World#realm`/`World#latest`,
+        # each a real, closed-set word that happened to sit on a class
+        # whose own `method_missing` a class-level `def` always wins
+        # over Ruby's own module-inclusion order.
+        #
+        # NEVER RAISES "not admitted" — returns `NOT_ADMITTED` instead,
+        # so the caller (this module's own `method_missing`, or one of
+        # the two above) decides what that means for it. DOES still
+        # raise the richer, table-driven refusals below once a word is
+        # admitted-but-unimplemented, or admitted-somewhere-else-only —
+        # those are real, useful refusals regardless of which
+        # `method_missing` is asking.
+        def word_gate_dispatch(word, args, kwargs, block)
           context = self.class::GRAMMAR_CONTEXT
           rows = MetaValidator::SyntaxBoot.call
           keywords = rows[:keywords]
           admitted = keywords.select { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) }
 
-          return super if admitted.empty? && !admitted_anywhere?(keywords, word)
+          # THE TYPE-POSITION FALLBACK — item #13's full metaprogrammed
+          # dispatch (slice 5). `one_of`/`list_of`, called inside an
+          # attribute's own type argument (`attribute :x,
+          # one_of("a","b")`), run with `self` as whatever builder is
+          # CURRENTLY instance_eval'ing — there is no dedicated "Type"
+          # builder of its own; every attribute()-taking builder answers
+          # these identically, through the shared `AttributeCollector`
+          # mixin. `self.class::GRAMMAR_CONTEXT` can never actually BE
+          # "Type", so a word admitted only there would otherwise look
+          # inadmissible everywhere. Checked only once THIS context has
+          # already come up empty, so a context with its own same-named
+          # row (`ValueObject`'s own `one_of`, the block-wrapper form)
+          # keeps using that instead, unaffected.
+          if admitted.empty?
+            type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
+            unless type_admitted.empty?
+              admitted = type_admitted
+              context = "Type"
+            end
+          end
+
+          return NOT_ADMITTED if admitted.empty? && !admitted_anywhere?(keywords, word)
 
           if admitted.empty?
             legal = keywords.select { |row| row[:context] == context }.map { |row| row[:word] }.uniq.sort
@@ -115,8 +197,10 @@ module Hecksagain
           return super if MetaValidator.bootstrapping?
 
           context = self.class::GRAMMAR_CONTEXT
-          MetaValidator::SyntaxBoot.call[:keywords]
-                                   .any? { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) } || super
+          keywords = MetaValidator::SyntaxBoot.call[:keywords]
+          keywords.any? { |row| row[:context] == context && (row[:word] == word.to_s || row[:was] == word.to_s) } ||
+            keywords.any? { |row| row[:context] == "Type" && row[:word] == word.to_s } ||
+            super
         end
 
         # A word admitted SOMEWHERE, just not in THIS context, still

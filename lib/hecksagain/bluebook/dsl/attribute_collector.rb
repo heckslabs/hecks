@@ -95,7 +95,18 @@ module Hecksagain
           install_inline_closed_set(name, one_of) if one_of
         end
 
-        def list_of(type) = ListOf.new(type)
+        # RENAMED FROM `list_of` — item #13's full metaprogrammed
+        # dispatch (slice 5). Called in an attribute's own TYPE
+        # position (`attribute :x, list_of(Y)`), never through a `def
+        # list_of` any ONE builder answers as its own word — reached
+        # via `WordGate#word_gate_dispatch`'s new "Type"-context
+        # fallback, the same one `one_of_impl` below uses. Bootstrap-
+        # reachable (every core chapter's own list-typed attributes use
+        # it), so `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK` carries a
+        # SINGLE `["Type", "list_of"]` entry rather than one per calling
+        # context — the bootstrap branch checks that key too now, same
+        # reasoning as the ordinary fallback.
+        def list_of_impl(type) = ListOf.new(type)
 
         # `reference_to Account` MINTS `:account` — no `_id` — the default
         # every `reference_to`-shaped word (`AggregateBuilder`,
@@ -134,7 +145,13 @@ module Hecksagain
         # away: the attribute became a plain String and the closed set meant
         # nothing, in a construct that looked supported. The desugaring is
         # pinned now — the same bluebook must always yield the same IR.
-        def one_of(*values) = OneOf.new(values)
+        # RENAMED FROM `one_of` — item #13's full metaprogrammed dispatch
+        # (slice 5), same reasoning as list_of_impl above. SAME NAME as
+        # `ValueObjectBuilder#one_of_impl`'s own override on purpose —
+        # that method's own `super(*values)` call (the no-block, bare
+        # type-position case) resolves by METHOD NAME up the ancestor
+        # chain, and renaming only one side would silently break it.
+        def one_of_impl(*values) = OneOf.new(values)
 
         private
 

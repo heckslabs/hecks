@@ -39,7 +39,15 @@ module Hecksagain
         # still needs to read it. `block_given?` is what tells the two
         # calling shapes apart: the type-position form
         # (`one_of("a", "b")`) never passes a block, only the wrapper does.
-        def one_of(*values, &block)
+        # RENAMED FROM `one_of` — item #13's full metaprogrammed dispatch
+        # (slice 5). SAME NAME as `AttributeCollector#one_of_impl`'s own
+        # — required for the `super(*values)` call below to keep
+        # resolving; see that method's own comment. Reached directly
+        # through its own "ValueObject"-context Keyword row (the
+        # block-wrapper form has its own row, distinct from "Type"'s),
+        # not through the Type-position fallback this word's OTHER
+        # context uses.
+        def one_of_impl(*values, &block)
           unless block
             # NO VALUES, NO BLOCK is the SCALAR spelling — nonsensical, not
             # merely inert: it names a closed set with nothing in it. The

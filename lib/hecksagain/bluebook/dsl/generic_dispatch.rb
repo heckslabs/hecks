@@ -197,7 +197,27 @@ module Hecksagain
           %w[Query where]                => :where_impl,
           %w[Query order_by]             => :order_by_impl,
           %w[Entity entity]              => :entity_impl,
-          %w[ValueObject member]         => :member_impl
+          %w[ValueObject member]         => :member_impl,
+          # slice 5. `port`/`realm`/`latest` — real, closed-set words
+          # that sat unreachable behind Hecksagon/World's own class-level
+          # `method_missing` (see WordGate#word_gate_dispatch's own
+          # header), not bootstrap circularity as such, but the SAME
+          # fallback table serves them: this hash is looked up before
+          # `word_gate_dispatch` even runs, keyed by whichever context
+          # the caller's own class reports.
+          %w[Hecksagon port]             => :port_impl,
+          %w[World realm]                => :realm_impl,
+          %w[World latest]               => :latest_impl,
+          # `["Type", word]` — ONE entry each covers `list_of`/`one_of`
+          # for EVERY calling context (Aggregate/Entity/Command/Query/
+          # PortOperation/ValueObject all use them in an attribute's own
+          # type position, and `self.class::GRAMMAR_CONTEXT` can never
+          # actually equal "Type" — see `word_gate_dispatch`'s own
+          # header). The bootstrap branch checks this key directly, the
+          # same way the ordinary `word_gate_dispatch` path's own
+          # "Type"-context fallback does.
+          %w[Type list_of]               => :list_of_impl,
+          %w[Type one_of]                => :one_of_impl
         }.freeze
 
         module_function

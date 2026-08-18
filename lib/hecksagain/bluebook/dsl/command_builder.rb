@@ -303,7 +303,12 @@ module Hecksagain
         # LEGACY UNDER SHADOW-PARSING (S0a's own bridge) — frozen era text
         # minted before this rename still parses; live source refuses it,
         # naming the replacement.
-        def then_set(target, positional_to = UNSET, **kwargs)
+        # RENAMED FROM `then_set` — item #13's full metaprogrammed
+        # dispatch (slice 5). Not bootstrap-reachable. Now has its own
+        # dedicated, `status: "deprecated"` Keyword row (syntax.bluebook)
+        # rather than living only as `sets`'s own `was:` — see that
+        # row's own comment for why.
+        def then_set_impl(target, positional_to = UNSET, **kwargs)
           return legacy_then_set(target, positional_to, **kwargs) if MetaValidator.shadow_parsing?
 
           raise Malformed, "#{@name}'s then_set is gone — sets is the word now"
