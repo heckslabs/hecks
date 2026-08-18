@@ -208,13 +208,29 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
         # entirely, confirms the table itself holds nothing. Found by
         # name via information_schema rather than hardcoded — this is
         # deliberately not asserting PostgresEra's own storage_name
-        # convention, only that whichever table it created in acme's
-        # write ended up empty in bloom's own schema.
+        # convention, only that whichever table holds the AGGREGATE'S
+        # OWN data (not any of PostgresEra's own bookkeeping tables) in
+        # acme's write ended up empty in bloom's own schema.
+        #
+        # NOT `.first` on the unfiltered list — found live, the flaky
+        # way: `information_schema.tables` makes no ordering guarantee,
+        # and this schema also holds hecks_eras/hecks_era_texts/hecks_
+        # backfill_progress, each carrying its own legitimate 1-row
+        # bookkeeping entry PostgresEra provisions for EVERY schema it
+        # touches, tenant write or not. Whichever one the catalog
+        # happened to return first was failing this exact assertion on
+        # real, correct isolation — `widget_head` itself was empty the
+        # whole time. `_head` is the one naming shape only an
+        # aggregate's own data table has (`Lineage#head_view`) — no
+        # bookkeeping table ends in it, and `_head_snapshot_<era>`
+        # doesn't either, so this still isn't the storage_name
+        # convention itself, only the shape every aggregate's head
+        # shares regardless of what it's actually called.
         direct = PG.connect(dbname: db)
         direct.exec("SET search_path TO tenant_bloom")
         table = direct.exec("SELECT table_name FROM information_schema.tables WHERE table_schema = 'tenant_bloom'")
-                      .map { |row| row["table_name"] }.first
-        expect(table).not_to be_nil, "PostgresEra never created a table in tenant_bloom's own schema at all"
+                      .map { |row| row["table_name"] }.find { |name| name.end_with?("_head") }
+        expect(table).not_to be_nil, "PostgresEra never created an aggregate head table in tenant_bloom's own schema at all"
         rows = direct.exec("SELECT count(*) FROM #{table}")
         expect(rows.first["count"]).to eq("0")
         direct.close
