@@ -123,6 +123,14 @@ Hecks.bluebook "Bluebook" do
       # task 4): remove — the list-removal counterpart to append,
       # matching an element by value. No sign, same reading as append.
       member name: "remove",    sign: ""
+      # Vendored addition, not (yet) upstream hecksagain — CommandBuilder
+      # #delegates_to's own comment gives the full reasoning: an
+      # aggregate-level command's synchronous, single-dispatch handoff
+      # into one nested entity command, rather than a policy/saga's own
+      # commit-then-react reentry. Rides the SAME multi-binding wire
+      # shape append does (`with: {...}` is a field map, same as
+      # append's own `fields:`), so it carries no sign, same reading.
+      member name: "delegate",  sign: ""
     end
 
     # QuerySpecification::Common::Comparators::COMPARATORS — a where-clause's
@@ -162,7 +170,8 @@ Hecks.bluebook "Bluebook" do
                 one_of: ["refuse_unknown_arguments", "refuse_absent_arguments", "normalize_args",
                          "refuse_role_mismatch", "resolve_references", "hydrate", "enforce_givens",
                          "admissible_transition", "assign_creation_attributes", "apply_mutations",
-                         "advance_lifecycle", "enforce_ensures", "enforce_invariants", "save", "emit"]
+                         "advance_lifecycle", "delegate_to_entity", "enforce_ensures", "enforce_invariants",
+                         "save", "emit"]
     end
 
     # EntityInterpreter#call — the same shape

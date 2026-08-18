@@ -6,6 +6,7 @@ require_relative "errors"
 require_relative "identity"
 require_relative "instance"
 require_relative "refusal_wording"
+require_relative "entity_element"
 
 module Hecksagain
   module Runtime
@@ -33,7 +34,7 @@ module Hecksagain
       # `result` and `transition`/`old_state` default to nil until the step
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
-                           :result, :correlation)
+                           :result, :correlation, :delegated_events)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -109,6 +110,56 @@ module Hecksagain
         step(:advance_lifecycle) { ctx.instance[ctx.aggregate.lifecycle.field] = ctx.transition.target }
       end
 
+      # THE SYNCHRONOUS COUSIN OF A POLICY'S OWN `trigger` — see
+      # `CommandBuilder#delegates_to`'s own comment for the full reasoning.
+      # Runs AFTER this command's own mutations/lifecycle (so a delegating
+      # command could in principle still guard with its own `given`s first,
+      # though the real use in `domain/chess` declares none) and BEFORE
+      # `enforce_ensures`/`enforce_invariants`/`save`, so a refusal here
+      # raises a real, unrescued exception and NOTHING from either side —
+      # this command's own state, the target element's — has been saved
+      # yet. `ctx.instance` is the SAME in-memory record `step_hydrate`
+      # loaded and `step_save` will persist; `EntityElement.locate_chain`
+      # mutates it in place exactly the way `EntityInterpreter`'s own
+      # `step_locate_element`/`step_apply_mutations` mutate their OWN
+      # freshly-loaded copy — the only difference is WHICH already-in-
+      # memory record gets handed in.
+      def step_delegate_to_entity(ctx)
+        delegation = ctx.command.mutations.find { |mutation| mutation.op == :delegate }
+        return unless delegation
+
+        step(:delegate_to_entity) {
+          entity_name, _dot, command_name = delegation.target.to_s.rpartition(".")
+          entity = ctx.aggregate.entities.find { |e| e.hecks_name == entity_name } ||
+                   raise(WiringError, "#{ctx.command.hecks_name} delegates_to #{entity_name}." \
+                                       "#{command_name}, but #{ctx.aggregate.hecks_name} has no " \
+                                       "entity named #{entity_name.inspect}")
+          target_command = entity.command(command_name) ||
+                           raise(WiringError, "#{ctx.command.hecks_name} delegates_to " \
+                                               "#{entity_name}.#{command_name}, which " \
+                                               "#{entity_name} declares no such command")
+
+          target_args = delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
+
+          element = EntityElement.locate_chain(ctx.aggregate, [entity], ctx.instance, target_args, command_name)
+          view = Instance.new(aggregate: entity, id: EntityElement.element_identity(entity, element).to_s, state: element)
+
+          @rules.enforce_givens(view, target_command, target_args, domain: ctx.domain, declaring: entity, parent: ctx.instance)
+          transition = @rules.admissible_transition(entity, target_command, view)
+
+          old_element = target_command.ensures.empty? ? nil : element.dup
+          target_command.mutations.each { |mutation|
+            EntityElement.apply_to_element(@rules, ctx.aggregate, entity, element, mutation, target_args)
+          }
+          element[entity.lifecycle.field] = transition.target if transition
+
+          settled = Instance.new(aggregate: entity, id: view.id, state: element)
+          @rules.enforce_ensures(settled, target_command, target_args, old: old_element, domain: ctx.domain, parent: ctx.instance)
+
+          ctx.delegated_events = @rules.emit(target_command, ctx.domain, ctx.aggregate, ctx.instance, target_args, ctx.repository)
+        }
+      end
+
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) {
           @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state, domain: ctx.domain)
@@ -123,8 +174,19 @@ module Hecksagain
         step(:save) { ctx.repository.save(ctx.instance) }
       end
 
+      # A DELEGATING COMMAND EMITS NOTHING OF ITS OWN (`CommandBuilder#build`'s
+      # own guard refuses declaring `emits` alongside `delegates_to`) — its
+      # result IS whatever `step_delegate_to_entity` already collected from
+      # the target entity command's own `emits`, not a second, empty call
+      # into `@rules.emit` for a command with no announced events at all.
       def step_emit(ctx)
         ctx.result = step(:emit) {
+          # `ctx.delegated_events` is only ever set by `step_delegate_to_entity`,
+          # and only when this command carries a `:delegate` mutation — an
+          # empty Array (the target genuinely emitted nothing) is still
+          # truthy in Ruby, so this reads correctly either way.
+          next ctx.delegated_events if ctx.delegated_events
+
           @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository, ctx.correlation)
         }
       end

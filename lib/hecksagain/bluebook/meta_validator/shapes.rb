@@ -219,7 +219,9 @@ module Hecksagain
         # language does not hold is a named gap, not a byte-for-byte one).
         def mutation(target, op, bindings)
           base = { target: target.to_sym, op: op.to_sym, sign: Hecksagain::Bluebook::Mutation.sign_for(op) }
-          return base.merge(fields: appended(bindings)) if op == "append"
+          # `:delegate` (CommandBuilder#delegates_to's own comment) rides
+          # the SAME multi-binding shape `:append` does.
+          return base.merge(fields: appended(bindings)) if op == "append" || op == "delegate"
 
           base.merge(source: classified(bindings.first))
         end

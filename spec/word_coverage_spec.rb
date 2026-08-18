@@ -128,6 +128,18 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # when written), not an assumption; delete an entry once the corpus
   # grows to cover it and this spec will say so on its own.
   EXEMPT = {
+    "delegates_to (Command)"               =>
+                                              "an external consumer outside this repo — `hecks_ai_training`, a downstream " \
+                                              "project building `domain/chess` — is the real motivating use: a chess move's " \
+                                              "own legality needs a synchronous, single-dispatch handoff from an aggregate-" \
+                                              "level command into one nested entity command, which neither `trigger` nor a " \
+                                              "saga's own `dispatches` can give (both commit the triggering command first " \
+                                              "and rescue the target's own refusal rather than raising it back — " \
+                                              "CommandBuilder#delegates_to_impl's own comment has the full trail). No " \
+                                              "bundled example here (banking/pizzas/compliance) has a real need for it yet; " \
+                                              "`spec/dsl_spec.rb`'s own delegates_to examples and " \
+                                              "`spec/runtime/delegates_to_spec.rb`'s own dedicated fixture and dispatch-" \
+                                              "level specs are this word's real, running coverage in the meantime.",
     "cursor (Query)"                       =>
                                               "refused unconditionally at build (QueryBuilder#seal_cursor) — no interpreter " \
                                               "implements cursor pagination, so any real declaration would refuse the bluebook " \

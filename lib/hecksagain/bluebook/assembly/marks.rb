@@ -125,7 +125,9 @@ module Hecksagain
           target = change[:target].to_sym
           op     = change[:op].to_sym
 
-          return Mutation.new(target: target, op: op, source: appended(change[:fields])) if op == :append
+          # `:delegate` (CommandBuilder#delegates_to's own comment) rides
+          # the SAME multi-binding shape `:append` does.
+          return Mutation.new(target: target, op: op, source: appended(change[:fields])) if op == :append || op == :delegate
 
           Mutation.new(target: target, op: op, source: classified(change[:source]))
         end

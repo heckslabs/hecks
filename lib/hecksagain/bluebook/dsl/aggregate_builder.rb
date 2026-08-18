@@ -611,6 +611,15 @@ module Hecksagain
 
           @commands.each do |command|
             command.mutations.each do |mutation|
+              # `:delegate` — CommandBuilder#delegates_to's own comment —
+              # targets no field of THIS aggregate at all; its `target`
+              # names an "Entity.Command" pair instead, checked when the
+              # command builds (`delegates_to`'s own `rpartition` guard)
+              # and again at dispatch time (`CommandInterpreter
+              # #step_delegate_to_entity`, which refuses a real one that
+              # names no such entity or command). Sealing THIS check
+              # against it would refuse every delegating command outright.
+              next if mutation.op == :delegate
               next if known.include?(mutation.target.to_sym)
 
               raise Malformed,

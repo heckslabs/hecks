@@ -30,13 +30,16 @@ module Hecksagain
 
       emits_ir(target: :target, op: :op, sign: -> { Mutation.sign_for(op) })
 
-      # THE ONE GENUINELY BRANCHING EMISSION in the model: an append
-      # binds several fields at once and carries `fields:`, everything
-      # else carries a single `source:`. Declared emission covers the
-      # fixed head; `super` supplies it and this adds the tail, which
-      # is why a construct with a variable shape needs no new mixin API.
+      # THE ONE GENUINELY BRANCHING EMISSION in the model: an append (or a
+      # DELEGATE — `CommandBuilder#delegates_to`'s own comment gives the
+      # full reasoning for reusing this exact wire shape rather than
+      # inventing a parallel one) binds several fields at once and carries
+      # `fields:`, everything else carries a single `source:`. Declared
+      # emission covers the fixed head; `super` supplies it and this adds
+      # the tail, which is why a construct with a variable shape needs no
+      # new mixin API.
       def to_h
-        return super.merge(fields: appended_fields) if op == :append
+        return super.merge(fields: appended_fields) if op == :append || op == :delegate
 
         super.merge(source: classified_source)
       end
