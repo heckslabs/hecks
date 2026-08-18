@@ -291,6 +291,28 @@ RSpec.describe "the expression sublanguage" do
       expect { evaluate('value.find { |l| l.load == "USNYC" }.voyage', value: "oops") }
         .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /find expects a list, got "oops"/)
     end
+
+    it "nests inside a block predicate's own predicate — the shipping-domain re-routing check that first exposed this: scanning for .find and .any?/.all?/.none? SEPARATELY found the wrong (inner) occurrence when they nest, the same crash signature nested .any? had before parse_block_opener unified the scan" do
+      two_legs = [
+        { "load" => "SESTO", "unload" => "USNYC" },
+        { "load" => "USNYC", "unload" => "AUSYD" }
+      ]
+      one_leg = [{ "load" => "SESTO", "unload" => "USNYC" }]
+      expression = 'legs.any? { |leg| leg.load == "SESTO" && legs.find { |o| o.load == leg.unload }.load == "USNYC" }'
+
+      expect(evaluate(expression, legs: two_legs)).to be(true)
+      expect(evaluate(expression, legs: one_leg)).to be(false)
+    end
+
+    it "nests the OTHER direction too — a block predicate inside .find's own predicate" do
+      two_legs = [
+        { "load" => "SESTO", "unload" => "USNYC" },
+        { "load" => "USNYC", "unload" => "AUSYD" }
+      ]
+      expression = 'legs.find { |leg| legs.any? { |o| o.load == leg.unload } }.load == "SESTO"'
+
+      expect(evaluate(expression, legs: two_legs)).to be(true)
+    end
   end
 
   describe "start_with? and end_with?" do

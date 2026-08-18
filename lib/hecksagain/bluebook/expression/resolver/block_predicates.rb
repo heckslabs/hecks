@@ -73,86 +73,75 @@ module Hecksagain
 
         module_function
 
-        # `.all?`/`.any?`/`.none?` -- vendored addition, see the
-        # `BlockPredicate` struct's own comment above. Matched last among
-        # the suffix rules (right before the `Lookup` catch-all) since
-        # its own predicate text can itself contain almost anything a
-        # leaf expression can -- letting every more specific rule above
-        # try first avoids this one accidentally swallowing a receiver
-        # another rule was meant to parse. `receiver` and the predicate
-        # body are each parsed through their OWN correct grammar --
-        # `parse` (this module's leaf grammar) for the receiver, `
-        # Evaluator.parse` (the boolean/comparison grammar) for the
-        # predicate, since a predicate like `s.length > 0` is a
-        # comparison, not a bare leaf.
-        # Rewritten to a header-regex-plus-`matching_brace` scan instead
-        # of one greedy-to-`\z` regex per suffix -- the original `(.+?)
-        # \s*\}\z` shape broke the moment a predicate contained ANOTHER
-        # block predicate (`legs.any? { |l| ... legs.any? { |o| ... } }`,
-        # the exact re-routing check this grammar gap forced the
-        # shipping domain to precompute by hand instead) : looping the
-        # three suffixes with a GREEDY receiver capture matched the
-        # LAST occurrence of `.suffix? {` in the string, not the
-        # outermost one, so the "receiver" swallowed the inner call too
-        # and crashed with `TypeError: no implicit conversion of Symbol
-        # into Integer`, confirmed live, not inferred. The header regex
-        # below instead uses a NON-GREEDY receiver capture across all
-        # three suffixes at once, so it stops at the FIRST `.suffix? {`
-        # in the string (the real receiver never itself contains one) ;
-        # `matching_brace` then walks forward counting `{`/`}` depth,
-        # the same quote-aware, depth-aware discipline `split_addition`/
-        # `array_elements` already apply, so a `}` inside a nested block
-        # predicate (or a quoted `start_with?` substring) never
-        # miscounts.
-        def parse_block_predicate(expr)
-          header = expr.match(/\A(.+?)\.(#{BLOCK_PREDICATE_MODES.keys.map { |suffix| Regexp.escape(suffix) }.join('|')})\s*\{\s*\|(\w+)\|\s*/m)
+        # Every suffix that opens a `{ |x| ... }` block, `.find` included
+        # -- shared by `parse_block_opener` below, and by nothing else
+        # (this is NOT `BLOCK_PREDICATE_MODES` — `.find` isn't a mode
+        # `evaluate_block_predicate` aggregates through, it builds a
+        # `Find` node instead, see below).
+        BLOCK_OPENER_SUFFIXES = (BLOCK_PREDICATE_MODES.keys + ["find"]).freeze
+
+        # `.all?`/`.any?`/`.none?`/`.find` -- vendored addition, see the
+        # `BlockPredicate`/`Find` structs' own comments above. Matched
+        # last among the suffix rules (right before the `Lookup`
+        # catch-all) since a block's own predicate text can itself
+        # contain almost anything a leaf expression can, including
+        # ANOTHER block-opening suffix -- letting every more specific
+        # rule above try first avoids this one accidentally swallowing a
+        # receiver another rule was meant to parse.
+        #
+        # ONE combined header regex over ALL FOUR suffixes together,
+        # not `.find` and `.all?/any?/none?` scanned separately (that
+        # was this file's own first cut, and it broke the moment a
+        # block predicate's own predicate text contained a DIFFERENT
+        # kind of block-opener than the one being scanned for --
+        # `legs.any? { |leg| ... legs.find { |o| ... } ... }` : scanning
+        # for `.find` FIRST found the INNER `.find`, not the outer
+        # `.any?`, because a non-greedy receiver capture only guarantees
+        # the FIRST occurrence of ITS OWN suffix, not the first
+        # occurrence of ANY block-opening suffix -- confirmed live via
+        # the shipping domain's own re-routing rules, the same
+        # "no implicit conversion of Symbol into Integer" signature the
+        # original nested-`.any?` bug had, not inferred). Scanning for
+        # all four AT ONCE and letting the regex engine's own leftmost
+        # match win fixes both directions (`.find` nested in `.any?` OR
+        # `.any?` nested in `.find`) with the SAME one rule, since the
+        # true receiver never itself contains ANY of these four words
+        # followed by `{`.
+        #
+        # `matching_brace` walks forward counting `{`/`}` depth from
+        # there, the same quote-aware, depth-aware discipline
+        # `split_addition`/`array_elements` already apply, so a `}`
+        # inside a nested block (or a quoted `start_with?` substring)
+        # never miscounts. `.find`'s own trailing dotted path (`path`)
+        # is captured from whatever follows the closing brace ; every
+        # other suffix instead requires nothing follow it at all (the
+        # `BlockPredicate` shape, unchanged from before this rewrite).
+        def parse_block_opener(expr)
+          pattern = /\A(.+?)\.(#{BLOCK_OPENER_SUFFIXES.map { |suffix| Regexp.escape(suffix) }.join('|')})\s*\{\s*\|(\w+)\|\s*/m
+          header = expr.match(pattern)
           return nil unless header
 
-          body_start = header.end(0)
-          body_end = matching_brace(expr, body_start)
-          return nil unless body_end
-          return nil unless expr[(body_end + 1)..].strip.empty?
-
-          BlockPredicate.new(
-            mode:      BLOCK_PREDICATE_MODES.fetch(header[2]),
-            receiver:  parse(header[1]),
-            param:     header[3],
-            predicate: Evaluator.parse(expr[body_start...body_end].strip)
-          )
-        end
-
-        # `receiver.find { |x| PREDICATE }` / `.find { ... }.a.b` -- see
-        # the `Find` struct's own comment above. Same header-plus-
-        # `matching_brace` shape `parse_block_predicate` uses (find is
-        # deliberately not folded into `BLOCK_PREDICATE_MODES` --
-        # `evaluate_block_predicate` aggregates a collection to a single
-        # boolean via `Enumerable#all?/any?/none?`, `Find` hands back an
-        # ELEMENT via `Enumerable#find`, a different return shape
-        # entirely, so sharing one node type would mean branching on
-        # `mode` for the return type too, exactly the "smallest correct
-        # thing, no accidental generality" the `BlockPredicate` struct's
-        # own comment already argued against). Not anchored to `\z` --
-        # unlike a block predicate, `.find { ... }` is meant to be
-        # followed by a dotted projection path, so whatever trails the
-        # closing brace is captured as `path` instead of rejecting the
-        # parse.
-        def parse_find(expr)
-          header = expr.match(/\A(.+?)\.find\s*\{\s*\|(\w+)\|\s*/m)
-          return nil unless header
-
+          receiver_text = header[1]
+          suffix = header[2]
+          param = header[3]
           body_start = header.end(0)
           body_end = matching_brace(expr, body_start)
           return nil unless body_end
 
-          trailing = expr[(body_end + 1)..].strip
-          return nil unless trailing.empty? || trailing.start_with?(".")
+          predicate = Evaluator.parse(expr[body_start...body_end].strip)
 
-          Find.new(
-            receiver:  parse(header[1]),
-            param:     header[2],
-            predicate: Evaluator.parse(expr[body_start...body_end].strip),
-            path:      trailing.empty? ? [] : trailing[1..].split(".")
-          )
+          if suffix == "find"
+            trailing = expr[(body_end + 1)..].strip
+            return nil unless trailing.empty? || trailing.start_with?(".")
+
+            Find.new(receiver: parse(receiver_text), param: param, predicate: predicate,
+                     path: trailing.empty? ? [] : trailing[1..].split("."))
+          else
+            return nil unless expr[(body_end + 1)..].strip.empty?
+
+            BlockPredicate.new(mode: BLOCK_PREDICATE_MODES.fetch(suffix), receiver: parse(receiver_text),
+                               param: param, predicate: predicate)
+          end
         end
 
         # The index of the `}` that closes the `{` implicitly opened

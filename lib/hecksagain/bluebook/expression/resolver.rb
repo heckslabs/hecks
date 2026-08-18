@@ -219,11 +219,8 @@ module Hecksagain
             return EndsWith.new(receiver: parse(Regexp.last_match(1)), substring: Regexp.last_match(2))
           end
 
-          find = parse_find(expr)
-          return find if find
-
-          block_predicate = parse_block_predicate(expr)
-          return block_predicate if block_predicate
+          block_opener = parse_block_opener(expr)
+          return block_opener if block_opener
 
           Lookup.new(path: expr)
         end
