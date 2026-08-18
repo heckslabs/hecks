@@ -70,6 +70,22 @@ module Hecksagain
             return arithmetic_value_object(current, amount, target, sign, op)
           end
 
+          # `current` genuinely absent (no declared default, never set) and
+          # `amount` arrives VO-wrapped — a real command argument typed the
+          # same as the attribute, but with nothing to combine field-by-
+          # field against yet (that is what `arithmetic_value_object`,
+          # above, is for once BOTH sides carry real fields). Before this,
+          # falling straight to `unless amount.is_a?(Numeric)` below
+          # refused with "increment needs an Integer, got 500" — true of
+          # nothing: 500 is exactly the Integer it asked for, just still
+          # wearing the Money wrapper the command's own declared attribute
+          # type put it in. Unwrapped here, the same shape #clamp already
+          # falls through to for an absent VO-typed attribute
+          # (`current ||= 0`, then a raw scalar) — the mutation applier
+          # re-wraps the raw result into the declared VO type on write,
+          # the same way it already does for clamp's own result.
+          amount = unwrap_single_numeric_field(amount) if amount.is_a?(Value)
+
           # Widened from Integer to Numeric (migration plan task 4, i106):
           # miette's organ math increments a Float (`increment: 0.02`) --
           # the raw, non-value-object path only ever mattered for Integer
@@ -138,6 +154,10 @@ module Hecksagain
             return combine_value_object(current, amount, target, "multiply") { |c, a| c * a }
           end
 
+          # Same absent-`current`, VO-wrapped-`amount` gap as `#arithmetic`
+          # — see that method's own comment.
+          amount = unwrap_single_numeric_field(amount) if amount.is_a?(Value)
+
           unless amount.is_a?(Numeric) && current.is_a?(Numeric)
             raise TypeMismatch, RefusalWording.render("TypeMismatch", "arithmetic_amount",
                                                       op: "multiply", target: target,
@@ -161,8 +181,12 @@ module Hecksagain
           # this was the one arithmetic op that didn't, so a VO-typed
           # attribute with no declared `default:` (genuinely absent,
           # `Instance.defaults`/`#default_for`) hit TypeMismatch on the
-          # FIRST clamp, where increment/decrement/multiply would have
-          # silently treated the same absent field as zero.
+          # FIRST clamp. (#arithmetic/#multiply's OWN absent-current gap
+          # was a real, separate bug this comment used to describe wrong —
+          # they did not "silently treat the same absent field as zero";
+          # they raised too, blaming a perfectly valid `amount` for not
+          # being an Integer when it was one, just still Money-wrapped.
+          # Fixed alongside this one — see #unwrap_single_numeric_field.)
           current ||= 0
           if current.is_a?(Value)
             fields = current.to_h
@@ -181,6 +205,25 @@ module Hecksagain
         end
 
         private
+
+        # `amount` arrives VO-wrapped whenever the command's own declared
+        # attribute type says so (a real `Money`, not a bare Integer) —
+        # true whether or not `current` has ever been set. Only meaningful
+        # to call once `current` is known NOT to be a Value itself (the
+        # `current.is_a?(Value) && amount.is_a?(Value)` branch, above in
+        # both callers, already owns the case where both sides carry real
+        # fields to combine). Refuses rather than guesses when more than
+        # one field is numeric — genuinely ambiguous which one an absent
+        # `current` should be treated as zero for, the same reasoning
+        # `combine_value_object`'s own `shared_numeric.size == 1` check
+        # already holds to when both sides ARE present.
+        def unwrap_single_numeric_field(value)
+          fields = value.to_h
+          numeric_fields = fields.keys.select { |field| fields[field].is_a?(Numeric) }
+          return value unless numeric_fields.size == 1
+
+          fields[numeric_fields.first]
+        end
 
         def combine_value_object(current, amount, target, op)
           current_fields = current.to_h
