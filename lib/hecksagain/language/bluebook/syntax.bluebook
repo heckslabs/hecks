@@ -439,6 +439,13 @@ Hecks.bluebook "Bluebook" do
       # under, and every one of them still boots — the corpus itself is the
       # proof the rename machinery is safe.
       member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "sets_impl"
+      # `delegates_to "Entity.Command", with: {...}` — CommandBuilder
+      # #delegates_to_impl's own comment gives the full reasoning: an
+      # AGGREGATE-level command's synchronous, single-dispatch handoff
+      # into one nested entity command. `fills: "mutations"`, same as
+      # `sets` above — it rides the same field, as a `:delegate`-op
+      # Mutation, rather than a parallel one of its own.
+      member word: "delegates_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "delegates_to_impl"
       # `then_set` — item #13's full metaprogrammed dispatch (slice 5).
       # NOT a `was:` on `sets` above (a pure rename with the SAME real
       # behavior) — `then_set`'s own real behavior is nothing like
@@ -1016,6 +1023,14 @@ Hecks.bluebook "Bluebook" do
       member keyword: "sets",            context: "Command", at: "",  named: "multiply",  kind: "literal",  required: "false", fills: "source", selects: "op=multiply"
       member keyword: "sets",            context: "Command", at: "",  named: "clamp",     kind: "literal",  required: "false", fills: "source", selects: "op=clamp"
       member keyword: "sets",            context: "Command", at: "",  named: "remove",    kind: "literal",  required: "false", fills: "source", selects: "op=remove"
+      # `delegates_to "Entity.Command", with: { target_arg: :own_arg, ... }`
+      # — `target` is TEXT, not a symbol (`"Piece.Move"`, a dotted
+      # "Entity.Command" pair, not a bare field name `sets` names).
+      # `with:` shares `sets`'s own `kind: "literal"` reading for exactly
+      # the reason its own comment above gives — a hash of further
+      # per-field references, same shape `append:` already carries.
+      member keyword: "delegates_to",    context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "target"
+      member keyword: "delegates_to",    context: "Command", at: "",  named: "with",      kind: "literal",  required: "false", fills: "source", selects: "op=delegate"
       # `then_set` — retired, own dedicated row (see the Keyword row's
       # own comment above). Same shape as `sets`, plus the one kwarg
       # `sets` never carried (`from:`, `legacy_then_set`'s own).

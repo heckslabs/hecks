@@ -1,0 +1,87 @@
+# A DEDICATED FIXTURE for `delegates_to` (CommandBuilder#delegates_to_impl's
+# own comment has the full reasoning) — proves an aggregate-level command
+# can hand its own dispatch to one nested entity command, synchronously,
+# atomically, before the mechanism is used for real in a downstream
+# project's own chess domain (the motivating need — see
+# spec/word_coverage_spec.rb's own EXEMPT entry for `delegates_to`).
+Hecks.bluebook "DelegatesTo" do
+  vision "A board holding pieces, and an aggregate-level MovePiece a caller dispatches instead of ever naming the entity directly."
+  core
+
+  aggregate "Board" do
+    description "A board. MovePiece is the only door a caller uses to move a piece — Piece.Move itself is never dispatched directly here."
+
+    identified_by :name
+
+    attribute :name,   BoardName
+    attribute :pieces, list_of(Piece)
+
+    value_object "BoardName" do
+      attribute :value, String
+    end
+
+    value_object "PieceId" do
+      attribute :value, String
+    end
+
+    value_object "Square" do
+      attribute :file, Integer
+      attribute :rank, Integer
+    end
+
+    command "OpenBoard" do
+      goal "Start a fresh, empty board"
+
+      attribute :name, BoardName
+
+      emits "BoardOpened"
+    end
+
+    command "PlacePiece" do
+      goal "Set a piece down on the board, for testing"
+
+      reference_to Board
+      attribute :id,     PieceId
+      attribute :square, Square
+
+      sets :pieces, append: { id: :id, square: :square }
+
+      emits "PiecePlaced"
+    end
+
+    # THE WHOLE POINT OF THIS FIXTURE — a caller dispatches THIS, never
+    # "DelegatesTo::Board.Piece.Move" directly. `delegates_to`'s own
+    # `with:` maps this command's own `id`/`to` onto Piece.Move's own
+    # identically-named arguments.
+    command "MovePiece" do
+      goal "Move a specific piece, on the caller's behalf"
+
+      reference_to Board
+      attribute :id, PieceId
+      attribute :to, Square
+
+      delegates_to "Piece.Move", with: { id: :id, to: :to }
+    end
+
+    entity "Piece" do
+      description "One piece. Its own Move is the real rule; MovePiece above is only the door a caller uses to reach it."
+
+      attribute :id,     PieceId
+      attribute :square, Square
+
+      identified_by :id
+
+      command "Move" do
+        goal "Move to a square, if it actually differs from the current one"
+
+        attribute :to, Square
+
+        given("destination differs from current square") { square.file != to.file || square.rank != to.rank }
+
+        sets :square, to: :to
+
+        emits "PieceMoved"
+      end
+    end
+  end
+end

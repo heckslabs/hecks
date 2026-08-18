@@ -24,6 +24,7 @@ module Hecksagain
         {"step"=>"assign_creation_attributes"}.freeze,
         {"step"=>"apply_mutations"}.freeze,
         {"step"=>"advance_lifecycle"}.freeze,
+        {"step"=>"delegate_to_entity"}.freeze,
         {"step"=>"enforce_ensures"}.freeze,
         {"step"=>"enforce_invariants"}.freeze,
         {"step"=>"save"}.freeze,
@@ -93,7 +94,8 @@ module Hecksagain
         {"name"=>"decrement", "sign"=>"-1"}.freeze,
         {"name"=>"multiply", "sign"=>""}.freeze,
         {"name"=>"clamp", "sign"=>""}.freeze,
-        {"name"=>"remove", "sign"=>""}.freeze
+        {"name"=>"remove", "sign"=>""}.freeze,
+        {"name"=>"delegate", "sign"=>""}.freeze
       ].freeze,
       "NormalisationStrategy" => [
         {"name"=>"collapse_whitespace"}.freeze,

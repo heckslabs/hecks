@@ -2350,6 +2350,46 @@ RSpec.describe "the DSL surface" do
         .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /tries to set and remove/)
     end
 
+    # `delegates_to` — CommandBuilder#delegates_to_impl's own comment gives
+    # the full reasoning (an aggregate-level command's synchronous,
+    # single-dispatch handoff into one nested entity command) and
+    # CommandInterpreter#step_delegate_to_entity is where it actually
+    # runs. Recorded as a `:delegate`-op Mutation, same wire shape
+    # `append:` already uses — these three specs cover the DSL surface
+    # only: that it parses into the right mutation, and that its two
+    # build-time refusals fire. Dispatch-level behavior (synchronous
+    # refusal propagation, atomic all-or-nothing persistence) is a
+    # runtime concern with its own coverage elsewhere.
+    it "delegates_to records a :delegate mutation naming the target and the field map" do
+      mutation = build_command("CmdDelegate") { delegates_to "Piece.Move", with: { id: :id, to: :to } }.mutations.first
+
+      # `target` reads back a Symbol through the real DSL word-dispatch
+      # path (confirmed directly — calling `delegates_to_impl` straight
+      # against a bare builder stores the String it was handed, but
+      # going through `delegates_to`/`calls:` the ordinary way does not)
+      # — the same shape every OTHER mutation's own `target` already is
+      # (`sets`'s own specs above compare against `:parts`/`:status`,
+      # never a String). `step_delegate_to_entity` reads it via `.to_s`
+      # either way, so this is harmless, just worth pinning rather than
+      # asserting the wrong type by accident.
+      expect([mutation.target.to_s, mutation.op]).to eq(["Piece.Move", :delegate])
+      expect(mutation.to_h[:fields]).to eq(id: ":id", to: ":to")
+    end
+
+    it "delegates_to refuses a target that does not name an entity and a command" do
+      expect { build_command("CmdDelegateBadTarget") { delegates_to "JustAnEntity" } }
+        .to raise_error(Hecksagain::Bluebook::DSL::Malformed, /does not name an entity and a command/)
+    end
+
+    it "delegates_to refuses sharing a command with its own sets/emits — a pure passthrough only" do
+      expect {
+        build_command("CmdDelegateNotPure") do
+          delegates_to "Piece.Move", with: { id: :id }
+          emits "SomethingElseToo"
+        end
+      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /pure passthrough/)
+    end
+
     it "sets append: pushes a built value object onto a list" do
       mutation = build_command("CmdAppend") { sets :parts, append: { size: :size } }.mutations.first
 

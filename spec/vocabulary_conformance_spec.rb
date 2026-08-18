@@ -191,7 +191,15 @@ RSpec.describe "the declared vocabularies" do
     # increment/decrement as real, declared MutationOp members — see
     # vocabulary.bluebook's own MutationOp comment for the arithmetic each
     # one performs.
-    ops = %w[set append increment decrement multiply clamp remove]
+    #
+    # `delegate` joined them for a different real need, from a downstream
+    # consumer rather than one of these three bundled examples —
+    # CommandBuilder#delegates_to's own comment gives the full reasoning
+    # (a chess domain's own move-legality check needing a synchronous,
+    # single-dispatch handoff into a nested entity command). No bundled
+    # example here uses it yet; `spec/dsl_spec.rb`'s own delegates_to
+    # example is this vocabulary member's real usage instead.
+    ops = %w[set append increment decrement multiply clamp remove delegate]
     expect(declared("MutationOp")).to eq(ops)
     expect(used).not_to be_empty
   end

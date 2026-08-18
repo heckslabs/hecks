@@ -205,6 +205,10 @@ RSpec.describe "the declared syntax" do
       command_impl:       "the owning builder's own real implementation, called by GenericDispatch's calls:",
       projects_impl:      "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       sets_impl:          "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      # New word, not a slice of item #13's migration — CommandBuilder
+      # #delegates_to_impl's own comment gives the full reasoning.
+      # Reached the same way every hand-written Command word already is.
+      delegates_to_impl:  "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       member_impl:        "ValueObjectBuilder's own real implementation, called by GenericDispatch's calls:",
       where_impl:         "QuerySpecification::Common::DSL's own real implementation, called by GenericDispatch's calls:",
       order_by_impl:      "QuerySpecification::Common::DSL's own real implementation, called by GenericDispatch's calls:",

@@ -36,7 +36,16 @@ module Hecksagain
           # holds the two equal) -- MutationApplier's own `when :remove`
           # branch (mutation_applier.rb) never calls #sign_of, so this was
           # a declared-vocabulary gap, not a behaviour gap.
-          MutationOp.new(name: "remove",    sign: nil)
+          MutationOp.new(name: "remove",    sign: nil),
+          # Vendored addition, not (yet) upstream hecksagain —
+          # CommandBuilder#delegates_to's own comment gives the full
+          # reasoning; carries no sign, like set/append/remove — it does
+          # no arithmetic, only a synchronous handoff into one nested
+          # entity command. Declared here so this table stays exactly
+          # what Vocabulary::MutationOp declares — MutationApplier's own
+          # `when :delegate` branch (mutation_applier.rb) never calls
+          # #sign_of either, same as `remove`'s own note above.
+          MutationOp.new(name: "delegate",  sign: nil)
         ].freeze
 
         # A mutation's source is either the NAME OF AN ARGUMENT or a LITERAL, and

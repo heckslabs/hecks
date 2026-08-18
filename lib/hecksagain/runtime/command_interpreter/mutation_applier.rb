@@ -62,6 +62,15 @@ module Hecksagain
           # read straight.
           when :clamp
             instance[mutation.target] = @rules.clamp(instance[mutation.target], mutation.source, mutation.target)
+          # `delegates_to` — CommandBuilder#delegates_to's own comment gives
+          # the full reasoning for storing it as a mutation at all. A REAL
+          # no-op here, not a gap: it targets no field on THIS instance —
+          # `CommandInterpreter#step_delegate_to_entity`, a LATER step in
+          # the same dispatch, is what actually applies it, against the
+          # target entity element `EntityElement.apply_to_element` reaches,
+          # never through this method.
+          when :delegate
+            nil
           else
             # Every declared op has a `when` above — this is not a real
             # runtime path today, only a backstop against the day one

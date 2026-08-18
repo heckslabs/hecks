@@ -7050,6 +7050,16 @@
                 "sign",
                 ""
               ]
+            ],
+            [
+              [
+                "name",
+                "delegate"
+              ],
+              [
+                "sign",
+                ""
+              ]
             ]
           ],
           "name": "MutationOp"
@@ -7265,6 +7275,12 @@
               [
                 "step",
                 "advance_lifecycle"
+              ]
+            ],
+            [
+              [
+                "step",
+                "delegate_to_entity"
               ]
             ],
             [
@@ -11102,6 +11118,36 @@
               [
                 "calls",
                 "sets_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "delegates_to"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mutations"
+              ],
+              [
+                "calls",
+                "delegates_to_impl"
               ]
             ],
             [
@@ -15832,6 +15878,70 @@
               [
                 "selects",
                 "op=remove"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "delegates_to"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "target"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "delegates_to"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "source"
+              ],
+              [
+                "selects",
+                "op=delegate"
               ]
             ],
             [
