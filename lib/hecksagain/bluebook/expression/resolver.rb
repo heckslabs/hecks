@@ -1,6 +1,7 @@
 require "json"
 require_relative "../../rendering"
 require_relative "../../vocabulary"
+require_relative "resolver/block_predicates"
 
 module Hecksagain
   module Bluebook
@@ -122,46 +123,15 @@ module Hecksagain
         # receiver-in, scalar-out accessor, no sub-grammar of its own.
         Last           = Struct.new(:receiver, keyword_init: true)
 
-        # `receiver.all? { |x| PREDICATE }` / `.any? { ... }` / `.none? {
-        # ... }` -- vendored addition, not (yet) upstream hecksagain
-        # (migration plan task 9), completing the same `Phrase`
-        # four-segment invariant the `Split` node above was built for
-        # (`value.split("::").all? { |s| s.length > 0 }`). Structurally
-        # different from every other addition in this file: every prior
-        # suffix is a flat receiver -> scalar transform, but a block
-        # predicate needs to evaluate its own sub-expression ONCE PER
-        # ELEMENT with the block parameter bound to that element. Kept
-        # minimal per the migration plan's own instruction -- no
-        # persistent iteration-variable concept added to Resolver's
-        # state model at all ; `predicate` below is a fully-parsed
-        # EVALUATOR ast (not a Resolver ast -- the predicate is a
-        # boolean/comparison expression like `s.length > 0`, exactly the
-        # grammar `Bluebook::Expression::Evaluator` owns, not this
-        # module's own leaf grammar), parsed once at `parse`-time same as
-        # every sibling node's sub-expressions are. `mode` distinguishes
-        # all?/any?/none? without three duplicated node types, since
-        # their only difference is which Array predicate aggregates the
-        # per-element results (interpret_with_element, below, is the
-        # "smallest correct thing" the plan asked for -- it threads the
-        # element binding through a temporarily-extended `attrs` hash for
-        # that one predicate's evaluation only, never touching
-        # `interpret`'s own signature or any other node's call sites).
-        # `Resolver` already calls into `Evaluator` elsewhere in this
-        # file (`sign_test_node`/`apply_sign_test` call `Evaluator.
-        # apply`/`Evaluator::OPERATORS` directly) -- this is the same
-        # precedented cross-reference, not a new coupling.
-        BlockPredicate = Struct.new(:mode, :receiver, :param, :predicate, keyword_init: true)
-
-        # Which Array method each block-predicate suffix maps to, and
-        # which Ruby Enumerable method decides the aggregate result --
-        # declared as data, not a three-way `case`, the same shape
-        # SIGN_TEST_OPERATORS above already uses for its own suffix
-        # family.
-        BLOCK_PREDICATE_MODES = {
-          "all?"  => :all,
-          "any?"  => :any,
-          "none?" => :none
-        }.freeze
+        # `receiver.first` -- sibling addition to `Last` immediately
+        # above, same shape, same vendored-not-upstream status. Added
+        # for the shipping domain's `legs.first` (an itinerary's
+        # departure leg), the exact mirror of `legs.last` (its arrival
+        # leg) that domain already leaned on -- `Last`'s own duck-typed-
+        # on-`respond_to?` reasoning applies unchanged, so `first_of`
+        # below is `last_of` with the one method swapped, not a new
+        # design.
+        First          = Struct.new(:receiver, keyword_init: true)
 
         # `receiver.start_with?("prefix")` / `receiver.end_with?("suffix")`
         # -- vendored addition, not (yet) upstream hecksagain (migration
@@ -238,6 +208,7 @@ module Hecksagain
             return Split.new(receiver: parse(Regexp.last_match(1)), separator: Regexp.last_match(2))
           end
 
+          return First.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.first\z/
           return Last.new(receiver: parse(Regexp.last_match(1))) if expr =~ /\A(.+)\.last\z/
 
           if expr =~ /\A(.+)\.start_with\?\("([^"]*)"\)\z/
@@ -248,37 +219,13 @@ module Hecksagain
             return EndsWith.new(receiver: parse(Regexp.last_match(1)), substring: Regexp.last_match(2))
           end
 
+          find = parse_find(expr)
+          return find if find
+
           block_predicate = parse_block_predicate(expr)
           return block_predicate if block_predicate
 
           Lookup.new(path: expr)
-        end
-
-        # `.all?`/`.any?`/`.none?` -- vendored addition, see the
-        # `BlockPredicate` struct's own comment above. Matched last among
-        # the suffix rules (right before the `Lookup` catch-all) since
-        # its own predicate text can itself contain almost anything a
-        # leaf expression can -- letting every more specific rule above
-        # try first avoids this one accidentally swallowing a receiver
-        # another rule was meant to parse. `receiver` and the predicate
-        # body are each parsed through their OWN correct grammar --
-        # `parse` (this module's leaf grammar) for the receiver, `
-        # Evaluator.parse` (the boolean/comparison grammar) for the
-        # predicate, since a predicate like `s.length > 0` is a
-        # comparison, not a bare leaf.
-        def parse_block_predicate(expr)
-          BLOCK_PREDICATE_MODES.each do |suffix, mode|
-            match = expr.match(/\A(.+)\.#{Regexp.escape(suffix)}\s*\{\s*\|(\w+)\|\s*(.+?)\s*\}\z/m)
-            next unless match
-
-            return BlockPredicate.new(
-              mode:      mode,
-              receiver:  parse(match[1]),
-              param:     match[2],
-              predicate: Evaluator.parse(match[3])
-            )
-          end
-          nil
         end
 
         def sign_test_node(parts)
@@ -314,6 +261,10 @@ module Hecksagain
             split_value(interpret(node.receiver, state, attrs), node.separator)
           when Last
             last_of(interpret(node.receiver, state, attrs))
+          when First
+            first_of(interpret(node.receiver, state, attrs))
+          when Find
+            found_of(node, interpret(node.receiver, state, attrs), state, attrs)
           when StartsWith
             starts_with?(interpret(node.receiver, state, attrs), node.substring)
           when EndsWith
@@ -326,8 +277,8 @@ module Hecksagain
             # Every leaf node `parse` can produce has a `when` above —
             # a backstop against the day this grammar grows a new leaf
             # type (this file's own history: MatchesRegex/Presence/
-            # Split/Last/StartsWith/EndsWith/BlockPredicate were each
-            # added exactly this way, and each one — before it had an
+            # Split/Last/First/Find/StartsWith/EndsWith/BlockPredicate
+            # were each added exactly this way, and each one — before it had an
             # `interpret` arm — fell all the way through to the
             # `Lookup` catch-all in `parse` and crashed downstream with
             # an opaque type error, never here). A missing arm here
@@ -497,6 +448,15 @@ module Hecksagain
           raise EvaluationError, "last expects a list, got #{describe(value)}"
         end
 
+        # `.first` -- see the `First` struct's own comment above.
+        # `last_of` with the one method swapped, same duck-typed
+        # reasoning.
+        def first_of(value)
+          return value.first if value.respond_to?(:first)
+
+          raise EvaluationError, "first expects a list, got #{describe(value)}"
+        end
+
         # `.start_with?("prefix")` -- vendored addition, see the
         # `StartsWith` struct's own comment above. String-only, same
         # reasoning as `.split` above -- every corpus usage found this
@@ -515,38 +475,6 @@ module Hecksagain
           raise EvaluationError, "end_with? expects a string, got #{describe(value)}" unless value.is_a?(String)
 
           value.end_with?(substring)
-        end
-
-        # `.all?`/`.any?`/`.none?` -- vendored addition, see the
-        # `BlockPredicate` struct's own comment above. `collection` is
-        # already-interpreted (a real Array, produced by whatever
-        # receiver expression came before it -- typically `Split`'s
-        # output), so this only has to run the per-element predicate and
-        # aggregate. `interpret_with_element` is the "smallest correct
-        # thing" the migration plan asked for : no persistent iteration-
-        # variable concept added anywhere else in Resolver's state model,
-        # just `attrs` extended with the bound name for the span of that
-        # one predicate evaluation, discarded immediately after.
-        def evaluate_block_predicate(node, collection, state, attrs)
-          unless collection.is_a?(Array)
-            raise EvaluationError, "#{node.mode}? expects a list, got #{describe(collection)}"
-          end
-
-          outcomes = collection.map { |element| interpret_with_element(node, element, state, attrs) }
-
-          case node.mode
-          when :all  then outcomes.all?
-          when :any  then outcomes.any?
-          when :none then outcomes.none?
-          end
-        end
-
-        # Binds the block parameter for exactly one element's predicate
-        # evaluation -- `attrs` wins over `state` in `fetch` (see below),
-        # so the bound name shadows any same-named state/attrs field for
-        # the span of this one call only ; nothing persists past it.
-        def interpret_with_element(node, element, state, attrs)
-          Evaluator.interpret(node.predicate, state, attrs.merge(node.param.to_sym => element))
         end
 
         # Declared the same way in Vocabulary::ToStringType
@@ -598,11 +526,22 @@ module Hecksagain
           return unwrap_scalar(fetch(expr, state, attrs)) unless expr.include?(".")
 
           head, *rest = expr.split(".")
-          unwrap_scalar(rest.reduce(fetch(head, state, attrs)) do |value, segment|
-            break nil unless value.respond_to?(:[])
+          unwrap_scalar(walk_path(fetch(head, state, attrs), rest))
+        end
 
-            value[segment.to_sym] || value[segment]
-          end)
+        # Walks a list of dotted segments through an already-resolved
+        # Hash-like value — extracted from `lookup`'s own reduce so
+        # `found_of` (the `Find` node's own path projection) can walk a
+        # `.find { ... }`-produced element the identical way `lookup`
+        # walks a plain attribute path, rather than duplicating the
+        # `value[segment.to_sym] || value[segment]` step twice in this
+        # file.
+        def walk_path(value, segments)
+          segments.reduce(value) do |current, segment|
+            break nil unless current.respond_to?(:[])
+
+            current[segment.to_sym] || current[segment]
+          end
         end
 
         # `field == "literal"` -- vendored addition, not (yet) upstream

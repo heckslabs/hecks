@@ -209,6 +209,21 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
+  describe "first" do
+    it "reads the leading segment of a split, the mirror image of .last" do
+      matching = "dispatch::lexicon::query::command_bus"
+      not_matching = "other::lexicon::query::command_bus"
+
+      expect(evaluate('value.split("::").first == "dispatch"', value: matching)).to be(true)
+      expect(evaluate('value.split("::").first == "dispatch"', value: not_matching)).to be(false)
+    end
+
+    it "raises when the receiver has no #first" do
+      expect { evaluate("value.first", value: 12) }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /first expects a list, got 12/)
+    end
+  end
+
   describe "block-taking all?/any?/none?" do
     it "aggregates a per-element predicate over a split array" do
       four_real_segments = "dispatch::lexicon::query::command_bus"
@@ -229,6 +244,52 @@ RSpec.describe "the expression sublanguage" do
     it "raises when the receiver is not a list" do
       expect { evaluate("value.all? { |s| s.length > 0 }", value: "oops") }
         .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /all\? expects a list, got "oops"/)
+    end
+
+    it "handles a block predicate nested inside another block predicate's own predicate, the shipping-domain re-routing check this grammar gap forced a workaround for" do
+      # legs.any? { |l| an outer condition on l, AND some other leg satisfies an inner condition }
+      legs_with_a_later_leg = [
+        { "load" => "SESTO", "unload" => "USNYC" },
+        { "load" => "USNYC", "unload" => "AUSYD" }
+      ]
+      legs_without_a_later_leg = [
+        { "load" => "SESTO", "unload" => "USNYC" }
+      ]
+      expression = 'legs.any? { |l| l.load == "SESTO" && legs.any? { |o| o.load == "USNYC" } }'
+
+      expect(evaluate(expression, legs: legs_with_a_later_leg)).to be(true)
+      expect(evaluate(expression, legs: legs_without_a_later_leg)).to be(false)
+    end
+  end
+
+  describe "find" do
+    let(:legs) do
+      [
+        { "load" => "SESTO", "unload" => "USNYC", "voyage" => "V001" },
+        { "load" => "USNYC", "unload" => "AUSYD", "voyage" => "V002" }
+      ]
+    end
+
+    it "projects a field off the first matching element, the find-then-project shape a caller-precomputed field used to stand in for" do
+      expect(evaluate('legs.find { |l| l.load == "USNYC" }.voyage == "V002"', legs: legs)).to be(true)
+    end
+
+    it "resolves to nil, not an error, when no element matches — a normal 'no leg after this one' outcome" do
+      expect(evaluate('legs.find { |l| l.load == "ZZZZZ" }.voyage == "V002"', legs: legs)).to be(false)
+      # bare (no comparison), Evaluator truthy-casts every leaf's raw value
+      # the same way it does for `.last`/`.present?` — nil casts to false,
+      # not an error, exactly what "no leg found" should mean here.
+      expect(evaluate('legs.find { |l| l.load == "ZZZZZ" }.voyage', legs: legs)).to be(false)
+    end
+
+    it "composes bare, with no trailing path, the same way .last does" do
+      expect(evaluate('legs.find { |l| l.load == "USNYC" }.present?', legs: legs)).to be(true)
+      expect(evaluate('legs.find { |l| l.load == "ZZZZZ" }.present?', legs: legs)).to be(false)
+    end
+
+    it "raises when the receiver is not a list" do
+      expect { evaluate('value.find { |l| l.load == "USNYC" }.voyage', value: "oops") }
+        .to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /find expects a list, got "oops"/)
     end
   end
 
