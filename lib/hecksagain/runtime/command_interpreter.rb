@@ -139,7 +139,22 @@ module Hecksagain
                                                "#{entity_name}.#{command_name}, which " \
                                                "#{entity_name} declares no such command")
 
-          target_args = delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
+          # `with:` REMAPS, it does not ENUMERATE — starting from a copy
+          # of THIS command's own already-resolved args (`ctx.args`) and
+          # overlaying the explicit mapping on top means ambient context
+          # the caller never had to think about (the aggregate's own
+          # identity, addressed the ordinary way to reach `MoveKnight` at
+          # all) flows through to the target untouched, the same as it
+          # always would for a caller dispatching the entity command
+          # directly. Confirmed necessary, not a defensive guess: a real
+          # downstream domain's own AdvancePly-on-Moved policy silently
+          # failed to re-locate its OWN aggregate (`reaction_log`: "no
+          # Game with label.value ..."), because the emitted event's
+          # payload — built from `target_args` alone — never carried
+          # `label` at all when `with:` named only `id`/`to`.
+          target_args = ctx.args.merge(
+            delegation.source.to_h { |target_key, source_key| [target_key.to_sym, ctx.args[source_key]] }
+          )
 
           element = EntityElement.locate_chain(ctx.aggregate, [entity], ctx.instance, target_args, command_name)
           view = Instance.new(aggregate: entity, id: EntityElement.element_identity(entity, element).to_s, state: element)

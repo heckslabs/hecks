@@ -13,8 +13,9 @@ Hecks.bluebook "DelegatesTo" do
 
     identified_by :name
 
-    attribute :name,   BoardName
-    attribute :pieces, list_of(Piece)
+    attribute :name,       BoardName
+    attribute :pieces,     list_of(Piece)
+    attribute :move_count, MoveCount
 
     value_object "BoardName" do
       attribute :value, String
@@ -29,12 +30,41 @@ Hecks.bluebook "DelegatesTo" do
       attribute :rank, Integer
     end
 
+    # NOT TESTED FOR ITS OWN SAKE — this and `BumpMoveCount`/the policy
+    # below exist to prove a real bug found live building this fixture's
+    # own downstream consumer (a chess domain): `delegates_to`'s own
+    # `with:` maps ONLY the fields it names, so a policy reacting to the
+    # DELEGATED command's own emitted event and trying to re-locate THIS
+    # aggregate by its own identity (`name`, never named in `with: {
+    # id:, to: }`) found nothing — `reaction_log` read "no Board with
+    # name.value ...", the delivery rescued and recorded, never raised
+    # (the same shape the real bug read as "no Game with label.value
+    # ..."). Fixed at `CommandInterpreter#step_delegate_to_entity` —
+    # `target_args` now starts from a COPY of the delegating command's
+    # own already-resolved args, so ambient context the caller never had
+    # to name flows through, same as a direct entity dispatch always
+    # would.
+    value_object "MoveCount" do
+      attribute :value, Integer, default: 0
+    end
+
     command "OpenBoard" do
       goal "Start a fresh, empty board"
 
       attribute :name, BoardName
 
       emits "BoardOpened"
+    end
+
+    command "BumpMoveCount" do
+      goal "One piece somewhere on this board just moved"
+
+      reference_to Board
+      attribute :to, Square, optional: true
+
+      sets :move_count, increment: 1
+
+      emits "MoveCountBumped"
     end
 
     command "PlacePiece" do
@@ -83,5 +113,14 @@ Hecks.bluebook "DelegatesTo" do
         emits "PieceMoved"
       end
     end
+  end
+
+  # THE POLICY THAT ACTUALLY PROVES THE AMBIENT-ARGS FIX — reacts to a
+  # DELEGATED command's own emitted event and re-locates THIS aggregate
+  # by its own identity, the same shape `domain/chess`'s real
+  # `OnKnightMovedAdvancePly` is.
+  policy "OnPieceMovedBumpMoveCount" do
+    on "PieceMoved"
+    trigger Board::BumpMoveCount
   end
 end
