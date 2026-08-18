@@ -36,7 +36,16 @@ module Hecksagain
 
           @adapter.reset!
         end
-        def events = @adapter.events if @adapter.respond_to?(:events)
+
+        # NOT an endless `def events = ... if ...` — that modifier binds to
+        # the WHOLE `def`, not just its body, so it evaluates against
+        # `@adapter` while `@adapter` is still nil (class-body time,
+        # before `initialize` ever runs) and silently skips defining the
+        # method at all. Found live: nothing in this codebase called
+        # `AppendOnly#events` before Memory got a `reset!` test that did.
+        def events
+          @adapter.events if @adapter.respond_to?(:events)
+        end
 
         # An append is durable before a projection is attempted. Replaying the
         # log restores a snapshot/table after a crash in that small window.

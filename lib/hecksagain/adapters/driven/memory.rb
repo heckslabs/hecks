@@ -64,6 +64,26 @@ module Hecksagain
       def events = @events
 
       def entries = @entries.dup
+
+      # Every other driven adapter (Postgres/PostgresEra/Sqlite/D1)
+      # already implements this — `Ports::Persistence::AppendOnly#reset!`
+      # forwards to it and only raises when the wrapped adapter doesn't
+      # respond to `reset!` at all, which was always this adapter's own
+      # gap, not a deliberate omission (nothing about "in memory" implies
+      # "cannot be cleared"). Existing callers that fully re-`Hecks.boot`
+      # a domain per test case don't need this — they get a brand new
+      # `Memory` instance, with brand new empty `@records`/`@events`/
+      # `@entries`, for free. This is for the other case: a caller that
+      # deliberately keeps ONE booted runtime across many cases (to skip
+      # `load_domain`'s own per-boot parse/verify cost) and wants each
+      # case to start from the same clean slate `Hecks.boot` would have
+      # given it, without paying for a fresh boot to get there.
+      def reset!
+        @records = {}
+        @events  = []
+        @entries = []
+        self
+      end
     end
   end
 end
