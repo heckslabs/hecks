@@ -51,7 +51,12 @@ module Hecksagain
         # `attribute ..., default: { value: "small" }` captures a literal
         # Hash untouched — no re-parsing, no structure imposed beyond
         # "whatever the author wrote."
-        def provenance(from:)
+        # RENAMED FROM `provenance`/`projects`/`lifecycle`/`entity`/
+        # `query`/`policy`/`command` (all below) — item #13's full
+        # metaprogrammed dispatch (slice 4c). All bootstrap-reachable
+        # (used throughout the core/attached chapters), all in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def provenance_impl(from:)
           @provenance = from
         end
 
@@ -99,7 +104,7 @@ module Hecksagain
         # aggregate in the chapter is real, not by `AggregateBuilder`
         # itself) — `validate_projected_fields!` is where that half
         # happens.
-        def projects(name, from:)
+        def projects_impl(name, from:)
           reference, _, remote_field = from.to_s.rpartition(".")
 
           if reference.empty? || remote_field.empty?
@@ -153,7 +158,7 @@ module Hecksagain
           raise Malformed, "#{@name}.belongs_to is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"
         end
 
-        def lifecycle(field, default:, &block)
+        def lifecycle_impl(field, default:, &block)
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end
 
@@ -179,15 +184,15 @@ module Hecksagain
         # DIFFERENT canonical — bare `customer.status`, not
         # `parent.customer.status`, wrong scope for a piece's own command
         # to evaluate) nor round 4's single-piece `given` could reach.
-        def entity(name, &block)
+        def entity_impl(name, &block)
           @pending_entities << [name, block]
         end
 
-        def query(name, &block)
+        def query_impl(name, &block)
           @pending_queries << [name, block]
         end
 
-        def policy(name, &block)
+        def policy_impl(name, &block)
           reaction = PolicyBuilder.build(name, &block)
           reaction.aggregate = @name
           @policies << reaction
@@ -222,7 +227,7 @@ module Hecksagain
         # the lifecycle already declares which states exist, so naming
         # the legal ones is checkable against it, where a free-text
         # given could drift out of sync with the state machine and did.
-        def command(name, from: nil, &block)
+        def command_impl(name, from: nil, &block)
           # The verb is declared ON this aggregate — the owner `acts_on` answers
           # with — stamped by `Aggregate#initialize` once the aggregate
           # exists. An ENTITY's commands take the entity as their owner instead,

@@ -13,7 +13,11 @@ module Hecksagain
           @transitions = []
         end
 
-        def transition(mapping)
+        # RENAMED FROM `transition` — item #13's full metaprogrammed
+        # dispatch (slice 4c). Bootstrap-reachable (syntax.bluebook's
+        # own Keyword/Argument entities describe their `status`
+        # lifecycle with it), so in BOOTSTRAP_CALLS_FALLBACK.
+        def transition_impl(mapping)
           mapping = mapping.dup
           from    = mapping.delete(:from)
 

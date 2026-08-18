@@ -22,14 +22,22 @@ module Hecksagain
           @backfills = []
         end
 
-        def rename(old_name, to:)
+        # RENAMED FROM `rename`/`move`/`convert`/`retype`/`compute`/
+        # `rekey`/`backfill` (all seven below) — item #13's full
+        # metaprogrammed dispatch (slice 4c). Not bootstrap-reachable
+        # (translation.bluebook describes ITS OWN structure with
+        # aggregate/entity/attribute, never with these — they're
+        # words for real, user-authored `.translation` files only,
+        # loaded after the grammar table exists), so none need a
+        # BOOTSTRAP_CALLS_FALLBACK entry.
+        def rename_impl(old_name, to:)
           raise Malformed, "a rename needs a source name" if old_name.to_s.empty?
           raise Malformed, "a rename needs a destination name (to:)" if to.to_s.empty?
 
           @renames[old_name.to_sym] = to.to_sym
         end
 
-        def move(old_path, to:)
+        def move_impl(old_path, to:)
           raise Malformed, "a move needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a move needs a source path" if old_path.to_s.empty?
 
@@ -40,7 +48,7 @@ module Hecksagain
         # — declared as an exhaustive table, not computed, so every value
         # that can appear in old data has a named destination. Paths
         # follow `move`'s convention: dotted reaches a value-object member.
-        def convert(old_path, to:, values:)
+        def convert_impl(old_path, to:, values:)
           raise Malformed, "a convert needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a convert needs a source path" if old_path.to_s.empty?
           raise Malformed, "a convert needs a values: table" if values.nil? || values.empty?
@@ -60,7 +68,7 @@ module Hecksagain
         # structure unchanged. The stored data never carries the type
         # name, so nothing moves — this declares that the pair of names
         # means the same shape, which is what lets the era diff accept it.
-        def retype(old_type, to:)
+        def retype_impl(old_type, to:)
           raise Malformed, "a retype needs a source type name" if old_type.to_s.empty?
           raise Malformed, "a retype needs a destination type name (to:)" if to.to_s.empty?
 
@@ -71,7 +79,7 @@ module Hecksagain
         # expression itself — Postgres-only by construction. The scaffold
         # never proposes one; a human writes it, and the audit's
         # human-sampled review is its only verification.
-        def compute(old_path, to:, sql:)
+        def compute_impl(old_path, to:, sql:)
           raise Malformed, "a compute needs a destination path (to:)" if to.to_s.empty?
           raise Malformed, "a compute needs a source path" if old_path.to_s.empty?
           raise Malformed, "a compute needs its sql: expression" if sql.to_s.empty?
@@ -87,7 +95,7 @@ module Hecksagain
         # SQL-only, Postgres-only, human-reviewed-sample-is-the-only-
         # verification shape `compute` already has, and for the same
         # reason: there is nothing in-process to check this against.
-        def rekey(sql:)
+        def rekey_impl(sql:)
           raise Malformed, "a rekey needs its sql: expression" if sql.to_s.empty?
 
           @rekeys << TranslationRekey.new(sql.to_s)
@@ -104,7 +112,7 @@ module Hecksagain
         # `EraGuard.refuse_unsafe_addition!` asks for when a non-optional
         # attribute with no default: could leave an existing record with
         # the field genuinely absent.
-        def backfill(name, default:)
+        def backfill_impl(name, default:)
           raise Malformed, "a backfill needs a name" if name.to_s.empty?
           raise Malformed, "a backfill needs a default: value" if default.nil?
 
@@ -192,7 +200,14 @@ module Hecksagain
           @retired    = []
         end
 
-        def aggregate(name, was: nil, &block)
+        # RENAMED FROM `aggregate` — item #13's full metaprogrammed
+        # dispatch (slice 4c). Not bootstrap-reachable — this "Translation"
+        # -context `aggregate` (opens a TranslationAggregateBuilder) is a
+        # different (context, word) pair than "Bluebook"-context
+        # `aggregate` (the one translation.bluebook itself is described
+        # with), so it's never used to describe the language's own
+        # translation chapter.
+        def aggregate_impl(name, was: nil, &block)
           builder = TranslationAggregateBuilder.new(name, was: was)
           builder.instance_eval(&block) if block
           @aggregates << builder.build

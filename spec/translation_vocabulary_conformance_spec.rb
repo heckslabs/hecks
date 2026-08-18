@@ -34,15 +34,18 @@ RSpec.describe "the declared translation rule kinds" do
   # unification survey) and no longer shows up in `public_instance_
   # methods` at all, the same way `WordGate`'s own admissibility check
   # never counted `method_missing` itself as an answered word. `unresolved`
-  # moved to the SAME second kind in slice 4, but (unlike `drop`) it kept a
-  # real, directly-defined method — just renamed to `unresolved_impl` and
-  # reached through `calls:` — so that name has to be excluded from the
-  # direct-methods half here too, or it would show up as an extra "word"
-  # of its own alongside the one GENERIC_DISPATCH.handles? already adds.
+  # (slice 4) and `rename`/`move`/`convert`/`retype`/`compute`/`rekey`/
+  # `backfill` (slice 4c) all moved to the SAME second kind, but (unlike
+  # `drop`) each kept a real, directly-defined method — just renamed to
+  # `*_impl` and reached through `calls:` — so every one of those names has
+  # to be excluded from the direct-methods half here too, or it would show
+  # up as an extra "word" of its own alongside the one GENERIC_DISPATCH.
+  # handles? already adds.
   GENERIC_DISPATCH = Hecksagain::Bluebook::DSL::GenericDispatch
   AGGREGATE_RULES = (
     (Hecksagain::Bluebook::DSL::TranslationAggregateBuilder.public_instance_methods(false) -
-      [:build, :method_missing, :unresolved_impl]).map(&:to_s) +
+      %i[build method_missing unresolved_impl rename_impl move_impl convert_impl retype_impl compute_impl
+         rekey_impl backfill_impl]).map(&:to_s) +
       Hecksagain::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
         .select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }
         .map { |row| row[:word] }

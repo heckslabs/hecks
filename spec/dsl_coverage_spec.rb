@@ -10,28 +10,35 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BluebookBuilder"             => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,
-      %i[vision formerly_known_as attaches_to core supporting generic aggregate report read_model policy process_manager
-         classification]
+      # `attaches_to`/`aggregate` -> `*_impl` — item #13's full
+      # metaprogrammed dispatch (slice 4c).
+      %i[vision formerly_known_as attaches_to_impl core supporting generic aggregate_impl report read_model policy
+         process_manager classification]
     ],
     "AggregateBuilder"            => [
       Hecksagain::Bluebook::DSL::AggregateBuilder,
       # `has_many`/`has_one`/`belongs_to`/`given`/`invariant`/
-      # `reference_to` -> `*_impl` — item #13's full metaprogrammed
-      # dispatch (slices 4/4b), same reasoning as role_impl.
-      %i[description provenance identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl value_object
-         command lifecycle entity query policy attribute list_of attributes invariant_impl given_impl projects]
+      # `reference_to` (slices 4/4b) and `provenance`/`identified_by`/
+      # `lifecycle`/`entity`/`query`/`policy`/`command`/`projects`
+      # (slice 4c) -> `*_impl` — item #13's full metaprogrammed
+      # dispatch, same reasoning as role_impl throughout.
+      %i[description provenance_impl identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl
+         value_object command_impl lifecycle_impl entity_impl query_impl policy_impl attribute list_of attributes
+         invariant_impl given_impl projects_impl]
     ],
     "ValueObjectBuilder"          => [
       Hecksagain::Bluebook::DSL::ValueObjectBuilder,
-      # `invariant` -> `invariant_impl`, same reasoning, slice 4b.
-      %i[invariant_impl one_of member attribute list_of attributes]
+      # `invariant`/`member` -> `*_impl`, same reasoning, slices 4b/4c.
+      %i[invariant_impl one_of member_impl attribute list_of attributes]
     ],
     "CommandBuilder"              => [
       Hecksagain::Bluebook::DSL::CommandBuilder,
-      # `role`/`given`/`reference_to` -> `*_impl` — item #13's full
-      # metaprogrammed dispatch (slices 4/4b). GenericDispatch forwards
-      # via calls:; these are the real, directly-defined methods.
-      %i[role_impl goal provenance reference_to_impl given_impl ensures then_set sets emits attribute list_of attributes]
+      # `role`/`given`/`reference_to` (slices 4/4b) and `provenance`/
+      # `sets` (slice 4c) -> `*_impl` — item #13's full metaprogrammed
+      # dispatch. GenericDispatch forwards via calls:; these are the
+      # real, directly-defined methods.
+      %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set sets_impl emits attribute
+         list_of attributes]
     ],
     "PortBuilder"                 => [
       Hecksagain::Bluebook::DSL::PortBuilder,
@@ -39,7 +46,12 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "DomainPortBuilder"           => [
       Hecksagain::Bluebook::DSL::DomainPortBuilder,
-      %i[operation tells asks]
+      # `tells`/`asks` -> `*_impl` — item #13's full metaprogrammed
+      # dispatch (slice 4c). `operation` is a Ruby `alias` no more —
+      # both "operation" and "tells" Keyword rows name `tells_impl` in
+      # `calls:` now, so `operation` no longer shows up here as a
+      # directly-defined method at all.
+      %i[tells_impl asks_impl]
     ],
     "PortOperationBuilder"        => [
       Hecksagain::Bluebook::DSL::PortOperationBuilder,
@@ -69,12 +81,14 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "TranslationBuilder"          => [
       Hecksagain::Bluebook::DSL::TranslationBuilder,
-      %i[aggregate]
+      # `aggregate` -> `aggregate_impl`, slice 4c.
+      %i[aggregate_impl]
     ],
     "TranslationAggregateBuilder" => [
       Hecksagain::Bluebook::DSL::TranslationAggregateBuilder,
-      # `unresolved` -> `unresolved_impl`, same reasoning as role_impl above.
-      %i[rename move convert retype compute rekey backfill unresolved_impl]
+      # `unresolved` (slice 4) and `rename`/`move`/`convert`/`retype`/
+      # `compute`/`rekey`/`backfill` (slice 4c) -> `*_impl`.
+      %i[rename_impl move_impl convert_impl retype_impl compute_impl rekey_impl backfill_impl unresolved_impl]
     ]
   }.freeze
 
@@ -117,7 +131,10 @@ RSpec.describe "the DSL surface is fully covered" do
   # includers) answer it, not every attribute()-taking builder.
   it "IdentityDeclaration has no method without a test" do
     actual = Hecksagain::Bluebook::DSL::IdentityDeclaration.public_instance_methods(false)
-    expect(actual.sort).to eq(%i[identified_by].sort)
+    # `identified_by` -> `identified_by_impl` — item #13's full
+    # metaprogrammed dispatch (slice 4c), same shared-mixin shape
+    # `attribute_impl` proved in slice 3.
+    expect(actual.sort).to eq(%i[identified_by_impl].sort)
   end
 
   it "ConstShim has no method without a test" do

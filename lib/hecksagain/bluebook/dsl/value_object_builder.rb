@@ -68,7 +68,10 @@ module Hecksagain
           instance_eval(&block)
         end
 
-        def member(**fields)
+        # RENAMED FROM `member` — item #13's full metaprogrammed dispatch
+        # (slice 4c). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def member_impl(**fields)
           raise Malformed, "#{@name} declared an empty member" if fields.empty?
 
           @members << fields
@@ -159,7 +162,7 @@ module Hecksagain
 
           @inline_closed_set_field = field
           @closed_set = true
-          values.each { |value| member(field => value.to_s) }
+          values.each { |value| member_impl(field => value.to_s) }
         end
       end
     end

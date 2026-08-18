@@ -38,13 +38,13 @@ Hecks.bluebook "Paging" do
       attribute :fills,   String
       attribute :was,     String, optional: true
 
-      member word: "limit",  context: "Query", body: "none", inner: "", opens: "", fills: "limit"
-      member word: "offset", context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "limit",  context: "Query", body: "none", inner: "", opens: "", fills: "limit", calls: "limit_impl"
+      member word: "offset", context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "offset_impl"
       member word: "cursor", context: "Query", body: "none", inner: "", opens: "", fills: "options"
       member word: "nulls",  context: "Query", body: "none", inner: "", opens: "", fills: "options"
 
-      member word: "limit",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-      member word: "offset", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "limit",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "limit_impl"
+      member word: "offset", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "offset_impl"
       member word: "cursor", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
       member word: "nulls",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
     end

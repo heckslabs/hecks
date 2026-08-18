@@ -41,7 +41,11 @@ module Hecksagain
         # aggregate contributes rows for. Variadic, and accumulating across
         # calls the same reason `identified_by`/`group_by` are: nothing here
         # requires one call to name every context at once.
-        def attaches_to(*contexts) = (@attaches_to ||= []).concat(contexts.map(&:to_s))
+        # RENAMED FROM `attaches_to` — item #13's full metaprogrammed
+        # dispatch (slice 4c). Not bootstrap-reachable (only sub-language
+        # chapters like Paging use it; the CORE chapters never describe
+        # themselves with it).
+        def attaches_to_impl(*contexts) = (@attaches_to ||= []).concat(contexts.map(&:to_s))
 
         def core       = @classification = :core
         def supporting = @classification = :supporting
@@ -55,7 +59,11 @@ module Hecksagain
         # the identical shape `EntityBuilder#given`'s own write-through
         # to its owner aggregate's pool already takes — no new spelling
         # for "declare a precondition," one level wider, same word).
-        def aggregate(name, &block)
+        # RENAMED FROM `aggregate` — item #13's full metaprogrammed
+        # dispatch (slice 4c). Bootstrap-reachable (every core/attached
+        # chapter's own top-level shape is written with it), so also
+        # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def aggregate_impl(name, &block)
           @aggregates << AggregateBuilder.build(name, chapter_named_givens: @chapter_named_givens, &block)
         end
 

@@ -54,7 +54,11 @@ module Hecksagain
         # persistence/rehydration) needs no change at all: what changed
         # is how the DECLARATION reaches that same shape, not the shape
         # a real run ever sees or persists.
-        def transition(mapping, &block)
+        # RENAMED FROM `transition` — item #13's full metaprogrammed
+        # dispatch (slice 4c). Not bootstrap-reachable (checked
+        # directly — no core/attached chapter declares a ProcessManager
+        # of its own).
+        def transition_impl(mapping, &block)
           mapping = mapping.dup
           from    = mapping.delete(:from)
 

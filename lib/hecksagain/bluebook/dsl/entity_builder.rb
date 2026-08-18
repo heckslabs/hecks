@@ -65,11 +65,15 @@ module Hecksagain
         # SAME guard, checked against this PIECE's own lifecycle field
         # (S10, ADR 0025 — a piece's own state machine is checkable the
         # same way a head's is).
-        def command(name, from: nil, &block)
+        # RENAMED FROM `command`/`query`/`entity`/`lifecycle` (all below)
+        # — item #13's full metaprogrammed dispatch (slice 4c), same
+        # reasoning as AggregateBuilder's own siblings: bootstrap-
+        # reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        def command_impl(name, from: nil, &block)
           @pending_commands << [name, from, block]
         end
 
-        def query(name, &block)
+        def query_impl(name, &block)
           @pending_queries << [name, block]
         end
 
@@ -84,11 +88,11 @@ module Hecksagain
         # piece's already does (`AggregateBuilder#entity`'s own comment
         # names this pool ; there is exactly one of them, however deep
         # the nesting goes).
-        def entity(name, &block)
+        def entity_impl(name, &block)
           @pending_entities << [name, block]
         end
 
-        def lifecycle(field, default:, &block)
+        def lifecycle_impl(field, default:, &block)
           @lifecycle = LifecycleBuilder.build(field, default: default, &block)
         end
 

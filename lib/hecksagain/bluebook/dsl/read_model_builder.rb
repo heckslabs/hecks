@@ -33,7 +33,17 @@ module Hecksagain
         # limitation rather than a truth about read models. The includes are
         # collected raw and resolved at build, when the reference is known, so
         # there is no rule left to enforce.
-        def include(type, as: nil)
+        # RENAMED FROM `include`/`group_by` — item #13's full
+        # metaprogrammed dispatch (slice 4c). `include` IS bootstrap-
+        # reachable (every core chapter's own `read_model` names which
+        # aggregates it includes with it — a first grep dismissed this
+        # as `Module#include` noise and was wrong; the cold-boot test
+        # after this rename caught it directly), so it's in
+        # BOOTSTRAP_CALLS_FALLBACK; `group_by` is not (no core read_model
+        # groups). The class-level `include WordGate` this file's own
+        # class body uses is `Module#include`, a different receiver,
+        # unaffected by renaming this INSTANCE method either way.
+        def include_impl(type, as: nil)
           @includes ||= []
           @includes << [Naming.demodulise(type), as]
         end
@@ -45,7 +55,7 @@ module Hecksagain
         # `seal_query_options` already enforces for where/order_by/etc
         # applies here too (`seal_group_by`) — grouping is a question
         # about ONE collection's own rows, same as those are.
-        def group_by(*fields)
+        def group_by_impl(*fields)
           # Hash rows, `{field:}`, not bare symbols — same shape
           # `aggregate_heads` already uses for exactly the reason it
           # does: the language's own self-hosted grammar (`projection

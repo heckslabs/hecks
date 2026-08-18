@@ -314,7 +314,7 @@ Hecks.bluebook "Bluebook" do
       # `identified_by`/`group_by`'s own comments (below) for why a
       # variadic word still gets one row here rather than one per
       # argument accepted.
-      member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to"
+      member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to", calls: "attaches_to_impl"
       # THREE WORDS FOR ONE FIELD. `core`, `supporting` and `generic` are the
       # three values Classification admits, spelled as bare words rather than
       # as an argument to one — the only place in the language where the VALUE
@@ -322,14 +322,14 @@ Hecks.bluebook "Bluebook" do
       member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
       member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
       member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-      member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: ""
+      member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: "", calls: "aggregate_impl"
       member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report"
       member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
       member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
 
       member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
-      member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance"
-      member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by"
+      member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance", calls: "provenance_impl"
+      member word: "identified_by",   context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "identified_by", calls: "identified_by_impl"
       # A SECOND ROW BECAUSE THE BODY IS WHAT DIFFERS. `identified_by
       # :name` and `identified_by PizzaName, as: :name` take an argument
       # and NO block ; the original takes a block and no argument. `body`
@@ -340,7 +340,7 @@ Hecks.bluebook "Bluebook" do
       # rows; which form is being read is decided by the body that
       # follows, not by the arguments, which is the join's own limit
       # showing again rather than a fact left out.
-      member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by"
+      member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by", calls: "identified_by_impl"
       member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "reference_to_impl"
       # `has_many`, `has_one`, `belongs_to` — relationship vocabulary Hecks
       # already grew in the wild, declared in this table
@@ -363,12 +363,12 @@ Hecks.bluebook "Bluebook" do
       member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated", calls: "has_many_impl"
       member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated", calls: "has_one_impl"
       member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", status: "deprecated", calls: "belongs_to_impl"
-      member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field"
-      member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: ""
-      member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: ""
-      member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: ""
+      member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field", calls: "lifecycle_impl"
+      member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: "", calls: "entity_impl"
+      member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: "", calls: "query_impl"
+      member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: "", calls: "policy_impl"
       member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
-      member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: ""
+      member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: "", calls: "command_impl"
       member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "attribute_impl"
       # THE AGGREGATE BOUNDARY IS WHAT AN INVARIANT DEFINES (S10, ADR
       # 0025 — "Rules") — the same word `value_object` already carries,
@@ -391,7 +391,7 @@ Hecks.bluebook "Bluebook" do
       # "Consistency across aggregate boundaries") — no block, the same
       # shape `attribute` already is one level up: a value declared,
       # not a predicate evaluated.
-      member word: "projects",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "projected_fields"
+      member word: "projects",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "projected_fields", calls: "projects_impl"
 
       # A PIECE SAYS LESS THAN A HEAD, and the table is where that stops being
       # folklore : an entity admits no `value_object`, no `policy` and no
@@ -400,11 +400,11 @@ Hecks.bluebook "Bluebook" do
       # just never at another piece, since there's no cross-piece addressing
       # anywhere in this language to resolve one against.
       member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
-      member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by"
+      member word: "identified_by",   context: "Entity", body: "source",   inner: "",           opens: "",         fills: "identified_by", calls: "identified_by_impl"
       # The same two rows an aggregate carries, for the same reason — a
       # piece is identified exactly the way a head is, and EntityBuilder's
       # own `identified_by` is the aggregate's method line for line.
-      member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by"
+      member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by", calls: "identified_by_impl"
       # ADR 0028 — A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
       # DECLARED ONCE, the SAME move `given` already makes one level up
       # (see the "Aggregate" row above, body/fills identical) — a piece
@@ -417,9 +417,9 @@ Hecks.bluebook "Bluebook" do
       # is the closer sibling here than `Aggregate`'s own `invariant`
       # is — both check every instance, not one record).
       member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants", calls: "invariant_impl"
-      member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: ""
-      member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: ""
-      member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field"
+      member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: "", calls: "command_impl"
+      member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: "", calls: "query_impl"
+      member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field", calls: "lifecycle_impl"
       member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "attribute_impl"
       member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "reference_to_impl"
       # S17, ADR 0026 — a piece nested inside a piece. "That is what
@@ -427,18 +427,18 @@ Hecks.bluebook "Bluebook" do
       # used zero times in it" (the ADR's own words) — `Dispatch`,
       # inside `Handler`, is the first real use. Same shape as
       # `Aggregate`'s own `entity` row above, one level down.
-      member word: "entity",          context: "Entity", body: "keywords", inner: "Entity",     opens: "Entity",   fills: ""
+      member word: "entity",          context: "Entity", body: "keywords", inner: "Entity",     opens: "Entity",   fills: "", calls: "entity_impl"
 
       member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role", calls: "role_impl"
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
-      member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance"
+      member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance", calls: "provenance_impl"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references", calls: "reference_to_impl"
       member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain", calls: "given_impl"
       # RENAMED, NOT REPLACED. `sets :balance, increment: :amount` is the
       # spelling; `then_set` is the era every existing bluebook was written
       # under, and every one of them still boots — the corpus itself is the
       # proof the rename machinery is safe.
-      member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set"
+      member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", was: "then_set", calls: "sets_impl"
       member word: "emits",           context: "Command", body: "none",   inner: "", opens: "", fills: "emits"
       member word: "attribute",       context: "Command", body: "none",   inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
 
@@ -459,10 +459,10 @@ Hecks.bluebook "Bluebook" do
       # spelling — the OTHER row, below, is what `one_of do ... end`
       # still admits under shadow-parsing (S0a's bridge), for the two
       # frozen era occurrences that still write it.
-      member word: "member",          context: "ValueObject", body: "none", inner: "", opens: "Member", fills: ""
-      member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: ""
+      member word: "member",          context: "ValueObject", body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl"
+      member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl"
 
-      member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions"
+      member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions", calls: "transition_impl"
 
       member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
       member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command", calls: "trigger_impl"
@@ -500,7 +500,7 @@ Hecks.bluebook "Bluebook" do
       # it — is gone; `on ..., transition: {...}` — a NAMED kwarg
       # wrapping a second Hash — is gone too, replaced by the bare
       # rocket-pair `Lifecycle`'s own `transition` already takes.
-      member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: ""
+      member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
       # THE BLOCKLESS FORM — `ProcessManagerBuilder#transition(mapping,
       # &block)` takes an OPTIONAL block ("handler.instance_eval(&block)
       # if block"), so a leg with nothing to dispatch is legal with no
@@ -511,7 +511,7 @@ Hecks.bluebook "Bluebook" do
       # — `body` is the only column that tells them apart, and the
       # argument rows below already join by (word, context) alone, so
       # they serve both.
-      member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: ""
+      member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
 
       member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: "", calls: "dispatch_impl"
 
@@ -524,8 +524,8 @@ Hecks.bluebook "Bluebook" do
       # `owner`, filtering by which Camper owns it, not a free string
       # that only happens to look like one).
       member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "reference_to_impl"
-      member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres"
-      member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field"
+      member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres", calls: "where_impl"
+      member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field", calls: "order_by_impl"
       # `limit`/`offset`/`cursor`/`nulls` moved to the Paging sub-language
       # (lib/hecksagain/language/bluebook/attaches/paging.bluebook, ADR
       # 0026) — SyntaxBoot's own generic discovery merges their rows back
@@ -539,13 +539,13 @@ Hecks.bluebook "Bluebook" do
       # specification can carry is an option row keyed by the word itself, so
       # a sixth option needs no new field — see Readings#option_rows, which
       # reads `extra_options_to_h` rather than naming them.
-      member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
       member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
 
       member word: "description",     context: "ReadModel", body: "none", inner: "", opens: "", fills: "description"
       member word: "reference_to",    context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target", calls: "reference_to_impl"
-      member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads"
-      member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by"
+      member word: "include",         context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads", calls: "include_impl"
+      member word: "group_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", calls: "group_by_impl"
       # `count`/`median` are the OTHER two reductions `group_by` has
       # siblings in — see `seal_aggregation`'s own comment
       # (read_model_builder.rb) for why the three cannot combine.
@@ -587,11 +587,11 @@ Hecks.bluebook "Bluebook" do
       # #option_rows(filters: true)` is the bridge between the two,
       # reading them off the live object and folding them into the
       # same options rows the meta-domain already walks.
-      member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-      member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "where",           context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "where_impl"
+      member word: "order_by",        context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "order_by_impl"
       # `limit`/`offset`/`cursor`/`nulls` moved to the Paging sub-language —
       # see the identical note on Query's own rows, above.
-      member word: "authorize",       context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "authorize",       context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
       member word: "inspect_query",   context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
 
       # THE TYPE POSITION. `list_of` and `one_of` are the two words an
@@ -633,13 +633,13 @@ Hecks.bluebook "Bluebook" do
       # method on BindingProxy/AggregateDoor, not a fixed word the language
       # could enumerate against an open aggregate name).
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: ""
-      member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+      member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "tells_impl"
       # THE TWO DIRECTIONS THROUGH ONE DOOR. `tells` is `operation` under
       # the name that says which way it points — an external fact arriving.
       # `asks` is the direction this language did not have until now: the
       # domain wanting something from outside, and naming both endings.
-      member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
-      member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: ""
+      member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "tells_impl"
+      member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "asks_impl"
       # THE DRIVEN HALF OF THE SAME `port` call — a swappable resource
       # port (`registry.add_port`, the same target `Hecks.port`'s own
       # top-level word reaches) rather than an operation translating an
@@ -687,7 +687,7 @@ Hecks.bluebook "Bluebook" do
       # `aggregate` word already has one level up — a DIFFERENT
       # word/context pair on the same table (Bluebook's own `aggregate`
       # opens "Aggregate"; this one opens "TranslationAggregate").
-      member word: "aggregate",       context: "Translation", body: "keywords", inner: "TranslationAggregate", opens: "TranslationAggregate", fills: ""
+      member word: "aggregate",       context: "Translation", body: "keywords", inner: "TranslationAggregate", opens: "TranslationAggregate", fills: "", calls: "aggregate_impl"
       member word: "retired",         context: "Translation", body: "none",     inner: "",                     opens: "",                     fills: "retired"
 
       # `data_translation`'s own nine rule words, TranslationAggregateBuilder
@@ -696,14 +696,14 @@ Hecks.bluebook "Bluebook" do
       # nothing and TranslationJudge never dispatches for it (the whole
       # builder raises before `.build` is ever reached, the same reason
       # this word never reaches a real corpus record either way).
-      member word: "rename",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "renames"
-      member word: "move",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "moves"
-      member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts"
+      member word: "rename",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "renames", calls: "rename_impl"
+      member word: "move",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "moves", calls: "move_impl"
+      member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts", calls: "convert_impl"
       member word: "drop",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "drops"
-      member word: "retype",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "retypes"
-      member word: "compute",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "computes"
-      member word: "rekey",           context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys"
-      member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills"
+      member word: "retype",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "retypes", calls: "retype_impl"
+      member word: "compute",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "computes", calls: "compute_impl"
+      member word: "rekey",           context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_impl"
+      member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills", calls: "backfill_impl"
       member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "", calls: "unresolved_impl"
     end
 

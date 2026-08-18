@@ -79,7 +79,10 @@ module Hecksagain
 
         # See AggregateBuilder#provenance's own comment — identical shape,
         # one level down.
-        def provenance(from:) = @provenance = from
+        # RENAMED FROM `provenance` — item #13's full metaprogrammed
+        # dispatch (slice 4c). Bootstrap-reachable, in
+        # GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
+        def provenance_impl(from:) = @provenance = from
 
         # `optional:` rides here as well as on a plain attribute : `as:` makes a
         # reference into a NAMED ARGUMENT, and a named argument is exactly the kind
@@ -252,8 +255,17 @@ module Hecksagain
         KWARG_TO_OP = { to: :set, append: :append, increment: :increment, decrement: :decrement,
                         multiply: :multiply, clamp: :clamp, remove: :remove }.freeze
 
-        def sets(target, positional_to = UNSET, to: UNSET, append: UNSET,
-                 increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
+        # RENAMED FROM `sets` — item #13's full metaprogrammed dispatch
+        # (slice 4c). The `KWARG_TO_OP` op-selection mapping is already
+        # table-verified (`Argument#selects`), but the REST (UNSET-
+        # sentinel discipline, redundant-spelling refusal, omittable-
+        # `to:` fallback, one-mutation-only refusal, the position-
+        # preserving `resolve_*!` reinsertion) is keyed off RUNTIME
+        # STATE, not a pure function of a static row — stays hand-
+        # written, reached through `calls:` like everything else here.
+        # Bootstrap-reachable, in BOOTSTRAP_CALLS_FALLBACK.
+        def sets_impl(target, positional_to = UNSET, to: UNSET, append: UNSET,
+                      increment: UNSET, decrement: UNSET, multiply: UNSET, clamp: UNSET, remove: UNSET)
           # moved to the language: given "a mutation names a target", on Verb.Change
 
           to = positional_to if to.equal?(UNSET) && !positional_to.equal?(UNSET)

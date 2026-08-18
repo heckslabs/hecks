@@ -169,7 +169,35 @@ module Hecksagain
           %w[Command reference_to]       => :reference_to_impl,
           %w[Query reference_to]         => :reference_to_impl,
           %w[ReadModel reference_to]     => :reference_to_impl,
-          %w[PortOperation reference_to] => :reference_to_impl
+          %w[PortOperation reference_to] => :reference_to_impl,
+          # slice 4c — the remaining hand-written words a fresh survey
+          # found still un-migrated across every builder. Each checked
+          # for bootstrap-reachability individually (grepped directly
+          # against every core/attached chapter, not assumed); only the
+          # ones below actually are.
+          %w[Bluebook aggregate]         => :aggregate_impl,
+          %w[Aggregate provenance]       => :provenance_impl,
+          %w[Aggregate identified_by]    => :identified_by_impl,
+          %w[Aggregate lifecycle]        => :lifecycle_impl,
+          %w[Aggregate entity]           => :entity_impl,
+          %w[Aggregate query]            => :query_impl,
+          %w[Aggregate policy]           => :policy_impl,
+          %w[Aggregate command]          => :command_impl,
+          %w[Aggregate projects]         => :projects_impl,
+          %w[Entity identified_by]       => :identified_by_impl,
+          %w[Entity command]             => :command_impl,
+          %w[Entity query]               => :query_impl,
+          %w[Entity lifecycle]           => :lifecycle_impl,
+          %w[Command provenance]         => :provenance_impl,
+          %w[Command sets]               => :sets_impl,
+          %w[Lifecycle transition]       => :transition_impl,
+          %w[ReadModel where]            => :where_impl,
+          %w[ReadModel order_by]         => :order_by_impl,
+          %w[ReadModel include]          => :include_impl,
+          %w[Query where]                => :where_impl,
+          %w[Query order_by]             => :order_by_impl,
+          %w[Entity entity]              => :entity_impl,
+          %w[ValueObject member]         => :member_impl
         }.freeze
 
         module_function

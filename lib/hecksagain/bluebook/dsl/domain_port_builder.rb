@@ -18,10 +18,16 @@ module Hecksagain
         # had a twin, and `operation` still works: the corpus is full of it,
         # and renaming a word costs every chapter that uses it for no gain a
         # reader can feel.
-        def tells(name, &block)
+        #
+        # RENAMED FROM `tells` — item #13's full metaprogrammed dispatch
+        # (slice 4c). `operation`/`tells` are TWO separate Keyword rows
+        # (a word admitting two forms) that both name `calls: "tells_impl"`
+        # — the routing between the two spellings now lives in the table,
+        # not in a Ruby `alias`. Not bootstrap-reachable (checked
+        # directly), so no BOOTSTRAP_CALLS_FALLBACK entry needed.
+        def tells_impl(name, &block)
           @operations << PortOperationBuilder.build(name, owner: @owner, direction: :inbound, &block)
         end
-        alias operation tells
 
         # WHAT WE ASK OF THE OUTSIDE — the direction this language did not
         # have. Before this, a domain could be CALLED by an adapter and never
@@ -30,7 +36,10 @@ module Hecksagain
         # the two events it named — which is what makes the outside world
         # something the model can reason about rather than a place exceptions
         # come from.
-        def asks(name, &block)
+        #
+        # RENAMED FROM `asks` — item #13's full metaprogrammed dispatch
+        # (slice 4c), same reasoning as tells_impl above.
+        def asks_impl(name, &block)
           @operations << PortOperationBuilder.build(name, owner: @owner, direction: :outbound, &block)
         end
 
