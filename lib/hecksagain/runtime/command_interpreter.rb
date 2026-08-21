@@ -34,16 +34,22 @@ module Hecksagain
       # `result` and `transition`/`old_state` default to nil until the step
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
-                           :result, :correlation, :delegated_events)
+                           :result, :correlation, :delegated_events, :dry_run)
 
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
       end
 
-      def call(domain, aggregate, command, args, correlation = nil)
+      # `dry_run:` — Dispatcher#dry_run's own entry point. Every step up
+      # through enforce_ensures/enforce_invariants runs exactly as a real
+      # dispatch would (givens checked, mutations applied to `ctx.instance`
+      # in memory); `step_save`/`step_emit` are the only two that read this
+      # flag, each skipping its own real work — see their own comments.
+      def call(domain, aggregate, command, args, correlation = nil, dry_run: false)
         ctx = Context.new(domain, aggregate, command, args)
         ctx.correlation = correlation
+        ctx.dry_run = dry_run
         run_dispatch_order(DISPATCH_ORDER, ctx)
         [ctx.instance, ctx.result]
       end
@@ -185,7 +191,14 @@ module Hecksagain
         step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
+      # `dry_run:` skips this — see Dispatcher#dry_run's own comment. The
+      # same conditional-skip shape `step_assign_creation_attributes`
+      # already has (`return unless ctx.command.creates?`), not a new
+      # pattern: a step that does not apply this time traces nothing,
+      # rather than a caller having to branch around it.
       def step_save(ctx)
+        return if ctx.dry_run
+
         step(:save) { ctx.repository.save(ctx.instance) }
       end
 
@@ -194,7 +207,13 @@ module Hecksagain
       # result IS whatever `step_delegate_to_entity` already collected from
       # the target entity command's own `emits`, not a second, empty call
       # into `@rules.emit` for a command with no announced events at all.
+      #
+      # `dry_run:` skips this too, same reasoning as `step_save` — nothing
+      # was committed, so `ctx.result` stays nil and `Dispatcher#dry_run`
+      # never reads it (its own return value is just whether this raised).
       def step_emit(ctx)
+        return if ctx.dry_run
+
         ctx.result = step(:emit) {
           # `ctx.delegated_events` is only ever set by `step_delegate_to_entity`,
           # and only when this command carries a `:delegate` mutation — an

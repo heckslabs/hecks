@@ -42,14 +42,18 @@ module Hecksagain
       # exactly as it always has. Only `locate_element` walks the chain.
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
-                           :old_element, :result)
+                           :old_element, :result, :dry_run)
 
       def initialize(registry, rules:)
         @registry = registry
         @rules    = rules
       end
 
-      def call(domain, aggregate, dotted, args)
+      # `dry_run:` — CommandInterpreter#call's own twin, see that method's
+      # comment for the shared reasoning (Dispatcher#dry_run's own entry
+      # point). `step_save`/`step_emit` are the only two steps here that
+      # read it either.
+      def call(domain, aggregate, dotted, args, dry_run: false)
         *entity_names, command_name = dotted.to_s.split(".")
         if entity_names.empty?
           raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
@@ -64,6 +68,7 @@ module Hecksagain
 
         ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
         ctx.chain = chain
+        ctx.dry_run = dry_run
         run_dispatch_order(DISPATCH_ORDER, ctx)
         [ctx.instance, ctx.result]
       end
@@ -165,11 +170,20 @@ module Hecksagain
         step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
+      # `dry_run:` skips this — see CommandInterpreter#step_save's own
+      # comment, same reasoning and the same precedent
+      # (`step_assign_creation_attributes`'s own conditional-skip).
       def step_save(ctx)
+        return if ctx.dry_run
+
         step(:save) { ctx.repository.save(ctx.instance) }
       end
 
+      # `dry_run:` skips this too — nothing was committed, so `ctx.result`
+      # stays nil and `Dispatcher#dry_run` never reads it.
       def step_emit(ctx)
+        return if ctx.dry_run
+
         ctx.result = step(:emit) { @rules.emit(ctx.command, ctx.domain, ctx.aggregate, ctx.instance, ctx.args, ctx.repository) }
       end
 
