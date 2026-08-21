@@ -110,6 +110,50 @@ module Hecksagain
         Result.new(verb: verb, instance: instance, events: announced)
       end
 
+      # "IF THIS WERE DISPATCHED RIGHT NOW, WOULD IT SUCCEED" — the same
+      # pipeline #dispatch itself runs (arguments coerced, givens checked,
+      # mutations applied IN MEMORY, ensures checked against the settled
+      # result), except `step_save`/`step_emit` never run, and neither do
+      # policies or sagas afterward: nothing here is committed, so nothing
+      # should react to it. Built for exactly the shape a whole-board
+      # postcondition needs to be tested against (a downstream project's
+      # own chess domain, checking "does this move leave my own king in
+      # check" — the alternative was dispatching a real, unrelated piece's
+      # own move purely to trigger the check, which then had to avoid
+      # interfering with the very position being tested).
+      #
+      # RAISES THE SAME REFUSALS #dispatch does — a DomainRefusal
+      # subclass propagates normally, so a caller checking "would this be
+      # legal" writes the identical rescue clause a real dispatch already
+      # needs; this returns `true` only when nothing was refused.
+      #
+      # NEVER A PORT VERB — `PortOperationInterpreter`'s own side effects
+      # (an external gateway call, say) have no meaningful in-memory-only
+      # form, so this refuses one outright rather than silently running
+      # it for real, which "dry" would otherwise quietly lie about.
+      def dry_run(verb, **args)
+        domain, aggregate_name, command_name = parse(verb)
+        aggregate = resolve_aggregate(domain, aggregate_name, verb)
+
+        if command_name.include?(".")
+          head, = command_name.split(".", 2)
+          if aggregate.port(head)
+            raise WiringError,
+                  "#{verb} names a port operation — dry_run has no in-memory form for one, " \
+                  "only for aggregate and entity commands"
+          end
+
+          @entities.call(domain, aggregate, command_name, args, dry_run: true)
+        else
+          command = aggregate.command(command_name) ||
+                    raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
+                                                             aggregate: aggregate_name, command: command_name.inspect))
+          @commands.call(domain, aggregate, command, args, dry_run: true)
+        end
+
+        true
+      end
+
       # THE DOOR AN ADAPTER OUTSIDE THE BLUEBOOK CALLS THROUGH — never the
       # domain itself. `port_name`/`operation_name` are separate arguments
       # rather than one packed verb string on purpose: there is no established
