@@ -64,8 +64,9 @@ module Hecksagain
       # bug: whichever call in the whole process happened to land first
       # got locked in forever, even one caught mid-build missing every
       # Paging-attached word (limit/offset/cursor/nulls). `SyntaxBoot.call`
-      # now carries the one guard that matters (`grammar_registry_ready?`)
-      # ; this delegates straight through instead of shadowing it.
+      # now carries the one cache that matters (keyed on the grammar
+      # registry's own chapter set — see its comment) ; this delegates
+      # straight through instead of shadowing it.
       def keywords  = Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
       def arguments = Bluebook::MetaValidator::SyntaxBoot.call[:arguments]
 

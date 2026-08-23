@@ -40,21 +40,52 @@ module Hecksagain
         # conformance_spec, bin/reference) should each pay for on every
         # call.
         #
-        # ONLY CACHED ONCE `grammar_registry` REPORTS ITSELF READY. A
-        # caller landing here while grammar_registry is still mid-build
-        # (the reentrancy window `grammar_registry`'s own comment
-        # describes) gets a real, freshly-computed answer — just not one
-        # this memoizes, since it would be missing every attached-chapter
-        # word (Paging's limit/offset/cursor/nulls, chiefly) and `@call`
-        # has no way to tell a stale snapshot from a good one afterward.
-        # Recomputing in that narrow window is cheap next to getting it
-        # wrong forever for the rest of the process.
+        # KEYED BY THE GRAMMAR REGISTRY'S OWN CHAPTER SET, not by a
+        # "ready" flag. `boot` reads exactly two things: the registry's
+        # "Bluebook" chapter (the core seed rows) and every chapter in the
+        # registry that `attaches_to` a core context (Paging's rows). So
+        # the table is a pure function of which chapter OBJECTS the
+        # registry holds — and that is the cache key: the same chapters,
+        # by identity, mean the same table; a chapter replaced (the
+        # fixpoint judge swapping a raw chapter for its assembled self)
+        # or added (`load_attached_grammar_into`) means a fresh boot.
+        #
+        # WHY NOT THE EARLIER `grammar_registry_ready?` GUARD. That guard
+        # was right about the hazard — a snapshot taken mid-build, before
+        # Paging attached, would be missing limit/offset/cursor/nulls
+        # forever — and wrong about the cost of its cure. It refused to
+        # cache ANYTHING until the whole grammar registry had finished
+        # building, calling that window "narrow" and recomputing in it
+        # "cheap". Measured (hecks_ai_training, a six-entity chess domain,
+        # 2026-08-22): every `word_gate_dispatch` landing in that window
+        # re-ran the full ~284-dispatch boot at ~0.76s each — 42 times per
+        # process, 32 of a 35-second `Hecks.boot`, 95% of which had
+        # nothing to do with the domain being booted. Keying on the
+        # chapter set closes the same hazard by construction (a snapshot
+        # can only be served while the chapters it was read from are
+        # still the chapters the registry holds) and lets the window's
+        # own repeated, identical calls share one boot. A registry reset
+        # (fixpoint_spec's own `@grammar_registry = nil`) yields new
+        # chapter objects, so it invalidates this the same way it always
+        # invalidated `grammar_registry_ready?`.
+        #
+        # `equal?`, NOT `==`, on the chapters — identity is the fact being
+        # tracked. Holding the chapter objects themselves (not their ids)
+        # in the key also means a collected chapter can never hand its id
+        # to a newcomer behind this cache's back.
         def call
-          return @call if @call && MetaValidator.grammar_registry_ready?
+          chapters = MetaValidator.grammar_registry.bluebooks.to_a
+          return @call if @call && same_chapters?(@call_chapters, chapters)
 
           result = boot
-          @call = result if MetaValidator.grammar_registry_ready?
+          @call = result
+          @call_chapters = chapters
           result
+        end
+
+        def same_chapters?(cached, current)
+          cached.size == current.size &&
+            cached.zip(current).all? { |(cached_name, cached_chapter), (name, chapter)| cached_name == name && cached_chapter.equal?(chapter) }
         end
 
         def boot
