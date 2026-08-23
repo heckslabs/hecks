@@ -57,7 +57,7 @@ RSpec.describe "Dispatcher#dry_run?" do
   # THE SHAPE dry_run WAS BUILT FOR — a `delegates_to` command's own
   # in-memory mutation, reached through EntityElement.locate_chain the
   # same way a real dispatch reaches it, discarded because step_save
-  # never runs. Proves dry_run sees straight through the delegation,
+  # never runs. Proves dry_run? sees straight through the delegation,
   # not just a plain entity command.
   it "sees through delegates_to too — persists nothing from the delegated entity's own mutation" do
     runtime = boot

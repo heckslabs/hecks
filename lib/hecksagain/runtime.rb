@@ -71,6 +71,11 @@ module Hecksagain
         Loader.boot(path, shared: shared, install_facade: install_facade, environment: environment)
       end
 
+      # `paths` form — see Loader.boot_files.
+      def boot_files(paths, shared: nil, install_facade: true, environment: nil)
+        Loader.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
+      end
+
       # Bind the ambient registry for the duration of the block, restoring
       # whatever was there before. Nesting is safe ; a raise still restores.
       def with_registry(registry)

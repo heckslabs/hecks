@@ -1,4 +1,10 @@
 require "hecksagain"
+# `Hecksagain.behaviors` is opt-in (lib/hecksagain/behaviors.rb's own
+# header), but once loaded ANYWHERE in the process it is a real,
+# permanent singleton method — required here directly so this file's own
+# coverage list is correct whether or not it happens to run alongside
+# something else that also requires it.
+require "hecksagain/behaviors"
 
 RSpec.describe "the DSL surface is fully covered" do
   PLUMBING = %i[initialize build].freeze
@@ -6,7 +12,12 @@ RSpec.describe "the DSL surface is fully covered" do
   COVERED = {
     "Hecksagain (module surface)" => [
       Hecksagain.singleton_class,
-      %i[boot with_registry bluebook hecksagon port adapter world data_translation current_registry as_caller]
+      # `boot_files` — Loader.boot_files's explicit-file sibling of `boot`.
+      # `behaviors` — lib/hecksagain/behaviors.rb, opt-in (see its own
+      # header) but a process-global singleton method the moment anything
+      # in the suite requires it, same as `boot_files`.
+      %i[boot boot_files with_registry bluebook hecksagon port adapter world data_translation current_registry
+         as_caller behaviors]
     ],
     "BluebookBuilder"             => [
       Hecksagain::Bluebook::DSL::BluebookBuilder,

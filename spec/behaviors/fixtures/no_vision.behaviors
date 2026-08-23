@@ -1,0 +1,9 @@
+Hecks.behaviors "NoVision" do
+  loads "../../../examples/pizzas/bluebook/pizzas.bluebook", "../../../examples/pizzas/pizzas_behaviors.hecksagon"
+
+  test "never reached" do
+    tests "CreatePizza", on: "Order"
+    input  name: { value: "X" }, pizza: { price_cents: { cents: 100 }, size: { value: "small" } }
+    expect ok: true
+  end
+end

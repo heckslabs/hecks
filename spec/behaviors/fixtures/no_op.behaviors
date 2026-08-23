@@ -1,0 +1,3 @@
+# Loads without ever calling Hecks.behaviors — the "file loaded but
+# called no Hecks.behaviors" parse-error path.
+1 + 1

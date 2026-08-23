@@ -1,0 +1,65 @@
+Hecks.behaviors "Pizzas" do
+  vision "Examples of how a pizza is built, sold, and found through this domain."
+
+  # `pizzas_behaviors.hecksagon` (not `pizzas.hecksagon`, which binds the
+  # real PostgresEra adapter this domain actually deploys with) — a
+  # Memory-persisted sibling that lives OUTSIDE bluebook/, so an ordinary
+  # directory boot of examples/pizzas never globs it up alongside the
+  # real one.
+  loads "pizzas.bluebook", "../pizzas_behaviors.hecksagon"
+
+  test "CreatePizza puts a fresh pizza on the menu, available for sale" do
+    tests "CreatePizza", on: "Order"
+    input  name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
+    expect status: "available", customer_name: nil
+  end
+
+  test "AddTopping refuses more than ten toppings" do
+    tests "AddTopping", on: "Order"
+    setup  "CreatePizza", name: { value: "Loaded" }, pizza: { price_cents: { cents: 1500 }, size: { value: "large" } }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Basil" },     amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Olives" },    amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Mushroom" }, amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Onion" },     amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Pepper" },    amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Sausage" },   amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Bacon" },     amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Pineapple" }, amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Anchovy" },   amount: { value: 1 }
+    setup  "AddTopping",  name: "Loaded", topping: { value: "Jalapeno" },  amount: { value: 1 }
+    input  name: "Loaded", topping: { value: "Extra Cheese" }, amount: { value: 1 }
+    expect refused: "at most 10 toppings"
+  end
+
+  test "Purchase refuses a pizza with no toppings on it" do
+    tests "Purchase", on: "Order"
+    setup  "CreatePizza", name: { value: "Bare" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+    input  name: "Bare", customer_name: { value: "Chris" }, amount: { cents: 900 }
+    expect refused: "at least one topping"
+  end
+
+  test "Purchase sells the pizza and closes its lifecycle" do
+    tests "Purchase", on: "Order"
+    setup  "CreatePizza", name: { value: "Sold Out" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
+    setup  "AddTopping",  name: "Sold Out", topping: { value: "Basil" }, amount: { value: 2 }
+    input  name: "Sold Out", customer_name: { value: "Chris" }, amount: { cents: 1200 }
+    expect emits: ["PizzaPurchased"]
+  end
+
+  test "a sold pizza is no longer Available" do
+    tests "Available", on: "Order", kind: :query
+    setup  "CreatePizza", name: { value: "Fresh" },     pizza: { price_cents: { cents: 1000 }, size: { value: "small" } }
+    setup  "CreatePizza", name: { value: "Also Sold" }, pizza: { price_cents: { cents: 1100 }, size: { value: "small" } }
+    setup  "AddTopping",  name: "Also Sold", topping: { value: "Basil" }, amount: { value: 1 }
+    setup  "Purchase",    name: "Also Sold", customer_name: { value: "Chris" }, amount: { cents: 1100 }
+    expect count: 1
+  end
+
+  test "CostingLessThan finds a pizza under the ceiling named" do
+    tests "CostingLessThan", on: "Order", kind: :query
+    setup  "CreatePizza", name: { value: "Bargain" }, pizza: { price_cents: { cents: 800 }, size: { value: "small" } }
+    setup  "CreatePizza", name: { value: "Splurge" }, pizza: { price_cents: { cents: 1800 }, size: { value: "large" } }
+    input  ceiling: { cents: 1000 }
+    expect count: 1
+  end
+end

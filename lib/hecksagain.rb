@@ -65,6 +65,14 @@ module Hecksagain
       Runtime.boot(path, shared: shared, install_facade: install_facade, environment: environment)
     end
 
+    # `paths` — an explicit list of files to boot (a `.bluebook`, its
+    # `.hecksagon`, optionally a `.world`), loaded in place from wherever
+    # they actually live — see Runtime::Loader.boot_files's own header for
+    # why this exists beside `boot` rather than as a special case of it.
+    def boot_files(paths, shared: nil, install_facade: true, environment: nil)
+      Runtime.boot_files(paths, shared: shared, install_facade: install_facade, environment: environment)
+    end
+
     def with_registry(registry, &block) = Runtime.with_registry(registry, &block)
 
     def current_registry = Runtime.current_registry

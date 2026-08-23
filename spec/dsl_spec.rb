@@ -298,6 +298,32 @@ RSpec.describe "the DSL surface" do
       expect { Hecks.bluebook("Orphan") { vision "x" } }
         .to raise_error(Hecksagain::LoadOutsideBoot, /outside a boot/)
     end
+
+    # `.boot_files` — the explicit-file sibling of `.boot`. Memory-persisted
+    # (unlike `.boot`'s own pizzas example above), so this needs no
+    # Postgres: the real pizzas.bluebook, paired with the sibling
+    # Memory-persisted hecksagon behaviors examples boot through
+    # (examples/pizzas/pizzas_behaviors.hecksagon), named exactly, not
+    # discovered by globbing a directory.
+    it ".boot_files loads exactly the files named, in place" do
+      root = File.expand_path("../examples/pizzas", __dir__)
+      runtime = Hecks.boot_files(
+        [File.join(root, "bluebook/pizzas.bluebook"), File.join(root, "pizzas_behaviors.hecksagon")],
+        install_facade: false
+      )
+
+      expect(runtime).to be_a(Hecksagain::Runtime::Dispatcher)
+      expect(runtime.registry.bluebooks.keys).to eq(%w[Pizzas Governance])
+    end
+  end
+
+  describe "Hecks.behaviors" do
+    it "refuses a call outside the behaviors runner" do
+      require "hecksagain/behaviors"
+
+      expect { Hecks.behaviors("Orphan") { vision "x" } }
+        .to raise_error(Hecksagain::Behaviors::LoadOutsideRunner, /outside/)
+    end
   end
 
   describe "declarations that cannot mean what they say" do

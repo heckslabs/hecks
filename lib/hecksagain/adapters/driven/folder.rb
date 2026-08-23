@@ -77,6 +77,42 @@ module Hecksagain
         Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
       end
 
+      # THE EXPLICIT-FILE SIBLING OF `load_domain` — for a caller that names
+      # its own exact files rather than a directory to glob (`Loader.boot_files`,
+      # behind `Hecks.boot_files`). No `Dir.glob`, no copying: every path here
+      # is a real file on disk, wherever it actually lives, loaded in place —
+      # a `.behaviors` file's `loads` scopes a boot this way specifically so a
+      # per-test boot never has to fake isolation by staging bluebooks into a
+      # tmpdir (see Loader.boot_files's own header for why that pattern is a
+      # hazard, not a convenience).
+      #
+      # ORDERED BY CATEGORY, NOT BY THE CALLER'S OWN LIST ORDER — same four
+      # groups `Vocabulary.fetch("LoadOrder")` walks a directory in
+      # (bluebook chapters, translations, hecksagons, worlds), because a
+      # hecksagon can reference a bluebook's own constants and must not load
+      # first regardless of which order a caller happened to write `loads
+      # "x.hecksagon", "x.bluebook"` in. Bluebook chapters are judged as one
+      # deferred group exactly like `load_domain` does, for the identical
+      # forward-reference reason (MetaValidator.defer's own header).
+      def load_selected(files, environment: nil)
+        bluebooks, rest = files.partition { |f| f.end_with?(".bluebook") }
+
+        if bluebooks.any?
+          Bluebook::MetaValidator.defer { bluebooks.sort.each { |f| Kernel.load(f) } }
+          Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
+        end
+
+        %w[.hecksagon .world].each do |ext|
+          rest.select { |f| f.end_with?(ext) }.sort.each { |f| Kernel.load(f) }
+        end
+
+        return unless environment
+
+        directory = File.dirname(files.first)
+        load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
+        load_each(directory, [File.join("environments", "#{environment}.world")])
+      end
+
       def load_each(directory, patterns)
         return unless File.directory?(directory)
 

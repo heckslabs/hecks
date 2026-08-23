@@ -1,0 +1,32 @@
+Hecks.behaviors "PizzasEdgeCases" do
+  vision "Exercises the runner's own edge cases against the real pizzas domain."
+  loads "../../../examples/pizzas/bluebook/pizzas.bluebook", "../../../examples/pizzas/pizzas_behaviors.hecksagon"
+
+  test "a setup refusal is an error, never a fail or a pass" do
+    tests "CreatePizza", on: "Order"
+    setup  "CreatePizza", name: { value: "Dup" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+    setup  "CreatePizza", name: { value: "Dup" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+    input  name: { value: "Whatever" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+    expect ok: true
+  end
+
+  test "emits sees a policy cascade through a port operation, in order" do
+    tests "Pizzas::Order.PaymentGateway.Receive"
+    setup  "CreatePizza", name: { value: "Cascade" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } }
+    setup  "AddTopping",  name: "Cascade", topping: { value: "Basil" }, amount: { value: 1 }
+    input  to: "Cascade", with: { customer_name: { value: "Chris" }, amount: { cents: 1200 } }
+    expect emits: ["PizzaPaymentReceived", "PizzaPurchased"]
+  end
+
+  test "an unknown expect field fails, naming the five valid keys" do
+    tests "CreatePizza", on: "Order"
+    input  name: { value: "Unknown" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+    expect not_a_real_field: 1
+  end
+
+  test "a field expectation accepts both the bare and the wrapped value-object spelling" do
+    tests "CreatePizza", on: "Order"
+    input  name: { value: "Wrapped" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } }
+    expect status: "available", name: { value: "Wrapped" }
+  end
+end

@@ -60,6 +60,48 @@ module Hecksagain
         install_facade ? bind_runtime(dispatcher) : dispatcher
       end
 
+      # THE EXPLICIT-FILE FORM — `paths` names the exact bluebook/hecksagon/
+      # world files to boot, in place, wherever they actually live. `boot`
+      # above only ever takes a directory and globs it; that is the right
+      # shape for a real deployment (`examples/banking`, a domain someone
+      # `cd`s into), and the wrong one for a caller that wants to declare a
+      # narrow, explicit scope and have it booted exactly as declared — a
+      # `.behaviors` file's own `loads` line is the motivating caller
+      # (`Hecksagain::Behaviors`), but this carries no behaviors-specific
+      # logic and is not gated behind requiring that module.
+      #
+      # NO COPYING, NO TEMP DIRECTORY. A prior port of this same idea
+      # (vendored into a downstream consumer, read before writing this)
+      # scoped a per-test boot by copying files into `Dir.mktmpdir` — which
+      # destroys real relative paths, and worse, makes a `persisted_by`
+      # path resolve against the TEMP copy's root instead of the project's
+      # own (confirmed there: a file adapter kept reading and writing the
+      # same deterministic tmp copy across an entire session, because
+      # `Hecks.boot`'s own `root` is always `File.dirname` of whatever
+      # directory it was handed). `directory` here is `File.dirname` of the
+      # FIRST real path in `paths` — genuinely on disk, not a copy — so
+      # every downstream path (`EraCheck`, `persisted_by`, `shared_root`)
+      # resolves exactly as an ordinary directory boot's would.
+      def self.boot_files(paths, shared: nil, install_facade: true, environment: nil)
+        loading   = Ports::Loading.bootstrap
+        files     = Array(paths).map { |path| File.expand_path(path) }
+        directory = File.dirname(files.first)
+        root      = loading.shared_root(shared, directory)
+        registry  = Registry.new(root: File.dirname(directory))
+
+        Hecksagain.with_registry(registry) do
+          loading.load_library
+          loading.load_project(root)
+          loading.load_selected(files, environment: environment)
+        end
+
+        EraCheck.check!(registry, directory)
+        registry.verify!
+        registry.rehydrate_sagas!
+        dispatcher = dispatcher_for(registry)
+        install_facade ? bind_runtime(dispatcher) : dispatcher
+      end
+
       # `RemoteDispatcher` for a domain routed through Lambda,
       # `Dispatcher` otherwise — the ONE place this decision gets
       # made, so everything built on top (`Handle`, `AggregateDoor`,

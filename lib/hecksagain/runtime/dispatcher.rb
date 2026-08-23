@@ -146,7 +146,7 @@ module Hecksagain
           head, = command_name.split(".", 2)
           if aggregate.port(head)
             raise WiringError,
-                  "#{verb} names a port operation — dry_run has no in-memory form for one, " \
+                  "#{verb} names a port operation — dry_run? has no in-memory form for one, " \
                   "only for aggregate and entity commands"
           end
 

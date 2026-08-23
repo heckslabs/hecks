@@ -1,0 +1,26 @@
+# MEMORY, NOT `pizzas.hecksagon`'s OWN POSTGRESERA BIND — a `.behaviors`
+# example boots a fresh runtime per test (Hecksagain::Behaviors's own
+# design), so it wants an adapter with no real database to reach at all.
+# `pizzas.hecksagon` binds `PostgresEra` against `pizzas.world`'s real
+# connection string, which is right for the actual deployed domain and
+# wrong for a throwaway per-test boot — so `pizzas.behaviors` `loads`
+# THIS sibling hecksagon instead of the real one, the same Memory
+# override `spec_helper.rb`'s own `boot_in_memory` uses for the exact
+# same reason.
+Hecks.hecksagon "Pizzas" do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("Memory")
+
+  Pizzas::Order.port "PaymentGateway" do
+    operation "Receive" do
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+      emits "PizzaPaymentReceived"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

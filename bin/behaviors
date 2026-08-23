@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+
+# Runs `.behaviors` files — hand-curated examples of how to use a domain,
+# in domain vocabulary — and reports pass/fail/error per test.
+#
+#   bin/behaviors path/to/domain.behaviors
+#   bin/behaviors path/to/directory              # sweeps **/*.behaviors
+#
+# A `.behaviors` file names its own scope with `loads "a.bluebook", …`
+# (relative to the file), booted fresh per test through
+# `Hecks.boot_files` — no directory convention, no copying into a temp
+# dir. See docs/guides/behaviors.md for the DSL itself.
+#
+# Exit code is nonzero if any test failed, errored, or a file failed to
+# parse — the same convention bin/fuzz uses.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+
+require "hecksagain"
+require "hecksagain/behaviors"
+
+USAGE = "usage: bin/behaviors <file.behaviors | directory>".freeze
+
+target = ARGV.first or abort USAGE
+abort "no such file or directory: #{target}" unless File.exist?(target)
+
+def report_file(result)
+  puts result.path
+  if result.parse_error
+    puts "  PARSE ERROR — #{result.parse_error}"
+    return
+  end
+
+  result.runs.each do |run|
+    marker = { pass: "ok", fail: "FAIL", error: "ERROR" }.fetch(run.status)
+    puts "  #{marker.ljust(5)} #{run.description}"
+    puts "        #{run.message}" if run.message
+  end
+end
+
+def bad?(summary)
+  ((summary[:failed] || 0) + (summary[:errored] || 0) + (summary[:parse_errors] || 0)).positive?
+end
+
+if File.directory?(target)
+  sweep = Hecksagain::Behaviors.run_all(target)
+  sweep.files.each { |file| report_file(file) }
+  s = sweep.summary
+  puts
+  puts "#{sweep.files_swept} file(s) swept — #{s[:total]} test(s): " \
+       "#{s[:passed]} passed, #{s[:failed]} failed, #{s[:errored]} errored, " \
+       "#{s[:parse_errors]} file(s) failed to parse"
+  exit(bad?(s) ? 1 : 0)
+else
+  result = Hecksagain::Behaviors.run(target)
+  report_file(result)
+  summary = Hecksagain::Behaviors.summarize([result])
+  exit(bad?(summary) ? 1 : 0)
+end

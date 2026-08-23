@@ -43,3 +43,6 @@ you're not.
     it: the canonical IR's exact shape, the dispatch order, and how
     the expression grammar `given`/`ensures`/`invariant` compile down
     to.
+14. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
+    is used, in its own vocabulary, run as tests: `bin/behaviors`, the
+    rspec shim, and what `emits:` sees through a real policy cascade.

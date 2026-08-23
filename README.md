@@ -71,6 +71,7 @@ own examples run against the real runtime on every push.
 
 <!-- generated:begin id=guides -->
 - [Aggregates and value objects](docs/implemented/guides/aggregates-and-value-objects.md)
+- [Behaviors](docs/implemented/guides/behaviors.md)
 - [Commands](docs/implemented/guides/commands.md)
 - [Entities](docs/implemented/guides/entities.md)
 - [Extending Hecks](docs/implemented/guides/extending-hecks.md)
@@ -381,6 +382,7 @@ Every domain this repository's own tests and docs draw examples from:
 | tool | |
 |---|---|
 | `bin/backfill_era_projections` | Proactively backfills `hecks_eras.held_projection` for every row of one domain that predates that column — an explicit, operator-run vers... |
+| `bin/behaviors` | Runs `.behaviors` files — hand-curated examples of how to use a domain, in domain vocabulary — and reports pass/fail/error per test. bin/... |
 | `bin/canonicalise` | Sorts a JSON document's object keys, recursively — key order is not semantics, so a diff a human reads should not have to notice it moved. |
 | `bin/codemod_hoist_local_givens` | A CODEMOD, not an agent — for the corpus duplication `bin/query_ir duplicates` surfaces directly: two or more commands under the SAME own... |
 | `bin/codemod_implicit_append_fields` | A CODEMOD, not an agent — for the class of redundancy `CommandBuilder#resolve_append_fields!` (lib/hecksagain/bluebook/dsl/ command_build... |

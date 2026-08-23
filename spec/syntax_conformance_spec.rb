@@ -133,9 +133,16 @@ RSpec.describe "the declared syntax" do
     },
     "File"      => {
       boot:             "the runtime facade, not a declaration",
+      boot_files:       "the runtime facade, not a declaration — the explicit-file sibling of boot",
       with_registry:    "the runtime facade, not a declaration",
       current_registry: "the runtime facade, not a declaration",
-      as_caller:        "the runtime facade, not a declaration"
+      as_caller:        "the runtime facade, not a declaration",
+      # `behaviors` — lib/hecksagain/behaviors.rb, opt-in and never
+      # collected into a domain Registry (its own header says so
+      # plainly) — a `.behaviors` file is a test artifact a runner
+      # reads, never a bluebook declaration, so it carries no syntax
+      # row of its own.
+      behaviors:        "the behaviors-suite entry point, not a bluebook declaration"
       # `port`/`adapter`/`data_translation` are REMOVED from here
       # (whole-project table-unification survey, item #13's remaining
       # builders) — all three are genuine, closed-set File words now,
