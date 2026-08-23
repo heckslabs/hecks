@@ -10,7 +10,7 @@ module Hecksagain
         include RuleReference
         include WordGate
 
-        def initialize(name, chapter_named_givens: {})
+        def initialize(name, chapter_named_givens: {}, chapter_pending_givens: [])
           @name          = name
           @value_objects = []
           @commands      = []
@@ -31,6 +31,12 @@ module Hecksagain
           # aggregate the same chapter builds. See `#given`'s own
           # comment for what this closes.
           @chapter_named_givens = chapter_named_givens
+          # A CHAPTER MAY BE SPLIT ACROSS FILES — threaded in the SAME
+          # way as `@chapter_named_givens`, one Array shared chapter-wide.
+          # See `#pending_chapter_given`'s own comment for what queues
+          # here and `BluebookBuilder#resolve_pending_chapter_givens!`
+          # for where it drains.
+          @chapter_pending_givens = chapter_pending_givens
           # DEFERRED CONSTRUCTION — `entity`/`command`/`query` push a
           # pending descriptor here instead of building immediately; see
           # `#drain_pending!`'s own comment for why.
@@ -317,10 +323,17 @@ module Hecksagain
         private
 
         # PRIMITIVE 2 (RuleReference#resolve_owner_keyed) — see that
-        # method's own comment for the pool shape; the four branches
-        # below (exact owner / unambiguous single candidate / none /
-        # ambiguous) are this construct's OWN refusal wording, not
-        # shared, since `declared_by:` only exists here so far.
+        # method's own comment for the pool shape; the three branches
+        # below (exact owner / unambiguous single candidate / ambiguous)
+        # are this construct's OWN refusal wording, not shared, since
+        # `declared_by:` only exists here so far. UNRESOLVED (no
+        # candidate yet, or `declared_by:` naming an aggregate that
+        # hasn't declared it yet) is no longer a fourth branch that
+        # raises HERE — see `#pending_chapter_given`, below, for why:
+        # a chapter split across files can genuinely reference a
+        # precondition a LATER file declares, and "not found among
+        # what's loaded so far" cannot tell that apart from "genuinely
+        # never declared" until every file has.
         def reference_named_chapter_given(description, declared_by:)
           verify_resolves_via!("given", "Aggregate", "owner_keyed")
           candidates = resolve_owner_keyed(@chapter_named_givens, description)
@@ -328,19 +341,11 @@ module Hecksagain
           named =
             if declared_by
               owner = Naming.demodulise(declared_by)
-              candidates[owner] ||
-                raise(Malformed,
-                      "#{@name}'s given #{description.inspect} names no precondition " \
-                      "#{owner} declares in this chapter — #{owner} either hasn't declared " \
-                      "#{description.inspect}, or declared_by: named the wrong aggregate")
+              candidates[owner] || pending_chapter_given(description, declared_by: owner)
             elsif candidates.size == 1
               candidates.values.first
             elsif candidates.empty?
-              raise(Malformed,
-                    "#{@name}'s given #{description.inspect} names no precondition " \
-                    "any aggregate in this chapter has declared yet — declare it once " \
-                    "with a block (some aggregate's own given(#{description.inspect}) " \
-                    "{ ... }), before the aggregates that reference it")
+              pending_chapter_given(description, declared_by: nil)
             else
               raise(Malformed,
                     "#{@name}'s given #{description.inspect} is ambiguous in this chapter — " \
@@ -350,6 +355,41 @@ module Hecksagain
             end
 
           @named_givens[description] = named
+        end
+
+        # A CHAPTER MAY BE SPLIT ACROSS FILES — the SAME reason a query
+        # hop's own cross-file target, a correlation key's own emitting
+        # command, and an event's own declared shape are all resolved
+        # once the whole chapter is assembled rather than refused the
+        # moment one file's own bare reference outruns what's loaded so
+        # far (`BluebookBuilder.validate_assembled!`'s own comment).
+        #
+        # Unlike those, though, a chapter-given's resolved value is not
+        # a pass/fail check on an already-built IR — it IS part of the
+        # referencing aggregate's own IR (`preconditions:` below), built
+        # and handed off the moment THIS aggregate's own file finishes
+        # loading, long before a later file might declare the real
+        # thing. So this hands back a PLACEHOLDER `Given` — embedded
+        # exactly where the resolved one would be, by Ruby object
+        # reference, in this aggregate's own `preconditions` AND in any
+        # command in this SAME aggregate that separately bare-references
+        # the same description (`CommandBuilder#given`'s own hash-chain
+        # read of this aggregate's `@named_givens`, the identical key) —
+        # and queues the request in `@chapter_pending_givens`.
+        # `BluebookBuilder#resolve_pending_chapter_givens!` MUTATES this
+        # exact object in place, once every file has loaded, so every
+        # existing reference to it (there is only ever the one object,
+        # never a copy) sees the resolved fields simultaneously. Safe
+        # because every real reader of a `Given` — refusal wording at
+        # dispatch, `Aggregate`'s own lazy `-> { preconditions.map { ... } }`
+        # IR accessor, docs — runs strictly after boot completes, never
+        # mid-load; `judge_deferred!` resolves every pending chapter-given
+        # before anything else touches this chapter's assembled IR.
+        def pending_chapter_given(description, declared_by:)
+          placeholder = Given.new(description: description, canonical: nil, predicate: nil)
+          @chapter_pending_givens << { aggregate: @name, description: description,
+                                        declared_by: declared_by, placeholder: placeholder }
+          placeholder
         end
 
         public
@@ -405,8 +445,8 @@ module Hecksagain
           ir
         end
 
-        def self.build(name, chapter_named_givens: {}, &block)
-          builder = new(name, chapter_named_givens: chapter_named_givens)
+        def self.build(name, chapter_named_givens: {}, chapter_pending_givens: [], &block)
+          builder = new(name, chapter_named_givens: chapter_named_givens, chapter_pending_givens: chapter_pending_givens)
           builder.instance_eval(&block) if block
           builder.build
         end

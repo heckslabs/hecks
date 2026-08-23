@@ -84,12 +84,36 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// candidate is registered under the same description; omitted, it
 /// resolves only when EXACTLY one candidate exists — never guesses among
 /// several.
+///
+/// A CHAPTER MAY BE SPLIT ACROSS FILES — the target of a bare reference
+/// here may be declared in a file that has not been parsed YET, the
+/// mirror of Ruby's own `AggregateBuilder#pending_chapter_given`
+/// (`BluebookBuilder#resolve_pending_chapter_givens!`, run once every
+/// file in the chapter has loaded). So "not found among `chapter_named_
+/// givens` so far" is no longer immediately refused here — only genuine
+/// AMBIGUITY is (more files can only ADD candidates, never remove one,
+/// so a conflict seen now stays a conflict regardless of what loads
+/// later). `ChapterGivenLookup::Pending` carries everything the final
+/// pass (`parse::chapter::parse_chapter`'s own resolution loop, after
+/// every file has contributed to `chapter_named_givens`) needs to
+/// resolve it for real, or refuse it for real, once nothing more will
+/// ever be declared.
+pub enum ChapterGivenLookup {
+    Resolved(ir::Given),
+    Pending {
+        description: String,
+        declared_by: Option<String>,
+        file: String,
+        line: usize,
+    },
+}
+
 fn try_reference_named_chapter_given(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
     chapter_named_givens: &[(String, ir::Given)],
-) -> ParseResult<Option<ir::Given>> {
+) -> ParseResult<Option<ChapterGivenLookup>> {
     let Some(&line) = lines.get(*pos) else {
         return Ok(None);
     };
@@ -113,35 +137,27 @@ fn try_reference_named_chapter_given(
         .collect();
 
     let resolved = if let Some(owner) = declared_by {
-        candidates
+        match candidates
             .iter()
             .find(|(candidate_owner, _)| candidate_owner == &owner)
-            .map(|(_, given)| given.clone())
-            .ok_or_else(|| {
-                Diagnostic::new(
-                    file,
-                    line.number,
-                    format!(
-                        "'{description}' names no precondition {owner} declares in this chapter \
-                         — {owner} either hasn't declared '{description}', or declared_by: named \
-                         the wrong aggregate"
-                    ),
-                )
-            })?
+        {
+            Some((_, given)) => ChapterGivenLookup::Resolved(given.clone()),
+            None => ChapterGivenLookup::Pending {
+                description,
+                declared_by: Some(owner),
+                file: file.to_string(),
+                line: line.number,
+            },
+        }
     } else {
         match candidates.as_slice() {
-            [] => {
-                return Err(Diagnostic::new(
-                    file,
-                    line.number,
-                    format!(
-                        "'{description}' names no precondition any aggregate in this chapter has \
-                         declared yet — declare it once with a block, before the aggregates that \
-                         reference it"
-                    ),
-                ))
-            }
-            [(_, given)] => given.clone(),
+            [] => ChapterGivenLookup::Pending {
+                description,
+                declared_by: None,
+                file: file.to_string(),
+                line: line.number,
+            },
+            [(_, given)] => ChapterGivenLookup::Resolved(given.clone()),
             _ => {
                 let owners: Vec<&str> =
                     candidates.iter().map(|(owner, _)| owner.as_str()).collect();
@@ -163,13 +179,34 @@ fn try_reference_named_chapter_given(
     Ok(Some(resolved))
 }
 
+/// ONE ENTRY PER UNRESOLVED BARE CHAPTER-GIVEN this aggregate's own file
+/// left pending — `precondition_index` names WHERE in this aggregate's
+/// own `preconditions` the eventual real `Given` gets patched in
+/// (`parse::chapter::parse_chapter`'s own final resolution pass, once
+/// every file in the chapter has loaded and stamped an `aggregate_index`
+/// alongside — this struct alone doesn't know which aggregate it belongs
+/// to; its caller does, the moment this aggregate is pushed onto
+/// `bluebook.aggregates`).
+pub struct PendingChapterGiven {
+    pub precondition_index: usize,
+    pub description: String,
+    pub declared_by: Option<String>,
+    pub file: String,
+    pub line: usize,
+}
+
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
     chapter_named_givens: &mut Vec<(String, ir::Given)>,
-) -> ParseResult<(ir::Aggregate, Vec<ir::Policy>)> {
+) -> ParseResult<(
+    ir::Aggregate,
+    Vec<ir::Policy>,
+    Vec<PendingChapterGiven>,
+    Vec<(usize, command::PendingCommandGiven)>,
+)> {
     let mut aggregate = ir::Aggregate {
         name: name.to_string(),
         ..Default::default()
@@ -177,6 +214,10 @@ pub fn parse_body(
     let mut pending_identity: Option<super::PendingIdentity> = None;
     let mut closed_sets: Vec<ir::ValueObject> = Vec::new();
     let mut policies: Vec<ir::Policy> = Vec::new();
+    // EVERY BARE CHAPTER-GIVEN THIS AGGREGATE'S OWN FILE LEFT PENDING —
+    // see `PendingChapterGiven`'s own comment for what each entry means
+    // and where it drains.
+    let mut pending_chapter_givens: Vec<PendingChapterGiven> = Vec::new();
     // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header.
     // `entity`/`command`/`query` only QUEUE here; built for real by the
     // drain below, once this aggregate's own top-level line-range is
@@ -205,10 +246,38 @@ pub fn parse_body(
         // unchanged, on purpose, since a FRESH declaration still needs
         // one — so a genuinely bare `given` has to be recognized and
         // consumed HERE, by raw lexing, before that gate would refuse it.
-        if let Some(given) =
+        if let Some(outcome) =
             try_reference_named_chapter_given(file, lines, pos, chapter_named_givens)?
         {
-            aggregate.preconditions.push(given);
+            match outcome {
+                ChapterGivenLookup::Resolved(given) => aggregate.preconditions.push(given),
+                ChapterGivenLookup::Pending {
+                    description,
+                    declared_by,
+                    file,
+                    line,
+                } => {
+                    let precondition_index = aggregate.preconditions.len();
+                    // A PLACEHOLDER — `description` set for readability if
+                    // something inspects the IR mid-parse, `canonical`
+                    // deliberately empty; the final resolution pass
+                    // (`parse::chapter::parse_chapter`) overwrites this
+                    // exact slot once every file has loaded, and nothing
+                    // reads it before then (IR emission/export happens
+                    // strictly after `parse_chapter` returns).
+                    aggregate.preconditions.push(ir::Given {
+                        description: Some(description.clone()),
+                        canonical: String::new(),
+                    });
+                    pending_chapter_givens.push(PendingChapterGiven {
+                        precondition_index,
+                        description,
+                        declared_by,
+                        file,
+                        line,
+                    });
+                }
+            }
             continue;
         }
 
@@ -323,13 +392,15 @@ pub fn parse_body(
                 let target = naming::demodulise(target_raw);
                 let as_name = super::named_symbol(&gated.args, "as");
                 let optional = super::named_flag(&gated.args, "optional");
-                aggregate.attributes.push(references::relationship_attribute(
-                    &target,
-                    "reference_to",
-                    as_name.as_deref(),
-                    optional,
-                    false,
-                ));
+                aggregate
+                    .attributes
+                    .push(references::relationship_attribute(
+                        &target,
+                        "reference_to",
+                        as_name.as_deref(),
+                        optional,
+                        false,
+                    ));
             }
             // `has_one`/`belongs_to` — sugar over `reference_to` minting
             // NO `_id` suffix (`AggregateBuilder#has_one`: `reference_to(type,
@@ -586,10 +657,10 @@ pub fn parse_body(
     }
     aggregate.entities = entities;
 
-    aggregate.commands = pending_commands
+    let built_commands: Vec<(ir::Command, Vec<command::PendingCommandGiven>)> = pending_commands
         .into_iter()
-        .map(|(c_name, from, pending)| {
-            super::build_deferred(file, lines, &pending, |f, l, p| {
+        .map(|(c_name, from, pending_body)| {
+            super::build_deferred(file, lines, &pending_body, |f, l, p| {
                 command::parse_body(
                     f,
                     l,
@@ -606,6 +677,22 @@ pub fn parse_body(
             })
         })
         .collect::<ParseResult<Vec<_>>>()?;
+
+    // BUBBLE EACH COMMAND'S OWN PENDING chapter-given references, STAMPED
+    // WITH THIS COMMAND'S OWN INDEX — `command::parse_body` only knows
+    // its own `given_index`/`precondition_index` (see `PendingCommandGiven`
+    // 's own comment); which COMMAND it belongs to is only known here,
+    // by iteration order, the same reason `pending_chapter_givens`'s own
+    // `aggregate_index` is stamped one level up in `parse::chapter`.
+    let mut pending_command_givens: Vec<(usize, command::PendingCommandGiven)> = Vec::new();
+    aggregate.commands = built_commands
+        .into_iter()
+        .enumerate()
+        .map(|(command_index, (built, pending))| {
+            pending_command_givens.extend(pending.into_iter().map(|entry| (command_index, entry)));
+            built
+        })
+        .collect();
 
     aggregate.queries = pending_queries
         .into_iter()
@@ -655,5 +742,10 @@ pub fn parse_body(
         }
     }
 
-    Ok((aggregate, policies))
+    Ok((
+        aggregate,
+        policies,
+        pending_chapter_givens,
+        pending_command_givens,
+    ))
 }

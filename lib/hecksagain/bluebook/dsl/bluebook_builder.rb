@@ -21,6 +21,13 @@ module Hecksagain
           # extended across an aggregate's whole entity tree, earlier
           # this arc). See `#given`'s own comment for what this closes.
           @chapter_named_givens = {}
+          # EVERY BARE CHAPTER-GIVEN REFERENCE THIS CHAPTER'S OWN FILES
+          # LEFT UNRESOLVED SO FAR — threaded into every aggregate the
+          # same way `@chapter_named_givens` is. See
+          # `AggregateBuilder#pending_chapter_given`'s own comment for
+          # what queues here and `#resolve_pending_chapter_givens!`,
+          # below, for where it drains.
+          @chapter_pending_givens = []
         end
 
         # Chapter metadata belongs to the composed folder, not whichever file
@@ -78,7 +85,8 @@ module Hecksagain
         # chapter's own top-level shape is written with it), so also
         # named in GenericDispatch::BOOTSTRAP_CALLS_FALLBACK.
         def aggregate_impl(name, &block)
-          @aggregates << AggregateBuilder.build(name, chapter_named_givens: @chapter_named_givens, &block)
+          @aggregates << AggregateBuilder.build(name, chapter_named_givens:   @chapter_named_givens,
+                                                      chapter_pending_givens: @chapter_pending_givens, &block)
         end
 
         # `read_model` is the word (ADR 0025 reverts `report` — the IR
@@ -111,17 +119,6 @@ module Hecksagain
         end
 
         def build
-          # moved to the language: an attribute type is a reference to its Shape,
-          # so an undeclared value object fails reference resolution
-          validate_reference_value_objects!
-          validate_correlation_keys!
-          validate_no_bidirectional_references!
-          policies = @aggregates.flat_map(&:policies) + @policies
-          unless MetaValidator.shadow_parsing?
-            validate_event_shapes!
-            validate_with_projections!(policies)
-          end
-
           # The chapter is the top of the construct chain — `Bluebook` is a
           # ROOT, and its constructor stamps every aggregate and read model with
           # itself as owner, so every `hecks_fqn` below resolves by walking up
@@ -131,11 +128,122 @@ module Hecksagain
           bluebook = Bluebook::Chapter.new(name: @name, version: @version, vision: @vision,
                                            aggregates: @aggregates,
                                            read_models: @read_models,
-                                           policies: policies,
+                                           policies: @aggregates.flat_map(&:policies) + @policies,
                                            process_managers: @process_managers,
                                            classification: @classification,
                                            formerly_known_as: @formerly_known_as,
                                            attaches_to: @attaches_to || [])
+
+          # SAME REASON, SAME GATE — a bare chapter-given may still be
+          # pending (see `AggregateBuilder#pending_chapter_given`) if a
+          # file that would resolve it hasn't loaded yet; resolving now
+          # would see the same incomplete `@chapter_named_givens`
+          # `validate_assembled!` below would. Deferred to
+          # `MetaValidator.judge_deferred!` the same way, and BEFORE
+          # `validate_assembled!` there — nothing downstream should ever
+          # read an unresolved placeholder's fields.
+          resolve_pending_chapter_givens! unless MetaValidator.deferring?
+
+          # A CHAPTER MAY BE SPLIT ACROSS FILES (see `self.build`'s own
+          # comment). Every check below needs the WHOLE chapter present —
+          # a hop, a projection, a correlation key or an event shape can
+          # equally name a construct declared in a file that has not
+          # loaded yet, and `@aggregates`/`@process_managers` here are
+          # only ever as complete as whatever has loaded SO FAR. So,
+          # exactly like `MetaValidator.call` below, this is skipped
+          # while `MetaValidator.defer` is loading the chapter's files
+          # and run once instead — by `MetaValidator.judge_deferred!`,
+          # against the fully assembled chapter — after the last one
+          # loads. A single-file chapter (still the common case) never
+          # sees `deferring?` true here at all, so its own checks still
+          # run inline, exactly as before.
+          self.class.validate_assembled!(bluebook) unless MetaValidator.deferring?
+
+          # The language judges the bluebook, in the language. Last, so the
+          # meta-domain sees a fully built IR — the whole-document rules need
+          # every declaration present, which is why they cannot be givens fired
+          # at declaration time.
+          MetaValidator.call(bluebook)
+        end
+
+        # THE OTHER HALF OF A CHAPTER-WIDE `given` REFERENCE —
+        # `AggregateBuilder#pending_chapter_given` recognised an
+        # unresolved bare reference and deferred it here, unable to
+        # check further: a later file in this SAME chapter might still
+        # declare the real thing. Runs once every file has loaded,
+        # against the now-complete `@chapter_named_givens` pool — the
+        # IDENTICAL lookup `reference_named_chapter_given` already does,
+        # just late enough to see every aggregate's own declarations,
+        # not only the ones loaded before the referencing one.
+        #
+        # MUTATES each placeholder `Given` IN PLACE rather than
+        # replacing it — it is already embedded, by Ruby object
+        # reference, in the referencing aggregate's own `preconditions`
+        # and in any command (same aggregate) that separately
+        # bare-referenced the same description, so there is nothing
+        # downstream holding a second, now-stale copy to update.
+        # Instance-level (not `self.`, unlike `validate_assembled!`) —
+        # unlike that battery, this needs `@chapter_named_givens` itself,
+        # which only exists on the builder instance still open for this
+        # chapter (`MetaValidator.judge_deferred!` reaches it via
+        # `registry.bluebook_builder(name)`, guaranteed already present).
+        def resolve_pending_chapter_givens!
+          @chapter_pending_givens.each do |entry|
+            resolved = resolve_pending_chapter_given(entry)
+            entry[:placeholder].description = resolved.description
+            entry[:placeholder].canonical   = resolved.canonical
+            entry[:placeholder].predicate   = resolved.predicate
+          end
+          @chapter_pending_givens.clear
+        end
+
+        def resolve_pending_chapter_given(entry)
+          description = entry[:description]
+          candidates  = RuleReference.resolve_owner_keyed(@chapter_named_givens, description)
+
+          if entry[:declared_by]
+            candidates[entry[:declared_by]] ||
+              raise(Malformed,
+                    "#{entry[:aggregate]}'s given #{description.inspect} names no precondition " \
+                    "#{entry[:declared_by]} declares in this chapter — #{entry[:declared_by]} " \
+                    "either hasn't declared #{description.inspect}, or declared_by: named the " \
+                    "wrong aggregate")
+          elsif candidates.size == 1
+            candidates.values.first
+          elsif candidates.empty?
+            raise(Malformed,
+                  "#{entry[:aggregate]}'s given #{description.inspect} names no precondition " \
+                  "any aggregate in this chapter ever declares — declare it once with a block " \
+                  "(some aggregate's own given(#{description.inspect}) { ... })")
+          else
+            raise(Malformed,
+                  "#{entry[:aggregate]}'s given #{description.inspect} is ambiguous in this " \
+                  "chapter — #{candidates.keys.join(', ')} each declare a DIFFERENT predicate " \
+                  "under this same description; name which one with declared_by: (e.g. " \
+                  "given(#{description.inspect}, declared_by: #{candidates.keys.first}))")
+          end
+        end
+        private :resolve_pending_chapter_given
+
+        # EVERY WHOLE-CHAPTER CHECK, IN ONE PLACE — the battery `#build`
+        # used to run inline, now a pure function of an assembled
+        # `Bluebook::Chapter` so `MetaValidator.judge_deferred!` can run
+        # it too, once, on a chapter whose files have ALL loaded (see
+        # `#build`'s own comment for why that split exists at all).
+        # Public, not `private_class_method`'d, for exactly that second
+        # caller — `MetaValidator` needs to reach this with no builder
+        # instance in hand, only the chapter `judge_deferred!` already
+        # read back out of the registry.
+        def self.validate_assembled!(bluebook)
+          # moved to the language: an attribute type is a reference to its Shape,
+          # so an undeclared value object fails reference resolution
+          validate_reference_value_objects!(bluebook.aggregates)
+          validate_correlation_keys!(bluebook.process_managers, bluebook.aggregates)
+          validate_no_bidirectional_references!(bluebook.aggregates)
+          unless MetaValidator.shadow_parsing?
+            validate_event_shapes!(bluebook.aggregates)
+            validate_with_projections!(bluebook.policies, bluebook.process_managers, bluebook.aggregates)
+          end
 
           # Every hop AggregateBuilder#seal_query_field recognised and
           # deferred gets checked for real here — the earliest point a
@@ -153,15 +261,7 @@ module Hecksagain
           # own reference cannot resolve until every aggregate in the
           # chapter is real and owner-stamped (S12, ADR 0025).
           validate_projected_fields!(bluebook)
-
-          # The language judges the bluebook, in the language. Last, so the
-          # meta-domain sees a fully built IR — the whole-document rules need
-          # every declaration present, which is why they cannot be givens fired
-          # at declaration time.
-          MetaValidator.call(bluebook)
         end
-
-        private
 
         # AN ENTITY COMMAND MAY NOT NAME ITSELF AS ITS ROOT.
         #
@@ -184,10 +284,10 @@ module Hecksagain
         # Reference ATTRIBUTES are the language's business now — offered as the
         # head's own id and resolved as references, so `Aggregate.Reference` and
         # `Command.Reference` refuse an undeclared head with no predicate at all.
-        def validate_reference_value_objects!
-          heads = @aggregates.map(&:hecks_name)
+        def self.validate_reference_value_objects!(aggregates)
+          heads = aggregates.map(&:hecks_name)
 
-          violations = @aggregates.flat_map do |aggregate|
+          violations = aggregates.flat_map do |aggregate|
             aggregate.entities.flat_map do |entity|
               entity.commands.filter_map do |command|
                 next unless command.references
@@ -220,11 +320,11 @@ module Hecksagain
         # claim about what the payload holds, so two emitting commands
         # are free to differ there without actually disagreeing about
         # the event's own shape.
-        def validate_event_shapes!
-          event_emitters.each do |event_name, pairs|
+        def self.validate_event_shapes!(aggregates)
+          event_emitters(aggregates).each do |event_name, pairs|
             next if pairs.size == 1
 
-            shapes = pairs.map { |(_, command)| event_shape(command) }.uniq
+            shapes = pairs.map { |(owner, command)| event_shape(command, owner_aggregate(owner, aggregates)) }.uniq
             next if shapes.size == 1
 
             named = pairs.map { |(owner, command)| "#{owner}.#{command.hecks_name}" }.sort
@@ -257,24 +357,25 @@ module Hecksagain
         # (does the dispatched command actually declare the field) still
         # runs, since that half is true regardless of where the value
         # came from.
-        def validate_with_projections!(policies)
-          lookup = command_lookup
+        def self.validate_with_projections!(policies, process_managers, aggregates)
+          lookup = command_lookup(aggregates)
+          heads  = correlation_heads(process_managers)
 
           policies.each do |policy|
             next if policy.with_spec.to_a.empty?
 
             source_event = policy.for_each.to_s.empty? ? policy.on_event : nil
             check_with_spec!(policy.trigger_command, source_event, policy.with_spec, lookup,
-                             "#{policy.name}'s trigger")
+                             "#{policy.name}'s trigger", aggregates, heads)
           end
 
-          @process_managers.each do |pm|
+          process_managers.each do |pm|
             pm.handlers.each do |handler|
               handler.dispatches.each do |dispatch|
                 next if dispatch.with_spec.to_a.empty?
 
                 check_with_spec!(dispatch.command_name, handler.event_type, dispatch.with_spec, lookup,
-                                 "#{pm.name}'s dispatch #{dispatch.command_name}", pm: pm)
+                                 "#{pm.name}'s dispatch #{dispatch.command_name}", aggregates, heads, pm: pm)
               end
             end
           end
@@ -292,14 +393,14 @@ module Hecksagain
         # no event carried" — `AccountDebited` never declares `:reference`,
         # only `TransferRequested` (`pm.starts_on`) does, and that is
         # where the value is genuinely still coming from.
-        def check_with_spec!(command_ref, event_name, with_spec, lookup, label, pm: nil)
+        def self.check_with_spec!(command_ref, event_name, with_spec, lookup, label, aggregates, correlation_heads, pm: nil)
           target        = lookup[command_ref]
-          source_shape  = event_name && event_shape_for(event_name)
-          memory_shape  = pm && event_shape_for(pm.starts_on)
+          source_shape  = event_name && event_shape_for(event_name, aggregates)
+          memory_shape  = pm && event_shape_for(pm.starts_on, aggregates)
           correlation   = pm && pm.correlates_by && pm.correlation_head
 
           with_spec.each do |field, source|
-            raise Malformed, "#{label}'s with: names #{field.inspect}, which #{command_ref} does not declare" if target && !command_declares?(target, field)
+            raise Malformed, "#{label}'s with: names #{field.inspect}, which #{command_ref} does not declare" if target && !command_declares?(target, field, aggregates, correlation_heads)
 
             next unless source.is_a?(::Symbol)
             next if source == correlation
@@ -328,13 +429,13 @@ module Hecksagain
         # legal here : this mirrors that gate rather than re-deriving a
         # narrower rule that would refuse one of two real, already-shipped
         # dispatch conventions.
-        def command_declares?(command, field)
+        def self.command_declares?(command, field, aggregates, correlation_heads)
           return true if command.attributes.any? { |a| a.name == field }
           return true if field == :id
           return true if correlation_heads.include?(field)
           return false unless command.references
 
-          referenced = @aggregates.find { |a| a.hecks_name == command.references }
+          referenced = aggregates.find { |a| a.hecks_name == command.references }
           return false unless referenced
 
           referenced.identity_heads.include?(field) || Naming.reference_key(command.references) == field
@@ -348,10 +449,8 @@ module Hecksagain
         # passthrough, not an addressing key"). A command declaring none of
         # its attributes named this is not a gap; the correlation key rides
         # through commands that never read it, same as it does at runtime.
-        # Recomputed on every build because a split chapter keeps this builder
-        # open while later files add process managers.
-        def correlation_heads
-          @process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
+        def self.correlation_heads(process_managers)
+          process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
         end
 
         # Every command this chapter declares, an aggregate's own AND
@@ -359,10 +458,10 @@ module Hecksagain
         # declares it — shared by `validate_event_shapes!` and
         # `validate_with_projections!`'s own command lookup, the same
         # reach `HecksagonBuilder#commands_in` needs one level up (S8).
-        def each_command
-          return enum_for(:each_command) unless block_given?
+        def self.each_command(aggregates)
+          return enum_for(:each_command, aggregates) unless block_given?
 
-          @aggregates.each do |aggregate|
+          aggregates.each do |aggregate|
             aggregate.commands.each { |command| yield aggregate.hecks_name, command }
             aggregate.entities.each do |entity|
               entity.commands.each { |command| yield "#{aggregate.hecks_name}.#{entity.hecks_name}", command }
@@ -370,25 +469,79 @@ module Hecksagain
           end
         end
 
-        def event_emitters
-          @event_emitters ||= each_command.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(owner, command), index|
+        # NOT MEMOISED — this used to be `@event_emitters ||=` on the
+        # builder instance, which is safe for a one-file chapter but
+        # wrong for one split across several: the FIRST file's build()
+        # call would compute and cache it from whatever `@aggregates`
+        # held at that moment, and every later file's own validation
+        # would keep reading that same stale snapshot, silently missing
+        # any command a later file adds. Recomputed fresh every call
+        # instead — this walks the whole chapter once per `#build`, not
+        # a hot path worth memoising at that cost.
+        def self.event_emitters(aggregates)
+          each_command(aggregates).each_with_object(Hash.new { |h, k| h[k] = [] }) do |(owner, command), index|
             command.emits.each { |event_name| index[event_name] << [owner, command] }
           end
         end
 
-        def event_shape(command)
-          command.attributes.map { |a| [a.name, a.type, a.list?, a.optional?] }.sort
+        # STRUCTURAL, NOT NOMINAL. Two commands on two different
+        # aggregates that both `emits "SameEvent"` are free to type a
+        # field through two DIFFERENT, locally-scoped wrapper value
+        # objects (e.g. one aggregate's own `value: SomeText` vs
+        # another's `value: OtherText`, exactly the per-aggregate "own
+        # text VO" convention every aggregate in this grammar already
+        # follows for everything from `RuleText` to `FieldRef`) without
+        # actually disagreeing about the event's shape — comparing
+        # `a.type` by NAME would flag that as a violation for no real
+        # reason: an event is one fact, and two isomorphic wrapper types
+        # tell an identical one. So a value-object type is unwrapped to
+        # its OWN attribute shape (recursively — a wrapper could itself
+        # wrap another) before comparing, and only a primitive type
+        # (nothing left to unwrap) or two VOs that truly differ once
+        # unwrapped still counts as a real mismatch. `owner` carries the
+        # type's `value_object` lookup — a command's own attributes only
+        # know their type's NAME, never the aggregate that declared it,
+        # and two sibling aggregates in one chapter each keep a
+        # same-named VO private to themselves, so the unwrap has to ask
+        # the SAME aggregate the field's own command belongs to, never a
+        # neighbor's.
+        def self.event_shape(command, owner)
+          command.attributes.map { |a| [a.name, unwrap_shape(owner, a.type.to_s), a.list?, a.optional?] }.sort
         end
 
-        def event_shape_for(event_name)
-          pairs = event_emitters.fetch(event_name.to_s, [])
+        def self.unwrap_shape(owner, type_name, seen = [])
+          return type_name if owner.nil? # owner couldn't be resolved -- compare by name, same as before this unwrap existed
+          return type_name if Attribute::PRIMITIVES.include?(type_name)
+          return type_name if seen.include?(type_name) # a self-referential VO bottoms out on its own name, not an infinite unwrap
+
+          shape = owner.value_object(type_name)
+          return type_name unless shape # not this owner's own VO (a reference type, say) -- nothing further to unwrap
+
+          shape.attributes.map { |a| [a.name, unwrap_shape(owner, a.type.to_s, seen + [type_name]), a.list?, a.optional?] }.sort
+        end
+
+        # `owner` (from `each_command`) is a plain STRING — the aggregate's
+        # `hecks_name` alone, or `"Aggregate.Entity"` for an entity's own
+        # command. Either way the VALUE OBJECTS a command's fields can be
+        # typed with are the AGGREGATE's own (`Entity` carries no
+        # `value_object` lookup of its own — the whole rest of this file
+        # already resolves hop/type lookups only at the aggregate level,
+        # e.g. `validate_hop_tail!`'s `target.value_object(type)`), so only
+        # the first segment ever matters here.
+        def self.owner_aggregate(owner, aggregates)
+          aggregates.find { |a| a.hecks_name == owner.to_s.split(".").first }
+        end
+
+        def self.event_shape_for(event_name, aggregates)
+          pairs = event_emitters(aggregates).fetch(event_name.to_s, [])
           return nil if pairs.empty?
 
-          event_shape(pairs.first.last)
+          owner_name, command = pairs.first
+          event_shape(command, owner_aggregate(owner_name, aggregates))
         end
 
-        def command_lookup
-          each_command.each_with_object({}) do |(owner, command), index|
+        def self.command_lookup(aggregates)
+          each_command(aggregates).each_with_object({}) do |(owner, command), index|
             index["#{owner}.#{command.hecks_name}"] = command
           end
         end
@@ -419,8 +572,8 @@ module Hecksagain
         # Self-reference stays legal (`parent.parent.name` for a
         # hierarchy is real and safe) — excluded the same way the
         # direct-pair check already excluded it.
-        def validate_no_bidirectional_references!
-          edges = @aggregates.each_with_object({}) do |aggregate, index|
+        def self.validate_no_bidirectional_references!(aggregates)
+          edges = aggregates.each_with_object({}) do |aggregate, index|
             index[aggregate.hecks_name] = aggregate.reference_targets.uniq.reject { |target| target == aggregate.hecks_name }
           end
 
@@ -438,7 +591,7 @@ module Hecksagain
         # Plain DFS with a visiting/done coloring, over the reference
         # graph THIS chapter's own aggregates declare. Returns the ring
         # itself (in the order it closes), or nil.
-        def find_reference_cycle(edges)
+        def self.find_reference_cycle(edges)
           state = {}
 
           edges.each_key do |start|
@@ -449,7 +602,7 @@ module Hecksagain
           nil
         end
 
-        def reference_cycle_from(node, edges, state, path)
+        def self.reference_cycle_from(node, edges, state, path)
           return nil if state[node] == :done
           return path[path.index(node)..] if state[node] == :visiting
 
@@ -493,7 +646,7 @@ module Hecksagain
         # member needs an entity query to cross a reference yet, and a
         # named refusal beats a runtime that resolves nothing while
         # looking like it might.
-        def validate_query_hops!(bluebook)
+        def self.validate_query_hops!(bluebook)
           bluebook.aggregates.each do |aggregate|
             aggregate.queries.each do |query|
               query.wheres.each do |clause|
@@ -512,7 +665,7 @@ module Hecksagain
         # built; here every Reference has an owner and target, so a symbolic
         # comparison can inherit the type of the scalar it compares without a
         # duplicate query-local declaration.
-        def infer_hop_query_arguments!(bluebook)
+        def self.infer_hop_query_arguments!(bluebook)
           bluebook.aggregates.each do |aggregate|
             aggregate.queries.each do |query|
               query.wheres.each do |clause|
@@ -543,7 +696,7 @@ module Hecksagain
           end
         end
 
-        def refuse_entity_query_hops!(aggregate, entity)
+        def self.refuse_entity_query_hops!(aggregate, entity)
           entity.queries.each do |query|
             query.wheres.each do |clause|
               next unless QuerySpecification::HopPath.hop_head?(clause.field, entity.attributes)
@@ -557,7 +710,7 @@ module Hecksagain
           end
         end
 
-        def validate_hop_clause!(aggregate, query, clause)
+        def self.validate_hop_clause!(aggregate, query, clause)
           plan = QuerySpecification::HopPath.plan(clause.field, aggregate.attributes)
 
           case plan.refusal
@@ -589,7 +742,7 @@ module Hecksagain
         # on a value object (refused by name), or naming nothing at all
         # (refused by name) — asked instead of the hop's TARGET aggregate,
         # since that is whose shape the tail actually has to answer for.
-        def validate_hop_tail!(aggregate, query, clause, target, tail)
+        def self.validate_hop_tail!(aggregate, query, clause, target, tail)
           name, *nested = tail.to_s.split(".")
           attribute = target.attributes.find { |candidate| candidate.name.to_s == name }
           return validate_hop_comparator!(aggregate, query, clause, target, attribute, nested) if
@@ -619,7 +772,7 @@ module Hecksagain
         # already deferred this exact check for the same reason every
         # other hop check is deferred, and this is where it gets asked,
         # against the hop's TARGET instead of the querying aggregate.
-        def validate_hop_comparator!(aggregate, query, clause, target, attribute, nested)
+        def self.validate_hop_comparator!(aggregate, query, clause, target, attribute, nested)
           return unless AggregateBuilder::ORDERED_COMPARATORS.include?(clause.op.to_s.to_sym)
           return if attribute &&
                     QuerySpecification::FieldPath.numeric?(attribute, nested) { |type| target.value_object(type) }
@@ -647,13 +800,13 @@ module Hecksagain
         # one resolution primitive. A single hop can never reach
         # HopPath::MAX_HOPS, so :too_deep is structurally unreachable
         # here and is not special-cased.
-        def validate_projected_fields!(bluebook)
+        def self.validate_projected_fields!(bluebook)
           bluebook.aggregates.each do |aggregate|
             aggregate.projected_fields.each { |field| validate_projected_field!(aggregate, field) }
           end
         end
 
-        def validate_projected_field!(aggregate, field)
+        def self.validate_projected_field!(aggregate, field)
           plan = QuerySpecification::HopPath.plan("#{field.reference}/#{field.remote_field}", aggregate.attributes)
 
           if plan.refusal == :unresolvable
@@ -688,7 +841,7 @@ module Hecksagain
                 "value, never a reference, a value object, or a list"
         end
 
-        def projectable_scalar?(target, attribute)
+        def self.projectable_scalar?(target, attribute)
           !attribute.list? && !attribute.reference? && target.value_object(attribute.type).nil?
         end
 
@@ -712,11 +865,11 @@ module Hecksagain
         # aggregate's own reference key; saga_interpreter/correlation.rb), so
         # an absent field is not this check's business. Only a field that
         # resolves, and resolves to something other than a scalar, is.
-        def validate_correlation_keys!
-          @process_managers.each do |pm|
+        def self.validate_correlation_keys!(process_managers, aggregates)
+          process_managers.each do |pm|
             next unless pm.correlates_by
 
-            reason = correlation_key_violation(pm)
+            reason = correlation_key_violation(pm, aggregates)
             next unless reason
 
             raise ProcessManagerBuilder::InvalidProcessManager,
@@ -724,11 +877,11 @@ module Hecksagain
           end
         end
 
-        def correlation_key_violation(pm)
+        def self.correlation_key_violation(pm, aggregates)
           head, *rest = pm.correlates_by.to_s.split(".")
           events = reacted_events(pm)
 
-          emitting_commands(events).each do |owner, command|
+          emitting_commands(events, aggregates).each do |owner, command|
             attribute = command.attributes.find { |a| a.name == head.to_sym }
             next unless attribute
 
@@ -739,7 +892,7 @@ module Hecksagain
           nil
         end
 
-        def reacted_events(pm)
+        def self.reacted_events(pm)
           ([pm.starts_on, pm.ends_on] + pm.handlers.map(&:event_type))
             .compact
             .reject { |event| event == ProcessManager::REFUSED }
@@ -747,15 +900,15 @@ module Hecksagain
             .uniq
         end
 
-        def emitting_commands(events)
-          @aggregates.flat_map do |aggregate|
+        def self.emitting_commands(events, aggregates)
+          aggregates.flat_map do |aggregate|
             commands = aggregate.commands + aggregate.entities.flat_map(&:commands)
             commands.select { |command| (command.emits.map(&:to_s) & events).any? }
                     .map { |command| [aggregate, command] }
           end
         end
 
-        def list_or_scalar_violation(owner, attribute, segments)
+        def self.list_or_scalar_violation(owner, attribute, segments)
           return "#{attribute.name} is a list — a correlation key must name one instance's own field, " \
                  "not a whole collection" if attribute.list?
 
@@ -769,7 +922,7 @@ module Hecksagain
         # a value object this domain never declared, a field that value
         # object does not have, or a segment left over after already
         # reaching a scalar.
-        def walk_scalar(owner, type_name, segments)
+        def self.walk_scalar(owner, type_name, segments)
           if segments.empty?
             return nil if Attribute::PRIMITIVES.include?(type_name)
 

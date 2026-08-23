@@ -1079,6 +1079,39 @@ RSpec.describe "the DSL surface" do
       end
     end
 
+    it "resolve_pending_chapter_givens! resolves a bare chapter-given left pending by an earlier file" do
+      # TWO SEPARATE `Hecks.bluebook` calls, same chapter name — the same
+      # shape a chapter split across real files takes. "Referencer" loads
+      # FIRST and bare-references a description "Declarer" (loaded SECOND)
+      # is the one that actually declares — unresolvable at the moment
+      # "Referencer" itself is built, deferred instead of refused
+      # (`AggregateBuilder#pending_chapter_given`), and only resolved once
+      # `MetaValidator.judge_deferred!` runs, after both have loaded.
+      registry = Hecksagain::Runtime::Registry.new
+      Hecks.with_registry(registry) do
+        Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Hecksagain::Bluebook::MetaValidator.defer do
+          Hecks.bluebook("SplitGiven") do
+            aggregate("Referencer") do
+              identified_by :id
+              given("shared fact")
+            end
+          end
+          Hecks.bluebook("SplitGiven") do
+            aggregate("Declarer") do
+              identified_by :id
+              given("shared fact") { true }
+            end
+          end
+        end
+        Hecksagain::Bluebook::MetaValidator.judge_deferred!(registry)
+      end
+
+      referencer = registry.bluebook("SplitGiven").aggregates.find { |a| a.hecks_name == "Referencer" }
+      expect(referencer.preconditions.map(&:canonical)).to eq(["true"])
+    end
+
     it "verbs lists every command as a fully-qualified verb" do
       bluebook = build_bluebook("Verbed") do
         aggregate("Thing") do

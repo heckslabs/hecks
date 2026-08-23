@@ -111,13 +111,34 @@ pub fn parse_from(
 /// are populated from disjoint declaration sites, but the order still
 /// matches). Always `&[]` from `parse::aggregate`'s own call — an
 /// aggregate-owned command has no sibling PIECE to reach across.
+/// `preconditions` (for an AGGREGATE-owned command — see this function's
+/// own header) can itself hold a PENDING placeholder: `aggregate
+/// ::try_reference_named_chapter_given`'s own bare chapter-wide
+/// reference, still unresolved when THIS command's own body is reached
+/// (parsing runs top-to-bottom within one aggregate; the chapter-wide
+/// reference may need a file that hasn't loaded yet — see that
+/// function's own header). A placeholder is unambiguous here: an
+/// EXTRACTED `Given` never carries an empty `canonical` (Ruby's own
+/// `build_rule` refuses a predicate that fails to extract; a chapter-wide
+/// PLACEHOLDER is deliberately built with `canonical: String::new()`, so
+/// empty is a safe sentinel for "still pending" — never a real, resolved
+/// one). If the match is a placeholder, this returns `Pending` instead of
+/// cloning it — cloning now would freeze in the empty canonical
+/// permanently; `parse::chapter::parse_chapter`'s own final pass copies
+/// the AGGREGATE's own now-resolved precondition into this command's
+/// `givens` slot once every file in the chapter has loaded.
+enum GivenLookup {
+    Resolved(ir::Given),
+    Pending { precondition_index: usize },
+}
+
 fn try_reference_named_given(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
     preconditions: &[ir::Given],
     entity_shared_givens: &[ir::Given],
-) -> ParseResult<Option<ir::Given>> {
+) -> ParseResult<Option<GivenLookup>> {
     let Some(&line) = lines.get(*pos) else {
         return Ok(None);
     };
@@ -132,25 +153,53 @@ fn try_reference_named_given(
 
     let args = super::argument_gate(file, "given", "Command", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "given", &args, 1)?;
-    let resolved = preconditions
+
+    // `preconditions.iter().position(...)` first — a placeholder needs
+    // its INDEX, not just the match, to defer correctly; falls back to
+    // `entity_shared_givens` (never holds a placeholder — only an
+    // aggregate's own top-level bare reference can produce one, and an
+    // entity's own commands never receive `aggregate.preconditions` at
+    // all, only `entity.preconditions` — `parse::entity`'s own call
+    // site) the same priority order as before.
+    let resolved = if let Some(precondition_index) = preconditions
         .iter()
-        .chain(entity_shared_givens.iter())
+        .position(|given| given.description.as_deref() == Some(description.as_str()))
+    {
+        let given = &preconditions[precondition_index];
+        if given.canonical.is_empty() {
+            GivenLookup::Pending { precondition_index }
+        } else {
+            GivenLookup::Resolved(given.clone())
+        }
+    } else if let Some(given) = entity_shared_givens
+        .iter()
         .find(|given| given.description.as_deref() == Some(description.as_str()))
-        .cloned()
-        .ok_or_else(|| {
-            Diagnostic::new(
-                file,
-                line.number,
-                format!(
-                    "'{description}' names no precondition the owning aggregate or entity declares, \
-                     and no sibling piece under the same aggregate declares it either — declare it \
-                     once with a block, before the commands that reference it"
-                ),
-            )
-        })?;
+    {
+        GivenLookup::Resolved(given.clone())
+    } else {
+        return Err(Diagnostic::new(
+            file,
+            line.number,
+            format!(
+                "'{description}' names no precondition the owning aggregate or entity declares, \
+                 and no sibling piece under the same aggregate declares it either — declare it \
+                 once with a block, before the commands that reference it"
+            ),
+        ));
+    };
 
     *pos += 1;
     Ok(Some(resolved))
+}
+
+/// ONE ENTRY PER BARE `given(...)` a command left pending — `given_index`
+/// names where in THIS command's own `givens` the eventual real `Given`
+/// gets copied in (`parse::chapter::parse_chapter`'s own final
+/// resolution pass, AFTER it has already resolved the owning aggregate's
+/// `preconditions[precondition_index]` for real — the copy source).
+pub struct PendingCommandGiven {
+    pub given_index: usize,
+    pub precondition_index: usize,
 }
 
 /// Parses a `command "Name" do ... end` body. `owner` is the aggregate
@@ -191,18 +240,39 @@ pub fn parse_body(
     owner_attributes: &[ir::Attribute],
     owner_value_objects: &[ir::ValueObject],
     owner_entities: &[ir::Entity],
-) -> ParseResult<ir::Command> {
+) -> ParseResult<(ir::Command, Vec<PendingCommandGiven>)> {
     let mut command = ir::Command {
         name: name.to_string(),
         from,
         ..Default::default()
     };
+    // EVERY BARE `given(...)` THIS COMMAND ITSELF LEFT PENDING — see
+    // `GivenLookup::Pending`'s own comment; drained by `parse::aggregate
+    // ::parse_body`'s own caller, bubbled up to `parse::chapter
+    // ::parse_chapter`'s final resolution pass.
+    let mut pending: Vec<PendingCommandGiven> = Vec::new();
 
     loop {
-        if let Some(given) =
+        if let Some(outcome) =
             try_reference_named_given(file, lines, pos, preconditions, entity_shared_givens)?
         {
-            command.givens.push(given);
+            match outcome {
+                GivenLookup::Resolved(given) => command.givens.push(given),
+                GivenLookup::Pending { precondition_index } => {
+                    let given_index = command.givens.len();
+                    // Same empty-canonical sentinel as the aggregate's
+                    // own placeholder — nothing reads this before
+                    // `parse_chapter`'s final pass overwrites it.
+                    command.givens.push(ir::Given {
+                        description: None,
+                        canonical: String::new(),
+                    });
+                    pending.push(PendingCommandGiven {
+                        given_index,
+                        precondition_index,
+                    });
+                }
+            }
             continue;
         }
 
@@ -213,7 +283,7 @@ pub fn parse_body(
                 owner_value_objects,
                 owner_entities,
             );
-            return Ok(command);
+            return Ok((command, pending));
         };
         let line = gated.line.number;
 
@@ -649,7 +719,11 @@ fn build_mutation(
 /// — refused here the same way a malformed target is refused in Ruby,
 /// even though the one real fixture (`delegates_to.bluebook`) never
 /// exercises the error path.
-fn build_delegation(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<ir::Mutation> {
+fn build_delegation(
+    file: &str,
+    line: usize,
+    args: &super::ArgumentGateResult,
+) -> ParseResult<ir::Mutation> {
     let target = super::positional_text(file, line, "delegates_to", args, 1)?;
     let (entity_name, command_name) = target.rsplit_once('.').unwrap_or(("", ""));
     if entity_name.is_empty() || command_name.is_empty() {
@@ -664,7 +738,10 @@ fn build_delegation(file: &str, line: usize, args: &super::ArgumentGateResult) -
     }
 
     let fields = match super::named_raw(args, "with") {
-        Some(raw) => parse_hash_literal_pairs(raw).into_iter().map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v)))).collect(),
+        Some(raw) => parse_hash_literal_pairs(raw)
+            .into_iter()
+            .map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v))))
+            .collect(),
         None => Vec::new(),
     };
     Ok(ir::Mutation::Delegate { target, fields })

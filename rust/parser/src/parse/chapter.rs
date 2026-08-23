@@ -46,7 +46,7 @@
 //! discarded `ir::Bluebook`, so a real syntax error inside a sibling
 //! block still refuses rather than being silently skipped.
 
-use super::{aggregate, policy, process_manager, read_model};
+use super::{aggregate, command, policy, process_manager, read_model};
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, SourceLine};
@@ -73,6 +73,18 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
     let mut chapter_policies: Vec<ir::Policy> = Vec::new();
     let mut chapter_named_givens: Vec<(String, ir::Given)> = Vec::new();
+    // EVERY BARE CHAPTER-GIVEN A FILE PARSED SO FAR LEFT PENDING — see
+    // `aggregate::PendingChapterGiven`'s own comment for what queues here
+    // and this function's own resolution pass (below) for where it
+    // drains, once every file has loaded.
+    let mut pending_chapter_givens: Vec<(usize, aggregate::PendingChapterGiven)> = Vec::new();
+    // ONE LEVEL DEEPER STILL — a COMMAND's own bare reference to the
+    // same not-yet-resolved chapter-given (`command::PendingCommandGiven`
+    // 's own comment). Resolved in a SECOND pass below, after every
+    // `PendingChapterGiven` above has already patched the aggregate's
+    // own `preconditions` — this one COPIES that result rather than
+    // re-resolving from scratch.
+    let mut pending_command_givens: Vec<(usize, usize, command::PendingCommandGiven)> = Vec::new();
     let mut hecksagon_files: Vec<&(String, String)> = Vec::new();
 
     for entry @ (path, source) in files {
@@ -124,6 +136,8 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     &mut aggregate_policies,
                     &mut chapter_policies,
                     &mut chapter_named_givens,
+                    &mut pending_chapter_givens,
+                    &mut pending_command_givens,
                 )?;
             }
             "Hecksagon" => hecksagon_files.push(entry),
@@ -158,6 +172,89 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     // complete aggregate graph exists; local paths use this same pass so the
     // inference rule has one implementation and one declaration-order rule.
     crate::build::query_inference::apply(&files[0].0, &mut bluebook)?;
+
+    // THE OTHER HALF OF A CHAPTER-WIDE `given` REFERENCE —
+    // `aggregate::try_reference_named_chapter_given` recognised an
+    // unresolved bare reference and deferred it here, unable to check
+    // further: a later file in this SAME chapter might still declare the
+    // real thing. Resolved now, once and for all, against the
+    // NOW-COMPLETE `chapter_named_givens` — the IDENTICAL lookup that
+    // function already does, just late enough to see every aggregate's
+    // own declarations, not only the ones parsed before the referencing
+    // one. Mirrors `BluebookBuilder#resolve_pending_chapter_givens!`
+    // exactly, one call-site: PATCHES `bluebook.aggregates[aggregate_
+    // index].preconditions[precondition_index]` directly rather than
+    // mutating a shared object in place (Ruby's own trick, not available
+    // here — nothing else in Rust's IR holds a second reference to the
+    // placeholder that would need to see the update; the SECOND pass
+    // below handles the one thing that does, a command's own copy).
+    for (aggregate_index, pending) in pending_chapter_givens {
+        let candidates: Vec<&(String, ir::Given)> = chapter_named_givens
+            .iter()
+            .filter(|(_, given)| given.description.as_deref() == Some(pending.description.as_str()))
+            .collect();
+
+        let resolved = if let Some(owner) = &pending.declared_by {
+            candidates
+                .iter()
+                .find(|(candidate_owner, _)| candidate_owner == owner)
+                .map(|(_, given)| given.clone())
+                .ok_or_else(|| {
+                    Diagnostic::new(
+                        &pending.file,
+                        pending.line,
+                        format!(
+                            "'{}' names no precondition {owner} declares in this chapter — {owner} \
+                             either hasn't declared '{}', or declared_by: named the wrong aggregate",
+                            pending.description, pending.description
+                        ),
+                    )
+                })?
+        } else {
+            match candidates.as_slice() {
+                [] => {
+                    return Err(Diagnostic::new(
+                        &pending.file,
+                        pending.line,
+                        format!(
+                        "'{}' names no precondition any aggregate in this chapter ever declares \
+                             — declare it once with a block",
+                        pending.description
+                    ),
+                    ))
+                }
+                [(_, given)] => given.clone(),
+                _ => {
+                    let owners: Vec<&str> =
+                        candidates.iter().map(|(owner, _)| owner.as_str()).collect();
+                    return Err(Diagnostic::new(
+                        &pending.file,
+                        pending.line,
+                        format!(
+                            "'{}' is ambiguous in this chapter — {} each declare a DIFFERENT \
+                             predicate under this same description; name which one with declared_by:",
+                            pending.description,
+                            owners.join(", ")
+                        ),
+                    ));
+                }
+            }
+        };
+
+        bluebook.aggregates[aggregate_index].preconditions[pending.precondition_index] = resolved;
+    }
+
+    // A THIRD LAYER — a COMMAND's own bare reference to the same
+    // description (`command::PendingCommandGiven`'s own comment). Runs
+    // AFTER the loop above, on purpose — it COPIES the aggregate's own
+    // now-final `preconditions[precondition_index]`, so the aggregate
+    // -level placeholder has to be resolved for real first.
+    for (aggregate_index, command_index, pending) in pending_command_givens {
+        let resolved =
+            bluebook.aggregates[aggregate_index].preconditions[pending.precondition_index].clone();
+        bluebook.aggregates[aggregate_index].commands[command_index].givens[pending.given_index] =
+            resolved;
+    }
 
     for (path, source) in hecksagon_files {
         let joined = lex::join_continuations(source);
@@ -314,6 +411,14 @@ fn parse_body_into(
     aggregate_policies: &mut Vec<ir::Policy>,
     chapter_policies: &mut Vec<ir::Policy>,
     chapter_named_givens: &mut Vec<(String, ir::Given)>,
+    // EVERY BARE CHAPTER-GIVEN A FILE PARSED SO FAR LEFT PENDING — see
+    // `aggregate::PendingChapterGiven`'s own comment; `parse_chapter`
+    // resolves every one of these once every file has loaded.
+    pending_chapter_givens: &mut Vec<(usize, aggregate::PendingChapterGiven)>,
+    // ONE LEVEL DEEPER — a COMMAND's own bare reference to the same
+    // not-yet-resolved chapter-given (`command::PendingCommandGiven`'s
+    // own comment).
+    pending_command_givens: &mut Vec<(usize, usize, command::PendingCommandGiven)>,
 ) -> ParseResult<()> {
     // THE ROOT of the chapter-wide given pool
     // (`docs/implemented/resolution-rules/chapter-given.md`) belongs to the
@@ -361,10 +466,18 @@ fn parse_body_into(
             }
             "aggregate" => {
                 let agg_name = super::positional_text(file, line, "aggregate", &gated.args, 1)?;
-                let (built, policies) =
+                let (built, policies, pending, command_pending) =
                     aggregate::parse_body(file, lines, pos, &agg_name, chapter_named_givens)?;
+                let aggregate_index = bluebook.aggregates.len();
                 bluebook.aggregates.push(built);
                 aggregate_policies.extend(policies);
+                pending_chapter_givens
+                    .extend(pending.into_iter().map(|entry| (aggregate_index, entry)));
+                pending_command_givens.extend(
+                    command_pending
+                        .into_iter()
+                        .map(|(command_index, entry)| (aggregate_index, command_index, entry)),
+                );
             }
             "policy" => {
                 let pol_name = super::positional_text(file, line, "policy", &gated.args, 1)?;

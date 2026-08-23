@@ -70,7 +70,10 @@ RSpec.describe "SyntaxBoot's memo" do
   # the old guard did 42.
   it "boots at most once per distinct chapter set while the grammar registry builds itself from cold" do
     boots = 0
-    allow(SyntaxBootUnderTest).to receive(:boot).and_wrap_original { |m, *args| boots += 1; m.call(*args) }
+    allow(SyntaxBootUnderTest).to(receive(:boot).and_wrap_original { |m, *args|
+      boots += 1
+      m.call(*args)
+    })
 
     MetaValidatorUnderTest.instance_variable_set(:@grammar_registry, nil)
     registry = MetaValidatorUnderTest.grammar_registry

@@ -119,7 +119,31 @@ module Hecksagain
 
         pending.each do |name|
           chapter = registry.bluebook(name)
-          registry.add_bluebook(call(chapter)) if chapter
+          next unless chapter
+
+          # A bare chapter-given left PENDING by any file of this
+          # chapter (`AggregateBuilder#pending_chapter_given`) resolves
+          # first — before anything below reads a `Given`'s fields.
+          # `registry.bluebook_builder(name)` is the SAME instance every
+          # one of this chapter's own files built onto (`#self.build`'s
+          # own comment); it is guaranteed already open here, since it
+          # is what produced `chapter` in the first place — the block is
+          # dead code, never actually invoked.
+          builder = registry.bluebook_builder(name) { raise "internal: no open builder for #{name}" }
+          builder.resolve_pending_chapter_givens!
+
+          # `BluebookBuilder#build` skipped its own whole-chapter battery
+          # (hops, projected fields, correlation keys, event shapes,
+          # `with:` projections) for every file of THIS chapter while
+          # `deferring?` was true, the same reason `call` below queued
+          # instead of judging — each of those checks needs every file
+          # loaded first (see `BluebookBuilder.validate_assembled!`'s own
+          # comment). `chapter` here is exactly that: whatever the LAST
+          # file's own `add_bluebook` left in the registry, which by now
+          # holds every aggregate/policy/process_manager the whole
+          # chapter declares. Run once, here, instead of once per file.
+          DSL::BluebookBuilder.validate_assembled!(chapter)
+          registry.add_bluebook(call(chapter))
         end
       end
 

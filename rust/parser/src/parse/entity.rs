@@ -351,6 +351,16 @@ pub fn parse_body(
                 )
             })
         })
+        // `command::parse_body` now also returns any PENDING bare chapter
+        // -given reference it left for later (`PendingCommandGiven`'s
+        // own comment) — always empty here, on purpose: `preconditions`
+        // above is `&entity.preconditions`, which never receives a
+        // chapter-wide placeholder (only an AGGREGATE's own top-level
+        // `given(...)` reaches `try_reference_named_chapter_given` at
+        // all — `parse::aggregate`'s own call site). Discarded rather
+        // than threaded further; a piece's own commands have no chapter
+        // -given resolution path to bubble toward.
+        .map(|result| result.map(|(command, _pending)| command))
         .collect::<ParseResult<Vec<_>>>()?;
 
     entity.queries = pending_queries
