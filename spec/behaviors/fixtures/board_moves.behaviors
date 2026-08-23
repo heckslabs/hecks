@@ -1,0 +1,46 @@
+# THE `to:` COLLISION, PINNED — this suite exists because the runner once
+# forwarded a test's kwargs loose into Dispatcher#dispatch, where #335's
+# routing envelope owns the `to:` keyword: every domain declaring a
+# command fact named `to` (the delegates_to fixture's MovePiece, and the
+# chess domain the behaviors guide itself is written against) failed with
+# "to: does not recognize file, rank" on the exact spelling the guide
+# promises. The runner now splits identities from facts through
+# ReactionInvocation before dispatching; these tests hold it to that.
+Hecks.behaviors "BoardMoves" do
+  vision "Examples of moving a piece through the delegates_to fixture's own door — whose destination fact is named `to`, the same word the dispatch envelope reserves."
+
+  loads "../../fixtures/delegates_to/delegates_to.bluebook"
+
+  test "a piece moves through the aggregate-level door, and the policy cascade bumps the move count" do
+    tests "MovePiece", on: "Board"
+    setup  "OpenBoard",  name: { value: "b1" }
+    setup  "PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 1, rank: 1 }
+    input  name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 }
+    expect emits: ["PieceMoved", "MoveCountBumped"]
+  end
+
+  test "the move count the cascade bumped reads back as a field" do
+    tests "MovePiece", on: "Board"
+    setup  "OpenBoard",  name: { value: "b2" }
+    setup  "PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 1, rank: 1 }
+    input  name: "b2", id: { value: "p1" }, to: { file: 5, rank: 5 }
+    expect move_count: 1
+  end
+
+  test "a move to the square the piece already stands on is refused" do
+    tests "MovePiece", on: "Board"
+    setup  "OpenBoard",  name: { value: "b3" }
+    setup  "PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 }
+    input  name: "b3", id: { value: "p1" }, to: { file: 3, rank: 3 }
+    expect refused: "destination differs from current square"
+  end
+
+  test "a `to:`-named fact inside a setup dispatch routes as a fact too, never as an address" do
+    tests "MovePiece", on: "Board"
+    setup  "OpenBoard",  name: { value: "b4" }
+    setup  "PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 1, rank: 1 }
+    setup  "MovePiece",  name: "b4", id: { value: "p1" }, to: { file: 2, rank: 2 }
+    input  name: "b4", id: { value: "p1" }, to: { file: 2, rank: 2 }
+    expect refused: "destination differs from current square"
+  end
+end

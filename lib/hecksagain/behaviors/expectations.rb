@@ -2,6 +2,7 @@ require_relative "ir"
 require_relative "../runtime/loader"
 require_relative "../runtime/errors"
 require_relative "../runtime/value"
+require_relative "../runtime/reaction_invocation"
 
 # Hecksagain::Behaviors::Expectations
 #
@@ -49,7 +50,7 @@ module Hecksagain
         begin
           test.setups.each do |setup|
             current_setup = setup
-            runtime.dispatch(qualify(setup.command, nil, bluebooks, kind: :command), **setup.args)
+            dispatch_command(runtime, qualify(setup.command, nil, bluebooks, kind: :command), setup.args)
           end
         rescue *REFUSAL_CLASSES => e
           return error_result(test, "setup #{current_setup&.command.inspect} refused: #{e.message}")
@@ -74,7 +75,7 @@ module Hecksagain
 
       def run_command(test, runtime, verb)
         before = runtime.registry.event_log.length
-        result = runtime.dispatch(verb, **test.input)
+        result = dispatch_command(runtime, verb, test.input)
 
         return fail_result(test, "expected refused: #{test.expect[:refused].inspect} but dispatch succeeded") if test.expect.key?(:refused)
 
@@ -83,7 +84,62 @@ module Hecksagain
           return fail_result(test, "expected emits: #{expected_emits.inspect}, got #{actual.inspect}") unless actual == expected_emits
         end
 
-        check_ok(test) || check_fields(test, result.state || {}) || pass_result(test)
+        check_ok(test) || check_fields(test, settled_state(runtime, verb, result)) || pass_result(test)
+      end
+
+      # A field expectation reads the aggregate AS IT STANDS once the
+      # dispatch and its whole cascade have run — the same "cascades are
+      # always on" reading `emits:` already commits to. `Result#state` is
+      # the wrong source for that: it snapshots the instance the OUTER
+      # dispatch saved, and a policy's own reentrant dispatch (a ply
+      # advancing off a Moved event, a move count bumping) hydrates and
+      # saves a FRESH record afterward — so a field the cascade wrote
+      # read back stale (found live: `expect move_count: 1` got 0 while
+      # `emits:` saw MoveCountBumped in the same test). The repository
+      # holds the settled record; read it back by the id the dispatch
+      # itself answered with.
+      def settled_state(runtime, verb, result)
+        return result.state || {} unless result.respond_to?(:id) && result.id
+
+        domain, rest = verb.split("::", 2)
+        aggregate_name = rest.to_s.split(".", 2).first
+        aggregate = runtime.registry.bluebook(domain)&.aggregate(aggregate_name)
+        return result.state || {} unless aggregate
+
+        record = runtime.registry.repository(domain, aggregate).find(result.id)
+        record ? record.state : (result.state || {})
+      end
+
+      # A behaviors test writes a dispatch the way the guide's own chess
+      # examples do — receiver identity and command facts side by side
+      # (`label: "g", id: "wn", to: { file: 2, rank: 2 }`) — and since
+      # #335 the dispatcher's own `to:` keyword is the ROUTING envelope,
+      # so forwarding those kwargs loose collides the moment a domain
+      # declares a command fact named `to` (chess does: every Move's own
+      # destination). Found live: every such test failed with "to: does
+      # not recognize file, rank" while this guide promised the spelling
+      # works. `ReactionInvocation.build` is #335's own seam for turning
+      # mixed facts into the strict envelope — identities lifted into
+      # `to:`, declared facts into `with:` — so a behaviors dispatch now
+      # goes through the exact same separation a policy's projection
+      # does. A verb that resolves to no command (a port operation —
+      # "Pizzas::Order.PaymentGateway.Receive") keeps the loose
+      # passthrough: its own input already spells the port form's
+      # `to:`/`with:`, which the dispatcher's port branch reads directly.
+      def dispatch_command(runtime, verb, args)
+        invocation = begin
+          Runtime::ReactionInvocation.build(registry: runtime.registry, verb: verb,
+                                            projected: args, explicit: true)
+        rescue Runtime::UnknownVerb
+          nil
+        end
+        return runtime.dispatch(verb, **args) unless invocation
+
+        if invocation.key?(:to)
+          runtime.dispatch(verb, to: invocation[:to], with: invocation[:with])
+        else
+          runtime.dispatch(verb, with: invocation[:with])
+        end
       end
 
       def run_query(test, runtime, verb)

@@ -62,11 +62,28 @@ RSpec.describe Hecksagain::Behaviors do
     end
   end
 
+  # THE `to:` COLLISION, PINNED — the fixture's own header comment has
+  # the full story: MovePiece's destination fact is named `to`, the same
+  # word Dispatcher#dispatch's routing envelope owns since #335, and the
+  # runner once forwarded kwargs loose enough to collide ("to: does not
+  # recognize file, rank" on the exact spelling the behaviors guide
+  # promises). Every test passing here means the runner separates
+  # identities from facts the same way a policy projection does.
+  describe "a domain whose own command fact is named `to`" do
+    let(:result) { described_class.run(fixture("board_moves.behaviors")) }
+
+    it "runs every test through the envelope — setups and the tested dispatch alike" do
+      expect(result.parse_error).to be_nil
+      statuses = result.runs.to_h { |r| [r.description, [r.status, r.message]] }
+      expect(statuses.values.map(&:first)).to all(eq(:pass)), statuses.inspect
+    end
+  end
+
   describe ".run_all" do
     it "sweeps every .behaviors file under a directory and reports how many it found" do
       sweep = described_class.run_all(File.expand_path("fixtures", __dir__))
 
-      expect(sweep.files_swept).to eq(4)
+      expect(sweep.files_swept).to eq(5)
       expect(sweep.summary[:parse_errors]).to eq(3) # no_vision, no_loads, no_op
     end
   end
