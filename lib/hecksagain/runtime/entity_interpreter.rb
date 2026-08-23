@@ -50,7 +50,7 @@ module Hecksagain
       end
 
       # `dry_run:` — CommandInterpreter#call's own twin, see that method's
-      # comment for the shared reasoning (Dispatcher#dry_run's own entry
+      # comment for the shared reasoning (Dispatcher#dry_run?'s own entry
       # point). `step_save`/`step_emit` are the only two steps here that
       # read it either.
       def call(domain, aggregate, dotted, args, dry_run: false)
@@ -180,7 +180,7 @@ module Hecksagain
       end
 
       # `dry_run:` skips this too — nothing was committed, so `ctx.result`
-      # stays nil and `Dispatcher#dry_run` never reads it.
+      # stays nil and `Dispatcher#dry_run?` never reads it.
       def step_emit(ctx)
         return if ctx.dry_run
 

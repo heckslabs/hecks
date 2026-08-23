@@ -1,4 +1,5 @@
 require_relative "../../../../naming"
+require_relative "../../../../translation/rule_compiler"
 
 module Hecksagain
   module Adapters
@@ -229,8 +230,8 @@ module Hecksagain
             names = names_by_era(aggregate, edges)
             cut = held.find { |candidate| candidate[:ordinal] == era }&.dig(:watermark)
             declared = edges.last[:translation].for_aggregate(names[:current][edges.size])
-            expression = declared ? compile_rules(declared) : "state"
-            id_column = rekeyed?(declared) ? id_case("operation = 'save'", declared) : "aggregate_id"
+            expression = declared ? Translation::RuleCompiler.compile_rules(declared) : "state"
+            id_column = Translation::RuleCompiler.rekeyed?(declared) ? Translation::RuleCompiler.id_case("operation = 'save'", declared) : "aggregate_id"
 
             <<~SQL
               WITH layered AS (
@@ -252,9 +253,9 @@ module Hecksagain
             tail = latest_per_id(ancestor_tail_sql(names, era))
             chain = edges.each_with_index.map do |edge, index|
               declared = edge[:translation].for_aggregate(names[:current][index + 1])
-              expression = declared ? compile_rules(declared) : "state"
+              expression = declared ? Translation::RuleCompiler.compile_rules(declared) : "state"
               guard = "era <= #{index + 1} AND operation = 'save'"
-              id_column = rekeyed?(declared) ? id_case(guard, declared) : "aggregate_id"
+              id_column = Translation::RuleCompiler.rekeyed?(declared) ? Translation::RuleCompiler.id_case(guard, declared) : "aggregate_id"
               "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column}, operation, " \
                 "CASE WHEN #{guard} THEN #{expression} ELSE state END AS state " \
                 "FROM #{index.zero? ? 'tail' : "edge_#{index}"})"
@@ -400,85 +401,13 @@ module Hecksagain
             selects.join(" UNION ALL ")
           end
 
-          # One edge's rules over one jsonb state, compiled as a nested
-          # expression tree — hecks_tr_* helpers composed innermost-first
-          # in the reference transform's phase order (renames, moves,
-          # converts, drops), computes last. `retype` compiles to nothing:
-          # stored state never carries a type name.
-          def compile_rules(declared)
-            expression = "state"
-            declared.renames.each do |old_name, new_name|
-              expression = "hecks_tr_rename(#{expression}, #{text_literal(old_name)}, #{text_literal(new_name)})"
-            end
-            declared.moves.each do |move|
-              expression = "hecks_tr_move(#{expression}, #{path_literal(move.from)}, #{path_literal(move.to)}, " \
-                           "#{text_literal("move #{move.from} to: #{move.to}")})"
-            end
-            declared.converts.each do |convert|
-              pairs = JSON.generate(convert.values.map { |key, value| [key, value] })
-              expression = "hecks_tr_convert(#{expression}, #{path_literal(convert.from)}, #{path_literal(convert.to)}, " \
-                           "#{text_literal(pairs)}::jsonb, #{text_literal(convert.from)}, " \
-                           "#{text_literal("convert #{convert.from} to: #{convert.to}")})"
-            end
-            declared.drops.each do |name|
-              expression = "hecks_tr_drop(#{expression}, #{path_literal(name)})"
-            end
-            declared.computes.each do |compute|
-              expression = compile_compute(expression, compute)
-            end
-            expression
-          end
-
-          # Whether THIS edge's declared rules for this aggregate include a
-          # rekey — checked directly off the raw IR object, the same way
-          # every other rule kind is already read in `compile_rules`
-          # (`declared.computes`, `declared.moves`, ...), not through the
-          # `Ports::Persistence::Lineage` wrapper the app-level consumers
-          # (coverage_check.rb, minter.rb, layer_two.rb) go through — this
-          # file builds SQL straight off the IR either way.
-          def rekeyed?(declared) = declared && !declared.rekeys.empty?
-
-          # THE ONLY TWO PLACES `aggregate_id` NEEDS TO CHANGE — every
-          # other reduction/select in this file (`latest_per_id`,
-          # `ancestor_tail_sql`, `latest_of`, `compile_head!`'s own final
-          # view, `ensure_first_head!`) reads FROM a chain that, once these
-          # two produce the right column, is already correct — see this
-          # feature's own design notes for why. Guarded so the generated
-          # SQL for the overwhelming common case (no rekey declared, every
-          # existing domain today) stays the bare `aggregate_id` passthrough
-          # it always was — this CASE only appears in an edge that actually
-          # declares one.
-          def id_case(guard, declared)
-            "CASE WHEN #{guard} THEN #{compile_id_expression(declared)} ELSE aggregate_id END AS aggregate_id"
-          end
-
-          # THE REKEY'S OWN SQL — reading `state` directly, not the
-          # progressively-built `expression` chain `compile_compute` reads
-          # from. A rekey doesn't consume or move any field the way a move
-          # or compute does (see `TranslationRekey`'s own comment), so
-          # there is no same-edge rename/move ordering it needs to see
-          # first — it reads the record's stored fields exactly as they
-          # already are, the same `__s` convention `compile_compute`
-          # exposes.
-          def compile_id_expression(declared)
-            rekey = declared.rekeys.first
-            "(SELECT (#{rekey.sql}) FROM (SELECT (state) AS __s) __outer)"
-          end
-
-          # A compute is the one rule whose SQL is its only implementation
-          # — evaluated exclusively here, inside the compiled head, never
-          # in-process. The old field is exposed under its own name (as
-          # text, exactly as the author's expression expects to cast it).
-          def compile_compute(expression, compute)
-            from = compute.from.to_s
-            to = compute.to.to_s
-            "(SELECT CASE WHEN __s ? #{text_literal(from)} THEN " \
-              "hecks_tr_insert(__s - #{text_literal(from)}, #{path_literal(to)}, to_jsonb((#{compute.sql})), " \
-              "#{text_literal("compute #{from} to: #{to}")}) " \
-              "ELSE __s END " \
-              "FROM (SELECT (#{expression}) AS __s) __outer, " \
-              "LATERAL (SELECT (__s ->> #{text_literal(from)}) AS #{quote(from)}) __fields)"
-          end
+          # compile_rules/rekeyed?/id_case/compile_id_expression/
+          # compile_compute moved to Translation::RuleCompiler — the
+          # PURE half of this compiler, with no database connection, no
+          # watermark, no era chain. Extracted so Exporter's build-time
+          # SQL export (feeding rust/host's own boot-time mint) can call
+          # the exact same code this file's own callers do, rather than
+          # a hand-ported duplicate. See that module's own header.
 
           def view_exists?(name)
             # pg_class + pg_table_is_visible, not information_schema/

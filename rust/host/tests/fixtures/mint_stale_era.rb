@@ -110,7 +110,7 @@ def check!(source, owner_url:, translation_source: nil, role: nil)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url }
   settings[:role] = role if role
-  Hecksagain::Adapters::Postgres::LineageManager.check!(
+  Hecksagain::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
 end

@@ -158,7 +158,7 @@ module Hecksagain
             # `:delegate` (CommandBuilder#delegates_to's own comment) rides
             # the SAME multi-binding shape `:append` does — `with: {...}`
             # is a field map, same as append's own `fields:`.
-            next set_row(mutation) unless mutation.op == :append || mutation.op == :delegate
+            next set_row(mutation) unless [:append, :delegate].include?(mutation.op)
 
             mutation.source.map do |field, argument|
               # Spelled the way Mutation#appended_fields spells it, because

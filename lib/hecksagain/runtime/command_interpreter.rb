@@ -41,7 +41,7 @@ module Hecksagain
         @rules    = rules
       end
 
-      # `dry_run:` — Dispatcher#dry_run's own entry point. Every step up
+      # `dry_run:` — Dispatcher#dry_run?'s own entry point. Every step up
       # through enforce_ensures/enforce_invariants runs exactly as a real
       # dispatch would (givens checked, mutations applied to `ctx.instance`
       # in memory); `step_save`/`step_emit` are the only two that read this
@@ -138,12 +138,12 @@ module Hecksagain
           entity_name, _dot, command_name = delegation.target.to_s.rpartition(".")
           entity = ctx.aggregate.entities.find { |e| e.hecks_name == entity_name } ||
                    raise(WiringError, "#{ctx.command.hecks_name} delegates_to #{entity_name}." \
-                                       "#{command_name}, but #{ctx.aggregate.hecks_name} has no " \
-                                       "entity named #{entity_name.inspect}")
+                                      "#{command_name}, but #{ctx.aggregate.hecks_name} has no " \
+                                      "entity named #{entity_name.inspect}")
           target_command = entity.command(command_name) ||
                            raise(WiringError, "#{ctx.command.hecks_name} delegates_to " \
-                                               "#{entity_name}.#{command_name}, which " \
-                                               "#{entity_name} declares no such command")
+                                              "#{entity_name}.#{command_name}, which " \
+                                              "#{entity_name} declares no such command")
 
           # `with:` REMAPS, it does not ENUMERATE — starting from a copy
           # of THIS command's own already-resolved args (`ctx.args`) and
@@ -191,7 +191,7 @@ module Hecksagain
         step(:enforce_invariants) { @rules.enforce_invariants(ctx.instance, ctx.aggregate, domain: ctx.domain) }
       end
 
-      # `dry_run:` skips this — see Dispatcher#dry_run's own comment. The
+      # `dry_run:` skips this — see Dispatcher#dry_run?'s own comment. The
       # same conditional-skip shape `step_assign_creation_attributes`
       # already has (`return unless ctx.command.creates?`), not a new
       # pattern: a step that does not apply this time traces nothing,
@@ -209,7 +209,7 @@ module Hecksagain
       # into `@rules.emit` for a command with no announced events at all.
       #
       # `dry_run:` skips this too, same reasoning as `step_save` — nothing
-      # was committed, so `ctx.result` stays nil and `Dispatcher#dry_run`
+      # was committed, so `ctx.result` stays nil and `Dispatcher#dry_run?`
       # never reads it (its own return value is just whether this raised).
       def step_emit(ctx)
         return if ctx.dry_run

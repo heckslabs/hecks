@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# Dispatcher#dry_run's own comment has the full reasoning — built for a
+# Dispatcher#dry_run?'s own comment has the full reasoning — built for a
 # downstream chess domain's own whole-board postcondition tests ("does
 # this move leave my own king in check"), which previously had to
 # dispatch a real, unrelated piece's own move purely to trigger the
@@ -11,7 +11,7 @@ require "spec_helper"
 # event, which is exactly the surface dry_run needs to prove itself
 # against: does a dry run see through the delegation, and does it
 # correctly reach NEITHER persistence NOR reactions in either shape.
-RSpec.describe "Dispatcher#dry_run" do
+RSpec.describe "Dispatcher#dry_run?" do
   DRY_RUN_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/delegates_to/delegates_to.bluebook")
 
   def boot
@@ -38,7 +38,7 @@ RSpec.describe "Dispatcher#dry_run" do
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    result = runtime.dry_run("DelegatesTo::Board.Piece.Move", name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    result = runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
     expect(result).to be(true)
     expect(board(runtime, "b1")[:pieces].first[:square].to_h).to eq(file: 3, rank: 3)
@@ -50,7 +50,7 @@ RSpec.describe "Dispatcher#dry_run" do
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     expect {
-      runtime.dry_run("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
+      runtime.dry_run?("DelegatesTo::Board.Piece.Move", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
     }.to raise_error(Hecksagain::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
@@ -64,7 +64,7 @@ RSpec.describe "Dispatcher#dry_run" do
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b3" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    result = runtime.dry_run("DelegatesTo::Board.MovePiece", name: "b3", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    result = runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b3", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
     expect(result).to be(true)
     expect(board(runtime, "b3")[:pieces].first[:square].to_h).to eq(file: 3, rank: 3)
@@ -73,14 +73,14 @@ RSpec.describe "Dispatcher#dry_run" do
   # POLICIES MUST NEVER FIRE — `move_count` (bumped by
   # OnPieceMovedBumpMoveCount, the same policy delegates_to_spec.rb's
   # own ambient-args test uses) staying at its default proves
-  # Dispatcher#dry_run never reaches `announced.each { @policies.react
+  # Dispatcher#dry_run? never reaches `announced.each { @policies.react
   # }` at all, not merely that it reacted and rescued something.
   it "never triggers a policy reaction — nothing was announced to react to" do
     runtime = boot
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    runtime.dry_run("DelegatesTo::Board.MovePiece", name: "b4", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b4", id: { value: "p1" }, to: { file: 5, rank: 5 })
 
     expect(board(runtime, "b4")[:move_count].to_h).to eq(value: 0)
   end
@@ -90,7 +90,7 @@ RSpec.describe "Dispatcher#dry_run" do
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b5" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    runtime.dry_run("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 5, rank: 5 })
     runtime.dispatch("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 6, rank: 6 })
 
     expect(board(runtime, "b5")[:pieces].first[:square].to_h).to eq(file: 6, rank: 6)
@@ -99,7 +99,7 @@ RSpec.describe "Dispatcher#dry_run" do
 
   # No port-bearing fixture was worth building fresh for this alone —
   # the guard itself is a plain, direct `if aggregate.port(head) then
-  # raise else entity dispatch` two-liner in Dispatcher#dry_run, read
+  # raise else entity dispatch` two-liner in Dispatcher#dry_run?, read
   # and confirmed correct rather than exercised through a dedicated
   # fixture. Named here so the gap is visible, not silently assumed
   # covered.

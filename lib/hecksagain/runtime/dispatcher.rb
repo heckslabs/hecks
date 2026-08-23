@@ -131,7 +131,7 @@ module Hecksagain
       # (an external gateway call, say) have no meaningful in-memory-only
       # form, so this refuses one outright rather than silently running
       # it for real, which "dry" would otherwise quietly lie about.
-      def dry_run(verb, **args)
+      def dry_run?(verb, **args)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 

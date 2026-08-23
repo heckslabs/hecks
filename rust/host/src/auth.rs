@@ -251,6 +251,23 @@ async fn member_rows(client: &Mutex<Client>) -> anyhow::Result<Vec<(String, Valu
 // operation`/`entry.mirrors`'s own branches (always "save"/always nil,
 // confirmed by tracing CommandInterpreter -> Postgres#save) collapse
 // to literals rather than being reintroduced as unused generality.
+// GENERALIZED onto journal::append_lineage_mutation (ADR 0029 step 2) —
+// was a hand-rolled duplicate of that function's own journal-insert +
+// snapshot-upsert transaction, with "member"/`member_head_snapshot_{era}`
+// spelled out by hand instead of derived. The lock below is NOT the
+// generalization's job to supply: `journal::append_lineage_mutation`
+// deliberately takes no lock of its own (see its own header) — locking
+// is a caller concern, and dispatch.rs's caller already holds its own
+// (a differently-named, invocation-scoped lock, journal.rs's own
+// `hecks_lambda_journal.` advisory lock in dispatch.rs). This caller's
+// concern is the one Ruby's own `append` takes right before its
+// identical journal insert (postgres_era.rb:253-256) — `hecks_ordinal:`,
+// which serializes against a concurrent domain RENAME holding that same
+// lock name while repartitioning (postgres_era.rb:181), not against
+// ordinal uniqueness (a real Postgres sequence default already owns
+// that). Kept here, unchanged, rather than folded into the generic
+// function, because a rename is a domain-wide concern every lineage
+// write should serialize against — not specific to Member.
 async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, id: &str, state: &Value) -> anyhow::Result<()> {
     let mut guard = client.lock().await;
     let txn = guard.transaction().await?;
@@ -261,27 +278,10 @@ async fn append_member_state(client: &Mutex<Client>, config: &LineageConfig, id:
     )
     .await?;
 
-    let journal_table = format!("hecks_journal_{}", journal::snake(&config.domain));
-    let snapshot_table = format!("member_head_snapshot_{}", config.era);
-
-    let row = txn
-        .query_one(
-            &format!(
-                "INSERT INTO \"{journal_table}\" (era, aggregate, aggregate_id, operation, state, mirrors) \
-                 VALUES ($1, 'member', $2, 'save', $3, NULL) RETURNING ordinal"
-            ),
-            &[&config.era, &id, state],
-        )
-        .await?;
-    let ordinal: i64 = row.get(0);
-
-    txn.execute(
-        &format!(
-            "INSERT INTO \"{snapshot_table}\" (id, ordinal, state) VALUES ($1, $2, $3) \
-             ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state \
-             WHERE \"{snapshot_table}\".ordinal < EXCLUDED.ordinal"
-        ),
-        &[&id, &ordinal, state],
+    journal::append_lineage_mutation(
+        &txn,
+        config,
+        &journal::Mutation { aggregate: "Member", id, operation: "save", state },
     )
     .await?;
 

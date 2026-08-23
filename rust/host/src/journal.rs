@@ -20,6 +20,7 @@
 // end up in `refusals` is the newest one, appended last. That's the
 // entire correctness argument `append_if_accepted` below leans on.
 
+use sha2::{Digest, Sha256};
 use tokio_postgres::{Client, GenericClient};
 
 pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
@@ -624,6 +625,111 @@ pub async fn read_lineage_head_by_id<C: GenericClient>(
     Ok(row.map(|r| r.get(0)))
 }
 
+// ── ERA/APPROVAL READS — the part of `hecks_eras`/`hecks_approvals`
+// a boot-time drift check (and, later, a mint executor) needs to read
+// for itself, rather than trusting an externally-supplied HECKS_ERA.
+// Ports of era_store.rb's own `eras`/`approval_for`/`last_ordinal`.
+
+/// One row of `hecks_eras`, held/verified — mirrors era_store.rb's
+/// `eras` method's own returned shape exactly (`ordinal`, `hash`,
+/// `label`, `held_text`, `watermark`).
+#[derive(Debug, Clone)]
+pub struct HeldEra {
+    pub ordinal: i32,
+    pub hash: Option<String>,
+    pub label: Option<String>,
+    pub held_text: String,
+    pub watermark: Option<i64>,
+}
+
+/// Every held era for one domain, in ordinal order, each verified
+/// against its own raw-byte digest — an edited `held_text` refuses
+/// loudly rather than silently reporting "no drift", the same
+/// tamper-evidence guarantee `EraStore#verify_integrity!`'s own header
+/// names. `held_digest IS NULL` (a row from before the integrity
+/// column existed) is accepted unverified, matching Ruby's own
+/// behavior for that case — but this function does NOT replicate
+/// Ruby's own write-side backfill of that column (`backfill_frozen_
+/// facts!`): a Rust-minted era always writes `held_digest` from the
+/// start, so there is no legacy gap for this read path to repair, only
+/// one for it to tolerate on eras a Ruby boot minted first.
+pub async fn held_eras<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<Vec<HeldEra>> {
+    let rows = client
+        .query(
+            "SELECT ordinal, hash, label, held_text, watermark, held_digest FROM hecks_eras \
+             WHERE domain = $1 ORDER BY ordinal",
+            &[&domain],
+        )
+        .await?;
+
+    rows.into_iter()
+        .map(|row| {
+            let ordinal: i32 = row.get("ordinal");
+            let held_text: String = row.get("held_text");
+            let held_digest: Option<String> = row.get("held_digest");
+
+            if let Some(stored) = &held_digest {
+                let digest = format!("{:x}", Sha256::digest(held_text.as_bytes()));
+                if &digest != stored {
+                    anyhow::bail!(
+                        "cannot boot {domain}: era {ordinal}'s held text does not match its own recorded digest \
+                         — this row was edited outside the lineage tooling; run bin/reattest_era to acknowledge \
+                         the change and re-seal it (Runtime::EraTamper's own recovery path)"
+                    );
+                }
+            }
+
+            Ok(HeldEra {
+                ordinal,
+                hash: row.get("hash"),
+                label: row.get("label"),
+                held_text,
+                watermark: row.get("watermark"),
+            })
+        })
+        .collect()
+}
+
+/// A Layer-3 approval, as recorded — mirrors era_store.rb's own
+/// `approval_for` return shape.
+#[derive(Debug, Clone)]
+pub struct Approval {
+    pub edge_digest: String,
+    pub reviewed_ordinal: i64,
+}
+
+/// The latest approval for one shape-pair edge, if any — the latest
+/// row wins (a re-approval supersedes), matching era_store.rb's own
+/// `ORDER BY approved_at DESC, reviewed_ordinal DESC LIMIT 1`.
+pub async fn approval_for<C: GenericClient>(
+    client: &C,
+    domain: &str,
+    from_label: &str,
+    to_label: &str,
+) -> anyhow::Result<Option<Approval>> {
+    let row = client
+        .query_opt(
+            "SELECT edge_digest, reviewed_ordinal FROM hecks_approvals \
+             WHERE domain = $1 AND from_label = $2 AND to_label = $3 \
+             ORDER BY approved_at DESC, reviewed_ordinal DESC LIMIT 1",
+            &[&domain, &from_label, &to_label],
+        )
+        .await?;
+
+    Ok(row.map(|row| Approval { edge_digest: row.get("edge_digest"), reviewed_ordinal: row.get("reviewed_ordinal") }))
+}
+
+/// The journal's own high-water ordinal — era_store.rb's own
+/// `last_ordinal`, what a fresh approval binds to
+/// (`record_approval!`'s `reviewed_ordinal`) and what a mint transaction
+/// captures as the new era's own watermark.
+pub async fn last_ordinal<C: GenericClient>(client: &C, domain: &str) -> anyhow::Result<i64> {
+    let row = client
+        .query_one(&format!("SELECT COALESCE(max(ordinal), 0) AS o FROM {}", quote_ident(&journal_table(domain))), &[])
+        .await?;
+    Ok(row.get("o"))
+}
+
 #[cfg(test)]
 mod lineage_tests {
     use super::*;
@@ -693,6 +799,74 @@ mod lineage_tests {
             message.contains("row-level security") || message.contains("row level security"),
             "the refusal should be Postgres's RLS policy specifically, not some other error: {message}"
         );
+    }
+
+    // held_eras/approval_for/last_ordinal — proven against a REAL
+    // compute-migrated era Ruby minted, not a synthetic fixture. Reuses
+    // mint_and_seed_lineage_compute.rb (rust/host/tests/fixtures/), the
+    // same script the differential-parity spec drives — the ONE thing
+    // in this whole codebase that has ever driven the real approval
+    // gate outside bin/translation_audit itself, so a real, non-empty
+    // hecks_approvals row is guaranteed to exist by the time this test
+    // reads it back.
+    #[tokio::test]
+    async fn held_eras_and_approval_for_read_exactly_what_ruby_s_own_mint_wrote() {
+        let db = "rust_host_era_read_test";
+        let owner_role = "rust_host_era_read_owner";
+        let app_role = "rust_host_era_read_app";
+
+        let script = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mint_and_seed_lineage_compute.rb");
+        let output = std::process::Command::new("ruby")
+            .arg(&script)
+            .arg(db)
+            .arg(owner_role)
+            .arg(app_role)
+            .output()
+            .expect("run mint_and_seed_lineage_compute.rb -- is `ruby` on PATH?");
+        assert!(
+            output.status.success(),
+            "mint_and_seed_lineage_compute.rb failed:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+
+        // Owner-authenticated, deliberately — this test reads bookkeeping
+        // tables (hecks_eras, hecks_approvals) the app role has no grant
+        // on by design (mint_and_seed_lineage.rb's own header explains
+        // why: real deployment traffic never needs to read them, only
+        // the mint path does), not the fenced data path the RLS test
+        // above exists to prove.
+        let (client, connection) = tokio_postgres::connect(&format!("host=localhost dbname={db} user={owner_role}"), NoTls)
+            .await
+            .expect("connect as owner");
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
+
+        let eras = held_eras(&client, "LedgerCompute").await.expect("held_eras");
+        assert_eq!(eras.len(), 2, "expected exactly the two eras mint_and_seed_lineage_compute.rb mints: {eras:?}");
+        assert_eq!(eras[0].ordinal, 1);
+        assert_eq!(eras[1].ordinal, 2);
+        let from_label = eras[0].label.clone().expect("era 1 has a minted label");
+        let to_label = eras[1].label.clone().expect("era 2 has a minted label");
+        assert_ne!(from_label, to_label, "a real compute edge names two DIFFERENT shapes");
+
+        let approval = approval_for(&client, "LedgerCompute", &from_label, &to_label)
+            .await
+            .expect("approval_for")
+            .expect("the real approval mint_and_seed_lineage_compute.rb recorded should still be readable");
+        assert!(!approval.edge_digest.is_empty());
+        // Era 1 wrote two records (a, b) before the approval was
+        // recorded — reviewed_ordinal binds to the journal's high-water
+        // mark AT THAT MOMENT (record_approval!'s own last_ordinal
+        // call), so it must be at least 2, never 0.
+        assert!(approval.reviewed_ordinal >= 2, "reviewed_ordinal should reflect era 1's real writes: {}", approval.reviewed_ordinal);
+
+        // Era 1's two writes plus era 2's one (via owner, post-mint) —
+        // last_ordinal reads the SAME journal both the mint and the
+        // approval bind to, so it must have advanced past the approval's
+        // own reviewed_ordinal by at least the one post-mint write.
+        let ordinal = last_ordinal(&client, "LedgerCompute").await.expect("last_ordinal");
+        assert!(ordinal > approval.reviewed_ordinal, "the journal should have advanced since the approval was reviewed: {ordinal} vs {}", approval.reviewed_ordinal);
     }
 
     // THE BOOT-GATE CASE THE TEST ABOVE DOESN'T COVER: this crate's OWN

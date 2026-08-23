@@ -221,7 +221,7 @@ module Hecksagain
           base = { target: target.to_sym, op: op.to_sym, sign: Hecksagain::Bluebook::Mutation.sign_for(op) }
           # `:delegate` (CommandBuilder#delegates_to's own comment) rides
           # the SAME multi-binding shape `:append` does.
-          return base.merge(fields: appended(bindings)) if op == "append" || op == "delegate"
+          return base.merge(fields: appended(bindings)) if ["append", "delegate"].include?(op)
 
           base.merge(source: classified(bindings.first))
         end

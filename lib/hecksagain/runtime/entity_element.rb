@@ -135,10 +135,8 @@ module Hecksagain
         fields       = mutation.source.transform_values { |source| resolve_element_append_source(source, element, args) }
         element_type = entity.attribute(mutation.target)&.type
         value_object = aggregate.value_object(element_type)
-        if value_object
-          value_object.attributes.each do |attribute|
-            fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
-          end
+        value_object&.attributes&.each do |attribute|
+          fields[attribute.name] = Value.scalar(fields[attribute.name]) if fields[attribute.name].is_a?(Value)
         end
         appended = value_object ? Value.build(value_object, fields, aggregate) : fields
         Freezer.deep(Array(element[mutation.target]) + [appended])

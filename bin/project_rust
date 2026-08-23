@@ -87,6 +87,11 @@ else
   # not beside it the way Runtime::Loader.boot's `directory` (the
   # nested `bluebook/` subfolder one level down) needs its OWN parent.
   target_registry = Hecksagain::Runtime::Registry.new(root: File.expand_path(domain))
+  # Declared BEFORE the block below, not first-assigned inside it — a
+  # block passed to a method call (unlike `if`/`while`) opens its own
+  # local scope, so a variable only ever assigned inside `with_registry
+  # do ... end` would vanish the moment the block returns.
+  domain_bluebook_path = nil
   Hecksagain.with_registry(target_registry) do
     Kernel.load(File.expand_path("../lib/hecksagain/ports/persistence.port", __dir__))
     Kernel.load(File.expand_path("../lib/hecksagain/ports/extraction.port", __dir__))
@@ -100,7 +105,19 @@ else
     # silently (and correctly, for any OTHER unloaded adapter) answers
     # false.
     Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/postgres_era.adapter", __dir__))
-    Kernel.load(File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
+    Kernel.load(domain_bluebook_path = File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
+
+    # ALSO every translations/*.bluebook edge — same directory, same
+    # glob, same load-order position Vocabulary's own "LoadOrder" entry
+    # gives them (between the domain's own .bluebook and .hecksagon) —
+    # this generator's registry build was never updated to include this
+    # step, so `target_registry.translations` was always empty here,
+    # and `Exporter.translations` (the new `translations` ir.json key)
+    # had nothing real to export. `Dir[]` is already sorted (Ruby's own
+    # glob guarantee, same reason `load_each`'s own `.sort` reads as
+    # redundant to rubocop), so multiple edges in one domain load in a
+    # stable, name-determined order without needing to say so here.
+    Dir[File.join(domain, "bluebook", "translations", "*.bluebook")].each { |file| Kernel.load(file) }
 
     # ALSO the .hecksagon file, not just the .bluebook — this is what
     # actually fires `uses_framework`, which `Kernel.load`s that framework
@@ -131,6 +148,34 @@ else
   # (metadata.rs's embedded IR_JSON, the `ir.json` sidecar rust/host
   # already reads at runtime, manifest.json) sees it the same way.
   target_ir[:lineage] = json_shaped(Hecksagain::Projector::Exporter.lineage(target_registry, target_domain_name))
+
+  # SAME SEAM, SAME REASONING — `Exporter.translations` walks the whole
+  # registry (a shared registry can hold another domain's edges too, the
+  # same way it can hold another domain's bluebook via uses_framework),
+  # filtered down to this target domain's own before it ever reaches
+  # `target_ir`. Each edge already carries its own precompiled SQL
+  # (`compiled_state_expression`/`compiled_id_expression` —
+  # Translation::RuleCompiler, the SAME code head_compiler.rb's real
+  # per-mint assembly calls, not a second compiler) — a future
+  # boot-time-mint consumer never needs to compile SQL itself, only
+  # execute what Ruby already compiled.
+  target_ir[:translations] = json_shaped(
+    Hecksagain::Projector::Exporter.translations(target_registry).select { |edge| edge[:domain] == target_domain_name }
+  )
+
+  # THE RAW BLUEBOOK SOURCE TEXT — a binding fact same as `lineage`/
+  # `translations` above (not part of `bluebook.to_h`'s own canonical
+  # IR, which describes SHAPE, never the literal text that declared it —
+  # ADR 0001 again), but one a future Rust-side mint needs verbatim:
+  # `hecks_eras.held_text` is this exact string, byte for byte, and the
+  # integrity digest every held era is checked against
+  # (era_store.rb's own `verify_integrity!`) is SHA256 of THIS text, not
+  # of anything re-derived from the parsed IR. Read directly off disk —
+  # the SAME file `Kernel.load` just parsed a few lines up — rather than
+  # reconstructed from `bluebook.to_h`, which would produce a
+  # DIFFERENT (re-serialized, not authored) text and a digest nothing
+  # already stored would ever match.
+  target_ir[:source_text] = File.read(domain_bluebook_path)
 
   # THE SELF-HOSTED LANGUAGE, COMPILED IN TOO. `lib/hecksagain/language/bluebook/`
   # declares what a bluebook IS — Bluebook, Aggregate, Command, ValueObject,
