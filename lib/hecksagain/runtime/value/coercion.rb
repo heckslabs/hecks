@@ -161,6 +161,7 @@ module Hecksagain
           admit_member(value_object, fields)
           check_admitted(value_object, fields)
           check_numeric_fields(value_object, fields)
+          check_scalar_shapes(value_object, fields)
           check_patterns(value_object, fields)
           value_object.invariants.each do |invariant|
             next if Bluebook::Expression::Evaluator.call(invariant.canonical, fields)
@@ -360,6 +361,42 @@ module Hecksagain
 
             given = fields[attribute.name]
             next if given.nil? || given.is_a?(expected)
+
+            raise TypeMismatch,
+                  RefusalWording.render("TypeMismatch", "numeric_field",
+                                        type: value_object.hecks_name, field: attribute.name,
+                                        expected: attribute.type, offered: Rendering.describe(given))
+          end
+        end
+
+        # A field declared `String` (or a boolean) must not arrive as a
+        # COMPOSITE — an Array or a Hash (or a nested Value) standing in for
+        # what has to be a leaf scalar.
+        #
+        # Deliberately laxer than `check_numeric_fields` above : it does not
+        # enforce the exact Ruby class, only that the shape isn't a collection.
+        # `Judge#v` — the language's own self-hosted grammar validation —
+        # hands a String-typed field (`Normalise`'s `position`, a `RuleText`)
+        # a raw Integer walk-index on purpose, on every boot, and that has
+        # always been tolerated ; a full String-vs-Integer check here would
+        # refuse the runtime's own bootstrap. But no scalar field, of any
+        # declared type, can ever legitimately be handed an Array or a Hash —
+        # that shape is always wrong, and always was: `InvalidValueGenerator#
+        # array_for_scalar`'s own corruption is deliberately built to be
+        # REFUSED (see that file's header), and until this check existed it
+        # sailed straight through for a String/boolean field the way it never
+        # could for an Integer/Float one (`check_numeric_fields` above already
+        # catches an Array offered for those). Found live via bin/fuzz, seed
+        # 17 on the fixtures domain : an Array standing in for a single-field
+        # identity's declared `String`, `.to_s`'d into a record id downstream.
+        COMPOSITE_SHAPES = [Array, ::Hash].freeze
+        NON_NUMERIC_SCALARS = %w[String TrueClass FalseClass].freeze
+        private def check_scalar_shapes(value_object, fields)
+          value_object.attributes.each do |attribute|
+            next unless NON_NUMERIC_SCALARS.include?(attribute.type.to_s)
+
+            given = fields[attribute.name]
+            next if given.nil? || COMPOSITE_SHAPES.none? { |shape| given.is_a?(shape) }
 
             raise TypeMismatch,
                   RefusalWording.render("TypeMismatch", "numeric_field",

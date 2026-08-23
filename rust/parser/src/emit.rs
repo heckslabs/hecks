@@ -238,6 +238,18 @@ fn mutation_json(m: &ir::Mutation) -> JsonValue {
             ("sign".to_string(), JsonValue::str("")),
             ("fields".to_string(), JsonValue::Object(fields.iter().map(|(k, v)| (k.clone(), JsonValue::str(v.clone()))).collect())),
         ]),
+        // `op: "delegate"` — see `ir::Mutation::Delegate`'s own header.
+        // Same shape as Append above (target/op/sign/fields, sign always
+        // "" — `Vocabulary::MutationOp`'s own "delegate" row carries no
+        // sign, the same as "append"'s), just the op string and target
+        // spelling (a dotted "Entity.Command" string, not an attribute
+        // name) differ.
+        ir::Mutation::Delegate { target, fields } => JsonValue::Object(vec![
+            ("target".to_string(), JsonValue::str(target.clone())),
+            ("op".to_string(), JsonValue::str("delegate")),
+            ("sign".to_string(), JsonValue::str("")),
+            ("fields".to_string(), JsonValue::Object(fields.iter().map(|(k, v)| (k.clone(), JsonValue::str(v.clone()))).collect())),
+        ]),
         ir::Mutation::Other { target, op, sign, source } => JsonValue::Object(vec![
             ("target".to_string(), JsonValue::str(target.clone())),
             ("op".to_string(), JsonValue::str(op.clone())),

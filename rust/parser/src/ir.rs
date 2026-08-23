@@ -107,6 +107,19 @@ pub enum MutationSource {
 #[derive(Debug, Clone)]
 pub enum Mutation {
     Append { target: String, fields: Vec<(String, String)> }, // field -> Literal::render spelling
+    // `CommandBuilder#delegates_to_impl`'s own comment (lib/hecksagain/
+    // bluebook/dsl/command_builder.rb) — a `delegates_to "Entity.Command",
+    // with: { ... }` clause rides the EXACT SAME multi-binding `fields:`
+    // wire shape an `:append` mutation already carries (confirmed at
+    // `Bluebook::Mutation#to_h`, `assembly/marks.rb#mutation`, and
+    // `meta_validator/shapes.rb#mutation`, all three checking
+    // `op == :append || op == :delegate` for the identical branch), just
+    // with `op: "delegate"` and a dotted "Entity.Command" `target` instead
+    // of a bare attribute name. Kept as its OWN variant (rather than
+    // reusing `Append` with an extra op field) so `emit.rs`'s match stays
+    // exhaustive and forces the "delegate" op string to be spelled out at
+    // the one call site that emits it.
+    Delegate { target: String, fields: Vec<(String, String)> },
     // `sign` — item #5, whole-project table-unification survey. Ruby's
     // own `Bluebook::Mutation.sign_for` reads `Vocabulary::MutationOp`
     // (a live table); this parser has no such table to read (it builds

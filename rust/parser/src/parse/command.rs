@@ -224,6 +224,7 @@ pub fn parse_body(
                 command.provenance = Some(ruby_value::read(raw.trim()));
             }
             "sets" => command.mutations.push(build_mutation(file, line, &gated.args)?),
+            "delegates_to" => command.mutations.push(build_delegation(file, line, &gated.args)?),
             _ => return Err(super::not_built_yet("Command", gated.row, file, line, &gated.call.word)),
         }
     }
@@ -511,6 +512,43 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
         other => ir::MutationSource::Literal(other),
     };
     Ok(ir::Mutation::Other { target, op: op.to_string(), sign: mutation_sign(op).to_string(), source: Some(source) })
+}
+
+/// `CommandBuilder#delegates_to_impl` — `delegates_to "Entity.Command",
+/// with: { key: :arg, ... }`, a pure-passthrough mutation whose `target`
+/// is a DOTTED "Entity.Command" string (`kind: "text"`, positional 1 —
+/// `keywords.rs`'s own ArgumentRow for this word, unlike `sets`'s bare
+/// Symbol target) rather than an attribute name, and whose `with:` reads
+/// the SAME hash-literal shape `sets ..., append: {...}` already does
+/// (`parse_hash_literal_pairs`, reused verbatim — both are `kind:
+/// "literal"` named arguments carrying a Ruby Hash of Symbol keys to
+/// Symbol/literal values). `with:` is omittable (Ruby's own `with: {}`
+/// default), so an absent one is simply no fields, not an error.
+///
+/// The "Entity.Command" shape check mirrors `delegates_to_impl`'s own
+/// `entity_name, _dot, command_name = target.to_s.rpartition(".")` guard
+/// — refused here the same way a malformed target is refused in Ruby,
+/// even though the one real fixture (`delegates_to.bluebook`) never
+/// exercises the error path.
+fn build_delegation(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<ir::Mutation> {
+    let target = super::positional_text(file, line, "delegates_to", args, 1)?;
+    let (entity_name, command_name) = target.rsplit_once('.').unwrap_or(("", ""));
+    if entity_name.is_empty() || command_name.is_empty() {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "'delegates_to {target:?}' does not name an entity and a command (\"Entity.Command\") — \
+                 the same one-hop shape a bare given reference already uses"
+            ),
+        ));
+    }
+
+    let fields = match super::named_raw(args, "with") {
+        Some(raw) => parse_hash_literal_pairs(raw).into_iter().map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v)))).collect(),
+        None => Vec::new(),
+    };
+    Ok(ir::Mutation::Delegate { target, fields })
 }
 
 // `Vocabulary::MutationOp`'s own fixed values, read directly — see
