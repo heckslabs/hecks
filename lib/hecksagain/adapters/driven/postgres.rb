@@ -19,7 +19,7 @@ module Hecksagain
     # to `PostgresEra` (postgres_era.rb), which is the same database with
     # full lineage/era machinery on top — pick this one unless a domain
     # actually needs to survive a live shape change. See
-    # docs/postgres-era-adapter-split-plan.md for why the two are split.
+    # docs/implemented/postgres-era-adapter-split-plan.md for why the two are split.
     #
     # No `hecks_eras`, no lineage, no advisory-lock-per-write for era
     # tracking, no `lineage_capable?`/`era_check!` — this class simply
@@ -48,6 +48,8 @@ module Hecksagain
       SQL_TYPES = { "Integer" => "bigint", "Float" => "double precision" }.freeze
 
       attr_reader :aggregate
+
+      def persistence_capabilities = [:atomic_put]
 
       def self.connect_for(name, settings)
         # LAZY, ON PURPOSE — same reasoning as PostgresEra's own
@@ -184,6 +186,35 @@ module Hecksagain
       def save(instance)
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
         @db.transaction { append(entry); project(entry) }
+      end
+
+      # Classification, journal append and snapshot replacement are one
+      # Postgres transaction. A row lock cannot serialize two first writers —
+      # there is no row to lock yet — so a transaction-scoped advisory lock on
+      # schema/table + aggregate id owns that missing-row race as well. Once a
+      # writer acquires it, the preceding writer has committed and status can
+      # be read from the materialized table without a runtime-side find.
+      def atomic_put(entry, insert_only: false)
+        status = nil
+        @db.transaction do
+          @db.exec_params(
+            "SELECT pg_advisory_xact_lock(" \
+            "hashtext(current_schema() || ':' || $1), hashtext($2))",
+            [table, entry.id.to_s]
+          )
+          exists = !@db.exec_params(
+            "SELECT 1 FROM #{quoted_table} WHERE id = $1",
+            [entry.id.to_s]
+          ).ntuples.zero?
+          if insert_only && exists
+            status = :conflicted
+            next
+          end
+          status = exists ? :replaced : :inserted
+          append(entry)
+          project(entry)
+        end
+        status
       end
 
       def delete(id)

@@ -16,12 +16,12 @@ require "hecksagain/doc/reference"
 # no prose is a word the language ships undocumented, and that is a
 # failure, not a TODO.
 RSpec.describe "the DSL reference" do
-  REFERENCE_DIR = File.join(InMemoryDomain::ROOT, "docs/reference").freeze
+  REFERENCE_DIR = File.join(InMemoryDomain::ROOT, "docs/implemented/reference").freeze
 
   it "matches what the language declares, page for page" do
     if ENV["GOLDEN"] == "rewrite"
       Hecksagain::Doc::Reference.write!(REFERENCE_DIR)
-      skip "rewrote docs/reference/"
+      skip "rewrote docs/implemented/reference/"
     end
 
     Hecksagain::Doc::Reference.pages(REFERENCE_DIR).each do |name, content|
@@ -29,7 +29,7 @@ RSpec.describe "the DSL reference" do
       expect(File.exist?(path))
         .to be(true), "no #{name} — the language declares a context the reference does not carry; run bin/reference"
       expect(File.read(path))
-        .to eq(content), "the language and docs/reference/#{name} disagree — run bin/reference and review the diff"
+        .to eq(content), "the language and docs/implemented/reference/#{name} disagree — run bin/reference and review the diff"
     end
   end
 

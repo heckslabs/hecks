@@ -1,0 +1,84 @@
+Hecks.bluebook "Banking" do
+  read_model "CustomerPortfolio" do
+    description "A customer's cross-account position, rebuilt from aggregate heads."
+    reference_to Customer
+    include Customer
+    include Account
+    include ATMCard
+    include Transfer
+    include CardPayment
+    include ExternalTransfer
+    include ScheduledPayment
+  end
+
+  # A SECOND ROOT, ON PURPOSE. CustomerPortfolio gathers around a customer;
+  # this gathers around an account — the compliance officer's actual unit of
+  # work, since a hold or a dispute is filed against an account, not a person.
+  read_model "ComplianceDashboard" do
+    description "One account, its own status, and any card charges disputed against it — the working set for a compliance review."
+    reference_to Account
+    include Account
+    include CardPayment
+
+    # THE FILTERED, ORDERED, CAPPED VIEW — the one shape seal_query_options
+    # allows on a read model with more than one included aggregate: it names
+    # exactly one many-side collection (CardPayment; Account is the
+    # reference itself) and confines where/order_by/limit to it. A reviewer
+    # does not want the account's whole card history, just the disputes
+    # that matter — the five largest, since that is where a false dispute
+    # costs the bank the most first.
+    where(status: "disputed")
+    order_by :amount, :desc
+    limit 5
+    # `offset` (S13, ADR 0025, coverage standard) — the SIXTH-through-
+    # tenth worst disputes, a real second page a reviewer reaches for
+    # once the first five are cleared, skip-then-take the same as a
+    # `query`'s own.
+    offset 5
+  end
+
+  # TWO MORE SHAPES — REDUCTIONS, not gathered rows. A compliance
+  # reviewer opening `ComplianceDashboard` wants the five worst disputes
+  # themselves ; a manager scanning every account for risk wants a
+  # single NUMBER per account first, before ever opening one. `count`/
+  # `median` answer that without handing back rows to count or average
+  # by hand — siblings of `group_by`, riding the same `where` an
+  # ordinary read model already applies (`seal_aggregation` refuses
+  # combining either with `group_by` or with each other; read_model
+  # _builder.rb's own comment has the full reasoning).
+  read_model "DisputedPaymentCount" do
+    description "How many of an account's own card charges are under dispute — a single number, not the rows themselves."
+    reference_to Account
+    include Account
+    include CardPayment
+    where(status: "disputed")
+    count
+  end
+
+  read_model "DisputedPaymentMedian" do
+    description "The median amount of an account's own disputed card charges."
+    reference_to Account
+    include Account
+    include CardPayment
+    where(status: "disputed")
+    median :amount
+  end
+
+  # A FIFTH SHAPE — ROOTLESS. Neither CustomerPortfolio nor
+  # ComplianceDashboard has a use for this: both center on one real
+  # record. A branch manager's own question is different — every
+  # account the bank holds, at once, sorted into what kind it is, then
+  # by its own number within that — and there is no single record to
+  # anchor that view to. No `reference_to`, no id argument at dispatch:
+  # `group_by` nests Account's own whole table by its own fields, which
+  # is also what makes this rootless shape legitimate to declare at all
+  # (see group_by's own reference doc for why the two go together).
+  # Two fields, not one — proves the NESTING actually nests (a single-
+  # field group_by can't tell "one level" from "flattened by accident").
+  read_model "AccountsByKind" do
+    description "Every account the bank holds, sorted into what kind it is, then by its own number."
+    include Account
+    group_by :kind, :number
+  end
+
+end

@@ -2,6 +2,7 @@
 // Do not hand-edit — re-run bin/project_rust instead.
 #![allow(dead_code, unused_variables)]
 use crate::kernel::Expr;
+use crate::generated::meta::bluebook::BluebookName;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyntaxName {
@@ -84,6 +85,20 @@ pub enum Context {
     World,
     Domainport,
     Portoperation,
+    Port,
+    Adapter,
+    Translation,
+    Translationaggregate,
+}
+
+impl crate::kernel::Fielded for Context {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { Context::File => "File".to_string(), Context::Bluebook => "Bluebook".to_string(), Context::Aggregate => "Aggregate".to_string(), Context::Entity => "Entity".to_string(), Context::Command => "Command".to_string(), Context::Query => "Query".to_string(), Context::Valueobject => "ValueObject".to_string(), Context::Oneof => "OneOf".to_string(), Context::Lifecycle => "Lifecycle".to_string(), Context::Policy => "Policy".to_string(), Context::Processmanager => "ProcessManager".to_string(), Context::Handler => "Handler".to_string(), Context::Readmodel => "ReadModel".to_string(), Context::Type => "Type".to_string(), Context::Hecksagon => "Hecksagon".to_string(), Context::World => "World".to_string(), Context::Domainport => "DomainPort".to_string(), Context::Portoperation => "PortOperation".to_string(), Context::Port => "Port".to_string(), Context::Adapter => "Adapter".to_string(), Context::Translation => "Translation".to_string(), Context::Translationaggregate => "TranslationAggregate".to_string(), }))),
+            _ => None,
+        }
+    }
 }
 
 impl Context {
@@ -107,6 +122,10 @@ impl Context {
             Context::World => "World",
             Context::Domainport => "DomainPort",
             Context::Portoperation => "PortOperation",
+            Context::Port => "Port",
+            Context::Adapter => "Adapter",
+            Context::Translation => "Translation",
+            Context::Translationaggregate => "TranslationAggregate",
         };
         crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
     }
@@ -133,9 +152,13 @@ impl Context {
             "World" => Ok(Context::World),
             "DomainPort" => Ok(Context::Domainport),
             "PortOperation" => Ok(Context::Portoperation),
+            "Port" => Ok(Context::Port),
+            "Adapter" => Ok(Context::Adapter),
+            "Translation" => Ok(Context::Translation),
+            "TranslationAggregate" => Ok(Context::Translationaggregate),
             other => Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::RefusalSite::InvariantViolationClosedSetMember.render(&[
                 ("type", "Context"),
-                ("admitted", "\"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\""),
+                ("admitted", "\"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\""),
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
@@ -148,6 +171,16 @@ pub enum Body {
     Keywords,
     Source,
     Rows,
+}
+
+impl crate::kernel::Fielded for Body {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { Body::None => "none".to_string(), Body::Keywords => "keywords".to_string(), Body::Source => "source".to_string(), Body::Rows => "rows".to_string(), }))),
+            _ => None,
+        }
+    }
 }
 
 impl Body {
@@ -186,6 +219,16 @@ pub enum Status {
     Retired,
 }
 
+impl crate::kernel::Fielded for Status {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { Status::Proposed => "proposed".to_string(), Status::Admitted => "admitted".to_string(), Status::Deprecated => "deprecated".to_string(), Status::Retired => "retired".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
 impl Status {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
@@ -221,6 +264,16 @@ pub enum ResolutionScope {
     SiblingScan,
 }
 
+impl crate::kernel::Fielded for ResolutionScope {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { ResolutionScope::HashChain => "hash_chain".to_string(), ResolutionScope::OwnerKeyed => "owner_keyed".to_string(), ResolutionScope::SiblingScan => "sibling_scan".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
 impl ResolutionScope {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
@@ -250,6 +303,16 @@ impl ResolutionScope {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Disambiguator {
     DeclaredBy,
+}
+
+impl crate::kernel::Fielded for Disambiguator {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { Disambiguator::DeclaredBy => "declared_by".to_string(), }))),
+            _ => None,
+        }
+    }
 }
 
 impl Disambiguator {
@@ -284,6 +347,16 @@ pub enum ArgumentKind {
     Constant,
     Pairs,
     List,
+}
+
+impl crate::kernel::Fielded for ArgumentKind {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { ArgumentKind::Text => "text".to_string(), ArgumentKind::Symbol => "symbol".to_string(), ArgumentKind::Number => "number".to_string(), ArgumentKind::Flag => "flag".to_string(), ArgumentKind::Literal => "literal".to_string(), ArgumentKind::Constant => "constant".to_string(), ArgumentKind::Pairs => "pairs".to_string(), ArgumentKind::List => "list".to_string(), }))),
+            _ => None,
+        }
+    }
 }
 
 impl ArgumentKind {
@@ -330,6 +403,16 @@ pub enum PairsShape {
     Sibling,
 }
 
+impl crate::kernel::Fielded for PairsShape {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { PairsShape::Fields => "fields".to_string(), PairsShape::Elements => "elements".to_string(), PairsShape::Verbatim => "verbatim".to_string(), PairsShape::Sibling => "sibling".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
 impl PairsShape {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
@@ -355,373 +438,6 @@ impl PairsShape {
                 ("offered", &format!("{:?}", other)),
             ]))),
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct KeywordSeed {
-    pub word: &'static str,
-    pub context: &'static str,
-    pub body: &'static str,
-    pub inner: &'static str,
-    pub opens: &'static str,
-    pub fills: &'static str,
-    pub status: &'static str,
-    pub was: &'static str,
-    pub resolves_via: &'static str,
-    pub disambiguator: &'static str,
-}
-
-pub const KEYWORD_SEED: &[KeywordSeed] = &[
-    KeywordSeed { word: "bluebook", context: "File", body: "keywords", inner: "Bluebook", opens: "Bluebook", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "hecksagon", context: "File", body: "keywords", inner: "Hecksagon", opens: "Hecksagon", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "world", context: "File", body: "keywords", inner: "World", opens: "World", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "formerly_known_as", context: "Bluebook", body: "none", inner: "", opens: "", fills: "formerly_known_as", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attaches_to", context: "Bluebook", body: "none", inner: "", opens: "", fills: "attaches_to", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "core", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "supporting", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "generic", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "aggregate", context: "Bluebook", body: "keywords", inner: "Aggregate", opens: "Aggregate", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "read_model", context: "Bluebook", body: "keywords", inner: "ReadModel", opens: "ReadModel", fills: "", status: "admitted", was: "report", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "policy", context: "Bluebook", body: "keywords", inner: "Policy", opens: "Policy", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "description", context: "Aggregate", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "provenance", context: "Aggregate", body: "none", inner: "", opens: "", fills: "provenance", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "identified_by", context: "Aggregate", body: "source", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "identified_by", context: "Aggregate", body: "none", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "reference_to", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "has_many", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "deprecated", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "has_one", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "deprecated", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "belongs_to", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "deprecated", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "lifecycle", context: "Aggregate", body: "keywords", inner: "Lifecycle", opens: "", fills: "state_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "entity", context: "Aggregate", body: "keywords", inner: "Entity", opens: "Entity", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "query", context: "Aggregate", body: "keywords", inner: "Query", opens: "Query", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "policy", context: "Aggregate", body: "keywords", inner: "Policy", opens: "Policy", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "value_object", context: "Aggregate", body: "keywords", inner: "ValueObject", opens: "ValueObject", fills: "value_objects", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "command", context: "Aggregate", body: "keywords", inner: "Command", opens: "Command", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attribute", context: "Aggregate", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "invariant", context: "Aggregate", body: "source", inner: "", opens: "", fills: "invariants", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "given", context: "Aggregate", body: "source", inner: "", opens: "", fills: "preconditions", status: "admitted", was: "", resolves_via: "owner_keyed", disambiguator: "declared_by" },
-    KeywordSeed { word: "projects", context: "Aggregate", body: "none", inner: "", opens: "", fills: "projected_fields", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "description", context: "Entity", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "identified_by", context: "Entity", body: "source", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "identified_by", context: "Entity", body: "none", inner: "", opens: "", fills: "identified_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "given", context: "Entity", body: "source", inner: "", opens: "", fills: "preconditions", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "invariant", context: "Entity", body: "source", inner: "", opens: "", fills: "invariants", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "command", context: "Entity", body: "keywords", inner: "Command", opens: "Command", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "query", context: "Entity", body: "keywords", inner: "Query", opens: "Query", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "lifecycle", context: "Entity", body: "keywords", inner: "Lifecycle", opens: "", fills: "state_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attribute", context: "Entity", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "reference_to", context: "Entity", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "entity", context: "Entity", body: "keywords", inner: "Entity", opens: "Entity", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "role", context: "Command", body: "none", inner: "", opens: "", fills: "role", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "goal", context: "Command", body: "none", inner: "", opens: "", fills: "goal", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "provenance", context: "Command", body: "none", inner: "", opens: "", fills: "provenance", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "reference_to", context: "Command", body: "none", inner: "", opens: "", fills: "references", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "given", context: "Command", body: "source", inner: "", opens: "", fills: "givens", status: "admitted", was: "", resolves_via: "hash_chain", disambiguator: "" },
-    KeywordSeed { word: "sets", context: "Command", body: "none", inner: "", opens: "", fills: "mutations", status: "admitted", was: "then_set", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "emits", context: "Command", body: "none", inner: "", opens: "", fills: "emits", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attribute", context: "Command", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attribute", context: "ValueObject", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "one_of", context: "ValueObject", body: "rows", inner: "OneOf", opens: "", fills: "rows", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "invariant", context: "ValueObject", body: "source", inner: "", opens: "", fills: "invariants", status: "admitted", was: "", resolves_via: "sibling_scan", disambiguator: "" },
-    KeywordSeed { word: "member", context: "ValueObject", body: "none", inner: "", opens: "Member", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "member", context: "OneOf", body: "none", inner: "", opens: "Member", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "transition", context: "Lifecycle", body: "none", inner: "", opens: "", fills: "transitions", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "on", context: "Policy", body: "none", inner: "", opens: "", fills: "on_event", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "trigger", context: "Policy", body: "none", inner: "", opens: "", fills: "trigger_command", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "across", context: "Policy", body: "none", inner: "", opens: "", fills: "target_domain", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "where", context: "Policy", body: "source", inner: "", opens: "", fills: "where", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "for_each", context: "Policy", body: "none", inner: "", opens: "", fills: "for_each", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "correlates_by", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "correlates_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "starts_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "starts_on", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "ends_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "ends_on", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "transition", context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "transition", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "dispatch", context: "Handler", body: "none", inner: "", opens: "Dispatch", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "description", context: "Query", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attribute", context: "Query", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "reference_to", context: "Query", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "where", context: "Query", body: "none", inner: "", opens: "", fills: "wheres", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "order_by", context: "Query", body: "none", inner: "", opens: "", fills: "order_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "authorize", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "inspect_query", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "description", context: "ReadModel", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "reference_to", context: "ReadModel", body: "none", inner: "", opens: "", fills: "reference_target", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "include", context: "ReadModel", body: "none", inner: "", opens: "", fills: "aggregate_heads", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "group_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "group_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "count", context: "ReadModel", body: "none", inner: "", opens: "", fills: "count", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "median", context: "ReadModel", body: "none", inner: "", opens: "", fills: "median_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "where", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "order_by", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "authorize", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "inspect_query", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "list_of", context: "Type", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "one_of", context: "Type", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "ensures", context: "Command", body: "source", inner: "", opens: "", fills: "ensures", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "subscribe", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "uses_framework", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "port", context: "Hecksagon", body: "keywords", inner: "DomainPort", opens: "DomainPort", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "operation", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "tells", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "asks", context: "DomainPort", body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "verb", context: "DomainPort", body: "none", inner: "", opens: "", fills: "verb", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "reference_to", context: "PortOperation", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "attribute", context: "PortOperation", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "emits", context: "PortOperation", body: "none", inner: "", opens: "", fills: "emits", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "answers", context: "PortOperation", body: "none", inner: "", opens: "", fills: "answers", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "refuses", context: "PortOperation", body: "none", inner: "", opens: "", fills: "refuses", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "realm", context: "World", body: "none", inner: "", opens: "", fills: "realm", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-    KeywordSeed { word: "latest", context: "World", body: "none", inner: "", opens: "", fills: "latest", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
-];
-
-impl KeywordSeed {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("word".to_string(), crate::kernel::Json::Str(self.word.to_string())),
-        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
-        ("body".to_string(), crate::kernel::Json::Str(self.body.to_string())),
-        ("inner".to_string(), crate::kernel::Json::Str(self.inner.to_string())),
-        ("opens".to_string(), crate::kernel::Json::Str(self.opens.to_string())),
-        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
-        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
-        ("was".to_string(), crate::kernel::Json::Str(self.was.to_string())),
-        ("resolves_via".to_string(), crate::kernel::Json::Str(self.resolves_via.to_string())),
-        ("disambiguator".to_string(), crate::kernel::Json::Str(self.disambiguator.to_string())),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        for row in KEYWORD_SEED {
-            if v.get("word").and_then(crate::kernel::Json::as_str) == Some(row.word) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("body").and_then(crate::kernel::Json::as_str) == Some(row.body) && v.get("inner").and_then(crate::kernel::Json::as_str) == Some(row.inner) && v.get("opens").and_then(crate::kernel::Json::as_str) == Some(row.opens) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("was").and_then(crate::kernel::Json::as_str) == Some(row.was) && v.get("resolves_via").and_then(crate::kernel::Json::as_str) == Some(row.resolves_via) && v.get("disambiguator").and_then(crate::kernel::Json::as_str) == Some(row.disambiguator) {
-                return Ok(row.clone());
-            }
-        }
-        Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordSeed: no member matches {:?}", v)))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ArgumentSeed {
-    pub keyword: &'static str,
-    pub context: &'static str,
-    pub at: &'static str,
-    pub named: &'static str,
-    pub kind: &'static str,
-    pub required: &'static str,
-    pub fills: &'static str,
-    pub selects: &'static str,
-    pub pair_key_fills: &'static str,
-    pub pair_value_fills: &'static str,
-    pub pairs_shape: &'static str,
-    pub status: &'static str,
-    pub variadic: &'static str,
-}
-
-pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
-    ArgumentSeed { keyword: "bluebook", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "bluebook", context: "File", at: "", named: "version", kind: "text", required: "false", fills: "version", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "vision", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "vision", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "formerly_known_as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attaches_to", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "attaches_to", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true" },
-    ArgumentSeed { keyword: "aggregate", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "policy", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "process_manager", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "description", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "provenance", context: "Aggregate", at: "", named: "from", kind: "literal", required: "true", fills: "provenance", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "identified_by", context: "Aggregate", at: "1", named: "", kind: "symbol", required: "false", fills: "identified_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true" },
-    ArgumentSeed { keyword: "identified_by", context: "Aggregate", at: "1", named: "", kind: "constant", required: "false", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "deprecated", variadic: "" },
-    ArgumentSeed { keyword: "identified_by", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "deprecated", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Aggregate", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "has_many", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "has_many", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "has_many", context: "Aggregate", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "has_one", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "has_one", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "has_one", context: "Aggregate", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "belongs_to", context: "Aggregate", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "belongs_to", context: "Aggregate", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "belongs_to", context: "Aggregate", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "lifecycle", context: "Aggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "state_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "lifecycle", context: "Aggregate", at: "", named: "default", kind: "literal", required: "true", fills: "state_start", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "entity", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "query", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "policy", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "value_object", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "command", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "command", context: "Aggregate", at: "", named: "from", kind: "literal", required: "false", fills: "from", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Aggregate", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "invariant", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "given", context: "Aggregate", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "given", context: "Aggregate", at: "", named: "declared_by", kind: "constant", required: "false", fills: "declared_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "projects", context: "Aggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "projects", context: "Aggregate", at: "", named: "from", kind: "symbol", required: "true", fills: "from", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "description", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "given", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "invariant", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "identified_by", context: "Entity", at: "1", named: "", kind: "symbol", required: "false", fills: "identified_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true" },
-    ArgumentSeed { keyword: "identified_by", context: "Entity", at: "1", named: "", kind: "constant", required: "false", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "deprecated", variadic: "" },
-    ArgumentSeed { keyword: "identified_by", context: "Entity", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "deprecated", variadic: "" },
-    ArgumentSeed { keyword: "command", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "command", context: "Entity", at: "", named: "from", kind: "literal", required: "false", fills: "from", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "query", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "entity", context: "Entity", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "lifecycle", context: "Entity", at: "1", named: "", kind: "symbol", required: "true", fills: "state_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "lifecycle", context: "Entity", at: "", named: "default", kind: "literal", required: "true", fills: "state_start", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Entity", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Entity", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Entity", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "role", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "role", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "goal", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "goal", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "provenance", context: "Command", at: "", named: "from", kind: "literal", required: "true", fills: "provenance", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Command", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Command", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Command", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "given", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "ensures", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "1", named: "", kind: "symbol", required: "true", fills: "target", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "to", kind: "literal", required: "false", fills: "source", selects: "op=set", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "append", kind: "literal", required: "false", fills: "source", selects: "op=append", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "increment", kind: "literal", required: "false", fills: "source", selects: "op=increment", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "decrement", kind: "literal", required: "false", fills: "source", selects: "op=decrement", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "multiply", kind: "literal", required: "false", fills: "source", selects: "op=multiply", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "clamp", kind: "literal", required: "false", fills: "source", selects: "op=clamp", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "sets", context: "Command", at: "", named: "remove", kind: "literal", required: "false", fills: "source", selects: "op=remove", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "emits", context: "Command", at: "1", named: "", kind: "text", required: "true", fills: "emits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Command", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "ValueObject", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "invariant", context: "ValueObject", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "member", context: "ValueObject", at: "1", named: "", kind: "pairs", required: "true", fills: "members", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "member", context: "OneOf", at: "1", named: "", kind: "pairs", required: "true", fills: "members", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "transition", context: "Lifecycle", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "transition", context: "Lifecycle", at: "", named: "from", kind: "text", required: "false", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "transition", context: "Lifecycle", at: "", named: "from", kind: "list", required: "false", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "on", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "trigger", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "trigger_command", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "across", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "for_each", context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "correlates_by", context: "ProcessManager", at: "1", named: "", kind: "symbol", required: "true", fills: "correlates_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "starts_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "starts_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "ends_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "ends_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "", named: "from", kind: "text", required: "true", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "", named: "from", kind: "list", required: "false", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "dispatch", context: "Handler", at: "1", named: "", kind: "constant", required: "true", fills: "command_name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "dispatch", context: "Handler", at: "1", named: "", kind: "text", required: "true", fills: "command_name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "dispatch", context: "Handler", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "description", context: "Query", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Query", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Query", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "Query", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "where", context: "Query", at: "1", named: "", kind: "pairs", required: "true", fills: "wheres", selects: "", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "order_by", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "order_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "order_by", context: "Query", at: "2", named: "", kind: "symbol", required: "false", fills: "order_way", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "authorize", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "policy", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "authorize", context: "Query", at: "", named: "tenant", kind: "symbol", required: "false", fills: "tenant", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "inspect_query", context: "Query", at: "1", named: "", kind: "symbol", required: "false", fills: "mode", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "description", context: "ReadModel", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "ReadModel", at: "1", named: "", kind: "constant", required: "true", fills: "reference_target", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "ReadModel", at: "", named: "as", kind: "symbol", required: "false", fills: "reference_name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "include", context: "ReadModel", at: "1", named: "", kind: "constant", required: "true", fills: "aggregate", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "include", context: "ReadModel", at: "", named: "as", kind: "symbol", required: "false", fills: "as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "group_by", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "group_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true" },
-    ArgumentSeed { keyword: "median", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "median_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "where", context: "ReadModel", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "order_by", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "order_by", context: "ReadModel", at: "2", named: "", kind: "symbol", required: "false", fills: "direction", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "authorize", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "true", fills: "policy", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "authorize", context: "ReadModel", at: "", named: "tenant", kind: "symbol", required: "false", fills: "tenant", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "inspect_query", context: "ReadModel", at: "1", named: "", kind: "symbol", required: "false", fills: "mode", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "list_of", context: "Type", at: "1", named: "", kind: "constant", required: "true", fills: "", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "one_of", context: "Type", at: "1", named: "", kind: "literal", required: "true", fills: "", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "hecksagon", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "world", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "subscribe", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "uses_framework", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "port", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "operation", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "tells", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "asks", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "verb", context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "PortOperation", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "reference_to", context: "PortOperation", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "attribute", context: "PortOperation", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "emits", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "answers", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "answers", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "refuses", context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "realm", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "latest", context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "" },
-    ArgumentSeed { keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "" },
-];
-
-impl ArgumentSeed {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("keyword".to_string(), crate::kernel::Json::Str(self.keyword.to_string())),
-        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
-        ("at".to_string(), crate::kernel::Json::Str(self.at.to_string())),
-        ("named".to_string(), crate::kernel::Json::Str(self.named.to_string())),
-        ("kind".to_string(), crate::kernel::Json::Str(self.kind.to_string())),
-        ("required".to_string(), crate::kernel::Json::Str(self.required.to_string())),
-        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
-        ("selects".to_string(), crate::kernel::Json::Str(self.selects.to_string())),
-        ("pair_key_fills".to_string(), crate::kernel::Json::Str(self.pair_key_fills.to_string())),
-        ("pair_value_fills".to_string(), crate::kernel::Json::Str(self.pair_value_fills.to_string())),
-        ("pairs_shape".to_string(), crate::kernel::Json::Str(self.pairs_shape.to_string())),
-        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
-        ("variadic".to_string(), crate::kernel::Json::Str(self.variadic.to_string())),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        for row in ARGUMENT_SEED {
-            if v.get("keyword").and_then(crate::kernel::Json::as_str) == Some(row.keyword) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("at").and_then(crate::kernel::Json::as_str) == Some(row.at) && v.get("named").and_then(crate::kernel::Json::as_str) == Some(row.named) && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind) && v.get("required").and_then(crate::kernel::Json::as_str) == Some(row.required) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("selects").and_then(crate::kernel::Json::as_str) == Some(row.selects) && v.get("pair_key_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_key_fills) && v.get("pair_value_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_value_fills) && v.get("pairs_shape").and_then(crate::kernel::Json::as_str) == Some(row.pairs_shape) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("variadic").and_then(crate::kernel::Json::as_str) == Some(row.variadic) {
-                return Ok(row.clone());
-            }
-        }
-        Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentSeed: no member matches {:?}", v)))
     }
 }
 
@@ -925,6 +641,7 @@ pub struct Keyword {
     pub was: Option<KeywordSeedText>,
     pub resolves_via: Option<KeywordSeedText>,
     pub disambiguator: Option<KeywordSeedText>,
+    pub calls: Option<KeywordSeedText>,
     pub status: String,
 }
 
@@ -943,6 +660,7 @@ impl crate::kernel::Fielded for Keyword {
             "was" => self.was.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "resolves_via" => self.resolves_via.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "disambiguator" => self.disambiguator.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "calls" => self.calls.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -962,6 +680,7 @@ impl Keyword {
         ("was".to_string(), self.was.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("resolves_via".to_string(), self.resolves_via.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("disambiguator".to_string(), self.disambiguator.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("calls".to_string(), self.calls.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -980,6 +699,7 @@ impl Keyword {
         was: match v.get("was") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), },
         resolves_via: match v.get("resolves_via") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), },
         disambiguator: match v.get("disambiguator") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), },
+        calls: match v.get("calls") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Keyword")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Keyword.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -1175,6 +895,9 @@ pub struct Argument {
     pub pair_value_fills: Option<ArgumentSeedText>,
     pub pairs_shape: Option<ArgumentSeedText>,
     pub variadic: Option<ArgumentSeedText>,
+    pub minimum: Option<ArgumentSeedText>,
+    pub coerce: Option<ArgumentSeedText>,
+    pub blank_message: Option<ArgumentSeedText>,
     pub status: String,
 }
 
@@ -1196,6 +919,9 @@ impl crate::kernel::Fielded for Argument {
             "pair_value_fills" => self.pair_value_fills.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "pairs_shape" => self.pairs_shape.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "variadic" => self.variadic.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "minimum" => self.minimum.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "coerce" => self.coerce.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "blank_message" => self.blank_message.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -1218,6 +944,9 @@ impl Argument {
         ("pair_value_fills".to_string(), self.pair_value_fills.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("pairs_shape".to_string(), self.pairs_shape.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("variadic".to_string(), self.variadic.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("minimum".to_string(), self.minimum.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("coerce".to_string(), self.coerce.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("blank_message".to_string(), self.blank_message.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("status".to_string(), crate::kernel::Json::Str(self.status.clone())),
         ])
     }
@@ -1239,6 +968,9 @@ impl Argument {
         pair_value_fills: match v.get("pair_value_fills") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
         pairs_shape: match v.get("pairs_shape") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
         variadic: match v.get("variadic") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        minimum: match v.get("minimum") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        coerce: match v.get("coerce") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
+        blank_message: match v.get("blank_message") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), },
         status: v.require("status", "Argument")?.as_str().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Argument.status: expected a string".to_string()))?.to_string(),
         })
     }
@@ -1421,6 +1153,7 @@ pub fn dispatch_entity_argument_retire(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Syntax {
+    pub bluebook: Option<String>,
     pub name: Option<SyntaxName>,
     pub keywords: Vec<Keyword>,
     pub arguments: Vec<Argument>,
@@ -1430,6 +1163,7 @@ impl crate::kernel::Fielded for Syntax {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
+            "bluebook" => self.bluebook.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "name" => self.name.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "keywords" => Some(Field::Value(Value::List(self.keywords.len()))),
             "arguments" => Some(Field::Value(Value::List(self.arguments.len()))),
@@ -1441,6 +1175,7 @@ impl crate::kernel::Fielded for Syntax {
 impl Syntax {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
+        ("bluebook".to_string(), self.bluebook.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("name".to_string(), self.name.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("keywords".to_string(), crate::kernel::Json::Array(self.keywords.iter().map(|x| x.to_json()).collect())),
         ("arguments".to_string(), crate::kernel::Json::Array(self.arguments.iter().map(|x| x.to_json()).collect())),
@@ -1451,6 +1186,7 @@ impl Syntax {
 impl Syntax {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         Ok(Self {
+        bluebook: match v.get("bluebook") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("Syntax.bluebook: expected String".to_string()))?), },
         name: match v.get("name") { Some(&crate::kernel::Json::Null) | None => None, Some(x) => Some(SyntaxName::from_json(&x.coerce_single_field("value"))?), },
         keywords: match v.get("keywords").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Keyword::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
         arguments: match v.get("arguments").and_then(crate::kernel::Json::as_array) { Some(items) => items.iter().map(Argument::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?, None => Vec::new(), },
@@ -1482,9 +1218,9 @@ impl Syntax {
 impl crate::kernel::Fielded for DeclareArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
-        use crate::kernel::Value;
+        
         match name {
-            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
+            "bluebook" => Some(Field::Nested(&self.bluebook)),
             "name" => Some(Field::Nested(&self.name)),
             _ => None,
         }
@@ -1494,13 +1230,14 @@ impl crate::kernel::Fielded for DeclareArgs {
 
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
-    pub bluebook: String,
+    pub bluebook: BluebookName,
     pub name: SyntaxName,
 }
 
 pub fn dispatch_declare(
     repo: &mut impl crate::kernel::Repository<Syntax>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
 ) -> crate::kernel::DispatchResult<Syntax> {
+        args.bluebook.check_invariants()?;
         args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
@@ -1509,6 +1246,7 @@ pub fn dispatch_declare(
         crate::kernel::Hydrate::Create {
         id: args.name.value.to_string(),
         build: Box::new(|| Syntax {
+            bluebook: Some(args.bluebook.value.clone()),
             name: Some(args.name.clone()),
             keywords: vec![],
             arguments: vec![],
@@ -1524,7 +1262,8 @@ pub fn dispatch_declare(
         ],
         None,
         |record| {
-        let _ = record;
+        record.bluebook = Some(args.bluebook.value.clone());
+        record.name = Some(args.name.clone());
             Ok(())
         },
         &[
@@ -1539,7 +1278,7 @@ pub fn dispatch_declare(
 impl DeclareArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
+        ("bluebook".to_string(), self.bluebook.to_json()),
         ("name".to_string(), self.name.to_json()),
         ])
     }
@@ -1555,7 +1294,7 @@ if !unknown.is_empty() {
     )));
 }
         Ok(Self {
-        bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
+        bluebook: BluebookName::from_json(&v.require("bluebook", "DeclareArgs")?.coerce_single_field("value"))?,
         name: SyntaxName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
         })
     }
@@ -1576,6 +1315,7 @@ impl crate::kernel::Fielded for KeywordArgs {
             "was" => self.was.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "resolves_via" => self.resolves_via.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "disambiguator" => self.disambiguator.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "calls" => self.calls.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -1594,6 +1334,7 @@ pub struct KeywordArgs {
     pub was: Option<KeywordSeedText>,
     pub resolves_via: Option<KeywordSeedText>,
     pub disambiguator: Option<KeywordSeedText>,
+    pub calls: Option<KeywordSeedText>,
 }
 
 pub fn dispatch_keyword(
@@ -1601,7 +1342,7 @@ pub fn dispatch_keyword(
 ) -> crate::kernel::DispatchResult<Syntax> {
         args.position.check_invariants()?;
         args.word.check_invariants()?;
-        if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\" — got ", args.context.value))); }
+        if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", args.context.value))); }
         args.context.check_invariants()?;
         if !["none", "keywords", "source", "rows"].contains(&args.body.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "body admits Syntax::Body — \"none\", \"keywords\", \"source\", \"rows\" — got ", args.body.value))); }
         args.body.check_invariants()?;
@@ -1613,6 +1354,7 @@ pub fn dispatch_keyword(
         if let Some(v) = &args.resolves_via { v.check_invariants()?; }
         if let Some(__optional_value) = &args.disambiguator { if !["declared_by"].contains(&__optional_value.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "disambiguator admits Syntax::Disambiguator — \"declared_by\" — got ", __optional_value.value))); } }
         if let Some(v) = &args.disambiguator { v.check_invariants()?; }
+        if let Some(v) = &args.calls { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
@@ -1628,7 +1370,7 @@ pub fn dispatch_keyword(
         ],
         None,
         |record| {
-        record.keywords.push(Keyword { position: args.position.clone(), word: args.word.clone(), context: args.context.clone(), body: args.body.clone(), inner: args.inner.clone(), opens: args.opens.clone(), fills: args.fills.clone(), was: args.was.clone(), resolves_via: args.resolves_via.clone(), disambiguator: args.disambiguator.clone(), status: "admitted".to_string() });
+        record.keywords.push(Keyword { position: args.position.clone(), word: args.word.clone(), context: args.context.clone(), body: args.body.clone(), inner: args.inner.clone(), opens: args.opens.clone(), fills: args.fills.clone(), was: args.was.clone(), resolves_via: args.resolves_via.clone(), disambiguator: args.disambiguator.clone(), calls: args.calls.clone(), status: "admitted".to_string() });
             Ok(())
         },
         &[
@@ -1653,16 +1395,17 @@ impl KeywordArgs {
         ("was".to_string(), self.was.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("resolves_via".to_string(), self.resolves_via.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("disambiguator".to_string(), self.disambiguator.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("calls".to_string(), self.calls.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
 
 impl KeywordArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "id", "syntax", "name"]);
+let unknown = v.unknown_keys(&["position", "word", "context", "body", "inner", "opens", "fills", "was", "resolves_via", "disambiguator", "calls", "id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Keyword does not declare {} — it takes position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator",
+        "Keyword does not declare {} — it takes position, word, context, body, inner, opens, fills, was, resolves_via, disambiguator, calls",
         unknown.join(", ")
     )));
 }
@@ -1677,6 +1420,7 @@ if !unknown.is_empty() {
         was: match v.get("was") { Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         resolves_via: match v.get("resolves_via") { Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         disambiguator: match v.get("disambiguator") { Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        calls: match v.get("calls") { Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }
@@ -1699,6 +1443,9 @@ impl crate::kernel::Fielded for ArgumentArgs {
             "pair_value_fills" => self.pair_value_fills.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "pairs_shape" => self.pairs_shape.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "variadic" => self.variadic.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "minimum" => self.minimum.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "coerce" => self.coerce.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "blank_message" => self.blank_message.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -1720,6 +1467,9 @@ pub struct ArgumentArgs {
     pub pair_value_fills: Option<ArgumentSeedText>,
     pub pairs_shape: Option<ArgumentSeedText>,
     pub variadic: Option<ArgumentSeedText>,
+    pub minimum: Option<ArgumentSeedText>,
+    pub coerce: Option<ArgumentSeedText>,
+    pub blank_message: Option<ArgumentSeedText>,
 }
 
 pub fn dispatch_argument(
@@ -1727,7 +1477,7 @@ pub fn dispatch_argument(
 ) -> crate::kernel::DispatchResult<Syntax> {
         args.position.check_invariants()?;
         args.keyword.check_invariants()?;
-        if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\" — got ", args.context.value))); }
+        if !["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf", "Lifecycle", "Policy", "ProcessManager", "Handler", "ReadModel", "Type", "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation", "TranslationAggregate"].contains(&args.context.value.as_str()) { return Err(crate::kernel::Refusal::InvariantViolation(format!("{}{:?}", "context admits Syntax::Context — \"File\", \"Bluebook\", \"Aggregate\", \"Entity\", \"Command\", \"Query\", \"ValueObject\", \"OneOf\", \"Lifecycle\", \"Policy\", \"ProcessManager\", \"Handler\", \"ReadModel\", \"Type\", \"Hecksagon\", \"World\", \"DomainPort\", \"PortOperation\", \"Port\", \"Adapter\", \"Translation\", \"TranslationAggregate\" — got ", args.context.value))); }
         args.context.check_invariants()?;
         if let Some(v) = &args.at { v.check_invariants()?; }
         if let Some(v) = &args.named { v.check_invariants()?; }
@@ -1740,6 +1490,9 @@ pub fn dispatch_argument(
         if let Some(v) = &args.pair_value_fills { v.check_invariants()?; }
         if let Some(v) = &args.pairs_shape { v.check_invariants()?; }
         if let Some(v) = &args.variadic { v.check_invariants()?; }
+        if let Some(v) = &args.minimum { v.check_invariants()?; }
+        if let Some(v) = &args.coerce { v.check_invariants()?; }
+        if let Some(v) = &args.blank_message { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
@@ -1755,7 +1508,7 @@ pub fn dispatch_argument(
         ],
         None,
         |record| {
-        record.arguments.push(Argument { position: args.position.clone(), keyword: args.keyword.clone(), context: args.context.clone(), at: args.at.clone(), named: args.named.clone(), kind: args.kind.clone(), required: args.required.clone(), fills: args.fills.clone(), selects: args.selects.clone(), pair_key_fills: args.pair_key_fills.clone(), pair_value_fills: args.pair_value_fills.clone(), pairs_shape: args.pairs_shape.clone(), variadic: args.variadic.clone(), status: "admitted".to_string() });
+        record.arguments.push(Argument { position: args.position.clone(), keyword: args.keyword.clone(), context: args.context.clone(), at: args.at.clone(), named: args.named.clone(), kind: args.kind.clone(), required: args.required.clone(), fills: args.fills.clone(), selects: args.selects.clone(), pair_key_fills: args.pair_key_fills.clone(), pair_value_fills: args.pair_value_fills.clone(), pairs_shape: args.pairs_shape.clone(), variadic: args.variadic.clone(), minimum: args.minimum.clone(), coerce: args.coerce.clone(), blank_message: args.blank_message.clone(), status: "admitted".to_string() });
             Ok(())
         },
         &[
@@ -1783,16 +1536,19 @@ impl ArgumentArgs {
         ("pair_value_fills".to_string(), self.pair_value_fills.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("pairs_shape".to_string(), self.pairs_shape.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("variadic".to_string(), self.variadic.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("minimum".to_string(), self.minimum.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("coerce".to_string(), self.coerce.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("blank_message".to_string(), self.blank_message.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
 
 impl ArgumentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "id", "syntax", "name"]);
+let unknown = v.unknown_keys(&["position", "keyword", "context", "at", "named", "kind", "required", "fills", "selects", "pair_key_fills", "pair_value_fills", "pairs_shape", "variadic", "minimum", "coerce", "blank_message", "id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Argument does not declare {} — it takes position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic",
+        "Argument does not declare {} — it takes position, keyword, context, at, named, kind, required, fills, selects, pair_key_fills, pair_value_fills, pairs_shape, variadic, minimum, coerce, blank_message",
         unknown.join(", ")
     )));
 }
@@ -1810,6 +1566,9 @@ if !unknown.is_empty() {
         pair_value_fills: match v.get("pair_value_fills") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         pairs_shape: match v.get("pairs_shape") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         variadic: match v.get("variadic") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        minimum: match v.get("minimum") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        coerce: match v.get("coerce") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        blank_message: match v.get("blank_message") { Some(x) => Some(ArgumentSeedText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }

@@ -329,6 +329,32 @@ ALLOWLIST = [
                   "rule (matched on the general shape the reason text names, not this specific verb).",
   },
   {
+    kind:         "command",
+    # AN OPTIONAL COMMAND ARGUMENT FEEDING A FIELD THIS GENERATOR HAS NO
+    # OTHER REASON TO Option-WRAP — `rust/project/commands.rb`'s own
+    # `optional_source_mismatches` header (right above the method this
+    # reason string comes from) already names this a permanent, honest
+    # gap, not a missing feature: "A generated Rust struct's shape is
+    # fixed at compile time, so there is no honest choice here between
+    # 'leave the target non-optional and lose the omission' and
+    # 'generate something this domain's OWN declarations never asked
+    # for' — skipped, loudly, the same as every other ungenerable shape
+    # above." Every real instance is the self-hosted meta grammar's own
+    # `*.Declare` commands (`description:`/`provenance:`/`position:`/
+    # `vision:`/`role:`/`goal:`/... — optional command arguments that
+    # feed a `Field`/`Argument`/`AskArgument` value object's own
+    # attributes, none of which this corpus ever needed Option-wrapped
+    # for any OTHER reason) — no business domain in this corpus has ever
+    # hit this shape.
+    reason_match: /\Aoptional argument feeds a non-optional target: .+ — not generated yet\z/,
+    doc:          "rust/project/commands.rb's own #optional_source_mismatches (the method whose header this exact " \
+                  "reason text comes from) and rust/codegen/src/commands.rs's identical, mirrored logic",
+    note:         "Confirmed against a real run (2026-08-23): bin/rust_coverage meta's only 9 remaining command GAPs " \
+                  "are every one of this exact shape (Aggregate/Bluebook/Command/Entity/Policy/ProcessManager/Query/" \
+                  "ReadModel/ValueObject.Declare) — a future TENTH Declare-style command hitting the same shape " \
+                  "would be covered by the same rule (matched on the general reason text, not an enumerated verb list).",
+  },
+  {
     kind:         "query",
     # NARROWED, not the whole construct kind any more — a declared
     # `query "X" do ... end` block now DOES have a real generated Rust

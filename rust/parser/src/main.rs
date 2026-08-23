@@ -98,10 +98,13 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
             files.push(arg.clone());
         }
     }
-    let chapter_name = chapter_name
-        .ok_or_else(|| RunError::Usage("hecks-parse chapter --chapter <Name> <files...>".to_string()))?;
+    let chapter_name = chapter_name.ok_or_else(|| {
+        RunError::Usage("hecks-parse chapter --chapter <Name> <files...>".to_string())
+    })?;
     if files.is_empty() {
-        return Err(RunError::Usage("hecks-parse chapter --chapter <Name> <files...> — no files given".to_string()));
+        return Err(RunError::Usage(
+            "hecks-parse chapter --chapter <Name> <files...> — no files given".to_string(),
+        ));
     }
 
     let loaded: Vec<(String, String)> = files
@@ -148,15 +151,23 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
             path = Some(arg);
         }
     }
-    let chapter_name = chapter_name.ok_or_else(|| RunError::Usage("hecks-parse resolve --chapter <Name> <file.hecksagon>".to_string()))?;
-    let path = path.ok_or_else(|| RunError::Usage("hecks-parse resolve --chapter <Name> <file.hecksagon>".to_string()))?;
+    let chapter_name = chapter_name.ok_or_else(|| {
+        RunError::Usage("hecks-parse resolve --chapter <Name> <file.hecksagon>".to_string())
+    })?;
+    let path = path.ok_or_else(|| {
+        RunError::Usage("hecks-parse resolve --chapter <Name> <file.hecksagon>".to_string())
+    })?;
 
-    let source = fs::read_to_string(path).map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
+    let source = fs::read_to_string(path)
+        .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
     let names = parse::chapter::resolve_uses_framework(&chapter_name, path, &source)?;
 
     let value = emit::JsonValue::Object(vec![
         ("domain".to_string(), emit::JsonValue::String(chapter_name)),
-        ("uses_framework".to_string(), emit::JsonValue::Array(names.into_iter().map(emit::JsonValue::String).collect())),
+        (
+            "uses_framework".to_string(),
+            emit::JsonValue::Array(names.into_iter().map(emit::JsonValue::String).collect()),
+        ),
     ]);
     println!("{}", emit::write(&value));
     Ok(())
@@ -189,7 +200,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
 /// happened to fully cover too) adds the entries marked STAGE 4.
 ///
 /// STAGE 6 (the self-hosted grammar itself,
-/// `MetaValidator::GRAMMAR_FILES`'s nine files parsed as one `Bluebook`
+/// `MetaValidator::GRAMMAR_FILES`'s discovered files parsed as one `Bluebook`
 /// chapter) adds `("list_of", "Type")`/`("one_of", "Type")` below,
 /// marked STAGE 6 — NOT new dispatch work (both have built real IR since
 /// Stage 2/3, `resolve_type_expression`'s own header: pizzas.bluebook's
@@ -224,15 +235,15 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("entity", "Aggregate"), // STAGE 4
     ("query", "Aggregate"),
     ("command", "Aggregate"),
-    ("policy", "Aggregate"), // STAGE 4
+    ("policy", "Aggregate"),       // STAGE 4
     ("reference_to", "Aggregate"), // STAGE 3
-    ("belongs_to", "Aggregate"), // STAGE 4
-    ("description", "Entity"),    // STAGE 4
-    ("identified_by", "Entity"),  // STAGE 4
-    ("attribute", "Entity"),      // STAGE 4
-    ("command", "Entity"),        // STAGE 4
-    ("query", "Entity"),          // STAGE 4
-    ("lifecycle", "Entity"),      // STAGE 4
+    ("belongs_to", "Aggregate"),   // STAGE 4
+    ("description", "Entity"),     // STAGE 4
+    ("identified_by", "Entity"),   // STAGE 4
+    ("attribute", "Entity"),       // STAGE 4
+    ("command", "Entity"),         // STAGE 4
+    ("query", "Entity"),           // STAGE 4
+    ("lifecycle", "Entity"),       // STAGE 4
     ("role", "Command"),
     ("goal", "Command"),
     ("reference_to", "Command"),
@@ -250,11 +261,11 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("attribute", "Query"),
     ("where", "Query"),
     ("order_by", "Query"),
-    ("limit", "Query"),       // STAGE 4
-    ("authorize", "Query"),   // STAGE 4
+    ("limit", "Query"),     // STAGE 4
+    ("authorize", "Query"), // STAGE 4
     ("on", "Policy"),
     ("trigger", "Policy"),
-    ("across", "Policy"), // STAGE 4
+    ("across", "Policy"),                // STAGE 4
     ("correlates_by", "ProcessManager"), // STAGE 4
     ("starts_on", "ProcessManager"),     // STAGE 4
     ("ends_on", "ProcessManager"),       // STAGE 4
@@ -266,22 +277,25 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("reference_to", "PortOperation"),
     ("attribute", "PortOperation"),
     ("emits", "PortOperation"),
-    ("read_model", "Bluebook"),   // STAGE 3
-    ("description", "ReadModel"), // STAGE 3
-    ("include", "ReadModel"),     // STAGE 3
-    ("group_by", "ReadModel"),    // STAGE 3
-    ("count", "ReadModel"),        // real, this session — banking.bluebook's own DisputedPaymentCount
-    ("median", "ReadModel"),       // real, this session — banking.bluebook's own DisputedPaymentMedian
+    ("read_model", "Bluebook"),    // STAGE 3
+    ("description", "ReadModel"),  // STAGE 3
+    ("include", "ReadModel"),      // STAGE 3
+    ("group_by", "ReadModel"),     // STAGE 3
+    ("count", "ReadModel"), // real, this session — banking.bluebook's own DisputedPaymentCount
+    ("median", "ReadModel"), // real, this session — banking.bluebook's own DisputedPaymentMedian
     ("reference_to", "ReadModel"), // STAGE 4
-    ("where", "ReadModel"),        // STAGE 4
-    ("order_by", "ReadModel"),     // STAGE 4
-    ("limit", "ReadModel"),        // STAGE 4
-    ("list_of", "Type"), // STAGE 6 (bookkeeping — see this const's own header)
-    ("one_of", "Type"),  // STAGE 6 (bookkeeping — see this const's own header)
+    ("where", "ReadModel"), // STAGE 4
+    ("order_by", "ReadModel"), // STAGE 4
+    ("limit", "ReadModel"), // STAGE 4
+    ("list_of", "Type"),    // STAGE 6 (bookkeeping — see this const's own header)
+    ("one_of", "Type"),     // STAGE 6 (bookkeeping — see this const's own header)
 ];
 
 fn run_coverage(_args: &[String]) -> Result<(), RunError> {
-    let pairs: Vec<String> = COVERED_PAIRS.iter().map(|(word, context)| format!("[\"{word}\", \"{context}\"]")).collect();
+    let pairs: Vec<String> = COVERED_PAIRS
+        .iter()
+        .map(|(word, context)| format!("[\"{word}\", \"{context}\"]"))
+        .collect();
     println!("[{}]", pairs.join(", "));
     Ok(())
 }

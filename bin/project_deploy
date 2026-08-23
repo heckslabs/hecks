@@ -203,7 +203,7 @@ end
 # "genuinely supports either mode") could in principle attach a chapter
 # that itself declares a cross-domain policy, and a policy nested inside
 # `aggregate "X" do ... end` is exactly as real a cross-domain trigger as
-# one declared at the bluebook's own top level (docs/guides/policies-
+# one declared at the bluebook's own top level (docs/implemented/guides/policies-
 # and-process-managers.md: "A policy does not care where it was
 # written"). `to_h`'s own `policies` already flattens aggregate-scoped
 # and top-level policies into one list per bluebook — read the same way
@@ -1439,6 +1439,25 @@ mint_era_recipe =
     # `schema: #{infra_name.inspect}` in LineageManager.check!'s own
     # settings -- the exact same call this target runs automatically
     # for a domain with its own dedicated instance.
+    #
+    # IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (uses_embryonaut_
+    # bluebook, uses_framework), `check!` alone leaves THAT chapter's own
+    # aggregates with no snapshot table at all -- it only provisions the
+    # ONE bluebook it's called with (era_resolver.rb's own `bluebook.
+    # aggregates.each`), never the whole registry. Found live minting
+    # lifeadelics' own era: `Payments::Payment.Initiate` refused with
+    # "relation \\"payment_head_snapshot_1\\" does not exist" the first
+    # time this domain's own checkout route ran for real. The automated
+    # (non-Shared) recipe below now does this correctly for every OTHER
+    # loaded bluebook, using ONE `Lineage` keyed by THIS domain's own
+    # name (never each chapter's own -- a vendored chapter's aggregates
+    # share THIS domain's single `hecks_journal_#{infra_name}` and
+    # snapshot tables, they do not get a separate journal of their own).
+    # Reproduce the same shape manually here: after `LineageManager.
+    # check!` returns, `db = PostgresEra.connect_for(bluebook.name,
+    # settings)`, `lineage = Lineage.new(db, bluebook.name)`, then for
+    # every OTHER loaded bluebook's own aggregates, `lineage.
+    # ensure_first_head!(aggregate.storage_name)`.
     \t@echo "mint-era isn't automated yet for a Shared-mode domain (database \\"Shared\\") -- see this target's own comment in the generated Makefile for the manual path through #{owner_domain_name}'s own tunnel."; \\
     \texit 1
     SHAREDMINT
@@ -1536,7 +1555,7 @@ mint_era_recipe =
     \t\t\tnc -z localhost 15432 2>/dev/null && break; \\
     \t\t\tsleep 1; \\
     \t\tdone; \\
-    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; require "hecksagain/presentation"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks.values.first; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
+    \t\tcd $(ROOT) && DATABASE_URL="postgres://postgres:$$DB_PASS@localhost:15432/#{infra_name}" ruby -Ilib -e 'require "hecksagain"; loading = Hecksagain::Ports::Loading.bootstrap; directory = loading.bluebook_directory(ARGV[0]); root = loading.shared_root(nil, directory); registry = Hecksagain::Runtime::Registry.new(root: File.dirname(directory)); Hecksagain.with_registry(registry) { loading.load_library; loading.load_project(root); loading.load_domain(directory) }; bluebook = registry.bluebooks[#{declared_domain_name.inspect}] or abort "no #{declared_domain_name} bluebook loaded"; current_text = Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory); Hecksagain::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook, current_text: current_text, settings: { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); db = Hecksagain::Adapters::PostgresEra.connect_for(bluebook.name, { database: ENV["DATABASE_URL"]#{hecks_schema ? ", schema: #{hecks_schema.inspect}" : ""} }); lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name); (registry.bluebooks.values - [bluebook]).each { |other| other.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) } }; db.close; puts "booted OK — era resolution ran"' $(DOMAIN) && { BOOT_STATUS=0; break; }; \\
     \t\tBOOT_STATUS=$$?; \\
     \t\techo "boot check attempt $$attempt/5 failed (exit $$BOOT_STATUS) -- restarting the tunnel and retrying in 3s..."; \\
     \t\tsleep 3; \\

@@ -1,0 +1,514 @@
+Hecks.bluebook "Banking" do
+  aggregate "Account" do
+    description "A balance belonging to one customer, and the ledger that explains how it got there."
+    provenance from: { source: "HecksCanonical", source_id: "aggregate:account", source_version: "1.0" }
+
+    reference_to Customer
+
+    attribute :number, AccountNumber
+
+    identified_by :number
+
+    attribute :balance,      Money
+    attribute :kind,         AccountKind
+    attribute :daily_limit,  DailyLimit
+    attribute :ledger,       list_of(LedgerEntry)
+    attribute :fees_cents,   Money
+    attribute :interest_cents, Money
+
+    value_object "AccountNumber" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    value_object "DailyLimit" do
+      attribute :cents, Integer, default: 0
+      invariant("a daily limit is non-negative") { !cents.negative? }
+    end
+
+    value_object "LedgerSequence" do
+      attribute :value, Integer
+      invariant("a ledger sequence is positive") { value.positive? }
+    end
+
+    value_object "LedgerDirection" do
+      attribute :value, String, one_of: ["credit", "debit"]
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer, default: 0
+      attribute :currency, String,  default: "USD"
+
+      invariant("a currency is a three-letter code") { currency.to_s.size == 3 }
+    end
+
+    value_object "PositiveMoney" do
+      attribute :cents,    Integer
+      attribute :currency, String, default: "USD"
+
+      invariant("an amount is positive") { cents.positive? }
+      invariant("a currency is a three-letter code")
+    end
+
+    value_object "AccountKind" do
+      attribute :name, String, one_of: ["current", "savings", "reserve"]
+    end
+
+    value_object "Narrative" do
+      attribute :text, String, pattern: '[^ \t\n\r]'
+
+      invariant("a movement explains itself") { !text.to_s.empty? }
+    end
+
+    entity "LedgerEntry" do
+      given("entry is posted") { state == "posted" }
+      description "One movement across the account, in the order it was posted."
+
+      attribute :sequence, LedgerSequence
+
+      identified_by :sequence
+
+      attribute :amount,    Money
+      attribute :narrative, Narrative
+      attribute :direction, LedgerDirection
+
+      # DECLARED ONCE, ON THE PIECE (ADR 0028) — Amend and Reverse both
+      # need the same two facts about the AGGREGATE they belong to;
+      # each used to retype both predicates verbatim.
+      given("customer is active") { parent.customer.status == "active" }
+      given("account is open")    { parent.status == "open" }
+
+      lifecycle :state, default: "posted" do
+        transition "Reverse" => "reversed", from: "posted"
+        transition "Amend"   => "posted",   from: "posted"
+      end
+
+      command "Amend" do
+        role "Back office"
+        goal "Correct a movement posted for the wrong amount"
+
+        attribute :adjustment, Money
+        given("customer is active")
+        given("account is open")
+        given("entry is posted")
+
+        given("an amendment leaves a non-negative amount") { amount.cents + adjustment.cents >= 0 }
+
+        sets :amount,    increment: :adjustment
+        sets :narrative
+
+        emits "LedgerEntryAmended"
+      end
+
+      command "Reverse" do
+        role "Back office"
+        goal "Undo a movement that should not have been posted"
+
+        given("customer is active")
+        given("account is open")
+        given("entry is posted")
+        sets :narrative
+
+        emits "LedgerEntryReversed"
+      end
+
+      query "Reversed" do
+        description "Entries that were undone — the audit trail nobody wants to need."
+        where(state: "reversed")
+      end
+    end
+
+    # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — checked after
+    # every command, before save, the same way a value object's already
+    # is. Six commands move :balance, and "the balance never goes
+    # negative" used to be expressed three ways: Debit stated it as
+    # both a given and an ensures, ApplyFee/CorrectInterest as
+    # differently-worded givens, and the commands that only increase it
+    # (Credit, CorrectFee, AccrueInterest) said nothing at all —
+    # completeness depended on someone noticing which commands could
+    # decrease it. One rule, checked for all of them, said once.
+    invariant("the balance never goes negative") { balance.cents >= 0 }
+
+    # THE LOCAL COPY (S12, ADR 0025 — "Consistency across aggregate
+    # boundaries") — a held copy of Customer's own lifecycle field,
+    # kept fresh by a rebuild sweep rather than read live the way the
+    # `given` two lines down still does. Declared here, alongside the
+    # reference it reads through, but deliberately NOT yet the source
+    # `given("customer is active")` reads from: flipping every command
+    # that reads `customer.status` over to `customer_status` is a
+    # runtime-wide decision (when does the sweep run relative to a
+    # dispatch?) bigger than this one declaration, and out of scope
+    # for the slice that first proves the mechanism. See
+    # RebuildSweep, runtime/rebuild_sweep.rb, for the working half of
+    # that mechanism — sweep, absence, refusal — demonstrated end to
+    # end without yet being load-bearing for any real corpus rule.
+    projects :customer_status, from: :"customer.status"
+
+    # A PRECONDITION SHARED ACROSS COMMANDS, DECLARED ONCE (S10, ADR
+    # 0025) — "customer is active" was the single most duplicated given
+    # in the whole corpus (44% of all 183, per the ADR's own count,
+    # between this and its sibling below). Every command on Account
+    # itself that reads its own `customer` reference names this back
+    # rather than re-typing the predicate — one description, and
+    # therefore one refusal message, no matter which command a caller
+    # hits. FreezeAccount/CloseAccount are NOT among them — they check
+    # "customer is not closed", a different rule for a different
+    # reason (see FreezeAccount's own comment, below). LedgerEntry's
+    # own Amend/Reverse read `parent.customer.status` instead — a
+    # different relative path, so they keep their own given rather
+    # than reference this one; unifying across that boundary — and
+    # every OTHER aggregate's own independent "customer is active" (44
+    # more of them, one hop or two, across ATMCard/Transfer/
+    # CardPayment/ExternalTransfer/ScheduledPayment/SafeDepositBox/
+    # OnboardingCase) — is a follow-up slice's job, not this one's.
+    given("customer is active") { customer.status == "active" }
+
+    # A SECOND PRECONDITION, DECLARED ONCE (S10, ADR 0025) — the exact
+    # same text, and the exact same predicate, independently typed on
+    # both FreezeAccount and CloseAccount before this: two compliance-
+    # adjacent commands agreeing on one rule by coincidence, not by
+    # declaration.
+    given("customer is not closed") { customer.status != "closed" }
+
+    lifecycle :status, default: "open" do
+      transition "FreezeAccount" => "frozen", from: "open"
+      transition "Unfreeze" => "open",  from: "frozen"
+      transition "CloseAccount" => "closed", from: ["open", "frozen"]
+    end
+
+    command "Open" do
+      role "Branch clerk"
+      goal "Give a customer somewhere to keep money"
+
+      given("customer is active")
+
+      sets :customer
+      sets :number
+      sets :kind
+      sets :daily_limit
+
+      emits "AccountOpened"
+    end
+
+    # LIFECYCLE STATE AS A COMMAND GUARD (S10, ADR 0025) — `from: "open"`
+    # replaces `given("the account is open") { status == "open" }`,
+    # written in two wordings across the corpus. The lifecycle already
+    # declares which states exist, so naming the legal one is checkable
+    # against it, where the free-text given could drift out of sync
+    # with the state machine and did (this one and "account is open"
+    # elsewhere on this same aggregate).
+    command "Credit", from: "open" do
+      role "Teller"
+      goal "Put money in"
+
+      reference_to Account
+      attribute :amount,    PositiveMoney
+
+      given("customer is active")
+      sets :balance, increment: :amount
+      sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "credit" } }
+
+      emits "AccountCredited"
+    end
+
+    command "Debit", from: "open" do
+      role "Teller"
+      goal "Take money out, if it is there to take"
+
+      reference_to Account
+      attribute :amount,    PositiveMoney
+
+      given("customer is active")
+      given("the balance covers it")     { balance.cents >= amount.cents }
+      given("the daily limit allows it") { daily_limit.cents >= amount.cents }
+
+      sets :balance, decrement: :amount
+      sets :ledger,  append: { amount: :amount, narrative: :narrative, direction: { value: "debit" } }
+
+      # "no debit leaves the balance negative" — GONE, not reworded: the
+      # aggregate's own invariant above says it now, checked the same
+      # way after every command that can move :balance, not just this one.
+      ensures("the balance fell by exactly the amount") { old.balance.cents == balance.cents + amount.cents }
+      ensures("a ledger entry was posted") { ledger.size == old.ledger.size + 1 }
+
+      emits "AccountDebited"
+    end
+
+    command "FreezeAccount", from: "open" do
+      role "Compliance officer"
+      goal "Stop an account moving while something is investigated"
+
+      reference_to Account
+      # "customer is not closed" — CloseAccount's own established idiom
+      # for a compliance-adjacent command, NOT "customer is active" (the
+      # money-moving commands' own guard: ApplyFee, CorrectFee,
+      # AccrueInterest, ...). A closed relationship has nothing left to
+      # freeze against ; a SUSPENDED one is precisely the case this
+      # command exists for — FreezeAccountsOnSuspension fires BECAUSE a
+      # customer was just suspended, and "customer is active" made that
+      # reaction's own one caller impossible to satisfy, always. Real
+      # bug, found twice independently — once wiring `for_each` into
+      # this policy, once writing the reference page for `trigger`.
+      #
+      # NO `standing` PASS-THROUGH ATTRIBUTE, and none is needed now:
+      # the policy projects with `with: { account: :account }`, so the
+      # event's own `standing` never reaches this command and it has
+      # nothing to declare for a field it does not read. An earlier pass
+      # added one, which is what made the fan-out succeed for the first
+      # time and so exposed the Rust kernel's own missing `for_each` —
+      # closed in this same change; see FreezeAccountsOnSuspension's own
+      # comment below.
+      given("customer is not closed")
+      emits "AccountFrozen"
+    end
+
+    command "Unfreeze", from: "frozen" do
+      role "Compliance officer"
+      goal "Release a cleared account"
+
+      reference_to Account
+      given("customer is active")
+      emits "AccountUnfrozen"
+    end
+
+    command "CloseAccount", from: ["open", "frozen"] do
+      role "Branch clerk"
+      goal "Close an account that has been emptied"
+
+      reference_to Account
+      given("customer is not closed")
+
+      given("an account closes empty") { balance.cents.zero? }
+
+      emits "AccountClosed"
+    end
+
+    command "ApplyFee", from: "open" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      attribute :narrative, Narrative
+      given("customer is active")
+      given("the balance covers a fee") { balance.cents >= amount.cents }
+      sets :balance, decrement: :amount
+      sets :fees_cents, increment: :amount
+      emits "FeeApplied"
+    end
+
+    command "CorrectFee", from: "open" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("customer is active")
+      given("a correction cannot exceed collected fees") { fees_cents.cents >= amount.cents }
+      sets :balance, increment: :amount
+      sets :fees_cents, decrement: :amount
+      emits "FeeCorrected"
+    end
+
+    command "AccrueInterest", from: "open" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("customer is active")
+      sets :balance, increment: :amount
+      sets :interest_cents, increment: :amount
+      emits "InterestAccrued"
+    end
+
+    command "CorrectInterest", from: "open" do
+      reference_to Account
+      attribute :amount, PositiveMoney
+      given("customer is active")
+      given("a correction cannot exceed accrued interest") { interest_cents.cents >= amount.cents }
+      given("the balance covers an interest correction") { balance.cents >= amount.cents }
+      sets :balance, decrement: :amount
+      sets :interest_cents, decrement: :amount
+      emits "InterestCorrected"
+    end
+
+    query "Open" do
+      description "Accounts that can transact today."
+      where(status: "open")
+      order_by :number
+    end
+
+    query "Overdrawn" do
+      description "Accounts below a floor the caller supplies — the morning risk report."
+      attribute :floor, Money
+      where(balance: { lt: :floor })
+      order_by :balance
+      limit 100
+    end
+
+    query "HighBalance" do
+      description "Accounts holding at least a floor the caller supplies — the private-banking referral list."
+      attribute :floor, Money
+      where(balance: { gte: :floor })
+      order_by :balance, :desc
+    end
+
+    query "StrictlyAbove" do
+      description "Accounts holding MORE than a floor the caller supplies — the referral list without the accounts sitting exactly on the line."
+      attribute :floor, Money
+      where(balance: { gt: :floor })
+      order_by :balance, :desc
+    end
+
+    query "AtMost" do
+      description "Accounts holding no more than a cap the caller supplies — the small-balance closure candidates."
+      attribute :cap, Money
+      where(balance: { lte: :cap })
+      order_by :balance
+    end
+
+    query "Reachable" do
+      description "Accounts that still exist as far as a caller is concerned — anything short of closed."
+      where(status: { in: "open,frozen" })
+      order_by :number
+    end
+
+    # A DOTTED WHERE, HOPPING THROUGH A REFERENCE — the shape a
+    # hand-written precondition check used to be the only way to ask
+    # for: "an open account whose OWN customer is suspended," not
+    # anything about the account's own declared fields. `customer` is
+    # the hop — Account's own `reference_to Customer` above, addressed
+    # by the same name Facade::Handle's own hydrated accessor answers
+    # to (`account.customer`) — and `status` is Customer's own
+    # lifecycle field, checked on the TARGET, not this aggregate.
+    query "OpenForSuspendedCustomers" do
+      description "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now."
+      where(status: "open")
+      where(:"customer/status" => "suspended")
+      order_by :number
+    end
+
+    # THE for_each TARGET for `FreezeAccountsOnSuspension`, below — scoped
+    # to ONE customer, unlike `OpenForSuspendedCustomers` above (a
+    # standing dashboard ask, deliberately unscoped: "everyone currently
+    # exposed"). A fan-out needs the narrower ask: only THIS event's own
+    # customer's accounts, or every OTHER already-suspended customer's
+    # open accounts would get re-dispatched every single time any one
+    # customer is suspended. `reference` — not `customer_id` — because
+    # that is the actual key `CustomerSuspended`'s own payload carries
+    # (`Customer.Suspend`'s own `reference_to Customer` addresses its OWN
+    # aggregate by Customer's declared identity path, `identified_by
+    # :reference` — not a synthetic `customer_id` foreign key, which only
+    # a REFERENCING command like `Account.Open` mints).
+    query "OpenForCustomer" do
+      description "One customer's own open accounts — the for_each target that freezes every one of them on suspension, not just whichever the event payload happened to carry."
+      # PLAIN String, not the cross-aggregate CustomerNumber VO Customer's
+      # own identity is declared as: a query attribute's declared type is
+      # never runtime-coerced (`QueryInterpreter#resolve_query_value` is a
+      # raw `args[value]` lookup — comparability is handled entirely by
+      # `Ports::Query::InMemory.holds?`'s own `comparable` unwrap on BOTH
+      # sides, regardless of which shape the caller offers), so String
+      # here changes nothing about what a real caller may pass — it only
+      # spares `Fuzzing::ValueGenerator` an aggregate.value_object lookup
+      # this query's own aggregate (Account) could never satisfy for a VO
+      # declared under a DIFFERENT aggregate (Customer).
+      attribute :reference, String
+      where(customer: :reference, status: "open")
+      order_by :number
+    end
+
+    policy "ReviewOnFreeze" do
+      on      "Account.AccountFrozen"
+      trigger AccountFreezeReview::Open
+      across  "Compliance"
+    end
+  end
+
+  # TWO REAL BUGS FOUND AND FIXED; TWO MORE FOUND, BOTH GENUINELY
+  # BIGGER THAN THIS ONE FIX'S OWN SCOPE, BOTH DELIBERATELY LEFT OPEN.
+  # This policy has refused EVERY dispatch, silently, for as long as it
+  # existed — the name was always plural ("Accounts"), and the
+  # mechanism only ever attempted ONE dispatch, with the wrong shape.
+  #
+  # FIXED, AND KEPT EVEN THOUGH `for_each` ISN'T WIRED BELOW YET (see
+  # the two gaps this comment ends on) — both are real, general fixes,
+  # verified safe on their own, and stay dormant/harmless the moment
+  # nothing in the corpus actually exercises `for_each`:
+  #
+  #   THE ADDRESSING BUG — `PolicyInterpreter`'s own reference-key
+  #   resolution (`Behaviour::Command#addressing_key_for`) now asks the
+  #   TARGET command how it expects to be addressed, rather than
+  #   guessing `<aggregate>_id` unconditionally. `Account.Freeze` is
+  #   addressed by `account` (it self-references Account, the same
+  #   self-vs-foreign-key distinction `Customer.Suspend`'s own
+  #   `reference` argument already demonstrates elsewhere in this
+  #   file), not `account_id` — verified directly against
+  #   `Account.OpenForCustomer` (below), the for_each target this fix
+  #   is FOR.
+  #
+  #   THE BUSINESS-RULE CONTRADICTION — `Account.Freeze`'s own given
+  #   used to read "customer is active," impossible to satisfy from the
+  #   one reaction that exists to invoke it (a customer who was just
+  #   suspended is, by definition, no longer active). Now "customer is
+  #   not closed," matching `Account.CloseAccount`'s own established
+  #   idiom for a compliance-adjacent command — verified directly
+  #   (`spec/runtime/freeze_accounts_on_suspension_spec.rb`).
+  #
+  # STILL OPEN — WHOLESALE PAYLOAD FORWARDING. `Account.Freeze` still
+  # declares neither `reference` nor `standing`, which `deliver_for_
+  # each_row` (were `for_each` wired below) would still forward
+  # wholesale from CustomerSuspended's own payload. An unused
+  # `attribute :standing, String, optional: true` pass-through (the
+  # same shape `Account.Review`'s own `customer_id`/`risk` already
+  # establish in spec/runtime/policy_spec.rb's Fanout fixture) closes
+  # this — verified, it dispatches fine on the Ruby side — but doing so
+  # surfaces the FIRST of three real Rust gaps below (event-payload
+  # serialization), so it isn't added here either.
+  #
+  # STILL OPEN — THREE SEPARATE, REAL RUST GAPS, discovered only once
+  # the two fixes above let this policy's own for_each dispatch
+  # actually SUCCEED for the first time (in Ruby):
+  #
+  #
+  # ONE SUSPENSION, EVERY OPEN ACCOUNT THAT CUSTOMER HOLDS — wired now,
+  # which the comment this replaces could not do. It named three gaps
+  # standing in the way; two are closed:
+  #
+  #   PARSER (gap 2) — `parse::policy` now builds `for_each`, and
+  #   `trigger`'s own `with:` besides, so `examples/banking` can carry
+  #   both and stay a full byte-exact `REAL_PARITY_MEMBERS` domain.
+  #   `where` is still unbuilt: it is a BLOCK, not a positional text.
+  #
+  #   KERNEL DISPATCH (gap 3) — `kernel::orchestrate`'s own `PolicyRule`
+  #   carries `for_each`, `for_each_key` and `with_spec`, and
+  #   `react_policies` runs the declared query and dispatches once per
+  #   row. `spec/rust_conformance_spec.rb` is the proof rather than the
+  #   claim: it compared Ruby's `frozen` against Rust's `open` on this
+  #   very policy until the kernel could fan out, and passes now.
+  #
+  #   `for_each_key` is RESOLVED AT CODEGEN, by asking
+  #   `Behaviour::Command#addressing_key_for` — never re-derived in the
+  #   kernel. Two answers are correct (`account` for a command
+  #   self-referencing its own aggregate, `account_id` for one merely
+  #   holding a reference) and that judgement belongs to the target
+  #   command; reimplementing it in a second language is how the two
+  #   runtimes would drift again, one bug lower down.
+  #
+  #   `sparse:` (gap 1) STAYS OPEN, and is untouched here — it diverges
+  #   this generator from `hecks-codegen`, which
+  #   `spec/codegen_parity_spec.rb` holds byte-identical to it.
+  #
+  # `with:` is the other half of making it work. Without a projection
+  # the whole `CustomerSuspended` payload rides along and
+  # `FreezeAccount` has to declare a `standing` it never reads; naming
+  # the row sends that and nothing else.
+  policy "FreezeAccountsOnSuspension" do
+    on       "CustomerSuspended"
+    for_each "Account.OpenForCustomer"
+    # THE ROW, AND NOTHING ELSE. `account` is the key the fan-out merges
+    # for each row it answers, and naming it here is what keeps
+    # `CustomerSuspended`'s own `standing` from riding along — leave
+    # `with:` off and `FreezeAccount` would have to declare a field it
+    # never reads just to be reachable.
+    trigger  Account::FreezeAccount, with: { account: :account }
+  end
+
+  policy "NotifyOnClosure" do
+    on      "AccountClosed"
+    trigger Notifications::Send
+    across  "Notifications"
+  end
+
+end

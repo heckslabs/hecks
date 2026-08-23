@@ -11,7 +11,7 @@
 // ever reaches this matcher needs any of those: a plain recursive
 // backtracking matcher is enough, no NFA/DFA compilation required, and
 // zero Cargo dependencies (the same constraint `json.rs`/`expr.rs`
-// already hold themselves to — see docs/decisions/0012).
+// already hold themselves to — see docs/implemented/decisions/0012).
 //
 // `Value::for_attribute`'s own `check_patterns` (coercion.rb) semantics:
 // unanchored search — `Regexp.new(pattern).match?(text)` finds a match

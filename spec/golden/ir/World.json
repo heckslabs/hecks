@@ -6,9 +6,301 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "world_ref",
+          "optional": false,
+          "pattern": null,
+          "relationship": "belongs_to",
+          "type": "Reference<World>"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "world",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "WiringText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "verb",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "WiringText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "adapter",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "WiringText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "settings",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Setting"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "world_ref",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "WorldName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "world",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "WiringText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "verb",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "WiringText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "adapter",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "WiringText"
+            }
+          ],
+          "emits": [
+            "WiringDeclared"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!verb.value.to_s.empty?",
+              "description": "a wiring names its verb"
+            }
+          ],
+          "goal": "Bind one adapter in a world",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "world_ref"
+              },
+              "target": "world_ref"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "world"
+              },
+              "target": "world"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "verb"
+              },
+              "target": "verb"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "adapter"
+              },
+              "target": "adapter"
+            }
+          ],
+          "name": "Declare",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "WiringText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "WiringText"
+            }
+          ],
+          "emits": [
+            "SettingGiven"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "canonical": "!key.value.to_s.empty?",
+              "description": "a setting names its key"
+            }
+          ],
+          "goal": "Give one value the bound adapter needs",
+          "mutations": [
+            {
+              "fields": {
+                "key": ":key",
+                "value": ":value"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "settings"
+            }
+          ],
+          "name": "Set",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        }
+      ],
+      "description": "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "world.value",
+        "verb.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": null,
+      "name": "Wiring",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "WiringText"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "key",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Setting"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "domain",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "WorldName"
         },
         {
@@ -18,6 +310,7 @@
           "name": "realm",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Realm"
         },
         {
@@ -27,6 +320,7 @@
           "name": "latest",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Latest"
         }
       ],
@@ -40,6 +334,7 @@
               "name": "domain",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "WorldName"
             },
             {
@@ -49,6 +344,7 @@
               "name": "realm",
               "optional": true,
               "pattern": null,
+              "relationship": null,
               "type": "Realm"
             },
             {
@@ -58,6 +354,7 @@
               "name": "latest",
               "optional": true,
               "pattern": null,
+              "relationship": null,
               "type": "Latest"
             }
           ],
@@ -73,7 +370,33 @@
           ],
           "goal": "Open a world for a domain",
           "mutations": [
-
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "domain"
+              },
+              "target": "domain"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "realm"
+              },
+              "target": "realm"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "latest"
+              },
+              "target": "latest"
+            }
           ],
           "name": "Declare",
           "provenance": null,
@@ -116,6 +439,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -140,6 +464,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -164,6 +489,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -178,118 +504,6 @@
 
           ],
           "name": "Latest"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "world_ref",
-          "optional": false,
-          "pattern": null,
-          "type": "Reference<World>"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "world",
-          "optional": false,
-          "pattern": null,
-          "type": "WiringText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "verb",
-          "optional": false,
-          "pattern": null,
-          "type": "WiringText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "adapter",
-          "optional": false,
-          "pattern": null,
-          "type": "WiringText"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "settings",
-          "optional": false,
-          "pattern": null,
-          "type": "Setting"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "world_ref",
-              "optional": false,
-              "pattern": null,
-              "type": "Reference<World>"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "world",
-              "optional": false,
-              "pattern": null,
-              "type": "WiringText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "verb",
-              "optional": false,
-              "pattern": null,
-              "type": "WiringText"
-            },
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "adapter",
-              "optional": false,
-              "pattern": null,
-              "type": "WiringText"
-            }
-          ],
-          "emits": [
-            "WiringDeclared"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-            {
-              "canonical": "!verb.value.to_s.empty?",
-              "description": "a wiring names its verb"
-            }
-          ],
-          "goal": "Bind one adapter in a world",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "provenance": null,
-          "references": null,
-          "role": "Deployment"
         },
         {
           "attributes": [
@@ -297,99 +511,196 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "key",
+              "name": "word",
               "optional": false,
               "pattern": null,
-              "type": "WiringText"
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             },
             {
               "admits": null,
               "default": null,
               "list": false,
-              "name": "value",
+              "name": "inner",
               "optional": false,
               "pattern": null,
-              "type": "WiringText"
-            }
-          ],
-          "emits": [
-            "SettingGiven"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-            {
-              "canonical": "!key.value.to_s.empty?",
-              "description": "a setting names its key"
-            }
-          ],
-          "goal": "Give one value the bound adapter needs",
-          "mutations": [
-            {
-              "fields": {
-                "key": ":key",
-                "value": ":value"
-              },
-              "op": "append",
-              "sign": "",
-              "target": "settings"
-            }
-          ],
-          "name": "Set",
-          "provenance": null,
-          "references": "Wiring",
-          "role": "Deployment"
-        }
-      ],
-      "description": "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "world.value",
-        "verb.value"
-      ],
-      "invariants": [
-
-      ],
-      "lifecycle": null,
-      "name": "Wiring",
-      "ports": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
-      "provenance": null,
-      "queries": [
-
-      ],
-      "value_objects": [
-        {
-          "attributes": [
+              "relationship": null,
+              "type": "String"
+            },
             {
               "admits": null,
               "default": null,
               "list": false,
-              "name": "value",
+              "name": "opens",
               "optional": false,
               "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": "",
+              "list": false,
+              "name": "resolves_via",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": "",
+              "list": false,
+              "name": "disambiguator",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
-          "closed_set": false,
+          "closed_set": true,
           "invariants": [
 
           ],
           "members": [
-
+            [
+              [
+                "word",
+                "world"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "World"
+              ],
+              [
+                "opens",
+                "World"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "realm"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "realm"
+              ],
+              [
+                "calls",
+                "realm_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "latest"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "latest"
+              ],
+              [
+                "calls",
+                "latest_impl"
+              ]
+            ]
           ],
-          "name": "WiringText"
+          "name": "KeywordSeed"
         },
         {
           "attributes": [
@@ -397,29 +708,250 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "key",
+              "name": "keyword",
               "optional": false,
               "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
               "admits": null,
               "default": null,
               "list": false,
-              "name": "value",
+              "name": "at",
               "optional": false,
               "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::PairsShape",
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "blank_message",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
-          "closed_set": false,
+          "closed_set": true,
           "invariants": [
 
           ],
           "members": [
-
+            [
+              [
+                "keyword",
+                "world"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "domain"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "realm"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "realm"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "latest"
+              ],
+              [
+                "context",
+                "World"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "latest"
+              ]
+            ]
           ],
-          "name": "Setting"
+          "name": "ArgumentSeed"
         }
       ]
     }
@@ -443,7 +975,7 @@
       "strategy": "replace"
     }
   ],
-  "classification": "core",
+  "classification": null,
   "ir_version": 1,
   "name": "World",
   "policies": [
@@ -456,5 +988,5 @@
 
   ],
   "version": null,
-  "vision": "The .world language, declared in itself. A world is a SIBLING of a bluebook, not part of one — the same domain runs in many worlds, and the values its adapters need belong to the deployment rather than to the domain. So it is described in its own file, as its own thing."
+  "vision": null
 }

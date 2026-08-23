@@ -9,7 +9,7 @@ require "spec_helper"
 # Account.{Overdrawn,HighBalance,StrictlyAbove,AtMost}, Customer.NotGoodStanding,
 # Account.Reachable and CardPayment.Flagged now carry that coverage instead.
 RSpec.describe "where-clause comparators, exercised on the real banking bluebook" do
-  BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot
     registry = Hecksagain::Runtime::Registry.new
@@ -18,7 +18,7 @@ RSpec.describe "where-clause comparators, exercised on the real banking bluebook
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(BANKING_BLUEBOOK)
+      load_bluebook_files(BANKING_BLUEBOOK)
       Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
     end
   end

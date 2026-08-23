@@ -1,0 +1,477 @@
+Hecks.bluebook "Banking" do
+  aggregate "Transfer" do
+    given("transfer is debited") { status == "debited" }
+    given("destination account is open") { destination.status == "open" }
+    given("destination customer is active") { destination.customer.status == "active" }
+    given("transfer is requested") { status == "requested" }
+    given("source account is open") { source.status == "open" }
+    given("source customer is active") { source.customer.status == "active" }
+    description "Money leaving one account for another. Two movements that must both happen, or neither."
+
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+
+    # TWO REAL PROJECTIONS OFF TWO ALIASED REFERENCES TO THE SAME TYPE
+    # (S12, ADR 0025) — `source`/`destination` both point at Account,
+    # and each carries its own local copy of that account's own
+    # lifecycle field, entirely independent declarations despite
+    # sharing a target aggregate: the DSL spelling reads through the
+    # LOCAL reference name, not the target's type, for exactly this
+    # reason (AggregateBuilder#projects's own comment).
+    projects :source_account_status,      from: :"source.status"
+    projects :destination_account_status, from: :"destination.status"
+
+    attribute :reference, TransferReference
+
+    identified_by :reference
+
+    attribute :amount,    TransferMoney
+
+    value_object "TransferReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a transfer is referenced") { !value.to_s.empty? }
+    end
+    attribute :narrative, Narrative
+
+    value_object "TransferMoney" do
+      attribute :cents, Integer
+      invariant("a transfer amount is positive") { cents.positive? }
+    end
+
+    value_object "Narrative" do
+      attribute :text, String, pattern: '[^ \t\n\r]'
+
+      invariant("a transfer explains itself") { !text.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Debited"  => "debited",   from: "requested"
+      transition "Credited" => "credited",  from: "debited"
+      transition "Settle"   => "settled",   from: "credited"
+      transition "Reverse"  => "reversed",  from: "debited"
+      transition "Reject"   => "rejected",  from: "requested"
+    end
+
+    command "Request" do
+      role "Customer"
+      goal "Send money to another account"
+
+      attribute :reference,   TransferReference
+
+      # A REFERENCE IS THE ACCOUNT'S NUMBER, so these read it as one. They said
+      # `source.value` while a reference was stored as an object wrapping that
+      # number — describing the wrapper rather than the account, and a clerk
+      # would not say it that way either.
+      given("source customer is active")
+      given("source account is open")
+      # `.empty?` rather than `.to_s.empty?` — deliberately: a valid source/
+      # destination now DEREFERENCES to the referenced account's own full
+      # state (CommandRules::References#dereference, needed for
+      # `source.status`/`destination.status` below), and `.to_s` on that
+      # Hash is not a scalar the resolver can render — `.empty?` reads
+      # correctly either way, blank string or hydrated record (both
+      # respond to `#empty?` with the right answer; see
+      # Resolver#apply_emptiness_test).
+      given("a transfer names its source")  { !source.empty? }
+      given("a transfer goes somewhere")    { !destination.empty? }
+      given("a transfer moves BETWEEN accounts") { source != destination }
+
+      sets :amount
+      sets :narrative
+      sets :source
+      sets :destination
+
+      emits "TransferRequested"
+    end
+
+    command "Debited" do
+      role "System"
+      goal "Record that the source account has given up the money"
+
+      reference_to Transfer
+      given("source customer is active")
+      given("source account is open")
+      given("transfer is requested")
+      emits "TransferDebited"
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that the destination has received it"
+
+      reference_to Transfer
+      given("destination customer is active")
+      given("destination account is open")
+      given("transfer is credited") { status == "credited" }
+      emits "TransferSettled"
+    end
+
+    command "Credited" do
+      role "System"
+      goal "Record that the destination credit committed"
+
+      reference_to Transfer
+      given("destination customer is active")
+      given("destination account is open")
+      given("transfer is debited")
+      emits "TransferCredited"
+    end
+
+    command "Reverse" do
+      role "System"
+      goal "Put the money back when the credit could not be made"
+
+      reference_to Transfer
+      given("source customer is active")
+      given("source account is open")
+      given("transfer is debited")
+      emits "TransferReversed"
+    end
+
+    command "Reject" do
+      role "System"
+      goal "Refuse a transfer before any money moved"
+
+      reference_to Transfer
+      given("source customer is active")
+      given("transfer is requested")
+      given("source account is open")
+      emits "TransferRejected"
+    end
+
+    query "InFlight" do
+      description "Transfers that have left one account and not arrived at the other. The list that must always empty."
+      where(status: "debited")
+      order_by :status
+    end
+  end
+
+  aggregate "ExternalTransfer" do
+    given("transfer is sent") { status == "sent" }
+    # REFERENCED, NOT REDECLARED — see `CardPayment`'s own comment on
+    # this same reference.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
+    # `Transfer`'s own declaration — unambiguous chapter-wide (no
+    # OTHER aggregate declares a different canonical under this
+    # description), so no declared_by: needed.
+    given("transfer is requested")
+    description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
+
+    reference_to Account
+    attribute :end_to_end, EndToEndReference
+
+    identified_by :end_to_end
+    attribute :amount,      ExternalAmount
+    attribute :beneficiary, BeneficiaryName
+    # WHICH WAY THE MONEY MOVED ON THE ACCOUNT — and the bank already has a set
+    # for that. It is the LEDGER's set, declared once on Account, so this names
+    # it instead of restating it : spelling `credit`/`debit` a second time inside
+    # this aggregate would be a copy of a set the domain already holds, and a
+    # copy nothing compares is a copy that drifts.
+    attribute :direction,   MovementDirection, admits: "Account::LedgerDirection"
+
+    value_object "EndToEndReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    # A plain text holder. The VALUES it may carry are Account's business, which
+    # is exactly the split `admits` exists to express: the TYPE is local, the SET
+    # is named.
+    value_object "MovementDirection" do
+      attribute :value, String
+    end
+
+    value_object "ExternalAmount" do
+      attribute :cents, Integer
+      invariant("an external transfer amount is positive") { cents.positive? }
+    end
+
+    value_object "BeneficiaryName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a beneficiary name is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "SendTransfer" => "sent", from: "requested"
+      transition "Recall" => "recalled", from: "sent"
+      transition "Return" => "returned", from: "sent"
+    end
+
+    command "Request" do
+      attribute :end_to_end, EndToEndReference
+      given("customer is active")
+      given("account is open")
+      sets :account
+      sets :amount
+      sets :beneficiary
+      sets :direction
+      emits "ExternalTransferRequested"
+    end
+
+    command "SendTransfer" do
+      reference_to ExternalTransfer
+      given("customer is active")
+      given("account is open")
+      given("transfer is requested")
+      emits "ExternalTransferSent"
+    end
+
+    command "Recall" do
+      reference_to ExternalTransfer
+      given("customer is active")
+      given("transfer is sent")
+      given("account is open")
+      emits "ExternalTransferRecalled"
+    end
+
+    command "Return" do
+      reference_to ExternalTransfer
+      given("customer is active")
+      given("transfer is sent")
+      given("account is open")
+      emits "ExternalTransferReturned"
+    end
+
+    query "Sent" do
+      where(status: "sent")
+    end
+  end
+
+  aggregate "ScheduledPayment" do
+    given("payment is failed") { status == "failed" }
+    given("payment is scheduled") { status == "scheduled" }
+    # REFERENCED, NOT REDECLARED — see `CardPayment`'s own comment on
+    # this same reference.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
+    description "An instruction held for a future date, which may execute once or be cancelled before it does."
+
+    reference_to Account
+    attribute :amount,    ScheduledAmount
+    attribute :instruction, InstructionReference
+
+    identified_by :instruction
+
+    attribute :recipient, PaymentRecipient
+    attribute :due_on,    PaymentDueDate
+    attribute :attempts,     RetryCount
+    attribute :max_attempts, RetryLimit
+
+    value_object "InstructionReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+
+    value_object "ScheduledAmount" do
+      attribute :cents, Integer
+      invariant("a scheduled payment amount is positive") { cents.positive? }
+    end
+
+    value_object "PaymentRecipient" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a payment recipient is present") { !value.to_s.empty? }
+    end
+
+    value_object "PaymentDueDate" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a payment due date is present") { !value.to_s.empty? }
+    end
+
+    value_object "RetryCount" do
+      attribute :value, Integer, default: 0
+      invariant("a retry count is non-negative") { !value.negative? }
+    end
+
+    value_object "RetryLimit" do
+      attribute :value, Integer, default: 3
+      invariant("a retry limit is positive") { value.positive? }
+    end
+
+    lifecycle :status, default: "scheduled" do
+      transition "Execute" => "executed",  from: "scheduled"
+      transition "Cancel"  => "cancelled", from: "scheduled"
+      transition "Fail"    => "failed",    from: "scheduled"
+      transition "Retry"   => "failed",    from: "failed"
+      transition "Abandon" => "abandoned", from: "failed"
+    end
+
+    command "Schedule" do
+      attribute :instruction, InstructionReference
+      given("customer is active")
+      given("account is open")
+      sets :account
+      sets :amount
+      sets :recipient
+      sets :due_on
+      emits "PaymentScheduled"
+    end
+
+    command "Execute" do
+      reference_to ScheduledPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is scheduled")
+      emits "ScheduledPaymentExecuted"
+    end
+
+    command "Cancel" do
+      reference_to ScheduledPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is scheduled")
+      emits "ScheduledPaymentCancelled"
+    end
+
+    command "Fail" do
+      role "System"
+      goal "Record that today's presentment could not be collected"
+
+      reference_to ScheduledPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is scheduled")
+
+      emits "ScheduledPaymentFailed"
+    end
+
+    # SELF-TRIGGERING, ON PURPOSE — the same shape reflex.bluebook's Echo/Ring
+    # proves MAX_REACTION_DEPTH with, grounded in a real rule instead of an
+    # unbounded ring: an automated re-presentment against an account still
+    # short of funds fails for the identical reason, so it re-announces the
+    # identical event, and `RetryOnPaymentFailure` below re-enters this same
+    # command. `given` is the REAL bound a bank actually enforces — a
+    # schedule's own `max_attempts`, ordinarily well inside the runtime's
+    # five-deep reaction ceiling, which exists as the backstop under
+    # whatever a caller configures it to, not as this policy's normal exit.
+    #
+    # MUTATING, NOT CREATING — same reason Echo.Ring is: the reaction
+    # re-dispatches this against the SAME record every time it re-enters,
+    # and a creating command now refuses a second creation over one
+    # identity (AlreadyExists).
+    command "Retry" do
+      role "System"
+      goal "Re-present a failed payment, up to the limit the schedule names"
+
+      reference_to ScheduledPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is failed")
+
+      given("a retry is still allowed") { attempts.value < max_attempts.value }
+
+      sets :attempts, increment: { value: 1 }
+
+      ensures("a retry never lowers the attempt count") { attempts.value == old.attempts.value + 1 }
+
+      emits "ScheduledPaymentFailed"
+    end
+
+    command "Abandon" do
+      role "Back office"
+      goal "Give up on a payment that could not be collected after every retry"
+
+      reference_to ScheduledPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is failed")
+
+      given("every retry is exhausted") { attempts.value >= max_attempts.value }
+
+      emits "ScheduledPaymentAbandoned"
+    end
+
+    query "Due" do
+      where(status: "scheduled")
+      order_by :due_on
+    end
+
+    policy "RetryOnPaymentFailure" do
+      on      "ScheduledPayment.ScheduledPaymentFailed"
+      trigger ScheduledPayment::Retry
+    end
+  end
+
+  process_manager "Settlement" do
+    # THE FIELD, NAMED — Transfer.Request declares `attribute :reference,
+    # TransferReference`, which is also what Transfer's own `identified_by
+    # :reference` derives its id from, so this reads the exact same scalar
+    # the old bare `:transfer` reached only by coincidence (the aggregate's
+    # own reference key happening to spell the same as the correlation
+    # name). Named, not guessed.
+    correlates_by :"reference.value"
+    starts_on "TransferRequested"
+    ends_on   "TransferSettled"
+
+    # ONE STATE-MACHINE VOCABULARY (S7, ADR 0025) — the SAME word
+    # `lifecycle`'s own `transition` already carries, one level over;
+    # `state "x"` lines are gone, since every state here is already
+    # named by some transition's own `from:`/target — declaring them
+    # again said nothing the transitions below didn't already say.
+    transition "TransferRequested" => "requested", from: "requested" do
+      # Debit never declared :destination — the credit leg reads it from the saga's
+      # memory of the opening payload. `reference:` carries the correlation
+      # forward — Account.Debit does not reference Transfer, so this is pure
+      # passthrough, not an addressing key.
+      dispatch Account::Debit, with: { number: :source, amount: :amount, narrative: { text: "transfer out" }, reference: :reference }
+    end
+
+    transition "AccountDebited" => "awaiting_credit", from: "requested" do
+      # `transfer:` HERE IS DIFFERENT — Transfer.Debited references Transfer
+      # itself, so `transfer:` is its own reference key (Naming.reference_key
+      # ("Banking::Transfer") == "transfer"), addressing which record to act
+      # on. The VALUE stays `:reference`, reading the correlation the same
+      # way every other leg does.
+      dispatch Transfer::Debited, with: { transfer: :reference }
+      dispatch Account::Credit, with: { number: :destination, amount: :amount, narrative: { text: "transfer in" }, reference: :reference }
+    end
+
+    transition "AccountCredited" => "awaiting_credit", from: "awaiting_credit" do
+      dispatch Transfer::Credited, with: { transfer: :reference }
+    end
+
+    transition "TransferCredited" => "settled", from: "awaiting_credit" do
+      dispatch Transfer::Settle, with: { transfer: :reference }
+    end
+
+    # The compensating leg, triggered by a REFUSAL rather than an event. It hung
+    # off "TransferReversed" before, which only arrives if somebody dispatches
+    # Transfer.Reverse by hand — so a destination that would not take the money
+    # left the debit standing, the settlement stuck in awaiting_credit, and the
+    # amount nowhere. The reversal was written and never armed.
+    transition :refused => "reversed", from: "awaiting_credit" do
+      dispatch Account::Credit, with: { number: :source, amount: :amount, narrative: { text: "transfer reversed" } }
+      dispatch Transfer::Reverse, with: { transfer: :reference }
+    end
+  end
+
+  # A SECOND SAGA, correlating on a DIFFERENT key over a DIFFERENT event
+  # stream — ExternalTransfer has carried Send/Recall/Return since the chapter
+  # began, and nothing ever dispatched them: a request just sat "requested"
+  # until a human moved it by hand. This is the automation Settlement already
+  # proved out, pointed at the network leg instead of the internal one.
+  #
+  # THE FIELD, NAMED — not the value object that carries it. `end_to_end` is
+  # declared as a VALUE OBJECT, and a non-scalar correlation key is ambiguous
+  # by construction: keying the saga on the whole object and keying it on the
+  # object's rendered text are both defensible readings that correlate
+  # differently. `:"end_to_end.value"` reaches past the wrapper for the one
+  # scalar with a single unambiguous rendering, the same way `identified_by
+  # :end_to_end` already does on the aggregate this saga watches.
+  process_manager "ExternalSettlement" do
+    correlates_by :"end_to_end.value"
+    starts_on "ExternalTransferRequested"
+    ends_on   "ExternalTransferSent"
+
+    transition "ExternalTransferRequested" => "requested", from: "requested" do
+      dispatch ExternalTransfer::SendTransfer, with: { end_to_end: :end_to_end }
+    end
+
+    # THE COMPENSATING LEG, the same shape Settlement's own carries: a
+    # refusal, not an event nothing emits, arms the return instead of leaving
+    # the request stranded "requested" until someone notices.
+    transition :refused => "returned", from: "requested" do
+      dispatch ExternalTransfer::Return, with: { end_to_end: :end_to_end }
+    end
+  end
+
+end

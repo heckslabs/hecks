@@ -19,7 +19,7 @@ RSpec.describe "a read model's query options" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
         uses_framework "Governance"
         Banking::Customer.persisted_by(adapter)
@@ -253,7 +253,7 @@ RSpec.describe "a read model's query options" do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"))
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
           uses_framework "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")
@@ -303,7 +303,7 @@ RSpec.describe "a read model's query options" do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.bluebook("Banking") do
           # A field that exists but is not numeric (a single-String
           # value object, `MerchantName{value}`) — refused at QUERY
@@ -544,7 +544,7 @@ RSpec.describe "a rootless read model's own group_by" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Hecks.hecksagon("Banking") do
         uses_framework "Governance"
         Banking::Customer.persisted_by(adapter)
@@ -756,7 +756,7 @@ RSpec.describe "a rootless read model's own group_by" do
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/sqlite.adapter"))
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
         Hecks.hecksagon("Banking") do
           uses_framework "Governance"
           Banking::Customer.persisted_by("SqlitePersistence")

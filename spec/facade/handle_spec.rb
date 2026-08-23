@@ -2,7 +2,7 @@ require "spec_helper"
 require "tempfile"
 
 RSpec.describe Hecksagain::Facade::Handle do
-  BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking_in_memory
     registry = Hecksagain::Runtime::Registry.new
@@ -12,7 +12,7 @@ RSpec.describe Hecksagain::Facade::Handle do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(BANKING_BLUEBOOK)
+      load_bluebook_files(BANKING_BLUEBOOK)
 
       Hecks.hecksagon("Banking") do
         uses_framework "Governance"

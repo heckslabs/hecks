@@ -76,7 +76,7 @@ module Hecksagain
         return "<p><em>No commands act on an existing #{Escape.html(aggregate.hecks_name)}.</em></p>" if commands.empty?
 
         items = commands.map do |cmd|
-          href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?id=#{Escape.attr(id)}"
+          href = "/#{domain}/#{aggregate.hecks_name}/#{cmd.hecks_name}.html?to=#{Escape.attr(id)}"
           %(<li><a href="#{href}"><span>#{Escape.html(cmd.hecks_name)}</span><span class="kind">#{Escape.html(cmd.goal.to_s)}</span></a></li>)
         end
         %(<ul class="verb-list">#{items.join}</ul>)

@@ -1,0 +1,245 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "Query" do
+    description "One query declared on an aggregate — what it filters on, how it orders, and how many it returns."
+
+    reference_to Aggregate
+
+    # Which piece declared it — see Command's entity_id.
+    reference_to Entity, as: :entity_id, optional: true
+
+    # THE IMMEDIATE OWNER, AND ITS NAME — the same derivation Command takes
+    # (see the note there), because an ask sits exactly where a verb does and
+    # an entity's asks are its own the same way its verbs are.
+    identified_by :owner_id, :name
+
+    attribute :name,        QueryName
+    attribute :description, QueryText
+    attribute :order_field, QueryText
+    attribute :order_way,   QueryText
+    attribute :limit,       QueryText
+    attribute :wheres,      list_of(Filter)
+    attribute :attributes,  list_of(AskArgument)
+    # EVERY OTHER OPTION A QUERY CAN CARRY, as an open map rather than a field
+    # each. `offset`, `cursor`, `nulls`, `authorize`, `consistency`, `freshness`,
+    # `inspect_query` and `use_index` are eight more specifications, several of them
+    # compound — authorize names a policy AND a tenant, freshness a mode AND a max
+    # age. Eleven more fields would have to be added here one at a time, and the
+    # ninth option would need a twelfth.
+    #
+    # So they ride as rows: the option's NAME, the KEY within it, and the value. The
+    # language already models an open map exactly this way twice — a member's pairs
+    # and a world's settings — and both are their own root for the same reason, that
+    # no value object can hold a map. Held here as a list because an option belongs
+    # to the ask rather than standing alone.
+    attribute :options,     list_of(AskOption)
+
+    value_object "QueryName" do
+      attribute :value, String
+      invariant("a query is named") { !value.to_s.empty? }
+    end
+
+    value_object "QueryText" do
+      attribute :value, String
+    end
+
+    value_object "Filter" do
+      attribute :field, String
+      # THE FIRST USE OF THE WORD. The runtime maps these eight strings
+      # through a hand-typed comparator table ; the set it is mapping to is
+      # one the language DECLARES, and until the link between them was
+      # declared, typing it downstream
+      # would have been a guess. This declares it.
+      attribute :op,    String, admits: "Vocabulary::QueryComparator"
+      attribute :value, String
+    end
+
+    value_object "AskArgument" do
+      attribute :name,    String
+      attribute :type,    String
+      attribute :list,    String
+      attribute :optional, String, optional: true
+      attribute :pattern,  String, optional: true
+      attribute :default, String
+      # The closed set this value must belong to — see Aggregate::Field.
+      attribute :admits, String, optional: true
+      attribute :relationship, String, optional: true
+    end
+
+    # One entry of one option. `option` names which specification it belongs to
+    # (offset, freshness, authorization), `key` the part within it (value, mode,
+    # max_age, policy, tenant), and `value` what was declared. A single-valued
+    # option is one row ; a compound is one row per part ; a repeated one — an index
+    # hint — is one row per occurrence, told apart by `at`.
+    value_object "AskOption" do
+      attribute :option, String
+      attribute :key,    String
+      attribute :value,  String
+      attribute :at,     String
+    end
+
+    # The way back: everything DECLARED IN the aggregate above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — the IR is a contract read straight from this file,
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :aggregate, QueryText
+      where(aggregate: :aggregate)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open a query on an aggregate"
+
+      reference_to Aggregate
+      # Declared on an aggregate or on one of its entities — see Command.Declare.
+      reference_to Entity, as: :entity_id, optional: true
+      attribute :name,        QueryName
+      attribute :description, QueryText, optional: true
+      attribute :order_field, QueryText, optional: true
+      attribute :order_way,   QueryText, optional: true
+      attribute :limit,       QueryText, optional: true
+
+      attribute :position, Position, optional: true
+      sets :aggregate
+      sets :entity_id
+      sets :name
+      sets :description
+      sets :order_field
+      sets :order_way
+      sets :limit
+      sets :position
+      emits "AskDeclared"
+    end
+
+    command "Filter" do
+      role "Language"
+      goal "Attach one where-clause to the query"
+
+      attribute :field, QueryText
+      # The same word at the same door — see Command.Change.op.
+      attribute :op,    QueryText, admits: "Vocabulary::QueryComparator"
+      attribute :value, QueryText
+
+      sets :wheres, append: { field: :field, op: :op, value: :value }
+
+      emits "FilterAttached"
+    end
+
+    command "Option" do
+      role "Language"
+      goal "Attach one part of one specification option to the query"
+
+      attribute :option, QueryText
+      attribute :key,    QueryText
+      # AN OPTION MAY HAVE NO VALUE. `consistency :snapshot` with no timeout is a
+      # complete declaration, and an option is judged one key at a time — so the
+      # `timeout` row arrives carrying nothing. Requiring a value here made every
+      # such declaration unbuildable, which is a rule about the LANGUAGE, not
+      # about the one spec that noticed.
+      attribute :value,  QueryText, optional: true
+      attribute :at,     QueryText, optional: true
+
+      given("an option is named") { !option.value.to_s.empty? }
+
+      sets :options, append: { option: :option, key: :key, value: :value, at: :at }
+
+      emits "OptionAttached"
+    end
+
+    command "Argument" do
+      role "Language"
+      goal "Attach one parameter to the query"
+
+      attribute :name,    QueryText
+      attribute :type,    QueryText
+      attribute :list,    QueryText
+      attribute :optional, QueryText, optional: true
+      attribute :pattern,  QueryText, optional: true
+      attribute :default, QueryText, optional: true
+      attribute :admits,  QueryText, optional: true
+      # See Command.Argument's own :relationship (command.bluebook) — the
+      # same field, the same reason: an argument minted verbatim from the
+      # owner's own reference-typed attribute must carry that fact through
+      # the self-hosted round trip too, or the language cannot say it about
+      # itself.
+      attribute :relationship, QueryText, optional: true
+
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
+
+      emits "AskArgumentAttached"
+    end
+
+
+    # HOW QUERY IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: Query.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
+      member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
+      member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "reference_to_impl"
+      member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres", calls: "where_impl"
+      member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field", calls: "order_by_impl"
+      member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
+      member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "description",     context: "Query", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
+      member keyword: "attribute",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "attribute",       context: "Query", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "Query", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "Query", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Query", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "Query", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      member keyword: "reference_to",    context: "Query", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "Query", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "reference_to",    context: "Query", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "where",           context: "Query", at: "1", named: "",         kind: "pairs",    required: "true",  fills: "wheres", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements"
+      member keyword: "order_by",        context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "order_field"
+      member keyword: "order_by",        context: "Query", at: "2", named: "",         kind: "symbol",   required: "false", fills: "order_way"
+      member keyword: "authorize",       context: "Query", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "policy"
+      member keyword: "authorize",       context: "Query", at: "",  named: "tenant",   kind: "symbol",   required: "false", fills: "tenant"
+      member keyword: "inspect_query",   context: "Query", at: "1", named: "",         kind: "symbol",   required: "false", fills: "mode"
+
+    end
+  end
+end

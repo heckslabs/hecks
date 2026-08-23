@@ -36,7 +36,7 @@ module Hecksagain
           ir.commands.select(&:creates?).each do |command|
             door.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |**args|
               Handle.new(dispatcher: dispatcher, domain: domain, ir: ir,
-                         instance: dispatcher.dispatch("#{fqn}.#{command.hecks_name}", **args).instance)
+                         instance: dispatcher.dispatch("#{fqn}.#{command.hecks_name}", with: args).instance)
             end
           end
 

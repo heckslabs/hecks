@@ -351,6 +351,117 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct KeywordSeed {
+    pub word: &'static str,
+    pub context: &'static str,
+    pub body: &'static str,
+    pub inner: &'static str,
+    pub opens: &'static str,
+    pub fills: &'static str,
+    pub status: &'static str,
+    pub was: &'static str,
+    pub resolves_via: &'static str,
+    pub disambiguator: &'static str,
+}
+
+pub const KEYWORD_SEED: &[KeywordSeed] = &[
+    KeywordSeed { word: "correlates_by", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "correlates_by", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "starts_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "starts_on", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "ends_on", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "ends_on", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "transition", context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "transition", context: "ProcessManager", body: "none", inner: "", opens: "", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "dispatch", context: "Handler", body: "none", inner: "", opens: "Dispatch", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+];
+
+impl KeywordSeed {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("word".to_string(), crate::kernel::Json::Str(self.word.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("body".to_string(), crate::kernel::Json::Str(self.body.to_string())),
+        ("inner".to_string(), crate::kernel::Json::Str(self.inner.to_string())),
+        ("opens".to_string(), crate::kernel::Json::Str(self.opens.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("was".to_string(), crate::kernel::Json::Str(self.was.to_string())),
+        ("resolves_via".to_string(), crate::kernel::Json::Str(self.resolves_via.to_string())),
+        ("disambiguator".to_string(), crate::kernel::Json::Str(self.disambiguator.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in KEYWORD_SEED {
+            if v.get("word").and_then(crate::kernel::Json::as_str) == Some(row.word) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("body").and_then(crate::kernel::Json::as_str) == Some(row.body) && v.get("inner").and_then(crate::kernel::Json::as_str) == Some(row.inner) && v.get("opens").and_then(crate::kernel::Json::as_str) == Some(row.opens) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("was").and_then(crate::kernel::Json::as_str) == Some(row.was) && v.get("resolves_via").and_then(crate::kernel::Json::as_str) == Some(row.resolves_via) && v.get("disambiguator").and_then(crate::kernel::Json::as_str) == Some(row.disambiguator) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordSeed: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArgumentSeed {
+    pub keyword: &'static str,
+    pub context: &'static str,
+    pub at: &'static str,
+    pub named: &'static str,
+    pub kind: &'static str,
+    pub required: &'static str,
+    pub fills: &'static str,
+    pub selects: &'static str,
+    pub pair_key_fills: &'static str,
+    pub pair_value_fills: &'static str,
+    pub pairs_shape: &'static str,
+    pub status: &'static str,
+    pub variadic: &'static str,
+    pub coerce: &'static str,
+    pub blank_message: &'static str,
+}
+
+pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
+    ArgumentSeed { keyword: "correlates_by", context: "ProcessManager", at: "1", named: "", kind: "symbol", required: "true", fills: "correlates_by", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "starts_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "starts_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "ends_on", context: "ProcessManager", at: "1", named: "", kind: "text", required: "true", fills: "ends_on", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "1", named: "", kind: "pairs", required: "true", fills: "", selects: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "", named: "from", kind: "text", required: "true", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "transition", context: "ProcessManager", at: "", named: "from", kind: "list", required: "false", fills: "from_state", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "dispatch", context: "Handler", at: "1", named: "", kind: "constant", required: "true", fills: "command_name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "dispatch", context: "Handler", at: "1", named: "", kind: "text", required: "true", fills: "command_name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "dispatch", context: "Handler", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "verbatim", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+];
+
+impl ArgumentSeed {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("keyword".to_string(), crate::kernel::Json::Str(self.keyword.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("at".to_string(), crate::kernel::Json::Str(self.at.to_string())),
+        ("named".to_string(), crate::kernel::Json::Str(self.named.to_string())),
+        ("kind".to_string(), crate::kernel::Json::Str(self.kind.to_string())),
+        ("required".to_string(), crate::kernel::Json::Str(self.required.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("selects".to_string(), crate::kernel::Json::Str(self.selects.to_string())),
+        ("pair_key_fills".to_string(), crate::kernel::Json::Str(self.pair_key_fills.to_string())),
+        ("pair_value_fills".to_string(), crate::kernel::Json::Str(self.pair_value_fills.to_string())),
+        ("pairs_shape".to_string(), crate::kernel::Json::Str(self.pairs_shape.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("variadic".to_string(), crate::kernel::Json::Str(self.variadic.to_string())),
+        ("coerce".to_string(), crate::kernel::Json::Str(self.coerce.to_string())),
+        ("blank_message".to_string(), crate::kernel::Json::Str(self.blank_message.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in ARGUMENT_SEED {
+            if v.get("keyword").and_then(crate::kernel::Json::as_str) == Some(row.keyword) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("at").and_then(crate::kernel::Json::as_str) == Some(row.at) && v.get("named").and_then(crate::kernel::Json::as_str) == Some(row.named) && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind) && v.get("required").and_then(crate::kernel::Json::as_str) == Some(row.required) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("selects").and_then(crate::kernel::Json::as_str) == Some(row.selects) && v.get("pair_key_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_key_fills) && v.get("pair_value_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_value_fills) && v.get("pairs_shape").and_then(crate::kernel::Json::as_str) == Some(row.pairs_shape) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("variadic").and_then(crate::kernel::Json::as_str) == Some(row.variadic) && v.get("coerce").and_then(crate::kernel::Json::as_str) == Some(row.coerce) && v.get("blank_message").and_then(crate::kernel::Json::as_str) == Some(row.blank_message) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentSeed: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Handler {
     pub event_type: HandlerText,
     pub from_state: HandlerText,
@@ -615,113 +726,6 @@ impl ProcessManager {
     }
 }
 
-impl crate::kernel::Fielded for DeclareArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        use crate::kernel::Value;
-        match name {
-            "bluebook" => Some(Field::Value(Value::Str(self.bluebook.clone()))),
-            "name" => Some(Field::Nested(&self.name)),
-            "correlates_by" => Some(Field::Nested(&self.correlates_by)),
-            "starts_on" => Some(Field::Nested(&self.starts_on)),
-            "ends_on" => self.ends_on.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct DeclareArgs {
-    pub bluebook: String,
-    pub name: ProcessManagerName,
-    pub correlates_by: ProcessManagerText,
-    pub starts_on: ProcessManagerText,
-    pub ends_on: Option<ProcessManagerText>,
-    pub position: Option<Position>,
-}
-
-pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
-        args.name.check_invariants()?;
-        args.correlates_by.check_invariants()?;
-        args.starts_on.check_invariants()?;
-        if let Some(v) = &args.ends_on { v.check_invariants()?; }
-        if let Some(v) = &args.position { v.check_invariants()?; }
-    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", args.bluebook.to_string(), args.name.value.to_string()),
-        build: Box::new(|| ProcessManager {
-            bluebook: Some(args.bluebook.clone()),
-            name: Some(args.name.clone()),
-            correlates_by: Some(args.correlates_by.clone()),
-            starts_on: Some(args.starts_on.clone()),
-            ends_on: args.ends_on.clone(),
-            states: vec![],
-            handlers: vec![],
-            position: args.position.clone(),
-        }),
-    },
-        "Declare",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
-        "bluebook, name.value",
-        &with_references,
-        &[
-
-        ],
-        None,
-        |record| {
-        let _ = record;
-            Ok(())
-        },
-        &[
-
-        ],
-        &["SagaDeclared"],
-        args.to_json(),
-        mutations,
-    )
-}
-
-impl DeclareArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("bluebook".to_string(), crate::kernel::Json::Str(self.bluebook.clone())),
-        ("name".to_string(), self.name.to_json()),
-        ("correlates_by".to_string(), self.correlates_by.to_json()),
-        ("starts_on".to_string(), self.starts_on.to_json()),
-        ("ends_on".to_string(), self.ends_on.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
-    }
-}
-
-impl DeclareArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["bluebook", "name", "correlates_by", "starts_on", "ends_on", "position", "id"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes bluebook, name, correlates_by, starts_on, ends_on, position",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        bluebook: { let x = v.require("bluebook", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.bluebook: expected String".to_string()))? },
-        name: ProcessManagerName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
-        correlates_by: ProcessManagerText::from_json(&v.require("correlates_by", "DeclareArgs")?.coerce_single_field("value"))?,
-        starts_on: ProcessManagerText::from_json(&v.require("starts_on", "DeclareArgs")?.coerce_single_field("value"))?,
-        ends_on: match v.get("ends_on") { Some(x) => Some(ProcessManagerText::from_json(&x.coerce_single_field("value"))?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
-        })
-    }
-}
-
 impl crate::kernel::Fielded for StateArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -780,7 +784,7 @@ impl StateArgs {
 
 impl StateArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "id", "process_manager", "bluebook"]);
+let unknown = v.unknown_keys(&["name", "id", "bluebook"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "State does not declare {} — it takes name",
@@ -859,7 +863,7 @@ impl HandlerArgs {
 
 impl HandlerArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["event_type", "from_state", "to_state", "id", "process_manager", "bluebook", "name"]);
+let unknown = v.unknown_keys(&["event_type", "from_state", "to_state", "id", "bluebook", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Handler does not declare {} — it takes event_type, from_state, to_state",

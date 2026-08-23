@@ -90,20 +90,26 @@ pub fn dispatch_by_name(
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Identity::Identity.Register" => {
-              let args = crate::generated::identity::identity::RegisterArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::identity::identity::RegisterArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Register", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::identity::identity::dispatch_register(&mut store.identity, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Identity::ExternalIdentifier.Link" => {
-              let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::identity::externalidentifier::LinkArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Identity registrar"), "Link", caller_role)?;
               crate::kernel::check_reference(&store.identity, &args.identity, "Identity", "identity_id")?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[crate::kernel::ReferenceSpec { field: "identity", as_name: "identity", target: "Identity::Identity" }], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::identity::externalidentifier::dispatch_link(&mut store.externalidentifier, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
@@ -164,6 +170,22 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Identity::Identity" => Some("identity"),
         "Identity::ExternalIdentifier" => Some("external_identifier"),
+        _ => None,
+    }
+}
+
+pub fn command_creates(verb: &str) -> bool {
+    match verb {
+        "Identity::Identity.Register" => true,
+        "Identity::ExternalIdentifier.Link" => true,
+        _ => false,
+    }
+}
+
+pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
+    match qualified_name {
+        "Identity::Identity" => Some("identity_id"),
+        "Identity::ExternalIdentifier" => Some("key"),
         _ => None,
     }
 }

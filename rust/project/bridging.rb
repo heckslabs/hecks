@@ -2,6 +2,52 @@ module RustProjection
   module Projector
     module_function
 
+    # `use crate::generated::<mod_name>::<owner>::<Type>;` for every value
+    # object THIS aggregate's own commands/entity-commands/port operations
+    # reference by NAME but never declare locally — the ONLY place a
+    # "foreign" value-object type can appear at all: an aggregate's own
+    # attributes, a value object's own fields, and an entity's own
+    # attributes are always LOCAL by construction (the DSL only lets a
+    # construct reference a value object already visible where it's
+    # declared), but a COMMAND argument can name ANY value object the
+    # whole domain declares (`domain_generator.rb`'s own header on
+    # `domain_value_object_owner`) — `SafeDepositBox.Rent`'s own
+    # `attribute :customer, CustomerNumber` (`Customer`'s own VO) is the
+    # corpus's one live example.
+    #
+    # A struct field's own type/a `TypeName::from_json(...)` call still
+    # emits the SAME bare identifier `rust_type`/`rust_ident` always did
+    # — this is what makes that identifier actually resolve for a foreign
+    # type, the same way any other Rust file imports a sibling module's
+    # own struct, rather than threading a qualified path through every
+    # codegen call site that ever builds one.
+    #
+    # SAME-CHAPTER ONLY — `domain_value_object_owner` is built from THIS
+    # domain's own `ir[:aggregates]` alone (`DomainGenerator.call` runs
+    # once per chapter), so a value object declared in a DIFFERENT
+    # attached chapter is a real, narrower gap this doesn't cover; no
+    # command in the corpus needs it today (checked directly), so it's
+    # left unresolved rather than guessed at, the same way `command_skip_
+    # reason`'s own unresolved shapes already are.
+    def cross_aggregate_vo_imports(aggregate, domain_value_object_owner, mod_name)
+      local_names = aggregate[:value_objects].map { |vo| vo[:name] }.to_set
+      attrs = (aggregate[:commands] + aggregate[:entities].flat_map { |e| e[:commands] } +
+               aggregate[:ports].flat_map { |p| p[:operations] })
+              .flat_map { |c| c[:attributes] }
+
+      # A type name that's ALSO declared LOCALLY is never foreign, no
+      # matter what `domain_value_object_owner` says — many aggregates
+      # across this corpus independently declare their own same-named VO
+      # ("Position", "IdentityPath", ...; not a shared concept, just a
+      # common one), and `domain_value_object_owner` keeps only ONE
+      # owner per name domain-wide. The local declaration always wins;
+      # only a type THIS aggregate never declares at all can be foreign.
+      foreign_types = attrs.map { |a| a[:type] }.uniq.reject { |type| local_names.include?(type) }
+      foreign_types.filter_map { |type| domain_value_object_owner[type] && [type, domain_value_object_owner[type]] }
+                   .sort_by { |(type, owner)| [owner, type] }
+                   .map { |(type, owner)| "use crate::generated::#{mod_name}::#{owner.downcase}::#{rust_ident(type)};" }
+    end
+
     # Ruby's real cross-type coercion — `Value::Coercion#fields_for`, read
     # directly: a value object rebuilds into ANY differently-named target
     # value object that shares its field NAMES, matched by name, not
@@ -57,8 +103,22 @@ module RustProjection
 
       # A bare scalar target (the lifecycle field, "String") — only a
       # single-field source VO whose one field's own type already IS the
-      # target scalar unwraps cleanly into one.
-      source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1 && source_vo[:attributes].first[:type] == target_type
+      # target scalar unwraps cleanly into one. Compared via `effective_
+      # scalar_type` on BOTH sides, same as the Reference-vs-bare-String
+      # check above — not exact type-name equality: `CustomerNumber`'s
+      # own field is a plain `String`, and `SafeDepositBox.Rent`'s own
+      # `sets :customer` target is `Reference<Customer>` (also `String`
+      # at the Rust representation level) — a real, live cross-aggregate
+      # example (`CustomerNumber` is declared on `Customer`'s own
+      # aggregate, resolved here only once `value_objects_by_name` widens
+      # to the whole domain — `domain_generator.rb`'s own header), not a
+      # hypothetical exact-name match this used to require and neither
+      # side ever actually has.
+      return false unless source_vo && !source_vo[:closed_set] && source_vo[:attributes].size == 1
+
+      unwrapped_type = source_vo[:attributes].first[:type]
+      unwrapped_type == target_type ||
+        (effective_scalar_type(unwrapped_type) && effective_scalar_type(unwrapped_type) == effective_scalar_type(target_type))
     end
 
     def value_rhs(source_expr, source_type, target_type, value_objects_by_name)

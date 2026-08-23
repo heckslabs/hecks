@@ -24,8 +24,10 @@ require "hecksagain/bluebook/model_check"
 ROOT = File.expand_path("..", __dir__)
 
 def bluebook_in(domain)
-  Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort.first ||
-    Dir.glob(File.join(domain, "*.bluebook")).sort.first
+  nested = File.join(domain, "bluebook")
+  return nested if Dir.glob(File.join(nested, "*.bluebook")).any?
+
+  domain if Dir.glob(File.join(domain, "*.bluebook")).any?
 end
 
 def boot(source)
@@ -35,7 +37,12 @@ def boot(source)
     Kernel.load(File.join(ROOT, "lib/hecksagain/ports/extraction.port"))
     Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/memory.adapter"))
     Kernel.load(File.join(ROOT, "lib/hecksagain/adapters/driven/prism.adapter"))
-    Kernel.load(source)
+    folder = Hecksagain::Adapters::Folder.new
+    if File.directory?(source)
+      folder.load_bluebooks(source)
+    else
+      folder.load_bluebooks(File.dirname(source), [File.basename(source)])
+    end
 
     # THE SIBLING HECKSAGON, IF ONE EXISTS — a port attaches to its
     # aggregate/chapter from there, not the bluebook (see
@@ -44,8 +51,12 @@ def boot(source)
     # No adapter needs to actually resolve here : recording a bind builds
     # IR only, `registry.verify!` (never called by this tool) is what
     # would need one.
-    hecksagon = source.sub(/\.bluebook\z/, ".hecksagon")
-    Kernel.load(hecksagon) if hecksagon != source && File.exist?(hecksagon)
+    hecksagon = if File.directory?(source)
+                  Dir.glob(File.join(source, "*.hecksagon")).sort.first
+                else
+                  source.sub(/\.bluebook\z/, ".hecksagon")
+                end
+    Kernel.load(hecksagon) if hecksagon && File.exist?(hecksagon)
   end
   registry.bluebooks.values
 end

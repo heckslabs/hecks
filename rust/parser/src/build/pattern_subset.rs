@@ -39,7 +39,10 @@ pub fn validate(pattern: &str) -> Option<Rejection> {
             if matches!(next, Some('k') | Some('g')) {
                 return Some(refuse("named_backreference"));
             }
-            if matches!(next, Some('d') | Some('D') | Some('w') | Some('W') | Some('s') | Some('S')) {
+            if matches!(
+                next,
+                Some('d') | Some('D') | Some('w') | Some('W') | Some('s') | Some('S')
+            ) {
                 return Some(refuse("perl_class"));
             }
             index += if next.is_some() { 2 } else { 1 };
@@ -51,7 +54,8 @@ pub fn validate(pattern: &str) -> Option<Rejection> {
             if matches!(third, Some('=') | Some('!')) {
                 return Some(refuse("lookahead"));
             }
-            if third == Some('<') && matches!(chars.get(index + 3).copied(), Some('=') | Some('!')) {
+            if third == Some('<') && matches!(chars.get(index + 3).copied(), Some('=') | Some('!'))
+            {
                 return Some(refuse("lookbehind"));
             }
             if third == Some('>') {
@@ -73,7 +77,11 @@ pub fn validate(pattern: &str) -> Option<Rejection> {
 }
 
 fn refuse(key: &'static str) -> Rejection {
-    let (construct, reason) = REASONS.iter().find(|(k, _, _)| *k == key).map(|(_, c, r)| (*c, *r)).expect("unknown PatternSubset rejection key");
+    let (construct, reason) = REASONS
+        .iter()
+        .find(|(k, _, _)| *k == key)
+        .map(|(_, c, r)| (*c, *r))
+        .expect("unknown PatternSubset rejection key");
     Rejection { construct, reason }
 }
 

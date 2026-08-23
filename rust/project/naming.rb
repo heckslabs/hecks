@@ -92,6 +92,64 @@ module RustProjection
       end
     end
 
+    # TRUE for anything `fielded.rb`'s three "is this attribute a nested
+    # value object" sites can safely emit `Field::Nested(&self.x)` for —
+    # every ordinary (non-closed-set) VO always could; a single-field
+    # CLOSED SET (an enum, `emit_closed_set_enum`) now can too, once it
+    # carries its own `Fielded` impl (`emit_closed_set_fielded_impl`,
+    # below) answering "value" the same way any other single-field VO's
+    # own generated `Fielded` impl already does. FALSE for a MULTI-FIELD
+    # closed set (`emit_closed_set_table` — Syntax::Keyword, Argument):
+    # genuinely no `Fielded` impl exists or is proven needed for that
+    # shape (json_codec.rb's own `emit_closed_set_codec` header: "nothing
+    # in either example domain looks one up generically or passes one as
+    # a command argument") — `Field::Nested` would fail to compile
+    # against it, and nothing in the corpus has ever needed it to.
+    #
+    # FOUND LIVE, a real, previously-invisible gap: no domain ever
+    # declared a `given`/expression referencing a closed-set-typed
+    # attribute before lifeadelics' vendored embryonaut_bluebooks/
+    # payments (`Payment::Succeed`'s own "the processor matches..."
+    # given, over `processor: Processor` and `reported_processor:
+    # Processor`, both `one_of:` closed sets) — found live, a reaction-
+    # triggered Payment::Succeed refusing with "cannot resolve
+    # \"processor\" — no such attribute or argument" even though the
+    # aggregate held a real, rehydrated `processor` value the whole time.
+    def fielded_capable_nested?(vo)
+      !vo[:closed_set] || vo[:attributes].size == 1
+    end
+
+    # THE `Fielded` IMPL A SINGLE-FIELD CLOSED SET NEVER GOT —
+    # `emit_value_object`'s own single-field-closed-set branch (types.rb)
+    # used to return early with JUST the bare enum (`emit_closed_set_
+    # enum`), matching neither `emit_fielded_flat`'s shape (it has no
+    # `attributes` to iterate, being a tag, not a struct) nor needing one
+    # before `fielded_capable_nested?` above started asking. Answers
+    # "value" — the SAME single field every other closed-set codec
+    # already treats it as (`emit_closed_set_codec`'s own `to_json`:
+    # `Json::obj(vec![("value", ...)])`) — with the identical match this
+    # enum's own `to_json` already builds, reproduced here rather than
+    # shared via a common helper method (lower-risk: purely additive,
+    # touches nothing about the enum's own EXISTING to_json/from_json
+    # generation or any other caller of it).
+    def emit_closed_set_fielded_impl(vo)
+      name = rust_ident(vo[:name])
+      arms = vo[:members].map do |row|
+        _, raw = row.first
+        "#{name}::#{closed_set_variant(row)} => #{raw.to_s.inspect}.to_string(),"
+      end.join(" ")
+
+      "impl crate::kernel::Fielded for #{name} {\n" \
+        "    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {\n" \
+        "        use crate::kernel::{Field, Value};\n" \
+        "        match name {\n" \
+        "            \"value\" => Some(Field::Value(Value::Str(match self { #{arms} }))),\n" \
+        "            _ => None,\n" \
+        "        }\n" \
+        "    }\n" \
+        "}"
+    end
+
     def literal_rhs(literal)
       case literal
       when String        then "#{literal.inspect}.to_string()"

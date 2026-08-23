@@ -56,6 +56,7 @@ module Hecksagain
 
           @trigger_command = Naming.command_ref(command_ref)
           @with_spec = (with || {}).to_a
+          @projection_declared = !with.nil?
         end
 
         # `across` — item #13's full metaprogrammed dispatch, slice 1:
@@ -105,7 +106,7 @@ module Hecksagain
             where:           @where,
             for_each:        @for_each,
             with_spec:       @with_spec || []
-          )
+          ).tap { |policy| policy.instance_variable_set(:@projection_declared, !!@projection_declared) }
         end
 
         def self.build(name, &block)

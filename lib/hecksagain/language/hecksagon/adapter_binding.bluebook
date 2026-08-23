@@ -1,0 +1,51 @@
+Hecks.bluebook "Hecksagon" do
+  aggregate "AdapterBinding" do
+    description "One aggregate-to-adapter binding inside a hecksagon — the verb it answers, the adapter it names. Its own root because a hecksagon's binds are an open set of verbs (one per declared port), which no value object can hold — the same reasoning Wiring carries for a world's settings."
+
+    # The retained parent edge is structural state. `hecksagon` below is
+    # separately the text component of this binding's own compound identity,
+    # so the relationship keeps the same explicit `_ref` distinction World::
+    # Wiring uses for its parent edge.
+    belongs_to Hecksagon, as: :hecksagon_ref
+
+    # THE HECKSAGON IT IS IN, THE AGGREGATE IT NAMES, THE VERB IT ANSWERS.
+    # One hecksagon binds one adapter per (aggregate, verb) pair — that is
+    # what a binding IS — so the triple identifies it.
+    identified_by :hecksagon, :aggregate, :verb
+
+    attribute :hecksagon, BindingText
+    attribute :aggregate, BindingText
+    attribute :verb,      BindingText
+    attribute :adapter,   BindingText
+    attribute :role,      BindingText, optional: true
+
+    value_object "BindingText" do
+      attribute :value, String
+    end
+
+    command "Bind" do
+      role "Deployment"
+      goal "Name the adapter one aggregate answers one verb through"
+
+      # A creating command receives the parent's identity as an ordinary
+      # value fact. It does not declare a behavioral relationship or use the
+      # parent as a hidden receiver.
+      attribute :hecksagon_ref, HecksagonName
+      attribute :aggregate, BindingText
+      attribute :verb,      BindingText
+      attribute :adapter,   BindingText
+      attribute :role,      BindingText, optional: true
+
+      given("a binding names its verb") { !verb.value.to_s.empty? }
+
+      sets :hecksagon_ref
+      sets :hecksagon
+      sets :aggregate
+      sets :verb
+      sets :adapter
+      sets :role
+
+      emits "Bound"
+    end
+  end
+end

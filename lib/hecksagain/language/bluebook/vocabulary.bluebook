@@ -16,9 +16,8 @@ Hecks.bluebook "Bluebook" do
     # ITS NAME, and nothing else. A vocabulary hangs under no other thing — the
     # closed sets are the language's own, declared once — so one path is the whole
     # identity.
-    identified_by :name
+    identified_by VocabularyName, as: :name
 
-    attribute :name, VocabularyName
 
     value_object "VocabularyName" do
       attribute :value, String

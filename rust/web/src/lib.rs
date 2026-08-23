@@ -1,4 +1,4 @@
-// THE BROWSER PROJECTION — docs/decisions/0015-wasm-bindgen-browser-projection.md.
+// THE BROWSER PROJECTION — docs/implemented/decisions/0015-wasm-bindgen-browser-projection.md.
 // A separate crate on purpose, not a second `cargo build --target` of
 // `rust`'s own binary (contrast bin/project_wasm, which cross-compiles
 // `rust/src/main.rs` unchanged for wasm32-wasip1): a wasm-bindgen build

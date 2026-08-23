@@ -37,6 +37,10 @@ pub struct Attribute {
     pub optional: bool,
     pub pattern: Option<String>,
     pub admits: Option<String>,
+    // The author's structural relationship word, retained separately from
+    // `Reference<Target>` and `list` so cardinality and domain intent both
+    // survive assembly (`has_many`, `has_one`, or `belongs_to`).
+    pub relationship: Option<String>,
 }
 
 impl Attribute {
@@ -46,7 +50,9 @@ impl Attribute {
     /// mirror: "does this operation carry an attribute referencing its
     /// owner".
     pub fn reference_target(&self) -> Option<&str> {
-        self.type_name.strip_prefix("Reference<").and_then(|rest| rest.strip_suffix('>'))
+        self.type_name
+            .strip_prefix("Reference<")
+            .and_then(|rest| rest.strip_suffix('>'))
     }
 }
 
@@ -106,7 +112,10 @@ pub enum MutationSource {
 
 #[derive(Debug, Clone)]
 pub enum Mutation {
-    Append { target: String, fields: Vec<(String, String)> }, // field -> Literal::render spelling
+    Append {
+        target: String,
+        fields: Vec<(String, String)>,
+    }, // field -> Literal::render spelling
     // `CommandBuilder#delegates_to_impl`'s own comment (lib/hecksagain/
     // bluebook/dsl/command_builder.rb) — a `delegates_to "Entity.Command",
     // with: { ... }` clause rides the EXACT SAME multi-binding `fields:`
@@ -119,7 +128,10 @@ pub enum Mutation {
     // reusing `Append` with an extra op field) so `emit.rs`'s match stays
     // exhaustive and forces the "delegate" op string to be spelled out at
     // the one call site that emits it.
-    Delegate { target: String, fields: Vec<(String, String)> },
+    Delegate {
+        target: String,
+        fields: Vec<(String, String)>,
+    },
     // `sign` — item #5, whole-project table-unification survey. Ruby's
     // own `Bluebook::Mutation.sign_for` reads `Vocabulary::MutationOp`
     // (a live table); this parser has no such table to read (it builds
@@ -132,7 +144,12 @@ pub enum Mutation {
     // rust/codegen/src/mutations.rs) — this is a third, necessarily
     // independent computation, not a re-introduction of that same
     // duplication.
-    Other { target: String, op: String, sign: String, source: Option<MutationSource> },
+    Other {
+        target: String,
+        op: String,
+        sign: String,
+        source: Option<MutationSource>,
+    },
 }
 
 #[derive(Debug, Clone, Default)]

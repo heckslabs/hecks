@@ -1,0 +1,131 @@
+Hecks.bluebook "Hecksagon" do
+  aggregate "Hecksagon" do
+    description "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it."
+
+    identified_by HecksagonName, as: :domain
+
+    attribute :subscriptions,      list_of(Subscription)
+    attribute :framework_members,  list_of(FrameworkMember)
+    attribute :vendored_bluebooks, list_of(VendoredBluebook)
+
+    value_object "HecksagonName" do
+      attribute :value, String
+      invariant("a hecksagon names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "Subscription" do
+      attribute :value, String
+      invariant("a subscription names an event") { !value.to_s.empty? }
+    end
+
+    # A `framework/bluebook/` member this hecksagon attaches — Governance,
+    # Identity, whatever else lands beside them. Same shape as
+    # `Subscription` beside it, one word over.
+    value_object "FrameworkMember" do
+      attribute :value, String
+      invariant("a framework member is named") { !value.to_s.empty? }
+    end
+
+    # A vendored, external bluebook this hecksagon attaches — one level
+    # further out than `FrameworkMember`: not a member shipped inside
+    # hecksagain's own lib/, but a separate package vendored into the
+    # consuming project's own checkout. Same shape as `FrameworkMember`
+    # beside it, one word over — see EmbryonautBluebook's own header.
+    value_object "VendoredBluebook" do
+      attribute :value, String
+      invariant("a vendored bluebook is named") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Open a hecksagon for a domain"
+
+      attribute :domain, HecksagonName
+
+      sets :domain
+
+      emits "HecksagonDeclared"
+    end
+
+    command "Subscribe" do
+      role "Deployment"
+      goal "Take a hecksagon's own event, from outside the domain's own bluebook"
+
+      attribute :event, Subscription
+
+      sets :subscriptions, append: { value: :event }
+
+      emits "SubscriptionAdded"
+    end
+
+    command "UsesFramework" do
+      role "Deployment"
+      goal "Attach a framework/bluebook/ member to this hecksagon"
+
+      attribute :member, FrameworkMember
+
+      sets :framework_members, append: { value: :member }
+
+      emits "FrameworkMemberAttached"
+    end
+
+    command "UsesEmbryonautBluebook" do
+      role "Deployment"
+      goal "Attach a vendored, external bluebook to this hecksagon"
+
+      attribute :package, VendoredBluebook
+
+      sets :vendored_bluebooks, append: { value: :package }
+
+      emits "VendoredBluebookAttached"
+    end
+
+    # HOW HECKSAGON IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: File, Hecksagon.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
+      member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
+      member word: "uses_framework",  context: "Hecksagon", body: "none", inner: "", opens: "", fills: "framework_members"
+      member word: "uses_embryonaut_bluebook", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "vendored_bluebooks"
+      member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "hecksagon",       context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
+      member keyword: "subscribe",       context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "subscriptions"
+      member keyword: "uses_framework",  context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "framework_members"
+      member keyword: "uses_embryonaut_bluebook", context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "vendored_bluebooks"
+      member keyword: "port",            context: "Hecksagon", at: "1", named: "", kind: "text", required: "true", fills: "name"
+
+    end
+  end
+end

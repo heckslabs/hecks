@@ -1,4 +1,3 @@
-require_relative "../../naming"
 require_relative "../value"
 
 module Hecksagain
@@ -49,20 +48,48 @@ module Hecksagain
           stamped = event.correlation && event.correlation[pm.correlation_head.to_s]
           return stamped unless stamped.nil? || stamped.to_s.empty?
 
-          # A SELF-REFERENCING LEG carries the correlation forward under ITS
-          # OWN reference key ("wire", "transfer") — the address
-          # `hydrate`'s "acts on an existing aggregate" branch demands when the
-          # aggregate's declared identity path is not what a `with:` binding
-          # supplied — not under whatever the correlates_by field happens to be
-          # called ("reference.value"). That key is constant across every
-          # self-referencing command on the tracked aggregate regardless of
-          # which field first carried the value in, and it never collides with
-          # an unrelated aggregate's own event: `Account.Debit` addresses by
-          # its OWN declared identity path ("number"), never by
-          # `reference_key`, so nothing is found there for an event that does
-          # not belong to this saga.
-          own_key = Naming.reference_key(event.aggregate).to_sym
-          event.payload[own_key]
+          # A SELF-REFERENCING LEG carries the correlation forward under its
+          # own emitting record's identity — `event.id`, not a field dug back
+          # out of the payload. This used to read `event.payload[own_key]`
+          # (`own_key` the aggregate's own reference-key convention, "wire",
+          # "transfer"), which only ever held a value because LEGACY dispatch
+          # left the self-addressing key riding along in the payload
+          # unfiltered. Routing separated from payload (`to:`/`with:`, the
+          # facade's own `Handle#run` always uses it) closed exactly that
+          # leak — correctly, since an addressing key is not a fact the
+          # payload should carry — which left this tier reading an empty
+          # Hash for any self-referencing leg with no OTHER declared
+          # attributes (`OnboardingCase.Clear`, `.Decline` — no `attribute`
+          # lines at all): the saga silently stopped advancing, forever, for
+          # exactly the leg this tier exists to correlate.
+          #
+          # `event.id` says the identical thing this tier always meant —
+          # "the record that just emitted this event, by its own identity" —
+          # and unlike a payload dig it is populated by the record itself,
+          # not by which dispatch convention the caller happened to use.
+          #
+          # GATED, still — a manually-dispatched command on a wholly
+          # UNRELATED aggregate can share an event NAME this pm happens to
+          # handle (`Drawer.Take` also emits "Taken", the same name a
+          # SAGA-DISPATCHED leg uses) with nothing this saga should read as
+          # its own conversation. What makes a leg genuinely
+          # self-referencing — the one fact worth trusting `event.id`
+          # for — is that `correlates_by`'s own head field IS this event's
+          # OWN aggregate's declared identity, not merely a same-shaped
+          # name: `OnboardingCase.identity_heads` really does include
+          # `:reference`, `correlates_by :"reference.value"`'s own head ;
+          # `Drawer.identity_heads` is `[:number]`, nowhere close.
+          self_identified?(pm, event) ? event.id : nil
+        end
+
+        def self_identified?(pm, event)
+          domain, bare_name = event.aggregate.to_s.split("::", 2)
+          return false unless bare_name
+
+          construct = @registry.bluebook(domain)&.aggregate(bare_name)
+          return false unless construct
+
+          construct.identity_heads.map(&:to_s).include?(pm.correlation_head.to_s)
         end
       end
     end

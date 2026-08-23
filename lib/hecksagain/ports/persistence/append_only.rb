@@ -1,4 +1,5 @@
 require_relative "../../runtime/registry"
+require_relative "execution"
 
 module Hecksagain
   module Ports
@@ -31,6 +32,12 @@ module Hecksagain
         def count = @adapter.count
         def entries = @adapter.entries
 
+        def capabilities
+          return [] unless @adapter.respond_to?(:persistence_capabilities)
+
+          Array(@adapter.persistence_capabilities).map(&:to_sym).freeze
+        end
+
         def reset!
           raise Runtime::WiringError, "append-only adapter cannot reset" unless @adapter.respond_to?(:reset!)
 
@@ -62,6 +69,16 @@ module Hecksagain
           append(entry)
           project(entry)
           instance
+        end
+
+        def atomic_put(instance, insert_only: false)
+          unless capabilities.include?(:atomic_put) && @adapter.respond_to?(:atomic_put)
+            raise Runtime::WiringError, "#{@adapter.class} advertises no atomic_put persistence capability"
+          end
+
+          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+          status = @adapter.atomic_put(entry, insert_only: insert_only)
+          Outcome.new(status: status, instance: instance)
         end
 
         def delete(id)

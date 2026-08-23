@@ -161,34 +161,40 @@ module Hecksagain
       def command_spec(bluebook, aggregate, entity, command)
         holder    = entity || aggregate
         arguments = command.attributes.flat_map { |a| options_for(a, holder, aggregate) }
+        receiver  = if entity
+                      :entity
+                    else
+                      (command.creates? ? nil : :aggregate)
+                    end
+        legacy_arguments = []
 
-        # `id` IS DECLARED NOWHERE AND IS REQUIRED BY ALMOST EVERYTHING.
+        # THE RECEIVER IS NOT A COMMAND ARGUMENT. An aggregate command names
+        # its record through to; an entity command needs both the aggregate
+        # record and the entity element within it. Keeping those paths in the
+        # projected option list makes the human-facing request complete while
+        # CommandRequest can remove them before it builds with: from the
+        # command's declared facts.
         #
-        # A command that does not create reaches an EXISTING record, and the
-        # `reference_to <its own aggregate>` that says so does not come back in
-        # `attributes` — only cross-aggregate references do. So a caller
-        # reading the argument list alone would never send it, which is exactly
-        # what happened the first time this ran: `bin/run bug.investigate
-        # id=BUG#1 …` answered "no argument id", for a verb that cannot work
-        # without one.
-        #
-        # `id` is the addressing key `ArgumentGate` tolerates on every dispatch
-        # (see its own note on why that is the one channel with no collision),
-        # so it is right for both shapes — an entity's holder and a head's own
-        # identity — and right for composite identities, which have no single
-        # head to name instead.
-        # AN ENTITY COMMAND ALWAYS NEEDS IT, whatever `creates?` says. That
-        # flag means "declares no references", and an entity command never
-        # declares one — it is addressed through its holder and its own
-        # identity heads — so every one of them reports true and would have
-        # lost the `id` to the guard below. Caught by a spec, not by reading.
-        if entity || !command.creates?
-          note = entity ? "id of the #{aggregate.hecks_name} holding it" : "id of the #{aggregate.hecks_name} to act on"
-          arguments = [{ path: "id", type: "String", required: true, note: note }] + arguments
+        # Existing aggregate scripts may still spell the receiver id=... .
+        # That alias is deliberately hidden from help and recorded separately
+        # as legacy_arguments; new help and examples teach only to=... .
+        if entity
+          arguments = [
+            { path: "to.aggregate", type: "String", required: true,
+              note: "id of the #{aggregate.hecks_name} holding the #{entity.hecks_name}" },
+            { path: "to.entity", type: "String", required: true,
+              note: "id of the #{entity.hecks_name} to act on" }
+          ] + arguments
+        elsif receiver == :aggregate
+          arguments = [{ path: "to", type: "String", required: true,
+                         note: "id of the #{aggregate.hecks_name} to act on" }] + arguments
+          legacy_arguments = [{ path: "id", type: "String", required: true }]
         end
 
         { verb: fqn(bluebook, aggregate, command, entity), kind: :command,
           summary: command.goal, role: command.role, creates: command.creates?,
+          receiver: receiver, legacy_receiver: (receiver == :aggregate ? :id : nil),
+          legacy_arguments: legacy_arguments,
           refusals: refusals(command, holder), arguments: arguments }
       end
 
@@ -207,7 +213,8 @@ module Hecksagain
       # reading `--help` should not have to open the hecksagon to find that
       # out.
       def port_spec(bluebook, aggregate, port, operation)
-        arguments = operation.attributes.flat_map { |a| options_for(a, aggregate, aggregate) }
+        arguments = receiver_options(:aggregate, aggregate, nil) +
+                    operation.attributes.flat_map { |a| options_for(a, aggregate, aggregate) }
 
         # THE WIRE NAME CARRIES THE PORT, THE TYPED NAME DOES NOT.
         #
@@ -219,7 +226,7 @@ module Hecksagain
         # what they want done. So the projection spells the verb in full and
         # names it short, which is the same split `shorten` already makes.
         { verb: [fqn(bluebook, aggregate, operation).sub(/\.[^.]+\z/, ""), port.name, operation.hecks_name].join("."),
-          kind: :command, creates: false, refusals: [],
+          kind: :command, creates: false, receiver: :aggregate, refusals: [],
           role: operation.outbound? ? "#{aggregate.hecks_name} asking #{port.name}" : "#{port.name} telling #{aggregate.hecks_name}",
           summary: port_summary(port, operation), arguments: arguments }
       end

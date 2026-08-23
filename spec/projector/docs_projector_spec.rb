@@ -15,7 +15,7 @@ RSpec.describe Hecksagain::Projector::DocsProjector do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
     end
     registry

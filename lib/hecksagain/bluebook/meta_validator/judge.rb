@@ -100,8 +100,8 @@ module Hecksagain
           nil
         end
 
-        def send_to(verb, label, **payload)
-          offer(label) { @runtime.dispatch(verb, **args(payload)) }
+        def send_to(verb, label, to: nil, **payload)
+          offer(label) { @runtime.dispatch(verb, to: to, with: args(payload)) }
         end
 
         def judge!
@@ -122,14 +122,14 @@ module Hecksagain
         # same ordering the walk already used one level down — value objects before
         # the attributes that name them — lifted to the level above, and it is what
         # lets a reference be a REFERENCE rather than a string nobody can check.
-        def declare_node(category, node, parent_id, index, extra = {})
+        def declare_node(category, node, parent_id, index, extra = {}, receiver: nil)
           plan = @plan.category(category)
           return unless plan
 
           declare(plan, category, node, identify(category, parent_id, node, index), parent_id, index, extra)
         end
 
-        def detail_node(category, node, parent_id, index, extra = {})
+        def detail_node(category, node, parent_id, index, extra = {}, receiver: nil)
           plan = @plan.category(category)
           return unless plan
 
@@ -155,16 +155,16 @@ module Hecksagain
           # would have the runtime refuse them for an argument they
           # never declared.
           identity     = extra.merge(node_identity(plan, category, node, index, parent_id))
-          own          = plan.entity_owned ? identity : {}
+          receiver   ||= { aggregate: id, entities: [] }
           eager, later = children_of(category).partition { |child| eager?(category, child) }
 
-          eager.each { |child| walk_all(child, node, id, entity_child_extra(child, identity)) }
-          setters(plan, category, node, id, own)
-          appends(plan, category, node, id, own)
-          later.each { |child| walk_all(child, node, id, entity_child_extra(child, identity)) }
+          eager.each { |child| walk_all(child, node, id, entity_child_extra(child, identity), receiver: receiver) }
+          setters(plan, category, node, receiver)
+          appends(plan, category, node, receiver)
+          later.each { |child| walk_all(child, node, id, entity_child_extra(child, identity), receiver: receiver) }
           within_entity(category, node, id, parent_id)
           nest_entities(category, node, id, parent_id)
-          sealers(plan, category, id, own)
+          sealers(plan, category, receiver)
         end
 
         # WHAT A CHILD'S OWN `extra` STARTS FROM. An entity-owned child's
@@ -241,13 +241,21 @@ module Hecksagain
           "#{dotted_prefix(plan)}.#{verb}"
         end
 
-        def walk_all(category, node, parent_id, extra = {})
+        def walk_all(category, node, parent_id, extra = {}, receiver: nil)
           reader = collection_reader(category)
           return unless node.respond_to?(reader)
 
           children = Array(node.public_send(reader))
           children.each_with_index { |child, index| declare_node(category, child, parent_id, index, extra) }
-          children.each_with_index { |child, index| detail_node(category, child, parent_id, index, extra) }
+          children.each_with_index do |child, index|
+            child_plan = @plan.category(category)
+            child_receiver = if child_plan&.entity_owned
+                               child_id = identify(category, parent_id, child, index)
+                               root = receiver || { aggregate: parent_id, entities: [] }
+                               { aggregate: root[:aggregate], entities: Array(root[:entities]) + [child_id] }
+                             end
+            detail_node(category, child, parent_id, index, extra, receiver: child_receiver)
+          end
         end
 
         # A piece's commands and queries, addressed under the PIECE so two commands
@@ -264,9 +272,10 @@ module Hecksagain
 
           WITHIN_ENTITY.each do |child|
             plan = @plan.category(child)
-            walk_all(child, node, id,
-                     aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
-                     entity_id: carried(plan, plan&.declare, "entity_id", id))
+            walk_all(child, node, id, {
+                       aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
+                       entity_id: carried(plan, plan&.declare, "entity_id", id)
+                     })
           end
         end
 
@@ -298,9 +307,10 @@ module Hecksagain
           return unless category == "Entity"
 
           plan = @plan.category("Entity")
-          walk_all("Entity", node, aggregate,
-                   aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
-                   owner:     carried(plan, plan&.declare, "owner", id))
+          walk_all("Entity", node, aggregate, {
+                     aggregate: carried(plan, plan&.declare, "aggregate", aggregate),
+                     owner:     carried(plan, plan&.declare, "owner", id)
+                   })
         end
 
         # WHERE IT SITS AMONG ITS SIBLINGS IS A FACT ABOUT THE WALK, not about the
@@ -315,16 +325,8 @@ module Hecksagain
         def declare(plan, category, node, id, parent_id, index, extra = {})
           return unless plan.declare
 
-          payload = { id: id }
+          payload = {}
           payload[plan.parent_key.to_sym] = carried(plan, plan.declare, plan.parent_key, parent_id) if plan.parent_key
-          # OWNER_ID, bare, whenever this category's identity reaches for it —
-          # not `carried()`, because it addresses the record rather than
-          # describing it, exactly as `id` above does not go through carried
-          # either. Set unconditionally from `parent_id`, so it is the SAME
-          # value `identify()` just derived the id from two lines up — the two
-          # cannot disagree, because they are the same call reading the same
-          # argument.
-          payload[:owner_id] = parent_id if plan.identity_paths.any? { |path| path.to_s.split(".").first == OWNER }
           plan.fields.each do |field|
             payload[field.to_sym] = if field == POSITION
                                       v(index)
@@ -333,25 +335,26 @@ module Hecksagain
                                     end
           end
 
-          send_to("Bluebook::#{verb_for(plan, plan.declare)}", id, **payload.merge(extra))
+          send_to("Bluebook::#{verb_for(plan, plan.declare)}", id, to: id, **payload.merge(extra))
         end
 
         # A setter whose every source is absent is not dispatched. An aggregate
         # with no lifecycle has no Lifecycle to offer, and a creating command has
         # no root to act on — offering either as "" would make a rule refuse a
         # bluebook that is perfectly well formed.
-        def setters(plan, category, node, id, extra = {})
+        def setters(plan, category, node, receiver)
           plan.setters.each do |setter|
             payload = setter.targets.to_h do |target, argument|
               [argument.to_sym, v(setter_value(category, node, target))]
             end
             next if payload.values.all?(&:nil?)
 
-            send_to("Bluebook::#{verb_for(plan, setter.verb)}", id, id: id, **payload.merge(extra))
+            send_to("Bluebook::#{verb_for(plan, setter.verb)}", receiver[:aggregate], to: receiver, **payload)
           end
         end
 
-        def appends(plan, category, node, id, extra = {})
+        def appends(plan, category, node, receiver)
+          id = receiver[:entities].last || receiver[:aggregate]
           plan.appends.each do |list_name, append|
             rows_for(category, list_name, node).each_with_index do |row, index|
               chosen = append_for(category, list_name, append, row, node)
@@ -370,13 +373,14 @@ module Hecksagain
               end
 
               send_to("Bluebook::#{verb_for(plan, chosen.verb)}", "#{id}##{list_name}[#{index}]",
-                      id: id, **payload.merge(extra))
+                      to: receiver, **payload)
             end
           end
         end
 
-        def sealers(plan, category, id, extra = {})
-          plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, id: id, **extra) }
+        def sealers(plan, category, receiver)
+          id = receiver[:entities].last || receiver[:aggregate]
+          plan.sealers.each { |verb| send_to("Bluebook::#{verb_for(plan, verb)}", id, to: receiver) }
         end
 
         # An aggregate's attribute names its value object by TYPE, and the language
@@ -402,7 +406,53 @@ module Hecksagain
           return points_at(row, id) if append.verb == "Reference"
           return value unless "#{category}.#{list_name}" == "Aggregate.attributes"
 
-          Naming.identity([id, value])
+          Naming.identity([owning_aggregate_id(id, value), value])
+        end
+
+        # `id` NAMES THE ATTRIBUTE'S OWN AGGREGATE, not necessarily the
+        # value object's — Wave 7's own translation.bluebook/translation_
+        # aggregate.bluebook split proved the difference live:
+        # TranslationAggregate's own `was`/every rename-rule's own `from`/
+        # `to`/... all deliberately reuse the SIBLING "Translation"
+        # aggregate's own `TranslationName` (that file's own header:
+        # "the shared TranslationName every non-identity field below
+        # uses"), a real, intentional cross-aggregate reuse — not the
+        # local-only ownership every OTHER real domain in this corpus
+        # happens to have used until now.
+        #
+        # `id` (already `Naming.identity([chapter, aggregate])`-joined)
+        # only ever composes with the LOCAL aggregate for real, non-
+        # entity-owned attributes — an entity's own `id` never matches
+        # any TOP-LEVEL aggregate here, so `local` stays nil and this
+        # returns `id` unchanged, exactly the prior behavior. Same for
+        # every attribute whose type IS locally declared (the overwhelming
+        # common case, Banking's own Customer/Account included) — this
+        # only ever changes the answer when the local aggregate does NOT
+        # declare `value` itself, falling back to the first (declaration-
+        # order) OTHER aggregate in the SAME chapter that does.
+        def owning_aggregate_id(id, value)
+          local = @bluebook.aggregates.find { |aggregate| Naming.identity([@bluebook.name, aggregate.name]) == id }
+          return id unless local
+          return id if names?(local, value)
+
+          owner = @bluebook.aggregates.find { |aggregate| aggregate != local && names?(aggregate, value) }
+          return id unless owner
+
+          Naming.identity([@bluebook.name, owner.name])
+        end
+
+        # Whichever construct kind `value` actually is — a value object
+        # (Attribute) or an entity this aggregate holds (Holds); `cell`'s
+        # own caller already knows which verb it dispatches, but not
+        # which collection to search here without re-deriving that same
+        # decision, so this simply checks both. The self-hosted grammar's
+        # own Bluebook:Syntax#attributes proved entities need the same
+        # cross-aggregate fallback value objects do — Syntax's own
+        # `Argument`-typed attribute names Command's entity, not one of
+        # Syntax's own.
+        def names?(aggregate, value)
+          aggregate.value_objects.any? { |vo| vo.hecks_name == value } ||
+            aggregate.entities.any? { |entity| entity.hecks_name == value }
         end
 
         # Which verb an attribute row belongs to. The plan cannot decide this — all

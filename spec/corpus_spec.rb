@@ -18,11 +18,13 @@ require "spec_helper"
 # member in its own right, not a file the `head -1` of an earlier walk
 # silently skipped.
 RSpec.describe "The corpus" do
-  # The corpus's bluebook lookup for example directories — prefer
-  # <domain>/bluebook/*.bluebook, fall back to <domain>/*.bluebook.
+  # Example domains are loaded by folder, so adding or regrouping a concept
+  # file never requires a corpus catalog change.
   def self.bluebook_in(domain)
-    Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort.first ||
-      Dir.glob(File.join(domain, "*.bluebook")).sort.first
+    nested = File.join(domain, "bluebook")
+    return nested if Dir.glob(File.join(nested, "*.bluebook")).any?
+
+    domain if Dir.glob(File.join(domain, "*.bluebook")).any?
   end
 
   EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))
@@ -71,7 +73,7 @@ RSpec.describe "The corpus" do
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          Kernel.load(bluebook)
+          load_bluebook_files(bluebook)
         end
       end.not_to raise_error
 

@@ -9,7 +9,7 @@ module Hecksagain
         # reduction — and a `where` clause on anything but `id` (its own
         # partition key) cannot be pushed through that reduction, so every
         # declared query pays the cost of reducing the WHOLE aggregate
-        # before it can filter anything (see docs/postgres-era-adapter-
+        # before it can filter anything (see docs/implemented/postgres-era-adapter-
         # split-plan.md's own trigger section — this is a real
         # SQL-semantics wall, not a missing index; adding one to
         # `head_view` itself changes nothing, because the planner cannot

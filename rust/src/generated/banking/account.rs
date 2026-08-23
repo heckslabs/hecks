@@ -193,6 +193,16 @@ pub enum LedgerDirection {
     Debit,
 }
 
+impl crate::kernel::Fielded for LedgerDirection {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { LedgerDirection::Credit => "credit".to_string(), LedgerDirection::Debit => "debit".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
 impl LedgerDirection {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
@@ -369,6 +379,16 @@ pub enum AccountKind {
     Reserve,
 }
 
+impl crate::kernel::Fielded for AccountKind {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self { AccountKind::Current => "current".to_string(), AccountKind::Savings => "savings".to_string(), AccountKind::Reserve => "reserve".to_string(), }))),
+            _ => None,
+        }
+    }
+}
+
 impl AccountKind {
     pub fn to_json(&self) -> crate::kernel::Json {
         let member = match self {
@@ -474,6 +494,7 @@ impl crate::kernel::Fielded for LedgerEntry {
             "sequence" => Some(Field::Nested(&self.sequence)),
             "amount" => Some(Field::Nested(&self.amount)),
             "narrative" => Some(Field::Nested(&self.narrative)),
+            "direction" => Some(Field::Nested(&self.direction)),
             "state" => Some(Field::Value(Value::Str(self.state.clone()))),
             _ => None,
         }
@@ -714,6 +735,7 @@ impl crate::kernel::Fielded for Account {
             "customer" => self.customer.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "number" => self.number.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "balance" => self.balance.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "kind" => self.kind.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "daily_limit" => self.daily_limit.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "ledger" => Some(Field::Value(Value::List(self.ledger.len()))),
             "fees_cents" => self.fees_cents.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
@@ -784,6 +806,7 @@ impl crate::kernel::Fielded for OpenArgs {
         match name {
             "customer" => Some(Field::Value(Value::Str(self.customer.clone()))),
             "number" => Some(Field::Nested(&self.number)),
+            "kind" => Some(Field::Nested(&self.kind)),
             "daily_limit" => Some(Field::Nested(&self.daily_limit)),
             _ => None,
         }
@@ -832,6 +855,7 @@ pub fn dispatch_open(
         ],
         None,
         |record| {
+        record.customer = Some(args.customer.clone());
         record.number = Some(args.number.clone());
         record.kind = Some(args.kind.clone());
         record.daily_limit = Some(args.daily_limit.clone());

@@ -32,8 +32,8 @@ module Hecksagain
           nil
         end
 
-        def send_to(verb, label, **payload)
-          offer(label) { @runtime.dispatch(verb, **args(payload)) }
+        def send_to(verb, label, to: nil, **payload)
+          offer(label) { @runtime.dispatch(verb, to: to, with: args(payload)) }
         end
 
         def judge!
@@ -63,13 +63,13 @@ module Hecksagain
           # beside it is an ordinary text attribute that happens to hold the same
           # string, and stays a value object. The two look alike and are not —
           # which is exactly why the judge asks the type rather than the name.
-          send_to("World::Wiring.Declare", id, id: id, world_ref: domain,
+          send_to("World::Wiring.Declare", id, world_ref: v(domain),
                   world: v(domain), verb: v(verb), adapter: v(Hash(values)[:adapter]))
 
           Hash(values).each do |key, value|
             next if key.to_sym == :adapter
 
-            send_to("World::Wiring.Set", id, id: id, key: v(key), value: v(value))
+            send_to("World::Wiring.Set", id, to: id, key: v(key), value: v(value))
           end
         end
       end

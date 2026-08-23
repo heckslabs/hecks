@@ -33,7 +33,12 @@ const OPTION_WORDS: &[&str] = &["offset", "cursor", "authorize", "nulls", "inspe
 /// handling already uses for the identical Ruby-side reason — this is
 /// also why `reference_to` (needed to compute each head's own `many:`)
 /// is read into a plain local rather than applied eagerly.
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::ReadModel> {
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+) -> ParseResult<ir::ReadModel> {
     let mut description: Option<String> = None;
     let mut reference_target: Option<String> = None;
     let mut reference_name: Option<String> = None;
@@ -48,11 +53,21 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
     let mut last_line = 0usize;
 
     loop {
-        let Some(gated) = super::next_line(file, lines, pos, "ReadModel")? else { break };
+        let Some(gated) = super::next_line(file, lines, pos, "ReadModel")? else {
+            break;
+        };
         last_line = gated.line.number;
 
         match gated.row.word {
-            "description" => description = Some(super::positional_text(file, last_line, "description", &gated.args, 1)?),
+            "description" => {
+                description = Some(super::positional_text(
+                    file,
+                    last_line,
+                    "description",
+                    &gated.args,
+                    1,
+                )?)
+            }
             // `ReadModelBuilder#reference_to(type, as: nil)` — the
             // single-root form (`CustomerPortfolio`'s own `reference_to
             // Customer`). Ruby refuses a SECOND call ("already has a
@@ -62,16 +77,21 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             // a bluebook that violates it never produced the oracle this
             // parser is compared against in the first place.
             "reference_to" => {
-                let target_raw = super::positional_constant(file, last_line, "reference_to", &gated.args, 1)?;
+                let target_raw =
+                    super::positional_constant(file, last_line, "reference_to", &gated.args, 1)?;
                 let target = naming::demodulise(target_raw);
                 // `@reference_name = (as || Naming.snake(@reference_target)).to_sym`
                 // — ALWAYS set once `reference_to` is called, defaulting
                 // to the target's own snake-cased name.
-                reference_name = Some(super::named_symbol(&gated.args, "as").unwrap_or_else(|| naming::snake(&target)));
+                reference_name = Some(
+                    super::named_symbol(&gated.args, "as")
+                        .unwrap_or_else(|| naming::snake(&target)),
+                );
                 reference_target = Some(target);
             }
             "include" => {
-                let target = super::positional_constant(file, last_line, "include", &gated.args, 1)?;
+                let target =
+                    super::positional_constant(file, last_line, "include", &gated.args, 1)?;
                 let as_name = super::named_symbol(&gated.args, "as");
                 includes.push((naming::demodulise(target), as_name));
             }
@@ -80,7 +100,12 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
                 // handling (syntax.bluebook's own comment on that
                 // column) already confirmed every positional here reads
                 // as a symbol; just strip each one's leading `:`.
-                group_by_fields = gated.args.positional.iter().map(|(_, text)| text.trim().trim_start_matches(':').to_string()).collect();
+                group_by_fields = gated
+                    .args
+                    .positional
+                    .iter()
+                    .map(|(_, text)| text.trim().trim_start_matches(':').to_string())
+                    .collect();
             }
             // `ReadModelBuilder#count` — a bare word, no argument at
             // all (`def count = @count = true`); its presence in the
@@ -90,7 +115,15 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             // `ReadModelBuilder#median(field)` — one required
             // positional symbol (`def median(field) = @median_field =
             // field.to_sym`).
-            "median" => median_field = Some(super::positional_symbol(file, last_line, "median", &gated.args, 1)?),
+            "median" => {
+                median_field = Some(super::positional_symbol(
+                    file,
+                    last_line,
+                    "median",
+                    &gated.args,
+                    1,
+                )?)
+            }
             "where" => wheres.extend(query_derive::where_clauses(&gated.args.named)),
             "order_by" => {
                 let field = super::positional_symbol(file, last_line, "order_by", &gated.args, 1)?;
@@ -102,18 +135,40 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             }
             "limit" => {
                 let raw = super::positional_constant(file, last_line, "limit", &gated.args, 1)?;
-                limit = Some(ir::LimitSpec { value: crate::ruby_value::render(&crate::ruby_value::read(raw)) });
+                limit = Some(ir::LimitSpec {
+                    value: crate::ruby_value::render(&crate::ruby_value::read(raw)),
+                });
             }
-            word if OPTION_WORDS.contains(&word) => query_options::apply(file, last_line, word, &gated.args, &mut options)?,
-            _ => return Err(super::not_built_yet("ReadModel", gated.row, file, last_line, &gated.call.word)),
+            word if OPTION_WORDS.contains(&word) => {
+                query_options::apply(file, last_line, word, &gated.args, &mut options)?
+            }
+            _ => {
+                return Err(super::not_built_yet(
+                    "ReadModel",
+                    gated.row,
+                    file,
+                    last_line,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 
     if includes.is_empty() && reference_target.is_none() {
-        return Err(Diagnostic::new(file, last_line, format!("{name} needs an aggregate-head reference or at least one include")));
+        return Err(Diagnostic::new(
+            file,
+            last_line,
+            format!("{name} needs an aggregate-head reference or at least one include"),
+        ));
     }
 
-    let aggregate_heads = build_read_model::aggregate_heads(file, last_line, name, &includes, reference_target.as_deref())?;
+    let aggregate_heads = build_read_model::aggregate_heads(
+        file,
+        last_line,
+        name,
+        &includes,
+        reference_target.as_deref(),
+    )?;
 
     Ok(ir::ReadModel {
         name: name.to_string(),

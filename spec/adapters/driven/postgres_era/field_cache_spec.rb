@@ -2,7 +2,7 @@ require "hecksagain"
 require "tempfile"
 require_relative "../../../support/postgres_probe"
 
-# Phase 2 of docs/postgres-era-adapter-split-plan.md: the validation spec
+# Phase 2 of docs/implemented/postgres-era-adapter-split-plan.md: the validation spec
 # for Track C (field_cache.rb + resumable_backfill.rb + the retrofitted
 # backfill_head_snapshot!). Proves the three things the plan doc requires,
 # against a real throwaway Postgres database, never the dev database —

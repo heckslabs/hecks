@@ -90,37 +90,49 @@ pub fn dispatch_by_name(
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Governance::RoleAssignment.Assign" => {
-              let args = crate::generated::governance::roleassignment::AssignArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::governance::roleassignment::AssignArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Assign", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::governance::roleassignment::dispatch_assign(&mut store.roleassignment, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleAssignment.Revoke" => {
-              let id = crate::generated::governance::roleassignment::RoleAssignment::extract_id(args_json)?;
-              let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roleassignment::RoleAssignment::extract_id(facts_json)?, };
+              let args = crate::generated::governance::roleassignment::RevokeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleAssignment", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::governance::roleassignment::dispatch_revoke(&mut store.roleassignment, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Grant" => {
-              let args = crate::generated::governance::roletransition::GrantArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::governance::roletransition::GrantArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Grant", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::governance::roletransition::dispatch_grant(&mut store.roletransition, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Governance::RoleTransition.Revoke" => {
-              let id = crate::generated::governance::roletransition::RoleTransition::extract_id(args_json)?;
-              let args = crate::generated::governance::roletransition::RevokeArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::governance::roletransition::RoleTransition::extract_id(facts_json)?, };
+              let args = crate::generated::governance::roletransition::RevokeArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Governance administrator"), "Revoke", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Governance::RoleTransition", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::governance::roletransition::dispatch_revoke(&mut store.roletransition, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
@@ -181,6 +193,23 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Governance::RoleAssignment" => Some("role_assignment"),
         "Governance::RoleTransition" => Some("role_transition"),
+        _ => None,
+    }
+}
+
+pub fn command_creates(verb: &str) -> bool {
+    match verb {
+        "Governance::RoleAssignment.Assign" => true,
+        "Governance::RoleAssignment.Revoke" => false,
+        "Governance::RoleTransition.Grant" => true,
+        "Governance::RoleTransition.Revoke" => false,
+        _ => false,
+    }
+}
+
+pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
+    match qualified_name {
+
         _ => None,
     }
 }

@@ -24,7 +24,12 @@ module Hecksagain
       # `["reference.value=BUG#1", "sequence.value=99"]` against a projected
       # verb spec -> `{ reference: { value: "BUG#1" }, sequence: { value: 99 } }`
       def arguments(spec, pairs)
-        options = spec[:arguments].to_h { |argument| [argument[:path], argument] }
+        # Legacy options are accepted but not printed in help. This lets an
+        # existing id=... aggregate invocation cross the new receiver boundary
+        # while the projected surface teaches to=... exclusively.
+        options = (spec[:arguments] + Array(spec[:legacy_arguments])).to_h do |argument|
+          [argument[:path], argument]
+        end
 
         pairs.each_with_object({}) do |pair, args|
           path, value = split(pair)

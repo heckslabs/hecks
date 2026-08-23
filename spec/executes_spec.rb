@@ -178,7 +178,7 @@ RSpec.describe "the language holds a bluebook, and gives it back" do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+        load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       end
       registry.bluebook("Banking")
     end

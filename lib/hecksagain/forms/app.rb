@@ -7,6 +7,8 @@ require_relative "record_renderer"
 require_relative "command_form_renderer"
 require_relative "query_form_renderer"
 require_relative "params"
+require_relative "../facade/command_request"
+require_relative "../facade/json_door"
 
 module Hecksagain
   module Forms
@@ -58,6 +60,17 @@ module Hecksagain
         return aggregate_route(request, chapter, *split_format(segments[1])) if segments.size == 2
 
         return verb_or_record_route(request, chapter, segments[1], *split_format(segments[2])) if segments.size == 3
+
+        if segments.size == 4
+          aggregate = chapter.aggregate(segments[1])
+          entity = aggregate&.entities&.find { |candidate| candidate.hecks_name == segments[2] }
+          entity_command = entity&.command(split_format(segments[3]).first)
+          if entity_command
+            raise RouteNotFound,
+                  "entity command routes are not supported by Forms; use a command door with " \
+                  "to.aggregate and to.entity"
+          end
+        end
 
         respond(404, "text/plain", "no route for #{request.path_info}")
       end
@@ -123,7 +136,10 @@ module Hecksagain
       def command_route(request, domain, aggregate, command, format)
         action = "/#{domain}/#{aggregate.hecks_name}/#{command.hecks_name}.html"
         return command_json(request, domain, aggregate, command) if format != "html"
-        return command_form(domain, aggregate, command, action, prefill: request.GET) if request.get?
+        if request.get?
+          return command_form(domain, aggregate, command, action,
+                              prefill: receiver_compatibility(request.GET, command))
+        end
         return respond(405, "text/plain", "GET or POST only") unless request.post?
 
         submit_command(request, domain, aggregate, command, action)
@@ -139,10 +155,8 @@ module Hecksagain
       end
 
       def submit_command(request, domain, aggregate, command, action)
-        raw = request.POST
-        fields = CommandFormRenderer.fields_for(aggregate, command)
-        args = Params.extract(fields, raw)
-        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **args)
+        raw, envelope = submitted_command(request, aggregate, command)
+        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
         redirect("/#{domain}/#{aggregate.hecks_name}/#{result.id}.html")
       rescue *Runtime::DOMAIN_REFUSALS, ArgumentError, TypeError, JSON::ParserError => e
         status = e.is_a?(Runtime::NotFound) ? 404 : 422
@@ -153,10 +167,8 @@ module Hecksagain
         return json(200, command.to_h) if request.get? && request.GET.reject { |k, _| k == "format" }.empty?
         return respond(405, "text/plain", "GET or POST only") unless request.post?
 
-        raw = request.POST
-        fields = CommandFormRenderer.fields_for(aggregate, command)
-        args = Params.extract(fields, raw)
-        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **args)
+        _, envelope = submitted_command(request, aggregate, command)
+        result = @dispatcher.dispatch("#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}", **envelope)
         # id LAST — same reasoning as the other JSON-serializing call
         # sites in this file (see aggregate_route's own comment).
         json(201, result.state.merge(id: result.id))
@@ -235,6 +247,35 @@ module Hecksagain
 
       def find_aggregate(chapter, name)
         chapter.aggregate(name) || raise(RouteNotFound, "#{chapter.name} has no aggregate #{name.inspect}")
+      end
+
+      def command_envelope(command, args)
+        Facade::CommandRequest.normalize(args, receiver: command_receiver(command), legacy_receiver: :id)
+      end
+
+      def command_receiver(command) = command.creates? ? nil : :aggregate
+
+      def submitted_command(request, aggregate, command)
+        if request.media_type == "application/json"
+          raw = Facade::JsonDoor.parse(request.body.read)
+          envelope = Facade::JsonDoor.command_request(raw, receiver:        command_receiver(command),
+                                                           legacy_receiver: :id)
+          return [raw, envelope]
+        end
+
+        raw = receiver_compatibility(request.POST, command)
+        fields = CommandFormRenderer.fields_for(aggregate, command)
+        args = Params.extract(fields, raw)
+        [raw, command_envelope(command, args)]
+      end
+
+      # Existing integrations may still submit id. It remains an accepted
+      # edge spelling, but new forms expose only the receiver name to.
+      def receiver_compatibility(raw, command)
+        return raw if command.creates?
+        return raw unless raw.key?("id") && !raw.key?("to")
+
+        raw.merge("to" => raw["id"])
       end
 
       # ---- rendering ----------------------------------------------------

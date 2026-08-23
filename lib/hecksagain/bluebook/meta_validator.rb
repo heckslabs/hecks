@@ -6,8 +6,8 @@ module Hecksagain
     # Judges a bluebook by DISPATCHING it into the language declared in itself.
     #
     # `lib/hecksagain/language/bluebook/` declares what a bluebook IS —
-    # Chapter, Root, Verb, Shape, Ask, Piece, and the rest, split across nine
-    # files by function and merged into one chapter at load time (see
+    # Chapter, Root, Verb, Shape, Ask, Piece, and the rest, split across files
+    # by domain concept and merged into one chapter at load time (see
     # GRAMMAR_FILES below) — and carries the language's rules as `given` and
     # `invariant` rather than as `raise Malformed` scattered across seven
     # builder files. This replays a built IR into that domain and turns any
@@ -22,26 +22,18 @@ module Hecksagain
     # The meta-domain is loaded ONCE and its registry reused ; each bluebook is
     # judged in a fresh in-memory store so no domain can see another's records.
     module MetaValidator
-      # THE CHAPTER, SPLIT BY FUNCTION, MERGED AT LOAD TIME. One 1973-line file
-      # became nine, grouped by what each piece of the language IS (a root, what
-      # it can do, what it is made of, what reacts to it, its closed vocabulary,
-      # the read-back) rather than left as one undifferentiated block. Every file
-      # opens the SAME `Hecks.bluebook "Bluebook" do ... end` ; `BluebookBuilder.build`
-      # keeps one builder open per chapter name across calls (see its own comment),
-      # so loading all nine in order accumulates one domain, not nine.
-      #
-      # ORDER IS AN EXPLICIT LIST, not a sorted glob. Declaration order is a fact
-      # about the source — the golden IR fixture pins the exact sequence — and a
-      # filename-alphabetical sort would not reproduce a deliberate, reviewed order
-      # by accident. This is the array to edit when a file is added, removed, or
-      # reordered.
+      # THE FOLDER IS THE CHAPTER. Files are grouped by the domain concept they
+      # describe and every one reopens the same `Hecks.bluebook "Bluebook"`.
+      # `BluebookBuilder.build` keeps one builder open per chapter name across
+      # calls, so the sorted folder accumulates one domain. Adding or renaming a
+      # concept file requires no second catalog here; deterministic filename
+      # order is the source order exported to IR.
       GRAMMAR_DIR   = File.expand_path("../language/bluebook", __dir__).freeze
-      GRAMMAR_FILES = %w[bluebook aggregate behavior shape entity reaction vocabulary syntax projection]
-                      .map { |name| File.join(GRAMMAR_DIR, "#{name}.bluebook") }.freeze
-      # a world is a SIBLING artifact, described in its own file
-      WORLD_GRAMMAR = File.expand_path("../language/world.bluebook", __dir__).freeze
-      # so is a hecksagon — the same reasoning, one file over
-      HECKSAGON_GRAMMAR = File.expand_path("../language/hecksagon.bluebook", __dir__).freeze
+      GRAMMAR_FILES = Dir.glob(File.join(GRAMMAR_DIR, "*.bluebook")).sort.freeze
+      # Sibling artifact languages use the same folder-is-the-chapter rule.
+      # Their arrays are discovered, sorted source sets—not filename catalogs.
+      WORLD_GRAMMAR = Dir.glob(File.expand_path("../language/world/*.bluebook", __dir__)).sort.freeze
+      HECKSAGON_GRAMMAR = Dir.glob(File.expand_path("../language/hecksagon/*.bluebook", __dir__)).sort.freeze
       # so is a port — whole-project table-unification survey, item #13's
       # remaining builders. Backs the new PortJudge door the same way
       # WORLD_GRAMMAR backs WorldJudge.
@@ -50,7 +42,7 @@ module Hecksagain
       ADAPTER_GRAMMAR = File.expand_path("../language/adapter.bluebook", __dir__).freeze
       # so is a translation — same reasoning, one file over. Backs
       # TranslationJudge.
-      TRANSLATION_GRAMMAR = File.expand_path("../language/translation.bluebook", __dir__).freeze
+      TRANSLATION_GRAMMAR = Dir.glob(File.expand_path("../language/translation/*.bluebook", __dir__)).sort.freeze
 
       # ADR 0026's OWN SEAM: THE CORE DOES NOT NAME ITS EXTENSION POINTS.
       #
@@ -406,11 +398,11 @@ module Hecksagain
           Kernel.load(File.expand_path("../adapters/driven/memory.adapter", __dir__))
           Kernel.load(File.expand_path("../adapters/driven/prism.adapter", __dir__))
           GRAMMAR_FILES.each { |file| Kernel.load(file) }
-          Kernel.load(WORLD_GRAMMAR)
-          Kernel.load(HECKSAGON_GRAMMAR)
+          WORLD_GRAMMAR.each { |file| Kernel.load(file) }
+          HECKSAGON_GRAMMAR.each { |file| Kernel.load(file) }
           Kernel.load(PORT_GRAMMAR)
           Kernel.load(ADAPTER_GRAMMAR)
-          Kernel.load(TRANSLATION_GRAMMAR)
+          TRANSLATION_GRAMMAR.each { |file| Kernel.load(file) }
         end
         registry
       ensure

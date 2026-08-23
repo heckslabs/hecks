@@ -17,6 +17,7 @@
 
 mod approval;
 mod auth;
+mod checkout;
 mod dispatch;
 mod field_hints;
 mod ir;
@@ -115,15 +116,36 @@ async fn main() -> Result<(), Error> {
         }
     });
 
-    // SHARED-INSTANCE ISOLATION — same reasoning as postgres.rb's own
-    // `SET search_path` (postgres.rb's `connect_for`): every unqualified
-    // table/view reference this binary ever issues (hecks_lambda_journal,
-    // hecks_lambda_snapshot, hecks_eras, the era-partitioned lineage
-    // tables in journal.rs) resolves through search_path, so this one
-    // SET is what makes a shared instance's per-domain schemas
-    // transparent to the rest of this binary — no other call site needs
-    // to change.
+    // SHARED-INSTANCE ISOLATION — same reasoning as postgres_era.rb's own
+    // `connect_for`: every unqualified table/view reference this binary
+    // ever issues (hecks_lambda_journal, hecks_lambda_snapshot,
+    // hecks_eras, the era-partitioned lineage tables in journal.rs)
+    // resolves through search_path, so this one SET is what makes a
+    // shared instance's per-domain schemas transparent to the rest of
+    // this binary — no other call site needs to change.
+    //
+    // CREATE SCHEMA IF NOT EXISTS FIRST — the exact fix postgres_era.rb's
+    // own `connect_for` already carries (its own comment: "found live
+    // provisioning tenant_isolation_spec.rb's own multi-schema fixture
+    // by hand"), missing here until a Shared-mode domain's Lambda
+    // actually booted against a schema neither Banking nor Pizzas ever
+    // needed created THIS way (their own schemas were already created
+    // by `make mint-era`'s Ruby-side tunnel boot before their Lambda's
+    // own first real invocation ever ran) — found live deploying
+    // lifeadelics, the first Shared-mode domain whose Lambda genuinely
+    // raced a still-nonexistent schema: `SET search_path` to a schema
+    // that doesn't exist yet succeeds in Postgres (search_path accepts
+    // any name), so the FIRST real failure only surfaced one step
+    // later, `ensure_schema`'s own `CREATE TABLE ... IF NOT EXISTS`
+    // refusing with "no schema has been selected to create in" — a
+    // genuinely confusing message pointing nowhere near the real cause.
+    // Idempotent, same as Ruby's: a schema that already exists is the
+    // ORDINARY case on every boot after the first, not news.
     if let Some(schema) = &schema {
+        client
+            .batch_execute(&format!("CREATE SCHEMA IF NOT EXISTS {}", journal::quote_ident(schema)))
+            .await
+            .map_err(|e| format!("creating schema {schema:?}: {e:#}"))?;
         client
             .batch_execute(&format!("SET search_path TO {}", journal::quote_ident(schema)))
             .await
@@ -293,10 +315,6 @@ async fn main() -> Result<(), Error> {
                 .and_then(|v| v.as_str())
                 .ok_or("event missing \"verb\"")?
                 .to_string();
-            let args = body
-                .get("args")
-                .cloned()
-                .unwrap_or_else(|| serde_json::json!({}));
             // `"role"` -- OPTIONAL, mirroring `args` immediately above:
             // `Adapters::Lambda::Client#dispatch` (Ruby) only puts this
             // key on the wire when a caller is actually bound
@@ -319,7 +337,51 @@ async fn main() -> Result<(), Error> {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            let outcome = dispatch::handle(&client, &wasm_path, &verb, args, role.as_deref(), &lineage_config, invoker.as_ref()).await?;
+            let outcome = if let Some(to) = body.get("to").cloned() {
+                if body.get("args").is_some() {
+                    return Err::<serde_json::Value, Error>("cannot combine to/with with legacy args".into());
+                }
+                let facts = body.get("with").cloned().unwrap_or_else(|| serde_json::json!({}));
+                dispatch::handle_routed(
+                    &client,
+                    &wasm_path,
+                    &verb,
+                    to,
+                    facts,
+                    role.as_deref(),
+                    &lineage_config,
+                    invoker.as_ref(),
+                )
+                .await?
+            } else if let Some(facts) = body.get("with").cloned() {
+                if body.get("args").is_some() {
+                    return Err::<serde_json::Value, Error>(
+                        "cannot combine \"with\" with legacy args".into(),
+                    );
+                }
+                dispatch::handle_facts(
+                    &client,
+                    &wasm_path,
+                    &verb,
+                    facts,
+                    role.as_deref(),
+                    &lineage_config,
+                    invoker.as_ref(),
+                )
+                .await?
+            } else {
+                let args = body.get("args").cloned().unwrap_or_else(|| serde_json::json!({}));
+                dispatch::handle(
+                    &client,
+                    &wasm_path,
+                    &verb,
+                    args,
+                    role.as_deref(),
+                    &lineage_config,
+                    invoker.as_ref(),
+                )
+                .await?
+            };
             Ok::<serde_json::Value, Error>(outcome.result)
         }
     }))

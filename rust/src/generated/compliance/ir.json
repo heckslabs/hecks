@@ -19,7 +19,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -33,7 +34,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -62,7 +64,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -75,6 +78,7 @@
             {
               "target": "number",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "number"
@@ -185,7 +189,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "box_number",
@@ -194,7 +199,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -208,7 +214,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -232,7 +239,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -261,7 +269,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "box_number",
@@ -270,7 +279,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -283,6 +293,7 @@
             {
               "target": "branch_code",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "branch_code"
@@ -291,6 +302,7 @@
             {
               "target": "box_number",
               "op": "set",
+              "sign": "",
               "source": {
                 "kind": "argument",
                 "name": "box_number"

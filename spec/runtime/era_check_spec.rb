@@ -44,6 +44,20 @@ RSpec.describe "the era check at boot" do
     registry
   end
 
+  it "snapshots every concept file for one chapter, in deterministic order" do
+    Dir.mktmpdir do |root|
+      second = "Hecks.bluebook \"Shaped\" do\n  aggregate \"Second\" do\n  end\nend\n"
+      first = "Hecks.bluebook \"Shaped\" do\n  vision \"first\"\nend\n"
+      other = "Hecks.bluebook \"Other\" do\n  vision \"not part of Shaped\"\nend\n"
+      File.write(File.join(root, "b.bluebook"), second)
+      File.write(File.join(root, "a.bluebook"), first)
+      File.write(File.join(root, "other.bluebook"), other)
+
+      bluebook = Struct.new(:name).new("Shaped")
+      expect(Hecksagain::Runtime::EraCheck.source_text_for(bluebook, root)).to eq("#{first}\n#{second}")
+    end
+  end
+
   it "holds nothing for an adapter that has no eras, and never refuses its drift" do
     Dir.mktmpdir do |root|
       check!(root, ERA_V1)

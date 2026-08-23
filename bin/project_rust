@@ -105,21 +105,38 @@ else
     # silently (and correctly, for any OTHER unloaded adapter) answers
     # false.
     Kernel.load(File.expand_path("../lib/hecksagain/adapters/driven/postgres_era.adapter", __dir__))
-    Kernel.load(domain_bluebook_path = File.join(domain, "bluebook", "#{File.basename(domain)}.bluebook"))
+    # EVERY *.bluebook FILE DIRECTLY IN THE DOMAIN'S OWN DIRECTORY, not
+    # just one — Wave 7's own reference-decluttering split banking's
+    # aggregates across 8 sibling files (customer_relationships.bluebook,
+    # deposit_accounts.bluebook, ...), none of which "#{File.basename(
+    # domain)}.bluebook" (banking.bluebook, itself declaring ZERO
+    # aggregates now — confirmed live: `grep -c 'aggregate "'
+    # banking.bluebook` is 0) would ever match alone. `Adapters::Folder#
+    # load_bluebooks`'s own default `["*.bluebook"]` pattern, `Dir[]`-
+    # sorted, loads all of them together, banking.bluebook itself first
+    # (alphabetically ahead of every split sibling) — the SAME load
+    # order the single explicit `Kernel.load` used to give it alone.
+    bluebook_directory = File.join(domain, "bluebook")
+    domain_bluebook_path = File.join(bluebook_directory, "#{File.basename(domain)}.bluebook")
+    Hecksagain::Adapters::Folder.new.load_bluebooks(bluebook_directory)
 
-    # ALSO every translations/*.bluebook edge — same directory, same
-    # glob, same load-order position Vocabulary's own "LoadOrder" entry
-    # gives them (between the domain's own .bluebook and .hecksagon) —
-    # this generator's registry build was never updated to include this
-    # step, so `target_registry.translations` was always empty here,
-    # and `Exporter.translations` (the new `translations` ir.json key)
-    # had nothing real to export. `Dir[]` is already sorted (Ruby's own
-    # glob guarantee, same reason `load_each`'s own `.sort` reads as
-    # redundant to rubocop), so multiple edges in one domain load in a
-    # stable, name-determined order without needing to say so here.
-    Dir[File.join(domain, "bluebook", "translations", "*.bluebook")].each { |file| Kernel.load(file) }
+    # ALSO every translations/*.bluebook edge — same directory's own
+    # `translations/` subdirectory, same load-order position Vocabulary's
+    # own "LoadOrder" entry gives them (between the domain's own
+    # .bluebook and .hecksagon) — this generator's registry build was
+    # never updated to include this step, so `target_registry.
+    # translations` was always empty here, and `Exporter.translations`
+    # (the `translations` ir.json key) had nothing real to export.
+    # `Adapters::Folder#load_bluebooks`'s own default pattern never
+    # matches this — a different subdirectory, not `bluebook_directory`
+    # itself — so it stays a separate, explicit glob. `Dir[]` is already
+    # sorted (Ruby's own glob guarantee, same reason `load_each`'s own
+    # `.sort` reads as redundant to rubocop), so multiple edges in one
+    # domain load in a stable, name-determined order without needing to
+    # say so here.
+    Dir[File.join(bluebook_directory, "translations", "*.bluebook")].each { |file| Kernel.load(file) }
 
-    # ALSO the .hecksagon file, not just the .bluebook — this is what
+    # ALSO every .hecksagon file in the folder — this is what
     # actually fires `uses_framework`, which `Kernel.load`s that framework
     # member's own .bluebook into this SAME registry as a side effect
     # (HecksagonBuilder#uses_framework -> Framework.load!, hecksagon_
@@ -128,12 +145,11 @@ else
     # with no .hecksagon (or one that attaches nothing) leaves
     # target_registry.bluebooks with just its own single entry, exactly
     # as before this line existed.
-    hecksagon_file = File.join(domain, "bluebook", "#{File.basename(domain)}.hecksagon")
-    Kernel.load(hecksagon_file) if File.exist?(hecksagon_file)
+    Dir.glob(File.join(bluebook_directory, "*.hecksagon")).each { |file| Kernel.load(file) }
   end
 
   # Still .keys.first, unchanged from before .hecksagon was ever loaded
-  # here — the target domain's OWN .bluebook is always loaded first,
+  # here — the target domain's OWN chapter is always loaded first,
   # before .hecksagon's uses_framework calls add anything else, so
   # insertion order (Ruby Hash's own guarantee) already puts it first
   # regardless of how many framework chapters get pulled in after it.
@@ -240,6 +256,10 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_reference_key_table([[meta_ir[:name], meta_result[:aggregates].map { |a| a[:name] }]])
     f.puts
+    f.puts RustProjection::Projector.emit_creates_table(meta_result[:aggregates])
+    f.puts
+    f.puts RustProjection::Projector.emit_identity_head_table(meta_result[:aggregates])
+    f.puts
     f.puts RustProjection::Projector.emit_query_table(meta_result[:queries])
     f.puts
     f.puts RustProjection::Projector.emit_read_model_table(meta_result[:read_models])
@@ -271,6 +291,15 @@ else
   framework_aggregates = []
   framework_queries = []
   framework_read_models = []
+  framework_process_managers = []
+  # ONE ENTRY PER CHAPTER (target first — see below), each carrying
+  # exactly what emit_merged_policy_table/emit_merged_cross_domain_
+  # policy_table need to qualify THAT chapter's own policies against
+  # ITS OWN domain_name/aggregates, never the target's. See
+  # reactions.rb's own header on emit_merged_policy_table for why this
+  # exists at all — recovers a documented, deliberate gap, not a new
+  # capability invented speculatively.
+  policy_sources = [{ domain_name: target_domain_name, policies: target_ir[:policies], aggregates: target_ir[:aggregates] }]
   (target_registry.bluebooks.keys - [target_domain_name]).each do |chapter_name|
     chapter_mod_name = chapter_name.downcase
     chapter_mod_names[chapter_mod_name] = chapter_name
@@ -281,6 +310,8 @@ else
     framework_aggregates.concat(chapter_result[:aggregates])
     framework_queries.concat(chapter_result[:queries])
     framework_read_models.concat(chapter_result[:read_models])
+    framework_process_managers.concat(chapter_ir[:process_managers])
+    policy_sources << { domain_name: chapter_name, policies: chapter_ir[:policies], aggregates: chapter_ir[:aggregates] }
   end
 
   # ONE MERGED Store/dispatch_by_name, spanning the target domain AND
@@ -289,11 +320,17 @@ else
   # aggregate's own chapter_mod:/domain_name: fields, so this is just
   # "call them once more over the union" (domain_generator.rb's own
   # header on why this is safe: nothing about a single-chapter call was
-  # privileged in the first place). Policies/process managers do NOT
-  # merge across chapters here — Governance/Identity declare none today,
-  # and real cross-chapter policy routing is registry.rb's own
-  # documented, still-open gap (emit_policy_table's header), not
-  # attempted by this pass.
+  # privileged in the first place). Policies/process managers DO merge
+  # across chapters now — RECOVERED, not new: this used to only compile
+  # in the target domain's own (the comment here used to read
+  # "Governance/Identity declare none today... not attempted by this
+  # pass"), invisible for exactly that reason until lifeadelics vendored
+  # a chapter (embryonaut_bluebooks/payments) that DOES declare real
+  # ones — found live, its own PaymentGateway.Succeeded port operation
+  # dispatching cleanly but never triggering the Payment.Succeed its own
+  # declared policy names, because the MERGED table those policies need
+  # to live in was empty. See reactions.rb's own emit_merged_policy_
+  # table header for the full story.
   #
   # Written into the TARGET DOMAIN'S OWN directory as `merged.rs` — never
   # a separate shared `active/` module — so it lives and dies with that
@@ -310,11 +347,11 @@ else
     f.puts
     f.puts RustProjection::Projector.emit_reference_lookup(merged_aggregates)
     f.puts
-    f.puts RustProjection::Projector.emit_policy_table(target_domain_name, target_ir[:policies], target_ir[:aggregates])
+    f.puts RustProjection::Projector.emit_merged_policy_table(policy_sources)
     f.puts
-    f.puts RustProjection::Projector.emit_cross_domain_policy_table(target_domain_name, target_ir[:policies])
+    f.puts RustProjection::Projector.emit_merged_cross_domain_policy_table(policy_sources)
     f.puts
-    f.puts RustProjection::Projector.emit_process_manager_table(target_ir[:process_managers])
+    f.puts RustProjection::Projector.emit_process_manager_table(target_ir[:process_managers] + framework_process_managers)
     f.puts
     f.puts RustProjection::Projector.emit_reference_key_table(
       chapter_mod_names.map { |mod_name, chapter_name|
@@ -323,6 +360,10 @@ else
         }).map { |a| a[:name] }]
       }
     )
+    f.puts
+    f.puts RustProjection::Projector.emit_creates_table(merged_aggregates)
+    f.puts
+    f.puts RustProjection::Projector.emit_identity_head_table(merged_aggregates)
     f.puts
     f.puts RustProjection::Projector.emit_query_table(merged_queries)
     f.puts

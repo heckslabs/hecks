@@ -54,7 +54,7 @@ Hecks.bluebook "HopChain" do
 
   aggregate "Proposal" do
     identified_by :number
-    reference_to Engagement
+    reference_to Engagement, optional: true
     attribute :number, Number
     value_object("Number") { attribute :value, String }
 
@@ -64,10 +64,10 @@ Hecks.bluebook "HopChain" do
     end
 
     # The command's own reference is optional, even though the aggregate
-    # head's is not — a nil/never-set reference is real state a hop has
+    # head's is optional too — a nil/never-set reference is real state a hop has
     # to answer for (it never holds, whatever the comparator), and this
-    # is the one way to reach it: an aggregate-head reference_to cannot
-    # itself be declared optional.
+    # to answer for. The command input and retained relationship therefore
+    # state the same optionality explicitly.
     command "Draft" do
       reference_to Engagement, optional: true
       attribute :number, Number
@@ -113,7 +113,7 @@ Hecks.bluebook "HopChain" do
     # CommandBuilder#reference_to's own comment names this exactly:
     # without it, a command referencing its own aggregate's type reads
     # as a second self-reference, refused as naming two roots.
-    reference_to Node, as: :parent
+    reference_to Node, as: :parent, optional: true
     attribute :label, Label
     value_object("Label") { attribute :value, String }
 
@@ -126,7 +126,6 @@ Hecks.bluebook "HopChain" do
 
     query "GrandparentLabelled" do
       where :"parent/parent/label" => :label
-      attribute :label, Label
     end
   end
 end

@@ -1,0 +1,190 @@
+# File
+
+<!-- generated:begin id=page -->
+Words available at the top of a file.
+
+*The tables on this page are generated from the language's own
+aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
+by `bin/reference` — do not edit inside the markers. The prose
+between them is hand-written and survives regeneration.*
+<!-- generated:end -->
+
+These words open the several kinds of file a domain is written
+across, so the page declares one small domain across all of them —
+what it is, how this deployment stores it, what values that
+deployment needs, and one resource door with a real implementation:
+
+```ruby bluebook
+Hecks.bluebook "FileReference" do
+  vision "One domain, written across the three kinds of file."
+
+  aggregate "Dispatch" do
+    attribute :docket, Docket
+
+    identified_by :docket
+    attribute :note, Note
+
+    value_object("Docket") { attribute :value, String }
+    value_object("Note")   { attribute :text,  String }
+
+    # NOT `command "Raise"` — the door would be spelled
+    # `Dispatch.raise`, and `raise` is Kernel's. Domain vocabulary is
+    # worth choosing so it does not land on a built-in; banking renamed
+    # its own `Freeze` and `Send` for the same reason.
+    command "RaiseDispatch" do
+      sets :docket
+      sets :note
+      emits "DispatchRaised"
+    end
+  end
+end
+```
+
+```ruby boot
+Hecks.hecksagon("FileReference") do
+  FileReference::Dispatch.persisted_by("Memory")
+end
+
+Hecks.world("FileReference") do
+  realm "Examples"
+end
+
+Hecks.port("dispatch_door") do
+  verb   "persisted_by"
+  signal :reply
+end
+
+Hecks.adapter("dispatch_memory") do
+  port  "dispatch_door"
+  field :namespace
+end
+
+Hecks.data_translation("FileReference", from: "1", to: "2") do
+  aggregate "Dispatch" do
+    rename :label, to: :note
+  end
+end
+```
+
+## bluebook
+
+<!-- generated:begin word=bluebook -->
+`bluebook name, version: do ... end` — opens a `Bluebook` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+| `version:` | text | false | version |
+<!-- generated:end -->
+
+Opens a `.bluebook` file — one domain's aggregates, value objects, and rules, described as data. `version:` pins a contract version to the whole chapter; most domains declare none, and an unversioned chapter is always the "current" one for its name. A chapter may be split across several files that all open `Hecks.bluebook "Name" do ... end` — their declarations accumulate into one domain rather than the last file replacing the first.
+
+What a chapter holds is readable back off the registry, and it is only
+shape — no adapter, no realm, nothing about where it runs:
+
+```ruby
+runtime.registry.bluebook("FileReference").vision  # => "One domain, written across the three kinds of file."
+runtime.registry.bluebook("FileReference").aggregates.map(&:hecks_name)  # => ["Dispatch"]
+```
+
+That is enough to dispatch against:
+
+```ruby
+FileReference::Dispatch.raise_dispatch!(docket: { value: "d-1" }, note: { text: "first" }).note.text  # => "first"
+```
+
+## world
+
+<!-- generated:begin word=world -->
+`world domain do ... end` — opens a `World` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | domain |
+<!-- generated:end -->
+
+Opens a `.world` file — the values THIS deployment's adapter bindings actually need (a realm, an optional pinned `latest` version, and per-binding settings like a database URL). A sibling of the bluebook, never part of it: the same domain runs in many worlds. See the World reference page.
+
+The realm is the deployment's own name for this running copy, and it is
+the third file's business alone:
+
+```ruby
+runtime.registry.world("FileReference").realm  # => "Examples"
+```
+
+## hecksagon
+
+<!-- generated:begin word=hecksagon -->
+`hecksagon domain do ... end` — opens a `Hecksagon` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | domain |
+<!-- generated:end -->
+
+Opens a `.hecksagon` file — how THIS deployment wires an already-declared bluebook: which adapter persists each aggregate, which events it takes from outside, which driving ports it exposes. Says WHERE, never WHAT; see the Hecksagon reference page for the vocabulary inside.
+
+The bind lives here, not in the chapter — `Dispatch` never says how it
+is stored, and the same chapter would run on Postgres by changing this
+file alone:
+
+```ruby
+runtime.registry.hecksagon("FileReference").binds.map(&:adapter)  # => ["Memory"]
+```
+
+## port
+
+<!-- generated:begin word=port -->
+`port name do ... end` — opens a `Port` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Opens a `.port` file — a resource door a domain's own aggregates call by verb (`persisted_by`, `posted_by`, ...), bound to a real driven adapter at the world level. A sibling artifact too, reused across every domain that needs the same kind of door: `persistence`, `extraction`, and every other port under `lib/hecksagain/ports/` are real examples. See the Port reference page for the words inside.
+
+Read back off the registry, the same way a world is:
+
+```ruby
+runtime.registry.ports["dispatch_door"].verb  # => "persisted_by"
+```
+
+## adapter
+
+<!-- generated:begin word=adapter -->
+`adapter name do ... end` — opens a `Adapter` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Opens a `.adapter` file — a real, swappable implementation of one resource port (Memory, Postgres, Sqlite, ...), naming which fields (and which secrets) a world's own wiring for it must supply. A sibling artifact too. See the Adapter reference page for the words inside.
+
+Read back off the registry, the same way a port is:
+
+```ruby
+runtime.registry.adapters["dispatch_memory"].port  # => "dispatch_door"
+```
+
+## data_translation
+
+<!-- generated:begin word=data_translation -->
+`data_translation name, from:, to: do ... end` — opens a `Translation` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+| `from:` | text | true | from |
+| `to:` | text | true | to |
+<!-- generated:end -->
+
+Opens a translation — how this domain's own stored data moves from one pinned era to the next, aggregate by aggregate. Unlike the other four file kinds, this one has no dedicated extension; the real convention (`bin/scaffold_translation`, `bin/project_deploy`) is a `translations/*.bluebook` file, deliberately excluded from the ordinary boot-time load so an unresolved edge cannot silently participate in it. Never runs against a live registry; it is read by an era-diff tool as a plan, not dispatched. See the Translation reference page for the words inside.
+
+Read back the same way any other file's own declaration is:
+
+```ruby
+runtime.registry.translations.last.aggregates.map(&:name)  # => ["Dispatch"]
+```
+

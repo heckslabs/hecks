@@ -15,9 +15,8 @@ Hecks.bluebook "Paging" do
   # machinery duplicated for no reason.
   aggregate "Syntax" do
     description "The rows this sub-language contributes to the core's own grammar table."
-    identified_by :name
+    identified_by PagingSyntaxName, as: :name
 
-    attribute :name, PagingSyntaxName
 
     value_object "PagingSyntaxName" do
       attribute :value, String

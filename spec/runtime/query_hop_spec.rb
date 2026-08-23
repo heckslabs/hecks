@@ -48,6 +48,13 @@ RSpec.describe "cross-aggregate query filtering" do
     runtime.dispatch("HopChain::Proposal.Send", number: { value: "P-3" })
   end
 
+  it "infers a hop comparison argument from the field it is compared with" do
+    node = runtime.registry.bluebook("HopChain").aggregate("Node")
+    label = node.query("GrandparentLabelled").attribute(:label)
+
+    expect([label.name, label.type.to_s]).to eq([:label, "Label"])
+  end
+
   def ids(query, **args) = runtime.query(query, **args).map { |r| r[:id] }
 
   it "answers a single hop" do

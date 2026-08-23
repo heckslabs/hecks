@@ -316,9 +316,9 @@ impl crate::kernel::Fielded for AuthorizeArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "authorisation" => Some(Field::Nested(&self.authorisation)),
             "tags" => self.tags.as_ref().map(|v| Field::Value(Value::List(v.len()))).or(Some(Field::Value(Value::Nil))),
+            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "amount" => Some(Field::Nested(&self.amount)),
             "merchant" => Some(Field::Nested(&self.merchant)),
             _ => None,
@@ -329,9 +329,9 @@ impl crate::kernel::Fielded for AuthorizeArgs {
 
 #[derive(Debug, Clone)]
 pub struct AuthorizeArgs {
-    pub account: String,
     pub authorisation: AuthorisationCode,
     pub tags: Option<Vec<Tag>>,
+    pub account: String,
     pub amount: PaymentAmount,
     pub merchant: MerchantName,
 }
@@ -370,6 +370,7 @@ pub fn dispatch_authorize(
         ],
         None,
         |record| {
+        record.account = Some(args.account.clone());
         record.amount = Some(args.amount.clone());
         record.merchant = Some(args.merchant.clone());
         record.tags = args.tags.clone();
@@ -387,9 +388,9 @@ pub fn dispatch_authorize(
 impl AuthorizeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("authorisation".to_string(), self.authorisation.to_json()),
         ("tags".to_string(), self.tags.as_ref().map(|v| crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())).unwrap_or(crate::kernel::Json::Null)),
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("amount".to_string(), self.amount.to_json()),
         ("merchant".to_string(), self.merchant.to_json()),
         ])
@@ -398,17 +399,17 @@ impl AuthorizeArgs {
 
 impl AuthorizeArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account", "authorisation", "tags", "amount", "merchant", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["authorisation", "tags", "account", "amount", "merchant", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Authorize does not declare {} — it takes account, authorisation, tags, amount, merchant",
+        "Authorize does not declare {} — it takes authorisation, tags, account, amount, merchant",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account: { let x = v.require("account", "AuthorizeArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()))? },
         authorisation: AuthorisationCode::from_json(&v.require("authorisation", "AuthorizeArgs")?.coerce_single_field("value"))?,
         tags: match v.get("tags") { Some(x) => Some(x.as_array().ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.tags: expected an array".to_string()))?.iter().map(Tag::from_json).collect::<Result<Vec<_>, crate::kernel::Refusal>>()?), None => None, },
+        account: { let x = v.require("account", "AuthorizeArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AuthorizeArgs.account: expected String".to_string()))? },
         amount: PaymentAmount::from_json(&v.require("amount", "AuthorizeArgs")?.coerce_single_field("cents"))?,
         merchant: MerchantName::from_json(&v.require("merchant", "AuthorizeArgs")?.coerce_single_field("value"))?,
         })

@@ -34,7 +34,7 @@ RSpec.describe "the judge's coverage of the language" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
     @banking = registry.bluebook("Banking")
     # ADR 0026 — Paging is the one real chapter that ever calls

@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecksagain/forms/field_shape"
 
 RSpec.describe Hecksagain::Forms::FieldShape do
-  BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   # No persistence adapter, no hecksagon, no verify! — a Field is derived
   # purely from the IR. The extraction port/adapter still has to be there
@@ -16,7 +16,7 @@ RSpec.describe Hecksagain::Forms::FieldShape do
     Hecksagain.with_registry(registry) do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(BANKING_BLUEBOOK)
+      load_bluebook_files(BANKING_BLUEBOOK)
     end
     @banking = registry.bluebook("Banking")
   end

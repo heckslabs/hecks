@@ -265,11 +265,11 @@ impl crate::kernel::Fielded for RequestArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "source" => Some(Field::Value(Value::Str(self.source.clone()))),
-            "destination" => Some(Field::Value(Value::Str(self.destination.clone()))),
             "reference" => Some(Field::Nested(&self.reference)),
             "amount" => Some(Field::Nested(&self.amount)),
             "narrative" => Some(Field::Nested(&self.narrative)),
+            "source" => Some(Field::Value(Value::Str(self.source.clone()))),
+            "destination" => Some(Field::Value(Value::Str(self.destination.clone()))),
             _ => None,
         }
     }
@@ -278,11 +278,11 @@ impl crate::kernel::Fielded for RequestArgs {
 
 #[derive(Debug, Clone)]
 pub struct RequestArgs {
-    pub source: String,
-    pub destination: String,
     pub reference: TransferReference,
     pub amount: TransferMoney,
     pub narrative: Narrative,
+    pub source: String,
+    pub destination: String,
 }
 
 pub fn dispatch_request(
@@ -338,30 +338,30 @@ pub fn dispatch_request(
 impl RequestArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("source".to_string(), crate::kernel::Json::Str(self.source.clone())),
-        ("destination".to_string(), crate::kernel::Json::Str(self.destination.clone())),
         ("reference".to_string(), self.reference.to_json()),
         ("amount".to_string(), self.amount.to_json()),
         ("narrative".to_string(), self.narrative.to_json()),
+        ("source".to_string(), crate::kernel::Json::Str(self.source.clone())),
+        ("destination".to_string(), crate::kernel::Json::Str(self.destination.clone())),
         ])
     }
 }
 
 impl RequestArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["source", "destination", "reference", "amount", "narrative", "id", "end_to_end"]);
+let unknown = v.unknown_keys(&["reference", "amount", "narrative", "source", "destination", "id", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Request does not declare {} — it takes source, destination, reference, amount, narrative",
+        "Request does not declare {} — it takes reference, amount, narrative, source, destination",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        source: { let x = v.require("source", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()))? },
-        destination: { let x = v.require("destination", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()))? },
         reference: TransferReference::from_json(&v.require("reference", "RequestArgs")?.coerce_single_field("value"))?,
         amount: TransferMoney::from_json(&v.require("amount", "RequestArgs")?.coerce_single_field("cents"))?,
         narrative: Narrative::from_json(&v.require("narrative", "RequestArgs")?.coerce_single_field("text"))?,
+        source: { let x = v.require("source", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.source: expected String".to_string()))? },
+        destination: { let x = v.require("destination", "RequestArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("RequestArgs.destination: expected String".to_string()))? },
         })
     }
 }

@@ -175,6 +175,7 @@ pub struct AskArgument {
     pub pattern: Option<String>,
     pub default: Option<String>,
     pub admits: Option<String>,
+    pub relationship: Option<String>,
 }
 
 impl crate::kernel::Fielded for AskArgument {
@@ -189,6 +190,7 @@ impl crate::kernel::Fielded for AskArgument {
             "pattern" => self.pattern.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "default" => self.default.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             "admits" => self.admits.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
+            "relationship" => self.relationship.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -212,16 +214,17 @@ impl AskArgument {
         ("pattern".to_string(), self.pattern.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("default".to_string(), self.default.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ("admits".to_string(), self.admits.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
+        ("relationship".to_string(), self.relationship.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
 
 impl AskArgument {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits"]);
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "AskArgument does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        "AskArgument does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
         unknown.join(", ")
     )));
 }
@@ -233,6 +236,7 @@ if !unknown.is_empty() {
         pattern: match v.get("pattern") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.pattern: expected String".to_string()))?), None => None, },
         default: match v.get("default") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.default: expected String".to_string()))?), None => None, },
         admits: match v.get("admits") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.admits: expected String".to_string()))?), None => None, },
+        relationship: match v.get("relationship") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("AskArgument.relationship: expected String".to_string()))?), None => None, },
         })
     }
 }
@@ -344,6 +348,126 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct KeywordSeed {
+    pub word: &'static str,
+    pub context: &'static str,
+    pub body: &'static str,
+    pub inner: &'static str,
+    pub opens: &'static str,
+    pub fills: &'static str,
+    pub status: &'static str,
+    pub was: &'static str,
+    pub resolves_via: &'static str,
+    pub disambiguator: &'static str,
+}
+
+pub const KEYWORD_SEED: &[KeywordSeed] = &[
+    KeywordSeed { word: "description", context: "Query", body: "none", inner: "", opens: "", fills: "description", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "attribute", context: "Query", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "reference_to", context: "Query", body: "none", inner: "", opens: "", fills: "attributes", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "where", context: "Query", body: "none", inner: "", opens: "", fills: "wheres", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "order_by", context: "Query", body: "none", inner: "", opens: "", fills: "order_field", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "authorize", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "inspect_query", context: "Query", body: "none", inner: "", opens: "", fills: "options", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+];
+
+impl KeywordSeed {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("word".to_string(), crate::kernel::Json::Str(self.word.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("body".to_string(), crate::kernel::Json::Str(self.body.to_string())),
+        ("inner".to_string(), crate::kernel::Json::Str(self.inner.to_string())),
+        ("opens".to_string(), crate::kernel::Json::Str(self.opens.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("was".to_string(), crate::kernel::Json::Str(self.was.to_string())),
+        ("resolves_via".to_string(), crate::kernel::Json::Str(self.resolves_via.to_string())),
+        ("disambiguator".to_string(), crate::kernel::Json::Str(self.disambiguator.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in KEYWORD_SEED {
+            if v.get("word").and_then(crate::kernel::Json::as_str) == Some(row.word) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("body").and_then(crate::kernel::Json::as_str) == Some(row.body) && v.get("inner").and_then(crate::kernel::Json::as_str) == Some(row.inner) && v.get("opens").and_then(crate::kernel::Json::as_str) == Some(row.opens) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("was").and_then(crate::kernel::Json::as_str) == Some(row.was) && v.get("resolves_via").and_then(crate::kernel::Json::as_str) == Some(row.resolves_via) && v.get("disambiguator").and_then(crate::kernel::Json::as_str) == Some(row.disambiguator) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordSeed: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArgumentSeed {
+    pub keyword: &'static str,
+    pub context: &'static str,
+    pub at: &'static str,
+    pub named: &'static str,
+    pub kind: &'static str,
+    pub required: &'static str,
+    pub fills: &'static str,
+    pub selects: &'static str,
+    pub pair_key_fills: &'static str,
+    pub pair_value_fills: &'static str,
+    pub pairs_shape: &'static str,
+    pub status: &'static str,
+    pub variadic: &'static str,
+    pub coerce: &'static str,
+    pub blank_message: &'static str,
+}
+
+pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
+    ArgumentSeed { keyword: "description", context: "Query", at: "1", named: "", kind: "text", required: "true", fills: "description", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "false", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "2", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "default", kind: "literal", required: "false", fills: "default", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "pattern", kind: "text", required: "false", fills: "pattern", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "admits", kind: "text", required: "false", fills: "admits", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attribute", context: "Query", at: "", named: "one_of", kind: "list", required: "false", fills: "one_of", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "reference_to", context: "Query", at: "1", named: "", kind: "constant", required: "true", fills: "type", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "reference_to", context: "Query", at: "", named: "as", kind: "symbol", required: "false", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "reference_to", context: "Query", at: "", named: "optional", kind: "flag", required: "false", fills: "optional", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "where", context: "Query", at: "1", named: "", kind: "pairs", required: "true", fills: "wheres", selects: "", pair_key_fills: "field", pair_value_fills: "value", pairs_shape: "elements", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "order_by", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "order_field", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "order_by", context: "Query", at: "2", named: "", kind: "symbol", required: "false", fills: "order_way", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "authorize", context: "Query", at: "1", named: "", kind: "symbol", required: "true", fills: "policy", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "authorize", context: "Query", at: "", named: "tenant", kind: "symbol", required: "false", fills: "tenant", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "inspect_query", context: "Query", at: "1", named: "", kind: "symbol", required: "false", fills: "mode", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+];
+
+impl ArgumentSeed {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("keyword".to_string(), crate::kernel::Json::Str(self.keyword.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("at".to_string(), crate::kernel::Json::Str(self.at.to_string())),
+        ("named".to_string(), crate::kernel::Json::Str(self.named.to_string())),
+        ("kind".to_string(), crate::kernel::Json::Str(self.kind.to_string())),
+        ("required".to_string(), crate::kernel::Json::Str(self.required.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("selects".to_string(), crate::kernel::Json::Str(self.selects.to_string())),
+        ("pair_key_fills".to_string(), crate::kernel::Json::Str(self.pair_key_fills.to_string())),
+        ("pair_value_fills".to_string(), crate::kernel::Json::Str(self.pair_value_fills.to_string())),
+        ("pairs_shape".to_string(), crate::kernel::Json::Str(self.pairs_shape.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("variadic".to_string(), crate::kernel::Json::Str(self.variadic.to_string())),
+        ("coerce".to_string(), crate::kernel::Json::Str(self.coerce.to_string())),
+        ("blank_message".to_string(), crate::kernel::Json::Str(self.blank_message.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in ARGUMENT_SEED {
+            if v.get("keyword").and_then(crate::kernel::Json::as_str) == Some(row.keyword) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("at").and_then(crate::kernel::Json::as_str) == Some(row.at) && v.get("named").and_then(crate::kernel::Json::as_str) == Some(row.named) && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind) && v.get("required").and_then(crate::kernel::Json::as_str) == Some(row.required) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("selects").and_then(crate::kernel::Json::as_str) == Some(row.selects) && v.get("pair_key_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_key_fills) && v.get("pair_value_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_value_fills) && v.get("pairs_shape").and_then(crate::kernel::Json::as_str) == Some(row.pairs_shape) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("variadic").and_then(crate::kernel::Json::as_str) == Some(row.variadic) && v.get("coerce").and_then(crate::kernel::Json::as_str) == Some(row.coerce) && v.get("blank_message").and_then(crate::kernel::Json::as_str) == Some(row.blank_message) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentSeed: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Query {
     pub aggregate: Option<String>,
     pub entity_id: Option<String>,
@@ -436,125 +560,6 @@ impl Query {
     }
 }
 
-impl crate::kernel::Fielded for DeclareArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        use crate::kernel::Value;
-        match name {
-            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
-            "entity_id" => self.entity_id.as_ref().map(|v| Field::Value(Value::Str(v.clone()))).or(Some(Field::Value(Value::Nil))),
-            "name" => Some(Field::Nested(&self.name)),
-            "description" => self.description.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "order_field" => self.order_field.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "order_way" => self.order_way.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "limit" => self.limit.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "position" => self.position.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct DeclareArgs {
-    pub aggregate: String,
-    pub entity_id: Option<String>,
-    pub name: QueryName,
-    pub description: Option<QueryText>,
-    pub order_field: Option<QueryText>,
-    pub order_way: Option<QueryText>,
-    pub limit: Option<QueryText>,
-    pub position: Option<Position>,
-}
-
-pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Query>, owner_id: &str, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<Query> {
-        args.name.check_invariants()?;
-        if let Some(v) = &args.description { v.check_invariants()?; }
-        if let Some(v) = &args.order_field { v.check_invariants()?; }
-        if let Some(v) = &args.order_way { v.check_invariants()?; }
-        if let Some(v) = &args.limit { v.check_invariants()?; }
-        if let Some(v) = &args.position { v.check_invariants()?; }
-    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Create {
-        id: format!("{}:{}", owner_id, args.name.value.to_string()),
-        build: Box::new(|| Query {
-            aggregate: Some(args.aggregate.clone()),
-            entity_id: args.entity_id.clone(),
-            name: Some(args.name.clone()),
-            description: args.description.clone(),
-            order_field: args.order_field.clone(),
-            order_way: args.order_way.clone(),
-            limit: args.limit.clone(),
-            wheres: vec![],
-            attributes: vec![],
-            options: vec![],
-            position: args.position.clone(),
-        }),
-    },
-        "Declare",
-        "Bluebook::Query",
-        "Query",
-        "owner_id, name.value",
-        &with_references,
-        &[
-
-        ],
-        None,
-        |record| {
-        let _ = record;
-            Ok(())
-        },
-        &[
-
-        ],
-        &["AskDeclared"],
-        args.to_json(),
-        mutations,
-    )
-}
-
-impl DeclareArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("aggregate".to_string(), crate::kernel::Json::Str(self.aggregate.clone())),
-        ("entity_id".to_string(), self.entity_id.as_ref().map(|v| crate::kernel::Json::Str(v.clone())).unwrap_or(crate::kernel::Json::Null)),
-        ("name".to_string(), self.name.to_json()),
-        ("description".to_string(), self.description.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("order_field".to_string(), self.order_field.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("order_way".to_string(), self.order_way.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("limit".to_string(), self.limit.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("position".to_string(), self.position.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
-    }
-}
-
-impl DeclareArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["aggregate", "entity_id", "name", "description", "order_field", "order_way", "limit", "position", "id", "owner_id"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes aggregate, entity_id, name, description, order_field, order_way, limit, position",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        aggregate: { let x = v.require("aggregate", "DeclareArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.aggregate: expected String".to_string()))? },
-        entity_id: match v.get("entity_id") { Some(x) => Some(x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("DeclareArgs.entity_id: expected String".to_string()))?), None => None, },
-        name: QueryName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
-        description: match v.get("description") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
-        order_field: match v.get("order_field") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
-        order_way: match v.get("order_way") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
-        limit: match v.get("limit") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
-        position: match v.get("position") { Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?), None => None, },
-        })
-    }
-}
-
 impl crate::kernel::Fielded for FilterArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -622,7 +627,7 @@ impl FilterArgs {
 
 impl FilterArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["field", "op", "value", "id", "query", "owner_id", "name"]);
+let unknown = v.unknown_keys(&["field", "op", "value", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Filter does not declare {} — it takes field, op, value",
@@ -707,7 +712,7 @@ impl OptionArgs {
 
 impl OptionArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "query", "owner_id", "name"]);
+let unknown = v.unknown_keys(&["option", "key", "value", "at", "id", "owner_id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Option does not declare {} — it takes option, key, value, at",
@@ -735,6 +740,7 @@ impl crate::kernel::Fielded for ArgumentArgs {
             "pattern" => self.pattern.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "default" => self.default.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             "admits" => self.admits.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
+            "relationship" => self.relationship.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
             _ => None,
         }
     }
@@ -750,6 +756,7 @@ pub struct ArgumentArgs {
     pub pattern: Option<QueryText>,
     pub default: Option<QueryText>,
     pub admits: Option<QueryText>,
+    pub relationship: Option<QueryText>,
 }
 
 pub fn dispatch_argument(
@@ -762,6 +769,7 @@ pub fn dispatch_argument(
         if let Some(v) = &args.pattern { v.check_invariants()?; }
         if let Some(v) = &args.default { v.check_invariants()?; }
         if let Some(v) = &args.admits { v.check_invariants()?; }
+        if let Some(v) = &args.relationship { v.check_invariants()?; }
     let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
 
     crate::kernel::dispatch(
@@ -777,7 +785,7 @@ pub fn dispatch_argument(
         ],
         None,
         |record| {
-        record.attributes.push(AskArgument { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.clone().map(|v| v.value.clone()), optional: args.optional.clone().map(|v| v.value.clone()), pattern: args.pattern.clone().map(|v| v.value.clone()), admits: args.admits.clone().map(|v| v.value.clone()) });
+        record.attributes.push(AskArgument { name: args.name.value.clone(), r#type: args.r#type.value.clone(), list: args.list.value.clone(), default: args.default.clone().map(|v| v.value.clone()), optional: args.optional.clone().map(|v| v.value.clone()), pattern: args.pattern.clone().map(|v| v.value.clone()), admits: args.admits.clone().map(|v| v.value.clone()), relationship: args.relationship.clone().map(|v| v.value.clone()) });
             Ok(())
         },
         &[
@@ -799,16 +807,17 @@ impl ArgumentArgs {
         ("pattern".to_string(), self.pattern.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("default".to_string(), self.default.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ("admits".to_string(), self.admits.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
+        ("relationship".to_string(), self.relationship.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
         ])
     }
 }
 
 impl ArgumentArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "id", "query", "owner_id"]);
+let unknown = v.unknown_keys(&["name", "type", "list", "optional", "pattern", "default", "admits", "relationship", "id", "owner_id"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Argument does not declare {} — it takes name, type, list, optional, pattern, default, admits",
+        "Argument does not declare {} — it takes name, type, list, optional, pattern, default, admits, relationship",
         unknown.join(", ")
     )));
 }
@@ -820,6 +829,7 @@ if !unknown.is_empty() {
         pattern: match v.get("pattern") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
         default: match v.get("default") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
         admits: match v.get("admits") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
+        relationship: match v.get("relationship") { Some(x) => Some(QueryText::from_json(&x.coerce_single_field("value"))?), None => None, },
         })
     }
 }

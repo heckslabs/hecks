@@ -2,6 +2,7 @@ require "json"
 require_relative "saga_interpreter/correlation"
 require_relative "../bluebook/process_manager"
 require_relative "errors"
+require_relative "reaction_invocation"
 require_relative "value"
 
 module Hecksagain
@@ -166,8 +167,16 @@ module Hecksagain
 
         attempt = 0
         begin
+          invocation = ReactionInvocation.build(
+            registry:        @registry,
+            verb:            qualified(spec.command_name, domain),
+            projected:       args,
+            explicit:        ReactionInvocation.projection_declared?(spec),
+            passthrough:     [pm.correlation_head],
+            source_receiver: { aggregate: event.aggregate, identity: event.id }
+          )
           @door.reenter(qualified(spec.command_name, domain),
-                        saga_correlation: { pm.correlation_head.to_s => correlation }, **args)
+                        saga_correlation: { pm.correlation_head.to_s => correlation }, **invocation)
           @registry.saga_log << record.merge(delivered: true)
         rescue *DOMAIN_REFUSALS => error
           # Same rule as the policy interpreter : a refusal by the target is
@@ -258,18 +267,12 @@ module Hecksagain
       end
 
       def dispatch_args(pm, spec, event, instance, correlation)
-        spec.with_spec.to_h do |key, value|
-          resolved = if !value.is_a?(Symbol) then value
-                     elsif value == pm.correlation_head then correlation
-                     elsif event.payload.key?(value) then event.payload[value]
-                     else instance[:memory][value]
-                     end
-          # A process manager carries facts between aggregate boundaries.  It
-          # must carry a value object's state, not its source aggregate's
-          # runtime type: TransferMoney and Account::Money may share fields
-          # without being the same domain object.
-          [key.to_sym, Value.materialize(resolved)]
-        end
+        ReactionInvocation.resolve_mapping(
+          with_spec: spec.with_spec,
+          scopes:    [["current event payload", event.payload], ["opening event memory", instance[:memory]]],
+          bindings:  { pm.correlation_head => correlation },
+          label:     "#{pm.name}'s dispatch #{spec.command_name}"
+        )
       end
 
       def qualified(command_name, domain)

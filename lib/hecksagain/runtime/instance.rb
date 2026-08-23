@@ -107,6 +107,11 @@ module Hecksagain
         identity  = @aggregate.identified_by || :id
         attribute = @aggregate.attribute(identity)
         return unless attribute && @state[identity].nil?
+        # Several paths under one head mean the identifier is a display key,
+        # not a reversible serialization of the structured value object. A
+        # creating command supplies that object explicitly; persisted state
+        # hydrates it from storage. Never guess by splitting the joined id.
+        return if @aggregate.identity_heads.one? && @aggregate.identity_paths.size > 1
 
         @state[identity] = Value.from_identifier(@aggregate, attribute, @id)
       end

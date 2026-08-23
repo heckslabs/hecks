@@ -59,7 +59,7 @@ fn an_unset_optional_field_round_trips_as_none_not_a_refusal() {
     register_customer(&mut store, "CUST-RT-0002");
 
     let args = Json::obj(vec![
-        ("customer_id", Json::str("CUST-RT-0002")),
+        ("customer", Json::str("CUST-RT-0002")),
         ("number", Json::obj(vec![("value", Json::str("acct-rt-1"))])),
         ("kind", Json::obj(vec![("name", Json::str("current"))])),
         ("daily_limit", Json::obj(vec![("cents", Json::int(50000))])),
@@ -89,7 +89,7 @@ fn a_record_holding_entities_with_and_without_an_optional_field_round_trips() {
     register_customer(&mut store, "CUST-RT-0003");
 
     let rent_args = Json::obj(vec![
-        ("customer_id", Json::str("CUST-RT-0003")),
+        ("customer", Json::str("CUST-RT-0003")),
         ("branch_code", Json::obj(vec![("value", Json::str("downtown"))])),
         ("box_number", Json::obj(vec![("value", Json::int(12))])),
         ("size", Json::obj(vec![("value", Json::str("medium"))])),
@@ -140,7 +140,7 @@ fn a_seeded_store_matches_the_store_it_was_seeded_from() {
     let mut original_store = Store::new();
     register_customer(&mut original_store, "CUST-RT-0004");
     let open_args = Json::obj(vec![
-        ("customer_id", Json::str("CUST-RT-0004")),
+        ("customer", Json::str("CUST-RT-0004")),
         ("number", Json::obj(vec![("value", Json::str("acct-rt-2"))])),
         ("kind", Json::obj(vec![("name", Json::str("savings"))])),
         ("daily_limit", Json::obj(vec![("cents", Json::int(10000))])),

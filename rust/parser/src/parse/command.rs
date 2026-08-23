@@ -34,8 +34,14 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// two. `None` when the call gave no `from:` at all, matching
 /// `CommandBuilder#initialize`'s own `case from when Array ... when nil
 /// then nil else from.to_s end` default.
-pub fn parse_from(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<Option<ir::CommandFrom>> {
-    let Some(raw) = super::named_raw(args, "from") else { return Ok(None) };
+pub fn parse_from(
+    file: &str,
+    line: usize,
+    args: &super::ArgumentGateResult,
+) -> ParseResult<Option<ir::CommandFrom>> {
+    let Some(raw) = super::named_raw(args, "from") else {
+        return Ok(None);
+    };
     match ruby_value::read(raw.trim()) {
         ruby_value::Value::Str(s) => Ok(Some(ir::CommandFrom::Single(s))),
         ruby_value::Value::Array(items) => {
@@ -112,8 +118,12 @@ fn try_reference_named_given(
     preconditions: &[ir::Given],
     entity_shared_givens: &[ir::Given],
 ) -> ParseResult<Option<ir::Given>> {
-    let Some(&line) = lines.get(*pos) else { return Ok(None) };
-    let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
+    let Some(&line) = lines.get(*pos) else {
+        return Ok(None);
+    };
+    let LineShape::Call(call) = lex::classify(file, &line)? else {
+        return Ok(None);
+    };
     if call.word != "given" || !matches!(call.opener, Opener::None) {
         return Ok(None);
     }
@@ -182,50 +192,89 @@ pub fn parse_body(
     owner_value_objects: &[ir::ValueObject],
     owner_entities: &[ir::Entity],
 ) -> ParseResult<ir::Command> {
-    let mut command = ir::Command { name: name.to_string(), from, ..Default::default() };
+    let mut command = ir::Command {
+        name: name.to_string(),
+        from,
+        ..Default::default()
+    };
 
     loop {
-        if let Some(given) = try_reference_named_given(file, lines, pos, preconditions, entity_shared_givens)? {
+        if let Some(given) =
+            try_reference_named_given(file, lines, pos, preconditions, entity_shared_givens)?
+        {
             command.givens.push(given);
             continue;
         }
 
         let Some(gated) = super::next_line(file, lines, pos, "Command")? else {
-            resolve_implicit_attributes(&mut command, owner_attributes, owner_value_objects, owner_entities);
+            resolve_implicit_attributes(
+                &mut command,
+                owner_attributes,
+                owner_value_objects,
+                owner_entities,
+            );
             return Ok(command);
         };
         let line = gated.line.number;
 
         match gated.row.word {
-            "role" => command.role = Some(super::positional_text(file, line, "role", &gated.args, 1)?),
-            "goal" => command.goal = Some(super::positional_text(file, line, "goal", &gated.args, 1)?),
+            "role" => {
+                command.role = Some(super::positional_text(file, line, "role", &gated.args, 1)?)
+            }
+            "goal" => {
+                command.goal = Some(super::positional_text(file, line, "goal", &gated.args, 1)?)
+            }
             // A synthesized inline `one_of(...)` closed set is discarded
             // here on purpose — `CommandBuilder#build` never reads
             // `AttributeCollector#closed_sets`, confirmed by reading it
             // directly (`build/closed_sets.rs`'s own header names this
             // caller specifically). The attribute's own `type_name` is
             // already the right Pascal-cased name either way.
-            "attribute" => command.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
-            "emits" => command.emits.push(super::positional_text(file, line, "emits", &gated.args, 1)?),
+            "attribute" => command
+                .attributes
+                .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
+            "emits" => {
+                command
+                    .emits
+                    .push(super::positional_text(file, line, "emits", &gated.args, 1)?)
+            }
             "reference_to" => apply_reference_to(file, line, &gated.args, owner, &mut command)?,
             "given" => {
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                command.givens.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+                command.givens.push(ir::Given {
+                    description: Some(description),
+                    canonical: canonical::apply(&raw),
+                });
             }
             "ensures" => {
                 let description = super::positional_text(file, line, "ensures", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                command.ensures.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+                command.ensures.push(ir::Given {
+                    description: Some(description),
+                    canonical: canonical::apply(&raw),
+                });
             }
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")
                     .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;
                 command.provenance = Some(ruby_value::read(raw.trim()));
             }
-            "sets" => command.mutations.push(build_mutation(file, line, &gated.args)?),
-            "delegates_to" => command.mutations.push(build_delegation(file, line, &gated.args)?),
-            _ => return Err(super::not_built_yet("Command", gated.row, file, line, &gated.call.word)),
+            "sets" => command
+                .mutations
+                .push(build_mutation(file, line, &gated.args)?),
+            "delegates_to" => command
+                .mutations
+                .push(build_delegation(file, line, &gated.args)?),
+            _ => {
+                return Err(super::not_built_yet(
+                    "Command",
+                    gated.row,
+                    file,
+                    line,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 }
@@ -250,27 +299,43 @@ fn resolve_implicit_attributes(
 ) {
     enum Job {
         BareSet(String),
-        Append { target: String, fields: Vec<(String, String)> },
+        Append {
+            target: String,
+            fields: Vec<(String, String)>,
+        },
     }
 
     let jobs: Vec<Job> = command
         .mutations
         .iter()
         .filter_map(|mutation| match mutation {
-            ir::Mutation::Other { target, op, source: Some(ir::MutationSource::Argument(name)), .. } if op == "set" && name == target => {
-                Some(Job::BareSet(target.clone()))
-            }
-            ir::Mutation::Append { target, fields } => Some(Job::Append { target: target.clone(), fields: fields.clone() }),
+            ir::Mutation::Other {
+                target,
+                op,
+                source: Some(ir::MutationSource::Argument(name)),
+                ..
+            } if op == "set" && name == target => Some(Job::BareSet(target.clone())),
+            ir::Mutation::Append { target, fields } => Some(Job::Append {
+                target: target.clone(),
+                fields: fields.clone(),
+            }),
             _ => None,
         })
         .collect();
 
     for job in jobs {
         match job {
-            Job::BareSet(target) => resolve_bare_set(&mut command.attributes, &target, owner_attributes),
-            Job::Append { target, fields } => {
-                resolve_append_fields(&mut command.attributes, &target, &fields, owner_attributes, owner_value_objects, owner_entities)
+            Job::BareSet(target) => {
+                resolve_bare_set(&mut command.attributes, &target, owner_attributes)
             }
+            Job::Append { target, fields } => resolve_append_fields(
+                &mut command.attributes,
+                &target,
+                &fields,
+                owner_attributes,
+                owner_value_objects,
+                owner_entities,
+            ),
         }
     }
 }
@@ -303,7 +368,11 @@ fn resolve_implicit_attributes(
 /// declares its attributes before the commands that act on them) and
 /// which `aggregate::parse_body`/`entity::parse_body` both guarantee by
 /// handing in their own `attributes` Vec mid-walk.
-fn resolve_bare_set(attributes: &mut Vec<ir::Attribute>, target: &str, owner_attributes: &[ir::Attribute]) {
+fn resolve_bare_set(
+    attributes: &mut Vec<ir::Attribute>,
+    target: &str,
+    owner_attributes: &[ir::Attribute],
+) {
     if attributes.iter().any(|attr| attr.name == target) {
         return;
     }
@@ -326,12 +395,20 @@ fn element_type_attributes<'a>(
     owner_value_objects: &'a [ir::ValueObject],
     owner_entities: &'a [ir::Entity],
 ) -> Option<&'a [ir::Attribute]> {
-    let list_attr = owner_attributes.iter().find(|attr| attr.name == list_field && attr.list)?;
+    let list_attr = owner_attributes
+        .iter()
+        .find(|attr| attr.name == list_field && attr.list)?;
 
-    if let Some(vo) = owner_value_objects.iter().find(|vo| vo.name == list_attr.type_name) {
+    if let Some(vo) = owner_value_objects
+        .iter()
+        .find(|vo| vo.name == list_attr.type_name)
+    {
         return Some(&vo.attributes);
     }
-    owner_entities.iter().find(|entity| entity.name == list_attr.type_name).map(|entity| entity.attributes.as_slice())
+    owner_entities
+        .iter()
+        .find(|entity| entity.name == list_attr.type_name)
+        .map(|entity| entity.attributes.as_slice())
 }
 
 /// `CommandBuilder#resolve_append_fields!` — ONE HOP DEEPER than
@@ -365,18 +442,28 @@ fn resolve_append_fields(
     owner_value_objects: &[ir::ValueObject],
     owner_entities: &[ir::Entity],
 ) {
-    let Some(element_attrs) = element_type_attributes(target, owner_attributes, owner_value_objects, owner_entities) else {
+    let Some(element_attrs) = element_type_attributes(
+        target,
+        owner_attributes,
+        owner_value_objects,
+        owner_entities,
+    ) else {
         return;
     };
 
-    let self_ref_fields: Vec<&str> =
-        fields.iter().filter(|(field, value)| *value == format!(":{field}")).map(|(field, _)| field.as_str()).collect();
+    let self_ref_fields: Vec<&str> = fields
+        .iter()
+        .filter(|(field, value)| *value == format!(":{field}"))
+        .map(|(field, _)| field.as_str())
+        .collect();
     if self_ref_fields.is_empty() {
         return;
     }
 
-    let present: Vec<ir::Attribute> =
-        self_ref_fields.iter().filter_map(|field| attributes.iter().find(|attr| attr.name == *field).cloned()).collect();
+    let present: Vec<ir::Attribute> = self_ref_fields
+        .iter()
+        .filter_map(|field| attributes.iter().find(|attr| attr.name == *field).cloned())
+        .collect();
     if present.len() == self_ref_fields.len() {
         return; // already fully declared — nothing to resolve
     }
@@ -384,7 +471,11 @@ fn resolve_append_fields(
     let anchor = if present.is_empty() {
         attributes.len()
     } else {
-        present.iter().filter_map(|attr| attributes.iter().position(|a| a.name == attr.name)).min().unwrap_or(attributes.len())
+        present
+            .iter()
+            .filter_map(|attr| attributes.iter().position(|a| a.name == attr.name))
+            .min()
+            .unwrap_or(attributes.len())
     };
 
     attributes.retain(|attr| !present.iter().any(|p| p.name == attr.name));
@@ -392,7 +483,16 @@ fn resolve_append_fields(
     let group: Vec<ir::Attribute> = self_ref_fields
         .iter()
         .filter_map(|field| {
-            present.iter().find(|attr| attr.name == *field).cloned().or_else(|| element_attrs.iter().find(|attr| attr.name == *field).cloned())
+            present
+                .iter()
+                .find(|attr| attr.name == *field)
+                .cloned()
+                .or_else(|| {
+                    element_attrs
+                        .iter()
+                        .find(|attr| attr.name == *field)
+                        .cloned()
+                })
         })
         .collect();
 
@@ -417,7 +517,11 @@ fn apply_reference_to(
     let optional = super::named_flag(args, "optional");
 
     if as_name.is_some() || target != owner {
-        command.attributes.push(references::reference_attribute(&target, as_name.as_deref(), optional));
+        command.attributes.push(references::reference_attribute(
+            &target,
+            as_name.as_deref(),
+            optional,
+        ));
         return Ok(());
     }
 
@@ -425,7 +529,10 @@ fn apply_reference_to(
         return Err(Diagnostic::new(
             file,
             line,
-            format!("{}'s command references {owner} twice — a command acts on ONE root", command.name),
+            format!(
+                "{}'s command references {owner} twice — a command acts on ONE root",
+                command.name
+            ),
         ));
     }
     command.references = Some(target);
@@ -453,7 +560,11 @@ fn apply_reference_to(
 /// special case is needed beyond naming the op. `remove:` matches an
 /// element by VALUE, sourced the same single-argument-or-literal way
 /// increment/decrement/multiply already are.
-fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> ParseResult<ir::Mutation> {
+fn build_mutation(
+    file: &str,
+    line: usize,
+    args: &super::ArgumentGateResult,
+) -> ParseResult<ir::Mutation> {
     let target = super::positional_symbol(file, line, "sets", args, 1)?;
 
     let named: Vec<(&str, &str)> = [
@@ -465,9 +576,9 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
         ("clamp", "clamp"),
         ("remove", "remove"),
     ]
-        .into_iter()
-        .filter_map(|(key, op)| super::named_raw(args, key).map(|raw| (op, raw)))
-        .collect();
+    .into_iter()
+    .filter_map(|(key, op)| super::named_raw(args, key).map(|raw| (op, raw)))
+    .collect();
 
     if named.len() > 1 {
         return Err(Diagnostic::new(file, line, format!("'sets :{target}' tries more than one operation at once — one mutation, one meaning")));
@@ -486,7 +597,10 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
 
     let (op, raw) = named[0];
     if op == "append" {
-        let fields = parse_hash_literal_pairs(raw).into_iter().map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v)))).collect();
+        let fields = parse_hash_literal_pairs(raw)
+            .into_iter()
+            .map(|(k, v)| (k, ruby_value::render(&ruby_value::read(&v))))
+            .collect();
         return Ok(ir::Mutation::Append { target, fields });
     }
 
@@ -511,7 +625,12 @@ fn build_mutation(file: &str, line: usize, args: &super::ArgumentGateResult) -> 
         ruby_value::Value::Symbol(name) => ir::MutationSource::Argument(name),
         other => ir::MutationSource::Literal(other),
     };
-    Ok(ir::Mutation::Other { target, op: op.to_string(), sign: mutation_sign(op).to_string(), source: Some(source) })
+    Ok(ir::Mutation::Other {
+        target,
+        op: op.to_string(),
+        sign: mutation_sign(op).to_string(),
+        source: Some(source),
+    })
 }
 
 /// `CommandBuilder#delegates_to_impl` — `delegates_to "Entity.Command",
@@ -569,9 +688,14 @@ fn mutation_sign(op: &str) -> &'static str {
 /// and this one sits inside `sets`'s own parens).
 fn parse_hash_literal_pairs(text: &str) -> Vec<(String, String)> {
     let trimmed = text.trim();
-    let inner = trimmed.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(trimmed);
+    let inner = trimmed
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or(trimmed);
     ruby_value::split_items(inner)
         .into_iter()
-        .filter_map(|segment| super::as_named(&segment).map(|(k, v)| (k.to_string(), v.to_string())))
+        .filter_map(|segment| {
+            super::as_named(&segment).map(|(k, v)| (k.to_string(), v.to_string()))
+        })
         .collect()
 }

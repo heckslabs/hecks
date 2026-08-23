@@ -10,7 +10,7 @@ reaches the shape real corpus duplication actually took: two DIFFERENT
 pieces nested under the SAME aggregate, each independently typing the exact
 same predicate.
 
-Real, live corpus evidence (`examples/banking/bluebook/banking.bluebook`):
+Real, live corpus evidence (`examples/banking/bluebook/`):
 `SafeDepositBox`'s own `Visit` and `KeyIssuance` — two different pieces on
 one composite-identified head — each wrote, byte for byte:
 

@@ -78,36 +78,48 @@ pub fn dispatch_by_name(
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Pizzas::Order.CreatePizza" => {
-              let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::pizzas::order::CreatePizzaArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Chef"), "CreatePizza", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::pizzas::order::dispatch_create_pizza(&mut store.order, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.AddTopping" => {
-              let id = crate::generated::pizzas::order::Order::extract_id(args_json)?;
-              let args = crate::generated::pizzas::order::AddToppingArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json)?, };
+              let args = crate::generated::pizzas::order::AddToppingArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Chef"), "AddTopping", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::pizzas::order::dispatch_add_topping(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.Purchase" => {
-              let id = crate::generated::pizzas::order::Order::extract_id(args_json)?;
-              let args = crate::generated::pizzas::order::PurchaseArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::pizzas::order::Order::extract_id(facts_json)?, };
+              let args = crate::generated::pizzas::order::PurchaseArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Customer"), "Purchase", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Pizzas::Order", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::pizzas::order::dispatch_purchase(&mut store.order, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Pizzas::Order.PaymentGateway.Receive" => {
-              let args = crate::generated::pizzas::order::PaymentGatewayReceiveArgs::from_json(args_json)?;
-              crate::kernel::check_reference(&store.order, &args.name, "Order", "name")?;
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
-              crate::generated::pizzas::order::dispatch_operation_paymentgateway_receive(args).map(|events| stamp_payload(events, &payload))
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let (id, port_facts) = invocation.split_aggregate_receiver(None)?;
+              let facts_json = &port_facts;
+              let _instance = store.order.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!("Order {:?} does not exist", id)))?;
+              let args = crate::generated::pizzas::order::PaymentGatewayReceiveArgs::from_json(facts_json)?;
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+              crate::generated::pizzas::order::dispatch_operation_paymentgateway_receive(&id, args).map(|events| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
     }
@@ -162,6 +174,22 @@ pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
         "Pizzas::Order" => Some("order"),
+        _ => None,
+    }
+}
+
+pub fn command_creates(verb: &str) -> bool {
+    match verb {
+        "Pizzas::Order.CreatePizza" => true,
+        "Pizzas::Order.AddTopping" => false,
+        "Pizzas::Order.Purchase" => false,
+        _ => false,
+    }
+}
+
+pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
+    match qualified_name {
+        "Pizzas::Order" => Some("name"),
         _ => None,
     }
 }

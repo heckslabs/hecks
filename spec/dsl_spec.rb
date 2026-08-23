@@ -315,7 +315,7 @@ RSpec.describe "the DSL surface" do
 
     it "refuses an identity with no block at all" do
       expect { build_aggregate("Unkeyed") { identified_by } }
-        .to raise_error(Malformed, /names no field/)
+        .to raise_error(Malformed, /names no identity/)
     end
 
     it "refuses an unnamed attribute" do
@@ -1240,7 +1240,7 @@ RSpec.describe "the DSL surface" do
           Hecksagain::Bluebook::DSL::AggregateBuilder.build("Both") do
             identified_by(:id) { id.value }
           end
-        end.to raise_error(Malformed, /identified_by no longer takes a block/)
+        end.to raise_error(Malformed, /identified_by cannot combine a value-object type with a block/)
       end
 
       it "works the same way on an entity, deriving from the OWNING AGGREGATE's own value object" do
@@ -1274,23 +1274,25 @@ RSpec.describe "the DSL surface" do
       end.to raise_error(Malformed, /Thing\.identified_by takes no as: — name the declared field itself/)
     end
 
-    it "refuses the value-object type form in LIVE source — it used to mint the attribute, and minting is gone" do
-      expect do
-        build_aggregate("Order") do
-          identified_by PizzaName
-          value_object("PizzaName") { attribute :value, String }
-        end
-      end.to raise_error(Malformed, /Thing\.identified_by no longer takes a value object — declare the attribute first/)
+    it "uses a value-object type as the live identity concept and mints its field" do
+      identified = build_aggregate("Order") do
+        identified_by PizzaName
+        value_object("PizzaName") { attribute :value, String }
+      end
+
+      expect(identified.identity_paths).to eq(["pizza_name.value"])
+      expect(identified.attributes.map { |field| [field.name, field.type] })
+        .to include([:pizza_name, "PizzaName"])
     end
 
-    # LEGACY — `identified_by ValueObject, as: field` minted the attribute
-    # from the type; ADR 0025 ("Identity") removes it from LIVE source, but
-    # frozen era text minted under it must still parse (S0a's own bridge).
+    # Frozen era text using the now-restored value-object form still passes
+    # through the explicit shadow boundary. These examples pin that the new
+    # live implementation does not make historical source unreadable.
     # `MetaValidator.while_shadow_parsing` is what `EraGuard.shadow_parse`
     # wraps its own eval in — these tests exercise the SAME mechanism
     # directly, at the DSL layer, rather than round-tripping through a
     # real file on disk the way `spec/shadow_parse_spec.rb` does end to end.
-    describe "identified_by ValueObject — LEGACY, admitted only while shadow-parsing" do
+    describe "identified_by ValueObject while shadow-parsing" do
       def legacy(&block)
         Hecksagain::Bluebook::MetaValidator.while_shadow_parsing { yield }
       end
@@ -1321,18 +1323,18 @@ RSpec.describe "the DSL surface" do
         expect(found.attributes.map(&:name)).to eq([:name])
       end
 
-      it "refuses a value object with more than one field, naming every candidate" do
-        expect do
-          legacy do
-            build_aggregate("Thing") do
-              identified_by ThingRef
-              value_object("ThingRef") do
-                attribute :value, String
-                attribute :pad, Integer
-              end
+      it "expands a multi-field value object in declaration order" do
+        found = legacy do
+          build_aggregate("Thing") do
+            identified_by ThingRef
+            value_object("ThingRef") do
+              attribute :value, String
+              attribute :pad, Integer
             end
           end
-        end.to raise_error(Malformed, /identified_by names ThingRef, which has 2 fields \(value, pad\)/)
+        end
+
+        expect(found.identity_paths).to eq(["thing_ref.value", "thing_ref.pad"])
       end
 
       it "refuses a type naming no declared value object" do
@@ -1745,14 +1747,24 @@ RSpec.describe "the DSL surface" do
         end.to raise_error(Malformed, /compares status with lt.*lifecycle field, which holds text/m)
       end
 
-      it "refuses a :symbol value naming no declared query argument" do
+      it "infers a symbolic query argument from the compared field" do
+        aggregate = build_aggregate("Arguing") do
+          value_object("Price") { attribute :cents, Integer }
+          attribute :price, Price
+          query("Cheap") { where(price: { lt: :ceiling }) }
+        end
+
+        ceiling = aggregate.query("Cheap").attribute(:ceiling)
+        expect([ceiling.name, ceiling.type.to_s]).to eq([:ceiling, "Price"])
+      end
+
+      it "still requires an explicit argument when no compared field supplies its type" do
         expect do
-          build_aggregate("Arguing") do
-            value_object("Price") { attribute :cents, Integer }
-            attribute :price, Price
-            query("Cheap") { where(price: { lt: :ceiling }) }
+          build_aggregate("Paging") do
+            attribute :name, String
+            query("Page") { limit :page_size }
           end
-        end.to raise_error(Malformed, /resolves :ceiling from its arguments, but declares no ceiling attribute/)
+        end.to raise_error(Malformed, /resolves :page_size from its arguments, but declares no page_size attribute/)
       end
 
       it "admits a dotted path that lands on a scalar member, at any depth" do
@@ -2156,54 +2168,53 @@ RSpec.describe "the DSL surface" do
       expect(aggregate.attribute(:pizza).to_h[:type]).to eq("Reference<Pizza>")
     end
 
-    # `has_many`, `has_one`, `belongs_to` — GONE (ADR 0025, "References").
-    # All three were sugar over `reference_to`, differing from its default
-    # only in the attribute name they minted — no `_id` suffix. `reference_to`
-    # mints that same bare name now, so the three have no work left to do,
-    # and refuse live rather than silently double as `reference_to`'s alias.
-    it "has_one is gone — reference_to mints the same bare name, no _id" do
-      expect do
-        build_bluebook("Owning") do
-          aggregate("Profile") do
-            identified_by :id
-            description "A profile"
-          end
-          aggregate("Account") do
-            identified_by :id
-            has_one Profile
-          end
+    it "has_one declares one relationship and retains its kind" do
+      account = build_bluebook("Owning") do
+        aggregate("Profile") do
+          identified_by :id
+          description "A profile"
         end
-      end.to raise_error(Malformed, /Account\.has_one is gone — reference_to Profile mints the same bare name now/)
+        aggregate("Account") do
+          identified_by :id
+          has_one Profile
+        end
+      end.aggregate("Account")
+
+      expect([account.attribute(:profile).list?, account.attribute(:profile).relationship])
+        .to eq([false, "has_one"])
     end
 
-    it "belongs_to is gone — same refusal, same replacement" do
-      expect do
-        build_bluebook("Dependent") do
-          aggregate("Team") do
-            identified_by :id
-            description "A team"
-          end
-          aggregate("Player") do
-            identified_by :id
-            belongs_to Team
-          end
+    it "belongs_to retains the relationship concept" do
+      player = build_bluebook("Dependent") do
+        aggregate("Team") do
+          identified_by :id
+          description "A team"
         end
-      end.to raise_error(Malformed, /Player\.belongs_to is gone — reference_to Team mints the same bare name now/)
+        aggregate("Player") do
+          identified_by :id
+          belongs_to Team
+        end
+      end.aggregate("Player")
+
+      expect(player.attribute(:team).relationship).to eq("belongs_to")
     end
 
-    it "has_many is gone — it also LIED, singularising the target into one scalar rather than a list" do
-      expect do
-        build_bluebook("Holding") do
-          aggregate("Invoice") do
-            identified_by :id
-            description "An invoice"
-          end
-          aggregate("Ledger") do
-            identified_by :id
-            has_many Invoices
-          end
+    it "has_many holds a real list of target identities" do
+      ledger = build_bluebook("Holding") do
+        aggregate("Invoice") do
+          identified_by :id
+          description "An invoice"
         end
-      end.to raise_error(Malformed, /Ledger\.has_many is gone — reference_to Invoice mints the same bare name now/)
+        aggregate("Ledger") do
+          identified_by :id
+          has_many Invoices
+        end
+      end.aggregate("Ledger")
+
+      expect([ledger.attribute(:invoices).type.target_name,
+              ledger.attribute(:invoices).list?,
+              ledger.attribute(:invoices).relationship])
+        .to eq(["Invoice", true, "has_many"])
     end
 
     it "reference_to still takes as: to override the default name, the way has_* used to" do
@@ -2529,7 +2540,7 @@ RSpec.describe "the DSL surface" do
     it "operation adds a named operation" do
       port = build_domain_port do
         operation("Receive") do
-          reference_to Thing, as: :thing_id
+          attribute :thing_id, Hecksagain::Bluebook::Reference.new("Thing")
           emits "Received"
         end
       end
@@ -2561,7 +2572,7 @@ RSpec.describe "the DSL surface" do
         build_domain_port do
           verb "opened_by"
           operation("Receive") do
-            reference_to Thing, as: :thing_id
+            attribute :thing_id, Hecksagain::Bluebook::Reference.new("Thing")
             emits "Received"
           end
         end
@@ -2617,18 +2628,25 @@ RSpec.describe "the DSL surface" do
       registry.bluebook("PortOp").aggregate("Thing").port("Gateway").operation("Do")
     end
 
-    it "reference_to adds a reference attribute, always — no self-reference form" do
+    it "keeps routing out of the operation's declared attributes" do
       operation = build_operation do
-        reference_to Thing, as: :thing_id
         emits "Done"
       end
 
-      expect(operation.attribute(:thing_id).type.target_name).to eq("Thing")
+      expect(operation.attributes).to be_empty
     end
 
-    it "attribute adds a payload field alongside the reference" do
+    it "refuses behavioral reference_to with receiver and fact guidance" do
+      expect do
+        build_operation do
+          reference_to Thing
+          emits "Done"
+        end
+      end.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /behavioral routing.*to:.*attribute/)
+    end
+
+    it "attribute adds a payload field without a receiver field" do
       operation = build_operation do
-        reference_to Thing, as: :thing_id
         attribute :amount, Integer
         emits "Done"
       end
@@ -2638,31 +2656,19 @@ RSpec.describe "the DSL surface" do
 
     it "emits records the event the operation announces" do
       operation = build_operation do
-        reference_to Thing, as: :thing_id
         emits "Done"
       end
 
       expect(operation.emits).to eq(["Done"])
     end
 
-    it "identity_attribute finds the reference targeting the owning aggregate" do
-      operation = build_operation do
-        reference_to Thing, as: :thing_id
-        emits "Done"
-      end
-
-      expect(operation.identity_attribute("Thing").name).to eq(:thing_id)
-    end
-
-    it "refuses an operation with no reference to its owning aggregate" do
-      expect {
-        build_operation { emits "Done" }
-      }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /names no reference_to/)
+    it "allows an operation with no payload when routing supplies the receiver" do
+      expect(build_operation { emits "Done" }.attributes).to be_empty
     end
 
     it "refuses an operation with no emits" do
       expect {
-        build_operation { reference_to Thing, as: :thing_id }
+        build_operation {}
       }.to raise_error(Hecksagain::Bluebook::DSL::Malformed, /declares no emits/)
     end
   end

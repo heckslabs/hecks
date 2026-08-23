@@ -1,0 +1,82 @@
+Hecks.bluebook "Banking" do
+  aggregate "Statement" do
+    # REFERENCED, NOT REDECLARED — `ATMCard`'s own declaration,
+    # shared chapter-wide; `declared_by:` required since `Account`'s
+    # own "customer is active" is a genuinely different canonical.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
+    description "A snapshot of one account's activity over one period, generated once and never revised."
+
+    reference_to Account
+    attribute :period,          StatementPeriod
+    attribute :opening_balance, StatementAmount
+    attribute :closing_balance, StatementAmount
+    attribute :generated_on,    StatementDate
+    attribute :frequency,       StatementFrequency
+
+    # A COMPOSITE IDENTITY WHOSE FIRST PART IS A REFERENCE, not a
+    # value-object field — SafeDepositBox's own composite identity
+    # unwraps two single-field value objects (branch_code, box_number);
+    # this is the other real shape the language allows.
+    # `AttributeCollector#resolve_identity_field!` reads each field's
+    # OWN declared type to decide how to reach it: `account` here is
+    # `reference_to Account`'s own minted attribute (bare, no `_id` —
+    # ADR 0025), already a scalar id, so it resolves bare — no value
+    # object to open, the same way `Runtime::Identity.from` resolves
+    # any identity head that IS a declared attribute directly.
+    identified_by :account, :period
+
+    value_object "StatementPeriod" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a statement names its period") { !value.to_s.empty? }
+    end
+
+    value_object "StatementAmount" do
+      attribute :cents, Integer
+    end
+
+    value_object "StatementDate" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a statement is dated") { !value.to_s.empty? }
+    end
+
+    # A CLOSED SET WITH MORE THAN ONE FIELD PER MEMBER — ordinary, public
+    # bare `member` lines (Vocabulary::Comparison in the self-hosted
+    # grammar uses the identical shape), not a self-hosted-grammar
+    # exclusive. A single-field set gets the shorter `one_of:` keyword
+    # instead (LedgerDirection/AccountKind in `deposit_accounts.bluebook`) — this one can't,
+    # since a member row needs to name every field, not just one.
+    # `admit_member` (Runtime::Value::Admission) only
+    # ever validates the DISCRIMINANT field a caller offers (`cadence`
+    # here) against the members table — it does not fill the other
+    # fields in for you, so a command dispatching this always states
+    # every field, the same as `AddTopping`'s own append fields do.
+    value_object "StatementFrequency" do
+      attribute :cadence,          String
+      attribute :retention_months, Integer
+      attribute :paper_fee_cents,  Integer
+
+      member cadence: "monthly",   retention_months: 84,  paper_fee_cents: 0
+      member cadence: "quarterly", retention_months: 120, paper_fee_cents: 0
+      member cadence: "annual",    retention_months: 240, paper_fee_cents: 500
+    end
+
+    command "Generate" do
+      role "System"
+      goal "Close out one period's activity into a permanent record"
+
+      attribute :period,          StatementPeriod
+      attribute :opening_balance, StatementAmount
+      attribute :closing_balance, StatementAmount
+      attribute :generated_on,    StatementDate
+      attribute :frequency,       StatementFrequency
+      given("customer is active")
+      given("account is open")
+
+      sets :account
+
+      emits "StatementGenerated"
+    end
+  end
+
+end

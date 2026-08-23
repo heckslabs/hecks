@@ -642,3 +642,22 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         _ => None,
     }
 }
+
+// HAND-PATCHED, not regenerated — see `ExternalIdentifier.Link`'s own
+// comment above on why this whole file is orphaned. `command_creates`/
+// `identity_head_for_aggregate` (orchestrate.rs's own `split_routed_args`)
+// are new tables this file's real Ruby source would compute from its own
+// commands'/aggregates' declared shape — with no source left to ask,
+// left conservatively empty here (`_ => false`/`_ => None`, this table's
+// own honest "don't know" answer) rather than guessed at. The practical
+// effect: embryonaut's own policy/saga-triggered dispatches keep today's
+// existing behavior (unrouted, flat legacy args) unchanged — no
+// regression, since nothing in this repo's own test corpus exercises
+// embryonaut's reactions today either way.
+pub fn command_creates(_verb: &str) -> bool {
+    false
+}
+
+pub fn identity_head_for_aggregate(_qualified_name: &str) -> Option<&'static str> {
+    None
+}

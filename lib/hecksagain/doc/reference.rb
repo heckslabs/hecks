@@ -50,10 +50,8 @@ module Hecksagain
 
       # S14, ADR 0026 — Keyword/Argument are genuine entities of Syntax
       # now, dispatched (not merely declared) so their own `status`
-      # really is a lifecycle. `SyntaxBoot.call` reads the still-static
-      # seed rows (`KeywordSeed`/`ArgumentSeed`, still reachable through
-      # `rows` above for anything that still needs the closed sets —
-      # Context/Body/ArgumentKind, unaffected by this), dispatches each
+      # really is a lifecycle. `SyntaxBoot.call` discovers the static
+      # aggregate-local seed rows (`KeywordSeed`/`ArgumentSeed`), dispatches each
       # one through the real admission/lifecycle door, and hands back the
       # same shape `rows` used to produce — nothing below this needed to
       # change.
@@ -112,7 +110,7 @@ module Hecksagain
           #{context_lede(context)}
 
           *The tables on this page are generated from the language's own
-          Syntax chapter (`lib/hecksagain/language/bluebook/syntax.bluebook`)
+          aggregate-local syntax tables (`lib/hecksagain/language/**/*.bluebook`)
           by `bin/reference` — do not edit inside the markers. The prose
           between them is hand-written and survives regeneration.*
           #{GENERATED_END}
@@ -264,20 +262,20 @@ module Hecksagain
       end
 
       def guide_index(root)
-        paths = Dir.glob(File.join(root, "docs/guides/*.md")).sort
+        paths = Dir.glob(File.join(root, "docs/implemented/guides/*.md")).sort
                    .reject { |p| %w[AUTHORING.md].include?(File.basename(p)) }
         lines = paths.map do |path|
           heading = File.foreach(path).find { |line| line.start_with?("# ") }
           title = heading ? heading.sub(/\A#\s*/, "").strip : File.basename(path)
-          "- [#{title}](docs/guides/#{File.basename(path)})"
+          "- [#{title}](docs/implemented/guides/#{File.basename(path)})"
         end
         lines.join("\n")
       end
 
       def reference_index(root)
         count = contexts.size
-        "[The DSL reference](docs/reference/index.md) — #{count} contexts, generated from " \
-          "`lib/hecksagain/language/bluebook/syntax.bluebook` and held to it by " \
+        "[The DSL reference](docs/implemented/reference/index.md) — #{count} contexts, generated from " \
+          "the aggregate-local tables under `lib/hecksagain/language/` and held to them by " \
           "`spec/reference_golden_spec.rb`."
       end
 
@@ -317,10 +315,11 @@ module Hecksagain
         dirs = Dir.glob(File.join(root, "examples/*/")).sort
         lines = dirs.filter_map do |dir|
           name = File.basename(dir.chomp("/"))
-          bluebook = Dir.glob(File.join(dir, "bluebook/*.bluebook")).first || Dir.glob(File.join(dir, "*.bluebook")).first
-          next unless bluebook
+          bluebooks = Dir.glob(File.join(dir, "bluebook/*.bluebook")).sort
+          bluebooks = Dir.glob(File.join(dir, "*.bluebook")).sort if bluebooks.empty?
+          next if bluebooks.empty?
 
-          vision = File.read(bluebook)[/vision\s+"([^"]*)"/, 1]
+          vision = bluebooks.filter_map { |bluebook| File.read(bluebook)[/vision\s+"([^"]*)"/, 1] }.first
           "- **#{name}** — #{vision}"
         end
         lines.join("\n")

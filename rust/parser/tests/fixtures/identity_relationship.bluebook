@@ -1,0 +1,54 @@
+Hecks.bluebook "IdentityRelationshipFixture" do
+  aggregate "Customer" do
+    identified_by do
+      attribute :number, String
+    end
+  end
+
+  aggregate "Profile" do
+    identified_by ProfileIdentity, as: :handle
+
+    value_object "ProfileIdentity" do
+      attribute :tenant, TenantCode
+      attribute :name, String
+    end
+
+    value_object "TenantCode" do
+      attribute :value, String
+    end
+  end
+
+  aggregate "Account" do
+    attribute :branch, BranchCode
+    attribute :number, AccountNumber
+    identified_by :branch, :number
+
+    value_object "BranchCode" do
+      attribute :value, String
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, Integer
+    end
+  end
+
+  aggregate "Portfolio" do
+    identified_by do
+      attribute :number, String
+    end
+
+    belongs_to Customer
+    has_one Profile, optional: true
+    has_many Accounts
+
+    entity "Review" do
+      identified_by(as: :key) do
+        attribute :day, String
+        attribute :sequence, Integer
+      end
+
+      belongs_to Customer
+      has_many Accounts, as: :related_accounts
+    end
+  end
+end

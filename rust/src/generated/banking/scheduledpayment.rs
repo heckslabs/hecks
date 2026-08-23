@@ -442,8 +442,8 @@ impl crate::kernel::Fielded for ScheduleArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
-            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "instruction" => Some(Field::Nested(&self.instruction)),
+            "account" => Some(Field::Value(Value::Str(self.account.clone()))),
             "amount" => Some(Field::Nested(&self.amount)),
             "recipient" => Some(Field::Nested(&self.recipient)),
             "due_on" => Some(Field::Nested(&self.due_on)),
@@ -455,8 +455,8 @@ impl crate::kernel::Fielded for ScheduleArgs {
 
 #[derive(Debug, Clone)]
 pub struct ScheduleArgs {
-    pub account: String,
     pub instruction: InstructionReference,
+    pub account: String,
     pub amount: ScheduledAmount,
     pub recipient: PaymentRecipient,
     pub due_on: PaymentDueDate,
@@ -497,6 +497,7 @@ pub fn dispatch_schedule(
         ],
         None,
         |record| {
+        record.account = Some(args.account.clone());
         record.amount = Some(args.amount.clone());
         record.recipient = Some(args.recipient.clone());
         record.due_on = Some(args.due_on.clone());
@@ -514,8 +515,8 @@ pub fn dispatch_schedule(
 impl ScheduleArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
-        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("instruction".to_string(), self.instruction.to_json()),
+        ("account".to_string(), crate::kernel::Json::Str(self.account.clone())),
         ("amount".to_string(), self.amount.to_json()),
         ("recipient".to_string(), self.recipient.to_json()),
         ("due_on".to_string(), self.due_on.to_json()),
@@ -525,16 +526,16 @@ impl ScheduleArgs {
 
 impl ScheduleArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["account", "instruction", "amount", "recipient", "due_on", "id", "reference", "end_to_end"]);
+let unknown = v.unknown_keys(&["instruction", "account", "amount", "recipient", "due_on", "id", "reference", "end_to_end"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Schedule does not declare {} — it takes account, instruction, amount, recipient, due_on",
+        "Schedule does not declare {} — it takes instruction, account, amount, recipient, due_on",
         unknown.join(", ")
     )));
 }
         Ok(Self {
-        account: { let x = v.require("account", "ScheduleArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account: expected String".to_string()))? },
         instruction: InstructionReference::from_json(&v.require("instruction", "ScheduleArgs")?.coerce_single_field("value"))?,
+        account: { let x = v.require("account", "ScheduleArgs")?; x.as_str().map(|s| s.to_string()).ok_or_else(|| crate::kernel::Refusal::TypeMismatch("ScheduleArgs.account: expected String".to_string()))? },
         amount: ScheduledAmount::from_json(&v.require("amount", "ScheduleArgs")?.coerce_single_field("cents"))?,
         recipient: PaymentRecipient::from_json(&v.require("recipient", "ScheduleArgs")?.coerce_single_field("value"))?,
         due_on: PaymentDueDate::from_json(&v.require("due_on", "ScheduleArgs")?.coerce_single_field("value"))?,

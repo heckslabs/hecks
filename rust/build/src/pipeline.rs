@@ -60,18 +60,25 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         .ok_or_else(|| format!("could not determine a module name from domain path {domain:?}"))?
         .to_string();
 
-    let bluebook_path = domain_path.join("bluebook").join(format!("{target_mod_name}.bluebook"));
-    let hecksagon_candidate = domain_path.join("bluebook").join(format!("{target_mod_name}.hecksagon"));
+    let bluebook_directory = domain_path.join("bluebook");
+    let bluebook_paths = resolve::bluebook_files(&bluebook_directory)?;
+    let first_bluebook = bluebook_paths.first().ok_or_else(|| format!("{} has no .bluebook files", domain_path.display()))?;
+    let hecksagon_candidate = bluebook_directory.join(format!("{target_mod_name}.hecksagon"));
     let hecksagon_path = hecksagon_candidate.is_file().then_some(hecksagon_candidate);
 
-    let target_chapter_name = resolve::header_chapter_name(&bluebook_path)?;
+    let target_chapter_name = resolve::header_chapter_name(first_bluebook)?;
+    let mut target_files = Vec::new();
+    for path in bluebook_paths {
+        if resolve::header_chapter_name(&path)? == target_chapter_name {
+            target_files.push(path);
+        }
+    }
 
     let uses_framework_names = match &hecksagon_path {
         Some(p) => resolve::resolve_uses_framework(&parser_bin, &target_chapter_name, p)?,
         None => Vec::new(),
     };
 
-    let mut target_files = vec![bluebook_path.clone()];
     if let Some(p) = &hecksagon_path {
         target_files.push(p.clone());
     }
@@ -117,9 +124,9 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         });
     }
 
-    // THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — same nine files, same
-    // declared order, same "Bluebook" chapter name.
-    let grammar_files = resolve::grammar_files(root);
+    // THE SELF-HOSTED LANGUAGE, COMPILED IN TOO — one discovered concept
+    // folder, the same "Bluebook" chapter name.
+    let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter_with_optionals(&parser_bin, "Bluebook", &grammar_files)?;
 
     let out_root = root.join("rust/src/generated");

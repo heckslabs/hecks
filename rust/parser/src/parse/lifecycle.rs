@@ -25,8 +25,18 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// context, since `lifecycle`'s own header line is gated there (`opens:
 /// ""` — this is a fold, not its own category, per this module's own
 /// header).
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, field: &str, default: &str) -> ParseResult<ir::Lifecycle> {
-    let mut lifecycle = ir::Lifecycle { field: field.to_string(), default: default.to_string(), transitions: Vec::new() };
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    field: &str,
+    default: &str,
+) -> ParseResult<ir::Lifecycle> {
+    let mut lifecycle = ir::Lifecycle {
+        field: field.to_string(),
+        default: default.to_string(),
+        transitions: Vec::new(),
+    };
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Lifecycle")? else {
@@ -36,8 +46,9 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, field: &str
         match gated.row.word {
             "transition" => {
                 let line = gated.line.number;
-                let pair_text = super::named_raw(&gated.args, "=>")
-                    .ok_or_else(|| Diagnostic::new(file, line, "'transition' names no 'command => state' pair"))?;
+                let pair_text = super::named_raw(&gated.args, "=>").ok_or_else(|| {
+                    Diagnostic::new(file, line, "'transition' names no 'command => state' pair")
+                })?;
                 let (command_raw, to_state_raw) = super::split_top_level_rocket(pair_text);
                 let command = text_value(command_raw);
                 let to_state = text_value(to_state_raw);
@@ -47,10 +58,22 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, field: &str
                 };
 
                 for from_state in from_states {
-                    lifecycle.transitions.push(ir::StateTransitionRow { command: command.clone(), to_state: to_state.clone(), from_state });
+                    lifecycle.transitions.push(ir::StateTransitionRow {
+                        command: command.clone(),
+                        to_state: to_state.clone(),
+                        from_state,
+                    });
                 }
             }
-            _ => return Err(super::not_built_yet("Lifecycle", gated.row, file, gated.line.number, &gated.call.word)),
+            _ => {
+                return Err(super::not_built_yet(
+                    "Lifecycle",
+                    gated.row,
+                    file,
+                    gated.line.number,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 }
@@ -71,7 +94,10 @@ fn text_value(raw: &str) -> String {
 fn from_values(raw: &str) -> Vec<String> {
     let trimmed = raw.trim();
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
-        return ruby_value::split_items(&trimmed[1..trimmed.len() - 1]).into_iter().map(|item| text_value(&item)).collect();
+        return ruby_value::split_items(&trimmed[1..trimmed.len() - 1])
+            .into_iter()
+            .map(|item| text_value(&item))
+            .collect();
     }
     vec![text_value(trimmed)]
 }

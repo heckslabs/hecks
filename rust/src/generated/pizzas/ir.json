@@ -19,7 +19,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "pizza",
@@ -28,7 +29,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "toppings",
@@ -37,7 +39,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "customer_name",
@@ -46,7 +49,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -60,7 +64,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -70,7 +75,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Price",
@@ -82,7 +89,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -92,7 +100,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "CustomerName",
@@ -104,7 +114,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -114,7 +125,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "ToppingName",
@@ -126,7 +139,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -136,7 +150,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "ToppingAmount",
@@ -148,7 +164,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -158,7 +175,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Topping",
@@ -170,7 +189,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "amount",
@@ -179,12 +199,17 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Size",
@@ -196,10 +221,13 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": true,
           "members": [
             [
@@ -226,7 +254,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "size",
@@ -235,12 +264,17 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -257,7 +291,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "pizza",
@@ -266,12 +301,19 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "PizzaCreated"
           ],
@@ -291,7 +333,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "amount",
@@ -300,7 +343,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -313,7 +357,9 @@
               "canonical": "toppings.size < 10"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "toppings",
@@ -344,7 +390,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "customer_name",
@@ -353,7 +400,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -370,7 +418,9 @@
               "canonical": "amount.cents.positive?"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "customer_name",
@@ -398,9 +448,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "available",
@@ -412,12 +468,16 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Available",
           "description": null,
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -442,7 +502,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -461,7 +522,9 @@
         {
           "name": "Expensive",
           "description": null,
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "pizza.price_cents.cents",
@@ -484,22 +547,14 @@
               "name": "Receive",
               "attributes": [
                 {
-                  "name": "name",
-                  "type": "Reference<Order>",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null
-                },
-                {
                   "name": "customer_name",
                   "type": "CustomerName",
                   "list": false,
                   "default": null,
                   "optional": false,
                   "pattern": null,
-                  "admits": null
+                  "admits": null,
+                  "relationship": null
                 },
                 {
                   "name": "amount",
@@ -508,7 +563,8 @@
                   "default": null,
                   "optional": false,
                   "pattern": null,
-                  "admits": null
+                  "admits": null,
+                  "relationship": null
                 }
               ],
               "emits": [
@@ -521,7 +577,9 @@
       "provenance": null
     }
   ],
-  "read_models": [],
+  "read_models": [
+
+  ],
   "policies": [
     {
       "name": "OnPizzaPaymentReceived",
@@ -530,11 +588,17 @@
       "target_domain": null,
       "where": null,
       "for_each": null,
-      "with_spec": []
+      "with_spec": [
+
+      ]
     }
   ],
-  "process_managers": [],
-  "attaches_to": [],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -564,12 +628,15 @@
       "domain": "Pizzas",
       "from": "e3f3d7",
       "to": "77625c",
-      "retired": [],
+      "retired": [
+
+      ],
       "aggregates": [
         {
           "name": "Order",
           "was": "Pizza",
-          "renames": {},
+          "renames": {
+          },
           "moves": [
             {
               "from": "price_cents",
@@ -580,12 +647,24 @@
               "to": "pizza.size"
             }
           ],
-          "converts": [],
-          "drops": [],
-          "retypes": [],
-          "computes": [],
-          "rekeys": [],
-          "backfills": [],
+          "converts": [
+
+          ],
+          "drops": [
+
+          ],
+          "retypes": [
+
+          ],
+          "computes": [
+
+          ],
+          "rekeys": [
+
+          ],
+          "backfills": [
+
+          ],
           "compiled_state_expression": "hecks_tr_move(hecks_tr_move(state, ARRAY['price_cents']::text[], ARRAY['pizza', 'price_cents']::text[], 'move price_cents to: pizza.price_cents'), ARRAY['size']::text[], ARRAY['pizza', 'size']::text[], 'move size to: pizza.size')",
           "compiled_id_expression": null
         }

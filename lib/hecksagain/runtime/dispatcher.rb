@@ -1,6 +1,7 @@
 require_relative "errors"
 require_relative "refusal_wording"
 require_relative "caller"
+require_relative "routing"
 require_relative "command_rules"
 require_relative "command_interpreter"
 require_relative "entity_interpreter"
@@ -15,7 +16,7 @@ module Hecksagain
     class Dispatcher
       MAX_REACTION_DEPTH = 5
 
-      Result = Struct.new(:verb, :instance, :events, keyword_init: true) do
+      Result = Struct.new(:verb, :instance, :events, :execution_plan, :persistence_outcome, keyword_init: true) do
         # `instance` is nil for a port operation dispatched by verb (below)
         # — nothing was hydrated or saved, the same reason
         # `PortOperationInterpreter#emit`'s own comment gives for sourcing
@@ -58,11 +59,11 @@ module Hecksagain
       def policy_dispatches = @registry.policy_dispatch_log
       def verbs = @registry.verbs
 
-      def dispatch(verb, saga_correlation: nil, **args)
+      def dispatch(verb, to: nil, with: nil, saga_correlation: nil, **legacy_args)
         domain, aggregate_name, command_name = parse(verb)
         aggregate = resolve_aggregate(domain, aggregate_name, verb)
 
-        instance, announced =
+        instance, announced, execution_plan, persistence_outcome =
           if command_name.include?(".")
             head, sub = command_name.split(".", 2)
             port = aggregate.port(head)
@@ -81,15 +82,20 @@ module Hecksagain
               operation = port.operation(sub) ||
                           raise(UnknownVerb, RefusalWording.render("UnknownVerb", "port_no_operation",
                                                                    port: head, operation: sub.inspect))
-              [nil, @port_ops.call(domain, aggregate, operation, args)]
+              route, args = port_invocation(aggregate, operation, to: to, with: with, legacy: legacy_args)
+              [nil, @port_ops.call(domain, aggregate, operation, args, route: route), nil, nil]
             else
-              @entities.call(domain, aggregate, command_name, args)
+              entity_depth = command_name.split(".").size - 1
+              route = Routing.envelope(to, entity_depth: entity_depth)
+              @entities.call(domain, aggregate, command_name, legacy_args, route: route, with: with)
             end
           else
             command = aggregate.command(command_name) ||
                       raise(UnknownVerb, RefusalWording.render("UnknownVerb", "aggregate_no_command",
                                                                aggregate: aggregate_name, command: command_name.inspect))
-            @commands.call(domain, aggregate, command, args, saga_correlation)
+            args = Routing.payload(command, with: with, legacy: legacy_args)
+            route = Routing.envelope(to)
+            @commands.call(domain, aggregate, command, args, saga_correlation, route: route)
           end
 
         # Correlation is SET AT CONSTRUCTION now, not merged on here —
@@ -107,7 +113,8 @@ module Hecksagain
 
         announced.each { |event| @sagas.advance(event, domain) }
 
-        Result.new(verb: verb, instance: instance, events: announced)
+        Result.new(verb: verb, instance: instance, events: announced,
+                   execution_plan: execution_plan, persistence_outcome: persistence_outcome)
       end
 
       # "IF THIS WERE DISPATCHED RIGHT NOW, WOULD IT SUCCEED" — the same
@@ -163,20 +170,35 @@ module Hecksagain
       # No adapter-to-port binding lookup happens here — that is
       # `Hecks.adapter`'s existing job (unchanged by this), and wiring "which
       # adapter may call this port" through is the next piece, not this one.
-      def dispatch_port(domain, aggregate_name, port_name, operation_name, **args)
+      def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, **legacy_args)
         aggregate = resolve_aggregate(domain, aggregate_name, "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}")
         port = aggregate.port(port_name) ||
                raise(UnknownVerb, "#{aggregate_name} has no port #{port_name.inspect}")
         operation = port.operation(operation_name) ||
                     raise(UnknownVerb, "#{port_name} has no operation #{operation_name.inspect}")
 
-        announced = @port_ops.call(domain, aggregate, operation, args)
+        route, args = port_invocation(aggregate, operation, to: to, with: with, legacy: legacy_args)
+        announced = @port_ops.call(domain, aggregate, operation, args, route: route)
 
         announced.each { |event| @policies.react(event, domain) }
         announced.each { |event| @sagas.advance(event, domain) }
 
         announced
       end
+
+      def port_invocation(aggregate, operation, to:, with:, legacy:)
+        legacy = legacy.dup
+        identity = operation.identity_attribute(aggregate.hecks_name)
+        if to.nil? && identity && legacy.key?(identity.name)
+          to = legacy.delete(identity.name)
+        end
+
+        route = Routing.envelope(to)
+        raise TypeMismatch, "#{operation.hecks_name} requires its receiving aggregate in to:" unless route
+
+        [route, Routing.payload(operation, with: with, legacy: legacy)]
+      end
+      private :port_invocation
 
       def query(verb, **args)
         domain, query_name = verb.to_s.split(".", 2)

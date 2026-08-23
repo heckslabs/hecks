@@ -23,45 +23,91 @@ module Hecksagain
       # against: AggregateBuilder's own `@value_objects + closed_sets`,
       # or EntityBuilder's OWNER's, since a piece mints none of its own.
       module IdentityDeclaration
-        # WHICH UNCHANGING FACTS SAY WHICH ONE THIS IS — a declared field,
-        # never a minted one (ADR 0025, "Identity"). `identified_by :number`
-        # points at an attribute already declared on its own line — the
-        # type used to be spelled here too ONLY because that was the one
-        # place minting it, and minting is gone.
+        # There are three live forms, deliberately distinguishable at the
+        # declaration site:
         #
-        # SEVERAL FIELDS, and the identity is their JOIN, in declaration
-        # order — composite identity is `identified_by :branch_code,
-        # :box_number`, not a block. A single-field value object auto-
-        # unwraps to its own member (see `resolve_identity_field!`,
-        # AttributeCollector's own); a bare scalar or a reference resolves
-        # to its own name unchanged.
+        #   identified_by AccountNumber, as: :number # one identity concept
+        #   identified_by do ... end                 # a bespoke concept
+        #   identified_by :branch, :number           # an existing compound key
+        #
+        # One symbol is retired: it cannot say whether the author means a
+        # value concept or a field-shaped database key. Frozen source still
+        # reaches the old interpretation through `legacy_identified_by`.
         # RENAMED FROM `identified_by` — item #13's full metaprogrammed
         # dispatch (slice 4c), same shared-mixin shape `attribute_impl`
         # already proved in slice 3: ONE renamed method, both Aggregate
         # and Entity Keyword rows name it in `calls:`. Bootstrap-
         # reachable (every self-hosted aggregate/entity declares an
         # identity), so in BOOTSTRAP_CALLS_FALLBACK for both contexts.
-        def identified_by_impl(*targets, as: nil, &path)
-          return legacy_identified_by(targets.first, as: as, &path) if MetaValidator.shadow_parsing?
+        def identified_by_impl(*targets, as: nil, &definition)
+          return legacy_identified_by(*targets, as: as, &definition) if MetaValidator.shadow_parsing?
 
-          raise Malformed,
-                "#{@name}.identified_by no longer takes a block — write identified_by :field, " \
-                "or identified_by :field_one, :field_two for a composite identity" if path
-          raise Malformed, "#{@name}.identified_by names no field" if targets.empty?
+          refuse_second_identity!
 
-          # A bareword constant (`PizzaName`) and a quoted field name
-          # (`:name`) are BOTH plain Ruby Symbols/ScopedConstants by the
-          # time they reach here — distinguished the same way the language
-          # already reads everywhere else: a value object is PascalCase, a
-          # field is snake_case.
-          if targets.size == 1 && targets.first.to_s[0] =~ /[A-Z]/
-            field = as || Naming.snake(targets.first)
+          if definition
             raise Malformed,
-                  "#{@name}.identified_by no longer takes a value object — declare the attribute " \
-                  "first (attribute :#{field}, #{targets.first}) and write identified_by :#{field}"
+                  "#{@name}.identified_by cannot combine a value-object type with a block" unless targets.empty?
+
+            type_name = identity_value_object_name
+            value_object =
+              begin
+                ValueObjectBuilder.build(
+                  type_name,
+                  owner_value_objects: identity_pool,
+                  &definition
+                )
+              rescue NameError => error
+                # A REMOVED SPELLING MUST REFUSE LOUDLY, not degrade into a raw
+                # Ruby error — the one contract `EraGuard.shadow_parse` leans
+                # on to know a normal parse genuinely could not read this text
+                # (only `Malformed` triggers its shadow-mode retry, era_guard.rb's
+                # own comment). The OLD `identified_by { name.value }` — a block
+                # whose text was NEVER CALLED, only extracted (legacy_
+                # identified_by, below) — is exactly this shape: read under the
+                # CURRENT grammar it is instead instance_eval'd as a value-object
+                # DEFINITION, and a bare identifier like `name` inside it resolves
+                # to nothing WordGate#method_missing recognizes, so Ruby itself
+                # raises NameError. Left uncaught, that NameError skipped
+                # shadow_parse's rescue entirely and reached callers as a raw
+                # crash instead of the frozen-era fallback that exists for
+                # precisely this text.
+                raise Malformed,
+                      "#{@name}.identified_by do ... end could not be read as a value-object " \
+                      "definition: #{error.message}"
+              end
+            if value_object.attributes.empty?
+              raise Malformed, "#{@name}.identified_by do declares no identity attributes"
+            end
+
+            install_identity_value_object!(value_object)
+            @identity_type_pending = [value_object, as || :identity, attributes.size]
+            return
           end
 
-          raise Malformed, "#{@name}.identified_by takes no as: — name the declared field itself" if as
+          raise Malformed, "#{@name}.identified_by names no identity" if targets.empty?
+
+          if targets.one? && identity_type?(targets.first)
+            @identity_type_pending = [targets.first, as, attributes.size]
+            return
+          end
+
+          if targets.one?
+            field = targets.first
+            raise Malformed,
+                  "#{@name}.identified_by takes no as: — name the declared field itself" if as
+            # Transitional compatibility: the self-hosted language and live
+            # corpus still contain this form. Keep it readable until their
+            # exemplar-led migration is complete; the final lifecycle cutover
+            # replaces this assignment with the targeted refusal.
+            @identity_field_pending = field
+            return
+          end
+
+          unless targets.all? { |target| !identity_type?(target) }
+            raise Malformed,
+                  "#{@name}.identified_by takes one value-object type or two or more attribute names, not both"
+          end
+          raise Malformed, "#{@name}.identified_by compound keys take no as:" if as
 
           @identity_fields_pending = targets
         end
@@ -86,15 +132,42 @@ module Hecksagain
           end
         end
 
+        def identity_type?(target) = target.to_s.match?(/\A[A-Z]/)
+
+        def refuse_second_identity!
+          # During the staged migration a transitional one-symbol declaration
+          # may be replaced by the new declaration later in the same builder.
+          # This keeps existing builder fixtures/source readable while their
+          # exemplar is migrated. Once one-symbol identity is retired this
+          # compatibility branch disappears with it.
+          if @identity_field_pending && !@identity_type_pending && !@identity_fields_pending
+            @identity_field_pending = nil
+            return
+          end
+
+          return unless @identity_type_pending || @identity_field_pending || @identity_fields_pending ||
+                        (@identity_paths && !@identity_paths.empty?)
+
+          raise Malformed, "#{@name} declares identified_by more than once"
+        end
+
         # LEGACY — the two removed spellings (a value object + as:, and the
         # multi-line block), kept alive ONLY for `EraGuard.shadow_parse`
         # (S0a, ADR 0025) to still make sense of frozen era text that used
         # them; unreachable outside `MetaValidator.shadow_parsing?`.
-        def legacy_identified_by(target, as:, &path)
+        def legacy_identified_by(*targets, as:, &path)
+          target = targets.first
           if target
             raise Malformed, "#{@name}.identified_by takes a field name/value object or a block, not both" if path
 
-            if target.to_s[0] =~ /[A-Z]/
+            if targets.size > 1
+              raise Malformed, "#{@name}.identified_by takes no as: with a compound key" if as
+
+              @identity_fields_pending = targets
+              return
+            end
+
+            if identity_type?(target)
               @identity_type_pending = [target, as, attributes.size]
             else
               raise Malformed,

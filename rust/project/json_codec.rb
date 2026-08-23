@@ -294,7 +294,7 @@ module RustProjection
         # aggregate's own `tags` is `optional: false`, the command's own
         # `tags:` argument is `optional: true`). `list_attr_creation_
         # optional?` (mutations.rb) is the record-level equivalent check.
-        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name])
+        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
         field_optional = optional || attr[:optional]
         # A RECORD's own list field (`aggregate` present) is Option-
         # wrapped ONLY per `list_attr_creation_optional?` — the exact
@@ -377,7 +377,7 @@ module RustProjection
         ident = rust_ident_field(attr[:name])
         key = rust_field(attr[:name])
         scalar = effective_scalar_type(attr[:type])
-        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name])
+        record_optional_list = attr[:list] && aggregate && list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
         list_is_optional = aggregate ? record_optional_list : attr[:optional]
         field_optional = optional || attr[:optional]
 

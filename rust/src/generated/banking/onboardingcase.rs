@@ -240,6 +240,7 @@ pub fn dispatch_open(
         ],
         None,
         |record| {
+        record.customer = Some(args.customer.clone());
         record.reference = Some(args.reference.clone());
         record.account_number = Some(args.account_number.clone());
             Ok(())

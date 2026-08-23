@@ -1,0 +1,84 @@
+Hecks.bluebook "World" do
+  aggregate "World" do
+    description "One .world — the per-deployment values a domain's adapters need. A sibling artifact to the bluebook, not part of it : the same domain runs in many worlds."
+
+    identified_by WorldName, as: :domain
+
+    attribute :realm,  Realm
+    attribute :latest, Latest
+
+    value_object "WorldName" do
+      attribute :value, String
+      invariant("a world names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "Realm" do
+      attribute :value, String
+      invariant("a realm says something") { !value.to_s.empty? }
+    end
+
+    value_object "Latest" do
+      attribute :value, String
+      invariant("a latest version says something") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Open a world for a domain"
+
+      attribute :domain, WorldName
+      attribute :realm,  Realm, optional: true
+      attribute :latest, Latest, optional: true
+
+      sets :domain
+      sets :realm
+      sets :latest
+
+      emits "WorldDeclared"
+    end
+
+    # HOW WORLD IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: File, World.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
+      member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl"
+      member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "world",           context: "File", at: "1", named: "", kind: "text", required: "true", fills: "domain"
+      member keyword: "realm",           context: "World", at: "1", named: "", kind: "text", required: "true", fills: "realm"
+      member keyword: "latest",          context: "World", at: "1", named: "", kind: "text", required: "true", fills: "latest"
+
+    end
+  end
+end

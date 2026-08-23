@@ -1,6 +1,6 @@
 // HAND-WRITTEN, ONCE, GENERIC — a direct structural port of
 // `Hecksagain::Bluebook::Expression::Evaluator` and `::Resolver`
-// (docs/guides/running-a-runtime.md's "The expression grammar"), not a
+// (docs/implemented/guides/running-a-runtime.md's "The expression grammar"), not a
 // reimplementation of parsing. bin/project_rust parses real canonical
 // `given`/`ensures`/invariant text with the REAL Ruby parser and emits
 // `Expr` DATA literals from that AST; the only thing written here is
@@ -94,7 +94,7 @@ pub trait Fielded {
     /// unchanged) — `reference_lookup.rs`'s `DerefNode` is the one real
     /// override: a dereferenced record collapses to the id it was
     /// fetched by, which is exactly what makes a bare `source !=
-    /// destination` (`examples/banking/bluebook/banking.bluebook`'s own
+    /// destination` (`examples/banking/bluebook/`'s own
     /// `Transfer.Request`, "a transfer moves BETWEEN accounts") a real
     /// identity comparison instead of an unrepresentable object-to-object
     /// one — two references are the same reference iff they resolved to

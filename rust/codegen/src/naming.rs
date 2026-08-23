@@ -128,6 +128,30 @@ pub fn scalar_to_value(type_name: &str, rust_expr: &str) -> Option<String> {
     }
 }
 
+/// Mirrors `fielded_capable_nested?`: ordinary value objects and
+/// single-field closed-set enums implement `Fielded`; multi-field closed-set
+/// tables do not.
+pub fn fielded_capable_nested(vo: &crate::json::Json) -> bool {
+    !vo.get("closed_set").map(crate::json::Json::as_bool).unwrap_or(false)
+        || vo.get("attributes").map(crate::json::Json::each).unwrap_or(&[]).len() == 1
+}
+
+/// The `Fielded` implementation Ruby emits beside a single-field closed-set
+/// enum. Its generic field surface is the same `"value"` object shape used by
+/// that enum's existing JSON codec.
+pub fn emit_closed_set_fielded_impl(vo: &crate::json::Json) -> String {
+    let name = rust_ident(vo.get("name").and_then(crate::json::Json::as_str).unwrap_or(""));
+    let arms = vo.get("members").map(crate::json::Json::each).unwrap_or(&[]).iter().filter_map(|row| {
+        let pair = row.as_array()?.first()?.as_array()?;
+        let raw = pair.get(1)?.to_s();
+        Some(format!("{name}::{} => {}.to_string(),", closed_set_variant(&raw), ruby_inspect_string(&raw)))
+    }).collect::<Vec<_>>().join(" ");
+
+    format!(
+        "impl crate::kernel::Fielded for {name} {{\n    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {{\n        use crate::kernel::{{Field, Value}};\n        match name {{\n            \"value\" => Some(Field::Value(Value::Str(match self {{ {arms} }}))),\n            _ => None,\n        }}\n    }}\n}}"
+    )
+}
+
 /// A literal mutation-source RHS — mirrors `naming.rb#literal_rhs`. Takes
 /// the already-parsed `crate::ruby_value::Value`-shaped JSON literal
 /// (String/Integer/Float/Bool) this crate reads out of `ir.json`.

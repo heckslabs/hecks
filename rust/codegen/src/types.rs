@@ -198,7 +198,8 @@ pub fn emit_value_object(exemplar: &Exemplar, vo: &Json, value_objects_by_name: 
             })
             .collect();
         let field_subs_list: Vec<Vec<(&str, String)>> = variants.iter().map(|v| vec![("TmplMemberA", v.clone())]).collect();
-        return exemplar.compose("closed_set_enum", &[("TmplKind", name)], "closed_set_enum:VARIANT", &field_subs_list, "\n");
+        let enum_part = exemplar.compose("closed_set_enum", &[("TmplKind", name)], "closed_set_enum:VARIANT", &field_subs_list, "\n");
+        return format!("{enum_part}\n\n{}", naming::emit_closed_set_fielded_impl(vo));
     }
 
     let field_subs_list: Vec<Vec<(&str, String)>> = attributes
@@ -271,7 +272,7 @@ pub fn emit_record(exemplar: &Exemplar, aggregate: &Json, value_objects_by_name:
         .map(|attr| {
             let list = crate::attr::list(attr);
             let mut ty = naming::rust_type(crate::attr::type_name(attr), list);
-            if !list || crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr)) {
+            if !list || crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr), value_objects_by_name) {
                 ty = format!("Option<{ty}>");
             }
             vec![("TmplFieldType", ty), ("tmpl_field", naming::rust_ident_field(crate::attr::name(attr)))]

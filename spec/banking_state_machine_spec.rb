@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe "Banking's generated account machine" do
-  STATE_MACHINE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  STATE_MACHINE_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
     registry = Hecksagain::Runtime::Registry.new
@@ -11,7 +11,7 @@ RSpec.describe "Banking's generated account machine" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(STATE_MACHINE_BLUEBOOK)
+      load_bluebook_files(STATE_MACHINE_BLUEBOOK)
       Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
     end
   end

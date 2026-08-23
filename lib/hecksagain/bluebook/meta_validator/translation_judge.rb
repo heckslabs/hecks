@@ -56,13 +56,14 @@ module Hecksagain
           nil
         end
 
-        def send_to(verb, label, **payload)
-          offer(label) { @runtime.dispatch(verb, **args(payload)) }
+        def send_to(verb, label, to: nil, with: {})
+          offer(label) { @runtime.dispatch(verb, to: to, with: args(with)) }
         end
 
         def judge!
           t = @translation
-          send_to("Translation::Translation.Declare", t.domain, domain: v(t.domain), from: v(t.from), to: v(t.to))
+          send_to("Translation::Translation.Declare", t.domain,
+                  with: { domain: v(t.domain), from: v(t.from), to: v(t.to) })
 
           # `id:`, computed the SAME way — `Naming.identity([domain, from,
           # to])` — Translation's own identity is COMPOSITE
@@ -74,49 +75,61 @@ module Hecksagain
           # id, confirmed live via direct dispatch testing, not assumed.
           translation_id = Naming.identity([t.domain, t.from, t.to])
           Array(t.retired).each do |name|
-            send_to("Translation::Translation.Retire", t.domain, id: translation_id, value: v(name))
+            send_to("Translation::Translation.Retire", t.domain, to:   translation_id,
+                                                                 with: { value: v(name) })
           end
 
-          Array(t.aggregates).each { |aggregate| judge_aggregate(aggregate) }
+          Array(t.aggregates).each { |aggregate| judge_aggregate(t, aggregate) }
         end
 
-        def judge_aggregate(aggregate)
+        def judge_aggregate(translation, aggregate)
           name = aggregate.name
-          send_to("Translation::TranslationAggregate.Declare", name, name: v(name), was: v(aggregate.was))
+          parent = {
+            domain: v(translation.domain),
+            from:   v(translation.from),
+            to:     v(translation.to)
+          }
+          send_to("Translation::TranslationAggregate.Declare", name,
+                  with: { translation_ref: parent, name: v(name), was: v(aggregate.was) })
 
           Hash(aggregate.renames).each do |from, to|
-            send_to("Translation::TranslationAggregate.AddRename", name, name: name, from: v(from), to: v(to))
+            send_to("Translation::TranslationAggregate.AddRename", name, to:   name,
+                                                                         with: { from: v(from), to: v(to) })
           end
 
           Array(aggregate.moves).each do |move|
-            send_to("Translation::TranslationAggregate.AddMove", name, name: name, from: v(move.from), to: v(move.to))
+            send_to("Translation::TranslationAggregate.AddMove", name, to:   name,
+                                                                       with: { from: v(move.from), to: v(move.to) })
           end
 
           Array(aggregate.converts).each do |convert|
-            send_to("Translation::TranslationAggregate.AddConvert", name, name: name, from: v(convert.from),
-                    to: v(convert.to), values: v(convert.values.inspect))
+            send_to("Translation::TranslationAggregate.AddConvert", name, to:   name,
+                                                                          with: { from: v(convert.from), to: v(convert.to), values: v(convert.values.inspect) })
           end
 
           Array(aggregate.drops).each do |dropped|
-            send_to("Translation::TranslationAggregate.AddDrop", name, name: name, value: v(dropped))
+            send_to("Translation::TranslationAggregate.AddDrop", name, to:   name,
+                                                                       with: { value: v(dropped) })
           end
 
           Array(aggregate.retypes).each do |retype|
-            send_to("Translation::TranslationAggregate.AddRetype", name, name: name, from: v(retype.from), to: v(retype.to))
+            send_to("Translation::TranslationAggregate.AddRetype", name, to:   name,
+                                                                         with: { from: v(retype.from), to: v(retype.to) })
           end
 
           Array(aggregate.computes).each do |compute|
-            send_to("Translation::TranslationAggregate.AddCompute", name, name: name, from: v(compute.from),
-                    to: v(compute.to), sql: v(compute.sql))
+            send_to("Translation::TranslationAggregate.AddCompute", name, to:   name,
+                                                                          with: { from: v(compute.from), to: v(compute.to), sql: v(compute.sql) })
           end
 
           Array(aggregate.rekeys).each do |rekey|
-            send_to("Translation::TranslationAggregate.AddRekey", name, name: name, sql: v(rekey.sql))
+            send_to("Translation::TranslationAggregate.AddRekey", name, to:   name,
+                                                                        with: { sql: v(rekey.sql) })
           end
 
           Array(aggregate.backfills).each do |backfill|
-            send_to("Translation::TranslationAggregate.AddBackfill", name, aggregate: name, name: v(backfill.name),
-                    default: v(backfill.default.inspect))
+            send_to("Translation::TranslationAggregate.AddBackfill", name, to:   name,
+                                                                           with: { name: v(backfill.name), default: v(backfill.default.inspect) })
           end
         end
       end

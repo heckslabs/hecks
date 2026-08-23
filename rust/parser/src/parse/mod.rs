@@ -30,7 +30,6 @@ pub mod query;
 pub mod read_model;
 pub mod value_object;
 
-use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::keywords::{self, ArgumentRow, KeywordRow};
@@ -59,7 +58,11 @@ pub fn word_gate<'a>(
     // that), so this can never double-match two different canonical rows.
     let candidates: Vec<&KeywordRow> = keywords::KEYWORDS
         .iter()
-        .filter(|k| k.live() && k.context == context && (k.word == word || (!k.was.is_empty() && k.was == word)))
+        .filter(|k| {
+            k.live()
+                && k.context == context
+                && (k.word == word || (!k.was.is_empty() && k.was == word))
+        })
         .collect();
 
     if candidates.is_empty() {
@@ -70,7 +73,12 @@ pub fn word_gate<'a>(
             .collect();
         legal.sort();
         legal.dedup();
-        return Err(Diagnostic::new(file, line, format!("'{word}' is not a word {context} admits")).with_expected(legal));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}' is not a word {context} admits"),
+        )
+        .with_expected(legal));
     }
 
     Ok(candidates)
@@ -125,7 +133,9 @@ pub fn body_gate<'a>(
     let compatible: fn(&str) -> bool = match opener {
         Opener::None => |body| body == "none",
         Opener::DoBlock { .. } => |body| body == "keywords" || body == "rows" || body == "source",
-        Opener::BraceBlock { .. } => |body| body == "keywords" || body == "rows" || body == "source",
+        Opener::BraceBlock { .. } => {
+            |body| body == "keywords" || body == "rows" || body == "source"
+        }
     };
 
     if let Some(row) = candidates.iter().find(|row| compatible(row.body)) {
@@ -138,7 +148,10 @@ pub fn body_gate<'a>(
         Opener::DoBlock { .. } => "a `do ... end` block",
         Opener::BraceBlock { .. } => "a `{ ... }` block",
     };
-    Err(Diagnostic::new(file, line, format!("'{word}' was written with {found}")).with_expected(legal))
+    Err(
+        Diagnostic::new(file, line, format!("'{word}' was written with {found}"))
+            .with_expected(legal),
+    )
 }
 
 /// A LIVE CROSS-CHECK against the self-hosted grammar table, mirroring
@@ -226,7 +239,10 @@ pub(crate) fn type_context_call_word(token: &str) -> Option<&str> {
     if word.is_empty() || !word.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return None;
     }
-    if keywords::KEYWORDS.iter().any(|k| k.live() && k.context == "Type" && k.word == word) {
+    if keywords::KEYWORDS
+        .iter()
+        .any(|k| k.live() && k.context == "Type" && k.word == word)
+    {
         Some(word)
     } else {
         None
@@ -256,7 +272,11 @@ pub(crate) fn classify_lexical_kind(token: &str) -> &'static str {
     if t.starts_with('{') && t.ends_with('}') {
         return "pairs";
     }
-    if t.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
+    if t.chars()
+        .next()
+        .map(|c| c.is_ascii_uppercase())
+        .unwrap_or(false)
+    {
         return "constant";
     }
     if type_context_call_word(t).is_some() {
@@ -328,16 +348,26 @@ pub fn argument_gate(
     args_text: &str,
     line: usize,
 ) -> ParseResult<ArgumentGateResult> {
-    let rows: Vec<&ArgumentRow> =
-        keywords::ARGUMENTS.iter().filter(|r| r.live() && r.keyword == word && r.context == context).collect();
+    let rows: Vec<&ArgumentRow> = keywords::ARGUMENTS
+        .iter()
+        .filter(|r| r.live() && r.keyword == word && r.context == context)
+        .collect();
 
-    let segments = if args_text.trim().is_empty() { Vec::new() } else { ruby_value::split_items(args_text) };
+    let segments = if args_text.trim().is_empty() {
+        Vec::new()
+    } else {
+        ruby_value::split_items(args_text)
+    };
 
     if rows.is_empty() {
         if segments.is_empty() {
             return Ok(ArgumentGateResult::default());
         }
-        return Err(Diagnostic::new(file, line, format!("'{word}' takes no arguments, but got '{args_text}'")));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}' takes no arguments, but got '{args_text}'"),
+        ));
     }
 
     // A POSITIONAL `pairs` ROW (`at: "1", kind: "pairs"`) — two genuinely
@@ -416,15 +446,27 @@ pub fn argument_gate(
         if !row.at.is_empty() {
             let idx: usize = row.at.parse().unwrap_or(0);
             if idx == 0 || idx > positionals.len() {
-                return Err(Diagnostic::new(file, line, format!("'{word}' requires a positional argument at {}", row.at)));
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    format!("'{word}' requires a positional argument at {}", row.at),
+                ));
             }
         } else if !row.named.is_empty() && !nameds.iter().any(|(n, _)| n == row.named) {
-            return Err(Diagnostic::new(file, line, format!("'{word}' requires '{}:'", row.named)));
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!("'{word}' requires '{}:'", row.named),
+            ));
         }
     }
 
     Ok(ArgumentGateResult {
-        positional: positionals.into_iter().enumerate().map(|(i, t)| (i + 1, t)).collect(),
+        positional: positionals
+            .into_iter()
+            .enumerate()
+            .map(|(i, t)| (i + 1, t))
+            .collect(),
         named: nameds,
     })
 }
@@ -483,14 +525,32 @@ fn argument_gate_fields_pairs(
     }
 
     if field_pairs.len() > 1 {
-        return Err(Diagnostic::new(file, line, format!("'{word}' takes exactly one 'key => value' pair, got {}", field_pairs.len())));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "'{word}' takes exactly one 'key => value' pair, got {}",
+                field_pairs.len()
+            ),
+        ));
     }
     if pairs_row.required == "true" && field_pairs.is_empty() {
-        return Err(Diagnostic::new(file, line, format!("'{word}' requires a 'key => value' pair")));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}' requires a 'key => value' pair"),
+        ));
     }
 
-    let named = field_pairs.into_iter().map(|pair| ("=>".to_string(), pair)).chain(nameds).collect();
-    Ok(ArgumentGateResult { positional: Vec::new(), named })
+    let named = field_pairs
+        .into_iter()
+        .map(|pair| ("=>".to_string(), pair))
+        .chain(nameds)
+        .collect();
+    Ok(ArgumentGateResult {
+        positional: Vec::new(),
+        named,
+    })
 }
 
 /// `pairs_shape: "verbatim"`/`"elements"` — MANY segments merged into one
@@ -536,10 +596,18 @@ fn argument_gate_named_pairs(
     }
 
     if !positionals.is_empty() {
-        return Err(Diagnostic::new(file, line, format!("'{word}' takes an open map of pairs, not a bare positional argument")));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}' takes an open map of pairs, not a bare positional argument"),
+        ));
     }
 
-    let specific_named: std::collections::BTreeSet<&str> = rows.iter().filter(|r| !r.named.is_empty()).map(|r| r.named).collect();
+    let specific_named: std::collections::BTreeSet<&str> = rows
+        .iter()
+        .filter(|r| !r.named.is_empty())
+        .map(|r| r.named)
+        .collect();
     let mut claimed = Vec::new();
     let mut leftover = Vec::new();
     for (name, value) in nameds {
@@ -551,7 +619,11 @@ fn argument_gate_named_pairs(
     }
 
     if pairs_row.required == "true" && leftover.is_empty() {
-        return Err(Diagnostic::new(file, line, format!("'{word}' requires at least one pair")));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}' requires at least one pair"),
+        ));
     }
 
     for (name, value) in &claimed {
@@ -560,7 +632,10 @@ fn argument_gate_named_pairs(
 
     let mut named = claimed;
     named.extend(leftover);
-    Ok(ArgumentGateResult { positional: Vec::new(), named })
+    Ok(ArgumentGateResult {
+        positional: Vec::new(),
+        named,
+    })
 }
 
 /// A top-level (not inside quotes/braces/brackets) Ruby hash-rocket
@@ -651,7 +726,12 @@ pub(crate) fn split_top_level_rocket(segment: &str) -> (&str, &str) {
 /// This language's pairs-argument keys are always symbols (never a
 /// string, never a bareword), so anything else is a real refusal, not a
 /// guess.
-fn rocket_key_name<'a>(file: &str, word: &str, key_text: &'a str, line: usize) -> ParseResult<String> {
+fn rocket_key_name<'a>(
+    file: &str,
+    word: &str,
+    key_text: &'a str,
+    line: usize,
+) -> ParseResult<String> {
     let Some(rest) = key_text.strip_prefix(':') else {
         return Err(Diagnostic::new(file, line, format!("'{word}'s key '{key_text}' is not a symbol — a pair's key is always :name or :\"a.dotted.path\"")));
     };
@@ -671,13 +751,25 @@ fn validate_named(
 ) -> ParseResult<()> {
     let candidates: Vec<&&ArgumentRow> = rows.iter().filter(|r| r.named == name).collect();
     if candidates.is_empty() {
-        let expected: Vec<String> = rows.iter().filter(|r| !r.named.is_empty()).map(|r| r.named.to_string()).collect();
-        return Err(Diagnostic::new(file, line, format!("'{word}' takes no '{name}:' argument")).with_expected(expected));
+        let expected: Vec<String> = rows
+            .iter()
+            .filter(|r| !r.named.is_empty())
+            .map(|r| r.named.to_string())
+            .collect();
+        return Err(
+            Diagnostic::new(file, line, format!("'{word}' takes no '{name}:' argument"))
+                .with_expected(expected),
+        );
     }
     let kind = classify_lexical_kind(value);
     if !candidates.iter().any(|r| kind_matches(r.kind, kind)) {
         let expected: Vec<String> = candidates.iter().map(|r| r.kind.to_string()).collect();
-        return Err(Diagnostic::new(file, line, format!("'{word}'s '{name}:' ('{value}') reads as {kind}")).with_expected(expected));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{word}'s '{name}:' ('{value}') reads as {kind}"),
+        )
+        .with_expected(expected));
     }
     Ok(())
 }
@@ -687,7 +779,12 @@ fn validate_named(
 /// `spec/syntax_conformance_spec.rb` already uses (`OneOf` shares
 /// `ValueObjectBuilder`, `Handler` shares `ProcessManagerBuilder`,
 /// `PortOperation` shares `DomainPortBuilder`).
-pub(crate) fn dispatch_stub(inner_context: &str, file: &str, line: usize, word: &str) -> Diagnostic {
+pub(crate) fn dispatch_stub(
+    inner_context: &str,
+    file: &str,
+    line: usize,
+    word: &str,
+) -> Diagnostic {
     match inner_context {
         "Bluebook" => chapter::not_implemented(file, line, word),
         "Hecksagon" => hecksagon::not_implemented(file, line, word),
@@ -711,7 +808,11 @@ pub(crate) fn dispatch_stub(inner_context: &str, file: &str, line: usize, word: 
         // everything else and refuses there, which is the honest
         // (if not yet final) Stage 1 behavior — named here rather than
         // silently guessed at.
-        other => Diagnostic::not_yet_implemented(file, line, format!("{other}.{word} (unmapped inner context)")),
+        other => Diagnostic::not_yet_implemented(
+            file,
+            line,
+            format!("{other}.{word} (unmapped inner context)"),
+        ),
     }
 }
 
@@ -723,7 +824,13 @@ pub(crate) fn dispatch_stub(inner_context: &str, file: &str, line: usize, word: 
 /// produced — `tests/gates.rs`'s still-Stage-1 fixtures (entity.bluebook,
 /// read_model.bluebook, process_manager.bluebook) depend on this wording
 /// staying stable across the two code paths.
-pub(crate) fn not_built_yet(context: &str, row: &KeywordRow, file: &str, line: usize, word: &str) -> Diagnostic {
+pub(crate) fn not_built_yet(
+    context: &str,
+    row: &KeywordRow,
+    file: &str,
+    line: usize,
+    word: &str,
+) -> Diagnostic {
     if row.inner.is_empty() {
         dispatch_stub(context, file, line, word)
     } else {
@@ -767,7 +874,11 @@ pub(crate) fn next_line<'src>(
 ) -> ParseResult<Option<GatedLine<'src>>> {
     let line = *lines.get(*pos).ok_or_else(|| {
         let last = lines.last().map(|l| l.number).unwrap_or(0);
-        Diagnostic::new(file, last, format!("unexpected end of file — still inside {context}"))
+        Diagnostic::new(
+            file,
+            last,
+            format!("unexpected end of file — still inside {context}"),
+        )
     })?;
 
     let shape = lex::classify(file, &line)?;
@@ -776,10 +887,17 @@ pub(crate) fn next_line<'src>(
     match shape {
         LineShape::End => Ok(None),
         LineShape::Call(call) => {
-            let candidates: Vec<&'static KeywordRow> = word_gate(file, &call.word, context, line.number)?;
-            let row: &'static KeywordRow = body_gate(file, &candidates, &call.opener, line.number, &call.word)?;
+            let candidates: Vec<&'static KeywordRow> =
+                word_gate(file, &call.word, context, line.number)?;
+            let row: &'static KeywordRow =
+                body_gate(file, &candidates, &call.opener, line.number, &call.word)?;
             let args = argument_gate(file, row.word, context, &call.args, line.number)?;
-            Ok(Some(GatedLine { line, call, row, args }))
+            Ok(Some(GatedLine {
+                line,
+                call,
+                row,
+                args,
+            }))
         }
     }
 }
@@ -789,17 +907,35 @@ pub(crate) fn next_line<'src>(
 /// confirmed a required positional at that index exists, so the "missing"
 /// branch here is a defensive `unreachable`-shaped error, never actually
 /// hit by a well-formed call.
-fn positional_raw<'a>(file: &str, line: usize, word: &str, args: &'a ArgumentGateResult, at: usize) -> ParseResult<&'a str> {
+fn positional_raw<'a>(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &'a ArgumentGateResult,
+    at: usize,
+) -> ParseResult<&'a str> {
     args.positional
         .iter()
         .find(|(idx, _)| *idx == at)
         .map(|(_, text)| text.as_str())
-        .ok_or_else(|| Diagnostic::new(file, line, format!("'{word}' has no positional argument {at}")))
+        .ok_or_else(|| {
+            Diagnostic::new(
+                file,
+                line,
+                format!("'{word}' has no positional argument {at}"),
+            )
+        })
 }
 
 /// A required TEXT (quoted-string) positional argument, unquoted —
 /// `aggregate "Widget"`, `given("description")`, `role "Chef"`.
-pub(crate) fn positional_text(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
+pub(crate) fn positional_text(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
     let raw = positional_raw(file, line, word, args, at)?;
     Ok(match ruby_value::read(raw) {
         ruby_value::Value::Str(s) => s,
@@ -814,9 +950,21 @@ pub(crate) fn positional_text(file: &str, line: usize, word: &str, args: &Argume
 /// (`correlates_by :"reference.value"`, `process_manager`'s own required
 /// scalar correlation key — `ProcessManagerBuilder#validate!`'s own
 /// comment on why the dot is mandatory).
-pub(crate) fn positional_symbol(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
+pub(crate) fn positional_symbol(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
     let raw = positional_raw(file, line, word, args, at)?.trim();
-    symbol_text(raw).ok_or_else(|| Diagnostic::new(file, line, format!("'{word}'s positional argument {at} ('{raw}') is not a symbol")))
+    symbol_text(raw).ok_or_else(|| {
+        Diagnostic::new(
+            file,
+            line,
+            format!("'{word}'s positional argument {at} ('{raw}') is not a symbol"),
+        )
+    })
 }
 
 /// The bare name out of a symbol TOKEN as WRITTEN in source — `:name` ->
@@ -836,7 +984,13 @@ fn symbol_text(raw: &str) -> Option<String> {
 
 /// A CONSTANT (bareword type name) positional argument, raw — `attribute
 /// :pizza, Pizza`. Never quoted, never colon-prefixed; taken verbatim.
-pub(crate) fn positional_constant<'a>(file: &str, line: usize, word: &str, args: &'a ArgumentGateResult, at: usize) -> ParseResult<&'a str> {
+pub(crate) fn positional_constant<'a>(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &'a ArgumentGateResult,
+    at: usize,
+) -> ParseResult<&'a str> {
     positional_raw(file, line, word, args, at).map(|s| s.trim())
 }
 
@@ -849,7 +1003,13 @@ pub(crate) fn positional_constant<'a>(file: &str, line: usize, word: &str, args:
 /// gate` already admits either lexical shape here; this just derives the
 /// same text `Hecksagain::Naming.command_ref` derives from whichever one
 /// was written.
-pub(crate) fn positional_command_ref(file: &str, line: usize, word: &str, args: &ArgumentGateResult, at: usize) -> ParseResult<String> {
+pub(crate) fn positional_command_ref(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    at: usize,
+) -> ParseResult<String> {
     let raw = positional_raw(file, line, word, args, at)?;
     Ok(crate::build::naming::command_ref(raw))
 }
@@ -857,7 +1017,10 @@ pub(crate) fn positional_command_ref(file: &str, line: usize, word: &str, args: 
 /// A NAMED argument's raw captured text, if the call gave one —
 /// `as: :name`, `optional: true`, `to: "sold"`.
 pub(crate) fn named_raw<'a>(args: &'a ArgumentGateResult, name: &str) -> Option<&'a str> {
-    args.named.iter().find(|(n, _)| n == name).map(|(_, v)| v.as_str())
+    args.named
+        .iter()
+        .find(|(n, _)| n == name)
+        .map(|(_, v)| v.as_str())
 }
 
 /// A NAMED SYMBOL argument, stripped of its leading colon — `as: :name`.
@@ -880,7 +1043,9 @@ pub(crate) fn named_text(args: &ArgumentGateResult, name: &str) -> Option<String
 
 /// A NAMED FLAG (`true`/`false`) argument — `optional: true`.
 pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
-    named_raw(args, name).map(|raw| raw.trim() == "true").unwrap_or(false)
+    named_raw(args, name)
+        .map(|raw| raw.trim() == "true")
+        .unwrap_or(false)
 }
 
 /// `AttributeCollector#attribute` (attribute_collector.rb) — shared by
@@ -910,11 +1075,18 @@ pub(crate) fn named_flag(args: &ArgumentGateResult, name: &str) -> bool {
 /// `identified_by`'s block form (`parse::aggregate`), `given`
 /// (`parse::command`), `invariant` (`parse::value_object`) — so a future
 /// one (`ensures`) gets the identical two-spelling handling for free.
-pub(crate) fn source_body_text(file: &str, lines: &[SourceLine], pos: &mut usize, opener: &Opener) -> ParseResult<String> {
+pub(crate) fn source_body_text(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    opener: &Opener,
+) -> ParseResult<String> {
     match opener {
         Opener::BraceBlock { body } => Ok(body.clone()),
         Opener::DoBlock { .. } => lex::capture_do_block_body(file, lines, pos),
-        Opener::None => unreachable!("body_gate only ever admits BraceBlock/DoBlock for a `source`-bodied row"),
+        Opener::None => {
+            unreachable!("body_gate only ever admits BraceBlock/DoBlock for a `source`-bodied row")
+        }
     }
 }
 
@@ -947,7 +1119,13 @@ pub(crate) fn parse_nested_body<T>(
     match opener {
         Opener::BraceBlock { body } => {
             let owned = brace_body_statements(body);
-            let synthetic: Vec<SourceLine> = owned.iter().map(|text| SourceLine { number: line_number, text: text.as_str() }).collect();
+            let synthetic: Vec<SourceLine> = owned
+                .iter()
+                .map(|text| SourceLine {
+                    number: line_number,
+                    text: text.as_str(),
+                })
+                .collect();
             let mut synthetic_pos = 0;
             parse(file, &synthetic, &mut synthetic_pos)
         }
@@ -1052,12 +1230,22 @@ pub(crate) struct PendingBody {
 /// Called the instant `entity`/`command`/`query`'s own OPENING line has
 /// been gated (`*pos` already past that line) — see `PendingBody`'s own
 /// header. `opener`/`line_number` come off that same gated line.
-pub(crate) fn defer_body(file: &str, lines: &[SourceLine], pos: &mut usize, opener: &Opener, line_number: usize) -> ParseResult<PendingBody> {
+pub(crate) fn defer_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    opener: &Opener,
+    line_number: usize,
+) -> ParseResult<PendingBody> {
     let body_start = *pos;
     if matches!(opener, Opener::DoBlock { .. }) {
         lex::capture_do_block_body(file, lines, pos)?;
     }
-    Ok(PendingBody { opener: opener.clone(), line_number, body_start })
+    Ok(PendingBody {
+        opener: opener.clone(),
+        line_number,
+        body_start,
+    })
 }
 
 /// The drained counterpart of `defer_body` — parses a deferred body for
@@ -1074,7 +1262,14 @@ pub(crate) fn build_deferred<T>(
     parse: impl FnOnce(&str, &[SourceLine], &mut usize) -> ParseResult<T>,
 ) -> ParseResult<T> {
     let mut pos = pending.body_start;
-    parse_nested_body(file, lines, &mut pos, &pending.opener, pending.line_number, parse)
+    parse_nested_body(
+        file,
+        lines,
+        &mut pos,
+        &pending.opener,
+        pending.line_number,
+        parse,
+    )
 }
 
 /// The `identified_by` forms this parser actually resolves/refuses —
@@ -1091,24 +1286,36 @@ pub(crate) fn build_deferred<T>(
 /// each resolved against its own already-declared attribute at
 /// `build/identity.rs::resolve_identity_field`.
 pub(crate) enum PendingIdentity {
-    Type { line: usize, target: String, as_field: Option<String>, insert_at: usize },
-    Fields { line: usize, names: Vec<String> },
-    Paths(Vec<String>),
+    Type {
+        line: usize,
+        target: String,
+        as_field: Option<String>,
+        insert_at: usize,
+    },
+    Fields {
+        line: usize,
+        names: Vec<String>,
+    },
+    Inline {
+        line: usize,
+        value_object: ir::ValueObject,
+        as_field: Option<String>,
+        insert_at: usize,
+    },
 }
 
 /// `AggregateBuilder#identified_by`/`EntityBuilder#identified_by` — the
 /// THREE forms Ruby's own single method distinguishes: a bareword
 /// starting uppercase is a value object (the LEGACY TYPE form,
 /// `identified_by PizzaName, as: :name`, `Opener::None`); one or more
-/// starting lowercase are Symbols, the LIVE FIELD form (`identified_by
+/// starting lowercase are Symbols, the FIELD form (`identified_by
 /// :field, :field_two`, `Opener::None`, VARIADIC — syntax.bluebook's own
 /// `identified_by` argument row, `variadic: "true"`, the same column
 /// `group_by`'s does); a BLOCK — spelled either `identified_by { ... }`
 /// (`Opener::BraceBlock`) or `identified_by do ... end`
-/// (`Opener::DoBlock`) — is the LEGACY SOURCE form, captured raw and
-/// canonicalized, one path per whitespace-separated token in the
-/// canonical text, mirroring `Ports::Extraction.canonical(path).to_s
-/// .split(" ").reject(&:empty?)` exactly.
+/// (`Opener::DoBlock`) — is a real `ValueObject` body. Its deterministic
+/// type name is supplied by the aggregate/entity caller and the resulting
+/// value object is installed in the owning aggregate during resolution.
 pub(crate) fn parse_identified_by(
     file: &str,
     lines: &[SourceLine],
@@ -1117,6 +1324,8 @@ pub(crate) fn parse_identified_by(
     args: &ArgumentGateResult,
     opener: &Opener,
     insert_at: usize,
+    inline_type_name: &str,
+    owner_value_objects: &[ir::ValueObject],
 ) -> ParseResult<PendingIdentity> {
     match opener {
         Opener::None => {
@@ -1134,8 +1343,29 @@ pub(crate) fn parse_identified_by(
             }
         }
         Opener::DoBlock { .. } | Opener::BraceBlock { .. } => {
-            let raw = source_body_text(file, lines, pos, opener)?;
-            paths_from_source(file, line, &raw)
+            if !args.positional.is_empty() {
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    "'identified_by' cannot combine a value-object type with a block",
+                ));
+            }
+            let value_object = parse_nested_body(file, lines, pos, opener, line, |f, l, p| {
+                value_object::parse_body(f, l, p, inline_type_name, owner_value_objects)
+            })?;
+            if value_object.attributes.is_empty() {
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    "'identified_by do' declares no identity attributes",
+                ));
+            }
+            Ok(PendingIdentity::Inline {
+                line,
+                value_object,
+                as_field: named_symbol(args, "as"),
+                insert_at,
+            })
         }
     }
 }
@@ -1148,22 +1378,21 @@ pub(crate) fn parse_identified_by(
 /// number, so there is no single `at` to ask for).
 fn positional_symbol_text(file: &str, line: usize, word: &str, raw: &str) -> ParseResult<String> {
     let trimmed = raw.trim();
-    symbol_text(trimmed).ok_or_else(|| Diagnostic::new(file, line, format!("'{word}'s positional argument ('{trimmed}') is not a symbol")))
+    symbol_text(trimmed).ok_or_else(|| {
+        Diagnostic::new(
+            file,
+            line,
+            format!("'{word}'s positional argument ('{trimmed}') is not a symbol"),
+        )
+    })
 }
 
-/// `identified_by`'s SOURCE-shaped body (either spelling) -> its own
-/// identity paths, canonicalized and whitespace-split — see
-/// `parse_identified_by`'s own header.
-fn paths_from_source(file: &str, line: usize, raw: &str) -> ParseResult<PendingIdentity> {
-    let canonical = canonical::apply(raw);
-    let paths: Vec<String> = canonical.split(' ').filter(|s| !s.is_empty()).map(str::to_string).collect();
-    if paths.is_empty() {
-        return Err(Diagnostic::new(file, line, "'identified_by' names no field"));
-    }
-    Ok(PendingIdentity::Paths(paths))
-}
-
-pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &ArgumentGateResult) -> ParseResult<(ir::Attribute, Option<ir::ValueObject>)> {
+pub(crate) fn build_attribute(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+) -> ParseResult<(ir::Attribute, Option<ir::ValueObject>)> {
     let name = positional_symbol(file, line, word, args, 1)?;
     // THE TYPE POSITION IS ALWAYS A BARE CONSTANT, ALWAYS REQUIRED (S3,
     // ADR 0025) — no mint default, refused rather than silently filled
@@ -1189,11 +1418,26 @@ pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &Argume
             return Err(Diagnostic::new(
                 file,
                 line,
-                format!("'{name}'s pattern {pat:?} uses a {} — {}", rejection.construct, rejection.reason),
+                format!(
+                    "'{name}'s pattern {pat:?} uses a {} — {}",
+                    rejection.construct, rejection.reason
+                ),
             ));
         }
     }
-    Ok((ir::Attribute { name, type_name, list, default, optional, pattern, admits }, closed_set))
+    Ok((
+        ir::Attribute {
+            name,
+            type_name,
+            list,
+            default,
+            optional,
+            pattern,
+            admits,
+            relationship: None,
+        },
+        closed_set,
+    ))
 }
 
 /// An attribute's own TYPE POSITION — almost always a bare constant
@@ -1214,19 +1458,33 @@ pub(crate) fn build_attribute(file: &str, line: usize, word: &str, args: &Argume
 /// name (`build/closed_sets.rs`), and the attribute's own type is that
 /// name — the VALUE OBJECT itself is handed back to the caller, which
 /// decides whether to keep it (see `build_attribute`'s own header).
-fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str, text: &str) -> ParseResult<(String, bool, Option<ir::ValueObject>)> {
+fn resolve_type_expression(
+    file: &str,
+    line: usize,
+    word: &str,
+    field_name: &str,
+    text: &str,
+) -> ParseResult<(String, bool, Option<ir::ValueObject>)> {
     let trimmed = text.trim();
     match type_context_call_word(trimmed) {
         Some("list_of") => {
-            let open = trimmed.find('(').expect("type_context_call_word already confirmed a '('");
+            let open = trimmed
+                .find('(')
+                .expect("type_context_call_word already confirmed a '('");
             let inner = trimmed[open + 1..trimmed.len() - 1].trim();
             if classify_lexical_kind(inner) != "constant" {
-                return Err(Diagnostic::new(file, line, format!("'{word}'s list_of(...) must hold a constant type name, got '{inner}'")));
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    format!("'{word}'s list_of(...) must hold a constant type name, got '{inner}'"),
+                ));
             }
             Ok((inner.to_string(), true, None))
         }
         Some("one_of") => {
-            let open = trimmed.find('(').expect("type_context_call_word already confirmed a '('");
+            let open = trimmed
+                .find('(')
+                .expect("type_context_call_word already confirmed a '('");
             let inner = &trimmed[open + 1..trimmed.len() - 1];
             let values: Vec<String> = ruby_value::split_items(inner)
                 .into_iter()
@@ -1236,13 +1494,21 @@ fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str
                 })
                 .collect();
             if values.is_empty() {
-                return Err(Diagnostic::new(file, line, format!("'{word}'s inline one_of(...) names no values")));
+                return Err(Diagnostic::new(
+                    file,
+                    line,
+                    format!("'{word}'s inline one_of(...) names no values"),
+                ));
             }
             let vo = crate::build::closed_sets::synthesize(field_name, &values);
             let type_name = vo.name.clone();
             Ok((type_name, false, Some(vo)))
         }
-        Some(other) => Err(Diagnostic::not_yet_implemented(file, line, format!("{word}'s inline {other}(...) type"))),
+        Some(other) => Err(Diagnostic::not_yet_implemented(
+            file,
+            line,
+            format!("{word}'s inline {other}(...) type"),
+        )),
         // THE QUOTED-TEXT FORM IS GONE (S3, ADR 0025 — "the type position
         // takes a bare constant, always required"). It existed only as a
         // forward-reference workaround (`attribute :name, "Name"`, ahead
@@ -1255,7 +1521,9 @@ fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str
         None if classify_lexical_kind(trimmed) == "text" => Err(Diagnostic::new(
             file,
             line,
-            format!("'{field_name}'s type {trimmed} is quoted text — give the bare constant instead"),
+            format!(
+                "'{field_name}'s type {trimmed} is quoted text — give the bare constant instead"
+            ),
         )),
         None => Ok((trimmed.to_string(), false, None)),
     }
@@ -1273,11 +1541,20 @@ fn resolve_type_expression(file: &str, line: usize, word: &str, field_name: &str
 /// FIRST ERROR ABORTS, deliberately (see the plan's own non-goals on
 /// parser error recovery) — this returns on the FIRST gate failure or
 /// first not-yet-implemented construct, at any depth.
-pub fn walk_body(file: &str, lines: &[SourceLine], pos: &mut usize, context: &'static str) -> ParseResult<()> {
+pub fn walk_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    context: &'static str,
+) -> ParseResult<()> {
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
             let last = lines.last().map(|l| l.number).unwrap_or(0);
-            Diagnostic::new(file, last, format!("unexpected end of file — still inside {context}"))
+            Diagnostic::new(
+                file,
+                last,
+                format!("unexpected end of file — still inside {context}"),
+            )
         })?;
 
         let shape = lex::classify(file, &line)?;
@@ -1311,7 +1588,16 @@ fn handle_call(
                 .iter()
                 .find(|c| **c == row.inner)
                 .copied()
-                .ok_or_else(|| Diagnostic::new(file, line.number, format!("'{}' opens an undeclared context '{}'", call.word, row.inner)))?;
+                .ok_or_else(|| {
+                    Diagnostic::new(
+                        file,
+                        line.number,
+                        format!(
+                            "'{}' opens an undeclared context '{}'",
+                            call.word, row.inner
+                        ),
+                    )
+                })?;
             walk_body(file, lines, pos, inner_context)?;
             // The ENTIRE nested body (`inner_context`) gated successfully
             // with no leaf construct left unimplemented inside it — still
@@ -1321,6 +1607,8 @@ fn handle_call(
             // merely opened it.
             Err(dispatch_stub(inner_context, file, line.number, &call.word))
         }
-        Opener::BraceBlock { .. } | Opener::None => Err(dispatch_stub(context, file, line.number, &call.word)),
+        Opener::BraceBlock { .. } | Opener::None => {
+            Err(dispatch_stub(context, file, line.number, &call.word))
+        }
     }
 }

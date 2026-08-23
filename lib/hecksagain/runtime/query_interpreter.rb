@@ -143,14 +143,16 @@ module Hecksagain
         return where_holds?(clause, record, args) unless step
 
         hop, rest = step
-        reference_id = record[hop.attribute.name]
-        return false if reference_id.nil?
-
-        target_record = @registry.repository(domain, hop.target).find(reference_id)
-        return false unless target_record
-
         inner = QuerySpecification::Common::WhereClause.new(field: rest, op: clause.op, value: clause.value)
-        reference_where_holds?(inner, target_record, args, domain: domain, shape: hop.target)
+        held = record[hop.attribute.name]
+        reference_ids = hop.attribute.list? ? Array(held) : [held]
+
+        reference_ids.compact.any? do |reference_id|
+          target_record = @registry.repository(domain, hop.target).find(reference_id)
+          next false unless target_record
+
+          reference_where_holds?(inner, target_record, args, domain: domain, shape: hop.target)
+        end
       end
 
       def entity_rows(domain, aggregate, dotted, args)

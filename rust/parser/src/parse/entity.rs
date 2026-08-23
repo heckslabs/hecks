@@ -24,7 +24,7 @@
 //! `Amend`/`Reverse` used to repeat two `given` blocks byte for byte).
 
 use super::{command, lifecycle, query};
-use crate::build::identity;
+use crate::build::{identity, naming, references};
 use crate::canonical;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
@@ -57,10 +57,15 @@ pub fn parse_body(
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
-    owner_value_objects: &[ir::ValueObject],
+    identity_name_prefix: &str,
+    owner_value_objects: &mut Vec<ir::ValueObject>,
+    identity_value_object_insert_at: &mut usize,
     entity_named_givens: &mut Vec<ir::Given>,
 ) -> ParseResult<ir::Entity> {
-    let mut entity = ir::Entity { name: name.to_string(), ..Default::default() };
+    let mut entity = ir::Entity {
+        name: name.to_string(),
+        ..Default::default()
+    };
     let mut pending_identity: Option<super::PendingIdentity> = None;
     // DEFERRED CONSTRUCTION — see `parse::mod::PendingBody`'s own header
     // and `parse::aggregate`'s own mirror, one level up. `command`/
@@ -71,7 +76,8 @@ pub fn parse_body(
     // `entity`) regardless of which was written first, matching
     // `EntityBuilder#drain_pending!` exactly.
     let mut pending_entities: Vec<(String, super::PendingBody)> = Vec::new();
-    let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> = Vec::new();
+    let mut pending_commands: Vec<(String, Option<ir::CommandFrom>, super::PendingBody)> =
+        Vec::new();
     let mut pending_queries: Vec<(String, super::PendingBody)> = Vec::new();
 
     loop {
@@ -81,16 +87,123 @@ pub fn parse_body(
         let line = gated.line.number;
 
         match gated.row.word {
-            "description" => entity.description = Some(super::positional_text(file, line, "description", &gated.args, 1)?),
-            "attribute" => entity.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
+            "description" => {
+                entity.description = Some(super::positional_text(
+                    file,
+                    line,
+                    "description",
+                    &gated.args,
+                    1,
+                )?)
+            }
+            "attribute" => entity
+                .attributes
+                .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
             "identified_by" => {
-                pending_identity =
-                    Some(super::parse_identified_by(file, lines, pos, line, &gated.args, &gated.call.opener, entity.attributes.len())?)
+                if pending_identity.is_some() {
+                    return Err(Diagnostic::new(
+                        file,
+                        line,
+                        format!("{name} declares identified_by more than once"),
+                    ));
+                }
+                let inline_type_name = format!("{identity_name_prefix}Identity");
+                let parsed = super::parse_identified_by(
+                    file,
+                    lines,
+                    pos,
+                    line,
+                    &gated.args,
+                    &gated.call.opener,
+                    entity.attributes.len(),
+                    &inline_type_name,
+                    owner_value_objects.as_slice(),
+                )?;
+                pending_identity = Some(match parsed {
+                    super::PendingIdentity::Inline {
+                        line,
+                        value_object,
+                        as_field,
+                        insert_at,
+                    } => {
+                        if owner_value_objects
+                            .iter()
+                            .any(|existing| existing.name == value_object.name)
+                        {
+                            return Err(Diagnostic::new(
+                                file,
+                                line,
+                                format!(
+                                    "{name}.identified_by synthesizes duplicate value object {}",
+                                    value_object.name
+                                ),
+                            ));
+                        }
+                        let target = value_object.name.clone();
+                        let index =
+                            (*identity_value_object_insert_at).min(owner_value_objects.len());
+                        owner_value_objects.insert(index, value_object);
+                        *identity_value_object_insert_at += 1;
+                        super::PendingIdentity::Type {
+                            line,
+                            target,
+                            as_field: Some(as_field.unwrap_or_else(|| "identity".to_string())),
+                            insert_at,
+                        }
+                    }
+                    other => other,
+                });
+            }
+            "reference_to" => {
+                let target_raw =
+                    super::positional_constant(file, line, "reference_to", &gated.args, 1)?;
+                let target = naming::demodulise(target_raw);
+                let as_name = super::named_symbol(&gated.args, "as");
+                let optional = super::named_flag(&gated.args, "optional");
+                entity.attributes.push(references::relationship_attribute(
+                    &target,
+                    "reference_to",
+                    as_name.as_deref(),
+                    optional,
+                    false,
+                ));
+            }
+            "has_one" | "belongs_to" => {
+                let target_raw =
+                    super::positional_constant(file, line, gated.row.word, &gated.args, 1)?;
+                let target = naming::demodulise(target_raw);
+                let as_name = super::named_symbol(&gated.args, "as")
+                    .unwrap_or_else(|| naming::snake(&target));
+                let optional = super::named_flag(&gated.args, "optional");
+                entity.attributes.push(references::relationship_attribute(
+                    &target,
+                    gated.row.word,
+                    Some(&as_name),
+                    optional,
+                    false,
+                ));
+            }
+            "has_many" => {
+                let plural_raw =
+                    super::positional_constant(file, line, "has_many", &gated.args, 1)?;
+                let plural = naming::demodulise(plural_raw);
+                let target = naming::singularize(&plural);
+                let as_name = super::named_symbol(&gated.args, "as")
+                    .unwrap_or_else(|| naming::snake(&plural));
+                let optional = super::named_flag(&gated.args, "optional");
+                entity.attributes.push(references::relationship_attribute(
+                    &target,
+                    "has_many",
+                    Some(&as_name),
+                    optional,
+                    true,
+                ));
             }
             "lifecycle" => {
                 let field = super::positional_symbol(file, line, "lifecycle", &gated.args, 1)?;
-                let default = super::named_text(&gated.args, "default")
-                    .ok_or_else(|| Diagnostic::new(file, line, "'lifecycle' requires a default:"))?;
+                let default = super::named_text(&gated.args, "default").ok_or_else(|| {
+                    Diagnostic::new(file, line, "'lifecycle' requires a default:")
+                })?;
                 entity.lifecycle = Some(lifecycle::parse_body(file, lines, pos, &field, &default)?);
             }
             // A PRECONDITION SHARED ACROSS THIS PIECE'S OWN COMMANDS,
@@ -107,11 +220,17 @@ pub fn parse_body(
             "given" => {
                 let description = super::positional_text(file, line, "given", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                let built = ir::Given { description: Some(description.clone()), canonical: canonical::apply(&raw) };
+                let built = ir::Given {
+                    description: Some(description.clone()),
+                    canonical: canonical::apply(&raw),
+                };
                 entity.preconditions.push(built.clone());
                 // WRITE-THROUGH, first-declared-wins — see this function's
                 // own header.
-                if !entity_named_givens.iter().any(|g| g.description.as_deref() == Some(description.as_str())) {
+                if !entity_named_givens
+                    .iter()
+                    .any(|g| g.description.as_deref() == Some(description.as_str()))
+                {
                     entity_named_givens.push(built);
                 }
             }
@@ -125,7 +244,10 @@ pub fn parse_body(
             "invariant" => {
                 let description = super::positional_text(file, line, "invariant", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                entity.invariants.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+                entity.invariants.push(ir::Given {
+                    description: Some(description),
+                    canonical: canonical::apply(&raw),
+                });
             }
             "command" => {
                 let c_name = super::positional_text(file, line, "command", &gated.args, 1)?;
@@ -152,7 +274,15 @@ pub fn parse_body(
                 let pending = super::defer_body(file, lines, pos, &gated.call.opener, line)?;
                 pending_entities.push((e_name, pending));
             }
-            _ => return Err(super::not_built_yet("Entity", gated.row, file, line, &gated.call.word)),
+            _ => {
+                return Err(super::not_built_yet(
+                    "Entity",
+                    gated.row,
+                    file,
+                    line,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 
@@ -173,7 +303,18 @@ pub fn parse_body(
     // `.map` already gives Ruby, for the identical reason).
     let mut nested_entities = Vec::with_capacity(pending_entities.len());
     for (e_name, pending) in pending_entities {
-        let built = super::build_deferred(file, lines, &pending, |f, l, p| parse_body(f, l, p, &e_name, owner_value_objects, entity_named_givens))?;
+        let built = super::build_deferred(file, lines, &pending, |f, l, p| {
+            parse_body(
+                f,
+                l,
+                p,
+                &e_name,
+                &format!("{}{}", identity_name_prefix, naming::demodulise(&e_name)),
+                owner_value_objects,
+                identity_value_object_insert_at,
+                entity_named_givens,
+            )
+        })?;
         nested_entities.push(built);
     }
     entity.entities = nested_entities;
@@ -205,7 +346,7 @@ pub fn parse_body(
                     &entity.preconditions,
                     entity_named_givens_slice,
                     &entity.attributes,
-                    owner_value_objects,
+                    owner_value_objects.as_slice(),
                     &entity.entities,
                 )
             })
@@ -214,22 +355,49 @@ pub fn parse_body(
 
     entity.queries = pending_queries
         .into_iter()
-        .map(|(q_name, pending)| super::build_deferred(file, lines, &pending, |f, l, p| query::parse_body(f, l, p, &q_name)))
+        .map(|(q_name, pending)| {
+            super::build_deferred(file, lines, &pending, |f, l, p| {
+                query::parse_body(f, l, p, &q_name)
+            })
+        })
         .collect::<ParseResult<Vec<_>>>()?;
 
     if let Some(pending) = pending_identity {
         match pending {
-            super::PendingIdentity::Type { line, target, as_field, insert_at } => {
-                entity.identified_by =
-                    identity::resolve_identity_type(file, line, name, &target, as_field.as_deref(), insert_at, owner_value_objects, &mut entity.attributes)?;
+            super::PendingIdentity::Type {
+                line,
+                target,
+                as_field,
+                insert_at,
+            } => {
+                entity.identified_by = identity::resolve_identity_type(
+                    file,
+                    line,
+                    name,
+                    &target,
+                    as_field.as_deref(),
+                    insert_at,
+                    owner_value_objects.as_slice(),
+                    &mut entity.attributes,
+                )?;
             }
             super::PendingIdentity::Fields { line, names } => {
-                entity.identified_by = names
-                    .iter()
-                    .map(|field| identity::resolve_identity_field(file, line, name, field, owner_value_objects, &entity.attributes))
-                    .collect::<crate::diag::ParseResult<Vec<String>>>()?;
+                let mut paths = Vec::new();
+                for field in &names {
+                    paths.extend(identity::resolve_identity_field(
+                        file,
+                        line,
+                        name,
+                        field,
+                        owner_value_objects.as_slice(),
+                        &entity.attributes,
+                    )?);
+                }
+                entity.identified_by = paths;
             }
-            super::PendingIdentity::Paths(paths) => entity.identified_by = paths,
+            super::PendingIdentity::Inline { .. } => unreachable!(
+                "inline identities are installed and converted to named identities while parsing"
+            ),
         }
     }
 

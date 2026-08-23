@@ -29,7 +29,11 @@ pub fn where_clauses(pairs: &[(String, String)]) -> Vec<ir::WhereClause> {
             let trimmed = raw.trim();
             let (op, operand_raw) = split_comparator(trimmed);
             let value = ruby_value::render(&ruby_value::read(operand_raw));
-            ir::WhereClause { field: field.clone(), op, value }
+            ir::WhereClause {
+                field: field.clone(),
+                op,
+                value,
+            }
         })
         .collect()
 }
@@ -57,14 +61,20 @@ mod tests {
 
     #[test]
     fn reads_an_explicit_comparator_hash() {
-        let clauses = where_clauses(&[("pizza.price_cents.cents".to_string(), "{ lt: :ceiling }".to_string())]);
+        let clauses = where_clauses(&[(
+            "pizza.price_cents.cents".to_string(),
+            "{ lt: :ceiling }".to_string(),
+        )]);
         assert_eq!(clauses[0].op, "lt");
         assert_eq!(clauses[0].value, ":ceiling");
     }
 
     #[test]
     fn reads_a_number_comparator_operand() {
-        let clauses = where_clauses(&[("pizza.price_cents.cents".to_string(), "{ gt: 1000 }".to_string())]);
+        let clauses = where_clauses(&[(
+            "pizza.price_cents.cents".to_string(),
+            "{ gt: 1000 }".to_string(),
+        )]);
         assert_eq!(clauses[0].op, "gt");
         assert_eq!(clauses[0].value, "1000");
     }

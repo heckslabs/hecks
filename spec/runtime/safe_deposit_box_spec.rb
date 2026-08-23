@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe "a composite-identified aggregate with two entities" do
-  BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
     registry = Hecksagain::Runtime::Registry.new
@@ -11,7 +11,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(BANKING_BLUEBOOK)
+      load_bluebook_files(BANKING_BLUEBOOK)
       Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry)
       )
@@ -21,8 +21,21 @@ RSpec.describe "a composite-identified aggregate with two entities" do
   def rented_box(runtime)
     runtime.dispatch("Banking::Customer.Register", reference: { value: "c" },
                      name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
-    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
+    runtime.dispatch("Banking::SafeDepositBox.Rent", customer: { value: "c" }, branch_code: { value: "DOWNTOWN" },
                                                      box_number: { value: 12 }, size: { value: "medium" })
+  end
+
+  it "accepts a customer identity fact and stores the declared relationship" do
+    runtime = boot_banking
+    box = runtime.registry.bluebook("Banking").aggregate("SafeDepositBox")
+    rent = box.command("Rent")
+
+    expect(box.attribute(:customer).relationship).to eq("belongs_to")
+    expect([rent.attribute(:customer).type.to_s, rent.attribute(:customer).reference?])
+      .to eq(["CustomerNumber", false])
+
+    rented_box(runtime)
+    expect(Banking::SafeDepositBox.find("DOWNTOWN:12")[:customer]).to eq("c")
   end
 
   it "is born at the join of its two identity paths" do

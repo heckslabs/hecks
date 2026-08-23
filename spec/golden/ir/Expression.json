@@ -9,6 +9,7 @@
           "name": "symbol",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "OperatorSymbol"
         },
         {
@@ -18,6 +19,7 @@
           "name": "category",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Category"
         },
         {
@@ -27,6 +29,7 @@
           "name": "precedence",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Precedence"
         },
         {
@@ -36,6 +39,7 @@
           "name": "arity",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Arity"
         },
         {
@@ -45,6 +49,7 @@
           "name": "grammar",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Grammar"
         },
         {
@@ -54,6 +59,7 @@
           "name": "strategy",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Strategy"
         },
         {
@@ -63,6 +69,7 @@
           "name": "position",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Position"
         },
         {
@@ -72,6 +79,7 @@
           "name": "renderings",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Rendering"
         }
       ],
@@ -85,6 +93,7 @@
               "name": "symbol",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "OperatorSymbol"
             },
             {
@@ -94,6 +103,7 @@
               "name": "category",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Category"
             },
             {
@@ -103,6 +113,7 @@
               "name": "precedence",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Precedence"
             },
             {
@@ -112,6 +123,7 @@
               "name": "arity",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Arity"
             },
             {
@@ -121,6 +133,7 @@
               "name": "grammar",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Grammar"
             },
             {
@@ -130,6 +143,7 @@
               "name": "strategy",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Strategy"
             },
             {
@@ -139,6 +153,7 @@
               "name": "position",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Position"
             }
           ],
@@ -177,6 +192,7 @@
               "name": "target",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Target"
             },
             {
@@ -186,6 +202,7 @@
               "name": "form",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Form"
             }
           ],
@@ -319,6 +336,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -343,6 +361,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -367,6 +386,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -391,6 +411,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -415,6 +436,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -439,6 +461,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -463,6 +486,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -487,6 +511,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -508,6 +533,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -529,6 +555,7 @@
               "name": "target",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -538,6 +565,7 @@
               "name": "form",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -568,6 +596,7 @@
           "name": "name",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "RuleName"
         },
         {
@@ -577,6 +606,7 @@
           "name": "strategy",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Strategy"
         },
         {
@@ -586,6 +616,7 @@
           "name": "source_token",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "SourceToken"
         },
         {
@@ -595,6 +626,7 @@
           "name": "replacement",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Replacement"
         },
         {
@@ -604,6 +636,7 @@
           "name": "boundary",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Boundary"
         },
         {
@@ -613,6 +646,7 @@
           "name": "position",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Position"
         },
         {
@@ -622,6 +656,7 @@
           "name": "readings",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Reading"
         }
       ],
@@ -635,6 +670,7 @@
               "name": "name",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "RuleName"
             },
             {
@@ -644,6 +680,7 @@
               "name": "strategy",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Strategy"
             },
             {
@@ -653,6 +690,7 @@
               "name": "source_token",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "SourceToken"
             },
             {
@@ -662,6 +700,7 @@
               "name": "replacement",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Replacement"
             },
             {
@@ -671,6 +710,7 @@
               "name": "boundary",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Boundary"
             },
             {
@@ -680,6 +720,7 @@
               "name": "position",
               "optional": true,
               "pattern": null,
+              "relationship": null,
               "type": "Position"
             }
           ],
@@ -718,6 +759,7 @@
               "name": "target",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Target"
             },
             {
@@ -727,6 +769,7 @@
               "name": "form",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Form"
             }
           ],
@@ -860,6 +903,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -884,6 +928,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -908,6 +953,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -929,6 +975,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -950,6 +997,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -974,6 +1022,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -998,6 +1047,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1019,6 +1069,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1040,6 +1091,7 @@
               "name": "strategy",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -1049,6 +1101,7 @@
               "name": "source_token",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -1058,6 +1111,7 @@
               "name": "replacement",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -1067,6 +1121,7 @@
               "name": "boundary",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -1076,6 +1131,7 @@
               "name": "position",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -1140,6 +1196,7 @@
               "name": "target",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -1149,6 +1206,7 @@
               "name": "form",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1179,6 +1237,7 @@
           "name": "description",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Description"
         },
         {
@@ -1188,6 +1247,7 @@
           "name": "source",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Source"
         },
         {
@@ -1197,6 +1257,7 @@
           "name": "canonical",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Canonical"
         },
         {
@@ -1206,6 +1267,7 @@
           "name": "subject",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Subject"
         },
         {
@@ -1215,6 +1277,7 @@
           "name": "role",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "ExpressionRole"
         },
         {
@@ -1224,6 +1287,7 @@
           "name": "references",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Reference"
         }
       ],
@@ -1237,6 +1301,7 @@
               "name": "description",
               "optional": true,
               "pattern": null,
+              "relationship": null,
               "type": "Description"
             },
             {
@@ -1246,6 +1311,7 @@
               "name": "source",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Source"
             },
             {
@@ -1255,6 +1321,7 @@
               "name": "canonical",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Canonical"
             },
             {
@@ -1264,6 +1331,7 @@
               "name": "subject",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Subject"
             }
           ],
@@ -1295,6 +1363,7 @@
               "name": "name",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "ReferenceName"
             },
             {
@@ -1304,6 +1373,7 @@
               "name": "kind",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Kind"
             }
           ],
@@ -1373,6 +1443,7 @@
               "name": "reason",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Reason"
             }
           ],
@@ -1446,6 +1517,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1470,6 +1542,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1491,6 +1564,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1512,6 +1586,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1536,6 +1611,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1560,6 +1636,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1584,6 +1661,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1608,6 +1686,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -1632,6 +1711,7 @@
               "name": "name",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -1641,6 +1721,7 @@
               "name": "kind",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],

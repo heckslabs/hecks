@@ -48,9 +48,27 @@ module Hecksagain
         # No command attribute anywhere in the corpus carries a default — checked,
         # all eight chapters, zero — so there is no optional argument for this to
         # step on. Every declared attribute is a fact the command needs.
-        def refuse_absent_arguments(command, args)
+        #
+        # `aggregate:` — PRESENT ONLY FOR A PORT OPERATION. An aggregate
+        # command's own self-address never reaches this list at all
+        # (`CommandBuilder#reference_to`'s bare self-reference mints no
+        # attribute to be absent) — but `PortOperationBuilder#reference_to`
+        # ALWAYS mints one (this file's own header on `PortOperation`: "no
+        # creates?/acts_on distinction to protect"), because an operation
+        # historically had no OTHER way to say which record it addressed.
+        # `to:` is that other way now (`Dispatcher#port_invocation`
+        # promotes the identity attribute's own value out of the payload
+        # and into routing) — which left the attribute still DECLARED,
+        # still non-optional, and now never present in `args` at all: every
+        # operation with an identity attribute refused its own well-formed
+        # calls, dispatched exactly the way `to:` intends. Exempted here on
+        # the same terms an aggregate command's self-address always was —
+        # an address, not a fact the operation still needs handed back.
+        def refuse_absent_arguments(command, args, aggregate: nil)
           given    = args.keys.map(&:to_sym)
-          required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym }
+          exempt   = aggregate && command.respond_to?(:identity_attribute) &&
+                     command.identity_attribute(aggregate.hecks_name)&.name
+          required = command.attributes.reject(&:optional?).map { |attribute| attribute.name.to_sym } - [exempt]
           # SORTED, for the same reason the unknown list is : refusal wording is
           # contract, and a pinned wording cannot depend on the order a set
           # difference happens to be computed in.

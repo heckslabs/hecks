@@ -19,7 +19,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -33,7 +34,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -43,7 +45,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -60,12 +64,19 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "IdentityRegistered"
           ],
@@ -73,13 +84,25 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -96,7 +119,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "key",
@@ -105,7 +129,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "issuer",
@@ -114,7 +139,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "subject",
@@ -123,7 +149,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -137,7 +164,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -147,7 +175,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Issuer",
@@ -159,7 +189,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -169,7 +200,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Subject",
@@ -181,7 +214,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -191,7 +225,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -208,7 +244,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "key",
@@ -217,7 +254,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "issuer",
@@ -226,7 +264,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "subject",
@@ -235,12 +274,19 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ExternalIdentifierLinked"
           ],
@@ -248,11 +294,19 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "ResolvedBy",
@@ -265,7 +319,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "subject",
@@ -274,7 +329,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -293,14 +349,24 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

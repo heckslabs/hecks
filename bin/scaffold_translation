@@ -20,7 +20,9 @@ Hecksagain.with_registry(registry) do
   loading.load_project(loading.shared_root(nil, directory))
   # deliberately NOT translations/*.bluebook: an unresolved edge file
   # refuses to load, and regenerating it is this tool's whole job
-  loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
+  loading.load_each(directory, %w[*.port *.adapter])
+  loading.load_bluebooks(directory)
+  loading.load_each(directory, %w[*.hecksagon *.world])
 end
 
 bluebook = registry.bluebooks.values.first or abort "no bluebook in #{directory}"
@@ -43,7 +45,7 @@ if capable
   lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
   lineage.ensure_base!
   if lineage.eras.empty?
-    lineage.hold_first!(File.read(Dir[File.join(directory, "*.bluebook")].first),
+    lineage.hold_first!(Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory),
                         projection: Hecksagain::Runtime::StorageShape.project(bluebook))
     puts "#{bluebook.name} held era 1 just now — nothing to scaffold."
     exit 0

@@ -61,6 +61,9 @@ pub struct PortEntry {
     pub fn_name: String,
     pub args_struct: String,
     pub reference_checks: Vec<ReferenceCheck>,
+    /// Compatibility-only self-reference field from older port IR. New
+    /// operations receive their owner solely through the routing envelope.
+    pub legacy_receiver_field: Option<String>,
 }
 
 pub struct AggregateEntry {
@@ -76,11 +79,28 @@ pub struct AggregateEntry {
     /// own specs, and the domain-wide `REFERENCE_TABLE`'s own row for
     /// this aggregate (`reference_specs.rb`'s own header).
     pub reference_specs: Vec<ReferenceSpec>,
+    /// THIS AGGREGATE'S OWN DECLARED IDENTITY PATHS, carried through
+    /// verbatim — `reactions.rs`'s own `emit_identity_head_table` reads
+    /// the single-component case (the only shape it resolves).
+    pub identified_by: Vec<String>,
 }
 
-pub fn emit_role_check(exemplar: &Exemplar, role: Option<&str>, command_name: &str) -> Option<String> {
+pub fn emit_role_check(
+    exemplar: &Exemplar,
+    role: Option<&str>,
+    command_name: &str,
+) -> Option<String> {
     let role = role?;
-    Some(exemplar.render("role_check", &[("\"TmplRole\"", naming::ruby_inspect_string(role)), ("\"TmplCommandName\"", naming::ruby_inspect_string(command_name))]))
+    Some(exemplar.render(
+        "role_check",
+        &[
+            ("\"TmplRole\"", naming::ruby_inspect_string(role)),
+            (
+                "\"TmplCommandName\"",
+                naming::ruby_inspect_string(command_name),
+            ),
+        ],
+    ))
 }
 
 pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> String {
@@ -89,7 +109,10 @@ pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> Stri
         exemplar.render(
             "reference_check_optional",
             &[
-                ("\"TmplTarget\"", naming::ruby_inspect_string(&check.target_name)),
+                (
+                    "\"TmplTarget\"",
+                    naming::ruby_inspect_string(&check.target_name),
+                ),
                 ("\"tmpl_heads\"", naming::ruby_inspect_string(&check.heads)),
                 ("tmpl_target_mod", check.target_mod.clone()),
                 ("tmpl_optional_field", ident),
@@ -99,7 +122,10 @@ pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> Stri
         exemplar.render(
             "reference_check_required",
             &[
-                ("\"TmplTarget\"", naming::ruby_inspect_string(&check.target_name)),
+                (
+                    "\"TmplTarget\"",
+                    naming::ruby_inspect_string(&check.target_name),
+                ),
                 ("\"tmpl_heads\"", naming::ruby_inspect_string(&check.heads)),
                 ("tmpl_target_mod", check.target_mod.clone()),
                 ("tmpl_field", ident),
@@ -113,8 +139,26 @@ fn chapter_path(a: &AggregateEntry) -> String {
 }
 
 pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
-    let store_fields: Vec<String> = aggregates.iter().map(|a| format!("    pub {}: crate::kernel::InMemoryRepository<{}::{}>,", a.module_name, chapter_path(a), a.record)).collect();
-    let store_inits: Vec<String> = aggregates.iter().map(|a| format!("            {}: crate::kernel::InMemoryRepository::new(),", a.module_name)).collect();
+    let store_fields: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            format!(
+                "    pub {}: crate::kernel::InMemoryRepository<{}::{}>,",
+                a.module_name,
+                chapter_path(a),
+                a.record
+            )
+        })
+        .collect();
+    let store_inits: Vec<String> = aggregates
+        .iter()
+        .map(|a| {
+            format!(
+                "            {}: crate::kernel::InMemoryRepository::new(),",
+                a.module_name
+            )
+        })
+        .collect();
 
     let dump_arms: Vec<String> = aggregates
         .iter()
@@ -159,20 +203,26 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         let mod_path = chapter_path(a);
         for c in &a.commands {
             let extra_names = &c.identity_extra_params;
-            let extra_idents: Vec<String> = extra_names.iter().map(|n| naming::rust_ident_field(n)).collect();
+            let extra_idents: Vec<String> = extra_names
+                .iter()
+                .map(|n| naming::rust_ident_field(n))
+                .collect();
             let extra_lines: Vec<String> = extra_names
                 .iter()
                 .zip(extra_idents.iter())
                 .map(|(name, ident)| {
                     let msg = format!("{} creates a {} — pass {name}", c.verb, a.record);
                     format!(
-                        "let {ident} = args_json.dig({}).ok_or_else(|| crate::kernel::Refusal::NotFound({}.to_string()))?.to_id_component()?;",
+                        "let {ident} = facts_json.dig({}).ok_or_else(|| crate::kernel::Refusal::NotFound({}.to_string()))?.to_id_component()?;",
                         naming::ruby_inspect_string(name),
                         naming::ruby_inspect_string(&msg)
                     )
                 })
                 .collect();
-            let extra_pass: String = extra_idents.iter().map(|ident| format!("&{ident}, ")).collect();
+            let extra_pass: String = extra_idents
+                .iter()
+                .map(|ident| format!("&{ident}, "))
+                .collect();
 
             let dispatch_call = format!(
                 "{mod_path}::dispatch_{}(&mut store.{}, {}args, mutations, owner_deref, command_deref)",
@@ -180,9 +230,20 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 a.module_name,
                 if c.creates { extra_pass } else { "&id, ".to_string() }
             );
-            let id_line = if c.creates { String::new() } else { format!("let id = {mod_path}::{}::extract_id(args_json)?;", a.record) };
+            let id_line = if c.creates {
+                String::new()
+            } else {
+                format!(
+                    "let id = match route {{ Some(route) => {{ route.require_depth(0)?; route.aggregate().to_string() }}, None => {mod_path}::{}::extract_id(facts_json)?, }};",
+                    a.record
+                )
+            };
             let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
-            let reference_lines: Vec<String> = c.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
+            let reference_lines: Vec<String> = c
+                .reference_checks
+                .iter()
+                .map(|check| emit_reference_check(exemplar, check))
+                .collect();
 
             // `owner_deref`/`command_deref` — see `reference_lookup.rs`'s
             // own header and `rust/project/registry.rb`'s identical
@@ -191,7 +252,10 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             let owner_deref_expr = if c.creates {
                 "Vec::new()".to_string()
             } else {
-                format!("crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &id)", naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name)))
+                format!(
+                    "crate::kernel::owner_deref(&*store, REFERENCE_TABLE, {}, &id)",
+                    naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
+                )
             };
             let deref_lines = vec![
                 format!("let owner_deref = {owner_deref_expr};"),
@@ -201,12 +265,20 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 ),
             ];
 
-            let mut body: Vec<String> = Vec::new();
+            let mut body: Vec<String> = vec![
+                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;"
+                    .to_string(),
+                "let route = invocation.route();".to_string(),
+                "let facts_json = invocation.facts();".to_string(),
+            ];
             if !id_line.is_empty() {
                 body.push(id_line);
             }
             body.extend(extra_lines);
-            body.push(format!("let args = {mod_path}::{}::from_json(args_json)?;", c.args_struct));
+            body.push(format!(
+                "let args = {mod_path}::{}::from_json(facts_json)?;",
+                c.args_struct
+            ));
             if let Some(rl) = role_line {
                 if !rl.is_empty() {
                     body.push(rl);
@@ -214,10 +286,22 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             }
             body.extend(reference_lines.into_iter().filter(|l| !l.is_empty()));
             body.extend(deref_lines);
-            body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
-            body.push(format!("{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"));
+            body.push(
+                "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());"
+                    .to_string(),
+            );
+            body.push(format!(
+                "{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"
+            ));
 
-            aggregate_arms.push(format!("          {} => {{\n{}\n          }}", naming::ruby_inspect_string(&c.verb), body.iter().map(|l| format!("              {l}")).collect::<Vec<_>>().join("\n")));
+            aggregate_arms.push(format!(
+                "          {} => {{\n{}\n          }}",
+                naming::ruby_inspect_string(&c.verb),
+                body.iter()
+                    .map(|l| format!("              {l}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
         }
     }
 
@@ -226,17 +310,25 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         let mod_path = chapter_path(a);
         for c in &a.entity_commands {
             let role_line = emit_role_check(exemplar, c.role.as_deref(), &c.name);
-            let reference_lines: Vec<String> = c.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
+            let reference_lines: Vec<String> = c
+                .reference_checks
+                .iter()
+                .map(|check| emit_reference_check(exemplar, check))
+                .collect();
             let dispatch_call = format!(
                 "{mod_path}::dispatch_entity_{}(&mut store.{}, &parent_id, &element_id, &element_wants, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))",
                 c.fn_name, a.module_name
             );
 
             let mut body: Vec<String> = vec![
-                format!("let parent_id = {mod_path}::{}::extract_id(args_json)?;", a.record),
-                format!("let element_id = {mod_path}::{}::extract_id(args_json)?;", c.entity_record),
-                format!("let element_wants = {mod_path}::{}::extract_wants(args_json);", c.entity_record),
-                format!("let args = {mod_path}::{}::from_json(args_json)?;", c.args_struct),
+                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
+                "let route = invocation.route();".to_string(),
+                "let facts_json = invocation.facts();".to_string(),
+                format!(
+                    "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json)?; let element_id = {mod_path}::{}::extract_id(facts_json)?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                    a.record, c.entity_record, c.entity_record
+                ),
+                format!("let args = {mod_path}::{}::from_json(facts_json)?;", c.args_struct),
             ];
             if let Some(rl) = role_line {
                 body.push(rl);
@@ -249,7 +341,10 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             // command's own reference-typed arguments, PLUS — merged in
             // exactly like Ruby's own `parent:` tier — the PARENT
             // aggregate's own dereferenced state under one `"parent"` key.
-            body.push("let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();".to_string());
+            body.push(
+                "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();"
+                    .to_string(),
+            );
             body.push(format!(
                 "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, {}, &args);",
                 reference_specs::emit_reference_specs_literal(&c.reference_specs)
@@ -258,10 +353,20 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, {}, &parent_id) {{ command_deref.push((\"parent\", parent_node)); }}",
                 naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name))
             ));
-            body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
+            body.push(
+                "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());"
+                    .to_string(),
+            );
             body.push(dispatch_call);
 
-            entity_arms.push(format!("          {} => {{\n{}\n          }}", naming::ruby_inspect_string(&c.verb), body.iter().map(|l| format!("              {l}")).collect::<Vec<_>>().join("\n")));
+            entity_arms.push(format!(
+                "          {} => {{\n{}\n          }}",
+                naming::ruby_inspect_string(&c.verb),
+                body.iter()
+                    .map(|l| format!("              {l}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
         }
     }
 
@@ -269,15 +374,44 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
     for a in aggregates {
         let mod_path = chapter_path(a);
         for p in &a.ports {
-            let reference_lines: Vec<String> = p.reference_checks.iter().map(|check| emit_reference_check(exemplar, check)).collect();
-            let dispatch_call = format!("{mod_path}::dispatch_operation_{}(args).map(|events| stamp_payload(events, &payload))", p.fn_name);
+            let reference_lines: Vec<String> = p
+                .reference_checks
+                .iter()
+                .map(|check| emit_reference_check(exemplar, check))
+                .collect();
+            let dispatch_call = format!("{mod_path}::dispatch_operation_{}(&id, args).map(|events| stamp_payload(events, &payload))", p.fn_name);
+            let legacy_receiver = p
+                .legacy_receiver_field
+                .as_deref()
+                .map(naming::ruby_inspect_string)
+                .map(|field| format!("Some({field})"))
+                .unwrap_or_else(|| "None".to_string());
 
-            let mut body: Vec<String> = vec![format!("let args = {mod_path}::{}::from_json(args_json)?;", p.args_struct)];
+            let mut body: Vec<String> = vec![
+                "let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;".to_string(),
+                format!("let (id, port_facts) = invocation.split_aggregate_receiver({legacy_receiver})?;"),
+                "let facts_json = &port_facts;".to_string(),
+                format!(
+                    "let _instance = store.{}.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!(\"{} {{:?}} does not exist\", id)))?;",
+                    a.module_name, a.name
+                ),
+                format!("let args = {mod_path}::{}::from_json(facts_json)?;", p.args_struct),
+            ];
             body.extend(reference_lines);
-            body.push("let payload = crate::kernel::Json::overlay(args_json, &args.to_json());".to_string());
+            body.push(
+                "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());"
+                    .to_string(),
+            );
             body.push(dispatch_call);
 
-            port_arms.push(format!("          {} => {{\n{}\n          }}", naming::ruby_inspect_string(&p.verb), body.iter().map(|l| format!("              {l}")).collect::<Vec<_>>().join("\n")));
+            port_arms.push(format!(
+                "          {} => {{\n{}\n          }}",
+                naming::ruby_inspect_string(&p.verb),
+                body.iter()
+                    .map(|l| format!("              {l}"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            ));
         }
     }
 
@@ -291,12 +425,21 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
         "registry_file",
         &[
             ("TmplStore2", "Store".to_string()),
-            ("    pub tmpl_field: crate::kernel::InMemoryRepository<i64>,", store_fields.join("\n")),
-            ("            tmpl_field: tmpl_store_fields_placeholder(),", store_inits.join("\n")),
+            (
+                "    pub tmpl_field: crate::kernel::InMemoryRepository<i64>,",
+                store_fields.join("\n"),
+            ),
+            (
+                "            tmpl_field: tmpl_store_fields_placeholder(),",
+                store_inits.join("\n"),
+            ),
             ("tmpl_dump_arm_placeholder();", dump_arms.join("\n")),
             ("tmpl_seed_arm_placeholder();", seed_arms.join("\n")),
             ("tmpl_query_arm_placeholder();", query_arms.join("\n")),
-            ("\"tmpl_verb\" => { tmpl_dispatch_arm_placeholder() }", dispatch_arms.join("\n")),
+            (
+                "\"tmpl_verb\" => { tmpl_dispatch_arm_placeholder() }",
+                dispatch_arms.join("\n"),
+            ),
         ],
     );
 
@@ -309,11 +452,18 @@ pub fn emit_reference_table(aggregates: &[AggregateEntry]) -> String {
         .iter()
         .map(|a| {
             let qualified = format!("{}::{}", a.domain_name, a.name);
-            format!("    ({}, {}),", naming::ruby_inspect_string(&qualified), reference_specs::emit_reference_specs_literal(&a.reference_specs))
+            format!(
+                "    ({}, {}),",
+                naming::ruby_inspect_string(&qualified),
+                reference_specs::emit_reference_specs_literal(&a.reference_specs)
+            )
         })
         .collect();
 
-    format!("pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[\n{}\n];\n", rows.join("\n"))
+    format!(
+        "pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[\n{}\n];\n",
+        rows.join("\n")
+    )
 }
 
 /// Port of `rust/project/registry.rb#emit_reference_lookup`.
@@ -335,4 +485,87 @@ pub fn emit_reference_lookup(aggregates: &[AggregateEntry]) -> String {
         emit_reference_table(aggregates),
         arms.join("\n")
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_router_separates_routes_and_supports_compound_create_facts() {
+        let aggregate = AggregateEntry {
+            name: "SafeDepositBox".to_string(),
+            module_name: "safedepositbox".to_string(),
+            record: "SafeDepositBox".to_string(),
+            commands: vec![
+                CommandEntry {
+                    verb: "Banking::SafeDepositBox.Rent".to_string(),
+                    name: "Rent".to_string(),
+                    fn_name: "rent".to_string(),
+                    args_struct: "RentArgs".to_string(),
+                    creates: true,
+                    identity_extra_params: vec![
+                        "branch_code".to_string(),
+                        "box_number".to_string(),
+                    ],
+                    reference_checks: Vec::new(),
+                    reference_specs: Vec::new(),
+                    role: None,
+                },
+                CommandEntry {
+                    verb: "Banking::SafeDepositBox.Close".to_string(),
+                    name: "Close".to_string(),
+                    fn_name: "close".to_string(),
+                    args_struct: "CloseArgs".to_string(),
+                    creates: false,
+                    identity_extra_params: Vec::new(),
+                    reference_checks: Vec::new(),
+                    reference_specs: Vec::new(),
+                    role: None,
+                },
+            ],
+            entity_commands: vec![EntityCommandEntry {
+                verb: "Banking::SafeDepositBox.Visit.Annotate".to_string(),
+                name: "Annotate".to_string(),
+                entity_record: "Visit".to_string(),
+                fn_name: "visit_annotate".to_string(),
+                args_struct: "VisitAnnotateArgs".to_string(),
+                reference_checks: Vec::new(),
+                reference_specs: Vec::new(),
+                role: None,
+                entity_name: "Visit".to_string(),
+                entity_identity_reading: "date, sequence".to_string(),
+            }],
+            ports: vec![PortEntry {
+                verb: "Banking::SafeDepositBox.PaymentGateway.Receive".to_string(),
+                name: "Receive".to_string(),
+                fn_name: "paymentgateway_receive".to_string(),
+                args_struct: "PaymentGatewayReceiveArgs".to_string(),
+                reference_checks: Vec::new(),
+                legacy_receiver_field: None,
+            }],
+            chapter_mod: "banking".to_string(),
+            domain_name: "Banking".to_string(),
+            reference_specs: Vec::new(),
+            identified_by: vec!["branch_code".to_string(), "box_number".to_string()],
+        };
+
+        let generated = emit_registry(&Exemplar::load(), &[aggregate]);
+
+        assert!(generated.contains("CommandInvocation::from_json(args_json)?"));
+        assert!(generated.contains("let branch_code = facts_json.dig(\"branch_code\")"));
+        assert!(generated.contains("let box_number = facts_json.dig(\"box_number\")"));
+        assert!(generated.contains("RentArgs::from_json(facts_json)?"));
+        assert!(generated.contains("route.require_depth(0)?; route.aggregate().to_string()"));
+        assert!(generated.contains("route.require_depth(1)?"));
+        assert!(generated.contains("let element_id = route.entities()[0].clone()"));
+        assert!(generated.contains("VisitAnnotateArgs::from_json(facts_json)?"));
+        assert!(generated.contains("Json::overlay(facts_json, &args.to_json())"));
+        assert!(!generated.contains("VisitAnnotateArgs::from_json(args_json)?"));
+        assert!(generated
+            .contains("let (id, port_facts) = invocation.split_aggregate_receiver(None)?;"));
+        assert!(generated.contains("store.safedepositbox.find(&id)"));
+        assert!(generated.contains("PaymentGatewayReceiveArgs::from_json(facts_json)?"));
+        assert!(generated.contains("dispatch_operation_paymentgateway_receive(&id, args)"));
+    }
 }

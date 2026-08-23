@@ -2,8 +2,8 @@
 // function calls into. It knows nothing about Order, PizzaCreated, or any
 // other domain-specific name; everything domain-specific lives in
 // src/generated/, produced by bin/project_rust from canonical IR. Every
-// fact below is cited against docs/guides/running-a-runtime.md and
-// docs/guides/commands.md, not guessed or half-remembered from a prior
+// fact below is cited against docs/implemented/guides/running-a-runtime.md and
+// docs/implemented/guides/commands.md, not guessed or half-remembered from a prior
 // read of the Ruby source.
 
 pub mod attribute_shapes;
@@ -56,6 +56,7 @@ pub mod read_model;
 pub mod query_comparators;
 pub mod reference_lookup;
 pub mod repository;
+pub mod routing;
 
 pub use dispatch::{dispatch, dispatch_entity, EnsuresSpec, GivenSpec, Hydrate, TransitionCheck};
 pub use expr::{interpret, Comparison, EvalContext, Expr, Field, Fielded, NoFields, Value};
@@ -70,6 +71,7 @@ pub use reference_lookup::{
 };
 pub use refusal_wording::RefusalSite;
 pub use repository::{check_reference, check_role, filter_entries, row_json, AggregateScan, InMemoryRepository, Repository};
+pub use routing::{CommandInvocation, RoutingEnvelope};
 
 #[derive(Debug, Clone)]
 pub struct Event {
@@ -105,7 +107,7 @@ pub struct Event {
 }
 
 /// The complete refusal roster for a command dispatch, per
-/// docs/guides/commands.md's own table (quoted there as "the complete
+/// docs/implemented/guides/commands.md's own table (quoted there as "the complete
 /// roster" — not a subset picked for this slice). One Ruby DOMAIN_REFUSALS
 /// class is deliberately NOT here: `UnknownVerb` (dispatching a command
 /// name that doesn't exist at all is a router-level concern, not
@@ -168,7 +170,7 @@ pub type DispatchResult<T> = Result<(T, Vec<Event>), Refusal>;
 /// or a cascaded policy/saga-leg re-entry) — pushed at the exact same call
 /// site `repo.save` runs, in `dispatch`/`dispatch_entity` (dispatch.rs).
 /// Exists so a HOST (rust/host, which only ever sees this kernel as an
-/// opaque stdin/stdout process — docs/decisions/0012) can build a
+/// opaque stdin/stdout process — docs/implemented/decisions/0012) can build a
 /// per-aggregate journal matching postgres.rb's own shape (`era, aggregate,
 /// aggregate_id, operation, state`) without needing per-command insight
 /// into the domain itself — `cli.rs` reports one `Vec<MutationRecord>` per

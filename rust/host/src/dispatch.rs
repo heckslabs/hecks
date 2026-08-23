@@ -17,6 +17,58 @@ pub struct Outcome {
     pub accepted: bool,
 }
 
+/// The host's durable representation of the routing boundary. It is kept
+/// under the journal's historical `args` column as one opaque object; the
+/// WASM kernel unwraps `to` and `with`, so receiver identity never becomes a
+/// command fact and no journal schema migration is needed.
+pub fn routed_invocation(to: serde_json::Value, facts: serde_json::Value) -> anyhow::Result<serde_json::Value> {
+    if !facts.is_object() {
+        anyhow::bail!("with must be an object of command facts");
+    }
+    Ok(serde_json::json!({ "to": to, "with": facts }))
+}
+
+/// Explicit facts-only invocation used when a command establishes a new
+/// aggregate. Its identity members are ordinary creation facts under `with`;
+/// there is no receiving aggregate yet and therefore no `to` route.
+pub fn facts_invocation(facts: serde_json::Value) -> anyhow::Result<serde_json::Value> {
+    if !facts.is_object() {
+        anyhow::bail!("with must be an object of command facts");
+    }
+    Ok(serde_json::json!({ "with": facts }))
+}
+
+/// Route-aware host API. `handle` below remains the compatibility entry
+/// point for journal rows and callers still sending the former mixed args.
+#[allow(clippy::too_many_arguments)]
+pub async fn handle_routed(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    to: serde_json::Value,
+    facts: serde_json::Value,
+    role: Option<&str>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    handle(client, wasm_path, verb, routed_invocation(to, facts)?, role, config, invoker).await
+}
+
+/// Facts-only counterpart to `handle_routed`, retaining the same durable
+/// compatibility strategy through the historical journal `args` column.
+#[allow(clippy::too_many_arguments)]
+pub async fn handle_facts(
+    client: &Mutex<Client>,
+    wasm_path: &Path,
+    verb: &str,
+    facts: serde_json::Value,
+    role: Option<&str>,
+    config: &LineageConfig,
+    invoker: &dyn LambdaInvoker,
+) -> anyhow::Result<Outcome> {
+    handle(client, wasm_path, verb, facts_invocation(facts)?, role, config, invoker).await
+}
+
 // A Mutex, not a bare Arc<Client> — `handle` needs `Client::transaction`,
 // which takes `&mut Client`. Locking here also means that if this
 // process is ever invoked concurrently in-process (lambda_runtime's
@@ -398,6 +450,39 @@ mod tests {
     use super::*;
     use tokio_postgres::NoTls;
 
+    #[test]
+    fn entity_routing_is_outside_the_command_facts_at_the_host_boundary() {
+        let invocation = routed_invocation(
+            serde_json::json!({
+                "aggregate": "DOWNTOWN:12",
+                "entities": ["2026-01-05:1"]
+            }),
+            serde_json::json!({ "note": { "text": "Flagged" } }),
+        )
+        .unwrap();
+
+        assert_eq!(invocation["to"]["aggregate"], "DOWNTOWN:12");
+        assert_eq!(invocation["to"]["entities"], serde_json::json!(["2026-01-05:1"]));
+        assert_eq!(invocation["with"], serde_json::json!({ "note": { "text": "Flagged" } }));
+        assert!(invocation["with"].get("aggregate").is_none());
+        assert!(invocation["with"].get("entities").is_none());
+    }
+
+    #[test]
+    fn compound_create_identity_members_stay_inside_explicit_facts() {
+        let invocation = facts_invocation(serde_json::json!({
+            "branch_code": "DOWNTOWN",
+            "box_number": 12,
+            "size": "large"
+        }))
+        .unwrap();
+
+        assert!(invocation.get("to").is_none());
+        assert_eq!(invocation["with"]["branch_code"], "DOWNTOWN");
+        assert_eq!(invocation["with"]["box_number"], 12);
+        assert_eq!(invocation["with"]["size"], "large");
+    }
+
     // A REAL, THROWAWAY POSTGRES DATABASE per test — never the real
     // dev database, same reasoning hecksagain's own
     // spec/adapters/driven/postgres_spec.rb and Embryonaut's
@@ -755,7 +840,7 @@ mod tests {
             "number": { "value": "acct-freeze-me" },
             "kind": { "name": "current" },
             "daily_limit": { "cents": 50000 },
-            "customer_id": "CUST-0007",
+            "customer": "CUST-0007",
         });
         handle(&client, &wasm_path(), "Banking::Account.Open", open_args, None, &config, &invoker)
             .await
@@ -765,7 +850,7 @@ mod tests {
             .expect("account open should succeed");
 
         // `Banking::Account.FreezeAccount` announces `AccountFrozen`, matched by
-        // `ReviewOnFreeze` (examples/banking/bluebook/banking.bluebook:
+        // `ReviewOnFreeze` (examples/banking/bluebook/:
         // `across "Compliance"`) — the real trigger this whole feature
         // exists for, running end to end for the first time outside a
         // pure-WASM corpus comparison.
@@ -911,13 +996,13 @@ mod tests {
 
         let open_src = serde_json::json!({
             "number": { "value": "src-rollback" }, "kind": { "name": "current" },
-            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0012",
+            "daily_limit": { "cents": 50000 }, "customer": "CUST-0012",
         });
         handle(&client, &wasm_path(), "Banking::Account.Open", open_src, None, &config, &lambda_client::NeverInvoker)
             .await.unwrap().accepted.then_some(()).expect("source account open should succeed");
         let open_dst = serde_json::json!({
             "number": { "value": "dst-rollback" }, "kind": { "name": "current" },
-            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0012",
+            "daily_limit": { "cents": 50000 }, "customer": "CUST-0012",
         });
         handle(&client, &wasm_path(), "Banking::Account.Open", open_dst, None, &config, &lambda_client::NeverInvoker)
             .await.unwrap().accepted.then_some(()).expect("destination account open should succeed");
@@ -963,13 +1048,13 @@ mod tests {
 
         let open_src = serde_json::json!({
             "number": { "value": "src-backfill" }, "kind": { "name": "current" },
-            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0013",
+            "daily_limit": { "cents": 50000 }, "customer": "CUST-0013",
         });
         handle(&client, &wasm_path(), "Banking::Account.Open", open_src, None, &config, &invoker)
             .await.unwrap().accepted.then_some(()).expect("source account open should succeed");
         let open_dst = serde_json::json!({
             "number": { "value": "dst-backfill" }, "kind": { "name": "current" },
-            "daily_limit": { "cents": 50000 }, "customer_id": "CUST-0013",
+            "daily_limit": { "cents": 50000 }, "customer": "CUST-0013",
         });
         handle(&client, &wasm_path(), "Banking::Account.Open", open_dst, None, &config, &invoker)
             .await.unwrap().accepted.then_some(()).expect("destination account open should succeed");
@@ -1072,7 +1157,7 @@ mod tests {
             "number": { "value": "acct-freeze-dead-letter" },
             "kind": { "name": "current" },
             "daily_limit": { "cents": 50000 },
-            "customer_id": "CUST-0011",
+            "customer": "CUST-0011",
         });
         handle(&client, &wasm_path(), "Banking::Account.Open", open_args, None, &config, &invoker)
             .await

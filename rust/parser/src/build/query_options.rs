@@ -26,7 +26,13 @@ use crate::ruby_value;
 /// `"ReadModel"`) is passed through only for `positional_symbol`'s own
 /// diagnostic wording, since the two contexts declare IDENTICAL argument
 /// shapes for every one of these words.
-pub fn apply(file: &str, line: usize, word: &str, args: &ArgumentGateResult, options: &mut ir::QueryOptions) -> ParseResult<()> {
+pub fn apply(
+    file: &str,
+    line: usize,
+    word: &str,
+    args: &ArgumentGateResult,
+    options: &mut ir::QueryOptions,
+) -> ParseResult<()> {
     match word {
         // `OffsetSpec`/`CursorSpec#to_h`'s own `{value: render_value(value)}`
         // — the SAME "already-rendered text" shape `ir::LimitSpec.value`
@@ -71,7 +77,11 @@ pub fn apply(file: &str, line: usize, word: &str, args: &ArgumentGateResult, opt
 }
 
 fn rendered_positional(args: &ArgumentGateResult, at: usize) -> String {
-    args.positional.iter().find(|(idx, _)| *idx == at).map(|(_, text)| rendered(text)).unwrap_or_default()
+    args.positional
+        .iter()
+        .find(|(idx, _)| *idx == at)
+        .map(|(_, text)| rendered(text))
+        .unwrap_or_default()
 }
 
 fn rendered(raw: &str) -> String {
@@ -84,8 +94,14 @@ mod tests {
 
     fn args_with(positional: Vec<(usize, &str)>, named: Vec<(&str, &str)>) -> ArgumentGateResult {
         ArgumentGateResult {
-            positional: positional.into_iter().map(|(i, t)| (i, t.to_string())).collect(),
-            named: named.into_iter().map(|(n, v)| (n.to_string(), v.to_string())).collect(),
+            positional: positional
+                .into_iter()
+                .map(|(i, t)| (i, t.to_string()))
+                .collect(),
+            named: named
+                .into_iter()
+                .map(|(n, v)| (n.to_string(), v.to_string()))
+                .collect(),
         }
     }
 

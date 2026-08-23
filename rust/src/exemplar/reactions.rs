@@ -65,3 +65,25 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     }
 }
 // TMPL:reference_key_table END
+
+// `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
+// on `emit_creates_table` for the full argument.
+// TMPL:creates_table BEGIN
+pub fn command_creates(verb: &str) -> bool {
+    match verb {
+"tmpl_verb" => true,
+        _ => false,
+    }
+}
+// TMPL:creates_table END
+
+// `orchestrate.rs`'s own `split_routed_args` — reactions.rb's own header
+// on `emit_identity_head_table` for the full argument.
+// TMPL:identity_head_table BEGIN
+pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
+    match qualified_name {
+"tmpl_qualified" => Some("tmpl_head"),
+        _ => None,
+    }
+}
+// TMPL:identity_head_table END

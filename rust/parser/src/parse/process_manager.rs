@@ -56,8 +56,16 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 }
 
 /// Parses a `process_manager "Name" do ... end` body.
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::ProcessManager> {
-    let mut pm = ir::ProcessManager { name: name.to_string(), ..Default::default() };
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+) -> ParseResult<ir::ProcessManager> {
+    let mut pm = ir::ProcessManager {
+        name: name.to_string(),
+        ..Default::default()
+    };
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "ProcessManager")? else {
@@ -72,15 +80,42 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             // own quoted-spelling handling (`:"reference.value"`) is what
             // this needs; a bare identifier could never spell the dot at
             // all.
-            "correlates_by" => pm.correlates_by = super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?,
-            "starts_on" => pm.starts_on = Some(super::positional_text(file, line, "starts_on", &gated.args, 1)?),
-            "ends_on" => pm.ends_on = Some(super::positional_text(file, line, "ends_on", &gated.args, 1)?),
+            "correlates_by" => {
+                pm.correlates_by =
+                    super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?
+            }
+            "starts_on" => {
+                pm.starts_on = Some(super::positional_text(
+                    file,
+                    line,
+                    "starts_on",
+                    &gated.args,
+                    1,
+                )?)
+            }
+            "ends_on" => {
+                pm.ends_on = Some(super::positional_text(
+                    file,
+                    line,
+                    "ends_on",
+                    &gated.args,
+                    1,
+                )?)
+            }
             "transition" => {
                 for handler in parse_transition(file, lines, pos, line, &gated)? {
                     pm.handlers.push(handler);
                 }
             }
-            _ => return Err(super::not_built_yet("ProcessManager", gated.row, file, line, &gated.call.word)),
+            _ => {
+                return Err(super::not_built_yet(
+                    "ProcessManager",
+                    gated.row,
+                    file,
+                    line,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 }
@@ -144,8 +179,9 @@ fn parse_transition(
     line: usize,
     gated: &GatedLine<'_>,
 ) -> ParseResult<Vec<ir::ProcessManagerHandler>> {
-    let pair_text = super::named_raw(&gated.args, "=>")
-        .ok_or_else(|| Diagnostic::new(file, line, "'transition' names no 'event => state' pair"))?;
+    let pair_text = super::named_raw(&gated.args, "=>").ok_or_else(|| {
+        Diagnostic::new(file, line, "'transition' names no 'event => state' pair")
+    })?;
     let (event_raw, to_state_raw) = super::split_top_level_rocket(pair_text);
     let event_type = text_value(event_raw);
     let to_state = text_value(to_state_raw);
@@ -166,7 +202,9 @@ fn parse_transition(
     let dispatches = match &gated.call.opener {
         Opener::None => Vec::new(),
         Opener::DoBlock { .. } => parse_dispatches(file, lines, pos)?,
-        Opener::BraceBlock { .. } => unreachable!("body_gate never admits a BraceBlock for 'transition'/ProcessManager"),
+        Opener::BraceBlock { .. } => {
+            unreachable!("body_gate never admits a BraceBlock for 'transition'/ProcessManager")
+        }
     };
 
     Ok(from_states
@@ -196,14 +234,21 @@ fn text_value(raw: &str) -> String {
 fn from_values(raw: &str) -> Vec<String> {
     let trimmed = raw.trim();
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
-        return ruby_value::split_items(&trimmed[1..trimmed.len() - 1]).into_iter().map(|item| text_value(&item)).collect();
+        return ruby_value::split_items(&trimmed[1..trimmed.len() - 1])
+            .into_iter()
+            .map(|item| text_value(&item))
+            .collect();
     }
     vec![text_value(trimmed)]
 }
 
 /// The `Handler` context's own body — zero or more `dispatch` lines
 /// (`HandlerBuilder#dispatch`), up to the matching `end`.
-fn parse_dispatches(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseResult<Vec<ir::DispatchSpec>> {
+fn parse_dispatches(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+) -> ParseResult<Vec<ir::DispatchSpec>> {
     let mut dispatches = Vec::new();
 
     loop {
@@ -212,11 +257,28 @@ fn parse_dispatches(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseR
         };
         match gated.row.word {
             "dispatch" => {
-                let command_name = super::positional_command_ref(file, gated.line.number, "dispatch", &gated.args, 1)?;
+                let command_name = super::positional_command_ref(
+                    file,
+                    gated.line.number,
+                    "dispatch",
+                    &gated.args,
+                    1,
+                )?;
                 let with_spec = parse_with_pairs_opt(&gated.args);
-                dispatches.push(ir::DispatchSpec { command_name, with_spec });
+                dispatches.push(ir::DispatchSpec {
+                    command_name,
+                    with_spec,
+                });
             }
-            _ => return Err(super::not_built_yet("Handler", gated.row, file, gated.line.number, &gated.call.word)),
+            _ => {
+                return Err(super::not_built_yet(
+                    "Handler",
+                    gated.row,
+                    file,
+                    gated.line.number,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 }
@@ -237,14 +299,26 @@ fn parse_dispatches(file: &str, lines: &[SourceLine], pos: &mut usize) -> ParseR
 /// the command its declared arguments, and `trigger` forwards the
 /// event's whole payload verbatim.
 pub(super) fn parse_with_pairs_opt(args: &super::ArgumentGateResult) -> Vec<(String, String)> {
-    super::named_raw(args, "with").map(parse_with_pairs).unwrap_or_default()
+    super::named_raw(args, "with")
+        .map(parse_with_pairs)
+        .unwrap_or_default()
 }
 
 pub(super) fn parse_with_pairs(raw: &str) -> Vec<(String, String)> {
     let trimmed = raw.trim();
-    let inner = trimmed.strip_prefix('{').and_then(|s| s.strip_suffix('}')).unwrap_or(trimmed);
+    let inner = trimmed
+        .strip_prefix('{')
+        .and_then(|s| s.strip_suffix('}'))
+        .unwrap_or(trimmed);
     ruby_value::split_items(inner)
         .into_iter()
-        .filter_map(|segment| super::as_named(&segment).map(|(k, v)| (k.to_string(), ruby_value::render(&ruby_value::read(v.trim())))))
+        .filter_map(|segment| {
+            super::as_named(&segment).map(|(k, v)| {
+                (
+                    k.to_string(),
+                    ruby_value::render(&ruby_value::read(v.trim())),
+                )
+            })
+        })
         .collect()
 }

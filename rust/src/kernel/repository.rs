@@ -5,7 +5,7 @@
 // persistence contract itself — which methods a real adapter must answer,
 // which are delegated without a presence check, which are optional
 // passthroughs, and that `delete`'s return value is explicitly not part of
-// the contract — is documented in full in docs/guides/writing-an-adapter.md;
+// the contract — is documented in full in docs/implemented/guides/writing-an-adapter.md;
 // this trait is a Rust-shaped minimal reading of that same contract
 // (`find`/`save`/`all`/`count`), not a second, undocumented one.
 

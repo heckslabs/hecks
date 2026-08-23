@@ -41,7 +41,24 @@ RSpec.describe "a reaction that cannot be delivered" do
   end
 
   def registry_for(policy)
-    bluebook = Struct.new(:name, :policies).new("Reflex", [policy])
+    # `#aggregate` answers nil — same as a real Bluebook asked about a
+    # target it never loaded. ReactionInvocation#resolve_target reads it
+    # unconditionally now (to offer same-aggregate Event.id inheritance
+    # before the door is ever reached), so a double lacking the method
+    # entirely raised its own NoMethodError ahead of either test's own
+    # door-raised error — the exact "runtime breaking" shape this file
+    # exists to tell apart from a domain refusing, tripped by the double
+    # rather than by anything either test means to exercise.
+    bluebook = Class.new do
+      attr_reader :name, :policies
+
+      define_method(:initialize) { |name, policies|
+        @name = name
+        @policies = policies
+      }
+      define_method(:aggregate) { |_name| nil }
+    end.new("Reflex", [policy])
+
     Class.new do
       attr_reader :reaction_log
 

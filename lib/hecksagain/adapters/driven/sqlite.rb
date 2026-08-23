@@ -26,6 +26,8 @@ module Hecksagain
 
       attr_reader :aggregate, :path
 
+      def persistence_capabilities = [:atomic_put]
+
       def initialize(aggregate:, settings: {}, root: nil)
         # LAZY, ON PURPOSE — a domain that never wires Sqlite should never
         # need the gem installed. `require "hecksagain"` alone must not
@@ -129,6 +131,24 @@ module Hecksagain
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
         append(entry)
         project(entry)
+      end
+
+      # The outcome lookup, journal append and snapshot replacement share one
+      # SQLite transaction. The runtime performs no preliminary find; this
+      # adapter-native operation owns both concurrency and outcome reporting.
+      def atomic_put(entry, insert_only: false)
+        status = nil
+        @db.transaction do
+          exists = !@db.get_first_value("SELECT 1 FROM #{quoted_table} WHERE id = ?", [entry.id.to_s]).nil?
+          if insert_only && exists
+            status = :conflicted
+            next
+          end
+          status = exists ? :replaced : :inserted
+          append(entry)
+          project(entry)
+        end
+        status
       end
 
       def delete(id)

@@ -1,0 +1,22 @@
+Hecks.bluebook "QueryInferenceFixture" do
+  aggregate "Node" do
+    identified_by :label
+    reference_to Node, as: :parent, optional: true
+    attribute :label, Label
+    attribute :metadata, Metadata
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    value_object "Metadata" do
+      attribute :label, Label
+    end
+
+    query "Combined" do
+      where :"parent/parent/label" => :ancestor_label
+      where label: :expected_label
+      where :"metadata.label.value" => :expected_value
+    end
+  end
+end

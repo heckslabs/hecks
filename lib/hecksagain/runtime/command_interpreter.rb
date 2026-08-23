@@ -4,6 +4,8 @@ require_relative "command_interpreter/mutation_applier"
 require_relative "../rendering"
 require_relative "errors"
 require_relative "identity"
+require_relative "dependency_planning"
+require_relative "../ports/persistence/execution"
 require_relative "instance"
 require_relative "refusal_wording"
 require_relative "entity_element"
@@ -34,7 +36,8 @@ module Hecksagain
       # `result` and `transition`/`old_state` default to nil until the step
       # that sets them runs, same as they were unset locals before that point.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
-                           :result, :correlation, :delegated_events, :dry_run)
+                           :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :delegated_events,
+                           :dry_run)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -46,12 +49,14 @@ module Hecksagain
       # dispatch would (givens checked, mutations applied to `ctx.instance`
       # in memory); `step_save`/`step_emit` are the only two that read this
       # flag, each skipping its own real work — see their own comments.
-      def call(domain, aggregate, command, args, correlation = nil, dry_run: false)
+      def call(domain, aggregate, command, args, correlation = nil, route: nil, dry_run: false)
         ctx = Context.new(domain, aggregate, command, args)
         ctx.correlation = correlation
+        ctx.route = route
         ctx.dry_run = dry_run
+        ctx.plan = DependencyPlanning::Analyzer.call(aggregate: aggregate, command: command)
         run_dispatch_order(DISPATCH_ORDER, ctx)
-        [ctx.instance, ctx.result]
+        [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
       end
 
       private
@@ -78,12 +83,24 @@ module Hecksagain
 
       def step_hydrate(ctx)
         ctx.repository = @registry.repository(ctx.domain, ctx.aggregate)
-        ctx.instance = step(:hydrate) { hydrate(ctx.repository, ctx.aggregate, ctx.command, ctx.args) }
+        ctx.strategy = ctx.plan.strategy_for(capabilities: ctx.repository.capabilities)
+        ctx.instance = step(:hydrate) {
+          if ctx.plan.complete_state? && ctx.plan.state_independent?
+            hydrate_complete_state(ctx.repository, ctx.aggregate, ctx.command, ctx.args, ctx.route, ctx.strategy)
+          elsif ctx.plan.complete_state?
+            hydrate_prior_or_initial(ctx.repository, ctx.aggregate, ctx.command, ctx.args, ctx.route)
+          elsif legacy_implicit_creation?(ctx)
+            hydrate_legacy_creation(ctx.repository, ctx.aggregate, ctx.command, ctx.args)
+          else
+            hydrate_existing(ctx.repository, ctx.aggregate, ctx.command, ctx.args, ctx.route)
+          end
+        }
       end
 
       def step_enforce_givens(ctx)
         step(:enforce_givens) {
-          @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain, declaring: ctx.aggregate)
+          @rules.enforce_givens(ctx.instance, ctx.command, ctx.args, domain: ctx.domain,
+                                declaring: ctx.aggregate, parent: ctx.instance)
         }
       end
 
@@ -92,7 +109,7 @@ module Hecksagain
       end
 
       def step_assign_creation_attributes(ctx)
-        return unless ctx.command.creates?
+        return unless legacy_implicit_creation?(ctx)
 
         step(:assign_creation_attributes) { assign_creation_attributes(ctx.instance, ctx.aggregate, ctx.command, ctx.args) }
       end
@@ -183,7 +200,8 @@ module Hecksagain
 
       def step_enforce_ensures(ctx)
         step(:enforce_ensures) {
-          @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state, domain: ctx.domain)
+          @rules.enforce_ensures(ctx.instance, ctx.command, ctx.args, old: ctx.old_state,
+                                 domain: ctx.domain, parent: ctx.instance)
         }
       end
 
@@ -199,7 +217,32 @@ module Hecksagain
       def step_save(ctx)
         return if ctx.dry_run
 
-        step(:save) { ctx.repository.save(ctx.instance) }
+        step(:save) do
+          @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
+          ctx.persistence_outcome = if ctx.strategy == DependencyPlanning::ATOMIC_PUT
+                                      # A SECOND CREATION IS NOT A FRESH ONE — see
+                                      # hydrate_legacy_creation's own comment; the
+                                      # same refusal, on the same terms, for the
+                                      # complete-state path. `insert_only:` asks the
+                                      # ADAPTER to decide and refuse ATOMICALLY
+                                      # (never writing a `creates?` command over an
+                                      # identity that already names a record) rather
+                                      # than this interpreter reading the record
+                                      # first to check — a `repository.find` before
+                                      # every atomic_put would be exactly the read
+                                      # this strategy exists to skip.
+                                      ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?)
+                                    else
+                                      ctx.repository.save(ctx.instance)
+                                      Ports::Persistence::Outcome.new(status: :saved, instance: ctx.instance)
+                                    end
+          if ctx.persistence_outcome.status == :conflicted
+            raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                       command: ctx.command.hecks_name, aggregate: ctx.aggregate.hecks_name,
+                                                       identity: identity_reading(ctx.aggregate),
+                                                       offered: Rendering.describe(ctx.instance.id)))
+          end
+        end
       end
 
       # A DELEGATING COMMAND EMITS NOTHING OF ITS OWN (`CommandBuilder#build`'s
@@ -225,62 +268,137 @@ module Hecksagain
         }
       end
 
-      def hydrate(repository, aggregate, command, args)
-        if command.creates?
-          # NOTHING IS MINTED. An identity that is invented is neither derived
-          # from the record nor permanently associated with it — this used to
-          # mint a random hex, so the same dispatch was not even stable across
-          # two runs of itself. A store written yesterday could not be
-          # reasoned about today.
-          #
-          # So a creating command that cannot say WHICH ONE THIS IS is refused,
-          # and an aggregate with no `identified_by` must be told. Mutation
-          # testing found this the other way round : the only two declarations
-          # in banking whose removal changed observable dispatch behaviour
-          # were both `identified_by`, and they changed it because removing
-          # them fell through to here.
-          id = identity_of(aggregate, args) ||
-               raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
-                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                     identity: identity_reading(aggregate)))
-          # A SECOND CREATION IS NOT A FRESH ONE. Nothing here checked whether
-          # the derived id already named a record, so the same creating
-          # command dispatched twice with the same identity silently built a
-          # SECOND `Instance` and overwrote the first at save — the tenant a
-          # box was rented to, gone without a refusal. A branch and box
-          # number are a small, finite set a caller can collide with by
-          # mistake in a way a minted reference cannot.
-          if repository.find(id)
-            raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
-                                                       command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                       identity: identity_reading(aggregate),
-                                                       offered: Rendering.describe(id)))
-          end
-
-          Instance.new(aggregate: aggregate, id: id)
-        else
-          # A COMMAND THAT ACTS ON A RECORD MAY NAME IT BY THE ID IT DERIVED.
-          #
-          # This is not the fallback coming back. The fallback MINTED an identity for
-          # an aggregate that declared none ; this names an aggregate whose identity is
-          # declared and already derived, by the answer that derivation gave. A caller
-          # holding a record's id — a walk that just declared it, a saga carrying it
-          # forward — should not have to take the identity apart to say which one it
-          # means. A CREATING command gets no such courtesy : it must derive, because
-          # there is no record yet whose id could be quoted back.
-          id = identity_of(aggregate, args) ||
-               identity_from(aggregate, args, :id) ||
-               identity_from(aggregate, args, reference_key(command)) ||
-               raise(NotFound, RefusalWording.render("NotFound", "acting_no_identity",
-                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
-                                                     identity: identity_reading(aggregate)))
-          found = repository.find(id) ||
+      def hydrate_existing(repository, aggregate, command, args, route = nil)
+        if route
+          found = repository.find(route.aggregate) ||
                   raise(NotFound, RefusalWording.render("NotFound", "record_missing",
                                                         aggregate: aggregate.hecks_name,
                                                         identity:  identity_reading(aggregate),
-                                                        offered:   Rendering.describe(id)))
-          found.dup
+                                                        offered:   Rendering.describe(route.aggregate)))
+          return found.dup
         end
+
+        id = identity_of(aggregate, args) ||
+             identity_from(aggregate, args, :id) ||
+             identity_from(aggregate, args, reference_key(command)) ||
+             raise(NotFound, RefusalWording.render("NotFound", "acting_no_identity",
+                                                   command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                   identity: identity_reading(aggregate)))
+        found = repository.find(id) ||
+                raise(NotFound, RefusalWording.render("NotFound", "record_missing",
+                                                      aggregate: aggregate.hecks_name,
+                                                      identity:  identity_reading(aggregate),
+                                                      offered:   Rendering.describe(id)))
+        found.dup
+      end
+
+      # Transitional compatibility for live source that has not yet acquired
+      # explicit effects. It is deliberately isolated from the normal routing
+      # and planning path so `reference_to` no longer chooses how a migrated
+      # command hydrates or persists. Wave 8 removes this after the inventory is
+      # empty; frozen eras retain their own shadow parser.
+      #
+      # `ctx.plan.complete_state?` already claimed every command whose plan is
+      # fully resolved in the two branches above `step_hydrate` tries first, so
+      # reaching this check already means the plan is incomplete — an
+      # un-migrated command still routes here on `creates?` alone, the same as
+      # the old `hydrate` did, regardless of whether it happens to have any
+      # mutations (`write_set`). Requiring an EMPTY write_set here refused
+      # every un-migrated creating command that sets even one field.
+      def legacy_implicit_creation?(ctx)
+        ctx.route.nil? && ctx.command.creates?
+      end
+
+      def hydrate_legacy_creation(repository, aggregate, command, args)
+        id = identity_of(aggregate, args) ||
+             raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
+                                                   command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                   identity: identity_reading(aggregate)))
+        if repository.find(id)
+          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                     identity: identity_reading(aggregate),
+                                                     offered: Rendering.describe(id)))
+        end
+
+        Instance.new(aggregate: aggregate, id: id)
+      end
+
+      def hydrate_complete_state(repository, aggregate, command, args, route, strategy)
+        derived = identity_of(aggregate, args)
+        if route && derived && route.aggregate.to_s != derived.to_s
+          raise TypeMismatch,
+                "#{command.hecks_name} routes to #{route.aggregate.inspect}, but its identity facts name #{derived.inspect}"
+        end
+
+        id = route&.aggregate || derived ||
+             raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
+                                                   command:   command.hecks_name,
+                                                   aggregate: aggregate.hecks_name,
+                                                   identity:  identity_reading(aggregate)))
+
+        # A SECOND CREATION IS NOT A FRESH ONE — see hydrate_legacy_creation's
+        # own comment; the same refusal, on the same terms, for the
+        # complete-state path. ONLY when `strategy` will NOT be ATOMIC_PUT:
+        # an atomic-put-capable adapter enforces this itself, atomically,
+        # via `insert_only:` in step_save (no read here, no race with the
+        # write) — but `strategy_for` already fell back to a plain `save`
+        # for an adapter with no atomic_put capability at all (Heki, today),
+        # and a plain `save` never refuses an overwrite on its own. Skipping
+        # this check for THAT case silently dropped the refusal instead of
+        # deferring it — the very "no such call — no such check" gap Wave
+        # 8 exists to close everywhere else.
+        if command.creates? && strategy != DependencyPlanning::ATOMIC_PUT && repository.find(id)
+          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                     identity: identity_reading(aggregate),
+                                                     offered: Rendering.describe(id)))
+        end
+
+        Instance.new(aggregate: aggregate, id: id)
+      end
+
+      # A complete command may still depend on prior state: lifecycle guards
+      # are the common case. Read once so an existing record is checked against
+      # its real state; when no record exists, the aggregate's declared defaults
+      # are the prior state. Completeness, not a reference marker, proves that
+      # initializing that missing record is safe.
+      def hydrate_prior_or_initial(repository, aggregate, command, args, route)
+        derived = identity_of(aggregate, args)
+        if route && derived && route.aggregate.to_s != derived.to_s
+          raise TypeMismatch,
+                "#{command.hecks_name} routes to #{route.aggregate.inspect}, but its identity facts name #{derived.inspect}"
+        end
+
+        id = route&.aggregate || derived ||
+             raise(NotFound, RefusalWording.render("NotFound", "creating_no_identity",
+                                                   command:   command.hecks_name,
+                                                   aggregate: aggregate.hecks_name,
+                                                   identity:  identity_reading(aggregate)))
+        found = repository.find(id)
+
+        # A SECOND CREATION IS NOT A FRESH ONE — see hydrate_legacy_
+        # creation's own comment; the same refusal, on the same terms, for
+        # a complete-but-state-dependent command (one with a `given`
+        # reading its own prior state, which is what routes here instead
+        # of hydrate_complete_state). Gated on `command.creates?`: a
+        # NON-creating command's own complete payload legitimately means
+        # "act on whatever this identity already holds" (`found` IS the
+        # prior state this branch exists to supply), so only a genuine
+        # creation reusing an already-occupied identity is a duplicate.
+        # `SafeDepositBox.Rent` is exactly this shape — `given("box is
+        # vacant")` makes it state-dependent, so a second Rent used to
+        # silently hydrate the existing box as "prior state" and refuse
+        # for the wrong reason (not vacant) instead of the right one
+        # (already exists).
+        if found && command.creates?
+          raise(AlreadyExists, RefusalWording.render("AlreadyExists", "creating_duplicate",
+                                                     command: command.hecks_name, aggregate: aggregate.hecks_name,
+                                                     identity: identity_reading(aggregate),
+                                                     offered: Rendering.describe(id)))
+        end
+
+        found ? found.dup : Instance.new(aggregate: aggregate, id: id)
       end
 
       # THE JOIN, THE DIG, AND THE READING — all shared with `EntityInterpreter`

@@ -7,9 +7,9 @@ module Hecksagain
       # coercion/lifecycle-guard door every other command goes through),
       # not merely declared and never exercised.
       #
-      # THE SOURCE STAYS STATIC. `syntax.bluebook`'s own `KeywordSeed`/
-      # `ArgumentSeed` (still ~106/~178 hand-written `member` rows —
-      # nothing about them needed rewriting) are what gets WRITTEN ; this
+      # THE SOURCE STAYS STATIC. Aggregate-local `KeywordSeed`/
+      # `ArgumentSeed` value objects (still hand-written `member` rows —
+      # now beside the concepts they spell) are what gets WRITTEN ; this
       # is what turns them into what gets READ. `Judge`/`Reconstruction`
       # already draw exactly this line everywhere else in the meta-domain
       # (a chapter's own DECLARATIONS versus what gets DISPATCHED from
@@ -145,74 +145,82 @@ module Hecksagain
           runtime.dispatch("Bluebook::Syntax.Declare", bluebook: bluebook.hecks_name, name: v(syntax.hecks_name))
         end
 
+        # `to: "Syntax"` NAMES THE RECORD ALREADY OPENED BY `declare_syntax`
+        # ABOVE — an append onto an existing aggregate, not a second creation
+        # of it. This used to smuggle `name: v("Syntax")` into the payload
+        # instead, the pre-routing convention `Judge#appends` (the same
+        # append shape, for `ValueObject.Member`/`ProcessManager.Handler`)
+        # already left behind for `to:`/`with:` — carrying the receiver in
+        # the payload made `Syntax.Keyword`'s own `command.creates?` (true:
+        # it declares no `reference_to`) look like a fresh identity to mint,
+        # which collided with the very "Syntax" row `declare_syntax` had
+        # just opened.
         def admit_keywords(runtime, bluebook)
           all_rows(bluebook, "KeywordSeed").each_with_index do |row, index|
-            runtime.dispatch("Bluebook::Syntax.Keyword",
-                             name: v("Syntax"), position: v(index),
-                             word: v(row[:word]), context: v(row[:context]), body: v(row[:body]),
-                             inner: v(row[:inner]), opens: v(row[:opens]), fills: v(row[:fills]),
-                             was: optional(row[:was]),
-                             resolves_via: optional(row[:resolves_via]), disambiguator: optional(row[:disambiguator]),
-                             calls: optional(row[:calls]))
+            runtime.dispatch("Bluebook::Syntax.Keyword", to:   "Syntax",
+                                                         with: { position: v(index),
+                                     word: v(row[:word]), context: v(row[:context]), body: v(row[:body]),
+                                     inner: v(row[:inner]), opens: v(row[:opens]), fills: v(row[:fills]),
+                                     was: optional(row[:was]),
+                                     resolves_via: optional(row[:resolves_via]),
+                                     disambiguator: optional(row[:disambiguator]),
+                                     calls: optional(row[:calls]) })
 
             next unless row[:status].to_s == "deprecated"
 
-            runtime.dispatch("Bluebook::Syntax.Keyword.Deprecate", name: v("Syntax"), position: v(index))
+            runtime.dispatch("Bluebook::Syntax.Keyword.Deprecate", to: { aggregate: "Syntax", entity: index.to_s })
           end
         end
 
         def admit_arguments(runtime, bluebook)
           all_rows(bluebook, "ArgumentSeed").each_with_index do |row, index|
-            runtime.dispatch("Bluebook::Syntax.Argument",
-                             name: v("Syntax"), position: v(index),
-                             keyword: v(row[:keyword]), context: v(row[:context]),
-                             at: optional(row[:at]), named: optional(row[:named]),
-                             kind: v(row[:kind]), required: v(row[:required]), fills: v(row[:fills]),
-                             selects: optional(row[:selects]), pair_key_fills: optional(row[:pair_key_fills]),
-                             pair_value_fills: optional(row[:pair_value_fills]),
-                             pairs_shape: optional(row[:pairs_shape]), variadic: optional(row[:variadic]),
-                             coerce: optional(row[:coerce]), blank_message: optional(row[:blank_message]))
+            runtime.dispatch("Bluebook::Syntax.Argument", to:   "Syntax",
+                                                          with: { position: v(index),
+                                     keyword: v(row[:keyword]), context: v(row[:context]),
+                                     at: optional(row[:at]), named: optional(row[:named]),
+                                     kind: v(row[:kind]), required: v(row[:required]), fills: v(row[:fills]),
+                                     selects: optional(row[:selects]), pair_key_fills: optional(row[:pair_key_fills]),
+                                     pair_value_fills: optional(row[:pair_value_fills]),
+                                     pairs_shape: optional(row[:pairs_shape]), variadic: optional(row[:variadic]),
+                                     minimum: optional(row[:minimum]),
+                                     coerce: optional(row[:coerce]), blank_message: optional(row[:blank_message]) })
 
             next unless row[:status].to_s == "deprecated"
 
-            runtime.dispatch("Bluebook::Syntax.Argument.Deprecate", name: v("Syntax"), position: v(index))
+            runtime.dispatch("Bluebook::Syntax.Argument.Deprecate", to: { aggregate: "Syntax", entity: index.to_s })
           end
         end
 
-        # THE CORE'S OWN ROWS, THEN EVERY ATTACHED CHAPTER'S — ADR 0026's
-        # own seam. `attached_chapters` finds them by what they declared
-        # about THEMSELVES (`attaches_to`), never by name, so a new
-        # sub-language needs nothing added here to be found. Concatenated
-        # into ONE sequence, not dispatched chapter-by-chapter, because
-        # `position` is minted from the walk index below and every
-        # admitted row — wherever it came from — needs one that does not
-        # collide with any other.
+        # EVERY AGGREGATE-LOCAL TABLE IN EVERY LOADED LANGUAGE CHAPTER.
+        # The table's presence is the registration: no chapter, aggregate,
+        # filename, or context catalog is maintained here. This finds the core
+        # Bluebook concepts, the sibling artifact languages (World, Hecksagon,
+        # Port, Adapter, Translation), and attached sub-languages alike.
+        # Concatenated into ONE sequence because `position` is minted from the
+        # walk index and must not collide across concepts.
         def all_rows(bluebook, name)
-          rows(bluebook, name) + attached_chapters.flat_map { |chapter| rows(chapter, name) }
+          seed_chapters(bluebook).flat_map { |chapter| rows(chapter, name) }
         end
 
-        # EVERY OTHER CHAPTER THE GRAMMAR REGISTRY HOLDS that named a core
-        # context onto itself — the core never names Paging back; Paging
-        # named the core. `bluebook` itself is excluded by construction:
-        # it declares no `attaches_to` of its own to be found by.
-        def attached_chapters
-          MetaValidator.grammar_registry.bluebooks.values.select { |chapter| chapter.attaches_to.any? }
+        # Keep the core chapter first, then registry insertion order for every
+        # sibling/extension. The name rejection avoids reading the same core
+        # object twice without relying on object identity across fixpoint
+        # assembly.
+        def seed_chapters(bluebook)
+          [bluebook] + MetaValidator.grammar_registry.bluebooks.values.reject { |chapter| chapter.name == bluebook.name }
         end
 
-        # The seed rows themselves — plain hashes, string values, read
-        # straight off the still-static `KeywordSeed`/`ArgumentSeed`
-        # closed sets exactly the way `ParserTable`'s own OLD `rows`
-        # method always did. Absent from a chapter with no `Syntax`
-        # aggregate of that name at all (most attached chapters will
-        # only ever declare one, but nothing requires it).
+        # The seed rows themselves — plain hashes, string values, read from
+        # every aggregate that owns a same-named local value object. Repeating
+        # the value-object shape is deliberate: each concept remains readable
+        # by itself, while this discovery is the only grouping mechanism.
         def rows(bluebook, name)
-          syntax = bluebook.aggregate("Syntax")
-          return [] unless syntax
+          bluebook.aggregates.flat_map do |aggregate|
+            value_object = aggregate.value_objects.find { |vo| vo.hecks_name == name }
+            next [] unless value_object
 
-          value_object = syntax.value_objects.find { |vo| vo.hecks_name == name }
-          return [] unless value_object
-
-          value_object.members.map { |row| row.to_h.transform_values(&:to_s) }
+            value_object.members.map { |row| row.to_h.transform_values(&:to_s) }
+          end
         end
 
         # Reads the dispatched result back into the SAME shape `rows`

@@ -189,7 +189,7 @@ module Hecksagain
         bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
         next if bluebook_files.empty?
 
-        registry = Codemod.load_bluebook(bluebook_files.first)
+        registry = Codemod.load_bluebook(bluebook_files)
         all_rules.concat(collect_rules(registry))
       end
 
@@ -215,7 +215,7 @@ module Hecksagain
     #
     # A KNOWN, ACCEPTED GAP this does NOT (and structurally cannot)
     # close: CHAPTER-WIDE given sharing (`AggregateBuilder#given`'s own
-    # bare form, `docs/resolution-rules/chapter-given.md`) — `Account`,
+    # bare form, `docs/implemented/resolution-rules/chapter-given.md`) — `Account`,
     # `SafeDepositBox`, and `OnboardingCase` each still show as their
     # own "(declared)" owner here even AFTER `SafeDepositBox`/
     # `OnboardingCase` were converted to bare chapter-wide references,
@@ -314,7 +314,9 @@ module Hecksagain
     end
 
     def resolution_rule_mentions?(field)
-      Dir.glob(File.join(Codemod::ROOT, "docs/resolution-rules/*.md")).any? { |path| File.read(path).include?(field) }
+      paths = Dir.glob(File.join(Codemod::ROOT, "docs/resolution-rules/*.md")) +
+              Dir.glob(File.join(Codemod::ROOT, "docs/implemented/resolution-rules/*.md"))
+      paths.any? { |path| File.read(path).include?(field) }
     end
     private_class_method :resolution_rule_mentions?
 

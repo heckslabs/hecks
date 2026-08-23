@@ -25,7 +25,12 @@ pub struct Diagnostic {
 
 impl Diagnostic {
     pub fn new(file: impl Into<String>, line: usize, message: impl Into<String>) -> Self {
-        Self { file: file.into(), line, message: message.into(), expected: Vec::new() }
+        Self {
+            file: file.into(),
+            line,
+            message: message.into(),
+            expected: Vec::new(),
+        }
     }
 
     pub fn with_expected(mut self, expected: Vec<String>) -> Self {
@@ -41,8 +46,16 @@ impl Diagnostic {
     /// doesn't implement it yet" (staged, honest, tracked in the coverage
     /// spec's allowlist) matters for how the differential harness reports
     /// failures.
-    pub fn not_yet_implemented(file: impl Into<String>, line: usize, what: impl fmt::Display) -> Self {
-        Self::new(file, line, format!("not yet implemented: {what} (Stage 1 — see spec/parser_coverage_spec.rb)"))
+    pub fn not_yet_implemented(
+        file: impl Into<String>,
+        line: usize,
+        what: impl fmt::Display,
+    ) -> Self {
+        Self::new(
+            file,
+            line,
+            format!("not yet implemented: {what} (Stage 1 — see spec/parser_coverage_spec.rb)"),
+        )
     }
 }
 

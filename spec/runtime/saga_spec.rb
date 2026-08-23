@@ -152,7 +152,7 @@ RSpec.describe "a process manager" do
     real_reenter = runtime.method(:reenter)
     attempts = 0
     runtime.define_singleton_method(:reenter) do |verb, **args|
-      if verb == "Wire::Drawer.Put" && args[:number] == "right"
+      if verb == "Wire::Drawer.Put" && args[:to] == "right"
         attempts += 1
         raise NoMethodError, "undefined method `boom' for nil"
       end

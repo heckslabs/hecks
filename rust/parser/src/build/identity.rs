@@ -8,35 +8,21 @@
 //!                                        declared attribute decides the
 //!                                        shape: a reference resolves
 //!                                        bare (already a scalar); a
-//!                                        single-field value object
-//!                                        auto-unwraps to
-//!                                        `field.<that attribute>`; a
-//!                                        bare primitive resolves
-//!                                        unchanged. A list, or a value
-//!                                        object with more than one
-//!                                        field, refuses.
-//!   `identified_by ValueObject, as: field` — LEGACY (Ruby: only under
-//!                                        `MetaValidator.shadow_parsing?`
-//!                                        — history predating this
-//!                                        removal, S0a's own bridge).
-//!                                        No live corpus member uses it
-//!                                        any more; kept here since
-//!                                        Rust's own corpus never
-//!                                        needed the live/legacy split
-//!                                        Ruby's shadow-parse draws.
-//!                                        Mirrors `reference_to`'s own
-//!                                        shape: the attribute itself is
-//!                                        MINTED (name is `as:` or
-//!                                        `Naming.snake(type)`),
-//!                                        requires the value object to
-//!                                        have exactly one field.
+//!                                        value object expands all of
+//!                                        its recursively scalar leaves
+//!                                        in declaration order; a bare
+//!                                        primitive resolves unchanged.
+//!   `identified_by ValueObject, as: field` — mints a structured field
+//!                                        (name is `as:` or
+//!                                        `Naming.snake(type)`) and then
+//!                                        expands the same recursive
+//!                                        scalar leaves beneath it.
 //!
-//! The third form — `identified_by { name.value }`, a `source`-shaped
-//! block — is NOT a derivation at all: its body IS the identity path,
-//! captured as raw text and canonicalized (canonical.rs), never resolved
-//! against already-declared attributes the way the two blockless forms
-//! are. That's why it lives in parse/*.rs's body-gate handling rather
-//! than here.
+//! The inline `identified_by do attribute ... end` form is parsed into a
+//! synthesized value object by `parse::parse_identified_by`, then reaches
+//! `resolve_identity_type` through exactly the same path as a named value
+//! object. That keeps all three identity declarations on one flattening
+//! rule and one canonical IR shape.
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
@@ -57,50 +43,25 @@ use crate::ir;
 /// `:id` is `Instance#materialize_identity!`'s own fallback name made
 /// explicit). Mirrors Ruby's own comment on this exact branch,
 /// `attribute_collector.rb`.
-pub fn resolve_identity_field(file: &str, line: usize, context_name: &str, field: &str, value_objects: &[ir::ValueObject], attributes: &[ir::Attribute]) -> ParseResult<String> {
+pub fn resolve_identity_field(
+    file: &str,
+    line: usize,
+    context_name: &str,
+    field: &str,
+    value_objects: &[ir::ValueObject],
+    attributes: &[ir::Attribute],
+) -> ParseResult<Vec<String>> {
     let attr = attributes.iter().find(|a| a.name == field);
 
     let attr = match attr {
         Some(attr) => attr,
-        None if field == "id" || field.ends_with("_id") => return Ok(field.to_string()),
+        None if field == "id" || field.ends_with("_id") => return Ok(vec![field.to_string()]),
         None => {
             return Err(Diagnostic::new(file, line, format!("{context_name}.identified_by :{field} names no attribute {context_name} declares")));
         }
     };
 
-    if attr.list {
-        return Err(Diagnostic::new(
-            file,
-            line,
-            format!("{context_name}.identified_by :{field} names a list — an identity must be a single value, and a list is never one"),
-        ));
-    }
-
-    if attr.type_name.starts_with("Reference<") {
-        return Ok(field.to_string());
-    }
-
-    let Some(vo) = value_objects.iter().find(|v| v.name == attr.type_name) else {
-        return Ok(field.to_string()); // a bare primitive type — already itself scalar
-    };
-
-    match vo.attributes.len() {
-        1 => Ok(format!("{field}.{}", vo.attributes[0].name)),
-        n => {
-            let names: Vec<String> = vo.attributes.iter().map(|a| a.name.clone()).collect();
-            Err(Diagnostic::new(
-                file,
-                line,
-                format!(
-                    "{context_name}.identified_by :{field} names {}, which has {n} fields ({}) — a bare field \
-                     name only derives an identity when its own value object has exactly one field; give \
-                     {context_name} a single-field identity of its own instead",
-                    attr.type_name,
-                    names.join(", ")
-                ),
-            ))
-        }
-    }
+    identity_paths_for_attribute(file, line, context_name, attr, value_objects, field, &[])
 }
 
 /// `AttributeCollector#resolve_identity_type!` — `identified_by
@@ -113,7 +74,7 @@ pub fn resolve_identity_field(file: &str, line: usize, context_name: &str, field
 /// Mints the identity attribute at `insert_at` (the attribute count AT
 /// THE MOMENT `identified_by` was called — 0 for pizzas.bluebook, since
 /// it is the very first line of the aggregate body) and returns the
-/// single derived identity path, `"<field>.<value object's sole field>"`.
+/// recursively derived identity paths beneath the minted field.
 #[allow(clippy::too_many_arguments)]
 pub fn resolve_identity_type(
     file: &str,
@@ -126,33 +87,146 @@ pub fn resolve_identity_type(
     attributes: &mut Vec<ir::Attribute>,
 ) -> ParseResult<Vec<String>> {
     let target = crate::build::naming::demodulise(target);
-    let vo = value_objects.iter().find(|v| v.name == target).ok_or_else(|| {
-        Diagnostic::new(file, line, format!("{context_name}.identified_by names {target}, which is not a declared value object"))
+    let matches: Vec<&ir::ValueObject> =
+        value_objects.iter().filter(|v| v.name == target).collect();
+    if matches.len() > 1 {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{context_name}.identified_by names duplicate value object {target}"),
+        ));
+    }
+    let vo = matches.first().copied().ok_or_else(|| {
+        Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{context_name}.identified_by names {target}, which is not a declared value object"
+            ),
+        )
     })?;
 
-    if vo.attributes.len() != 1 {
-        let names: Vec<String> = vo.attributes.iter().map(|a| a.name.clone()).collect();
+    if vo.attributes.is_empty() {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{context_name}.identified_by names {target}, which declares no attributes"),
+        ));
+    }
+
+    let field = as_field
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| crate::build::naming::snake(&target));
+    if attributes.iter().any(|attribute| attribute.name == field) {
         return Err(Diagnostic::new(
             file,
             line,
             format!(
-                "{context_name}.identified_by names {target}, which has {} fields ({}) — identified_by \
-                 ValueObject only derives a path when it has exactly one field; write identified_by \
-                 {{ field.<field> }} naming the specific one",
-                vo.attributes.len(),
-                names.join(", ")
+                "{context_name}.identified_by {target} mints :{field}, but that attribute is already declared"
             ),
         ));
     }
 
-    let field = as_field.map(|s| s.to_string()).unwrap_or_else(|| crate::build::naming::snake(&target));
-    let sole_field = vo.attributes[0].name.clone();
-
-    let minted = ir::Attribute { name: field.clone(), type_name: target, list: false, ..Default::default() };
+    let minted = ir::Attribute {
+        name: field.clone(),
+        type_name: target.clone(),
+        list: false,
+        ..Default::default()
+    };
     let insert_at = insert_at.min(attributes.len());
     attributes.insert(insert_at, minted);
 
-    Ok(vec![format!("{field}.{sole_field}")])
+    let mut paths = Vec::new();
+    for attribute in &vo.attributes {
+        paths.extend(identity_paths_for_attribute(
+            file,
+            line,
+            context_name,
+            attribute,
+            value_objects,
+            &format!("{field}.{}", attribute.name),
+            std::slice::from_ref(&target),
+        )?);
+    }
+    Ok(paths)
+}
+
+fn identity_paths_for_attribute(
+    file: &str,
+    line: usize,
+    context_name: &str,
+    attribute: &ir::Attribute,
+    value_objects: &[ir::ValueObject],
+    path: &str,
+    visited: &[String],
+) -> ParseResult<Vec<String>> {
+    if attribute.list {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{context_name}'s identity member {path} is a list — an identity member must be scalar"
+            ),
+        ));
+    }
+    if attribute.optional {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{context_name}'s identity member {path} is optional — an identity must be wholly known"
+            ),
+        ));
+    }
+    if attribute.reference_target().is_some() {
+        return Ok(vec![path.to_string()]);
+    }
+
+    let Some(nested) = value_objects
+        .iter()
+        .find(|value_object| value_object.name == attribute.type_name)
+    else {
+        return Ok(vec![path.to_string()]);
+    };
+
+    if visited.iter().any(|name| name == &nested.name) {
+        let mut cycle = visited.to_vec();
+        cycle.push(nested.name.clone());
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{context_name}'s identity value objects form a cycle: {}",
+                cycle.join(" -> ")
+            ),
+        ));
+    }
+    if nested.attributes.is_empty() {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{context_name}'s identity member {path} names {}, which declares no attributes",
+                nested.name
+            ),
+        ));
+    }
+
+    let mut next_visited = visited.to_vec();
+    next_visited.push(nested.name.clone());
+    let mut paths = Vec::new();
+    for member in &nested.attributes {
+        paths.extend(identity_paths_for_attribute(
+            file,
+            line,
+            context_name,
+            member,
+            value_objects,
+            &format!("{path}.{}", member.name),
+            &next_visited,
+        )?);
+    }
+    Ok(paths)
 }
 
 #[cfg(test)]
@@ -161,15 +235,32 @@ mod tests {
 
     #[test]
     fn derives_a_single_path_from_a_one_field_value_object() {
-        let mut attributes = vec![ir::Attribute { name: "pizza".to_string(), type_name: "Pizza".to_string(), ..Default::default() }];
+        let mut attributes = vec![ir::Attribute {
+            name: "pizza".to_string(),
+            type_name: "Pizza".to_string(),
+            ..Default::default()
+        }];
         let value_objects = vec![ir::ValueObject {
             name: "PizzaName".to_string(),
-            attributes: vec![ir::Attribute { name: "value".to_string(), type_name: "String".to_string(), ..Default::default() }],
+            attributes: vec![ir::Attribute {
+                name: "value".to_string(),
+                type_name: "String".to_string(),
+                ..Default::default()
+            }],
             ..Default::default()
         }];
 
-        let paths =
-            resolve_identity_type("f.bluebook", 1, "Order", "PizzaName", Some("name"), 0, &value_objects, &mut attributes).unwrap();
+        let paths = resolve_identity_type(
+            "f.bluebook",
+            1,
+            "Order",
+            "PizzaName",
+            Some("name"),
+            0,
+            &value_objects,
+            &mut attributes,
+        )
+        .unwrap();
 
         assert_eq!(paths, vec!["name.value".to_string()]);
         assert_eq!(attributes[0].name, "name");
@@ -178,18 +269,87 @@ mod tests {
     }
 
     #[test]
-    fn refuses_a_value_object_with_more_than_one_field() {
+    fn expands_every_recursively_scalar_member_in_declaration_order() {
+        let mut attributes = Vec::new();
+        let value_objects = vec![
+            ir::ValueObject {
+                name: "BranchCode".to_string(),
+                attributes: vec![ir::Attribute {
+                    name: "value".to_string(),
+                    type_name: "String".to_string(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+            ir::ValueObject {
+                name: "BoxIdentity".to_string(),
+                attributes: vec![
+                    ir::Attribute {
+                        name: "branch".to_string(),
+                        type_name: "BranchCode".to_string(),
+                        ..Default::default()
+                    },
+                    ir::Attribute {
+                        name: "number".to_string(),
+                        type_name: "Integer".to_string(),
+                        ..Default::default()
+                    },
+                ],
+                ..Default::default()
+            },
+        ];
+
+        let paths = resolve_identity_type(
+            "f.bluebook",
+            1,
+            "SafeDepositBox",
+            "BoxIdentity",
+            Some("location"),
+            0,
+            &value_objects,
+            &mut attributes,
+        )
+        .unwrap();
+
+        assert_eq!(
+            paths,
+            vec![
+                "location.branch.value".to_string(),
+                "location.number".to_string()
+            ]
+        );
+        assert_eq!(attributes[0].name, "location");
+        assert_eq!(attributes[0].type_name, "BoxIdentity");
+    }
+
+    #[test]
+    fn rejects_non_scalar_identity_members() {
         let mut attributes = Vec::new();
         let value_objects = vec![ir::ValueObject {
-            name: "Pizza".to_string(),
-            attributes: vec![
-                ir::Attribute { name: "price_cents".to_string(), type_name: "Price".to_string(), ..Default::default() },
-                ir::Attribute { name: "size".to_string(), type_name: "Size".to_string(), ..Default::default() },
-            ],
+            name: "Identity".to_string(),
+            attributes: vec![ir::Attribute {
+                name: "regions".to_string(),
+                type_name: "String".to_string(),
+                list: true,
+                ..Default::default()
+            }],
             ..Default::default()
         }];
 
-        let err = resolve_identity_type("f.bluebook", 1, "Order", "Pizza", None, 0, &value_objects, &mut attributes).unwrap_err();
-        assert!(err.message.contains("2 fields"));
+        let error = resolve_identity_type(
+            "f.bluebook",
+            1,
+            "Account",
+            "Identity",
+            None,
+            0,
+            &value_objects,
+            &mut attributes,
+        )
+        .unwrap_err();
+
+        assert!(error
+            .message
+            .contains("identity member identity.regions is a list"));
     }
 }

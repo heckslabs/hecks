@@ -17,13 +17,17 @@ RSpec.describe "the model checker" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(bluebook)
+      load_bluebook_files(bluebook)
 
       # THE SIBLING HECKSAGON, IF ONE EXISTS — see bin/model_check's own
       # copy of this comment. Fixtures under spec/fixtures/model_check/
       # have none, so this is a no-op for every test but the real corpus.
-      hecksagon = bluebook.sub(/\.bluebook\z/, ".hecksagon")
-      Kernel.load(hecksagon) if hecksagon != bluebook && File.exist?(hecksagon)
+      hecksagon = if File.directory?(bluebook)
+                    Dir.glob(File.join(bluebook, "*.hecksagon")).sort.first
+                  else
+                    bluebook.sub(/\.bluebook\z/, ".hecksagon")
+                  end
+      Kernel.load(hecksagon) if hecksagon && File.exist?(hecksagon)
     end
     registry.bluebooks.values.first
   end
@@ -134,8 +138,10 @@ RSpec.describe "the model checker" do
   # plurality_coverage_spec's ALLOWED_SINGLETON holds itself to.
   describe "the real corpus" do
     def self.bluebook_in(domain)
-      Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort.first ||
-        Dir.glob(File.join(domain, "*.bluebook")).sort.first
+      nested = File.join(domain, "bluebook")
+      return nested if Dir.glob(File.join(nested, "*.bluebook")).any?
+
+      domain if Dir.glob(File.join(domain, "*.bluebook")).any?
     end
 
     MODEL_CHECK_EXAMPLE_ROOTS = Dir.glob(File.join(InMemoryDomain::ROOT, "examples", "*"))

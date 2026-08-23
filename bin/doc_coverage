@@ -4,7 +4,7 @@
 # a declaration, and a declaration nothing runs cannot disagree with the
 # runtime it describes.
 #
-# Two gates over docs/reference/, both derived from the language's own
+# Two gates over docs/implemented/reference/, both derived from the language's own
 # Syntax chapter rather than a list somebody maintains:
 #
 #   documented   — the word's section carries hand-written prose, not the
@@ -28,7 +28,7 @@ $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "hecksagain"
 require "hecksagain/doc/reference"
 
-directory = File.join(File.expand_path("..", __dir__), "docs/reference")
+directory = File.join(File.expand_path("..", __dir__), "docs/implemented/reference")
 
 undocumented  = Hecksagain::Doc::Reference.undocumented(directory)
 unexemplified = Hecksagain::Doc::Reference.unexemplified(directory)
@@ -56,5 +56,5 @@ if clean
   exit 0
 end
 
-warn "docs/reference/ is behind the language. Regenerate with bin/reference to see the words in place."
+warn "docs/implemented/reference/ is behind the language. Regenerate with bin/reference to see the words in place."
 exit 1

@@ -6,6 +6,9 @@ require_relative "identity"
 require_relative "instance"
 require_relative "value"
 require_relative "refusal_wording"
+require_relative "routing"
+require_relative "dependency_planning"
+require_relative "../ports/persistence/execution"
 require_relative "entity_element"
 
 module Hecksagain
@@ -42,7 +45,7 @@ module Hecksagain
       # exactly as it always has. Only `locate_element` walks the chain.
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
-                           :old_element, :result, :dry_run)
+                           :old_element, :result, :route, :plan, :persistence_outcome, :dry_run)
 
       def initialize(registry, rules:)
         @registry = registry
@@ -53,7 +56,7 @@ module Hecksagain
       # comment for the shared reasoning (Dispatcher#dry_run?'s own entry
       # point). `step_save`/`step_emit` are the only two steps here that
       # read it either.
-      def call(domain, aggregate, dotted, args, dry_run: false)
+      def call(domain, aggregate, dotted, legacy_args, route: nil, with: nil, dry_run: false)
         *entity_names, command_name = dotted.to_s.split(".")
         if entity_names.empty?
           raise UnknownVerb, RefusalWording.render("UnknownVerb", "entity_unknown",
@@ -66,11 +69,14 @@ module Hecksagain
                   raise(UnknownVerb, RefusalWording.render("UnknownVerb", "entity_no_command",
                                                            entity: entity.hecks_name, command: command_name.inspect))
 
+        args = Routing.payload(command, with: with, legacy: legacy_args)
         ctx = Context.new(domain, aggregate, entity, entity_names.join("."), command, command_name, args)
         ctx.chain = chain
+        ctx.route = route
         ctx.dry_run = dry_run
+        ctx.plan = DependencyPlanning::Analyzer.call(aggregate: entity, command: command)
         run_dispatch_order(DISPATCH_ORDER, ctx)
-        [ctx.instance, ctx.result]
+        [ctx.instance, ctx.result, ctx.plan, ctx.persistence_outcome]
       end
 
       private
@@ -109,13 +115,13 @@ module Hecksagain
       def step_hydrate_parent(ctx)
         ctx.repository = @registry.repository(ctx.domain, ctx.aggregate)
         ctx.instance = step(:hydrate_parent) {
-          parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args)
+          parent(ctx.repository, ctx.aggregate, ctx.entity_name, ctx.command_name, ctx.args, ctx.route)
         }
       end
 
       def step_locate_element(ctx)
         ctx.element = step(:locate_element) {
-          EntityElement.locate_chain(ctx.aggregate, ctx.chain, ctx.instance, ctx.args, ctx.command_name)
+          EntityElement.locate_chain(ctx.aggregate, ctx.chain, ctx.instance, ctx.args, ctx.command_name, ctx.route)
         }
         # `view` was hydrated ONCE, here, into its OWN state hash
         # (Value.hydrate builds a fresh Hash — never aliased with `element`)
@@ -176,7 +182,11 @@ module Hecksagain
       def step_save(ctx)
         return if ctx.dry_run
 
-        step(:save) { ctx.repository.save(ctx.instance) }
+        step(:save) do
+          @rules.resolve_state_references(ctx.domain, ctx.aggregate, ctx.instance.state)
+          ctx.repository.save(ctx.instance)
+          ctx.persistence_outcome = Ports::Persistence::Outcome.new(status: :saved, instance: ctx.instance)
+        end
       end
 
       # `dry_run:` skips this too — nothing was committed, so `ctx.result`
@@ -191,8 +201,9 @@ module Hecksagain
       # addresses one acting on itself — derive from the declared identity first
       # (`Identity.of`), and let a bare `id:` name an already-derived record when
       # the identity itself is not what the caller is holding.
-      def parent(repository, aggregate, entity_name, command_name, args)
-        parent_id = Identity.of(aggregate, args) ||
+      def parent(repository, aggregate, entity_name, command_name, args, route = nil)
+        parent_id = route&.aggregate ||
+                    Identity.of(aggregate, args) ||
                     Identity.from(aggregate, args, :id) ||
                     raise(NotFound, RefusalWording.render("NotFound", "entity_parent_no_identity",
                                                           command: command_name, aggregate: aggregate.hecks_name,

@@ -44,7 +44,7 @@ end
 `on` names the event; `trigger` names the command it fires (qualified with
 `Domain.Command` when the target lives elsewhere); `across` only appears when the
 trigger reaches a genuinely different domain. Both examples above are real, live
-usage from `examples/banking/bluebook/banking.bluebook`.
+usage from `examples/banking/bluebook/`.
 
 `PolicyInterpreter#react` runs after a command's events are emitted: it finds every
 policy watching that event, dispatches the trigger via `@door.reenter`, and records

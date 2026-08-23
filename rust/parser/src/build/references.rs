@@ -1,9 +1,7 @@
-//! Mirrors `reference_to` attribute minting
-//! (`AttributeCollector#default_reference_name` and its
-//! `AggregateBuilder`/`EntityBuilder` callers). `has_many`/`has_one`/
-//! `belongs_to` are GONE (ADR 0025, "References") — `reference_to`
-//! mints the same bare name they used to on its own now, so there is
-//! no separate sugar left for this module to mirror.
+//! Mirrors structural reference and relationship attribute minting.
+//! `Reference<Target>` retains the target, `Attribute.list` retains
+//! cardinality, and `Attribute.relationship` retains whether the author
+//! said `has_many`, `has_one`, or `belongs_to`.
 
 use crate::ir;
 
@@ -19,8 +17,29 @@ use crate::ir;
 /// all four Ruby call sites.
 pub fn reference_attribute(target: &str, as_name: Option<&str>, optional: bool) -> ir::Attribute {
     let target = crate::build::naming::demodulise(target);
-    let name = as_name.map(|s| s.to_string()).unwrap_or_else(|| crate::build::naming::snake(&target));
-    ir::Attribute { name, type_name: format!("Reference<{target}>"), list: false, optional, ..Default::default() }
+    let name = as_name
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| crate::build::naming::snake(&target));
+    ir::Attribute {
+        name,
+        type_name: format!("Reference<{target}>"),
+        list: false,
+        optional,
+        ..Default::default()
+    }
+}
+
+pub fn relationship_attribute(
+    target: &str,
+    kind: &str,
+    as_name: Option<&str>,
+    optional: bool,
+    list: bool,
+) -> ir::Attribute {
+    let mut attribute = reference_attribute(target, as_name, optional);
+    attribute.list = list;
+    attribute.relationship = Some(kind.to_string());
+    attribute
 }
 
 #[cfg(test)]
@@ -39,5 +58,15 @@ mod tests {
         let attr = reference_attribute("Customer", None, false);
         assert_eq!(attr.name, "customer");
         assert_eq!(attr.type_name, "Reference<Customer>");
+    }
+
+    #[test]
+    fn retains_relationship_kind_and_many_cardinality() {
+        let attr = relationship_attribute("Account", "has_many", Some("accounts"), false, true);
+
+        assert_eq!(attr.name, "accounts");
+        assert_eq!(attr.type_name, "Reference<Account>");
+        assert!(attr.list);
+        assert_eq!(attr.relationship.as_deref(), Some("has_many"));
     }
 }

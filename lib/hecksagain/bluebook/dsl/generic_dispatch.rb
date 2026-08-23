@@ -170,6 +170,16 @@ module Hecksagain
           %w[Query reference_to]         => :reference_to_impl,
           %w[ReadModel reference_to]     => :reference_to_impl,
           %w[PortOperation reference_to] => :reference_to_impl,
+          # `belongs_to` — genuinely NEW bootstrap-reachability, post-dating
+          # the "not bootstrap-reachable" determination above: has_many/
+          # has_one/belongs_to were retired everywhere when that check was
+          # made, so nothing core/attached used one to describe itself.
+          # Wave 6 (identity-and-relationships arc) un-deprecates all three
+          # for real, and syntax.bluebook's own Bluebook.Declare relationship
+          # (`belongs_to Bluebook`) now uses one describing itself — checked
+          # directly (only `belongs_to`, not `has_many`/`has_one`, is
+          # actually used this way by any core/attached chapter today).
+          %w[Aggregate belongs_to]       => :belongs_to_impl,
           # slice 4c — the remaining hand-written words a fresh survey
           # found still un-migrated across every builder. Each checked
           # for bootstrap-reachability individually (grepped directly

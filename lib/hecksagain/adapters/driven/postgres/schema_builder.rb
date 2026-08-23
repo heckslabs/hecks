@@ -7,7 +7,7 @@ module Hecksagain
       # jsonb column per nested/list attribute), an append-only entry
       # table beside it, the shared events/saga tables — and the automatic
       # indexing this adapter carries that `PostgresEra` does not (see
-      # docs/postgres-era-adapter-split-plan.md, governing principle 3:
+      # docs/implemented/postgres-era-adapter-split-plan.md, governing principle 3:
       # every field a declared query filters or sorts on is safe to index
       # directly here, since there is no `head_view` reduction to route
       # around the way `PostgresEra`'s own cache-table story exists for).
@@ -41,7 +41,7 @@ module Hecksagain
         end
 
         # Same DDL as `PostgresEra`'s own — not lineage-specific, copied
-        # verbatim (see docs/postgres-era-adapter-split-plan.md).
+        # verbatim (see docs/implemented/postgres-era-adapter-split-plan.md).
         def create_event_table!
           @db.exec(<<~SQL)
             CREATE TABLE IF NOT EXISTS events (
@@ -56,7 +56,7 @@ module Hecksagain
         end
 
         # Same DDL as `PostgresEra`'s own — not lineage-specific, copied
-        # verbatim (see docs/postgres-era-adapter-split-plan.md).
+        # verbatim (see docs/implemented/postgres-era-adapter-split-plan.md).
         def create_saga_table!
           @db.exec(<<~SQL)
             CREATE TABLE IF NOT EXISTS hecks_saga_instances (

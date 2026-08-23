@@ -14,7 +14,7 @@ RSpec.describe Hecksagain::Projector::CliProjector do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
       Kernel.load(InMemoryDomain::PIZZAS_BLUEBOOK)
     end
     registry
@@ -80,20 +80,21 @@ RSpec.describe Hecksagain::Projector::CliProjector do
       expect(customer[:note]).to include("Customer")
     end
 
-    # `id` IS DECLARED NOWHERE. A non-creating command reaches an existing
-    # record through `reference_to <its own aggregate>`, which does not come
-    # back in `attributes` — so a caller reading the argument list alone would
-    # never send it, and `account.freeze_account` would be uncallable.
-    it "adds the id a non-creating command needs, and only there" do
-      expect(option(banking, "account.freeze_account", "id")).not_to be_nil
-      expect(option(banking, "account.open", "id")).to be_nil
+    # Receiver identity is projected beside, but kept separate from, the
+    # command's declared facts.
+    it "puts an aggregate receiver in to:, and only on a command that needs one" do
+      expect(option(banking, "account.freeze_account", "to")).not_to be_nil
+      expect(option(banking, "account.open", "to")).to be_nil
+      expect(banking[:verbs]["account.freeze_account"][:receiver]).to eq(:aggregate)
     end
 
-    it "adds the holder's id for an entity command" do
-      entity = banking[:verbs].keys.find { |name| name.count(".") == 2 }
-      skip "banking declares no entity commands" unless entity
+    it "projects aggregate and entity receiver identities separately for Visit.Annotate" do
+      annotate = banking[:verbs].fetch("safe_deposit_box.visit.annotate")
 
-      expect(banking[:verbs][entity][:arguments].first[:path]).to eq("id")
+      expect(annotate[:receiver]).to eq(:entity)
+      expect(annotate[:arguments].first(2).map { |argument| argument[:path] })
+        .to eq(["to.aggregate", "to.entity"])
+      expect(annotate[:arguments].map { |argument| argument[:path] }).not_to include("date", "sequence")
     end
   end
 
@@ -131,7 +132,7 @@ RSpec.describe Hecksagain::Projector::CliProjector do
 
       expect(help).to include("dispatches Banking::Account.FreezeAccount")
       expect(help).to include("issued by")
-      expect(help).to match(/^\s+id\s+String; id of the Account to act on/)
+      expect(help).to match(/^\s+to\s+String; id of the Account to act on/)
       expect(help).to include("refused when:")
       expect(help).to include("status is not open")
     end

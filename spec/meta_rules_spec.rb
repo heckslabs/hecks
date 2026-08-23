@@ -41,7 +41,7 @@ RSpec.describe "the language's own rules" do
     # Fully declared, so tests that dispatch further commands against it (an
     # attribute, a command, a seal) are exercising ONE well-formed aggregate,
     # not the identity rule a few tests down deliberately withhold.
-    @runtime.dispatch("Bluebook::Aggregate.Identify", id: @aggregate_id, path: v("name.value"))
+    @runtime.dispatch("Bluebook::Aggregate.Identify", to: @aggregate_id, with: { path: v("name.value") })
   end
 
   # ---- tier 1 : presence, as invariants on the value ------------------------
@@ -60,7 +60,7 @@ RSpec.describe "the language's own rules" do
   end
 
   it "refuses an attribute that is not named" do
-    expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v(""), type: "T", list: v("false")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Attribute", to: @aggregate_id, with: { name: v(""), type: "T", list: v("false") }) }
       .to raise_error(Hecksagain::Runtime::InvariantViolation, /an attribute is named/)
   end
 
@@ -68,8 +68,8 @@ RSpec.describe "the language's own rules" do
   # type IS a reference to the value object, so an undeclared one cannot resolve
   it "refuses an attribute whose type is not a declared value object" do
     expect {
-      @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"),
-                               type: "#{@aggregate_id}.Nonexistent", list: v("false"))
+      @runtime.dispatch("Bluebook::Aggregate.Attribute", to:   @aggregate_id,
+                                                         with: { name: v("x"), type: "#{@aggregate_id}.Nonexistent", list: v("false") })
     }
       .to raise_error(Hecksagain::Runtime::NotFound, /no ValueObject with/)
   end
@@ -95,19 +95,19 @@ RSpec.describe "the language's own rules" do
     end
 
     it "refuses a given with no description" do
-      expect { @runtime.dispatch("Bluebook::Command.Rule", id: @command_id, description: v(""), canonical: v("x > 1")) }
+      expect { @runtime.dispatch("Bluebook::Command.Rule", to: @command_id, with: { description: v(""), canonical: v("x > 1") }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a rule says what it means/)
     end
 
     it "refuses a rule that did not survive extraction" do
-      expect { @runtime.dispatch("Bluebook::Command.Rule", id: @command_id, description: v("a rule"), canonical: v("")) }
+      expect { @runtime.dispatch("Bluebook::Command.Rule", to: @command_id, with: { description: v("a rule"), canonical: v("") }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a rule survives extraction/)
     end
 
     it "refuses a mutation with no target" do
       expect {
-        @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v(""), op: v("set"),
-                                 field: v(""), kind: v("literal"), source: v('"x"'))
+        @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
+                                                      with: { target: v(""), op: v("set"), field: v(""), kind: v("literal"), source: v('"x"') })
       }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a mutation names a target/)
     end
@@ -125,28 +125,28 @@ RSpec.describe "the language's own rules" do
     # find out which.
     it "refuses a mutation whose op the runtime does not apply" do
       expect {
-        @runtime.dispatch("Bluebook::Command.Change", id: @command_id, target: v("x"), op: v("frobnicate"),
-                                 field: v(""), kind: v("literal"), source: v('"x"'))
+        @runtime.dispatch("Bluebook::Command.Change", to:   @command_id,
+                                                      with: { target: v("x"), op: v("frobnicate"), field: v(""), kind: v("literal"), source: v('"x"') })
       }
         .to raise_error(Hecksagain::Runtime::InvariantViolation, /op admits Vocabulary::MutationOp/)
     end
 
     it "refuses an unnamed event" do
-      expect { @runtime.dispatch("Bluebook::Command.Announce", id: @command_id, announces: v("")) }
+      expect { @runtime.dispatch("Bluebook::Command.Announce", to: @command_id, with: { announces: v("") }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /an event is named/)
     end
 
     # ---- tier 2 : once-only, read from the instance's own state -------------
 
     it "refuses a command that acts on a SECOND root" do
-      @runtime.dispatch("Bluebook::Command.ActsOn", id: @command_id, root: v("A"))
+      @runtime.dispatch("Bluebook::Command.ActsOn", to: @command_id, with: { root: v("A") })
 
-      expect { @runtime.dispatch("Bluebook::Command.ActsOn", id: @command_id, root: v("B")) }
+      expect { @runtime.dispatch("Bluebook::Command.ActsOn", to: @command_id, with: { root: v("B") }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a command acts on ONE root/)
     end
 
     it "refuses a reference that names nothing" do
-      expect { @runtime.dispatch("Bluebook::Command.ActsOn", id: @command_id, root: v("")) }
+      expect { @runtime.dispatch("Bluebook::Command.ActsOn", to: @command_id, with: { root: v("") }) }
         .to raise_error(Hecksagain::Runtime::GivenNotMet, /a command names what it acts on/)
     end
   end
@@ -163,7 +163,7 @@ RSpec.describe "the language's own rules" do
                           description: v("a projection"), query_name: v("p"),
                           reference_name: v(""), reference_target: v(""))
 
-    expect { @runtime.dispatch("Bluebook::ReadModel.Gather", id: read_model_id, aggregate: v("A"), as: v("a"), many: v("false")) }
+    expect { @runtime.dispatch("Bluebook::ReadModel.Gather", to: read_model_id, with: { aggregate: v("A"), as: v("a"), many: v("false") }) }
       .not_to raise_error
   end
 
@@ -181,7 +181,7 @@ RSpec.describe "the language's own rules" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Bluebook::Entity.Seal", id: entity_id) }
+    expect { @runtime.dispatch("Bluebook::Entity.Seal", to: entity_id) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an entity says what it is known by/)
   end
 
@@ -201,7 +201,7 @@ RSpec.describe "the language's own rules" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence")) }
+    expect { @runtime.dispatch("Bluebook::Entity.Identify", to: entity_id, with: { path: v("sequence") }) }
       .not_to raise_error
   end
 
@@ -209,7 +209,7 @@ RSpec.describe "the language's own rules" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("sequence.value")) }
+    expect { @runtime.dispatch("Bluebook::Entity.Identify", to: entity_id, with: { path: v("sequence.value") }) }
       .not_to raise_error
   end
 
@@ -217,7 +217,7 @@ RSpec.describe "the language's own rules" do
     entity_id = id_of("Bluebook::Entity.Declare", aggregate: @aggregate_id, owner: v("A"),
                       name: v("E"), description: v("a piece"), position: { value: 0 })
 
-    expect { @runtime.dispatch("Bluebook::Entity.Identify", id: entity_id, path: v("")) }
+    expect { @runtime.dispatch("Bluebook::Entity.Identify", to: entity_id, with: { path: v("") }) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part names something/)
   end
 
@@ -228,7 +228,7 @@ RSpec.describe "the language's own rules" do
     aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                          name: v("C"), description: v("an aggregate"))
 
-    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", to: aggregate_id, with: { path: v("number") }) }
       .not_to raise_error
   end
 
@@ -236,7 +236,7 @@ RSpec.describe "the language's own rules" do
     aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                          name: v("E"), description: v("an aggregate"))
 
-    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("number.value")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", to: aggregate_id, with: { path: v("number.value") }) }
       .not_to raise_error
   end
 
@@ -244,7 +244,7 @@ RSpec.describe "the language's own rules" do
     aggregate_id = id_of("Bluebook::Aggregate.Declare", bluebook: @bluebook_id,
                          name: v("F"), description: v("an aggregate"))
 
-    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", id: aggregate_id, path: v("")) }
+    expect { @runtime.dispatch("Bluebook::Aggregate.Identify", to: aggregate_id, with: { path: v("") }) }
       .to raise_error(Hecksagain::Runtime::GivenNotMet, /an identity part names something/)
   end
 
@@ -258,8 +258,9 @@ RSpec.describe "the language's own rules" do
                        name: v("C"), role: v("Clerk"), goal: v("do a thing"))
 
     expect do
-      @runtime.dispatch("Bluebook::Command.Reference", id: command_id, points_at: "#{@bluebook_id}::Nonexistent",
-                        name: v("customer_id"), list: v("false"), default: v(""))
+      @runtime.dispatch("Bluebook::Command.Reference", to:   command_id,
+                                                       with: { points_at: "#{@bluebook_id}::Nonexistent",
+                                name: v("customer_id"), list: v("false"), default: v("") })
     end.to raise_error(Hecksagain::Runtime::NotFound, /no Aggregate with/)
   end
 
@@ -272,7 +273,7 @@ RSpec.describe "the language's own rules" do
   it "refuses an admitted row that binds no named field" do
     name = v("X")
     value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: name)
-    @runtime.dispatch("Bluebook::ValueObject.Member", id: value_object_id, position: { value: 0 })
+    @runtime.dispatch("Bluebook::ValueObject.Member", to: value_object_id, with: { position: { value: 0 } })
 
     expect do
       @runtime.dispatch("Bluebook::ValueObject.Member.Pair", aggregate: @aggregate_id, name: name,
@@ -291,8 +292,8 @@ RSpec.describe "the language's own rules" do
   # true.
   it "seals an aggregate that is fully declared" do
     value_object_id = id_of("Bluebook::ValueObject.Declare", aggregate: @aggregate_id, name: v("X"))
-    @runtime.dispatch("Bluebook::Aggregate.Attribute", id: @aggregate_id, name: v("x"), type: value_object_id, list: v("false"))
+    @runtime.dispatch("Bluebook::Aggregate.Attribute", to: @aggregate_id, with: { name: v("x"), type: value_object_id, list: v("false") })
 
-    expect { @runtime.dispatch("Bluebook::Aggregate.Seal", id: @aggregate_id) }.not_to raise_error
+    expect { @runtime.dispatch("Bluebook::Aggregate.Seal", to: @aggregate_id) }.not_to raise_error
   end
 end

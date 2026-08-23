@@ -952,11 +952,15 @@ RSpec.describe "lineage in the PostgresEra adapter",
   ROSTER_V2 = <<~BLUEBOOK.freeze
     Hecks.bluebook "Roster" do
       aggregate "Person" do
+        # NOT optional: an identity must be wholly known (ADR 0029) — every
+        # V1 row is rekeyed to a real email by the translation below before
+        # V2 identity ever matters, so nothing here actually depends on
+        # `email` being absent at any point this scenario exercises.
         identified_by :email
 
         attribute :name,  PersonName
         attribute :title, PersonTitle
-        attribute :email, PersonEmail, optional: true
+        attribute :email, PersonEmail
 
         value_object "PersonName" do
           attribute :value, String
@@ -992,6 +996,13 @@ RSpec.describe "lineage in the PostgresEra adapter",
       Hecks.data_translation("Roster", from: #{from.inspect}, to: #{to.inspect}) do
         aggregate("Person") do
           rekey sql: "CASE ((__s -> 'name') ->> 'value') WHEN 'Chris Young' THEN 'chris@example.com' END"
+          # `rekey` explains the NEW IDENTITY (the row's id going forward);
+          # it says nothing about the stored `email` ATTRIBUTE's own value
+          # for an old row read through this translation, which is a
+          # separate question `unsafe_additions` asks. Same value either
+          # way for this single-row fixture, but a real answer, not a
+          # coincidence of the rekey SQL happening to be readable twice.
+          backfill :email, default: "chris@example.com"
         end
       end
     RUBY

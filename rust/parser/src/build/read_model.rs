@@ -38,15 +38,27 @@ pub fn aggregate_heads(
 
     for (target, as_name) in includes {
         let many = Some(target.as_str()) != reference_target;
-        let output = as_name
-            .clone()
-            .unwrap_or_else(|| if many { naming::plural(&naming::snake(target)) } else { naming::snake(target) });
+        let output = as_name.clone().unwrap_or_else(|| {
+            if many {
+                naming::plural(&naming::snake(target))
+            } else {
+                naming::snake(target)
+            }
+        });
 
         if heads.iter().any(|head| head.as_name == output) {
-            return Err(Diagnostic::new(file, line, format!("{read_model_name} already projects {output}")));
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!("{read_model_name} already projects {output}"),
+            ));
         }
 
-        heads.push(ir::AggregateHead { aggregate: target.clone(), as_name: output, many });
+        heads.push(ir::AggregateHead {
+            aggregate: target.clone(),
+            as_name: output,
+            many,
+        });
     }
 
     Ok(heads)
@@ -58,7 +70,14 @@ mod tests {
 
     #[test]
     fn pluralizes_a_many_side_head_with_no_as() {
-        let heads = aggregate_heads("f.bluebook", 1, "Styles", &[("StateStyle".to_string(), None)], None).unwrap();
+        let heads = aggregate_heads(
+            "f.bluebook",
+            1,
+            "Styles",
+            &[("StateStyle".to_string(), None)],
+            None,
+        )
+        .unwrap();
         assert_eq!(heads.len(), 1);
         assert_eq!(heads[0].aggregate, "StateStyle");
         assert_eq!(heads[0].as_name, "state_styles");
@@ -67,7 +86,14 @@ mod tests {
 
     #[test]
     fn keeps_an_explicit_as_name_verbatim() {
-        let heads = aggregate_heads("f.bluebook", 1, "WidgetSummary", &[("Widget".to_string(), Some("widget".to_string()))], None).unwrap();
+        let heads = aggregate_heads(
+            "f.bluebook",
+            1,
+            "WidgetSummary",
+            &[("Widget".to_string(), Some("widget".to_string()))],
+            None,
+        )
+        .unwrap();
         assert_eq!(heads[0].as_name, "widget");
     }
 
@@ -77,7 +103,10 @@ mod tests {
             "f.bluebook",
             1,
             "Dup",
-            &[("Widget".to_string(), Some("thing".to_string())), ("Gadget".to_string(), Some("thing".to_string()))],
+            &[
+                ("Widget".to_string(), Some("thing".to_string())),
+                ("Gadget".to_string(), Some("thing".to_string())),
+            ],
             None,
         )
         .unwrap_err();

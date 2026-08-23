@@ -83,7 +83,7 @@ pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, sourc
             puts_str(&mut out, &json_codec::emit_closed_set_table_codec(exemplar, vo));
         } else {
             let name = crate::naming::rust_ident(vo.get("name").and_then(Json::as_str).unwrap_or(""));
-            puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &name, attrs, false, &[], None));
+            puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &name, attrs, &value_objects_by_name, false, &[], None));
             puts_blank(&mut out);
             puts_str(&mut out, &json_codec::emit_from_json_flat(exemplar, &name, attrs, &value_objects_by_name, None, None));
         }
@@ -97,7 +97,7 @@ pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, sourc
         let entity_name = crate::naming::rust_ident(entity.get("name").and_then(Json::as_str).unwrap_or(""));
         let entity_attrs = entity.get("attributes").map(Json::each).unwrap_or(&[]);
         let extra = lifecycle_extra_field(entity);
-        puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &entity_name, entity_attrs, false, &extra, None));
+        puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &entity_name, entity_attrs, &value_objects_by_name, false, &extra, None));
         puts_blank(&mut out);
         puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &entity_name, entity_attrs, &value_objects_by_name, false, &extra, None));
         puts_blank(&mut out);
@@ -118,7 +118,7 @@ pub fn aggregate_prelude(exemplar: &Exemplar, ir: &Json, aggregate: &Json, sourc
     let record_name = crate::naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let record_attrs = aggregate.get("attributes").map(Json::each).unwrap_or(&[]);
     let extra = lifecycle_extra_field(aggregate);
-    puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &record_name, record_attrs, true, &extra, Some(aggregate)));
+    puts_str(&mut out, &json_codec::emit_to_json_flat(exemplar, &record_name, record_attrs, &value_objects_by_name, true, &extra, Some(aggregate)));
     puts_blank(&mut out);
     puts_str(&mut out, &json_codec::emit_from_json_state(exemplar, &record_name, record_attrs, &value_objects_by_name, true, &extra, Some(aggregate)));
     puts_blank(&mut out);

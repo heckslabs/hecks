@@ -1,10 +1,10 @@
 # Ruby is the reference implementation; other runtimes validate against it, continuously
 
-**Status:** Accepted — not yet implemented. Supersedes the "wait for IR stability" entry criterion in [0007](0007-rust-generates-code-not-ruby-source.md)'s original Phase 5 placement.
+**Status:** Accepted — not yet implemented. Supersedes the "wait for IR stability" entry criterion in [0007](../implemented/decisions/0007-rust-generates-code-not-ruby-source.md)'s original Phase 5 placement.
 
 ## Context
 
-[0007](0007-rust-generates-code-not-ruby-source.md) committed Rust to being a code generator over canonical IR, not a hand-written interpreter — closing the failure mode that killed the retired Rust runtime (a second parser/dispatcher/evaluator kept in differential parity *by hand*, forever, as Ruby changed). Having settled that, the roadmap still gated Rust behind Phases 2–4 (Governance, Identities, `act_as`, UL projection, a proven canonical corpus) landing first, reasoning that starting codegen against IR that's still gaining shape would mean regenerating and recompiling repeatedly against a moving target.
+[0007](../implemented/decisions/0007-rust-generates-code-not-ruby-source.md) committed Rust to being a code generator over canonical IR, not a hand-written interpreter — closing the failure mode that killed the retired Rust runtime (a second parser/dispatcher/evaluator kept in differential parity *by hand*, forever, as Ruby changed). Having settled that, the roadmap still gated Rust behind Phases 2–4 (Governance, Identities, `act_as`, UL projection, a proven canonical corpus) landing first, reasoning that starting codegen against IR that's still gaining shape would mean regenerating and recompiling repeatedly against a moving target.
 
 That reasoning conflated two different risks. Eras mean canonical IR *always* keeps changing — that's the premise the whole system is built on, not a temporary condition to wait out. The actual cost the retired runtime paid wasn't "the target changed"; it was "a human had to notice the target changed and manually re-derive the second implementation's behavior, with nothing mechanical checking they'd gotten it right." A generator, by construction, doesn't have that problem the same way: regenerating from new IR is cheap and mechanical. What was still missing was a way to know, cheaply and continuously, whether the *generated* result actually behaves like Ruby — without that, "regenerate and hope" is barely better than the thing 0007 already rejected.
 

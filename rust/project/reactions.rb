@@ -50,6 +50,42 @@ module RustProjection
       )
     end
 
+    # ── THE MERGED POLICY TABLE — bin/project_rust's own `merged.rs`,
+    # spanning the target domain AND every framework/vendored chapter it
+    # attaches, the SAME union `merged_aggregates`/`merged_queries` there
+    # already are. RECOVERS A DOCUMENTED, DELIBERATE GAP: bin/project_rust
+    # used to call `emit_policy_table` with ONLY the target domain's own
+    # policies — "Policies/process managers do NOT merge across chapters
+    # here — Governance/Identity declare none today... not attempted by
+    # this pass" (that comment's own words). Governance/Identity really
+    # don't declare any, so the gap was invisible until a domain vendored
+    # a chapter that DOES — found live, generating lifeadelics' vendored
+    # embryonaut_bluebooks/payments: `Payments::Payment.PaymentGateway
+    # .Succeeded` (a real, generated, correctly-dispatchable port
+    # operation — dispatch_by_name already routes it fine) emitted
+    # `PaymentConfirmedByProcessor` exactly as declared, but the MERGED
+    # Store's own POLICIES table was `&[]` — Payments' 8 policies existed
+    # in payments/registry.rs's own STANDALONE table (each chapter still
+    # gets its own, unchanged, via emit_policy_table above), just never
+    # folded into the ONE table kernel::orchestrate actually reads at
+    # runtime. `OnPaymentConfirmedByProcessor`'s own trigger never fired;
+    # a real webhook would have left the payment stuck "pending" forever.
+    #
+    # `sources` — one `{domain_name:, policies:, aggregates:}` per
+    # chapter (target first, then each attached one, matching
+    # `chapter_mod_names`' own insertion order) — each entry runs through
+    # the IDENTICAL `local_policy_rows` a standalone chapter's own table
+    # already uses, so a policy's own `target_verb` is qualified against
+    # ITS OWN domain_name/aggregates, never the target's.
+    def emit_merged_policy_table(sources)
+      rows = sources.flat_map { |source| local_policy_rows(source[:domain_name], source[:policies], source[:aggregates]) }
+
+      Exemplar.render(
+        "policy_table",
+        'crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_verb: "tmpl_target_verb", for_each: None, for_each_key: None, with_spec: &[] },' => rows.join("\n")
+      )
+    end
+
     def local_policy_rows(domain_name, policies, aggregates = [])
       policies.filter_map do |policy|
         target_domain = policy[:target_domain] || domain_name
@@ -160,8 +196,8 @@ module RustProjection
     # "unknown command" and accepts "Compliance::AccountFreezeReview.Open"
     # cleanly. This was never caught before because no domain had ever
     # deployed a real second Lambda to receive one of these calls.
-    def emit_cross_domain_policy_table(domain_name, policies)
-      rows = policies.filter_map do |policy|
+    def cross_domain_policy_rows(domain_name, policies)
+      policies.filter_map do |policy|
         target_domain = policy[:target_domain] || domain_name
         next nil if target_domain == domain_name
 
@@ -173,6 +209,30 @@ module RustProjection
         "    crate::kernel::CrossDomainPolicyRule { policy_name: #{policy[:name].to_s.inspect}, event_name: #{event_name.inspect}, " \
           "event_qualifier: #{qualifier_expr}, target_domain: #{target_domain.inspect}, target_verb: #{target_verb.inspect} },"
       end
+    end
+
+    def emit_cross_domain_policy_table(domain_name, policies)
+      rows = cross_domain_policy_rows(domain_name, policies)
+
+      puts "cross-domain policy table: #{rows.size} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched" if rows.any?
+
+      Exemplar.render(
+        "cross_domain_policy_table",
+        'crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb" },' =>
+          rows.join("\n")
+      )
+    end
+
+    # ── THE MERGED CROSS-DOMAIN POLICY TABLE — same recovery as
+    # emit_merged_policy_table above, same documented gap, same reason
+    # (Governance/Identity declare no cross-domain policies either, so
+    # this half was equally invisible until a vendored chapter needed
+    # it). `sources` — the identical `{domain_name:, policies:,
+    # aggregates:}` array `emit_merged_policy_table` takes (aggregates
+    # unused here, cross-domain rows need no fan-out addressing key —
+    # see cross_domain_policy_rows' own shape).
+    def emit_merged_cross_domain_policy_table(sources)
+      rows = sources.flat_map { |source| cross_domain_policy_rows(source[:domain_name], source[:policies]) }
 
       puts "cross-domain policy table: #{rows.size} row(s) — delivered by rust/host's lambda_client.rs, not locally dispatched" if rows.any?
 
@@ -303,6 +363,55 @@ module RustProjection
       end
 
       Exemplar.render("reference_key_table", '"tmpl_qualified" => Some("tmpl_key"),' => arms.join("\n"))
+    end
+
+    # ── "DOES THIS VERB CREATE THE RECORD IT ADDRESSES" — `orchestrate.rs`'s
+    # own routing split (`split_routed_args`, its own header) needs this
+    # BEFORE it can decide whether a policy/saga-triggered dispatch's
+    # projected args should have their addressing key promoted into `to:`
+    # at all: `ReactionInvocation.build`'s own `target.command.creates?`
+    # gate — a CREATING target has no existing record to route to, so its
+    # whole projection stays `with:` facts, unrouted, exactly like
+    # `Pizzas::Order.CreatePizza` dispatched directly. Reuses `emit_
+    # registry`'s own already-computed `commands[]`/`entity_commands[]`
+    # `creates:`/`verb:` fields verbatim — an entity command is never
+    # creating (commands.rb's own header on `emit_entity_command`), so it
+    # always reads `false` here without needing its own separate branch.
+    def emit_creates_table(aggregates)
+      arms = aggregates.flat_map do |aggregate|
+        (Array(aggregate[:commands]).map { |c| [c[:verb], c[:creates]] } +
+         Array(aggregate[:entity_commands]).map { |c| [c[:verb], false] }).map do |verb, creates|
+          "        #{verb.inspect} => #{creates},"
+        end
+      end
+
+      Exemplar.render("creates_table", '"tmpl_verb" => true,' => arms.join("\n"))
+    end
+
+    # ── THE SINGLE-COMPONENT IDENTITY HEAD `orchestrate.rs`'s own routing
+    # split (`split_routed_args`) tries FIRST, matching `ReactionInvocation
+    # .identity_for`'s own first move (`Identity.of`, tried before any
+    # alias): a construct's own declared identity field, present in the
+    # projected args by that EXACT name — `ExternalTransfer::SendTransfer`'s
+    # own `dispatch ..., with: { end_to_end: :end_to_end }` is the corpus's
+    # live example (`end_to_end`, `ExternalTransfer`'s own `identified_by`
+    # head, not derivable from `reference_key_for_aggregate`'s generic
+    # snake-cased-type-name rule at all). A COMPOSITE identity (more than
+    # one component) is a real, documented gap here, not silently assumed
+    # to work — `identity_for`'s own multi-field reconstruction needs every
+    # component present at once, which this single-key table cannot
+    # express; skipped rather than guessed at.
+    def emit_identity_head_table(aggregates)
+      arms = aggregates.filter_map do |aggregate|
+        heads = Array(aggregate[:identified_by])
+        next if heads.size != 1
+
+        head = heads.first.to_s.split(".").first
+        qualified = "#{aggregate[:domain_name]}::#{aggregate[:name]}"
+        "        #{qualified.inspect} => Some(#{head.inspect}),"
+      end
+
+      Exemplar.render("identity_head_table", '"tmpl_qualified" => Some("tmpl_head"),' => arms.join("\n"))
     end
   end
 end

@@ -14,7 +14,17 @@ module RustProjection
     # object no OTHER attribute anywhere in this aggregate already forced
     # into existence — no real operation in this corpus does that; flagged
     # rather than silently assumed impossible).
-    def port_operation_skip_reason(operation, owner_name, value_objects_by_name)
+    #
+    # NO LONGER REQUIRES A `reference_to <owner>` ATTRIBUTE — routing
+    # separation (`to:`/`with:`) supplies the receiver identity externally
+    # now, the same way an acting COMMAND's own identity does
+    # (`registry.rb`'s `CommandInvocation#split_aggregate_receiver`), so a
+    # self-reference on the operation is a migration-era spelling of its
+    # receiver at most, never a requirement. `Pizzas::Order.PaymentGateway.
+    # Receive` — the corpus's one live port operation — declares no such
+    # reference at all and used to be skipped here as a codegen bug; it
+    # generates for real now.
+    def port_operation_skip_reason(operation, _owner_name, value_objects_by_name)
       constraint_problems = constraint_list_problems(operation)
       return constraint_problems.join('; ') if constraint_problems.any?
 
@@ -27,10 +37,6 @@ module RustProjection
       end
       return "attribute type(s) #{unresolved.map { |a| a[:type] }.uniq.join(', ')} not generated yet " \
              "(a value object this aggregate's own attributes never resolved a Rust type for)" if unresolved.any?
-
-      identity_attr = operation[:attributes].find { |attr| reference_target(attr[:type]) == owner_name }
-      return "names no reference_to #{owner_name} — PortOperationBuilder#build should already have refused this " \
-             "at declare time, so reaching this is a codegen bug worth investigating, not a domain mistake" unless identity_attr
 
       nil
     end
@@ -45,23 +51,30 @@ module RustProjection
     # at the router level" reason a command's own reference checks do,
     # `reactions.rb`'s header) — by the time control reaches here, the
     # referenced aggregate is already known to exist, so this only builds
-    # the event(s) the operation's own `emits` names, addressed by the
-    # SAME identity attribute Ruby's `PortOperationInterpreter#emit`
-    # reads (`ctx.args[identity_attribute.name]`). The payload this
-    # function's own events carry is a placeholder (`Json::Null`) —
-    # `registry.rb`'s generated call site wraps the return with the SAME
-    # `stamp_payload(events, &payload)` a command's own dispatch call
-    # already does, which REPLACES it with the router's real, raw
-    # `args_json` — so this function never needs to build a correct
-    # payload itself, only correct `name`/`aggregate`/`id`.
+    # the event(s) the operation's own `emits` names, addressed by
+    # `receiver_id` — the router's own resolved receiver identity
+    # (`CommandInvocation#split_aggregate_receiver`, registry.rb), passed
+    # in as this function's own first parameter now rather than read off a
+    # declared attribute. The payload this function's own events carry is
+    # a placeholder (`Json::Null`) — `registry.rb`'s generated call site
+    # wraps the return with the SAME `stamp_payload(events, &payload)` a
+    # command's own dispatch call already does, which REPLACES it with the
+    # router's real, raw facts — so this function never needs to build a
+    # correct payload itself, only correct `name`/`aggregate`/`id`.
+    #
+    # A SELF-REFERENCE ATTRIBUTE (`reference_to <owner>`, the migration-era
+    # spelling of this same receiver) is EXCLUDED from the generated args
+    # struct/JSON codec/event payload entirely — it names no external fact
+    # once routing supplies the receiver, the same reason `registry.rb`'s
+    # `emit_registry` strips it from `facts_json` via `split_aggregate_
+    # receiver`'s own `legacy_receiver_field` when one is present.
     def emit_port_operation(operation, port_name, owner_name, domain_name, value_objects_by_name, aggregates_by_name)
       args_struct = "#{rust_ident(port_name)}#{rust_ident(operation[:name])}Args"
       qualified   = "#{domain_name}::#{owner_name}"
-      identity_attr = operation[:attributes].find { |attr| reference_target(attr[:type]) == owner_name }
-      identity_field = rust_ident_field(identity_attr[:name])
+      fact_attrs  = operation[:attributes].reject { |attr| reference_target(attr[:type]) == owner_name }
 
       struct_lines = ["pub struct #{args_struct} {"]
-      operation[:attributes].each do |attr|
+      fact_attrs.each do |attr|
         type = rust_type(attr[:type], list: attr[:list])
         type = "Option<#{type}>" if attr[:optional]
         struct_lines << "    #{Exemplar.render('struct_field', 'TmplFieldType' => type, 'tmpl_field' => rust_ident_field(attr[:name]))}"
@@ -73,11 +86,11 @@ module RustProjection
 
       events = operation[:emits].map do |event_name|
         "        crate::kernel::Event { name: #{event_name.inspect}.to_string(), aggregate: #{qualified.inspect}.to_string(), " \
-          "id: args.#{identity_field}.clone(), payload: crate::kernel::Json::Null, correlation: None },"
+          "id: receiver_id.to_string(), payload: crate::kernel::Json::Null, correlation: None },"
       end
 
       dispatch_fn = <<~RUST.rstrip
-        pub fn dispatch_operation_#{fn}(args: #{args_struct}) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
+        pub fn dispatch_operation_#{fn}(receiver_id: &str, args: #{args_struct}) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
         #{invariant_checks.join("\n")}
             Ok(vec![
         #{events.join("\n")}
@@ -87,8 +100,8 @@ module RustProjection
 
       [
         "#[derive(Debug, Clone)]\n#{struct_lines.join("\n")}",
-        emit_to_json_flat(args_struct, operation[:attributes], value_objects_by_name),
-        emit_from_json_flat(args_struct, operation[:attributes], value_objects_by_name, command_name: "#{port_name}.#{operation[:name]}"),
+        emit_to_json_flat(args_struct, fact_attrs, value_objects_by_name),
+        emit_from_json_flat(args_struct, fact_attrs, value_objects_by_name, command_name: "#{port_name}.#{operation[:name]}"),
         dispatch_fn,
       ].join("\n\n")
     end

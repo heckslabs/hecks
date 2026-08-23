@@ -37,7 +37,7 @@ RSpec.describe "the IR the builder produces, frozen" do
     # a second read_model and a second process_manager — every rare form this
     # corpus's coverage gates exist to catch, now exercised by the real
     # domain rather than a fixture invented solely to hold it.
-    "Banking"    => "examples/banking/bluebook/banking.bluebook",
+    "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
     "Expression" => "lib/hecksagain/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
@@ -57,7 +57,8 @@ RSpec.describe "the IR the builder produces, frozen" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, file))
+      path = File.absolute_path(file, InMemoryDomain::ROOT)
+      load_bluebook_files(path)
     end
     registry
   end

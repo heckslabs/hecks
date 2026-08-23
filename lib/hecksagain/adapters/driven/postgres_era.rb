@@ -18,7 +18,7 @@ module Hecksagain
     # toward it. Sibling to the plain `Postgres` adapter (postgres.rb),
     # which is the same database with none of this machinery — pick
     # PostgresEra only once a domain actually needs to survive a shape
-    # change live. See docs/postgres-era-adapter-split-plan.md for why
+    # change live. See docs/implemented/postgres-era-adapter-split-plan.md for why
     # the two are split and what each one carries.
     #
     # Storage model (see postgres_era/lineage.rb for the DDL):
@@ -42,6 +42,8 @@ module Hecksagain
       include SqlQueryBuilder
 
       attr_reader :aggregate
+
+      def persistence_capabilities = [:atomic_put]
 
       # The capability idiom: only PostgresEra answers true, and only
       # PostgresEra carries an era_check! for the boot gate to delegate to.
@@ -146,7 +148,7 @@ module Hecksagain
         @lineage.ensure_head_snapshot!(table, @era)
         @lineage.ensure_first_head!(table) if @era == 1
         # THE READ-CACHE SIDE OF THE ERA WORKAROUND (Track C,
-        # docs/postgres-era-adapter-split-plan.md §3) — one row-cache
+        # docs/implemented/postgres-era-adapter-split-plan.md §3) — one row-cache
         # table per `where`-field this aggregate's own declared queries
         # (and its entities' own) actually use, derived automatically
         # (principle 3 — no bluebook keyword), self-healing and
@@ -189,8 +191,8 @@ module Hecksagain
 
       def count = @db.exec(%(SELECT COUNT(*) FROM #{quoted_head}))[0]["count"].to_i
 
-      # THE TWO-PHASE SHORTCUT (Track C, docs/postgres-era-adapter-split-
-      # plan.md §3). `SqlQueryBuilder#query` (`super`, unmodified per
+      # THE TWO-PHASE SHORTCUT (Track C, docs/implemented/postgres-era-adapter-
+      # split-plan.md §3). `SqlQueryBuilder#query` (`super`, unmodified per
       # principle 2) always runs correctly here — it filters against
       # `head_view`, which is already the fully-reduced current state —
       # but for a domain that has minted a second era, that reduction
@@ -252,40 +254,32 @@ module Hecksagain
       # correct.
       def append(entry)
         @db.transaction do
-          @db.exec_params(
-            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
-            [@lineage.domain]
-          )
-          ordinal = @db.exec_params(
-            "INSERT INTO #{@lineage.quoted_journal} (era, aggregate, aggregate_id, operation, state, mirrors) " \
-            "VALUES ($1, $2, $3, $4, $5, $6) RETURNING ordinal",
-            [@era, table, entry.id, entry.operation,
-             entry.state && JSON.generate(entry.state), entry.mirrors && JSON.generate(entry.mirrors)]
-          )[0]["ordinal"]
-
-          if entry.save?
-            @db.exec_params(
-              "INSERT INTO #{quoted_head_snapshot} (id, ordinal, state) VALUES ($1, $2, $3) " \
-              "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
-              "WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
-              [entry.id, ordinal, JSON.generate(entry.state)]
-            )
-            # SAME TRANSACTION, SAME ORDINAL — every field cache stays
-            # exactly as current as the snapshot it's derived from, for
-            # the identical reason `postgres_era.rb`'s own header comment
-            # gives for the journal/snapshot pair: if this transaction
-            # commits, every cache row is already correct; if it doesn't,
-            # none of them changed.
-            state_json = JSON.generate(entry.state)
-            @field_caches.each do |field, cache_table|
-              @lineage.upsert_field_cache_row!(cache_table, entry.id, ordinal, state_json, query_expression(field))
-            end
-          else
-            @db.exec_params("DELETE FROM #{quoted_head_snapshot} WHERE id = $1", [entry.id])
-            @field_caches.each_value { |cache_table| @lineage.delete_field_cache_row!(cache_table, entry.id) }
-          end
+          lock_writes!
+          append_and_project!(entry)
         end
         entry
+      end
+
+      # Outcome detection, journal append and every derived projection share
+      # the SAME transaction and domain write lock. The lineage-aware head
+      # determines whether this id is already visible; no repository `find`
+      # occurs before entering this adapter-native operation.
+      def atomic_put(entry, insert_only: false)
+        status = nil
+        @db.transaction do
+          lock_writes!
+          exists = !@db.exec_params(
+            "SELECT 1 FROM #{quoted_head} WHERE id = $1 LIMIT 1",
+            [entry.id.to_s]
+          ).ntuples.zero?
+          if insert_only && exists
+            status = :conflicted
+            next
+          end
+          status = exists ? :replaced : :inserted
+          append_and_project!(entry)
+        end
+        status
       end
 
       # The head is DERIVED — projecting is reading, so there is nothing
@@ -391,6 +385,46 @@ module Hecksagain
       end
 
       private
+
+      def lock_writes!
+        @db.exec_params(
+          "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+          [@lineage.domain]
+        )
+      end
+
+      def append_and_project!(entry)
+        state_json = entry.state && JSON.generate(entry.state)
+        ordinal = @db.exec_params(
+          "INSERT INTO #{@lineage.quoted_journal} (era, aggregate, aggregate_id, operation, state, mirrors) " \
+          "VALUES ($1, $2, $3, $4, $5, $6) RETURNING ordinal",
+          [@era, table, entry.id, entry.operation, state_json,
+           entry.mirrors && JSON.generate(entry.mirrors)]
+        )[0]["ordinal"]
+
+        if entry.save?
+          @db.exec_params(
+            "INSERT INTO #{quoted_head_snapshot} (id, ordinal, state) VALUES ($1, $2, $3) " \
+            "ON CONFLICT (id) DO UPDATE SET ordinal = EXCLUDED.ordinal, state = EXCLUDED.state " \
+            "WHERE #{quoted_head_snapshot}.ordinal < EXCLUDED.ordinal",
+            [entry.id, ordinal, state_json]
+          )
+          # SAME TRANSACTION, SAME ORDINAL — every field cache stays
+          # exactly as current as the snapshot it's derived from, for
+          # the identical reason `postgres_era.rb`'s own header comment
+          # gives for the journal/snapshot pair: if this transaction
+          # commits, every cache row is already correct; if it doesn't,
+          # none of them changed.
+          @field_caches.each do |field, cache_table|
+            @lineage.upsert_field_cache_row!(cache_table, entry.id, ordinal, state_json, query_expression(field))
+          end
+        else
+          @db.exec_params("DELETE FROM #{quoted_head_snapshot} WHERE id = $1", [entry.id])
+          @field_caches.each_value { |cache_table| @lineage.delete_field_cache_row!(cache_table, entry.id) }
+        end
+
+        ordinal
+      end
 
       # ── SqlQueryBuilder's dialect hooks ─────────────────────────────
 
@@ -578,7 +612,7 @@ module Hecksagain
       # just expensive to reduce in the first place). Duplicates a small
       # slice of `SqlQueryBuilder#query`'s own tail assembly (order_by/
       # limit/offset) rather than reaching into it — principle 2
-      # (docs/postgres-era-adapter-split-plan.md): SqlQueryBuilder stays
+      # (docs/implemented/postgres-era-adapter-split-plan.md): SqlQueryBuilder stays
       # untouched by the era workaround, so this stays local to
       # PostgresEra rather than growing a shared hook only one adapter
       # would ever call.

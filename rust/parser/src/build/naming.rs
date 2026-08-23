@@ -14,7 +14,11 @@
 /// this is mostly a no-op here, kept for parity with the Ruby call sites
 /// that always route a type name through it before minting an attribute.
 pub fn demodulise(type_name: &str) -> String {
-    type_name.rsplit("::").next().unwrap_or(type_name).to_string()
+    type_name
+        .rsplit("::")
+        .next()
+        .unwrap_or(type_name)
+        .to_string()
 }
 
 /// `Hecksagain::Naming.command_ref` — the command-reference text a bare
@@ -162,7 +166,10 @@ mod tests {
     #[test]
     fn command_refs_a_bare_constant_by_its_last_namespace_segment() {
         assert_eq!(command_ref("Account::Debit"), "Account.Debit");
-        assert_eq!(command_ref("Banking::Account::Debit"), "Banking::Account.Debit");
+        assert_eq!(
+            command_ref("Banking::Account::Debit"),
+            "Banking::Account.Debit"
+        );
         assert_eq!(command_ref("Debit"), "Debit");
     }
 

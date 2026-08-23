@@ -150,8 +150,8 @@ RSpec.describe "the Rust parser's own coverage", io: true do
   # form renderer, so they failed the corpus-use-and-doctest bar);
   # `world` `File`, `latest`/`realm` `World`, `subscribe`/
   # `uses_framework` `Hecksagon`, `verb` `DomainPort` (the `World`/
-  # `Hecksagon` SIBLING grammar files — `language/world.bluebook`/
-  # `language/hecksagon.bluebook`, `MetaValidator::WORLD_GRAMMAR`/
+  # `Hecksagon` SIBLING grammar folders — `language/world/`/
+  # `language/hecksagon/`, `MetaValidator::WORLD_GRAMMAR`/
   # `HECKSAGON_GRAMMAR` — are real but explicitly OUTSIDE this stage's
   # own scope, which named `MetaValidator::GRAMMAR_FILES`'s nine files
   # specifically; `hecks-parse resolve` for a real `.hecksagon` is also

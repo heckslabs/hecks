@@ -1,0 +1,338 @@
+Hecks.bluebook "Banking" do
+  aggregate "ATMCard" do
+    given("card is issued or active") { ["issued", "active"].include?(status) }
+    given("account is open") { account.status == "open" }
+    given("customer is active") { account.customer.status == "active" }
+    description "A card issued against an account, and the cash taken with it."
+
+    reference_to Account
+
+    attribute :serial, CardSerial
+
+    identified_by :serial
+
+    # OPTIONAL, genuinely (S13, ADR 0025, coverage standard) — a card
+    # issued the same day it's handed over often carries no nickname
+    # yet; `Active`'s own query below relies on this to demonstrate
+    # `nulls` for real, not on an empty string standing in for absent.
+    attribute :nickname,    CardNickname, optional: true
+    attribute :daily_fee,   DailyFee
+    attribute :withdrawals, list_of(Withdrawal)
+
+    value_object "CardSerial" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a card serial is present") { !value.to_s.empty? }
+    end
+
+    value_object "CardNickname" do
+      attribute :value, String
+    end
+
+    value_object "DailyFee" do
+      attribute :amount, Float, default: 0.0
+      invariant("a daily fee is non-negative") { amount >= 0 }
+    end
+
+    value_object "WithdrawalSequence" do
+      attribute :value, Integer
+      invariant("a withdrawal sequence is positive") { value.positive? }
+    end
+
+    value_object "WithdrawalAmount" do
+      attribute :cents, Integer
+      invariant("a withdrawal amount is positive") { cents.positive? }
+    end
+
+    value_object "Narrative" do
+      attribute :text, String, pattern: '[^ \t\n\r]'
+
+      invariant("a withdrawal explains itself") { !text.to_s.empty? }
+    end
+
+    entity "Withdrawal" do
+      description "One handful of cash, in the order it was taken."
+
+      attribute :sequence, WithdrawalSequence
+
+      identified_by :sequence
+
+      attribute :cents,     WithdrawalAmount
+      attribute :narrative, Narrative
+
+      lifecycle :state, default: "taken" do
+        transition "Dispute" => "disputed", from: "taken"
+      end
+
+      command "Dispute" do
+        role "Customer"
+        goal "Challenge a withdrawal that was not mine"
+
+        given("customer is active") { parent.account.customer.status == "active" }
+        given("account is open") { parent.account.status == "open" }
+        given("card is not retired") { status != "retired" }
+        given("withdrawal is taken") { state == "taken" }
+        sets :narrative
+
+        emits "WithdrawalDisputed"
+      end
+
+      query "Recent" do
+        description "The first two withdrawals still standing, whatever else was taken."
+        where(state: "taken")
+        limit 2
+      end
+    end
+
+    lifecycle :status, default: "issued" do
+      transition "Activate" => "active",  from: "issued"
+      transition "Retire"   => "retired", from: ["issued", "active"]
+    end
+
+    command "Issue" do
+      role "Branch clerk"
+      goal "Put a card in a customer's hand"
+
+      given("customer is active")
+      given("account is open")
+
+      sets :account
+      sets :serial
+      sets :daily_fee
+
+      emits "ATMCardIssued"
+    end
+
+    command "Rename" do
+      role "Customer"
+      goal "Name a card so it is recognisable"
+
+      reference_to ATMCard
+      attribute :nickname, CardNickname
+      given("customer is active")
+      given("card is issued or active")
+      sets :nickname
+
+      emits "ATMCardRenamed"
+    end
+
+    command "Withdraw" do
+      role "Customer"
+      goal "Take cash out at a machine"
+
+      reference_to ATMCard
+      given("customer is active")
+      given("account is open")
+
+      sets :withdrawals, append: { cents: :cents, narrative: :narrative }
+
+      emits "CashWithdrawn"
+    end
+
+    command "Activate" do
+      role "Customer"
+      goal "Start using a card"
+
+      reference_to ATMCard
+      given("customer is active")
+      given("card is issued") { status == "issued" }
+      emits "ATMCardActivated"
+    end
+
+    command "Retire" do
+      role "Back office"
+      goal "Take a card out of service"
+
+      reference_to ATMCard
+      given("customer is active")
+      given("card is issued or active")
+      emits "ATMCardRetired"
+    end
+
+    # `nulls :last` (S13, ADR 0025, coverage standard) — an unnamed
+    # card is real, not a gap to guess about: it sorts after every
+    # named one instead of wherever a bare comparison would leave it
+    # (a nil losing every "<" against a real String is the OLD,
+    # accidental behavior nothing here declared on purpose).
+    query "Active" do
+      description "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first."
+      where(status: "active")
+      order_by :nickname
+      nulls :last
+    end
+
+    # `offset 1` (S13, ADR 0025, coverage standard) — the second-
+    # cheapest three, skipping the very cheapest: the same skip-then-
+    # take `Sighting.Paged` demonstrates on the Query reference page,
+    # now for real.
+    query "ByFee" do
+      description "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical."
+      where(status: "active")
+      order_by :daily_fee
+      limit 3
+      offset 1
+    end
+  end
+
+  aggregate "CardPayment" do
+    given("payment is disputed") { status == "disputed" }
+    given("payment is captured") { status == "captured" }
+    given("payment is authorized") { status == "authorized" }
+    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — `ATMCard`'s
+    # own declaration; `declared_by:` required since `Account`'s own
+    # "customer is active" is a genuinely different canonical.
+    given("account is open", declared_by: ATMCard)
+    given("customer is active", declared_by: ATMCard)
+    description "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute."
+
+    reference_to Account
+    # OPTIONAL: nil until `Dispute` actually sets it — every payment starts
+    # authorized/captured with no disputant at all. `validate_relationship_
+    # cardinality` (references.rb) now refuses ANY reference_to relationship
+    # left nil unless told it may be, so an authorized-but-undisputed
+    # CardPayment (the ordinary case) was refused at save for a fact the
+    # command genuinely never set yet.
+    reference_to Customer, as: :disputed_by, optional: true
+    attribute :authorisation, AuthorisationCode
+
+    identified_by :authorisation
+    attribute :amount,   PaymentAmount
+
+    value_object "AuthorisationCode" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+    end
+    attribute :merchant, MerchantName
+
+    value_object "PaymentAmount" do
+      attribute :cents, Integer
+      invariant("a payment amount is positive") { cents.positive? }
+    end
+
+    value_object "MerchantName" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a merchant name is present") { !value.to_s.empty? }
+    end
+
+    # WHAT THE MERCHANT CATEGORY CODE SAYS ABOUT THIS CHARGE — a plain word,
+    # not a closed set: the risk desk adds a tag before the language has a
+    # name for it, and a scheme this narrow would refuse the very charge it
+    # exists to flag.
+    attribute :tags, list_of(Tag)
+
+    value_object "Tag" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a tag is not the empty string") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "authorized" do
+      transition "Capture" => "captured", from: "authorized"
+      transition "Void" => "voided", from: "authorized"
+      transition "Refund" => "refunded", from: "captured"
+      transition "Reverse" => "reversed", from: "captured"
+      transition "Dispute" => "disputed", from: ["captured", "refunded"]
+      transition "Chargeback" => "charged_back", from: "disputed"
+      transition "RejectDispute" => "captured", from: "disputed"
+    end
+
+    command "Authorize" do
+      attribute :authorisation, AuthorisationCode
+      attribute :tags, list_of(Tag), optional: true
+      given("customer is active")
+      given("account is open")
+      sets :account
+      sets :amount
+      sets :merchant
+      sets :tags
+      emits "CardAuthorized"
+    end
+
+    command "Capture" do
+      reference_to CardPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is authorized")
+      emits "CardCaptured"
+    end
+
+    command "Void" do
+      reference_to CardPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is authorized")
+      emits "CardVoided"
+    end
+
+    command "Refund" do
+      reference_to CardPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is captured")
+      emits "CardRefunded"
+    end
+
+    command "Reverse" do
+      reference_to CardPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is captured")
+      emits "CardReversed"
+    end
+
+    command "Dispute" do
+      role "Customer"
+      goal "Challenge a payment that already settled"
+
+      # The only command in the corpus carrying BOTH a self reference and a
+      # cross-aggregate one, and it is here because the fact is real : a dispute
+      # is raised BY someone, and on a joint account that someone is not
+      # derivable from the payment. The CardPayment knows its Account and the
+      # Account knows a Customer, but not which of them challenged the charge.
+      #
+      # Both branches of CommandBuilder#reference_to fire here. CardPayment
+      # matches the owner, so it sets @references and Dispute is NOT creating ;
+      # Customer does not match, so it becomes a Reference<Customer> attribute.
+      # Everywhere else in the corpus those two paths are exercised apart — a
+      # cross-reference always sits on a creating command or an aggregate head —
+      # so nothing distinguished `creates?` reading a self-reference from
+      # `creates?` reading any reference at all.
+      reference_to CardPayment
+      reference_to Customer, as: :disputed_by
+      given("account is open")
+      given("customer is active") { disputed_by.status == "active" }
+      given("payment is captured or refunded") { ["captured", "refunded"].include?(status) }
+
+      sets :disputed_by
+
+      emits "CardDisputed"
+    end
+
+    command "Chargeback" do
+      reference_to CardPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is disputed")
+      emits "CardChargedBack"
+    end
+
+    command "RejectDispute" do
+      reference_to CardPayment
+      given("customer is active")
+      given("account is open")
+      given("payment is disputed")
+      emits "CardDisputeRejected"
+    end
+
+    query "Pending" do
+      where(status: "authorized")
+    end
+
+    query "Disputed" do
+      where(status: "disputed")
+    end
+
+    query "Flagged" do
+      description "Charges carrying a risk tag, for the fraud queue."
+      where(tags: { contains: "high_risk" })
+    end
+  end
+
+end

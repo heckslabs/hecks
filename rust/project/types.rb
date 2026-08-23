@@ -138,12 +138,16 @@ module RustProjection
         return emit_closed_set_table(vo) if vo[:attributes].size > 1
 
         variants = vo[:members].map { |row| closed_set_variant(row) }
-        return Exemplar.compose(
+        enum_part = Exemplar.compose(
           "closed_set_enum",
           { "TmplKind" => name },
           field_id: "closed_set_enum:VARIANT",
           field_subs_list: variants.map { |v| { "TmplMemberA" => v } }
         )
+        # `fielded_capable_nested?`'s own real consumer — see its header
+        # (naming.rb) for the full story. Purely additive alongside the
+        # enum itself; nothing about `enum_part`'s own generation changed.
+        return "#{enum_part}\n\n#{emit_closed_set_fielded_impl(vo)}"
       end
 
       field_subs_list = vo[:attributes].map do |attr|
@@ -233,7 +237,7 @@ module RustProjection
         # something appends, which `Vec<T>` (never absent) already
         # represents correctly.
         type = rust_type(attr[:type], list: attr[:list])
-        type = "Option<#{type}>" if !attr[:list] || list_attr_creation_optional?(aggregate, attr[:name])
+        type = "Option<#{type}>" if !attr[:list] || list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
         { "TmplFieldType" => type, "tmpl_field" => rust_ident_field(attr[:name]) }
       end
       field_subs_list << { "TmplFieldType" => "String", "tmpl_field" => rust_ident_field(aggregate[:lifecycle][:field]) } if aggregate[:lifecycle]

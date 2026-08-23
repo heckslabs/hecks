@@ -5,9 +5,8 @@ Hecks.bluebook "Adapter" do
   aggregate "Adapter" do
     description "One .adapter — a real implementation of one resource port, and the config values a world's own wiring must give it."
 
-    identified_by :name
+    identified_by AdapterName, as: :name
 
-    attribute :name,    AdapterName
     attribute :port,    AdapterPortName
     attribute :fields,  list_of(AdapterField)
     attribute :secrets, list_of(AdapterField)
@@ -38,6 +37,9 @@ Hecks.bluebook "Adapter" do
       # `secret`, never calling `port` at all).
       attribute :port, AdapterPortName, optional: true
 
+      sets :name
+      sets :port
+
       emits "AdapterDeclared"
     end
 
@@ -63,6 +65,52 @@ Hecks.bluebook "Adapter" do
       sets :secrets, append: { value: :value }
 
       emits "AdapterSecretAdded"
+    end
+
+    # HOW ADAPTER IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: File, Adapter.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "adapter",         context: "File",     body: "keywords", inner: "Adapter",        opens: "Adapter",        fills: ""
+      member word: "port",            context: "Adapter",   body: "none", inner: "", opens: "", fills: "port"
+      member word: "field",           context: "Adapter",   body: "none", inner: "", opens: "", fills: "fields"
+      member word: "secret",          context: "Adapter",   body: "none", inner: "", opens: "", fills: "secrets"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "adapter",         context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "port",            context: "Adapter", at: "1", named: "", kind: "text",   required: "true", fills: "port"
+      member keyword: "field",           context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "fields"
+      member keyword: "secret",          context: "Adapter", at: "1", named: "", kind: "symbol", required: "true", fills: "secrets"
+
     end
   end
 end

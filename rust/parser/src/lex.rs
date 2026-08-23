@@ -33,7 +33,10 @@ pub fn lines(source: &str) -> Vec<SourceLine<'_>> {
             if trimmed.is_empty() {
                 None
             } else {
-                Some(SourceLine { number: idx + 1, text: trimmed })
+                Some(SourceLine {
+                    number: idx + 1,
+                    text: trimmed,
+                })
             }
         })
         .collect()
@@ -245,12 +248,16 @@ pub enum Opener {
     /// a matching `end`, walked line-by-line by the caller (parse/mod.rs)
     /// rather than pre-collected here, since a `keywords`-body block's
     /// content is itself a nested sequence of gated lines, not raw text.
-    DoBlock { params: Option<String> },
+    DoBlock {
+        params: Option<String>,
+    },
     /// `word(...) { ... }` — a `source`-shaped body: raw predicate text,
     /// captured and canonicalized (canonical.rs), NEVER interpreted. May
     /// span multiple physical lines; `body` is everything between the
     /// matching braces, exclusive.
-    BraceBlock { body: String },
+    BraceBlock {
+        body: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -299,7 +306,10 @@ const FILE_RECEIVER_PREFIX: &str = "Hecks.";
 /// non-blank line — or refuses it outright as a diagnostic naming what
 /// shape it actually needs to be.
 pub fn classify<'a>(file: &str, line: &SourceLine<'a>) -> Result<LineShape, Diagnostic> {
-    let text = line.text.strip_prefix(FILE_RECEIVER_PREFIX).unwrap_or(line.text);
+    let text = line
+        .text
+        .strip_prefix(FILE_RECEIVER_PREFIX)
+        .unwrap_or(line.text);
 
     if text == "end" {
         return Ok(LineShape::End);
@@ -343,7 +353,11 @@ pub fn classify<'a>(file: &str, line: &SourceLine<'a>) -> Result<LineShape, Diag
     let (args, opener) = split_opener(rest);
     let args = strip_balanced_parens(args.trim());
 
-    Ok(LineShape::Call(Call { word: word.to_string(), args: args.to_string(), opener }))
+    Ok(LineShape::Call(Call {
+        word: word.to_string(),
+        args: args.to_string(),
+        opener,
+    }))
 }
 
 fn leading_identifier_end(text: &str) -> usize {
@@ -396,10 +410,16 @@ fn find_top_level_assignment(text: &str) -> Option<usize> {
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth -= 1,
             '=' if depth == 0 => {
-                let prev = if idx == 0 { None } else { Some(bytes[idx - 1] as char) };
+                let prev = if idx == 0 {
+                    None
+                } else {
+                    Some(bytes[idx - 1] as char)
+                };
                 let next = text[idx + 1..].chars().next();
-                let is_wide_operator = matches!(prev, Some('=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' | '~'))
-                    || matches!(next, Some('=' | '~' | '>'));
+                let is_wide_operator = matches!(
+                    prev,
+                    Some('=' | '!' | '<' | '>' | '+' | '-' | '*' | '/' | '~')
+                ) || matches!(next, Some('=' | '~' | '>'));
                 if !is_wide_operator {
                     return Some(idx);
                 }
@@ -428,7 +448,12 @@ fn split_opener(rest: &str) -> (String, Opener) {
         // across lines. Callers that need to keep reading do so; Stage 1's
         // stub handlers don't attempt multi-line brace assembly (named as
         // a real, tracked gap below rather than guessed at).
-        return (before.to_string(), Opener::BraceBlock { body: brace_and_after.to_string() });
+        return (
+            before.to_string(),
+            Opener::BraceBlock {
+                body: brace_and_after.to_string(),
+            },
+        );
     }
 
     (rest.to_string(), Opener::None)
@@ -521,7 +546,10 @@ fn find_top_level_brace(text: &str) -> Option<usize> {
 /// 1, not 0) before this character check is ever consulted, so the gap
 /// only shows up in the parenless spelling.
 fn is_hash_literal_brace(before: &str) -> bool {
-    matches!(before.trim_end().chars().last(), Some(':') | Some(',') | Some('>'))
+    matches!(
+        before.trim_end().chars().last(),
+        Some(':') | Some(',') | Some('>')
+    )
 }
 
 /// Given text starting at a top-level `{`, returns `(body, rest_after)`
@@ -632,14 +660,22 @@ pub fn strip_aggregate_receiver(text: &str) -> Option<(&str, &str)> {
 /// syntax anywhere in this codebase today — doesn't stop early at its own
 /// inner `end`), the same defensive discipline `find_top_level_brace`/
 /// `matching_brace_body` already apply to a brace-spelled body.
-pub fn capture_do_block_body<'a>(file: &str, lines: &[SourceLine<'a>], pos: &mut usize) -> Result<String, Diagnostic> {
+pub fn capture_do_block_body<'a>(
+    file: &str,
+    lines: &[SourceLine<'a>],
+    pos: &mut usize,
+) -> Result<String, Diagnostic> {
     let mut depth: i32 = 0;
     let mut parts: Vec<&'a str> = Vec::new();
 
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
             let last = lines.last().map(|l| l.number).unwrap_or(0);
-            Diagnostic::new(file, last, "unexpected end of file — still inside a `do ... end` block".to_string())
+            Diagnostic::new(
+                file,
+                last,
+                "unexpected end of file — still inside a `do ... end` block".to_string(),
+            )
         })?;
         *pos += 1;
 
@@ -666,7 +702,9 @@ pub fn capture_do_block_body<'a>(file: &str, lines: &[SourceLine<'a>], pos: &mut
 /// rather than a call's own already-word-stripped `rest`.
 fn opens_a_do_block(text: &str) -> bool {
     let trimmed = text.trim_end();
-    trimmed == "do" || trimmed.ends_with(" do") || (trimmed.ends_with('|') && trimmed.contains(" do "))
+    trimmed == "do"
+        || trimmed.ends_with(" do")
+        || (trimmed.ends_with('|') && trimmed.contains(" do "))
 }
 
 fn strip_balanced_parens(text: &str) -> &str {
@@ -716,13 +754,22 @@ mod tests {
 
     #[test]
     fn strips_an_aggregate_qualified_receiver() {
-        assert_eq!(strip_aggregate_receiver("Pizzas::Order.persisted_by(\"Postgres\")"), Some(("Pizzas::Order", "persisted_by(\"Postgres\")")));
-        assert_eq!(strip_aggregate_receiver("Pizzas::Order.port \"PaymentGateway\" do"), Some(("Pizzas::Order", "port \"PaymentGateway\" do")));
+        assert_eq!(
+            strip_aggregate_receiver("Pizzas::Order.persisted_by(\"Postgres\")"),
+            Some(("Pizzas::Order", "persisted_by(\"Postgres\")"))
+        );
+        assert_eq!(
+            strip_aggregate_receiver("Pizzas::Order.port \"PaymentGateway\" do"),
+            Some(("Pizzas::Order", "port \"PaymentGateway\" do"))
+        );
     }
 
     #[test]
     fn does_not_strip_a_bare_lowercase_call() {
-        assert_eq!(strip_aggregate_receiver("uses_framework \"Governance\""), None);
+        assert_eq!(
+            strip_aggregate_receiver("uses_framework \"Governance\""),
+            None
+        );
         assert_eq!(strip_aggregate_receiver("subscribe \"Deposited\""), None);
     }
 
@@ -749,7 +796,10 @@ mod tests {
         // file (examples/pizzas/bluebook/pizzas.bluebook,
         // lib/hecksagain/language/bluebook/*.bluebook, ...) opens with
         // `Hecks.bluebook "Name" do`, never a bare `bluebook "Name" do`.
-        let line = SourceLine { number: 1, text: "Hecks.bluebook \"Pizzas\" do" };
+        let line = SourceLine {
+            number: 1,
+            text: "Hecks.bluebook \"Pizzas\" do",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         assert_eq!(
             shape,
@@ -770,7 +820,10 @@ mod tests {
 
     #[test]
     fn classifies_a_plain_call() {
-        let line = SourceLine { number: 1, text: "attribute :name, String" };
+        let line = SourceLine {
+            number: 1,
+            text: "attribute :name, String",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         assert_eq!(
             shape,
@@ -784,7 +837,10 @@ mod tests {
 
     #[test]
     fn classifies_a_do_block_opener() {
-        let line = SourceLine { number: 1, text: "aggregate \"Pizza\" do" };
+        let line = SourceLine {
+            number: 1,
+            text: "aggregate \"Pizza\" do",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         assert_eq!(
             shape,
@@ -798,28 +854,38 @@ mod tests {
 
     #[test]
     fn classifies_a_do_block_with_params() {
-        let line = SourceLine { number: 1, text: "on \"Deposited\" do |event|" };
+        let line = SourceLine {
+            number: 1,
+            text: "on \"Deposited\" do |event|",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         assert_eq!(
             shape,
             LineShape::Call(Call {
                 word: "on".to_string(),
                 args: "\"Deposited\"".to_string(),
-                opener: Opener::DoBlock { params: Some("event".to_string()) }
+                opener: Opener::DoBlock {
+                    params: Some("event".to_string())
+                }
             })
         );
     }
 
     #[test]
     fn classifies_a_brace_source_body() {
-        let line = SourceLine { number: 1, text: "identified_by { name.value }" };
+        let line = SourceLine {
+            number: 1,
+            text: "identified_by { name.value }",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         assert_eq!(
             shape,
             LineShape::Call(Call {
                 word: "identified_by".to_string(),
                 args: "".to_string(),
-                opener: Opener::BraceBlock { body: "name.value".to_string() }
+                opener: Opener::BraceBlock {
+                    body: "name.value".to_string()
+                }
             })
         );
     }
@@ -842,27 +908,39 @@ mod tests {
 
     #[test]
     fn classifies_end() {
-        let line = SourceLine { number: 1, text: "end" };
+        let line = SourceLine {
+            number: 1,
+            text: "end",
+        };
         assert_eq!(classify("f.bluebook", &line).unwrap(), LineShape::End);
     }
 
     #[test]
     fn refuses_bare_if() {
-        let line = SourceLine { number: 1, text: "if amount > 0" };
+        let line = SourceLine {
+            number: 1,
+            text: "if amount > 0",
+        };
         let err = classify("f.bluebook", &line).unwrap_err();
         assert!(err.message.contains("if"));
     }
 
     #[test]
     fn refuses_local_assignment() {
-        let line = SourceLine { number: 1, text: "x = 1" };
+        let line = SourceLine {
+            number: 1,
+            text: "x = 1",
+        };
         let err = classify("f.bluebook", &line).unwrap_err();
         assert!(err.message.contains("assignment"));
     }
 
     #[test]
     fn refuses_a_line_that_is_not_a_word_call() {
-        let line = SourceLine { number: 1, text: "\"just a string\"" };
+        let line = SourceLine {
+            number: 1,
+            text: "\"just a string\"",
+        };
         assert!(classify("f.bluebook", &line).is_err());
     }
 
@@ -870,7 +948,10 @@ mod tests {
     fn allows_a_hash_rocket_and_wide_operators_without_flagging_assignment() {
         // not currently written anywhere in this DSL, but `==`/`>=` inside
         // a captured source body must never be misread as `=`.
-        let line = SourceLine { number: 1, text: "given(\"ok\") { balance >= amount }" };
+        let line = SourceLine {
+            number: 1,
+            text: "given(\"ok\") { balance >= amount }",
+        };
         assert!(classify("f.bluebook", &line).is_ok());
     }
 
@@ -879,7 +960,10 @@ mod tests {
         // `where(balance: {gte: 100}, status: "open")` — the `{gte: 100}`
         // is a hash-literal ARGUMENT, not a `source`-shaped `{ ... }`
         // block; only a brace outside every enclosing paren counts.
-        let line = SourceLine { number: 1, text: "where(balance: {gte: 100}, status: \"open\")" };
+        let line = SourceLine {
+            number: 1,
+            text: "where(balance: {gte: 100}, status: \"open\")",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         match shape {
             LineShape::Call(call) => {
@@ -892,7 +976,10 @@ mod tests {
 
     #[test]
     fn strips_wrapping_parens_from_arguments() {
-        let line = SourceLine { number: 1, text: "bluebook(\"Pizzas\", version: \"1\") do" };
+        let line = SourceLine {
+            number: 1,
+            text: "bluebook(\"Pizzas\", version: \"1\") do",
+        };
         let shape = classify("f.bluebook", &line).unwrap();
         match shape {
             LineShape::Call(call) => assert_eq!(call.args, "\"Pizzas\", version: \"1\""),

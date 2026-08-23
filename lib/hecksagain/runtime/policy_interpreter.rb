@@ -1,6 +1,7 @@
 require_relative "../naming"
 require_relative "errors"
 require_relative "query_interpreter"
+require_relative "reaction_invocation"
 require_relative "refusal_wording"
 require_relative "value"
 require_relative "../bluebook/expression/evaluator"
@@ -97,7 +98,8 @@ module Hecksagain
                               reason:    "reaction depth #{@door.max_reaction_depth} reached")
         end
 
-        @door.reenter(target, **trigger_args(policy, event))
+        args = trigger_args(policy, event)
+        @door.reenter(target, **reaction_invocation(target, args, policy, event))
         record.merge(delivered: true)
       rescue *DOMAIN_REFUSALS => error
         # The target refused — a fact about the domain, recorded and not
@@ -160,12 +162,12 @@ module Hecksagain
         # THE QUERY READS THE EVENT, never the projection — `with:` says
         # what the TRIGGER is given, and the fan-out's query is asking a
         # different question (WHICH rows) in the event's own vocabulary.
-        query_args    = event.payload.transform_keys(&:to_sym)
+        query_args    = for_each_query_args(aggregate.query(query_name), event)
         rows          = QueryInterpreter.new(@registry).call(query_domain, aggregate, query_name, query_args)
         reference_key = addressing_key_for(target, aggregate_name)
 
         Array(rows).map do |row|
-          deliver_for_each_row(target, record, trigger_args(policy, event, reference_key => row[:id]), row)
+          deliver_for_each_row(target, record, trigger_args(policy, event, reference_key => row[:id]), row, policy, event)
         end
       rescue *DOMAIN_REFUSALS => error
         record.merge(delivered: false, reason: error.message)
@@ -173,6 +175,43 @@ module Hecksagain
         warn "[hecksagain] defect in reaction — policy #{policy.name} on #{event.name} " \
              "resolving for_each #{policy.for_each}: #{error.class}: #{error.message}"
         record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
+      end
+
+      # THE EVENT'S OWN IDENTITY IS A FACT TOO, not only its payload. A
+      # for_each query commonly filters by the EMITTING record's own
+      # identity (`OpenForCustomer`'s own `reference:`, scoping by the
+      # very customer who was just suspended) — which used to arrive for
+      # free because LEGACY dispatch left the self-addressing key riding
+      # along in `event.payload` unfiltered. Routing separated from
+      # payload (`to:`/`with:`, what the facade's own bang-methods always
+      # use) correctly stopped carrying it there, which left this query
+      # silently seeing NEITHER the field it needs NOR any error saying
+      # why — an empty result read as "nothing to freeze" instead of "the
+      # customer" the whole reaction exists to catch.
+      #
+      # Merged in ONLY when the query declares an argument by that exact
+      # name AND the emitting aggregate's own identity is genuinely what
+      # that name means (`construct.identity_heads`) — the same guard
+      # `SagaInterpreter::Correlation#self_identified?` uses for the
+      # identical shape one call away, so an unrelated aggregate sharing
+      # an argument name by coincidence never gets misread as this one.
+      # Never overrides a value the payload already supplied.
+      def for_each_query_args(query, event)
+        args = event.payload.transform_keys(&:to_sym)
+        return args unless query
+
+        domain, bare_name = event.aggregate.to_s.split("::", 2)
+        construct = bare_name && @registry.bluebook(domain)&.aggregate(bare_name)
+        return args unless construct
+
+        heads = construct.identity_heads.map(&:to_s)
+        query.attributes.each do |attribute|
+          next if args.key?(attribute.name)
+          next unless heads.include?(attribute.name.to_s)
+
+          args[attribute.name] = event.id
+        end
+        args
       end
 
       # WHAT THE TRIGGER IS GIVEN. Undeclared, the event's whole payload
@@ -197,15 +236,13 @@ module Hecksagain
       # whether it read them or not.
       def trigger_args(policy, event, extra = {})
         payload = event.payload.transform_keys(&:to_sym).merge(extra)
-        return payload if policy.with_spec.to_a.empty?
+        return payload unless ReactionInvocation.projection_declared?(policy)
 
-        args = policy.with_spec.to_h do |key, value|
-          resolved = value.is_a?(Symbol) ? payload[value] : value
-          # Carried as STATE, not as the emitting aggregate's own runtime
-          # type — the same reason a saga materialises: two aggregates may
-          # share a value object's fields without sharing the class.
-          [key.to_sym, Value.materialize(resolved)]
-        end
+        args = ReactionInvocation.resolve_mapping(
+          with_spec: policy.with_spec,
+          scopes:    [["event payload and fan-out row", payload]],
+          label:     "#{policy.name}'s trigger"
+        )
 
         # THE RAW INPUTS `args` WAS RESOLVED FROM — same additive,
         # Ruby-only shape SagaInterpreter#deliver_saga_dispatch's own
@@ -245,7 +282,7 @@ module Hecksagain
               "#{aggregate_name} and no reference-typed attribute targeting it"
       end
 
-      def deliver_for_each_row(target, record, args, row)
+      def deliver_for_each_row(target, record, args, row, policy, event)
         row_record = record.merge(for_row: row[:id])
 
         if @door.reaction_depth_reached?
@@ -256,10 +293,20 @@ module Hecksagain
         # ALREADY MERGED, by `trigger_args` — the row key belongs in the
         # source a `with:` projection reads FROM, not bolted onto its
         # result, or a projection could never name the row it acts on.
-        @door.reenter(target, **args)
+        @door.reenter(target, **reaction_invocation(target, args, policy, event))
         row_record.merge(delivered: true)
       rescue *DOMAIN_REFUSALS => error
         row_record.merge(delivered: false, reason: error.message)
+      end
+
+      def reaction_invocation(target, args, policy, event)
+        ReactionInvocation.build(
+          registry:        @registry,
+          verb:            target,
+          projected:       args,
+          explicit:        ReactionInvocation.projection_declared?(policy),
+          source_receiver: { aggregate: event.aggregate, identity: event.id }
+        )
       end
 
       # `for_each`'s own QUERY route moved onto the Policy itself

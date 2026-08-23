@@ -23,6 +23,20 @@ module Hecksagain
           @chapter_named_givens = {}
         end
 
+        # Chapter metadata belongs to the composed folder, not whichever file
+        # happened to sort first. A later concept file may be the one carrying
+        # the version header; adopt it into the already-open chapter builder.
+        # Two different versions are a real contradiction, not load order.
+        def adopt_version(version)
+          return if version.nil?
+          if @version && @version.to_s != version.to_s
+            raise Malformed, "#{@name} declares both version #{@version.inspect} and #{version.inspect}"
+          end
+
+          @version = version
+        end
+        private :adopt_version
+
         def vision(value)
           # moved to the language: Vision invariant, on Chapter.Declare
 
@@ -132,6 +146,7 @@ module Hecksagain
           # walk. Before this line every target in the file (including
           # ones declared ABOVE the aggregate doing the asking) would
           # have resolved to nil.
+          infer_hop_query_arguments!(bluebook)
           validate_query_hops!(bluebook)
 
           # Same precondition, same reason: a `projects` declaration's
@@ -333,8 +348,10 @@ module Hecksagain
         # passthrough, not an addressing key"). A command declaring none of
         # its attributes named this is not a gap; the correlation key rides
         # through commands that never read it, same as it does at runtime.
+        # Recomputed on every build because a split chapter keeps this builder
+        # open while later files add process managers.
         def correlation_heads
-          @correlation_heads ||= @process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
+          @process_managers.filter_map { |pm| pm.correlates_by && pm.correlation_head }
         end
 
         # Every command this chapter declares, an aggregate's own AND
@@ -487,6 +504,42 @@ module Hecksagain
             end
 
             aggregate.entities.each { |entity| refuse_entity_query_hops!(aggregate, entity) }
+          end
+        end
+
+        # The chapter-wide half of AggregateBuilder's local query-argument
+        # inference. A hop cannot resolve while its aggregate is still being
+        # built; here every Reference has an owner and target, so a symbolic
+        # comparison can inherit the type of the scalar it compares without a
+        # duplicate query-local declaration.
+        def infer_hop_query_arguments!(bluebook)
+          bluebook.aggregates.each do |aggregate|
+            aggregate.queries.each do |query|
+              query.wheres.each do |clause|
+                name = clause.value
+                next unless name.is_a?(Symbol)
+                next if query.attribute(name)
+                next unless QuerySpecification::HopPath.hop_head?(clause.field, aggregate.attributes)
+
+                plan = QuerySpecification::HopPath.plan(clause.field, aggregate.attributes)
+                next if plan.refusal || plan.hops.empty?
+
+                target = plan.hops.last.target
+                head, *nested = plan.tail.to_s.split(".")
+                leaf = if nested.empty? && target.lifecycle&.field.to_s == head
+                         Attribute.new(name: name, type: String)
+                       else
+                         root = target.attributes.find { |candidate| candidate.name.to_s == head }
+                         found = root && QuerySpecification::FieldPath.leaf_attribute(root, nested) do |type|
+                           target.value_object(type)
+                         end
+                         found && Attribute.new(name: name, type: found.type, list: found.list?)
+                       end
+                next unless leaf
+
+                query.attributes << leaf
+              end
+            end
           end
         end
 
@@ -756,6 +809,7 @@ module Hecksagain
         def self.build(name, version: nil, &block)
           registry = Hecksagain.current_registry
           builder  = registry ? registry.bluebook_builder(name) { new(name, version: version) } : new(name, version: version)
+          builder.__send__(:adopt_version, version)
           # A bare constant in a bluebook — `attribute :name, PizzaName` — is a NAME,
           # not a reference to something Ruby has heard of. `const_missing` hands
           # over a `ConstShim::ScopedConstant` (S0b, const_shim.rb's own comment),

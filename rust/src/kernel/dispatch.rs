@@ -1,5 +1,5 @@
 // HAND-WRITTEN, ONCE, GENERIC — a direct port of `CommandInterpreter#call`
-// walking `DISPATCH_ORDER` (docs/guides/running-a-runtime.md's "Dispatch, in
+// walking `DISPATCH_ORDER` (docs/implemented/guides/running-a-runtime.md's "Dispatch, in
 // the order it actually runs"), not one generated function per command
 // shape. What still has to be generated per command is deliberately
 // small: identity derivation, the mutation-application closure (writing
@@ -256,7 +256,7 @@ where
 }
 
 /// A direct port of `EntityInterpreter#call` walking its own, SHORTER
-/// `DISPATCH_ORDER` (docs/guides/entities.md): `normalize_args`/
+/// `DISPATCH_ORDER` (docs/implemented/guides/entities.md): `normalize_args`/
 /// `refuse_role_mismatch`/`resolve_references` are the same not-yet-generic
 /// gaps `dispatch` above already carries; there is no `hydrate` branch (an
 /// entity command never creates — it always addresses a parent AND one of
@@ -418,7 +418,7 @@ where
         state: record.to_json(),
     });
 
-    // SAVE AND EMIT BOTH OPERATE ON THE PARENT — docs/guides/entities.md:
+    // SAVE AND EMIT BOTH OPERATE ON THE PARENT — docs/implemented/guides/entities.md:
     // "announces onto the SAME event log the parent's own commands write
     // to, because there is only ever one identity in play here, the
     // parent's." The element's own identity never appears on the Event.

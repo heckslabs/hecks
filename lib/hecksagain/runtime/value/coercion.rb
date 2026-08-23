@@ -1,4 +1,5 @@
 require_relative "../../bluebook/expression/evaluator"
+require_relative "../../naming"
 require_relative "../../rendering"
 require_relative "../errors"
 require_relative "../refusal_wording"
@@ -50,6 +51,8 @@ module Hecksagain
         # unchanged).
         def for_attribute(aggregate, attribute, value)
           return value if attribute.nil? || value.nil? # :optional
+          return reference_list(attribute, value) if attribute.list? && attribute.reference?
+          return reference_identity(attribute, value) if attribute.reference?
           return hydrate_entity_list(aggregate, attribute, value) if attribute.list? # :list
           return value unless aggregate.respond_to?(:value_object)
 
@@ -61,19 +64,78 @@ module Hecksagain
           # AFTER coercion, not before: a scalar arrives wrapped in whatever holder
           # its type names (`{value: "append"}` for an OpName), and checking the
           # raw payload would be checking the envelope.
-          coerced = aggregate.value_object(attribute.type)
-                             .then do |value_object|
-                               if value.is_a?(self) && value.type_name == value_object&.hecks_name
-                                 value
-                               elsif value_object
-                                 build(value_object, fields_for(value_object, attribute.name, value), aggregate)
-                               else
-                                 value
-                               end
-                             end
+          coerced = value_object_for(aggregate, attribute.type)
+                    .then do |value_object|
+                      if value.is_a?(self) && value.type_name == value_object&.hecks_name
+                        value
+                      elsif value_object
+                        build(value_object, fields_for(value_object, attribute.name, value), aggregate)
+                      else
+                        value
+                      end
+                    end
 
           admit_declared_set(aggregate, attribute, coerced)
           coerced
+        end
+
+        # Aggregate-local value objects remain authoritative, which permits
+        # intentional duplication. An ordinary fact may also name an identity
+        # value object declared on another aggregate; that shape is borrowed
+        # only when every chapter declaration with the name agrees.
+        def value_object_for(aggregate, type)
+          local = aggregate.value_object(type)
+          return local if local
+
+          chapter = aggregate.respond_to?(:hecks_owner) ? aggregate.hecks_owner : nil
+          return nil unless chapter.respond_to?(:aggregates)
+
+          matches = chapter.aggregates.filter_map { |candidate| candidate.value_object(type) }
+          shapes = matches.group_by do |shape|
+            shape.attributes.map { |field| [field.name, field.type.to_s, field.list?, field.optional?] }
+          end
+          shapes.size == 1 ? matches.first : nil
+        end
+
+        # Retained relationships store canonical target identities, not Ruby
+        # Value wrappers. Raw scalar IDs remain a compatibility input. A named
+        # identity VO omits its minted aggregate field at the command boundary;
+        # a bespoke compound VO may instead name the target heads directly.
+        # Neither form requires reverse-splitting a canonical ID.
+        def reference_identity(attribute, value)
+          return value unless value.is_a?(self) || value.is_a?(Hash)
+
+          target = attribute.type.resolve
+          return value unless target
+
+          materialized = materialize(value)
+          paths = target.identity_paths
+          return value if paths.empty?
+
+          direct_head = if value.is_a?(self) && target.identity_heads.one?
+                          head = target.identity_heads.first
+                          target.attribute(head)&.type.to_s == value.type_name ? head.to_s : nil
+                        end
+
+          parts = paths.map do |path|
+            segments = path.to_s.split(".")
+            segments.shift if direct_head && segments.first == direct_head
+            segments.reduce(materialized) do |held, segment|
+              held.is_a?(Hash) ? (held[segment.to_sym] || held[segment]) : nil
+            end
+          end
+          return value if parts.any? { |part| part.nil? || (part.respond_to?(:empty?) && part.empty?) }
+
+          Naming.identity(parts)
+        end
+
+        def reference_list(attribute, value)
+          unless value.is_a?(Array)
+            raise TypeMismatch,
+                  "#{attribute.name} is a has_many relationship — pass a list of identities"
+          end
+
+          Freezer.deep(value.dup)
         end
 
         def fields_for(value_object, name, value)
@@ -144,7 +206,7 @@ module Hecksagain
             raw = fields[attribute.name]
             next if raw.nil? || raw.is_a?(self)
 
-            nested = aggregate.value_object(attribute.type)
+            nested = value_object_for(aggregate, attribute.type)
             next unless nested
 
             fields[attribute.name] = normalize_composite_fields(aggregate, nested, fields_for(nested, attribute.name, raw))
@@ -254,7 +316,9 @@ module Hecksagain
         # how decoration gets written.
         def refuse_object_reference(command, attribute, value)
           return unless attribute.reference?
-          return unless value.is_a?(Hash) || value.is_a?(self)
+
+          offered = attribute.list? ? Array(value).find { |item| item.is_a?(Hash) || item.is_a?(self) } : value
+          return unless offered.is_a?(Hash) || offered.is_a?(self)
 
           raise TypeMismatch,
                 RefusalWording.render("TypeMismatch", "reference_as_object",
@@ -290,7 +354,7 @@ module Hecksagain
         end
 
         def from_identifier(aggregate, attribute, identifier)
-          value_object = aggregate.value_object(attribute.type)
+          value_object = value_object_for(aggregate, attribute.type)
           return identifier unless value_object
 
           fields = value_object.attributes

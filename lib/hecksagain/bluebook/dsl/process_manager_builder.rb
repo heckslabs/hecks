@@ -192,10 +192,13 @@ module Hecksagain
                     "instead, e.g. dispatch Account::Debit"
             end
 
-            @dispatches << DispatchSpec.new(
+            DispatchSpec.new(
               command_name: Naming.command_ref(command_ref),
               with_spec:    (with || {}).to_a
-            )
+            ).tap do |dispatch|
+              dispatch.instance_variable_set(:@projection_declared, !with.nil?)
+              @dispatches << dispatch
+            end
           end
         end
       end

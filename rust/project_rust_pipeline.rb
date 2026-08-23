@@ -27,8 +27,8 @@ require "tmpdir"
 # not a shortcut invented here. Calling `Hecksagain::Framework.members`
 # is a plain `Dir.glob` + naming lookup (`lib/hecksagain/framework.rb`'s
 # own body) — no `Kernel.load` of anything. Reading
-# `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES` is a constant
-# array literal. NONE of these boot, `instance_eval`, or otherwise
+# `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES` is the already-discovered,
+# sorted folder contents. NONE of these boot, `instance_eval`, or otherwise
 # execute a `.bluebook`/`.hecksagon` file's own DSL body — that only
 # ever happens inside `hecks-parse`, a separate OS process, in Rust.
 #
@@ -84,11 +84,13 @@ module RustProjectPipeline
     ensure_binaries_built!
 
     target_mod_name = File.basename(domain)
-    bluebook_path = File.join(domain, "bluebook", "#{target_mod_name}.bluebook")
+    bluebook_paths = Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort
+    abort "bin/project_rust (Rust path): #{domain} has no .bluebook files" if bluebook_paths.empty?
     hecksagon_path = File.join(domain, "bluebook", "#{target_mod_name}.hecksagon")
     hecksagon_path = nil unless File.exist?(hecksagon_path)
 
-    target_chapter_name = header_chapter_name(bluebook_path)
+    target_chapter_name = header_chapter_name(bluebook_paths.first)
+    target_bluebooks = bluebook_paths.select { |path| header_chapter_name(path) == target_chapter_name }
 
     uses_framework_names =
       if hecksagon_path
@@ -98,7 +100,7 @@ module RustProjectPipeline
         []
       end
 
-    target_files = [bluebook_path, hecksagon_path].compact
+    target_files = target_bluebooks + [hecksagon_path].compact
     target_ir_text = derive_append_optionals(run_capture!(PARSER_BIN, "chapter", "--chapter", target_chapter_name, *target_files))
     # ONLY the target — the DEFAULT path's own `target_ir[:lineage] = ...`
     # (bin/project_rust) never sets this on a framework chapter's own

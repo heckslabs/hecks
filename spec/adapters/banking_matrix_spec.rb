@@ -3,7 +3,7 @@ require "tmpdir"
 require "json"
 
 RSpec.describe "Banking across persistence adapters" do
-  ADAPTER_MATRIX_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  ADAPTER_MATRIX_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
   ADAPTERS = {
     "Memory"            => InMemoryDomain::MEMORY_ADAPTER,
     "Heki"              => File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven/heki.adapter"),
@@ -30,7 +30,7 @@ RSpec.describe "Banking across persistence adapters" do
       Kernel.load(ADAPTERS.fetch(adapter)) unless adapter == "Memory"
       Kernel.load(ADAPTERS.fetch("SqliteProjection")) if projected
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(ADAPTER_MATRIX_BLUEBOOK)
+      load_bluebook_files(ADAPTER_MATRIX_BLUEBOOK)
       Hecks.hecksagon("Banking") do
         uses_framework "Governance"
         Banking::Customer.persisted_by(adapter)

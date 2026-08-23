@@ -144,6 +144,33 @@ RSpec.describe Hecksagain::Facade::JsonDoor do
     end
   end
 
+  describe ".command_request" do
+    it "keeps an entity receiver outside the declared JSON facts" do
+      request = json_door.command_request(
+        '{"to":{"aggregate":"DOWNTOWN:12","entity":"2026-01-05:1"},"with":{"note":{"text":"Flagged"}}}',
+        receiver: :entity
+      )
+
+      expect(request).to eq(
+        to:   { aggregate: "DOWNTOWN:12", entity: "2026-01-05:1" },
+        with: { note: { text: "Flagged" } }
+      )
+    end
+
+    it "accepts legacy flat id as an aggregate receiver without leaking it into with" do
+      request = json_door.command_request({ "id" => "Margherita", "topping" => "Basil", "amount" => 3 },
+                                          receiver: :aggregate, legacy_receiver: :id)
+
+      expect(request).to eq(to: "Margherita", with: { topping: "Basil", amount: 3 })
+    end
+
+    it "refuses loose facts beside an explicit JSON envelope" do
+      expect do
+        json_door.command_request({ "to" => "one", "with" => {}, "extra" => true }, receiver: :aggregate)
+      end.to raise_error(Hecksagain::Runtime::TypeMismatch, /facts in with.*loose extra/)
+    end
+  end
+
   describe ".parse" do
     it "parses a raw JSON body string" do
       expect(json_door.parse('{"name":"Margherita","toppings":["basil"]}'))

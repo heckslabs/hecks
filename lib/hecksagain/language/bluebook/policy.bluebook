@@ -1,0 +1,172 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "Policy" do
+    description "One policy — the event it watches, the command it fires, and the domain that command belongs to."
+
+    reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME. A policy hangs off the chapter rather
+    # than an aggregate, so the chapter is the part above it.
+    identified_by :bluebook, :name
+
+    attribute :name,            PolicyName
+    # WHICH HEAD DECLARED IT, empty for a reaction the chapter owns.
+    #
+    # A policy written inside an aggregate is hoisted onto the chapter by the
+    # builder, and the chapter is where the runtime reads it — so nothing was ever
+    # lost at runtime. What was lost is where it was WRITTEN, which is a fact about
+    # the source, and facts about the source are what this language holds.
+    # `Aggregate#to_h` does not carry it and does not need to: the wire format is
+    # a contract, and the language may hold more than it.
+    attribute :aggregate,       PolicyText
+    attribute :on_event,        PolicyText
+    attribute :trigger_command, PolicyText
+    attribute :target_domain,   PolicyText
+    # THE GUARD, CARRIED AS TEXT — same discipline `Command.givens`
+    # already holds: the block that wrote it is never called at
+    # runtime, only its EXTRACTED SOURCE is (Ports::Extraction), so
+    # what the language holds is the string, not a live Proc no wire
+    # format could carry. Optional — most policies fire unconditionally.
+    attribute :where,           PolicyText, optional: true
+    # THE FAN-OUT SOURCE — a query verb ("Aggregate.query_name" or
+    # "Domain::Aggregate.query_name"), same text shape as
+    # `trigger_command`/`target_domain` beside it. Optional — most
+    # policies fire once, not once per row.
+    attribute :for_each,        PolicyText, optional: true
+    # WHAT THE TRIGGER IS GIVEN, when the event's own shape is not it.
+    # Empty means the whole payload forwards verbatim — what every policy
+    # did before this existed, and still the right default for a trigger
+    # shaped like its event.
+    #
+    # The same `Binding` list a saga's own `Dispatch` carries, for the
+    # same reason: a reaction crosses an aggregate boundary, and the
+    # event on one side is under no obligation to be shaped like the
+    # command on the other. Without it the target has to declare every
+    # field the event happens to carry — banking's own `FreezeAccount`
+    # grew an attribute it never reads, and Account grew two duplicated
+    # value objects to type it, before this word existed.
+    attribute :with_spec,       list_of(Binding)
+
+    value_object "PolicyName" do
+      attribute :value, String
+      invariant("a policy is named") { !value.to_s.empty? }
+    end
+
+    value_object "PolicyText" do
+      attribute :value, String
+    end
+
+    # DECLARED HERE RATHER THAN SHARED WITH `Dispatch`'s own — a value
+    # object belongs to the aggregate that uses it, and everything that
+    # walks an aggregate's own scope has nowhere else to look.
+    value_object "Binding" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — the IR is a contract read straight from this file,
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :bluebook, PolicyText
+      where(bluebook: :bluebook)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Declare a policy on a chapter"
+
+      reference_to Bluebook
+      attribute :name,            PolicyName
+      attribute :aggregate,       PolicyText, optional: true
+      attribute :on_event,        PolicyText
+      attribute :trigger_command, PolicyText
+      attribute :target_domain,   PolicyText, optional: true
+      attribute :where,           PolicyText, optional: true
+      attribute :for_each,        PolicyText, optional: true
+
+      attribute :position, Position, optional: true
+      sets :bluebook
+      sets :name
+      sets :aggregate
+      sets :on_event
+      sets :trigger_command
+      sets :target_domain
+      sets :where
+      sets :for_each
+      sets :position
+      emits "ReactionDeclared"
+    end
+
+    command "Bind" do
+      role "Language"
+      goal "Bind one argument of the triggered command"
+
+      attribute :key,   PolicyText
+      attribute :value, PolicyText
+
+      sets :with_spec, append: { key: :key, value: :value }
+
+      emits "TriggerBindingAttached"
+    end
+
+    # HOW POLICY IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: Policy.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "on",              context: "Policy",    body: "none", inner: "", opens: "",       fills: "on_event"
+      member word: "trigger",         context: "Policy",    body: "none", inner: "", opens: "",       fills: "trigger_command", calls: "trigger_impl"
+      member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain"
+      member word: "where",           context: "Policy",    body: "source", inner: "", opens: "", fills: "where"
+      member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "", fills: "for_each"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "on",              context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "on_event"
+      member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "constant", required: "true", fills: "trigger_command"
+      member keyword: "trigger",         context: "Policy", at: "1", named: "", kind: "text",     required: "true", fills: "trigger_command"
+      member keyword: "across",          context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "target_domain"
+      member keyword: "for_each",        context: "Policy", at: "1", named: "", kind: "text", required: "true", fills: "for_each"
+      member keyword: "trigger", context: "Policy", at: "", named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
+
+    end
+  end
+end

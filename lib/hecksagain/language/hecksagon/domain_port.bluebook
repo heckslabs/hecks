@@ -1,0 +1,65 @@
+Hecks.bluebook "Hecksagon" do
+  aggregate "DomainPort" do
+    description "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the chapter) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) door). One of two shapes, never both: a list of operations translating an inbound fact into this domain's own events, or a bare verb naming a swappable resource port (the same Hecks.port a project's own .port file declares, reached from inside the hecksagon instead)."
+
+    identified_by PortName, as: :name
+
+    attribute :verb, PortVerb, optional: true
+
+    value_object "PortName" do
+      attribute :value, String
+      invariant("a port is named") { !value.to_s.empty? }
+    end
+
+    value_object "PortVerb" do
+      attribute :value, String
+      invariant("a verb is named") { !value.to_s.empty? }
+    end
+
+    # HOW DOMAINPORT IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: DomainPort.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "operation",       context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "tells_impl"
+      member word: "tells",           context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "tells_impl"
+      member word: "asks",            context: "DomainPort",    body: "keywords", inner: "PortOperation", opens: "PortOperation", fills: "", calls: "asks_impl"
+      member word: "verb",            context: "DomainPort",    body: "none",     inner: "",              opens: "",              fills: "verb"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "operation",       context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "tells",           context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "asks",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "verb",            context: "DomainPort", at: "1", named: "", kind: "text", required: "true", fills: "verb"
+
+    end
+  end
+end

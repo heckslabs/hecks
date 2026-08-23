@@ -6,319 +6,10 @@
           "admits": null,
           "default": null,
           "list": false,
-          "name": "domain",
+          "name": "hecksagon_ref",
           "optional": false,
           "pattern": null,
-          "type": "HecksagonName"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "subscriptions",
-          "optional": false,
-          "pattern": null,
-          "type": "Subscription"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "framework_members",
-          "optional": false,
-          "pattern": null,
-          "type": "FrameworkMember"
-        },
-        {
-          "admits": null,
-          "default": null,
-          "list": true,
-          "name": "vendored_bluebooks",
-          "optional": false,
-          "pattern": null,
-          "type": "VendoredBluebook"
-        }
-      ],
-      "commands": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "domain",
-              "optional": false,
-              "pattern": null,
-              "type": "HecksagonName"
-            }
-          ],
-          "emits": [
-            "HecksagonDeclared"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Open a hecksagon for a domain",
-          "mutations": [
-
-          ],
-          "name": "Declare",
-          "provenance": null,
-          "references": null,
-          "role": "Deployment"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "event",
-              "optional": false,
-              "pattern": null,
-              "type": "Subscription"
-            }
-          ],
-          "emits": [
-            "SubscriptionAdded"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Take a hecksagon's own event, from outside the domain's own bluebook",
-          "mutations": [
-            {
-              "fields": {
-                "value": ":event"
-              },
-              "op": "append",
-              "sign": "",
-              "target": "subscriptions"
-            }
-          ],
-          "name": "Subscribe",
-          "provenance": null,
-          "references": "Hecksagon",
-          "role": "Deployment"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "member",
-              "optional": false,
-              "pattern": null,
-              "type": "FrameworkMember"
-            }
-          ],
-          "emits": [
-            "FrameworkMemberAttached"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Attach a framework/bluebook/ member to this hecksagon",
-          "mutations": [
-            {
-              "fields": {
-                "value": ":member"
-              },
-              "op": "append",
-              "sign": "",
-              "target": "framework_members"
-            }
-          ],
-          "name": "UsesFramework",
-          "provenance": null,
-          "references": "Hecksagon",
-          "role": "Deployment"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "package",
-              "optional": false,
-              "pattern": null,
-              "type": "VendoredBluebook"
-            }
-          ],
-          "emits": [
-            "VendoredBluebookAttached"
-          ],
-          "ensures": [
-
-          ],
-          "from": null,
-          "givens": [
-
-          ],
-          "goal": "Attach a vendored, external bluebook to this hecksagon",
-          "mutations": [
-            {
-              "fields": {
-                "value": ":package"
-              },
-              "op": "append",
-              "sign": "",
-              "target": "vendored_bluebooks"
-            }
-          ],
-          "name": "UsesEmbryonautBluebook",
-          "provenance": null,
-          "references": "Hecksagon",
-          "role": "Deployment"
-        }
-      ],
-      "description": "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it.",
-      "entities": [
-
-      ],
-      "identified_by": [
-        "domain.value"
-      ],
-      "invariants": [
-
-      ],
-      "lifecycle": null,
-      "name": "Hecksagon",
-      "ports": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
-      "provenance": null,
-      "queries": [
-
-      ],
-      "value_objects": [
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a hecksagon names its domain"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "HecksagonName"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a subscription names an event"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "Subscription"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a framework member is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "FrameworkMember"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "value",
-              "optional": false,
-              "pattern": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": false,
-          "invariants": [
-            {
-              "canonical": "!value.to_s.empty?",
-              "description": "a vendored bluebook is named"
-            }
-          ],
-          "members": [
-
-          ],
-          "name": "VendoredBluebook"
-        }
-      ]
-    },
-    {
-      "attributes": [
-        {
-          "admits": null,
-          "default": null,
-          "list": false,
-          "name": "hecksagon",
-          "optional": false,
-          "pattern": null,
+          "relationship": "belongs_to",
           "type": "Reference<Hecksagon>"
         },
         {
@@ -328,6 +19,7 @@
           "name": "hecksagon",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "BindingText"
         },
         {
@@ -337,6 +29,7 @@
           "name": "aggregate",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "BindingText"
         },
         {
@@ -346,6 +39,7 @@
           "name": "verb",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "BindingText"
         },
         {
@@ -355,6 +49,7 @@
           "name": "adapter",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "BindingText"
         },
         {
@@ -364,6 +59,7 @@
           "name": "role",
           "optional": true,
           "pattern": null,
+          "relationship": null,
           "type": "BindingText"
         }
       ],
@@ -374,10 +70,11 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "hecksagon",
+              "name": "hecksagon_ref",
               "optional": false,
               "pattern": null,
-              "type": "Reference<Hecksagon>"
+              "relationship": null,
+              "type": "HecksagonName"
             },
             {
               "admits": null,
@@ -386,6 +83,7 @@
               "name": "aggregate",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "BindingText"
             },
             {
@@ -395,6 +93,7 @@
               "name": "verb",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "BindingText"
             },
             {
@@ -404,6 +103,7 @@
               "name": "adapter",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "BindingText"
             },
             {
@@ -413,6 +113,17 @@
               "name": "role",
               "optional": true,
               "pattern": null,
+              "relationship": null,
+              "type": "BindingText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "hecksagon",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
               "type": "BindingText"
             }
           ],
@@ -431,7 +142,60 @@
           ],
           "goal": "Name the adapter one aggregate answers one verb through",
           "mutations": [
-
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "hecksagon_ref"
+              },
+              "target": "hecksagon_ref"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "hecksagon"
+              },
+              "target": "hecksagon"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "aggregate"
+              },
+              "target": "aggregate"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "verb"
+              },
+              "target": "verb"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "adapter"
+              },
+              "target": "adapter"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "role"
+              },
+              "target": "role"
+            }
           ],
           "name": "Bind",
           "provenance": null,
@@ -444,7 +208,7 @@
 
       ],
       "identified_by": [
-        "hecksagon",
+        "hecksagon.value",
         "aggregate.value",
         "verb.value"
       ],
@@ -476,6 +240,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -499,6 +264,7 @@
           "name": "name",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "PortName"
         },
         {
@@ -508,6 +274,7 @@
           "name": "verb",
           "optional": true,
           "pattern": null,
+          "relationship": null,
           "type": "PortVerb"
         }
       ],
@@ -549,6 +316,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -573,6 +341,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -587,6 +356,1400 @@
 
           ],
           "name": "PortVerb"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inner",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opens",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": "",
+              "list": false,
+              "name": "resolves_via",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": "",
+              "list": false,
+              "name": "disambiguator",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "word",
+                "operation"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "PortOperation"
+              ],
+              [
+                "opens",
+                "PortOperation"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "tells_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "tells"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "PortOperation"
+              ],
+              [
+                "opens",
+                "PortOperation"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "tells_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "asks"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "PortOperation"
+              ],
+              [
+                "opens",
+                "PortOperation"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "asks_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "verb"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "verb"
+              ]
+            ]
+          ],
+          "name": "KeywordSeed"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "keyword",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::PairsShape",
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "blank_message",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "keyword",
+                "operation"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "tells"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "asks"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "verb"
+              ],
+              [
+                "context",
+                "DomainPort"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "verb"
+              ]
+            ]
+          ],
+          "name": "ArgumentSeed"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "domain",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "HecksagonName"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "subscriptions",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Subscription"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "framework_members",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "FrameworkMember"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "vendored_bluebooks",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "VendoredBluebook"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "domain",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "HecksagonName"
+            }
+          ],
+          "emits": [
+            "HecksagonDeclared"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Open a hecksagon for a domain",
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "domain"
+              },
+              "target": "domain"
+            }
+          ],
+          "name": "Declare",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "event",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Subscription"
+            }
+          ],
+          "emits": [
+            "SubscriptionAdded"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Take a hecksagon's own event, from outside the domain's own bluebook",
+          "mutations": [
+            {
+              "fields": {
+                "value": ":event"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "subscriptions"
+            }
+          ],
+          "name": "Subscribe",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "member",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FrameworkMember"
+            }
+          ],
+          "emits": [
+            "FrameworkMemberAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Attach a framework/bluebook/ member to this hecksagon",
+          "mutations": [
+            {
+              "fields": {
+                "value": ":member"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "framework_members"
+            }
+          ],
+          "name": "UsesFramework",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "package",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "VendoredBluebook"
+            }
+          ],
+          "emits": [
+            "VendoredBluebookAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Attach a vendored, external bluebook to this hecksagon",
+          "mutations": [
+            {
+              "fields": {
+                "value": ":package"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "vendored_bluebooks"
+            }
+          ],
+          "name": "UsesEmbryonautBluebook",
+          "provenance": null,
+          "references": null,
+          "role": "Deployment"
+        }
+      ],
+      "description": "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "domain.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": null,
+      "name": "Hecksagon",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a hecksagon names its domain"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "HecksagonName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a subscription names an event"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "Subscription"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a framework member is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "FrameworkMember"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "canonical": "!value.to_s.empty?",
+              "description": "a vendored bluebook is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "VendoredBluebook"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inner",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opens",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": "",
+              "list": false,
+              "name": "resolves_via",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": "",
+              "list": false,
+              "name": "disambiguator",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "word",
+                "hecksagon"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Hecksagon"
+              ],
+              [
+                "opens",
+                "Hecksagon"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "subscribe"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "subscriptions"
+              ]
+            ],
+            [
+              [
+                "word",
+                "uses_framework"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "framework_members"
+              ]
+            ],
+            [
+              [
+                "word",
+                "uses_embryonaut_bluebook"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "vendored_bluebooks"
+              ]
+            ],
+            [
+              [
+                "word",
+                "port"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "DomainPort"
+              ],
+              [
+                "opens",
+                "DomainPort"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "port_impl"
+              ]
+            ]
+          ],
+          "name": "KeywordSeed"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "keyword",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::PairsShape",
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "blank_message",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "keyword",
+                "hecksagon"
+              ],
+              [
+                "context",
+                "File"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "domain"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "subscribe"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "subscriptions"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "uses_framework"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "framework_members"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "uses_embryonaut_bluebook"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "vendored_bluebooks"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "port"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ]
+          ],
+          "name": "ArgumentSeed"
         }
       ]
     },
@@ -599,6 +1762,7 @@
           "name": "name",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "OperationName"
         },
         {
@@ -608,6 +1772,7 @@
           "name": "attributes",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "PortOperationField"
         },
         {
@@ -617,6 +1782,7 @@
           "name": "emits",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "EmittedEvent"
         },
         {
@@ -626,6 +1792,7 @@
           "name": "answers",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "AnsweringEvent"
         },
         {
@@ -635,6 +1802,7 @@
           "name": "refuses",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "RefusingEvent"
         }
       ],
@@ -676,6 +1844,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -700,6 +1869,7 @@
               "name": "name",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             },
             {
@@ -709,6 +1879,7 @@
               "name": "type",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -730,6 +1901,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -754,6 +1926,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -775,6 +1948,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -786,6 +1960,776 @@
 
           ],
           "name": "RefusingEvent"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "word",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Body",
+              "default": null,
+              "list": false,
+              "name": "body",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inner",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "opens",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "was",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ResolutionScope",
+              "default": "",
+              "list": false,
+              "name": "resolves_via",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disambiguator",
+              "default": "",
+              "list": false,
+              "name": "disambiguator",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "word",
+                "reference_to"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attributes"
+              ],
+              [
+                "calls",
+                "reference_to_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "attributes"
+              ],
+              [
+                "calls",
+                "attribute_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "emits"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "emits"
+              ]
+            ],
+            [
+              [
+                "word",
+                "answers"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "answers"
+              ]
+            ],
+            [
+              [
+                "word",
+                "refuses"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "refuses"
+              ]
+            ]
+          ],
+          "name": "KeywordSeed"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "keyword",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Context",
+              "default": null,
+              "list": false,
+              "name": "context",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "at",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "named",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::ArgumentKind",
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "required",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "selects",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_key_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "pair_value_fills",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::PairsShape",
+              "default": null,
+              "list": false,
+              "name": "pairs_shape",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Status",
+              "default": "admitted",
+              "list": false,
+              "name": "status",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "variadic",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "coerce",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "blank_message",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "reference_to"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "as"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "type"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "default"
+              ],
+              [
+                "kind",
+                "literal"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "default"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "optional"
+              ],
+              [
+                "kind",
+                "flag"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "optional"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "pattern"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "pattern"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "admits"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "admits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "attribute"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "one_of"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "one_of"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "emits"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "emits"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "answers"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "answers"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "refuses"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "refuses"
+              ]
+            ]
+          ],
+          "name": "ArgumentSeed"
         }
       ]
     }
@@ -809,7 +2753,7 @@
       "strategy": "replace"
     }
   ],
-  "classification": "core",
+  "classification": null,
   "ir_version": 1,
   "name": "Hecksagon",
   "policies": [
@@ -822,5 +2766,5 @@
 
   ],
   "version": null,
-  "vision": "The .hecksagon language, declared in itself. A hecksagon is a SIBLING of a bluebook, not part of one — it binds a domain's aggregates to the ports/adapters that carry them, and those bindings belong to the deployment's wiring rather than to the domain's own rules. So it is described in its own file, as its own thing, the same reasoning world.bluebook already carries for .world."
+  "vision": null
 }

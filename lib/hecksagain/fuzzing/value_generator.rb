@@ -1,3 +1,5 @@
+require_relative "../runtime/value"
+
 module Hecksagain
   module Fuzzing
     # One attribute, one value — in the exact JSON shape the hand-written
@@ -58,7 +60,16 @@ module Hecksagain
       def value_for(attribute, aggregate, random:, known_ids: {}, context: nil)
         return reference_value(attribute, random: random, known_ids: known_ids) if attribute.reference?
 
-        value_object = aggregate.value_object(attribute.type.to_s)
+        # Local first, falling back to a same-chapter identity value object
+        # declared on a sibling aggregate — the exact resolution
+        # `Value.value_object_for` already does for a real dispatch
+        # (runtime/value/coercion.rb). `safe_deposit_boxes.bluebook`'s own
+        # `attribute :customer, CustomerNumber` is declared on SafeDepositBox
+        # but CustomerNumber itself lives on Customer; without this fallback
+        # the generator raised "does not know primitive type" for any such
+        # cross-aggregate identity attribute rather than reusing the same
+        # lookup the runtime relies on.
+        value_object = Runtime::Value.value_object_for(aggregate, attribute.type.to_s)
         return object_for(value_object, aggregate, random: random, known_ids: known_ids) if value_object
 
         primitive(attribute.type.to_s, random: random, name: "#{context} #{attribute.name}")

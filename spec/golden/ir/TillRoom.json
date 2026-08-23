@@ -9,6 +9,7 @@
           "name": "number",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "TillNumber"
         },
         {
@@ -20,6 +21,7 @@
           "name": "balance",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Money"
         },
         {
@@ -29,6 +31,7 @@
           "name": "marks",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Mark"
         },
         {
@@ -38,6 +41,7 @@
           "name": "note",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Note"
         }
       ],
@@ -51,6 +55,7 @@
               "name": "number",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "TillNumber"
             }
           ],
@@ -82,6 +87,7 @@
               "name": "amount",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Money"
             },
             {
@@ -91,6 +97,7 @@
               "name": "note",
               "optional": true,
               "pattern": null,
+              "relationship": null,
               "type": "Note"
             }
           ],
@@ -148,6 +155,7 @@
               "name": "amount",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Money"
             }
           ],
@@ -256,6 +264,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -277,6 +286,7 @@
               "name": "cents",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -301,6 +311,7 @@
               "name": "amount",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             },
             {
@@ -310,6 +321,7 @@
               "name": "direction",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -331,6 +343,7 @@
               "name": "text",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],

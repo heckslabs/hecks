@@ -12,7 +12,7 @@
 # promises nothing is minted, so this should never fire).
 #
 # This used to shell out to bin/parity and treat a cross-runtime SPLIT as
-# the finding. That comparison no longer exists (see docs/rust-experiment.md)
+# the finding. That comparison no longer exists (see docs/implemented/rust-experiment.md)
 # — a property violation or an uncaught exception is the finding now, and
 # it's a strictly single-runtime question, so no subprocess or second boot
 # is needed at all.

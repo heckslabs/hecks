@@ -118,8 +118,7 @@ module Hecksagain
       # identity payload from `identity_heads` instead reads every head, one
       # or many alike, straight out of state that already carries them.
       def run(command, **args)
-        identity = @ir.identity_heads.to_h { |head| [head, @state[head]] }
-        @state = @dispatcher.dispatch("#{fqn}.#{command.hecks_name}", **identity, **args).instance.state
+        @state = @dispatcher.dispatch("#{fqn}.#{command.hecks_name}", to: @id, with: args).instance.state
         self
       end
 
@@ -157,11 +156,15 @@ module Hecksagain
 
           domain     = @domain
           field      = attribute.name
+          list       = attribute.list?
           target_fqn = "#{domain}::#{target.hecks_name}"
 
           define_singleton_method(field) do
             value = self[field]
-            value && Object.const_get(target_fqn).find(value)
+            door = Object.const_get(target_fqn)
+            next Array(value).map { |identity| door.find(identity) } if list
+
+            value && door.find(value)
           end
         end
       end

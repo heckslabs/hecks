@@ -1,7 +1,7 @@
 module RustProjection
   # ── EXPR EMITTER — walks the REAL Evaluator/Resolver AST (the same
   # objects a live dispatch parses `given`/`ensures`/invariant text into;
-  # see docs/guides/running-a-runtime.md's "The expression grammar") and
+  # see docs/implemented/guides/running-a-runtime.md's "The expression grammar") and
   # emits Rust `Expr` DATA LITERAL source — not a compiled boolean
   # expression. Every real node kind maps directly; there is no
   # `Unsupported` case, because a runtime interpreter (unlike a static

@@ -10,12 +10,12 @@
 //! those already-registered aggregates (attaching ports).
 //!
 //! STAGE 6: A CHAPTER SPLIT ACROSS SEVERAL `.bluebook` FILES
-//! (`MetaValidator::GRAMMAR_FILES`, nine files sharing one chapter name —
+//! (`MetaValidator::GRAMMAR_FILES`, discovered concept files sharing one chapter name —
 //! the self-hosted language parsing its own grammar) is now real,
 //! mirroring `BluebookBuilder.build`'s own accumulating-builder shape
 //! (`meta_validator.rb`'s own comment: "`BluebookBuilder.build` keeps
 //! one builder open per chapter name across calls ... so loading all
-//! nine in order accumulates one domain, not nine"). Concretely: every
+//! the folder in order accumulates one domain"). Concretely: every
 //! `Bluebook`-context file's body is parsed into the SAME `ir::Bluebook`
 //! accumulator, in file order — `aggregate`/`policy`/`report`/
 //! `process_manager` all APPEND across files exactly as they do within
@@ -24,14 +24,10 @@
 //! later file that doesn't mention them — matching
 //! `BluebookBuilder#vision`/`#core`/etc.'s own plain `@ivar = value`
 //! assignment, never touched by a file that has no such line. The
-//! header's own `version:` is read ONLY from the FIRST file — Ruby's own
-//! `registry.bluebook_builder(name) { new(name, version: version) }`
-//! only calls `new` (and so only reads `version:`) the FIRST time a
-//! builder for this chapter name is created; every later
-//! `Hecks.bluebook "Bluebook", ...` call fetches the SAME memoized
-//! builder and its `version:` kwarg is silently ignored — confirmed real:
-//! only `bluebook.bluebook` (loaded first, per `GRAMMAR_FILES`) carries
-//! `version: "1"`, the other eight files carry none.
+//! Header metadata belongs to the composed chapter, not the first filename:
+//! Ruby's open builder adopts a non-empty `version:` from whichever concept
+//! file declares it and refuses conflicting versions. This makes sorted folder
+//! discovery independent of a specially ordered metadata file.
 //!
 //! STAGE 4 finding: a SINGLE `.hecksagon` FILE may declare MORE THAN ONE
 //! `Hecks.hecksagon "Name" do ... end` block — banking.hecksagon's own
@@ -66,12 +62,17 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// one).
 pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
     if files.is_empty() {
-        return Err(Diagnostic::new("<none>", 0, "hecks-parse chapter requires at least one file"));
+        return Err(Diagnostic::new(
+            "<none>",
+            0,
+            "hecks-parse chapter requires at least one file",
+        ));
     }
 
     let mut bluebook: Option<ir::Bluebook> = None;
     let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
     let mut chapter_policies: Vec<ir::Policy> = Vec::new();
+    let mut chapter_named_givens: Vec<(String, ir::Given)> = Vec::new();
     let mut hecksagon_files: Vec<&(String, String)> = Vec::new();
 
     for entry @ (path, source) in files {
@@ -92,19 +93,38 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 
         match row.inner {
             "Bluebook" => {
-                // FIRST Bluebook-context file: mints the accumulator and
-                // reads `version:` off ITS OWN header — see this module's
-                // own header on why only the first file's `version:`
-                // counts. Every later Bluebook-context file parses its
-                // body into the SAME accumulator instead of minting a
-                // fresh one — see `parse_body_into`.
+                let declared_version = super::file::header_version(&call);
                 if bluebook.is_none() {
-                    let mut built = ir::Bluebook { name: chapter_name.to_string(), ..Default::default() };
-                    built.version = super::file::header_version(&call);
+                    let mut built = ir::Bluebook {
+                        name: chapter_name.to_string(),
+                        ..Default::default()
+                    };
+                    built.version = declared_version.clone();
                     bluebook = Some(built);
                 }
                 let target = bluebook.as_mut().expect("just set above");
-                parse_body_into(path, &lines, &mut pos, target, &mut aggregate_policies, &mut chapter_policies)?;
+                if let Some(version) = declared_version {
+                    match target.version.as_deref() {
+                        Some(existing) if existing != version => {
+                            return Err(Diagnostic::new(
+                                path,
+                                header_line,
+                                format!("{chapter_name} declares both version {existing:?} and {version:?}"),
+                            ));
+                        }
+                        None => target.version = Some(version),
+                        _ => {}
+                    }
+                }
+                parse_body_into(
+                    path,
+                    &lines,
+                    &mut pos,
+                    target,
+                    &mut aggregate_policies,
+                    &mut chapter_policies,
+                    &mut chapter_named_givens,
+                )?;
             }
             "Hecksagon" => hecksagon_files.push(entry),
             "" => return Err(not_implemented(path, header_line, &call.word)),
@@ -118,7 +138,13 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         }
     }
 
-    let mut bluebook = bluebook.ok_or_else(|| Diagnostic::new("<none>", 0, format!("no .bluebook file given for chapter '{chapter_name}'")))?;
+    let mut bluebook = bluebook.ok_or_else(|| {
+        Diagnostic::new(
+            "<none>",
+            0,
+            format!("no .bluebook file given for chapter '{chapter_name}'"),
+        )
+    })?;
 
     // Combined ONCE, after every Bluebook-context file has contributed —
     // matching `BluebookBuilder#build`'s own `@aggregates.flat_map(&:policies)
@@ -126,6 +152,12 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     // fed the accumulator.
     bluebook.policies = aggregate_policies;
     bluebook.policies.extend(chapter_policies);
+
+    // Query arguments inherit their schema from the field they are compared
+    // with. Reference-hop tails can only resolve now, once the chapter's
+    // complete aggregate graph exists; local paths use this same pass so the
+    // inference rule has one implementation and one declaration-order rule.
+    crate::build::query_inference::apply(&files[0].0, &mut bluebook)?;
 
     for (path, source) in hecksagon_files {
         let joined = lex::join_continuations(source);
@@ -151,14 +183,28 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 
             let declared_name = super::file::header_name(&call);
             if declared_name.as_deref() == Some(chapter_name) {
-                super::hecksagon::apply(path, &lines, &mut pos, &mut bluebook, &mut Vec::new(), true)?;
+                super::hecksagon::apply(
+                    path,
+                    &lines,
+                    &mut pos,
+                    &mut bluebook,
+                    &mut Vec::new(),
+                    true,
+                )?;
             } else {
                 // A SIBLING hecksagon for a DIFFERENT chapter, physically
                 // sharing this file (see this module's own header) —
                 // still gated for real, its content simply never reaches
                 // the real `bluebook`.
                 let mut discarded = ir::Bluebook::default();
-                super::hecksagon::apply(path, &lines, &mut pos, &mut discarded, &mut Vec::new(), true)?;
+                super::hecksagon::apply(
+                    path,
+                    &lines,
+                    &mut pos,
+                    &mut discarded,
+                    &mut Vec::new(),
+                    true,
+                )?;
             }
         }
     }
@@ -179,7 +225,11 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 /// it matches; `ir::Bluebook::default()` is a throwaway accumulator
 /// here (resolve never emits IR), the collected `uses_framework` names
 /// are the only thing this function returns.
-pub fn resolve_uses_framework(chapter_name: &str, path: &str, source: &str) -> ParseResult<Vec<String>> {
+pub fn resolve_uses_framework(
+    chapter_name: &str,
+    path: &str,
+    source: &str,
+) -> ParseResult<Vec<String>> {
     let joined = lex::join_continuations(source);
     let lines = lex::lines(&joined);
     let mut pos = 0usize;
@@ -192,7 +242,10 @@ pub fn resolve_uses_framework(chapter_name: &str, path: &str, source: &str) -> P
             return Err(Diagnostic::new(
                 path,
                 header_line,
-                format!("a .hecksagon file's own top-level blocks must all be 'hecksagon'; got '{}'", call.word),
+                format!(
+                    "a .hecksagon file's own top-level blocks must all be 'hecksagon'; got '{}'",
+                    call.word
+                ),
             ));
         }
 
@@ -203,12 +256,23 @@ pub fn resolve_uses_framework(chapter_name: &str, path: &str, source: &str) -> P
             super::hecksagon::apply(path, &lines, &mut pos, &mut discarded, &mut names, false)?;
         } else {
             let mut discarded = ir::Bluebook::default();
-            super::hecksagon::apply(path, &lines, &mut pos, &mut discarded, &mut Vec::new(), true)?;
+            super::hecksagon::apply(
+                path,
+                &lines,
+                &mut pos,
+                &mut discarded,
+                &mut Vec::new(),
+                true,
+            )?;
         }
     }
 
     if !found {
-        return Err(Diagnostic::new(path, 0, format!("no 'Hecks.hecksagon \"{chapter_name}\"' block found in {path}")));
+        return Err(Diagnostic::new(
+            path,
+            0,
+            format!("no 'Hecks.hecksagon \"{chapter_name}\"' block found in {path}"),
+        ));
     }
 
     Ok(names)
@@ -226,7 +290,7 @@ pub fn resolve_uses_framework(chapter_name: &str, path: &str, source: &str) -> P
 /// `parse_chapter` can call this once per Bluebook-context FILE while
 /// every file appends onto the SAME running totals — the shape
 /// `BluebookBuilder`'s own single, registry-memoized builder instance
-/// has across the nine `MetaValidator::GRAMMAR_FILES` calls (see this
+/// has across the discovered `MetaValidator::GRAMMAR_FILES` calls (see this
 /// module's own header). A single-file chapter (pizzas.bluebook, ...)
 /// still gets exactly one call, so this is a strict generalization, not
 /// a behavior change for every existing REAL_PARITY_MEMBERS entry.
@@ -249,20 +313,16 @@ fn parse_body_into(
     bluebook: &mut ir::Bluebook,
     aggregate_policies: &mut Vec<ir::Policy>,
     chapter_policies: &mut Vec<ir::Policy>,
+    chapter_named_givens: &mut Vec<(String, ir::Given)>,
 ) -> ParseResult<()> {
     // THE ROOT of the chapter-wide given pool
-    // (`docs/resolution-rules/chapter-given.md`) — SCOPED TO THIS FILE,
-    // not `parse_chapter`'s own cross-file loop, matching Ruby exactly:
-    // `Hecks.bluebook "X" do ... end` mints a FRESH `BluebookBuilder`
-    // (`lib/hecksagain.rb#bluebook`) — and therefore a fresh
-    // `@chapter_named_givens` — on EVERY call, even when several files
-    // (the self-hosted meta-domain's own nine) declare the SAME chapter
-    // name; sharing never crosses a file boundary either side.
+    // (`docs/implemented/resolution-rules/chapter-given.md`) belongs to the
+    // accumulated chapter, not one physical file. Ruby keeps one
+    // `BluebookBuilder` open per chapter name, so later business-concept files
+    // may reference a named given declared by an earlier one.
     // (owner aggregate name, its own `Given`) pairs — see `aggregate::
     // try_reference_named_chapter_given`'s own header for why this is
     // keyed by owner too, not a flat `Given` list.
-    let mut chapter_named_givens: Vec<(String, ir::Given)> = Vec::new();
-
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? else {
             break;
@@ -270,7 +330,15 @@ fn parse_body_into(
         let line = gated.line.number;
 
         match gated.row.word {
-            "vision" => bluebook.vision = Some(super::positional_text(file, line, "vision", &gated.args, 1)?),
+            "vision" => {
+                bluebook.vision = Some(super::positional_text(
+                    file,
+                    line,
+                    "vision",
+                    &gated.args,
+                    1,
+                )?)
+            }
             "core" => bluebook.classification = Some("core".to_string()),
             "supporting" => bluebook.classification = Some("supporting".to_string()),
             "generic" => bluebook.classification = Some("generic".to_string()),
@@ -282,12 +350,19 @@ fn parse_body_into(
             // nothing here refuses a second `attaches_to` call.
             "attaches_to" => {
                 for at in 1..=gated.args.positional.len() {
-                    bluebook.attaches_to.push(super::positional_text(file, line, "attaches_to", &gated.args, at)?);
+                    bluebook.attaches_to.push(super::positional_text(
+                        file,
+                        line,
+                        "attaches_to",
+                        &gated.args,
+                        at,
+                    )?);
                 }
             }
             "aggregate" => {
                 let agg_name = super::positional_text(file, line, "aggregate", &gated.args, 1)?;
-                let (built, policies) = aggregate::parse_body(file, lines, pos, &agg_name, &mut chapter_named_givens)?;
+                let (built, policies) =
+                    aggregate::parse_body(file, lines, pos, &agg_name, chapter_named_givens)?;
                 bluebook.aggregates.push(built);
                 aggregate_policies.extend(policies);
             }
@@ -297,13 +372,26 @@ fn parse_body_into(
             }
             "read_model" => {
                 let rm_name = super::positional_text(file, line, "read_model", &gated.args, 1)?;
-                bluebook.read_models.push(read_model::parse_body(file, lines, pos, &rm_name)?);
+                bluebook
+                    .read_models
+                    .push(read_model::parse_body(file, lines, pos, &rm_name)?);
             }
             "process_manager" => {
-                let pm_name = super::positional_text(file, line, "process_manager", &gated.args, 1)?;
-                bluebook.process_managers.push(process_manager::parse_body(file, lines, pos, &pm_name)?);
+                let pm_name =
+                    super::positional_text(file, line, "process_manager", &gated.args, 1)?;
+                bluebook
+                    .process_managers
+                    .push(process_manager::parse_body(file, lines, pos, &pm_name)?);
             }
-            _ => return Err(super::not_built_yet("Bluebook", gated.row, file, line, &gated.call.word)),
+            _ => {
+                return Err(super::not_built_yet(
+                    "Bluebook",
+                    gated.row,
+                    file,
+                    line,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 

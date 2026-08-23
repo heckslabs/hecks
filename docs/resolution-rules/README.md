@@ -67,14 +67,17 @@ extracted."
 
 ## Rules
 
-- [Implicit command attributes](implicit-command-attributes.md) — bare
-  `sets :field` imports the owner's own attribute.
-- [Implicit append fields](implicit-append-fields.md) — bare self-referential
+- [Implicit command attributes](../implemented/resolution-rules/implicit-command-attributes.md) — bare
+  `sets :field` imports the owner's own attribute. **Implemented** — moved to
+  `docs/implemented/resolution-rules/`.
+- [Implicit append fields](../implemented/resolution-rules/implicit-append-fields.md) — bare self-referential
   fields inside `sets :list, append: { ... }` import the list element's own
-  attribute, position-preserving.
+  attribute, position-preserving. **Implemented** — moved to
+  `docs/implemented/resolution-rules/`.
 - [Cross-entity given sharing](cross-entity-given.md) — a piece's own
   `given`, shared across ANY piece nested under the same aggregate, not just
-  that one piece's own commands.
-- [Chapter-wide given sharing](chapter-given.md) — an aggregate's own
+  that one piece's own commands. Rust mirror not yet built — stays here.
+- [Chapter-wide given sharing](../implemented/resolution-rules/chapter-given.md) — an aggregate's own
   `given`, shared across any OTHER aggregate in the same chapter, when the
-  two verifiably resolve the identical predicate.
+  two verifiably resolve the identical predicate. **Implemented** — moved to
+  `docs/implemented/resolution-rules/`.

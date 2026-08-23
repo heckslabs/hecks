@@ -199,7 +199,7 @@ splitting it would mean two copies drifting, for no reader's benefit:
 
 - **Not real language syntax yet.** Neither word goes through `Hecks.*` /
   `Runtime::Registry` / `MetaValidator` the way `bluebook`/`hecksagon`/
-  `world` do. `docs/guides/extending-hecks.md` is explicit that a real word
+  `world` do. `docs/implemented/guides/extending-hecks.md` is explicit that a real word
   is "a declared row before it is a line of Ruby," judged by
   `syntax.bluebook` — and this hasn't earned that yet. It's an ordinary
   Ruby DSL (`Hecksagain::Forms.configure("Name") { expose "Banking" }`,

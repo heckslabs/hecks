@@ -21,7 +21,7 @@ require "spec_helper"
 RSpec.describe "a bluebook dispatched in and read back out" do
   ROUND_TRIP_CORPUS = {
     "Pizzas"   => "examples/pizzas/bluebook/pizzas.bluebook",
-    "Banking"  => "examples/banking/bluebook/banking.bluebook",
+    "Banking"  => InMemoryDomain::BANKING_BLUEBOOK_DIR,
     "TillRoom" => "spec/fixtures/till.bluebook",
     "Wire"     => "spec/fixtures/settlement.bluebook"
   }.freeze
@@ -33,7 +33,8 @@ RSpec.describe "a bluebook dispatched in and read back out" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, file))
+      path = File.absolute_path(file, InMemoryDomain::ROOT)
+      load_bluebook_files(path)
     end
     registry
   end

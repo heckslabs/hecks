@@ -17,6 +17,28 @@ RSpec.describe Hecksagain::Facade::CliRunner do
     run("order.create_pizza", "name=#{name}", "pizza.price_cents.cents=1200", "pizza.size.value=large")
   end
 
+  def banking_runtime
+    registry = Hecksagain::Runtime::Registry.new
+    Hecksagain.with_registry(registry) do
+      Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
+      Kernel.load(InMemoryDomain::EXTRACTION_PORT)
+      Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
+      Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
+      Hecks.hecksagon("Banking") do
+        uses_framework "Governance"
+        ::Banking::Customer.persisted_by("Memory")
+        ::Banking::SafeDepositBox.persisted_by("Memory")
+      end
+      Hecks.hecksagon("Governance") do
+        ::Governance::RoleAssignment.persisted_by("Memory")
+        ::Governance::RoleTransition.persisted_by("Memory")
+      end
+    end
+    registry.verify!
+    Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
+  end
+
   describe "the usage" do
     it "answers with the projected surface when asked for nothing" do
       expect(text).to include("Pizzas —")
@@ -58,6 +80,27 @@ RSpec.describe Hecksagain::Facade::CliRunner do
 
       expect(code).to eq(0)
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
+    end
+
+    it "routes SafeDepositBox.Visit.Annotate with aggregate and entity receivers outside its facts" do
+      banking = banking_runtime
+      banking.dispatch("Banking::Customer.Register", reference: { value: "c" },
+                       name: { given: "A", family: "Customer" }, email: { address: "a@example.com" })
+      banking.dispatch("Banking::SafeDepositBox.Rent", customer: "c", branch_code: { value: "DOWNTOWN" },
+                                                       box_number: { value: 12 }, size: { value: "medium" })
+      banking.dispatch("Banking::SafeDepositBox.LogVisit", branch_code: { value: "DOWNTOWN" },
+                                                           box_number: { value: 12 },
+                                                           date: { value: "2026-01-05" }, sequence: { value: 1 })
+
+      output, code = described_class.call(
+        runtime: banking,
+        argv:    ["safe_deposit_box.visit.annotate", "to.aggregate=DOWNTOWN:12",
+                  "to.entity=2026-01-05:1", "note.text=Flagged"],
+        program: "bin/run"
+      )
+
+      expect(code).to eq(0), output
+      expect(Banking::SafeDepositBox.find("DOWNTOWN:12").visits.first[:note].to_h).to eq(text: "Flagged")
     end
   end
 

@@ -9,7 +9,7 @@ require "hecksagain/doc/reference"
 # `bin/doc_coverage`/`spec/reference_golden_spec.rb` already close the
 # DOCTEST half — every live word must carry prose AND a fenced, running
 # example. Neither checks the OTHER half: a doctest can run against a
-# chapter INVENTED for the page alone (`docs/reference/*.md` do this
+# chapter INVENTED for the page alone (`docs/implemented/reference/*.md` do this
 # routinely — a synthetic `QueryReference`/`DomainPortReference`/
 # `WorldReference` bluebook, declared in the page's own fenced block,
 # solely so the harness has something to execute), which satisfies
@@ -195,19 +195,45 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "use is what this word is for: embryonautfoundersapp.bluebook (the sibling " \
                                               "embryonaut_console repo) declares `formerly_known_as \"Embryonaut\"` for real, " \
                                               "bridging real production journal/era/approval rows the day it deployed under " \
-                                              "the new name. Written up in docs/reference/bluebook.md's own section, naming " \
+                                              "the new name. Written up in docs/implemented/reference/bluebook.md's own section, naming " \
                                               "the consumer, per principle 4's own wording.",
+    # NO LONGER REFUSED. `AggregateBuilder#has_many`/`#has_one` genuinely
+    # build now (S17/ADR 0026's relationship-cardinality slice un-
+    # deprecated all three words — `belongs_to` is real corpus use today,
+    # `examples/banking/bluebook/safe_deposit_boxes.bluebook`'s own
+    # `belongs_to Customer`, which is why belongs_to (Aggregate) carries
+    # no entry here at all). `has_many`/`has_one` mint the identical
+    # `Reference`-typed attribute `reference_to` does (`relationship_
+    # attribute`, shared by all four words) — genuinely live, just not
+    # yet the spelling any REAL aggregate in this corpus happens to
+    # choose over plain `reference_to`/`belongs_to` for a required or
+    # list-shaped relationship. `docs/implemented/reference/aggregate.md`'s own
+    # fixture runs both for real (the doctest bar), but a doc page's own
+    # invented fixture is explicitly not what this file counts (see this
+    # file's own header) — finishing that adoption in a real domain is
+    # separate, larger corpus work, not a defect in either word.
     "has_many (Aggregate)"                 =>
-                                              "refused unconditionally at build outside MetaValidator.shadow_parsing? " \
-                                              "(AggregateBuilder#has_many) — the same structural impossibility cursor has. " \
-                                              "reference_to mints the identical attribute now; a live declaration exists only " \
-                                              "to be refused, never to succeed.",
-    "has_one (Aggregate)"                  => "same as has_many (Aggregate) — AggregateBuilder#has_one.",
-    "belongs_to (Aggregate)"               => "same as has_many (Aggregate) — AggregateBuilder#belongs_to.",
+                                              "no real aggregate in this corpus declares a required-or-listed relationship " \
+                                              "with has_many/has_one over plain reference_to/belongs_to yet — see the note " \
+                                              "above this entry.",
+    "has_one (Aggregate)"                  => "same as has_many (Aggregate) — see the note above.",
+    "has_many (Entity)"                    =>
+                                              "same underlying gap as has_many (Aggregate) — EntityBuilder#has_many mints the " \
+                                              "identical Reference-typed attribute reference_to does, genuinely live, but no " \
+                                              "real entity in this corpus (Account#Ledger entry, ATMCard#Withdrawal, ...) " \
+                                              "declares a listed relationship this way over a plain attribute/reference_to " \
+                                              "yet. docs/implemented/reference/entity.md's own fixture runs it for real, which is the " \
+                                              "doctest bar, not this one.",
+    "has_one (Entity)"                     => "same as has_many (Entity), one word over — EntityBuilder#has_one.",
+    # `then_set (Command)` — the OTHER kind of structural impossibility this
+    # file's own header distinguishes from a mere corpus gap: refused
+    # unconditionally at build outside MetaValidator.shadow_parsing?
+    # (CommandBuilder#then_set_impl); sets is the word now, and no live
+    # declaration of then_set can ever succeed to be a corpus example of.
     "then_set (Command)"                   =>
-                                              "same structural impossibility as has_many (Aggregate) — refused " \
-                                              "unconditionally at build outside MetaValidator.shadow_parsing? " \
-                                              "(CommandBuilder#then_set_impl); sets is the word now.",
+                                              "refused unconditionally at build outside MetaValidator.shadow_parsing? " \
+                                              "(CommandBuilder#then_set_impl) — sets is the word now; a live declaration " \
+                                              "exists only to be refused, never to succeed.",
     "uses_embryonaut_bluebook (Hecksagon)" =>
                                               "no hecksagon in THIS repository's own corpus vendors an embryonaut bluebook — " \
                                               "real, external use is what this word is for: lifeadelics/domain (a hecksagain-" \
@@ -215,7 +241,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                               "\"payments\"` for real, attaching embryonaut_bluebooks/payments' Payment " \
                                               "aggregate — a full settle/refund/dispute lifecycle shared across every project " \
                                               "that needs one rather than reimplemented per project. Written up in " \
-                                              "docs/reference/hecksagon.md's own section, naming the consumer, per principle " \
+                                              "docs/implemented/reference/hecksagon.md's own section, naming the consumer, per principle " \
                                               "4's own wording — same shape formerly_known_as (Bluebook) above already is.",
     # Translation/TranslationAggregate — item #13's remaining builders.
     # `corpus_uses?` is a NAIVE whole-token scan (its own header already
@@ -257,7 +283,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
   }.freeze
 
   it "gives every declared word a real corpus use or a written, named exemption" do
-    missing = Hecksagain::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/reference"))
+    missing = Hecksagain::Doc::Reference.live_words(File.join(InMemoryDomain::ROOT, "docs/implemented/reference"))
                                         .reject { |word, _context, _prose| corpus_uses?(word) }
                                         .map { |word, context, _prose| Hecksagain::Doc::Reference.name_of(word, context) }
 

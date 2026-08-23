@@ -13,7 +13,7 @@ module Hecksagain
     # They read the source, or they read a document somebody wrote beside the
     # source and stopped updating.
     #
-    # `docs/reference/` is the precedent and the contrast. `bin/reference`
+    # `docs/implemented/reference/` is the precedent and the contrast. `bin/reference`
     # generates it from the language's own Syntax chapter, so the reference
     # for the DSL cannot drift from the DSL. This is the same trick one level
     # down: the usage document for a DOMAIN, generated from that domain, so it

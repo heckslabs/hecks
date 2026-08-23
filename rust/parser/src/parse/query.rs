@@ -19,8 +19,16 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 const OPTION_WORDS: &[&str] = &["offset", "cursor", "authorize", "nulls", "inspect_query"];
 
 /// Parses a `query "Name" do ... end` body.
-pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str) -> ParseResult<ir::Query> {
-    let mut query = ir::Query { name: name.to_string(), ..Default::default() };
+pub fn parse_body(
+    file: &str,
+    lines: &[SourceLine],
+    pos: &mut usize,
+    name: &str,
+) -> ParseResult<ir::Query> {
+    let mut query = ir::Query {
+        name: name.to_string(),
+        ..Default::default()
+    };
 
     loop {
         let Some(gated) = super::next_line(file, lines, pos, "Query")? else {
@@ -29,9 +37,21 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
         let line = gated.line.number;
 
         match gated.row.word {
-            "description" => query.description = Some(super::positional_text(file, line, "description", &gated.args, 1)?),
-            "attribute" => query.attributes.push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
-            "where" => query.wheres.extend(query_derive::where_clauses(&gated.args.named)),
+            "description" => {
+                query.description = Some(super::positional_text(
+                    file,
+                    line,
+                    "description",
+                    &gated.args,
+                    1,
+                )?)
+            }
+            "attribute" => query
+                .attributes
+                .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
+            "where" => query
+                .wheres
+                .extend(query_derive::where_clauses(&gated.args.named)),
             "order_by" => {
                 let field = super::positional_symbol(file, line, "order_by", &gated.args, 1)?;
                 let direction = match gated.args.positional.iter().find(|(idx, _)| *idx == 2) {
@@ -46,10 +66,22 @@ pub fn parse_body(file: &str, lines: &[SourceLine], pos: &mut usize, name: &str)
             // argument gate already confirmed it reads as a number.
             "limit" => {
                 let raw = super::positional_constant(file, line, "limit", &gated.args, 1)?;
-                query.limit = Some(ir::LimitSpec { value: crate::ruby_value::render(&crate::ruby_value::read(raw)) });
+                query.limit = Some(ir::LimitSpec {
+                    value: crate::ruby_value::render(&crate::ruby_value::read(raw)),
+                });
             }
-            word if OPTION_WORDS.contains(&word) => query_options::apply(file, line, word, &gated.args, &mut query.options)?,
-            _ => return Err(super::not_built_yet("Query", gated.row, file, line, &gated.call.word)),
+            word if OPTION_WORDS.contains(&word) => {
+                query_options::apply(file, line, word, &gated.args, &mut query.options)?
+            }
+            _ => {
+                return Err(super::not_built_yet(
+                    "Query",
+                    gated.row,
+                    file,
+                    line,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 }

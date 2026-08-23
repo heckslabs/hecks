@@ -9,6 +9,7 @@
           "name": "name",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "PizzaName"
         },
         {
@@ -18,6 +19,7 @@
           "name": "pizza",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Pizza"
         },
         {
@@ -27,6 +29,7 @@
           "name": "toppings",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "Topping"
         },
         {
@@ -36,6 +39,7 @@
           "name": "customer_name",
           "optional": false,
           "pattern": null,
+          "relationship": null,
           "type": "CustomerName"
         }
       ],
@@ -49,6 +53,7 @@
               "name": "name",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "PizzaName"
             },
             {
@@ -58,6 +63,7 @@
               "name": "pizza",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Pizza"
             }
           ],
@@ -89,6 +95,7 @@
               "name": "topping",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "ToppingName"
             },
             {
@@ -98,6 +105,7 @@
               "name": "amount",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "ToppingAmount"
             }
           ],
@@ -144,6 +152,7 @@
               "name": "amount",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Price"
             },
             {
@@ -153,6 +162,7 @@
               "name": "customer_name",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "CustomerName"
             }
           ],
@@ -265,6 +275,7 @@
               "name": "ceiling",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Price"
             }
           ],
@@ -313,6 +324,7 @@
               "name": "value",
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -337,6 +349,7 @@
               "name": "cents",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -361,6 +374,7 @@
               "name": "value",
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -385,6 +399,7 @@
               "name": "value",
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -409,6 +424,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -433,6 +449,7 @@
               "name": "name",
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
               "type": "String"
             },
             {
@@ -442,6 +459,7 @@
               "name": "amount",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Integer"
             }
           ],
@@ -463,6 +481,7 @@
               "name": "value",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "String"
             }
           ],
@@ -495,6 +514,7 @@
               "name": "price_cents",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Price"
             },
             {
@@ -504,6 +524,7 @@
               "name": "size",
               "optional": false,
               "pattern": null,
+              "relationship": null,
               "type": "Size"
             }
           ],

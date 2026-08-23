@@ -6,7 +6,7 @@ require "json"
 RSpec.describe Hecksagain::Forms::App do
   include Rack::Test::Methods
 
-  BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
   FORMS_BLUEBOOK = File.join(InMemoryDomain::ROOT, "lib/hecksagain/forms/examples/banking_console.bluebook")
 
   # The same rebind spec/facade/handle_spec.rb already uses —
@@ -20,7 +20,7 @@ RSpec.describe Hecksagain::Forms::App do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(BANKING_BLUEBOOK)
+        load_bluebook_files(BANKING_BLUEBOOK)
         Kernel.load(FORMS_BLUEBOOK)
         Hecks.hecksagon("Banking") do
           uses_framework "Governance"
@@ -74,6 +74,20 @@ RSpec.describe Hecksagain::Forms::App do
       expect(last_response.headers["location"]).to eq("/Banking/Customer/c1.html")
     end
 
+    it "routes an existing aggregate through to, outside the command's facts" do
+      register_ada
+
+      get "/Banking/Customer/Close.html?to=c1"
+      expect(last_response.body).to include('name="to"')
+      expect(last_response.body).not_to include('name="id"')
+
+      post "/Banking/Customer/Close.html", "to" => "c1"
+      expect(last_response.status).to eq(302)
+
+      get "/Banking/Customer/c1.html"
+      expect(last_response.body).to include("status: closed")
+    end
+
     it "POST with an invalid value re-renders the SAME form, sticky, with the refusal's own message" do
       post "/Banking/Customer/Register.html", "reference.value" => "", "name.given" => "Ada",
                                                 "name.family" => "Lovelace", "email.address" => "ada@example.com"
@@ -94,6 +108,29 @@ RSpec.describe Hecksagain::Forms::App do
       expect(last_response.status).to eq(201)
       body = JSON.parse(last_response.body)
       expect(body["id"]).to eq("c9")
+    end
+
+    it "accepts a real JSON command envelope" do
+      post "/Banking/Customer/Register",
+           JSON.generate(with: {
+                           reference: { value: "c-json" },
+                           name:      { given: "JSON", family: "Caller" },
+                           email:     { address: "json@example.com" }
+                         }),
+           "CONTENT_TYPE" => "application/json"
+
+      expect(last_response.status).to eq(201), last_response.body
+      expect(JSON.parse(last_response.body)["id"]).to eq("c-json")
+    end
+
+    it "keeps legacy id as an accepted but unrendered form input" do
+      register_ada
+
+      post "/Banking/Customer/Close.html", "id" => "c1"
+
+      expect(last_response.status).to eq(302)
+      get "/Banking/Customer/c1.html"
+      expect(last_response.body).to include("status: closed")
     end
   end
 
@@ -146,5 +183,13 @@ RSpec.describe Hecksagain::Forms::App do
   it "refuses a chapter this app does not expose" do
     get "/Deploy/Anything.html"
     expect(last_response.status).to eq(404)
+  end
+
+  it "explicitly refuses entity command URLs until the forms router can address them" do
+    post "/Banking/SafeDepositBox/Visit/Annotate.html"
+
+    expect(last_response.status).to eq(404)
+    expect(last_response.body).to include("entity command routes are not supported")
+    expect(last_response.body).to include("to.aggregate and to.entity")
   end
 end

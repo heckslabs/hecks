@@ -9,7 +9,7 @@
 // prior commands matter for this one" isn't something rust/host can
 // safely do on its own. Replaying the FULL log on every invocation is
 // the simplest correct answer for a company-internal tool with modest
-// total event volume; see docs/decisions/0018-rehydrate-replay-lambda-
+// total event volume; see docs/implemented/decisions/0018-rehydrate-replay-lambda-
 // host.md for the full tradeoff.
 //
 // Determinism is what makes this safe to persist selectively: every

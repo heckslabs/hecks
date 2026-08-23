@@ -127,9 +127,34 @@ module RustProjection
         vo_by_name = a[:value_objects].to_h { |vo| [vo[:name], vo] }
         Projector.unsupported_attribute_types(a, vo_by_name).any?
       end.map { |a| a[:name] }
-
+      # WHICH AGGREGATE OWNS EACH VALUE OBJECT, across this WHOLE domain —
+      # a COMMAND's own attribute can name ANY value object the domain
+      # declares, not just one its own owner also happens to declare
+      # (`Banking::SafeDepositBox.Rent`'s own `attribute :customer,
+      # CustomerNumber` — `CustomerNumber` is `Customer`'s own, never
+      # `SafeDepositBox`'s). `cross_aggregate_vo_imports`, below, is the
+      # ONLY reader — a struct field/from_json/to_json's own type name
+      # (`Projector.rust_type`/`rust_ident`) still emits the SAME bare
+      # identifier it always did; what makes that identifier resolve for
+      # a FOREIGN type is a `use` line at the top of the generated file,
+      # not a qualified path threaded through every codegen call site.
+      domain_value_object_owner = ir[:aggregates].each_with_object({}) do |a, index|
+        a[:value_objects].each { |vo| index[vo[:name]] = a[:name] }
+      end
+      # THE VALUE OBJECTS THEMSELVES, same domain-wide reach — `bridging.
+      # rb`'s own `bridgeable_value_types?`/`value_rhs` need the actual
+      # DEFINITION (not just which aggregate owns it) to bridge a
+      # cross-aggregate command argument's type into its target field.
+      # Merged into each aggregate's own LOCAL map below with the local
+      # map winning any name collision — nothing that already resolved
+      # locally ever starts resolving to a different definition; this
+      # only ever adds a name a purely local map didn't have. Never
+      # iterated (only ever looked up by name), so widening it changes
+      # nothing about what any OTHER reader of a per-aggregate `value_
+      # objects_by_name` already saw.
+      domain_value_objects_by_name = ir[:aggregates].flat_map { |a| a[:value_objects] }.to_h { |vo| [vo[:name], vo] }
       ir[:aggregates].each do |aggregate|
-        value_objects_by_name = aggregate[:value_objects].to_h { |vo| [vo[:name], vo] }
+        value_objects_by_name = domain_value_objects_by_name.merge(aggregate[:value_objects].to_h { |vo| [vo[:name], vo] })
         # BEFORE anything below reads a single `attr[:optional]` off an
         # entity/value-object field — every one of those reads (the
         # struct-field wrap two loops down, `command_skip_reason`'s own
@@ -193,6 +218,7 @@ module RustProjection
           f.puts "// Do not hand-edit — re-run bin/project_rust instead."
           f.puts "#![allow(dead_code, unused_variables)]"
           f.puts 'use crate::kernel::Expr;'
+          Projector.cross_aggregate_vo_imports(aggregate, domain_value_object_owner, mod_name).each { |line| f.puts line }
           f.puts
 
           aggregate[:value_objects].each do |vo|
@@ -438,7 +464,7 @@ module RustProjection
             # rather than needing a JSON step shape of its own.
             # An ACTING command's `id` comes from extract_id instead, so
             # it's routable only when THAT is (json_codec.rb's own gap).
-            creates = command[:references].nil?
+            creates = Projector.creates_owner?(aggregate, command, value_objects_by_name)
             # `identity_components` is a CREATING command's own concern
             # only (mutations.rb's own header on `identity_components`:
             # "never called for an acting command") — an acting command's
@@ -503,12 +529,26 @@ module RustProjection
 
               manifest << manifest_entry(kind: "port_operation", id: operation_verb, generated: true, routed: true)
               operation_args_struct = "#{Projector.rust_ident(port[:name])}#{Projector.rust_ident(operation[:name])}Args"
+              # THE MIGRATION-ERA SELF-REFERENCE, if this operation still
+              # declares one — `ports.rb#emit_port_operation` excludes it
+              # from the generated args struct entirely (routing supplies
+              # the receiver now), so a reference_check against it would
+              # name a struct field that no longer exists; both filtered
+              # out here, together, the same way `emit_port_operation`
+              # and `registry.rb`'s own `split_aggregate_receiver` treat
+              # this one field as a single unit.
+              legacy_receiver_field = operation[:attributes]
+                .find { |attr| Projector.reference_target(attr[:type]) == aggregate[:name] }
+                &.dig(:name)
+              operation_reference_checks = reference_checks(operation, aggregates_by_name, unsupported_names)
+                .reject { |check| check[:target_name] == aggregate[:name] }
               port_operations << {
                 verb: operation_verb,
                 name: operation[:name],
                 fn: "#{port[:name].downcase}_#{Projector.dispatch_fn_name(Projector.rust_ident(operation[:name]))}",
                 args_struct: operation_args_struct,
-                reference_checks: reference_checks(operation, aggregates_by_name, unsupported_names),
+                reference_checks: operation_reference_checks,
+                legacy_receiver_field: legacy_receiver_field,
               }
             end
           end
@@ -522,6 +562,12 @@ module RustProjection
           commands: registry_commands,
           entity_commands: entity_commands,
           ports: port_operations,
+          # THIS AGGREGATE'S OWN DECLARED IDENTITY PATHS, carried through
+          # verbatim — `emit_identity_head_table`/`reactions.rb` reads the
+          # single-component case (the only shape it resolves; a
+          # composite identity is a real, documented gap there, not
+          # silently assumed to work).
+          identified_by: aggregate[:identified_by],
           # WHICH TOP-LEVEL GENERATED MODULE this aggregate's own .rs file
           # lives under (`meta`, `embryonaut`, `governance`, ...) — a
           # standalone per-chapter registry.rs (this file, below) uses it
@@ -724,6 +770,10 @@ module RustProjection
         f.puts Projector.emit_process_manager_table(ir[:process_managers])
         f.puts
         f.puts Projector.emit_reference_key_table([[domain_name, generated_aggregates.map { |a| a[:name] }]])
+        f.puts
+        f.puts Projector.emit_creates_table(registry_aggregates)
+        f.puts
+        f.puts Projector.emit_identity_head_table(registry_aggregates)
         f.puts
         f.puts Projector.emit_query_table(query_defs)
         f.puts

@@ -25,7 +25,7 @@ module Hecksagain
           # the instant the head view starts pointing at it.
           #
           # CREATION and BACKFILL are deliberately two separate steps now,
-          # not one nested transaction — principle 1 (docs/postgres-era-
+          # not one nested transaction — principle 1 (docs/implemented/postgres-era-
           # adapter-split-plan.md): no operation may hold a lock across a
           # scan whose duration scales with table size, and
           # `backfill_head_snapshot!` below is now a CHUNKED, resumable

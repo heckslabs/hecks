@@ -8,7 +8,7 @@
 // literal never needs Object/Array, and a `Json` never needs to be
 // `interpret()`-walked, so collapsing them would blur two different jobs.
 //
-// docs/decisions/0012-wasm-via-wasi-stdio.md: chosen over pulling in
+// docs/implemented/decisions/0012-wasm-via-wasi-stdio.md: chosen over pulling in
 // `serde`/`serde_json` to keep this crate at zero Cargo dependencies,
 // the same constraint `rust/src/kernel/{expr,dispatch}.rs` already hold
 // themselves to.

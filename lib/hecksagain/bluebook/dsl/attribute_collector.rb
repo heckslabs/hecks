@@ -155,6 +155,16 @@ module Hecksagain
 
         private
 
+        def relationship_attribute(target, kind, name, optional: false, list: false)
+          attributes << Attribute.new(
+            name:         name,
+            type:         Reference.new(target),
+            list:         list,
+            optional:     optional,
+            relationship: kind
+          )
+        end
+
         # `one_of:` NAMES A CLOSED SET ON THE FIELD ITSELF (ADR 0025,
         # "Attributes") — joining `pattern:`/`admits:` where value
         # constraints already live, for the one context where it means
@@ -197,29 +207,9 @@ module Hecksagain
           type
         end
 
-        # `identified_by :reference` — DERIVING the path instead of spelling
-        # it: `field`'s own already-declared attribute names a value
-        # object, and when that value object holds EXACTLY one field there
-        # is only one thing the identity could ever mean. More than one
-        # field is genuinely ambiguous (which one names the record?) —
-        # refused, naming every candidate, rather than guessing
-        # `.value`-if-present the way an earlier draft of this did
-        # (silently wrong the moment a second field, `pad`, arrives on
-        # what used to be single-field).
-        #
-        # AN IDENTITY HEAD IS A SINGLE-FIELD VALUE OBJECT (auto-unwrapped
-        # here), A BARE SCALAR, OR A REFERENCE (ADR 0025, "References") —
-        # never a list, never a multi-field value object. A reference is
-        # already a scalar id the moment it is stored (`reference_to`
-        # mints a bare attribute, never a nested object), so it resolves
-        # to its own name unchanged, the same as a primitive.
-        #
-        # Shared by AggregateBuilder and EntityBuilder (both include this
-        # module) — each resolves it at its own BUILD time, not at
-        # `identified_by`'s own call time, since every real bluebook
-        # declares identified_by BEFORE the attribute it names, so the
-        # attribute (and its own value-object type) don't exist to look up
-        # yet at that point.
+        # Every selected identity head contributes all of its recursively
+        # scalar leaves in declaration order. Named, inline and compound-key
+        # declarations therefore share one flattening rule.
         def resolve_identity_field!(field, value_objects, context_name)
           attr = attributes.find { |a| a.name == field }
 
@@ -242,54 +232,30 @@ module Hecksagain
 
           raise Malformed, "#{context_name}.identified_by :#{field} names no attribute #{context_name} declares" unless attr
 
-          if attr.list?
-            raise Malformed,
-                  "#{context_name}.identified_by :#{field} names a list — an identity must be " \
-                  "a single value, and a list is never one"
-          end
-
-          return [field.to_s] if attr.reference?
-
-          vo = value_objects.find { |v| v.hecks_name.to_s == attr.type.to_s }
-          return [field.to_s] unless vo # a bare primitive type — already itself scalar
-
-          case vo.attributes.size
-          when 1
-            ["#{field}.#{vo.attributes.first.name}"]
-          else
-            raise Malformed,
-                  "#{context_name}.identified_by :#{field} names #{attr.type}, which has " \
-                  "#{vo.attributes.size} fields (#{vo.attributes.map(&:name).join(', ')}) — " \
-                  "a bare field name only derives an identity when its own value object has " \
-                  "exactly one field; give #{context_name} a single-field identity of its own " \
-                  "instead"
-          end
+          identity_paths_for_attribute(attr, value_objects, context_name, field.to_s, [])
         end
 
-        # `identified_by PizzaName` — the bare-TYPE form, mirroring
-        # `reference_to`'s own shape exactly: pass the value object, not a
-        # field name, and the attribute itself is MINTED here (no separate
-        # `attribute :name, PizzaName` line needed at all) the same way
-        # `reference_to Team` mints `:team_id` on its own. The minted
-        # attribute's own name is `as:` if given, or `Naming.snake` of the
-        # type otherwise — same convention `reference_to`'s own `as:`
-        # already uses. Requires EXACTLY one field on the value object, for
-        # the identical reason `resolve_identity_field!` does — refused,
-        # naming every candidate, rather than guessing.
+        # A named or inline identity mints one structured field, then expands
+        # each scalar leaf beneath it into the existing path-shaped IR.
         def resolve_identity_type!(type, as, insert_at, value_objects, context_name)
-          target = Naming.demodulise(type)
-          vo = value_objects.find { |v| v.hecks_name.to_s == target }
-          raise Malformed, "#{context_name}.identified_by names #{target}, which is not a declared value object" unless vo
+          target = Naming.demodulise(type.respond_to?(:hecks_name) ? type.hecks_name : type)
+          matches = value_objects.select { |value_object| value_object.hecks_name.to_s == target }
+          if matches.size > 1
+            raise Malformed, "#{context_name}.identified_by names duplicate value object #{target}"
+          end
 
-          if vo.attributes.size != 1
-            raise Malformed,
-                  "#{context_name}.identified_by names #{target}, which has #{vo.attributes.size} " \
-                  "fields (#{vo.attributes.map(&:name).join(', ')}) — identified_by ValueObject only " \
-                  "derives a path when it has exactly one field; write identified_by { field.<field> } " \
-                  "naming the specific one"
+          vo = type.respond_to?(:attributes) ? type : matches.first
+          raise Malformed, "#{context_name}.identified_by names #{target}, which is not a declared value object" unless vo
+          if vo.attributes.empty?
+            raise Malformed, "#{context_name}.identified_by names #{target}, which declares no attributes"
           end
 
           field = (as || Naming.snake(target)).to_sym
+          if attributes.any? { |attribute| attribute.name == field }
+            raise Malformed,
+                  "#{context_name}.identified_by #{target} mints :#{field}, but that attribute is already declared"
+          end
+
           # `Attribute.new` DIRECTLY, not the public `attribute(...)` DSL
           # entry — `target` is `Naming.demodulise`'d TEXT, not a bareword
           # the bluebook author typed (the type position's own quoted-text
@@ -311,7 +277,49 @@ module Hecksagain
           # hand-writing `attribute field, Type` at that exact point,
           # the way this used to be required, would have produced.
           attributes.insert(insert_at, attributes.pop)
-          ["#{field}.#{vo.attributes.first.name}"]
+          vo.attributes.flat_map do |attribute|
+            identity_paths_for_attribute(attribute, value_objects, context_name,
+                                         "#{field}.#{attribute.name}", [target])
+          end
+        end
+
+        def identity_paths_for_attribute(attribute, value_objects, context_name, path, visited)
+          if attribute.list?
+            raise Malformed,
+                  "#{context_name}'s identity member #{path} is a list — an identity member must be scalar"
+          end
+          if attribute.optional?
+            raise Malformed,
+                  "#{context_name}'s identity member #{path} is optional — an identity must be wholly known"
+          end
+
+          return [path] if attribute.reference?
+
+          nested = value_objects.find { |value_object| value_object.hecks_name.to_s == attribute.type.to_s }
+          return [path] unless nested
+
+          if visited.include?(nested.hecks_name.to_s)
+            cycle = [*visited, nested.hecks_name.to_s].join(" -> ")
+            raise Malformed, "#{context_name}'s identity value objects form a cycle: #{cycle}"
+          end
+
+          # A BARE FIELD DERIVES ONE SCALAR. `identified_by :ref` (or one leg
+          # of a compound `identified_by :a, :b`) names a single field, and
+          # deriving ITS path only makes sense while every value object along
+          # the way wraps exactly one field itself — the same "single-field
+          # value object" ADR 0025 names this shape after. A multi-field
+          # value object here used to expand silently into every one of its
+          # own fields, minting an unannounced compound key nothing declared.
+          if nested.attributes.size != 1
+            candidates = nested.attributes.map(&:name).join(", ")
+            raise Malformed,
+                  "#{context_name}.identified_by :#{path} names #{nested.hecks_name}, which has " \
+                  "#{nested.attributes.size} field#{'s' unless nested.attributes.size == 1} (#{candidates})"
+          end
+
+          member = nested.attributes.first
+          identity_paths_for_attribute(member, value_objects, context_name, "#{path}.#{member.name}",
+                                       [*visited, nested.hecks_name.to_s])
         end
       end
     end

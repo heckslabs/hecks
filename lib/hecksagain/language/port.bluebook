@@ -5,9 +5,8 @@ Hecks.bluebook "Port" do
   aggregate "Port" do
     description "One .port — a resource door a domain's own aggregates call by verb, and whether calling it answers with a value (reply) or fires an effect with nothing to hand back (effect)."
 
-    identified_by :name
+    identified_by PortName, as: :name
 
-    attribute :name,   PortName
     attribute :verb,   PortVerb
     attribute :signal, PortSignal
 
@@ -39,7 +38,55 @@ Hecks.bluebook "Port" do
       attribute :verb,   PortVerb, optional: true
       attribute :signal, PortSignal
 
+      sets :name
+      sets :verb
+      sets :signal
+
       emits "PortDeclared"
+    end
+
+    # HOW PORT IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: File, Port.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "port",            context: "File",     body: "keywords", inner: "Port",           opens: "Port",           fills: ""
+      member word: "verb",            context: "Port",      body: "none", inner: "", opens: "", fills: "verb"
+      member word: "signal",          context: "Port",      body: "none", inner: "", opens: "", fills: "signal"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "port",            context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "verb",            context: "Port", at: "1", named: "", kind: "text",   required: "true", fills: "verb"
+      member keyword: "signal",          context: "Port", at: "1", named: "", kind: "symbol", required: "true", fills: "signal"
+
     end
   end
 end

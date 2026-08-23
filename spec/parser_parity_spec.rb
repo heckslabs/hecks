@@ -50,9 +50,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # THE SAME bluebook-lookup AND Dir.glob ENUMERATION spec/corpus_spec.rb
   # already uses — reused rather than re-derived, so this can never
   # silently drift from what "the corpus" means elsewhere in this suite.
-  def self.bluebook_in(domain)
-    Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort.first ||
-      Dir.glob(File.join(domain, "*.bluebook")).sort.first
+  def self.bluebooks_in(domain)
+    nested = Dir.glob(File.join(domain, "bluebook", "*.bluebook")).sort
+    nested.empty? ? Dir.glob(File.join(domain, "*.bluebook")).sort : nested
   end
 
   # The SAME domain's own `.hecksagon`, if it has one — `bin/project_rust`
@@ -78,20 +78,16 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   PARITY_FIXTURES_ROOT = File.join(InMemoryDomain::ROOT, "spec/fixtures")
   PARITY_FIXTURE_MEMBERS = Dir.glob(File.join(PARITY_FIXTURES_ROOT, "**", "*.bluebook")).sort.freeze
 
-  # STAGE 6's OWN TARGET — the self-hosted grammar itself: the NINE files
-  # `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES` names, which
+  # STAGE 6's OWN TARGET — the self-hosted grammar itself: every concept file
+  # `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES` discovers, which
   # together constitute ONE `Hecks.bluebook "Bluebook", version: "1"`
   # declaration (`meta_validator.rb`'s own comment: "`BluebookBuilder
   # .build` keeps one builder open per chapter name across calls ... so
-  # loading all nine in order accumulates one domain, not nine" —
+  # loading the folder in order accumulates one domain, not several" —
   # mirrored by `parse::chapter::parse_chapter`'s own multi-file merge,
-  # built for exactly this). Read directly off the REAL Ruby constant,
-  # not `Dir.glob`'d and not hand-listed: `GRAMMAR_FILES` is deliberately
-  # an explicit array rather than a sorted glob (its own comment: a
-  # filename-alphabetical sort would not reproduce a deliberate, reviewed
-  # DECLARATION ORDER, itself a fact the golden IR fixture pins), so this
-  # is the one enumeration in this file that reuses a Ruby source of
-  # truth instead of deriving one.
+  # built for exactly this). Read directly off the same discovered source set
+  # the Ruby bootstrap uses, so parser parity and runtime loading cannot keep
+  # separate filename catalogs.
   PARITY_LANGUAGE_GRAMMAR_FILES = Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES
 
   # [chapter name, bluebook path] — the chapter name is what `hecks-parse
@@ -101,6 +97,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # chapter's own file is named after its ROLE — aggregate.bluebook — not
   # its chapter name, which is always "Bluebook").
   def self.chapter_name_of(bluebook_path)
+    bluebook_path = Array(bluebook_path).first
     # No line cap — `File.foreach` is lazy and `.find` stops at the
     # first match regardless, so scanning the whole file costs nothing
     # extra for the common case (every existing corpus member's header
@@ -122,15 +119,15 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   end
 
   PARITY_CORPUS_MEMBERS = (
-    PARITY_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebook_in(domain)] } +
+    PARITY_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebooks_in(domain)] } +
     PARITY_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
     PARITY_FRAMEWORK_MEMBERS.map { |member| [File.basename(member, ".bluebook"), member] } +
     PARITY_FIXTURE_MEMBERS.map { |member| [fixture_stem(member), member] } +
-    # STAGE 6 — one member, nine files (see PARITY_LANGUAGE_GRAMMAR_FILES'
+    # STAGE 6 — one member, several concept files (see PARITY_LANGUAGE_GRAMMAR_FILES'
     # own comment). Stemmed "bluebook_language" rather than bare
     # "bluebook" to keep it visibly distinct from
     # `lib/hecksagain/language/bluebook/bluebook.bluebook` — one of the
-    # nine files, not the whole member.
+    # concept files, not the whole member.
     [["bluebook_language", PARITY_LANGUAGE_GRAMMAR_FILES]]
   ).reject { |_stem, path| path.nil? }.freeze
 
@@ -217,9 +214,11 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
   # honest if pizzas.bluebook's own file ever moves.
   REAL_PARITY_MEMBERS = %w[pizzas banking compliance].to_h { |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
-    bluebook = bluebook_in(domain) or raise "#{domain} has no .bluebook"
-    chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
-    [stem, [chapter_name, [bluebook, hecksagon_in(domain)].compact]]
+    bluebooks = bluebooks_in(domain)
+    raise "#{domain} has no .bluebook" if bluebooks.empty?
+
+    chapter_name = chapter_name_of(bluebooks) or raise "#{bluebooks.first} has no 'Hecks.bluebook \"Name\"' header"
+    [stem, [chapter_name, bluebooks + [hecksagon_in(domain)].compact]]
   }.merge(
     # THE FRAMEWORK TRIO (Stage 3). A framework bluebook has no
     # `.hecksagon` of its own (confirmed by reading
@@ -333,7 +332,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
           Kernel.load(InMemoryDomain::EXTRACTION_PORT)
           Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
           Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-          paths.each { |path| Kernel.load(path) }
+          bluebooks, companions = paths.partition { |path| File.extname(path) == ".bluebook" }
+          InMemoryDomain.load_bluebook_files(bluebooks)
+          companions.each { |path| Kernel.load(path) }
         end
         fresh
       end
@@ -375,7 +376,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", io: true do
               "either the file's shape changed or the header-reading regex needs updating"
       end
 
-      stdout, stderr, status = self.class.run_chapter(chapter_name, bluebook)
+      stdout, stderr, status = self.class.run_chapter(chapter_name, *Array(bluebook))
       expected_diagnostic = PENDING_MEMBERS_DIAGNOSTIC[stem]
 
       expect(status.exitstatus).to eq(1),

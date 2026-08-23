@@ -633,6 +633,7 @@ pub fn dispatch_issue(
         ],
         None,
         |record| {
+        record.account = Some(args.account.clone());
         record.serial = Some(args.serial.clone());
         record.daily_fee = Some(args.daily_fee.clone());
             Ok(())

@@ -91,7 +91,7 @@ RSpec.describe "Dispatcher#dry_run?" do
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b5", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     runtime.dry_run?("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 5, rank: 5 })
-    runtime.dispatch("DelegatesTo::Board.MovePiece", name: "b5", id: { value: "p1" }, to: { file: 6, rank: 6 })
+    runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b5", with: { id: { value: "p1" }, to: { file: 6, rank: 6 } })
 
     expect(board(runtime, "b5")[:pieces].first[:square].to_h).to eq(file: 6, rank: 6)
     expect(board(runtime, "b5")[:move_count].to_h).to eq(value: 1)

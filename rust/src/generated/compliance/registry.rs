@@ -90,55 +90,73 @@ pub fn dispatch_by_name(
 ) -> Result<Vec<crate::kernel::Event>, crate::kernel::Refusal> {
     match verb {
           "Compliance::AccountFreezeReview.Open" => {
-              let args = crate::generated::compliance::accountfreezereview::OpenArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::compliance::accountfreezereview::OpenArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Open", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::accountfreezereview::dispatch_open(&mut store.accountfreezereview, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::AccountFreezeReview.Clear" => {
-              let id = crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(args_json)?;
-              let args = crate::generated::compliance::accountfreezereview::ClearArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(facts_json)?, };
+              let args = crate::generated::compliance::accountfreezereview::ClearArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::AccountFreezeReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::accountfreezereview::dispatch_clear(&mut store.accountfreezereview, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::AccountFreezeReview.Escalate" => {
-              let id = crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(args_json)?;
-              let args = crate::generated::compliance::accountfreezereview::EscalateArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::accountfreezereview::AccountFreezeReview::extract_id(facts_json)?, };
+              let args = crate::generated::compliance::accountfreezereview::EscalateArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::AccountFreezeReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::accountfreezereview::dispatch_escalate(&mut store.accountfreezereview, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::BoxSurrenderReview.Open" => {
-              let args = crate::generated::compliance::boxsurrenderreview::OpenArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let args = crate::generated::compliance::boxsurrenderreview::OpenArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("System"), "Open", caller_role)?;
               let owner_deref = Vec::new();
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::boxsurrenderreview::dispatch_open(&mut store.boxsurrenderreview, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::BoxSurrenderReview.Clear" => {
-              let id = crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(args_json)?;
-              let args = crate::generated::compliance::boxsurrenderreview::ClearArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(facts_json)?, };
+              let args = crate::generated::compliance::boxsurrenderreview::ClearArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Clear", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::BoxSurrenderReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::boxsurrenderreview::dispatch_clear(&mut store.boxsurrenderreview, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
           "Compliance::BoxSurrenderReview.Escalate" => {
-              let id = crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(args_json)?;
-              let args = crate::generated::compliance::boxsurrenderreview::EscalateArgs::from_json(args_json)?;
+              let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+              let route = invocation.route();
+              let facts_json = invocation.facts();
+              let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => crate::generated::compliance::boxsurrenderreview::BoxSurrenderReview::extract_id(facts_json)?, };
+              let args = crate::generated::compliance::boxsurrenderreview::EscalateArgs::from_json(facts_json)?;
               crate::kernel::check_role(Some("Compliance officer"), "Escalate", caller_role)?;
               let owner_deref = crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Compliance::BoxSurrenderReview", &id);
               let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-              let payload = crate::kernel::Json::overlay(args_json, &args.to_json());
+              let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
               crate::generated::compliance::boxsurrenderreview::dispatch_escalate(&mut store.boxsurrenderreview, &id, args, mutations, owner_deref, command_deref).map(|(_, events)| stamp_payload(events, &payload))
           }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!("unknown command {other:?}"))),
@@ -199,6 +217,25 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
     match qualified_name {
         "Compliance::AccountFreezeReview" => Some("account_freeze_review"),
         "Compliance::BoxSurrenderReview" => Some("box_surrender_review"),
+        _ => None,
+    }
+}
+
+pub fn command_creates(verb: &str) -> bool {
+    match verb {
+        "Compliance::AccountFreezeReview.Open" => true,
+        "Compliance::AccountFreezeReview.Clear" => false,
+        "Compliance::AccountFreezeReview.Escalate" => false,
+        "Compliance::BoxSurrenderReview.Open" => true,
+        "Compliance::BoxSurrenderReview.Clear" => false,
+        "Compliance::BoxSurrenderReview.Escalate" => false,
+        _ => false,
+    }
+}
+
+pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
+    match qualified_name {
+        "Compliance::AccountFreezeReview" => Some("number"),
         _ => None,
     }
 }

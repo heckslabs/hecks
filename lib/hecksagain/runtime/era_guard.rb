@@ -5,6 +5,7 @@ require_relative "../bluebook/meta_validator"
 require_relative "../naming"
 require_relative "../ports/loading"
 require_relative "../ports/persistence/lineage"
+require_relative "era_check"
 require_relative "registry"
 
 module Hecksagain
@@ -28,12 +29,11 @@ module Hecksagain
       end
 
       def check_bluebook!(registry, bluebook, directory)
-        source_path = Dir[File.join(directory, "*.bluebook")].first
-        return unless source_path
+        current_text = EraCheck.source_text_for(bluebook, directory)
+        return unless current_text
 
         era_dir   = File.join(registry.root, "data", "eras")
         held_path = File.join(era_dir, "#{Naming.snake(bluebook.name)}.bluebook")
-        current_text = File.read(source_path)
 
         FileUtils.mkdir_p(era_dir)
         unless File.exist?(held_path)

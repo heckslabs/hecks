@@ -1,0 +1,8 @@
+Hecks.hecksagon "PortRoutingFixture" do
+  PortRoutingFixture::Order.port "PaymentGateway" do
+    operation "Receive" do
+      attribute :amount, Integer
+      emits "PaymentReceived"
+    end
+  end
+end

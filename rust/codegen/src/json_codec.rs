@@ -219,7 +219,7 @@ fn emit_from_json_skeleton(exemplar: &Exemplar, struct_name: &str, field_exprs: 
     )
 }
 
-pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[Json], optional: bool, extra_fields: &[(String, String)], aggregate: Option<&Json>) -> String {
+pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[Json], value_objects_by_name: &HashMap<String, &Json>, optional: bool, extra_fields: &[(String, String)], aggregate: Option<&Json>) -> String {
     let mut field_exprs: Vec<String> = attributes
         .iter()
         .map(|attr| {
@@ -228,7 +228,7 @@ pub fn emit_to_json_flat(exemplar: &Exemplar, struct_name: &str, attributes: &[J
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
 
-            let record_optional_list = list && aggregate.map(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr))).unwrap_or(false);
+            let record_optional_list = list && aggregate.map(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name)).unwrap_or(false);
             let field_optional = optional || crate::attr::optional(attr);
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
 
@@ -272,7 +272,7 @@ pub fn emit_from_json_state(
             let scalar = naming::effective_scalar_type(crate::attr::type_name(attr));
             let list = crate::attr::list(attr);
 
-            let record_optional_list = list && aggregate.map(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr))).unwrap_or(false);
+            let record_optional_list = list && aggregate.map(|a| crate::shared::list_attr_creation_optional(a, crate::attr::name(attr), value_objects_by_name)).unwrap_or(false);
             let list_is_optional = if aggregate.is_some() { record_optional_list } else { crate::attr::optional(attr) };
             let field_optional = optional || crate::attr::optional(attr);
 

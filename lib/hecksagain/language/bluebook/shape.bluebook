@@ -12,7 +12,7 @@ Hecks.bluebook "Bluebook" do
     attribute :name,       ValueObjectName
     attribute :attributes, list_of(ShapeField)
     attribute :invariants, list_of(Assertion)
-    attribute :rows,       RowCount
+    attribute :rows,       RowCount, optional: true
     # S17, ADR 0026 — Member NESTED here, an entity rather than its own
     # root aggregate (see `entity "Member"`, below). `list_of(Member)`
     # forward-references it the same way banking's own `attribute :ledger,
@@ -37,6 +37,7 @@ Hecks.bluebook "Bluebook" do
       attribute :default, String
       # The closed set this value must belong to — see Aggregate::Field.
       attribute :admits, String, optional: true
+      attribute :relationship, String, optional: true
       invariant("a field is named") { !name.to_s.empty? }
       invariant("a field has a type") { !type.to_s.empty? }
       invariant("a field's list mode is specified") { !list.to_s.empty? }
@@ -105,6 +106,9 @@ Hecks.bluebook "Bluebook" do
       attribute :name, ValueObjectName
 
       attribute :position, Position, optional: true
+      sets :aggregate
+      sets :name
+      sets :position
       emits "ShapeDeclared"
     end
 
@@ -112,7 +116,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one field to the value object"
 
-      reference_to ValueObject
       attribute :name,    ValueObjectName
       attribute :type,    ValueObjectName
       attribute :list,    ValueObjectName
@@ -125,8 +128,11 @@ Hecks.bluebook "Bluebook" do
       attribute :pattern,  ValueObjectText, optional: true
       attribute :default, ValueObjectText, optional: true
       attribute :admits,  ValueObjectText, optional: true
+      # See Command.Argument's own :relationship (command.bluebook) — the
+      # same field, the same reason.
+      attribute :relationship, ValueObjectText, optional: true
 
-      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
       emits "ShapeFieldAttached"
     end
@@ -139,7 +145,6 @@ Hecks.bluebook "Bluebook" do
       # set is visible where it used to be invisible : a shape that is closed
       # and admits nothing. Members live in their own root (a row is a list of
       # pairs inside a list of rows), so the count is offered rather than read.
-      reference_to ValueObject
 
       given("a closed set admits a member") { rows.value > 0 }
 
@@ -152,7 +157,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one invariant to the value object"
 
-      reference_to ValueObject
       attribute :description, ValueObjectText, optional: true
       attribute :canonical,   ValueObjectText
 
@@ -184,7 +188,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Open one admitted row on a value object"
 
-      reference_to ValueObject
       attribute :position, MemberPosition
 
       sets :members, append: { position: :position }
@@ -210,8 +213,7 @@ Hecks.bluebook "Bluebook" do
       # away. `ValueObject.Member` mints it as the walk index at creation
       # (the same way `declare`'s own `position` field always has), and
       # every later `Pair` locates the element by it.
-      attribute :position, MemberPosition
-      identified_by :position
+      identified_by MemberPosition, as: :position
 
       attribute :pairs, list_of(Pair)
 
@@ -228,6 +230,63 @@ Hecks.bluebook "Bluebook" do
 
         emits "PairBound"
       end
+    end
+
+    # HOW VALUEOBJECT IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: ValueObject, OneOf, Type.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes", calls: "attribute_impl"
+      member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows", calls: "one_of_impl"
+      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan", calls: "invariant_impl"
+      member word: "member",          context: "ValueObject", body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl"
+      member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl"
+      member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "list_of_impl"
+      member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "one_of_impl"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "attribute",       context: "ValueObject", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "attribute",       context: "ValueObject", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "ValueObject", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      member keyword: "invariant",       context: "ValueObject", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "member",          context: "ValueObject", at: "1", named: "", kind: "pairs", required: "true", fills: "members", pairs_shape: "verbatim"
+      member keyword: "member",          context: "OneOf",     at: "1", named: "",     kind: "pairs", required: "true",  fills: "members", pairs_shape: "verbatim"
+      member keyword: "list_of",         context: "Type", at: "1", named: "", kind: "constant", required: "true", fills: ""
+      member keyword: "one_of",          context: "Type", at: "1", named: "", kind: "literal",  required: "true", fills: ""
+
     end
   end
 end

@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe "the rules a command obeys" do
-  RULES_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  RULES_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
   RULES_TILL    = File.join(InMemoryDomain::ROOT, "spec/fixtures/till.bluebook")
 
   def boot(bluebook)
@@ -12,7 +12,7 @@ RSpec.describe "the rules a command obeys" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(bluebook)
+      load_bluebook_files(bluebook)
       Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry)
       )

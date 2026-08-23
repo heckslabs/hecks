@@ -198,7 +198,9 @@ fn is_integer(raw: &str) -> bool {
 
 fn is_float(raw: &str) -> bool {
     let body = raw.strip_prefix('-').unwrap_or(raw);
-    let Some((int_part, frac_part)) = body.split_once('.') else { return false };
+    let Some((int_part, frac_part)) = body.split_once('.') else {
+        return false;
+    };
     !int_part.is_empty()
         && !frac_part.is_empty()
         && int_part.chars().all(|c| c.is_ascii_digit())
@@ -325,7 +327,11 @@ fn scan_adjacent_strings(raw: &str) -> Option<(String, usize)> {
         }
 
         let inner: String = chars[start + 1..i - 1].iter().collect();
-        out.push_str(&if quote == '"' { unescape_double_quoted_inner(&inner) } else { unescape_single_quoted_inner(&inner) });
+        out.push_str(&if quote == '"' {
+            unescape_double_quoted_inner(&inner)
+        } else {
+            unescape_single_quoted_inner(&inner)
+        });
         matched_any = true;
     }
 
@@ -346,7 +352,12 @@ fn read_hash(raw: &str) -> Value {
 
 fn read_array(raw: &str) -> Value {
     let inner = &raw[1..raw.len() - 1];
-    Value::Array(split_items(inner).into_iter().map(|item| read(item.trim())).collect())
+    Value::Array(
+        split_items(inner)
+            .into_iter()
+            .map(|item| read(item.trim()))
+            .collect(),
+    )
 }
 
 /// Split on the commas that are actually SEPARATORS — never one inside a
@@ -403,7 +414,11 @@ pub fn split_items(body: &str) -> Vec<String> {
         }
     }
     items.push(current);
-    items.into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    items
+        .into_iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 #[cfg(test)]
@@ -419,9 +434,15 @@ mod tests {
         assert_eq!(render(&Value::Int(0)), "0");
         assert_eq!(render(&Value::Float(0.0)), "0.0");
         assert_eq!(render(&Value::Str("credit".to_string())), "\"credit\"");
-        assert_eq!(render(&Value::Str("a\"b\\c".to_string())), "\"a\\\"b\\\\c\"");
         assert_eq!(
-            render(&Value::Hash(vec![("value".to_string(), Value::Str("credit".to_string()))])),
+            render(&Value::Str("a\"b\\c".to_string())),
+            "\"a\\\"b\\\\c\""
+        );
+        assert_eq!(
+            render(&Value::Hash(vec![(
+                "value".to_string(),
+                Value::Str("credit".to_string())
+            )])),
             "{value: \"credit\"}"
         );
         assert_eq!(
@@ -440,17 +461,29 @@ mod tests {
         assert_eq!(read("\"credit\""), Value::Str("credit".to_string()));
         assert_eq!(
             read("{value: \"credit\"}"),
-            Value::Hash(vec![("value".to_string(), Value::Str("credit".to_string()))])
+            Value::Hash(vec![(
+                "value".to_string(),
+                Value::Str("credit".to_string())
+            )])
         );
-        assert_eq!(read("[1, 2]"), Value::Array(vec![Value::Int(1), Value::Int(2)]));
+        assert_eq!(
+            read("[1, 2]"),
+            Value::Array(vec![Value::Int(1), Value::Int(2)])
+        );
         // a bare word never rendered stays a string reading, not nil/symbol
         assert_eq!(read("open"), Value::Bare("open".to_string()));
     }
 
     #[test]
     fn splits_only_top_level_commas() {
-        assert_eq!(split_items("\"a, b\", 1"), vec!["\"a, b\"".to_string(), "1".to_string()]);
-        assert_eq!(split_items("{a: 1, b: 2}, 3"), vec!["{a: 1, b: 2}".to_string(), "3".to_string()]);
+        assert_eq!(
+            split_items("\"a, b\", 1"),
+            vec!["\"a, b\"".to_string(), "1".to_string()]
+        );
+        assert_eq!(
+            split_items("{a: 1, b: 2}, 3"),
+            vec!["{a: 1, b: 2}".to_string(), "3".to_string()]
+        );
     }
 
     #[test]

@@ -48,9 +48,8 @@ Hecks.bluebook "Bluebook", version: "1" do
     # carries, so the two cannot collide however they are spelled. The fallback was
     # hiding a lookup bug ; removing it made the bug visible, and the bug was the
     # smaller thing.
-    identified_by :name
+    identified_by BluebookName, as: :name
 
-    attribute :name,           BluebookName
     attribute :vision,         Vision
     attribute :classification, Classification
     # A domain CONTRACT version, pinned per chapter — `Hecks.bluebook "Pizzas",
@@ -131,6 +130,12 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :version,        Version, optional: true
       attribute :formerly_known_as, FormerlyKnownAs, optional: true
 
+      sets :name
+      sets :vision
+      sets :classification
+      sets :version
+      sets :formerly_known_as
+
       emits "ChapterDeclared"
     end
 
@@ -143,7 +148,6 @@ Hecks.bluebook "Bluebook", version: "1" do
       role "Language"
       goal "Name one core context this chapter's own Syntax rows attach to"
 
-      reference_to Bluebook
       attribute :context, AttachesToContext
 
       sets :attaches_to, append: { value: :context }
@@ -177,7 +181,6 @@ Hecks.bluebook "Bluebook", version: "1" do
       role "Language"
       goal "Attach one canonical-form rule to the chapter"
 
-      reference_to Bluebook
       attribute :strategy,     RuleText
       attribute :source_token, RuleText
       attribute :replacement,  RuleText
@@ -190,6 +193,64 @@ Hecks.bluebook "Bluebook", version: "1" do
       }
 
       emits "NormalisationAttached"
+    end
+
+    # HOW BLUEBOOK IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: File, Bluebook.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: ""
+      member word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision"
+      member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
+      member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to", calls: "attaches_to_impl"
+      member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
+      member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
+      member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
+      member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: "", calls: "aggregate_impl"
+      member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report"
+      member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
+      member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "bluebook",        context: "File",     at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "bluebook",        context: "File",     at: "",  named: "version", kind: "text",     required: "false", fills: "version"
+      member keyword: "vision",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "vision", coerce: "false"
+      member keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "",      kind: "text",     required: "true",  fills: "formerly_known_as"
+      member keyword: "attaches_to",     context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "attaches_to", variadic: "true"
+      member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+
     end
   end
 end

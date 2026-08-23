@@ -153,12 +153,21 @@ module RustProjection
           extra_names  = Array(c[:identity_extra_params])
           extra_idents = extra_names.map { |name| rust_ident_field(name) }
           extra_lines  = extra_names.zip(extra_idents).map do |name, ident|
-            "let #{ident} = args_json.dig(#{name.to_s.inspect}).ok_or_else(|| crate::kernel::Refusal::NotFound(#{"#{c[:verb]} creates a #{a[:record]} — pass #{name}".inspect}.to_string()))?.to_id_component()?;"
+            "let #{ident} = facts_json.dig(#{name.to_s.inspect}).ok_or_else(|| crate::kernel::Refusal::NotFound(#{"#{c[:verb]} creates a #{a[:record]} — pass #{name}".inspect}.to_string()))?.to_id_component()?;"
           end
           extra_pass = extra_idents.map { |ident| "&#{ident}, " }.join
 
           dispatch_call = "#{mod_path}::dispatch_#{c[:fn]}(&mut store.#{a[:mod]}, #{c[:creates] ? extra_pass : '&id, '}args, mutations, owner_deref, command_deref)"
-          id_line = c[:creates] ? "" : "let id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;"
+          # ROUTING SEPARATION (`to:`/`with:`) — `CommandInvocation` reads
+          # either the explicit routed/facts shape or the legacy mixed-
+          # args object (rust/src/kernel/routing.rs, this file's own
+          # target). An ACTING command's own `id` comes from the route
+          # when one was given (`route.require_depth(0)?` — an aggregate-
+          # level command addresses no entity), falling back to `extract_
+          # id` against `facts_json` for the legacy shape, matching
+          # `CommandInterpreter#hydrate_existing`'s own `route ||
+          # identity_of(...)` order exactly.
+          id_line = c[:creates] ? "" : "let id = match route { Some(route) => { route.require_depth(0)?; route.aggregate().to_string() }, None => #{mod_path}::#{a[:record]}::extract_id(facts_json)?, };"
           role_line = emit_role_check(c[:role], c[:name])
           reference_lines = c[:reference_checks].map { |check| emit_reference_check(check) }
 
@@ -183,9 +192,12 @@ module RustProjection
             "let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
           ]
 
-          body = [id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;", role_line, *reference_lines,
+          body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
+                  "let route = invocation.route();",
+                  "let facts_json = invocation.facts();",
+                  id_line, *extra_lines, "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;", role_line, *reference_lines,
                   *deref_lines,
-                  "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
+                  "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   "#{dispatch_call}.map(|(_, events)| stamp_payload(events, &payload))"].compact.reject(&:empty?)
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
@@ -237,41 +249,68 @@ module RustProjection
           # `crate::kernel::parent_deref` fetches the parent record this
           # router already addresses by `parent_id` and recursively
           # resolves ITS OWN `reference_to` attributes off it.
-          body = ["let parent_id = #{mod_path}::#{a[:record]}::extract_id(args_json)?;",
-                  "let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(args_json)?;",
-                  "let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(args_json);",
-                  "let args = #{mod_path}::#{c[:args_struct]}::from_json(args_json)?;",
+          # AN ENTITY COMMAND'S OWN ROUTE, when one was given, addresses
+          # exactly one entity beneath the parent aggregate
+          # (`route.require_depth(1)?`) — the SAME `to: { aggregate:,
+          # entity: }` shape a mutating meta-domain command already
+          # dispatches through (`SyntaxBoot#admit_keywords`, this file's
+          # own header on that convention). Falls back to the legacy
+          # `extract_id`/`extract_wants` pair against `facts_json` when
+          # unrouted, matching the aggregate arm's own `id_line` fallback.
+          body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
+                  "let route = invocation.route();",
+                  "let facts_json = invocation.facts();",
+                  "let (parent_id, element_id, element_wants) = match route { Some(route) => { route.require_depth(1)?; let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }, None => { let parent_id = #{mod_path}::#{a[:record]}::extract_id(facts_json)?; let element_id = #{mod_path}::#{c[:entity_record]}::extract_id(facts_json)?; let element_wants = #{mod_path}::#{c[:entity_record]}::extract_wants(facts_json); (parent_id, element_id, element_wants) }, };",
+                  "let args = #{mod_path}::#{c[:args_struct]}::from_json(facts_json)?;",
                   role_line, *reference_lines,
                   "let owner_deref: Vec<(&'static str, crate::kernel::DerefNode)> = Vec::new();",
                   "let mut command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, #{emit_reference_specs_literal(c[:reference_specs])}, &args);",
                   "if let Some(parent_node) = crate::kernel::parent_deref(&*store, REFERENCE_TABLE, #{"#{a[:domain_name]}::#{a[:name]}".inspect}, &parent_id) { command_deref.push((\"parent\", parent_node)); }",
-                  "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
+                  "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   dispatch_call].compact
 
           "          #{c[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"
         end
       end
 
-      # PORT OPERATIONS — no `id`/`creates` line (`ports.rb`'s own
-      # `dispatch_operation_*` takes only `args`, never a repo: nothing is
-      # hydrated or saved), otherwise the exact same shape a command's own
-      # arm has: `from_json`, THEN every reference check (still emitted
-      # HERE, not in ports.rb, for the identical reason a command's own
-      # are — `store`, every OTHER aggregate's repo, only exists at this
-      # level), then the dispatch call. No role check — `PortOperation`
-      # carries no `role:` at all (a port has no caller to check a role
-      # against; the caller IS the adapter). `stamp_payload` still runs,
-      # for the same reason a command's own payload gets replaced with
-      # the router's raw `args_json` rather than the narrower typed
-      # struct's own re-derived one (this file's own header).
+      # PORT OPERATIONS — no `creates` line (a port neither hydrates nor
+      # saves an aggregate instance, `ports.rb`'s own header), otherwise
+      # the exact same shape a command's own arm has: `from_json`, THEN
+      # every reference check (still emitted HERE, not in ports.rb, for
+      # the identical reason a command's own are — `store`, every OTHER
+      # aggregate's repo, only exists at this level), then the dispatch
+      # call. No role check — `PortOperation` carries no `role:` at all (a
+      # port has no caller to check a role against; the caller IS the
+      # adapter). `stamp_payload` still runs, for the same reason a
+      # command's own payload gets replaced with the router's raw facts
+      # rather than the narrower typed struct's own re-derived one (this
+      # file's own header).
+      #
+      # THE RECEIVER — `CommandInvocation#split_aggregate_receiver` reads
+      # it from the route when one was given, or from `legacy_receiver_
+      # field` (the operation's own migration-era self-reference
+      # attribute, when it still declares one — `ports.rb`'s own header)
+      # against the legacy mixed-facts shape otherwise; either way the
+      # receiver is stripped OUT of the facts the generated `Args::
+      # from_json` sees, matching `emit_port_operation`'s own exclusion of
+      # that same field from the args struct entirely. Existence is
+      # checked here, once, before the dispatch call runs — the port's own
+      # generated function trusts the record it addresses is real, the
+      # same trust `owner_deref`/`command_deref` already extend to an
+      # acting command's own referenced records.
       port_arms = aggregates.flat_map do |a|
         mod_path = chapter_path.call(a)
         a[:ports].map do |p|
           reference_lines = p[:reference_checks].map { |check| emit_reference_check(check) }
-          dispatch_call = "#{mod_path}::dispatch_operation_#{p[:fn]}(args).map(|events| stamp_payload(events, &payload))"
+          legacy_receiver = p[:legacy_receiver_field] ? "Some(#{p[:legacy_receiver_field].to_s.inspect})" : "None"
+          dispatch_call = "#{mod_path}::dispatch_operation_#{p[:fn]}(&id, args).map(|events| stamp_payload(events, &payload))"
 
-          body = ["let args = #{mod_path}::#{p[:args_struct]}::from_json(args_json)?;", *reference_lines,
-                  "let payload = crate::kernel::Json::overlay(args_json, &args.to_json());",
+          body = ["let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;",
+                  "let (id, port_facts) = invocation.split_aggregate_receiver(#{legacy_receiver})?;",
+                  "let facts_json = &port_facts;",
+                  "let _instance = store.#{a[:mod]}.find(&id).ok_or_else(|| crate::kernel::Refusal::NotFound(format!(\"#{a[:name]} {:?} does not exist\", id)))?;",
+                  "let args = #{mod_path}::#{p[:args_struct]}::from_json(facts_json)?;", *reference_lines,
+                  "let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());",
                   dispatch_call].compact
 
           "          #{p[:verb].inspect} => {\n#{body.map { |line| "              #{line}" }.join("\n")}\n          }"

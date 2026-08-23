@@ -19,7 +19,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "name",
@@ -28,7 +29,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "email",
@@ -37,7 +39,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "standing",
@@ -46,7 +49,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -60,7 +64,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -70,7 +75,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "CustomerStanding",
@@ -82,7 +89,8 @@
               "default": "good",
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -92,7 +100,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "PersonName",
@@ -104,7 +114,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "family",
@@ -113,7 +124,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -127,7 +139,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "EmailAddress",
@@ -139,12 +153,17 @@
               "default": null,
               "optional": false,
               "pattern": "^[^@ ]+@[^@ ]+\\.[^@ ]+$",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -161,7 +180,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "name",
@@ -170,7 +190,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "email",
@@ -179,11 +200,16 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "reference",
@@ -232,7 +258,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -241,7 +268,9 @@
               "canonical": "status == \"active\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "standing",
@@ -264,14 +293,18 @@
           "role": "Compliance officer",
           "goal": "Let a cleared customer transact again",
           "references": "Customer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is suspended",
               "canonical": "status == \"suspended\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "standing",
@@ -296,15 +329,21 @@
           "role": "Branch clerk",
           "goal": "End the relationship",
           "references": "Customer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active or suspended",
               "canonical": "[\"active\", \"suspended\"].include?(status)"
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "CustomerClosed"
           ],
@@ -312,9 +351,15 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "active",
@@ -341,12 +386,16 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "InGoodStanding",
           "description": "The everyday customer roll — active, and nothing outstanding against them.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -368,7 +417,9 @@
         {
           "name": "Suspended",
           "description": "The compliance queue, newest concern first.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -387,7 +438,9 @@
         {
           "name": "NotGoodStanding",
           "description": "Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply \"good\".",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "standing",
@@ -402,7 +455,9 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -419,7 +474,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "number",
@@ -428,7 +484,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "balance",
@@ -437,7 +494,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "kind",
@@ -446,7 +504,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "daily_limit",
@@ -455,7 +514,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "ledger",
@@ -464,7 +524,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "fees_cents",
@@ -473,7 +534,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "interest_cents",
@@ -482,7 +544,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -496,7 +559,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -506,7 +570,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "DailyLimit",
@@ -518,7 +584,8 @@
               "default": 0,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -528,7 +595,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "LedgerSequence",
@@ -540,7 +609,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -550,7 +620,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "LedgerDirection",
@@ -562,10 +634,13 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": true,
           "members": [
             [
@@ -592,7 +667,8 @@
               "default": 0,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "currency",
@@ -601,7 +677,8 @@
               "default": "USD",
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -611,7 +688,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "PositiveMoney",
@@ -623,7 +702,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "currency",
@@ -632,7 +712,8 @@
               "default": "USD",
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -646,7 +727,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "AccountKind",
@@ -658,10 +741,13 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": true,
           "members": [
             [
@@ -694,7 +780,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -704,7 +791,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -721,7 +810,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": "reference_to"
             },
             {
               "name": "number",
@@ -730,7 +820,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "kind",
@@ -739,7 +830,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "daily_limit",
@@ -748,7 +840,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -757,8 +850,19 @@
               "canonical": "customer.status == \"active\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
+            {
+              "target": "customer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "customer"
+              }
+            },
             {
               "target": "number",
               "op": "set",
@@ -806,7 +910,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -815,7 +920,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -824,7 +930,9 @@
               "canonical": "customer.status == \"active\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "balance",
@@ -865,7 +973,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -874,7 +983,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -933,15 +1043,21 @@
           "role": "Compliance officer",
           "goal": "Stop an account moving while something is investigated",
           "references": "Account",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is not closed",
               "canonical": "customer.status != \"closed\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "AccountFrozen"
           ],
@@ -953,15 +1069,21 @@
           "role": "Compliance officer",
           "goal": "Release a cleared account",
           "references": "Account",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
               "canonical": "customer.status == \"active\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "AccountUnfrozen"
           ],
@@ -973,7 +1095,9 @@
           "role": "Branch clerk",
           "goal": "Close an account that has been emptied",
           "references": "Account",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is not closed",
@@ -984,8 +1108,12 @@
               "canonical": "balance.cents.zero?"
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "AccountClosed"
           ],
@@ -1008,7 +1136,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -1017,7 +1146,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -1030,7 +1160,9 @@
               "canonical": "balance.cents >= amount.cents"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "balance",
@@ -1070,7 +1202,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -1083,7 +1216,9 @@
               "canonical": "fees_cents.cents >= amount.cents"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "balance",
@@ -1123,7 +1258,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -1132,7 +1268,9 @@
               "canonical": "customer.status == \"active\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "balance",
@@ -1172,7 +1310,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -1189,7 +1328,9 @@
               "canonical": "balance.cents >= amount.cents"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "balance",
@@ -1281,7 +1422,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "amount",
@@ -1290,7 +1432,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -1299,7 +1442,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "direction",
@@ -1308,7 +1452,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "commands": [
@@ -1325,7 +1470,8 @@
                   "default": null,
                   "optional": false,
                   "pattern": null,
-                  "admits": null
+                  "admits": null,
+                  "relationship": null
                 },
                 {
                   "name": "narrative",
@@ -1334,7 +1480,8 @@
                   "default": null,
                   "optional": false,
                   "pattern": null,
-                  "admits": null
+                  "admits": null,
+                  "relationship": null
                 }
               ],
               "givens": [
@@ -1355,7 +1502,9 @@
                   "canonical": "amount.cents + adjustment.cents >= 0"
                 }
               ],
-              "ensures": [],
+              "ensures": [
+
+              ],
               "mutations": [
                 {
                   "target": "amount",
@@ -1395,7 +1544,8 @@
                   "default": null,
                   "optional": false,
                   "pattern": null,
-                  "admits": null
+                  "admits": null,
+                  "relationship": null
                 }
               ],
               "givens": [
@@ -1412,7 +1562,9 @@
                   "canonical": "state == \"posted\""
                 }
               ],
-              "ensures": [],
+              "ensures": [
+
+              ],
               "mutations": [
                 {
                   "target": "narrative",
@@ -1435,7 +1587,9 @@
             {
               "name": "Reversed",
               "description": "Entries that were undone — the audit trail nobody wants to need.",
-              "attributes": [],
+              "attributes": [
+
+              ],
               "wheres": [
                 {
                   "field": "state",
@@ -1447,7 +1601,9 @@
               "limit": null
             }
           ],
-          "entities": [],
+          "entities": [
+
+          ],
           "preconditions": [
             {
               "description": "entry is posted",
@@ -1462,7 +1618,9 @@
               "canonical": "parent.status == \"open\""
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "lifecycle": {
             "field": "state",
             "default": "posted",
@@ -1485,7 +1643,9 @@
         {
           "name": "Open",
           "description": "Accounts that can transact today.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -1510,7 +1670,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -1539,7 +1700,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -1566,7 +1728,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -1593,7 +1756,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -1612,7 +1776,9 @@
         {
           "name": "Reachable",
           "description": "Accounts that still exist as far as a caller is concerned — anything short of closed.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -1629,7 +1795,9 @@
         {
           "name": "OpenForSuspendedCustomers",
           "description": "Open accounts whose customer has since been suspended — live money movement nobody should be approving right now.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -1659,7 +1827,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -1681,12 +1850,308 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": {
         "source": "HecksCanonical",
         "source_id": "aggregate:account",
         "source_version": "1.0"
       }
+    },
+    {
+      "name": "OnboardingCase",
+      "description": "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.",
+      "identified_by": [
+        "reference.value"
+      ],
+      "attributes": [
+        {
+          "name": "customer",
+          "type": "Reference<Customer>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "reference",
+          "type": "OnboardingReference",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "account_number",
+          "type": "AccountNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "OnboardingReference",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an onboarding case is referenced",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "AccountNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an account number is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "Branch clerk",
+          "goal": "Open a KYC case for a newly registered customer, naming the account it will become",
+          "references": null,
+          "attributes": [
+            {
+              "name": "customer",
+              "type": "Reference<Customer>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            },
+            {
+              "name": "reference",
+              "type": "OnboardingReference",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account_number",
+              "type": "AccountNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "customer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "customer"
+              }
+            },
+            {
+              "target": "reference",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "reference"
+              }
+            },
+            {
+              "target": "account_number",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account_number"
+              }
+            }
+          ],
+          "emits": [
+            "OnboardingOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Clear",
+          "role": "Compliance officer",
+          "goal": "Pass a customer's identity and screening checks",
+          "references": "OnboardingCase",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "case is screening",
+              "canonical": "status == \"screening\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "OnboardingCleared"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Decline",
+          "role": "Compliance officer",
+          "goal": "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone",
+          "references": "OnboardingCase",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "case is screening",
+              "canonical": "status == \"screening\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "OnboardingDeclined"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+        {
+          "description": "case is screening",
+          "canonical": "status == \"screening\""
+        },
+        {
+          "description": "customer is active",
+          "canonical": "customer.status == \"active\""
+        }
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "screening",
+        "transitions": [
+          {
+            "command": "Clear",
+            "to_state": "cleared",
+            "from_state": "screening"
+          },
+          {
+            "command": "Decline",
+            "to_state": "declined",
+            "from_state": "screening"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "Screening",
+          "description": "Cases still waiting on a compliance decision.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"screening\""
+            }
+          ],
+          "order_by": {
+            "field": "reference",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
     },
     {
       "name": "ATMCard",
@@ -1702,7 +2167,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "serial",
@@ -1711,7 +2177,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "nickname",
@@ -1720,7 +2187,8 @@
           "default": null,
           "optional": true,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "daily_fee",
@@ -1729,7 +2197,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "withdrawals",
@@ -1738,7 +2207,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -1752,7 +2222,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -1762,7 +2233,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "CardNickname",
@@ -1774,12 +2247,17 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "DailyFee",
@@ -1791,7 +2269,8 @@
               "default": 0.0,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -1801,7 +2280,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "WithdrawalSequence",
@@ -1813,7 +2294,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -1823,7 +2305,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "WithdrawalAmount",
@@ -1835,7 +2319,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -1845,7 +2330,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Narrative",
@@ -1857,7 +2344,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -1867,7 +2355,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -1884,7 +2374,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": "reference_to"
             },
             {
               "name": "serial",
@@ -1893,7 +2384,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "daily_fee",
@@ -1902,7 +2394,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -1915,8 +2408,19 @@
               "canonical": "account.status == \"open\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
+            {
+              "target": "account",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account"
+              }
+            },
             {
               "target": "serial",
               "op": "set",
@@ -1955,7 +2459,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -1968,7 +2473,9 @@
               "canonical": "[\"issued\", \"active\"].include?(status)"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "nickname",
@@ -1999,7 +2506,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -2008,7 +2516,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -2021,7 +2530,9 @@
               "canonical": "account.status == \"open\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "withdrawals",
@@ -2044,7 +2555,9 @@
           "role": "Customer",
           "goal": "Start using a card",
           "references": "ATMCard",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -2055,8 +2568,12 @@
               "canonical": "status == \"issued\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ATMCardActivated"
           ],
@@ -2068,7 +2585,9 @@
           "role": "Back office",
           "goal": "Take a card out of service",
           "references": "ATMCard",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -2079,8 +2598,12 @@
               "canonical": "[\"issued\", \"active\"].include?(status)"
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ATMCardRetired"
           ],
@@ -2088,7 +2611,9 @@
           "provenance": null
         }
       ],
-      "invariants": [],
+      "invariants": [
+
+      ],
       "preconditions": [
         {
           "description": "card is issued or active",
@@ -2103,7 +2628,9 @@
           "canonical": "account.customer.status == \"active\""
         }
       ],
-      "projected_fields": [],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "issued",
@@ -2140,7 +2667,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "cents",
@@ -2149,7 +2677,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -2158,7 +2687,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "commands": [
@@ -2175,7 +2705,8 @@
                   "default": null,
                   "optional": false,
                   "pattern": null,
-                  "admits": null
+                  "admits": null,
+                  "relationship": null
                 }
               ],
               "givens": [
@@ -2196,7 +2727,9 @@
                   "canonical": "state == \"taken\""
                 }
               ],
-              "ensures": [],
+              "ensures": [
+
+              ],
               "mutations": [
                 {
                   "target": "narrative",
@@ -2219,7 +2752,9 @@
             {
               "name": "Recent",
               "description": "The first two withdrawals still standing, whatever else was taken.",
-              "attributes": [],
+              "attributes": [
+
+              ],
               "wheres": [
                 {
                   "field": "state",
@@ -2233,9 +2768,15 @@
               }
             }
           ],
-          "entities": [],
-          "preconditions": [],
-          "invariants": [],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
           "lifecycle": {
             "field": "state",
             "default": "taken",
@@ -2253,7 +2794,9 @@
         {
           "name": "Active",
           "description": "Live cards in nickname order, unnamed ones last — real nicknames sort among themselves first.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -2273,7 +2816,9 @@
         {
           "name": "ByFee",
           "description": "Live cards by what they cost to hold, cheapest first — a fee is a Float, so the order is numeric and not alphabetical.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -2293,7 +2838,1832 @@
           }
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "CardPayment",
+      "description": "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute.",
+      "identified_by": [
+        "authorisation.value"
+      ],
+      "attributes": [
+        {
+          "name": "account",
+          "type": "Reference<Account>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "disputed_by",
+          "type": "Reference<Customer>",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "authorisation",
+          "type": "AuthorisationCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "amount",
+          "type": "PaymentAmount",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "merchant",
+          "type": "MerchantName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "tags",
+          "type": "Tag",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "AuthorisationCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "PaymentAmount",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a payment amount is positive",
+              "canonical": "cents.positive?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "MerchantName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a merchant name is present",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Tag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a tag is not the empty string",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Authorize",
+          "role": null,
+          "goal": null,
+          "references": null,
+          "attributes": [
+            {
+              "name": "authorisation",
+              "type": "AuthorisationCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "tags",
+              "type": "Tag",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account",
+              "type": "Reference<Account>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            },
+            {
+              "name": "amount",
+              "type": "PaymentAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "merchant",
+              "type": "MerchantName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "account",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account"
+              }
+            },
+            {
+              "target": "amount",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "amount"
+              }
+            },
+            {
+              "target": "merchant",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "merchant"
+              }
+            },
+            {
+              "target": "tags",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "tags"
+              }
+            }
+          ],
+          "emits": [
+            "CardAuthorized"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Capture",
+          "role": null,
+          "goal": null,
+          "references": "CardPayment",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is authorized",
+              "canonical": "status == \"authorized\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "CardCaptured"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Void",
+          "role": null,
+          "goal": null,
+          "references": "CardPayment",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is authorized",
+              "canonical": "status == \"authorized\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "CardVoided"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Refund",
+          "role": null,
+          "goal": null,
+          "references": "CardPayment",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is captured",
+              "canonical": "status == \"captured\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "CardRefunded"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Reverse",
+          "role": null,
+          "goal": null,
+          "references": "CardPayment",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is captured",
+              "canonical": "status == \"captured\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "CardReversed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Dispute",
+          "role": "Customer",
+          "goal": "Challenge a payment that already settled",
+          "references": "CardPayment",
+          "attributes": [
+            {
+              "name": "disputed_by",
+              "type": "Reference<Customer>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "customer is active",
+              "canonical": "disputed_by.status == \"active\""
+            },
+            {
+              "description": "payment is captured or refunded",
+              "canonical": "[\"captured\", \"refunded\"].include?(status)"
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "disputed_by",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "disputed_by"
+              }
+            }
+          ],
+          "emits": [
+            "CardDisputed"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Chargeback",
+          "role": null,
+          "goal": null,
+          "references": "CardPayment",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is disputed",
+              "canonical": "status == \"disputed\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "CardChargedBack"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "RejectDispute",
+          "role": null,
+          "goal": null,
+          "references": "CardPayment",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            },
+            {
+              "description": "payment is disputed",
+              "canonical": "status == \"disputed\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "CardDisputeRejected"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+        {
+          "description": "payment is disputed",
+          "canonical": "status == \"disputed\""
+        },
+        {
+          "description": "payment is captured",
+          "canonical": "status == \"captured\""
+        },
+        {
+          "description": "payment is authorized",
+          "canonical": "status == \"authorized\""
+        },
+        {
+          "description": "account is open",
+          "canonical": "account.status == \"open\""
+        },
+        {
+          "description": "customer is active",
+          "canonical": "account.customer.status == \"active\""
+        }
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "authorized",
+        "transitions": [
+          {
+            "command": "Capture",
+            "to_state": "captured",
+            "from_state": "authorized"
+          },
+          {
+            "command": "Void",
+            "to_state": "voided",
+            "from_state": "authorized"
+          },
+          {
+            "command": "Refund",
+            "to_state": "refunded",
+            "from_state": "captured"
+          },
+          {
+            "command": "Reverse",
+            "to_state": "reversed",
+            "from_state": "captured"
+          },
+          {
+            "command": "Dispute",
+            "to_state": "disputed",
+            "from_state": "captured"
+          },
+          {
+            "command": "Dispute",
+            "to_state": "disputed",
+            "from_state": "refunded"
+          },
+          {
+            "command": "Chargeback",
+            "to_state": "charged_back",
+            "from_state": "disputed"
+          },
+          {
+            "command": "RejectDispute",
+            "to_state": "captured",
+            "from_state": "disputed"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "Pending",
+          "description": null,
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"authorized\""
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        },
+        {
+          "name": "Disputed",
+          "description": null,
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"disputed\""
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        },
+        {
+          "name": "Flagged",
+          "description": "Charges carrying a risk tag, for the fraud queue.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "tags",
+              "op": "contains",
+              "value": "\"high_risk\""
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "SafeDepositBox",
+      "description": "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face.",
+      "identified_by": [
+        "branch_code.value",
+        "box_number.value"
+      ],
+      "attributes": [
+        {
+          "name": "customer",
+          "type": "Reference<Customer>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "belongs_to"
+        },
+        {
+          "name": "branch_code",
+          "type": "BranchCode",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "box_number",
+          "type": "BoxNumber",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "size",
+          "type": "Size",
+          "list": false,
+          "default": {
+            "value": "small"
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "visits",
+          "type": "Visit",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "keys",
+          "type": "KeyIssuance",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "BranchCode",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a branch is coded",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "BoxNumber",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a box is numbered from one",
+              "canonical": "value.positive?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VisitSequence",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a visit sequence is positive",
+              "canonical": "value.positive?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VisitDate",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a visit names its date",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VisitNote",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "KeySerial",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a key is serialed",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Size",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "value",
+                "small"
+              ]
+            ],
+            [
+              [
+                "value",
+                "medium"
+              ]
+            ],
+            [
+              [
+                "value",
+                "large"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Rent",
+          "role": "Branch clerk",
+          "goal": "Assign the box to a customer",
+          "references": null,
+          "attributes": [
+            {
+              "name": "customer",
+              "type": "CustomerNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "branch_code",
+              "type": "BranchCode",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "box_number",
+              "type": "BoxNumber",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "size",
+              "type": "Size",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "box is vacant",
+              "canonical": "status == \"vacant\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "customer",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "customer"
+              }
+            },
+            {
+              "target": "branch_code",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "branch_code"
+              }
+            },
+            {
+              "target": "box_number",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "box_number"
+              }
+            },
+            {
+              "target": "size",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "size"
+              }
+            }
+          ],
+          "emits": [
+            "BoxRented"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "Surrender",
+          "role": "Customer",
+          "goal": "Give the box back and take the keys off the account",
+          "references": "SafeDepositBox",
+          "attributes": [
+
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "only a rented box is surrendered",
+              "canonical": "status == \"rented\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "BoxSurrendered",
+            "KeyReturnDue"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "LogVisit",
+          "role": "Vault officer",
+          "goal": "Record that the box was opened",
+          "references": "SafeDepositBox",
+          "attributes": [
+            {
+              "name": "date",
+              "type": "VisitDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sequence",
+              "type": "VisitSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "note",
+              "type": "VisitNote",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "only a rented box is opened",
+              "canonical": "status == \"rented\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "visits",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "date": ":date",
+                "sequence": ":sequence",
+                "note": ":note"
+              }
+            }
+          ],
+          "emits": [
+            "BoxOpened"
+          ],
+          "from": null,
+          "provenance": null
+        },
+        {
+          "name": "IssueKey",
+          "role": "Vault officer",
+          "goal": "Cut a key for the box",
+          "references": "SafeDepositBox",
+          "attributes": [
+            {
+              "name": "serial",
+              "type": "KeySerial",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "customer.status == \"active\""
+            },
+            {
+              "description": "box is rented",
+              "canonical": "status == \"rented\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "keys",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "serial": ":serial"
+              }
+            }
+          ],
+          "emits": [
+            "KeyIssued"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+        {
+          "description": "customer is active",
+          "canonical": "customer.status == \"active\""
+        }
+      ],
+      "projected_fields": [
+        {
+          "name": "customer_status",
+          "reference": "customer",
+          "remote_field": "status"
+        }
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "vacant",
+        "transitions": [
+          {
+            "command": "Rent",
+            "to_state": "rented",
+            "from_state": "vacant"
+          },
+          {
+            "command": "Surrender",
+            "to_state": "vacant",
+            "from_state": "rented"
+          }
+        ]
+      },
+      "entities": [
+        {
+          "name": "Visit",
+          "description": "One opening of the box, in the order it happened that day.",
+          "identified_by": [
+            "date.value",
+            "sequence.value"
+          ],
+          "attributes": [
+            {
+              "name": "date",
+              "type": "VisitDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "sequence",
+              "type": "VisitSequence",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "note",
+              "type": "VisitNote",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Annotate",
+              "role": "Vault officer",
+              "goal": "Note something unusual about a visit after the fact",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "note",
+                  "type": "VisitNote",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+                {
+                  "description": "customer is active",
+                  "canonical": "parent.customer.status == \"active\""
+                },
+                {
+                  "description": "box is rented",
+                  "canonical": "parent.status == \"rented\""
+                },
+                {
+                  "description": "visit is logged",
+                  "canonical": "state == \"logged\""
+                }
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "note",
+                  "op": "set",
+                  "sign": "",
+                  "source": {
+                    "kind": "argument",
+                    "name": "note"
+                  }
+                }
+              ],
+              "emits": [
+                "VisitAnnotated"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+            {
+              "name": "Recent",
+              "description": "The last few visits, whatever the box has seen.",
+              "attributes": [
+
+              ],
+              "wheres": [
+                {
+                  "field": "state",
+                  "op": "eq",
+                  "value": "\"logged\""
+                }
+              ],
+              "order_by": null,
+              "limit": {
+                "value": "5"
+              }
+            }
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+            {
+              "description": "customer is active",
+              "canonical": "parent.customer.status == \"active\""
+            },
+            {
+              "description": "box is rented",
+              "canonical": "parent.status == \"rented\""
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a written note is not blank",
+              "canonical": "!note || !note.text.to_s.empty?"
+            }
+          ],
+          "lifecycle": {
+            "field": "state",
+            "default": "logged",
+            "transitions": [
+              {
+                "command": "Annotate",
+                "to_state": "logged",
+                "from_state": "logged"
+              }
+            ]
+          }
+        },
+        {
+          "name": "KeyIssuance",
+          "description": "One key cut for the box, held by whoever last signed for it.",
+          "identified_by": [
+            "serial.value"
+          ],
+          "attributes": [
+            {
+              "name": "serial",
+              "type": "KeySerial",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Return",
+              "role": "Vault officer",
+              "goal": "Take a key back when a holder is done with it",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "serial",
+                  "type": "KeySerial",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+                {
+                  "description": "customer is active",
+                  "canonical": "parent.customer.status == \"active\""
+                },
+                {
+                  "description": "box is rented",
+                  "canonical": "parent.status == \"rented\""
+                },
+                {
+                  "description": "only an issued key is returned",
+                  "canonical": "status == \"issued\""
+                }
+              ],
+              "ensures": [
+
+              ],
+              "mutations": [
+
+              ],
+              "emits": [
+                "KeyReturned"
+              ],
+              "from": null,
+              "provenance": null
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": {
+            "field": "status",
+            "default": "issued",
+            "transitions": [
+              {
+                "command": "Return",
+                "to_state": "returned",
+                "from_state": "issued"
+              }
+            ]
+          }
+        }
+      ],
+      "queries": [
+        {
+          "name": "Rented",
+          "description": "Boxes currently assigned to a customer, for the annual access audit.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"rented\""
+            }
+          ],
+          "order_by": {
+            "field": "branch_code",
+            "direction": "asc"
+          },
+          "limit": null,
+          "authorization": {
+            "policy": "vault_access",
+            "tenant": "branch_code"
+          }
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    },
+    {
+      "name": "Statement",
+      "description": "A snapshot of one account's activity over one period, generated once and never revised.",
+      "identified_by": [
+        "account",
+        "period.value"
+      ],
+      "attributes": [
+        {
+          "name": "account",
+          "type": "Reference<Account>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "period",
+          "type": "StatementPeriod",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "opening_balance",
+          "type": "StatementAmount",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "closing_balance",
+          "type": "StatementAmount",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "generated_on",
+          "type": "StatementDate",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "frequency",
+          "type": "StatementFrequency",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "StatementPeriod",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a statement names its period",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "StatementAmount",
+          "attributes": [
+            {
+              "name": "cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "StatementDate",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a statement is dated",
+              "canonical": "!value.to_s.empty?"
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "StatementFrequency",
+          "attributes": [
+            {
+              "name": "cadence",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "retention_months",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "paper_fee_cents",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "cadence",
+                "monthly"
+              ],
+              [
+                "retention_months",
+                "84"
+              ],
+              [
+                "paper_fee_cents",
+                "0"
+              ]
+            ],
+            [
+              [
+                "cadence",
+                "quarterly"
+              ],
+              [
+                "retention_months",
+                "120"
+              ],
+              [
+                "paper_fee_cents",
+                "0"
+              ]
+            ],
+            [
+              [
+                "cadence",
+                "annual"
+              ],
+              [
+                "retention_months",
+                "240"
+              ],
+              [
+                "paper_fee_cents",
+                "500"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Generate",
+          "role": "System",
+          "goal": "Close out one period's activity into a permanent record",
+          "references": null,
+          "attributes": [
+            {
+              "name": "period",
+              "type": "StatementPeriod",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "opening_balance",
+              "type": "StatementAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "closing_balance",
+              "type": "StatementAmount",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "generated_on",
+              "type": "StatementDate",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "frequency",
+              "type": "StatementFrequency",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account",
+              "type": "Reference<Account>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            }
+          ],
+          "givens": [
+            {
+              "description": "customer is active",
+              "canonical": "account.customer.status == \"active\""
+            },
+            {
+              "description": "account is open",
+              "canonical": "account.status == \"open\""
+            }
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+            {
+              "target": "account",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account"
+              }
+            }
+          ],
+          "emits": [
+            "StatementGenerated"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+        {
+          "description": "account is open",
+          "canonical": "account.status == \"open\""
+        },
+        {
+          "description": "customer is active",
+          "canonical": "account.customer.status == \"active\""
+        }
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -2310,7 +4680,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "destination",
@@ -2319,7 +4690,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "reference",
@@ -2328,7 +4700,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "amount",
@@ -2337,7 +4710,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "narrative",
@@ -2346,7 +4720,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -2360,7 +4735,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -2370,7 +4746,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "TransferMoney",
@@ -2382,7 +4760,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -2392,7 +4771,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Narrative",
@@ -2404,7 +4785,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -2414,7 +4796,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -2425,31 +4809,14 @@
           "references": null,
           "attributes": [
             {
-              "name": "source",
-              "type": "Reference<Account>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "destination",
-              "type": "Reference<Account>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
               "name": "reference",
               "type": "TransferReference",
               "list": false,
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "amount",
@@ -2458,7 +4825,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "narrative",
@@ -2467,7 +4835,28 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "source",
+              "type": "Reference<Account>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
+            },
+            {
+              "name": "destination",
+              "type": "Reference<Account>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
             }
           ],
           "givens": [
@@ -2492,7 +4881,9 @@
               "canonical": "source != destination"
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "amount",
@@ -2542,7 +4933,9 @@
           "role": "System",
           "goal": "Record that the source account has given up the money",
           "references": "Transfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "source customer is active",
@@ -2557,8 +4950,12 @@
               "canonical": "status == \"requested\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "TransferDebited"
           ],
@@ -2570,7 +4967,9 @@
           "role": "System",
           "goal": "Record that the destination has received it",
           "references": "Transfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "destination customer is active",
@@ -2585,8 +4984,12 @@
               "canonical": "status == \"credited\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "TransferSettled"
           ],
@@ -2598,7 +5001,9 @@
           "role": "System",
           "goal": "Record that the destination credit committed",
           "references": "Transfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "destination customer is active",
@@ -2613,8 +5018,12 @@
               "canonical": "status == \"debited\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "TransferCredited"
           ],
@@ -2626,7 +5035,9 @@
           "role": "System",
           "goal": "Put the money back when the credit could not be made",
           "references": "Transfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "source customer is active",
@@ -2641,8 +5052,12 @@
               "canonical": "status == \"debited\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "TransferReversed"
           ],
@@ -2654,7 +5069,9 @@
           "role": "System",
           "goal": "Refuse a transfer before any money moved",
           "references": "Transfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "source customer is active",
@@ -2669,8 +5086,12 @@
               "canonical": "source.status == \"open\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "TransferRejected"
           ],
@@ -2678,7 +5099,9 @@
           "provenance": null
         }
       ],
-      "invariants": [],
+      "invariants": [
+
+      ],
       "preconditions": [
         {
           "description": "transfer is debited",
@@ -2748,12 +5171,16 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "InFlight",
           "description": "Transfers that have left one account and not arrived at the other. The list that must always empty.",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -2768,588 +5195,9 @@
           "limit": null
         }
       ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "CardPayment",
-      "description": "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute.",
-      "identified_by": [
-        "authorisation.value"
+      "ports": [
+
       ],
-      "attributes": [
-        {
-          "name": "account",
-          "type": "Reference<Account>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "disputed_by",
-          "type": "Reference<Customer>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "authorisation",
-          "type": "AuthorisationCode",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "amount",
-          "type": "PaymentAmount",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "merchant",
-          "type": "MerchantName",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "tags",
-          "type": "Tag",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
-        {
-          "name": "AuthorisationCode",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "PaymentAmount",
-          "attributes": [
-            {
-              "name": "cents",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a payment amount is positive",
-              "canonical": "cents.positive?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "MerchantName",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a merchant name is present",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "Tag",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a tag is not the empty string",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        }
-      ],
-      "commands": [
-        {
-          "name": "Authorize",
-          "role": null,
-          "goal": null,
-          "references": null,
-          "attributes": [
-            {
-              "name": "account",
-              "type": "Reference<Account>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "authorisation",
-              "type": "AuthorisationCode",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "tags",
-              "type": "Tag",
-              "list": true,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "amount",
-              "type": "PaymentAmount",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "merchant",
-              "type": "MerchantName",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "amount",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "amount"
-              }
-            },
-            {
-              "target": "merchant",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "merchant"
-              }
-            },
-            {
-              "target": "tags",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "tags"
-              }
-            }
-          ],
-          "emits": [
-            "CardAuthorized"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Capture",
-          "role": null,
-          "goal": null,
-          "references": "CardPayment",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is authorized",
-              "canonical": "status == \"authorized\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "CardCaptured"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Void",
-          "role": null,
-          "goal": null,
-          "references": "CardPayment",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is authorized",
-              "canonical": "status == \"authorized\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "CardVoided"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Refund",
-          "role": null,
-          "goal": null,
-          "references": "CardPayment",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is captured",
-              "canonical": "status == \"captured\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "CardRefunded"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Reverse",
-          "role": null,
-          "goal": null,
-          "references": "CardPayment",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is captured",
-              "canonical": "status == \"captured\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "CardReversed"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Dispute",
-          "role": "Customer",
-          "goal": "Challenge a payment that already settled",
-          "references": "CardPayment",
-          "attributes": [
-            {
-              "name": "disputed_by",
-              "type": "Reference<Customer>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "customer is active",
-              "canonical": "disputed_by.status == \"active\""
-            },
-            {
-              "description": "payment is captured or refunded",
-              "canonical": "[\"captured\", \"refunded\"].include?(status)"
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "disputed_by",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "disputed_by"
-              }
-            }
-          ],
-          "emits": [
-            "CardDisputed"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Chargeback",
-          "role": null,
-          "goal": null,
-          "references": "CardPayment",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is disputed",
-              "canonical": "status == \"disputed\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "CardChargedBack"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "RejectDispute",
-          "role": null,
-          "goal": null,
-          "references": "CardPayment",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            },
-            {
-              "description": "payment is disputed",
-              "canonical": "status == \"disputed\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "CardDisputeRejected"
-          ],
-          "from": null,
-          "provenance": null
-        }
-      ],
-      "invariants": [],
-      "preconditions": [
-        {
-          "description": "payment is disputed",
-          "canonical": "status == \"disputed\""
-        },
-        {
-          "description": "payment is captured",
-          "canonical": "status == \"captured\""
-        },
-        {
-          "description": "payment is authorized",
-          "canonical": "status == \"authorized\""
-        },
-        {
-          "description": "account is open",
-          "canonical": "account.status == \"open\""
-        },
-        {
-          "description": "customer is active",
-          "canonical": "account.customer.status == \"active\""
-        }
-      ],
-      "projected_fields": [],
-      "lifecycle": {
-        "field": "status",
-        "default": "authorized",
-        "transitions": [
-          {
-            "command": "Capture",
-            "to_state": "captured",
-            "from_state": "authorized"
-          },
-          {
-            "command": "Void",
-            "to_state": "voided",
-            "from_state": "authorized"
-          },
-          {
-            "command": "Refund",
-            "to_state": "refunded",
-            "from_state": "captured"
-          },
-          {
-            "command": "Reverse",
-            "to_state": "reversed",
-            "from_state": "captured"
-          },
-          {
-            "command": "Dispute",
-            "to_state": "disputed",
-            "from_state": "captured"
-          },
-          {
-            "command": "Dispute",
-            "to_state": "disputed",
-            "from_state": "refunded"
-          },
-          {
-            "command": "Chargeback",
-            "to_state": "charged_back",
-            "from_state": "disputed"
-          },
-          {
-            "command": "RejectDispute",
-            "to_state": "captured",
-            "from_state": "disputed"
-          }
-        ]
-      },
-      "entities": [],
-      "queries": [
-        {
-          "name": "Pending",
-          "description": null,
-          "attributes": [],
-          "wheres": [
-            {
-              "field": "status",
-              "op": "eq",
-              "value": "\"authorized\""
-            }
-          ],
-          "order_by": null,
-          "limit": null
-        },
-        {
-          "name": "Disputed",
-          "description": null,
-          "attributes": [],
-          "wheres": [
-            {
-              "field": "status",
-              "op": "eq",
-              "value": "\"disputed\""
-            }
-          ],
-          "order_by": null,
-          "limit": null
-        },
-        {
-          "name": "Flagged",
-          "description": "Charges carrying a risk tag, for the fraud queue.",
-          "attributes": [],
-          "wheres": [
-            {
-              "field": "tags",
-              "op": "contains",
-              "value": "\"high_risk\""
-            }
-          ],
-          "order_by": null,
-          "limit": null
-        }
-      ],
-      "ports": [],
       "provenance": null
     },
     {
@@ -3366,7 +5214,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "end_to_end",
@@ -3375,7 +5224,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "amount",
@@ -3384,7 +5234,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "beneficiary",
@@ -3393,7 +5244,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "direction",
@@ -3402,7 +5254,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": "Account::LedgerDirection"
+          "admits": "Account::LedgerDirection",
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -3416,12 +5269,17 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "MovementDirection",
@@ -3433,12 +5291,17 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "ExternalAmount",
@@ -3450,7 +5313,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3460,7 +5324,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "BeneficiaryName",
@@ -3472,7 +5338,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3482,7 +5349,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -3493,22 +5362,24 @@
           "references": null,
           "attributes": [
             {
-              "name": "account",
-              "type": "Reference<Account>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
               "name": "end_to_end",
               "type": "EndToEndReference",
               "list": false,
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account",
+              "type": "Reference<Account>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
             },
             {
               "name": "amount",
@@ -3517,7 +5388,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "beneficiary",
@@ -3526,7 +5398,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "direction",
@@ -3535,7 +5408,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": "Account::LedgerDirection"
+              "admits": "Account::LedgerDirection",
+              "relationship": null
             }
           ],
           "givens": [
@@ -3548,8 +5422,19 @@
               "canonical": "account.status == \"open\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
+            {
+              "target": "account",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account"
+              }
+            },
             {
               "target": "amount",
               "op": "set",
@@ -3589,7 +5474,9 @@
           "role": null,
           "goal": null,
           "references": "ExternalTransfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -3604,8 +5491,12 @@
               "canonical": "status == \"requested\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ExternalTransferSent"
           ],
@@ -3617,7 +5508,9 @@
           "role": null,
           "goal": null,
           "references": "ExternalTransfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -3632,8 +5525,12 @@
               "canonical": "account.status == \"open\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ExternalTransferRecalled"
           ],
@@ -3645,7 +5542,9 @@
           "role": null,
           "goal": null,
           "references": "ExternalTransfer",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -3660,8 +5559,12 @@
               "canonical": "account.status == \"open\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ExternalTransferReturned"
           ],
@@ -3669,7 +5572,9 @@
           "provenance": null
         }
       ],
-      "invariants": [],
+      "invariants": [
+
+      ],
       "preconditions": [
         {
           "description": "transfer is sent",
@@ -3688,7 +5593,9 @@
           "canonical": "status == \"requested\""
         }
       ],
-      "projected_fields": [],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "requested",
@@ -3710,12 +5617,16 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Sent",
           "description": null,
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -3727,7 +5638,9 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -3744,7 +5657,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": "reference_to"
         },
         {
           "name": "amount",
@@ -3753,7 +5667,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "instruction",
@@ -3762,7 +5677,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "recipient",
@@ -3771,7 +5687,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "due_on",
@@ -3780,7 +5697,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "attempts",
@@ -3789,7 +5707,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "max_attempts",
@@ -3798,7 +5717,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -3812,12 +5732,17 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "invariants": [],
+          "invariants": [
+
+          ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "ScheduledAmount",
@@ -3829,7 +5754,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3839,7 +5765,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "PaymentRecipient",
@@ -3851,7 +5779,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3861,7 +5790,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "PaymentDueDate",
@@ -3873,7 +5804,8 @@
               "default": null,
               "optional": false,
               "pattern": "[^ \\t\\n\\r]",
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3883,7 +5815,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "RetryCount",
@@ -3895,7 +5829,8 @@
               "default": 0,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3905,7 +5840,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "RetryLimit",
@@ -3917,7 +5854,8 @@
               "default": 3,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -3927,7 +5865,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -3938,22 +5878,24 @@
           "references": null,
           "attributes": [
             {
-              "name": "account",
-              "type": "Reference<Account>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
               "name": "instruction",
               "type": "InstructionReference",
               "list": false,
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "account",
+              "type": "Reference<Account>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": "reference_to"
             },
             {
               "name": "amount",
@@ -3962,7 +5904,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "recipient",
@@ -3971,7 +5914,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "due_on",
@@ -3980,7 +5924,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "givens": [
@@ -3993,8 +5938,19 @@
               "canonical": "account.status == \"open\""
             }
           ],
-          "ensures": [],
+          "ensures": [
+
+          ],
           "mutations": [
+            {
+              "target": "account",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "account"
+              }
+            },
             {
               "target": "amount",
               "op": "set",
@@ -4034,7 +5990,9 @@
           "role": null,
           "goal": null,
           "references": "ScheduledPayment",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -4049,8 +6007,12 @@
               "canonical": "status == \"scheduled\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ScheduledPaymentExecuted"
           ],
@@ -4062,7 +6024,9 @@
           "role": null,
           "goal": null,
           "references": "ScheduledPayment",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -4077,8 +6041,12 @@
               "canonical": "status == \"scheduled\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ScheduledPaymentCancelled"
           ],
@@ -4090,7 +6058,9 @@
           "role": "System",
           "goal": "Record that today's presentment could not be collected",
           "references": "ScheduledPayment",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -4105,8 +6075,12 @@
               "canonical": "status == \"scheduled\""
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ScheduledPaymentFailed"
           ],
@@ -4118,7 +6092,9 @@
           "role": "System",
           "goal": "Re-present a failed payment, up to the limit the schedule names",
           "references": "ScheduledPayment",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -4167,7 +6143,9 @@
           "role": "Back office",
           "goal": "Give up on a payment that could not be collected after every retry",
           "references": "ScheduledPayment",
-          "attributes": [],
+          "attributes": [
+
+          ],
           "givens": [
             {
               "description": "customer is active",
@@ -4186,8 +6164,12 @@
               "canonical": "attempts.value >= max_attempts.value"
             }
           ],
-          "ensures": [],
-          "mutations": [],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "ScheduledPaymentAbandoned"
           ],
@@ -4195,7 +6177,9 @@
           "provenance": null
         }
       ],
-      "invariants": [],
+      "invariants": [
+
+      ],
       "preconditions": [
         {
           "description": "payment is failed",
@@ -4214,7 +6198,9 @@
           "canonical": "account.customer.status == \"active\""
         }
       ],
-      "projected_fields": [],
+      "projected_fields": [
+
+      ],
       "lifecycle": {
         "field": "status",
         "default": "scheduled",
@@ -4246,12 +6232,16 @@
           }
         ]
       },
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Due",
           "description": null,
-          "attributes": [],
+          "attributes": [
+
+          ],
           "wheres": [
             {
               "field": "status",
@@ -4266,1275 +6256,9 @@
           "limit": null
         }
       ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "SafeDepositBox",
-      "description": "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face.",
-      "identified_by": [
-        "branch_code.value",
-        "box_number.value"
+      "ports": [
+
       ],
-      "attributes": [
-        {
-          "name": "customer",
-          "type": "Reference<Customer>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "branch_code",
-          "type": "BranchCode",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "box_number",
-          "type": "BoxNumber",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "size",
-          "type": "Size",
-          "list": false,
-          "default": {
-            "value": "small"
-          },
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "visits",
-          "type": "Visit",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "keys",
-          "type": "KeyIssuance",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
-        {
-          "name": "BranchCode",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a branch is coded",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "BoxNumber",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a box is numbered from one",
-              "canonical": "value.positive?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "VisitSequence",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a visit sequence is positive",
-              "canonical": "value.positive?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "VisitDate",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a visit names its date",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "VisitNote",
-          "attributes": [
-            {
-              "name": "text",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "KeySerial",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a key is serialed",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "Size",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": true,
-          "members": [
-            [
-              [
-                "value",
-                "small"
-              ]
-            ],
-            [
-              [
-                "value",
-                "medium"
-              ]
-            ],
-            [
-              [
-                "value",
-                "large"
-              ]
-            ]
-          ]
-        }
-      ],
-      "commands": [
-        {
-          "name": "Rent",
-          "role": "Branch clerk",
-          "goal": "Assign the box to a customer",
-          "references": null,
-          "attributes": [
-            {
-              "name": "customer",
-              "type": "Reference<Customer>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "branch_code",
-              "type": "BranchCode",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "box_number",
-              "type": "BoxNumber",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "size",
-              "type": "Size",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "box is vacant",
-              "canonical": "status == \"vacant\""
-            },
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "size",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "size"
-              }
-            }
-          ],
-          "emits": [
-            "BoxRented"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Surrender",
-          "role": "Customer",
-          "goal": "Give the box back and take the keys off the account",
-          "references": "SafeDepositBox",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "only a rented box is surrendered",
-              "canonical": "status == \"rented\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "BoxSurrendered",
-            "KeyReturnDue"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "LogVisit",
-          "role": "Vault officer",
-          "goal": "Record that the box was opened",
-          "references": "SafeDepositBox",
-          "attributes": [
-            {
-              "name": "date",
-              "type": "VisitDate",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "sequence",
-              "type": "VisitSequence",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "note",
-              "type": "VisitNote",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "only a rented box is opened",
-              "canonical": "status == \"rented\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "visits",
-              "op": "append",
-              "sign": "",
-              "fields": {
-                "date": ":date",
-                "sequence": ":sequence",
-                "note": ":note"
-              }
-            }
-          ],
-          "emits": [
-            "BoxOpened"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "IssueKey",
-          "role": "Vault officer",
-          "goal": "Cut a key for the box",
-          "references": "SafeDepositBox",
-          "attributes": [
-            {
-              "name": "serial",
-              "type": "KeySerial",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "box is rented",
-              "canonical": "status == \"rented\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "keys",
-              "op": "append",
-              "sign": "",
-              "fields": {
-                "serial": ":serial"
-              }
-            }
-          ],
-          "emits": [
-            "KeyIssued"
-          ],
-          "from": null,
-          "provenance": null
-        }
-      ],
-      "invariants": [],
-      "preconditions": [
-        {
-          "description": "customer is active",
-          "canonical": "customer.status == \"active\""
-        }
-      ],
-      "projected_fields": [
-        {
-          "name": "customer_status",
-          "reference": "customer",
-          "remote_field": "status"
-        }
-      ],
-      "lifecycle": {
-        "field": "status",
-        "default": "vacant",
-        "transitions": [
-          {
-            "command": "Rent",
-            "to_state": "rented",
-            "from_state": "vacant"
-          },
-          {
-            "command": "Surrender",
-            "to_state": "vacant",
-            "from_state": "rented"
-          }
-        ]
-      },
-      "entities": [
-        {
-          "name": "Visit",
-          "description": "One opening of the box, in the order it happened that day.",
-          "identified_by": [
-            "date.value",
-            "sequence.value"
-          ],
-          "attributes": [
-            {
-              "name": "date",
-              "type": "VisitDate",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "sequence",
-              "type": "VisitSequence",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "note",
-              "type": "VisitNote",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "commands": [
-            {
-              "name": "Annotate",
-              "role": "Vault officer",
-              "goal": "Note something unusual about a visit after the fact",
-              "references": null,
-              "attributes": [
-                {
-                  "name": "date",
-                  "type": "VisitDate",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null
-                },
-                {
-                  "name": "sequence",
-                  "type": "VisitSequence",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null
-                },
-                {
-                  "name": "note",
-                  "type": "VisitNote",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null
-                }
-              ],
-              "givens": [
-                {
-                  "description": "customer is active",
-                  "canonical": "parent.customer.status == \"active\""
-                },
-                {
-                  "description": "box is rented",
-                  "canonical": "parent.status == \"rented\""
-                },
-                {
-                  "description": "visit is logged",
-                  "canonical": "state == \"logged\""
-                }
-              ],
-              "ensures": [],
-              "mutations": [
-                {
-                  "target": "note",
-                  "op": "set",
-                  "sign": "",
-                  "source": {
-                    "kind": "argument",
-                    "name": "note"
-                  }
-                }
-              ],
-              "emits": [
-                "VisitAnnotated"
-              ],
-              "from": null,
-              "provenance": null
-            }
-          ],
-          "queries": [
-            {
-              "name": "Recent",
-              "description": "The last few visits, whatever the box has seen.",
-              "attributes": [],
-              "wheres": [
-                {
-                  "field": "state",
-                  "op": "eq",
-                  "value": "\"logged\""
-                }
-              ],
-              "order_by": null,
-              "limit": {
-                "value": "5"
-              }
-            }
-          ],
-          "entities": [],
-          "preconditions": [
-            {
-              "description": "customer is active",
-              "canonical": "parent.customer.status == \"active\""
-            },
-            {
-              "description": "box is rented",
-              "canonical": "parent.status == \"rented\""
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a written note is not blank",
-              "canonical": "!note || !note.text.to_s.empty?"
-            }
-          ],
-          "lifecycle": {
-            "field": "state",
-            "default": "logged",
-            "transitions": [
-              {
-                "command": "Annotate",
-                "to_state": "logged",
-                "from_state": "logged"
-              }
-            ]
-          }
-        },
-        {
-          "name": "KeyIssuance",
-          "description": "One key cut for the box, held by whoever last signed for it.",
-          "identified_by": [
-            "serial.value"
-          ],
-          "attributes": [
-            {
-              "name": "serial",
-              "type": "KeySerial",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "commands": [
-            {
-              "name": "Return",
-              "role": "Vault officer",
-              "goal": "Take a key back when a holder is done with it",
-              "references": null,
-              "attributes": [
-                {
-                  "name": "serial",
-                  "type": "KeySerial",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null
-                }
-              ],
-              "givens": [
-                {
-                  "description": "customer is active",
-                  "canonical": "parent.customer.status == \"active\""
-                },
-                {
-                  "description": "box is rented",
-                  "canonical": "parent.status == \"rented\""
-                },
-                {
-                  "description": "only an issued key is returned",
-                  "canonical": "status == \"issued\""
-                }
-              ],
-              "ensures": [],
-              "mutations": [],
-              "emits": [
-                "KeyReturned"
-              ],
-              "from": null,
-              "provenance": null
-            }
-          ],
-          "queries": [],
-          "entities": [],
-          "preconditions": [],
-          "invariants": [],
-          "lifecycle": {
-            "field": "status",
-            "default": "issued",
-            "transitions": [
-              {
-                "command": "Return",
-                "to_state": "returned",
-                "from_state": "issued"
-              }
-            ]
-          }
-        }
-      ],
-      "queries": [
-        {
-          "name": "Rented",
-          "description": "Boxes currently assigned to a customer, for the annual access audit.",
-          "attributes": [],
-          "wheres": [
-            {
-              "field": "status",
-              "op": "eq",
-              "value": "\"rented\""
-            }
-          ],
-          "order_by": {
-            "field": "branch_code",
-            "direction": "asc"
-          },
-          "limit": null,
-          "authorization": {
-            "policy": "vault_access",
-            "tenant": "branch_code"
-          }
-        }
-      ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "OnboardingCase",
-      "description": "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.",
-      "identified_by": [
-        "reference.value"
-      ],
-      "attributes": [
-        {
-          "name": "customer",
-          "type": "Reference<Customer>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "reference",
-          "type": "OnboardingReference",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "account_number",
-          "type": "AccountNumber",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
-        {
-          "name": "OnboardingReference",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "an onboarding case is referenced",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "AccountNumber",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "an account number is present",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        }
-      ],
-      "commands": [
-        {
-          "name": "Open",
-          "role": "Branch clerk",
-          "goal": "Open a KYC case for a newly registered customer, naming the account it will become",
-          "references": null,
-          "attributes": [
-            {
-              "name": "customer",
-              "type": "Reference<Customer>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "reference",
-              "type": "OnboardingReference",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "account_number",
-              "type": "AccountNumber",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [
-            {
-              "target": "reference",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "reference"
-              }
-            },
-            {
-              "target": "account_number",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "account_number"
-              }
-            }
-          ],
-          "emits": [
-            "OnboardingOpened"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Clear",
-          "role": "Compliance officer",
-          "goal": "Pass a customer's identity and screening checks",
-          "references": "OnboardingCase",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "case is screening",
-              "canonical": "status == \"screening\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "OnboardingCleared"
-          ],
-          "from": null,
-          "provenance": null
-        },
-        {
-          "name": "Decline",
-          "role": "Compliance officer",
-          "goal": "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone",
-          "references": "OnboardingCase",
-          "attributes": [],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "customer.status == \"active\""
-            },
-            {
-              "description": "case is screening",
-              "canonical": "status == \"screening\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "OnboardingDeclined"
-          ],
-          "from": null,
-          "provenance": null
-        }
-      ],
-      "invariants": [],
-      "preconditions": [
-        {
-          "description": "case is screening",
-          "canonical": "status == \"screening\""
-        },
-        {
-          "description": "customer is active",
-          "canonical": "customer.status == \"active\""
-        }
-      ],
-      "projected_fields": [],
-      "lifecycle": {
-        "field": "status",
-        "default": "screening",
-        "transitions": [
-          {
-            "command": "Clear",
-            "to_state": "cleared",
-            "from_state": "screening"
-          },
-          {
-            "command": "Decline",
-            "to_state": "declined",
-            "from_state": "screening"
-          }
-        ]
-      },
-      "entities": [],
-      "queries": [
-        {
-          "name": "Screening",
-          "description": "Cases still waiting on a compliance decision.",
-          "attributes": [],
-          "wheres": [
-            {
-              "field": "status",
-              "op": "eq",
-              "value": "\"screening\""
-            }
-          ],
-          "order_by": {
-            "field": "reference",
-            "direction": "asc"
-          },
-          "limit": null
-        }
-      ],
-      "ports": [],
-      "provenance": null
-    },
-    {
-      "name": "Statement",
-      "description": "A snapshot of one account's activity over one period, generated once and never revised.",
-      "identified_by": [
-        "account",
-        "period.value"
-      ],
-      "attributes": [
-        {
-          "name": "account",
-          "type": "Reference<Account>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "period",
-          "type": "StatementPeriod",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "opening_balance",
-          "type": "StatementAmount",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "closing_balance",
-          "type": "StatementAmount",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "generated_on",
-          "type": "StatementDate",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        },
-        {
-          "name": "frequency",
-          "type": "StatementFrequency",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null
-        }
-      ],
-      "value_objects": [
-        {
-          "name": "StatementPeriod",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a statement names its period",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "StatementAmount",
-          "attributes": [
-            {
-              "name": "cents",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "StatementDate",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
-              "admits": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a statement is dated",
-              "canonical": "!value.to_s.empty?"
-            }
-          ],
-          "closed_set": false,
-          "members": []
-        },
-        {
-          "name": "StatementFrequency",
-          "attributes": [
-            {
-              "name": "cadence",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "retention_months",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "paper_fee_cents",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "invariants": [],
-          "closed_set": true,
-          "members": [
-            [
-              [
-                "cadence",
-                "monthly"
-              ],
-              [
-                "retention_months",
-                "84"
-              ],
-              [
-                "paper_fee_cents",
-                "0"
-              ]
-            ],
-            [
-              [
-                "cadence",
-                "quarterly"
-              ],
-              [
-                "retention_months",
-                "120"
-              ],
-              [
-                "paper_fee_cents",
-                "0"
-              ]
-            ],
-            [
-              [
-                "cadence",
-                "annual"
-              ],
-              [
-                "retention_months",
-                "240"
-              ],
-              [
-                "paper_fee_cents",
-                "500"
-              ]
-            ]
-          ]
-        }
-      ],
-      "commands": [
-        {
-          "name": "Generate",
-          "role": "System",
-          "goal": "Close out one period's activity into a permanent record",
-          "references": null,
-          "attributes": [
-            {
-              "name": "account",
-              "type": "Reference<Account>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "period",
-              "type": "StatementPeriod",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "opening_balance",
-              "type": "StatementAmount",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "closing_balance",
-              "type": "StatementAmount",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "generated_on",
-              "type": "StatementDate",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            },
-            {
-              "name": "frequency",
-              "type": "StatementFrequency",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null
-            }
-          ],
-          "givens": [
-            {
-              "description": "customer is active",
-              "canonical": "account.customer.status == \"active\""
-            },
-            {
-              "description": "account is open",
-              "canonical": "account.status == \"open\""
-            }
-          ],
-          "ensures": [],
-          "mutations": [],
-          "emits": [
-            "StatementGenerated"
-          ],
-          "from": null,
-          "provenance": null
-        }
-      ],
-      "invariants": [],
-      "preconditions": [
-        {
-          "description": "account is open",
-          "canonical": "account.status == \"open\""
-        },
-        {
-          "description": "customer is active",
-          "canonical": "account.customer.status == \"active\""
-        }
-      ],
-      "projected_fields": [],
-      "lifecycle": null,
-      "entities": [],
-      "queries": [],
-      "ports": [],
       "provenance": null
     }
   ],
@@ -5545,7 +6269,9 @@
       "reference_name": "customer",
       "reference_target": "Customer",
       "query_name": "customer_portfolio",
-      "wheres": [],
+      "wheres": [
+
+      ],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -5585,7 +6311,9 @@
           "many": true
         }
       ],
-      "group_by": []
+      "group_by": [
+
+      ]
     },
     {
       "name": "ComplianceDashboard",
@@ -5619,7 +6347,9 @@
           "many": true
         }
       ],
-      "group_by": [],
+      "group_by": [
+
+      ],
       "offset": {
         "value": "5"
       }
@@ -5651,7 +6381,9 @@
           "many": true
         }
       ],
-      "group_by": [],
+      "group_by": [
+
+      ],
       "count": true
     },
     {
@@ -5681,7 +6413,9 @@
           "many": true
         }
       ],
-      "group_by": [],
+      "group_by": [
+
+      ],
       "median_field": "amount"
     },
     {
@@ -5690,7 +6424,9 @@
       "reference_name": null,
       "reference_target": null,
       "query_name": "accounts_by_kind",
-      "wheres": [],
+      "wheres": [
+
+      ],
       "order_by": null,
       "limit": null,
       "aggregate_heads": [
@@ -5718,7 +6454,9 @@
       "target_domain": "Compliance",
       "where": null,
       "for_each": null,
-      "with_spec": []
+      "with_spec": [
+
+      ]
     },
     {
       "name": "RetryOnPaymentFailure",
@@ -5727,7 +6465,9 @@
       "target_domain": null,
       "where": null,
       "for_each": null,
-      "with_spec": []
+      "with_spec": [
+
+      ]
     },
     {
       "name": "FreezeAccountsOnSuspension",
@@ -5750,7 +6490,9 @@
       "target_domain": "Notifications",
       "where": null,
       "for_each": null,
-      "with_spec": []
+      "with_spec": [
+
+      ]
     },
     {
       "name": "ReviewOnBoxSurrender",
@@ -5759,7 +6501,9 @@
       "target_domain": "Compliance",
       "where": null,
       "for_each": null,
-      "with_spec": []
+      "with_spec": [
+
+      ]
     },
     {
       "name": "FlagKeyReturn",
@@ -5768,10 +6512,61 @@
       "target_domain": "Notifications",
       "where": null,
       "for_each": null,
-      "with_spec": []
+      "with_spec": [
+
+      ]
     }
   ],
   "process_managers": [
+    {
+      "name": "Onboarding",
+      "correlates_by": "reference.value",
+      "starts_on": "OnboardingOpened",
+      "ends_on": "AccountOpened",
+      "states": [
+        "screening",
+        "cleared",
+        "declined"
+      ],
+      "handlers": [
+        {
+          "event_type": "OnboardingCleared",
+          "from_state": "screening",
+          "to_state": "cleared",
+          "dispatches": [
+            {
+              "command_name": "Account.Open",
+              "with_spec": [
+                [
+                  "customer",
+                  ":customer"
+                ],
+                [
+                  "number",
+                  ":account_number"
+                ],
+                [
+                  "kind",
+                  "{name: \"current\"}"
+                ],
+                [
+                  "daily_limit",
+                  "{cents: 0}"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "event_type": "OnboardingDeclined",
+          "from_state": "screening",
+          "to_state": "declined",
+          "dispatches": [
+
+          ]
+        }
+      ]
+    },
     {
       "name": "Settlement",
       "correlates_by": "reference.value",
@@ -5959,56 +6754,11 @@
           ]
         }
       ]
-    },
-    {
-      "name": "Onboarding",
-      "correlates_by": "reference.value",
-      "starts_on": "OnboardingOpened",
-      "ends_on": "AccountOpened",
-      "states": [
-        "screening",
-        "cleared",
-        "declined"
-      ],
-      "handlers": [
-        {
-          "event_type": "OnboardingCleared",
-          "from_state": "screening",
-          "to_state": "cleared",
-          "dispatches": [
-            {
-              "command_name": "Account.Open",
-              "with_spec": [
-                [
-                  "customer",
-                  ":customer"
-                ],
-                [
-                  "number",
-                  ":account_number"
-                ],
-                [
-                  "kind",
-                  "{name: \"current\"}"
-                ],
-                [
-                  "daily_limit",
-                  "{cents: 0}"
-                ]
-              ]
-            }
-          ]
-        },
-        {
-          "event_type": "OnboardingDeclined",
-          "from_state": "screening",
-          "to_state": "declined",
-          "dispatches": []
-        }
-      ]
     }
   ],
-  "attaches_to": [],
+  "attaches_to": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
@@ -6026,6 +6776,12 @@
     }
   ],
   "lineage": {
-    "capable_aggregates": []
-  }
+    "capable_aggregates": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"Banking\", version: \"v1\" do\n  vision \"Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.\"\n  core\nend\n"
 }

@@ -38,10 +38,17 @@ pub fn synthesize(field_name: &str, values: &[String]) -> ir::ValueObject {
     let type_name = naming::pascal(field_name);
     ir::ValueObject {
         name: type_name,
-        attributes: vec![ir::Attribute { name: "value".to_string(), type_name: "String".to_string(), ..Default::default() }],
+        attributes: vec![ir::Attribute {
+            name: "value".to_string(),
+            type_name: "String".to_string(),
+            ..Default::default()
+        }],
         invariants: Vec::new(),
         closed_set: true,
-        members: values.iter().map(|value| vec![("value".to_string(), value.clone())]).collect(),
+        members: values
+            .iter()
+            .map(|value| vec![("value".to_string(), value.clone())])
+            .collect(),
     }
 }
 
@@ -57,7 +64,13 @@ mod tests {
         assert_eq!(vo.attributes.len(), 1);
         assert_eq!(vo.attributes[0].name, "value");
         assert_eq!(vo.attributes[0].type_name, "String");
-        assert_eq!(vo.members, vec![vec![("value".to_string(), "good".to_string())], vec![("value".to_string(), "warn".to_string())]]);
+        assert_eq!(
+            vo.members,
+            vec![
+                vec![("value".to_string(), "good".to_string())],
+                vec![("value".to_string(), "warn".to_string())]
+            ]
+        );
     }
 
     #[test]

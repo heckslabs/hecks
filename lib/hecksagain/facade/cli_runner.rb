@@ -1,5 +1,6 @@
 require "json"
 require_relative "cli_door"
+require_relative "command_request"
 require_relative "json_door"
 require_relative "../projector"
 require_relative "../ports/clock"
@@ -67,7 +68,9 @@ module Hecksagain
         # reports the whole store because a corpus run is judged on all of it;
         # somebody who issued one verb wants that verb's outcome, and against a
         # Postgres-backed domain the full dump is every record there has been.
-        handle = runtime.dispatch(spec[:verb], **args)
+        request = CommandRequest.normalize(args, receiver:        spec[:receiver],
+                                                 legacy_receiver: spec[:legacy_receiver])
+        handle = runtime.dispatch(spec[:verb], **request)
         return [JSON.pretty_generate(answered(handle)), 0] if handle.state.nil?
 
         [JSON.pretty_generate(id:     handle.id,

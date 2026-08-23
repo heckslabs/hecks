@@ -142,7 +142,7 @@ module RustProjection
       # no "identity absent" state. An optional argument feeding it
       # (`Member.Declare`'s own `position`) isn't a `sets` mutation at
       # all, so the checks below never see it; caught here instead.
-      if command[:references].nil?
+      if creates_owner?(aggregate, command, value_objects_by_name)
         aggregate[:identified_by].each do |path|
           head, = path.split(".")
           source_attr = command[:attributes].find { |a| a[:name].to_s == head }
@@ -270,7 +270,7 @@ module RustProjection
     def emit_command(command, aggregate, domain_name, value_objects_by_name, aggregates_by_name)
       record = rust_ident(aggregate[:name])
       cmd    = rust_ident(command[:name])
-      creates = command[:references].nil?
+      creates = creates_owner?(aggregate, command, value_objects_by_name)
       identity = identity_components(aggregate, command)
       identity_extra_params = identity.filter_map { |c| c[:param] }
 
@@ -352,13 +352,26 @@ module RustProjection
             # otherwise (emit_record's default rule: lists are never
             # Option-wrapped) it needs unwrapping with the same `[]`
             # fallback `default_for` gives an UNMATCHED list attribute.
-            if attr[:list] && !list_attr_creation_optional?(aggregate, attr[:name])
+            if attr[:list] && !list_attr_creation_optional?(aggregate, attr[:name], value_objects_by_name)
               "            #{field}: args.#{field}.clone().unwrap_or_default(),"
-            else
+            elsif attr[:list] || matched[:type] == attr[:type]
               "            #{field}: args.#{field}.clone(),"
+            else
+              # A CROSS-AGGREGATE argument, same name as the owner's own
+              # field but a DIFFERENT declared type — `bridging.rb`'s own
+              # header (`SafeDepositBox.Rent`'s `attribute :customer,
+              # CustomerNumber`, bridged into the owner's own `customer:
+              # Reference<Customer>` field). A blind `.clone()` here
+              # assumed the two types were always identical, which this
+              # generic name-match never actually required.
+              "            #{field}: #{optional_value_rhs("args.#{field}", matched[:type], attr[:type], value_objects_by_name)},"
             end
           elsif matched
-            attr[:list] ? "            #{field}: args.#{field}.clone()," : "            #{field}: Some(args.#{field}.clone()),"
+            if attr[:list] || matched[:type] == attr[:type]
+              attr[:list] ? "            #{field}: args.#{field}.clone()," : "            #{field}: Some(args.#{field}.clone()),"
+            else
+              "            #{field}: Some(#{value_rhs("args.#{field}", matched[:type], attr[:type], value_objects_by_name)}),"
+            end
           elsif attr[:list]
             "            #{field}: vec![],"
           else
@@ -410,7 +423,7 @@ module RustProjection
     # `entity_command_skip_reason` — deliberately just `command_skip_reason`
     # with `entity` standing in for `aggregate`: an entity's own IR shape
     # (`attributes`/`lifecycle`/`commands`) is the SAME six-key shape an
-    # aggregate's is (docs/guides/running-a-runtime.md, "Entities" —
+    # aggregate's is (docs/implemented/guides/running-a-runtime.md, "Entities" —
     # exported recursively, identically). The one real divergence —
     # `append_field_problems`/`append_element` reading `aggregate[:entities]`,
     # which an entity node doesn't carry — is why this guards `:append`
@@ -425,7 +438,7 @@ module RustProjection
     end
 
     # ── AN ENTITY COMMAND — `EntityInterpreter#call`'s shorter
-    # `DISPATCH_ORDER` (docs/guides/entities.md), ported the same way
+    # `DISPATCH_ORDER` (docs/implemented/guides/entities.md), ported the same way
     # `emit_command` ports `CommandInterpreter#call`: compile the type
     # shapes, hand the kernel `Expr` data plus closures to interpret.
     # `kernel::dispatch_entity` (dispatch.rs) is the generic, hand-written

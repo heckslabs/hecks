@@ -43,7 +43,7 @@
 // CROSS-DOMAIN POLICIES (`across "OtherDomain"`) are matched here the
 // SAME way a same-domain policy is (event_name/event_qualifier), but
 // never dispatched here — this module is the WASM-sandboxed kernel
-// (docs/decisions/0012), no network, no way to reach another domain's
+// (docs/implemented/decisions/0012), no network, no way to reach another domain's
 // own deployed Lambda. `react_policies` below pushes a
 // `PendingCrossDomainReaction` instead of recursing into `orchestrate`,
 // and `kernel::cli::run` carries that list out through this call's own
@@ -283,8 +283,23 @@ fn resolve_with(pm: &ProcessManagerDef, value: &WithValue, event: &Event, correl
     }
 }
 
-fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Event, correlation: &str, memory: &Json) -> Json {
-    Json::Object(spec.with.iter().map(|(key, value)| (key.to_string(), resolve_with(pm, value, event, correlation, memory))).collect())
+fn build_dispatch_args(pm: &ProcessManagerDef, spec: &DispatchSpec, event: &Event, correlation: &str, memory: &Json, domain_name: &str, tables: &Tables) -> Json {
+    let projected = Json::Object(spec.with.iter().map(|(key, value)| (key.to_string(), resolve_with(pm, value, event, correlation, memory))).collect());
+    // A saga leg's own `dispatch ..., with: {...}` is ALWAYS an explicit
+    // projection (`DispatchSpec.with` has no "undeclared" shape the way a
+    // policy's own `with_spec` does) — split_routed_args's own header.
+    //
+    // `spec.command_name` is BARE on the wire (`deliver_saga_dispatch`'s
+    // own comment on why, and the SAME qualification rule read directly
+    // from `SagaInterpreter#qualified`) — `command_creates_fn`/`identity_
+    // head_fn` are both keyed by the FULLY qualified verb, so this needs
+    // the identical qualification BEFORE the lookup, not after.
+    let qualified = if spec.command_name.contains("::") {
+        spec.command_name.to_string()
+    } else {
+        format!("{domain_name}::{}", spec.command_name)
+    };
+    split_routed_args(projected, &qualified, tables)
 }
 
 /// Bundles the "same for the whole call tree" tables/functions every
@@ -300,6 +315,10 @@ pub struct Tables<'a> {
     /// A FAN-OUT RUNS A DECLARED QUERY, so the reaction path needs the
     /// same table `cli::run` already answers top-level asks from.
     pub queries: &'a [crate::kernel::QueryDef],
+    /// `split_routed_args`'s own two tables — `reactions.rb`'s `emit_
+    /// creates_table`/`emit_identity_head_table`, both read directly.
+    pub command_creates_fn: fn(&str) -> bool,
+    pub identity_head_fn: fn(&str) -> Option<&'static str>,
 }
 
 /// The recursive reentry loop `Dispatcher#dispatch`/`#reenter` are, ported
@@ -382,8 +401,8 @@ pub fn orchestrate<S: AggregateScan>(
 /// `extra` is a fan-out's row key, merged into the SOURCE before the
 /// projection rather than onto its result — which is what lets a
 /// `for_each` trigger name the row and be given nothing else.
-fn trigger_args(policy: &PolicyRule, payload: &Json, extra: Option<(&str, String)>) -> Json {
-    let mut source: Vec<(String, Json)> = match payload {
+fn trigger_args(policy: &PolicyRule, event: &Event, extra: Option<(&str, String)>, target_verb: &str, tables: &Tables) -> Json {
+    let mut source: Vec<(String, Json)> = match &event.payload {
         Json::Object(pairs) => pairs.clone(),
         _ => Vec::new(),
     };
@@ -393,6 +412,30 @@ fn trigger_args(policy: &PolicyRule, payload: &Json, extra: Option<(&str, String
     }
 
     if policy.with_spec.is_empty() {
+        // `ReactionInvocation.build`'s own `unless explicit` branch — "an
+        // optional opportunity to lift same-aggregate Event.id" into an
+        // implicit receiver, even with no `with:` declared at all. Scoped
+        // to this table's own two known shapes (same aggregate that
+        // emitted the event, and a target this corpus's `command_creates_
+        // fn` actually has data for): `Pizzas::Order.Purchase`, reacting
+        // to `Order`'s own `PizzaPaymentReceived` with no with_spec, is
+        // the corpus's live example — its own identity never rides the
+        // event payload at all (a bare `reference_to Order`, no declared
+        // attribute for it), so without this the record can never be
+        // found.
+        // Never for a `for_each` dispatch (`extra.is_some()`): its own row
+        // identity is ALREADY merged into `source` above, under whatever
+        // name the fan-out itself resolved — a for_each row's own
+        // aggregate is routinely a DIFFERENT one from the emitting
+        // event's, so an `event.aggregate` match here would be
+        // coincidence, not signal.
+        if extra.is_none() && !(tables.command_creates_fn)(target_verb) {
+            if let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) {
+                if aggregate_name == event.aggregate {
+                    return Json::obj(vec![("to", Json::str(event.id.clone())), ("with", Json::Object(source))]);
+                }
+            }
+        }
         return Json::Object(source);
     }
 
@@ -411,7 +454,61 @@ fn trigger_args(policy: &PolicyRule, payload: &Json, extra: Option<(&str, String
             ((*name).to_string(), value)
         })
         .collect();
-    Json::Object(projected)
+    // ONLY WHEN `with:` IS EXPLICITLY DECLARED — matching `ReactionInvocation
+    // .build`'s own `explicit` gate exactly (an undeclared projection keeps
+    // forwarding the event's whole payload verbatim, above, unsplit, the
+    // behaviour every policy had before `with:` existed at all).
+    split_routed_args(Json::Object(projected), target_verb, tables)
+}
+
+/// `ReactionInvocation.build`'s own routing split (`{to:, with:}`), ported
+/// for the ONE shape this corpus needs: a SINGLE-COMPONENT aggregate
+/// identity, addressing an ACTING (non-creating) target. `PolicyInterpreter
+/// #trigger_args`/`SagaInterpreter#dispatch_args`'s own resolved args used
+/// to forward straight into `dispatch_by_name` as a flat legacy object —
+/// correct for a CREATING target (nothing to route to yet), but leaking
+/// the addressing key into the acting target's own event payload
+/// otherwise (`Compliance::AccountFreezeReview`/`Banking::ExternalTransfer
+/// ::SendTransfer`, found live diffing `rust_conformance_spec` against
+/// Ruby: `AccountFrozen`'s real payload is `{}`, Ruby's own `ctx.args`
+/// never carries the reference key an ACTING command's own hydrate reads
+/// it from a SEPARATE channel — `CommandInvocation`'s `to:`, not `with:`).
+///
+/// Tries the target's own declared identity field name FIRST (`identity_
+/// head_fn`, `Identity.of`'s own move), then the generic snake-cased
+/// aggregate-name alias (`reference_key_fn`, `Naming.reference_key`'s own
+/// move) — the SAME two (of `aggregate_aliases`' three) `Reaction
+/// Invocation.identity_for` tries, in the SAME order, minus the bare
+/// `:aggregate` literal key and minus per-command `addressing_key_for`
+/// (this corpus's own real cases never need either). A COMPOSITE identity
+/// (`identity_head_fn` returns `None` for one) or a target this table
+/// simply has no data for (`command_creates_fn`'s own `_ => false`
+/// default — the honest "don't know, so don't route" answer, never a
+/// silent guess) leaves the args flat and unsplit, exactly like today —
+/// a real, narrower gap than Ruby's own full `identity_for`, not silently
+/// assumed to cover every shape.
+fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Json {
+    let Json::Object(mut pairs) = projected else { return projected };
+    if (tables.command_creates_fn)(target_verb) {
+        return Json::Object(pairs);
+    }
+
+    let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) else {
+        return Json::Object(pairs);
+    };
+
+    let candidates = [(tables.identity_head_fn)(aggregate_name), (tables.reference_key_fn)(aggregate_name)];
+    for key in candidates.into_iter().flatten() {
+        if let Some(pos) = pairs.iter().position(|(k, _)| k == key) {
+            let (_, raw_id) = pairs.remove(pos);
+            let Ok(id) = raw_id.to_id_component() else { continue };
+            if id.is_empty() {
+                continue;
+            }
+            return Json::obj(vec![("to", Json::str(id)), ("with", Json::Object(pairs))]);
+        }
+    }
+    Json::Object(pairs)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -504,7 +601,7 @@ fn react_policies<S: AggregateScan>(
                         other => other,
                     }
                 };
-                let args = trigger_args(policy, &event.payload, policy.for_each_key.map(|key| (key, row_id.clone())));
+                let args = trigger_args(policy, event, policy.for_each_key.map(|key| (key, row_id.clone())), policy.target_verb, &tables);
                 let outcome = orchestrate(
                     store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, depth + 1,
                     all_events, mutations, cross_domain, reaction_log, saga_log,
@@ -521,13 +618,13 @@ fn react_policies<S: AggregateScan>(
         }
 
         // Without `with:`, the event's WHOLE payload forwards verbatim as
-        // the trigger's own args — docs/guides/policies-and-process-
+        // the trigger's own args — docs/implemented/guides/policies-and-process-
         // managers.md: "not reshaped, not filtered." `caller_role: None`
         // — `Dispatcher#reenter`'s own `Caller.without`: a policy
         // reaction is system-triggered, never carries whatever caller the
         // ORIGINAL step bound. `saga_correlation: None` — policies never
         // stamp (only a saga leg's own dispatch does).
-        let args = trigger_args(policy, &event.payload, None);
+        let args = trigger_args(policy, event, None, policy.target_verb, &tables);
         let outcome = orchestrate(
             store, dispatch_fn, tables, sagas, policy.target_verb, &args, None, None, depth + 1,
             all_events, mutations, cross_domain, reaction_log, saga_log,
@@ -675,7 +772,7 @@ fn advance_saga<S: AggregateScan>(
         let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
         let mut refused = false;
         for spec in handler.dispatches {
-            let args = build_dispatch_args(pm, spec, event, &correlation, &memory);
+            let args = build_dispatch_args(pm, spec, event, &correlation, &memory, domain_name, &tables);
             let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.clone())].into_iter().collect();
             let delivered = deliver_saga_dispatch(
                 store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, &correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,
@@ -875,7 +972,7 @@ fn compensate<S: AggregateScan>(
     // reason.
     let domain_name = event.aggregate.split("::").next().unwrap_or(&event.aggregate);
     for spec in compensation.dispatches {
-        let args = build_dispatch_args(pm, spec, event, correlation, memory);
+        let args = build_dispatch_args(pm, spec, event, correlation, memory, domain_name, &tables);
         let stamp: HashMap<String, String> = [(correlation_head(pm.correlates_by).to_string(), correlation.to_string())].into_iter().collect();
         deliver_saga_dispatch(
             store, dispatch_fn, tables, sagas, pm, spec, domain_name, &args, correlation, depth, all_events, mutations, cross_domain, reaction_log, saga_log, &stamp,

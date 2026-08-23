@@ -9,7 +9,7 @@ require "spec_helper"
 # and went straight through this file instead. ATMCard.ByFee (`limit 3;
 # offset 1`) is real corpus, not a synthetic fixture.
 RSpec.describe "QueryInterpreter applies offset" do
-  OFFSET_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  OFFSET_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
     registry = Hecksagain::Runtime::Registry.new
@@ -19,7 +19,7 @@ RSpec.describe "QueryInterpreter applies offset" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(OFFSET_BANKING)
+      load_bluebook_files(OFFSET_BANKING)
       Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry)
       )

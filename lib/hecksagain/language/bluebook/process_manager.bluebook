@@ -1,0 +1,264 @@
+Hecks.bluebook "Bluebook" do
+  aggregate "ProcessManager" do
+    description "One process manager — what correlates its instances, what starts and ends it, and the states it moves through."
+
+    reference_to Bluebook
+
+    # THE CHAPTER IT IS IN, AND ITS NAME — the same shape a policy takes, and for
+    # the same reason.
+    identified_by :bluebook, :name
+
+    attribute :name,      ProcessManagerName
+    attribute :correlates_by, ProcessManagerText
+    attribute :starts_on,     ProcessManagerText
+    attribute :ends_on,       ProcessManagerText
+    attribute :states,    list_of(SagaState)
+    # S17, ADR 0026 — Handler nested here (see `entity "Handler"`, below),
+    # an entity rather than its own root aggregate. `list_of(Handler)`
+    # forward-references it the same way banking's own `attribute :ledger,
+    # list_of(LedgerEntry)` names LedgerEntry before it is declared.
+    attribute :handlers,  list_of(Handler)
+
+    value_object "ProcessManagerName" do
+      attribute :value, String
+      invariant("a process manager is named") { !value.to_s.empty? }
+    end
+
+    value_object "ProcessManagerText" do
+      attribute :value, String
+    end
+
+    value_object "SagaState" do
+      attribute :name, String
+    end
+
+    # S17, ADR 0026 — HandlerText/DispatchText/Binding, hoisted up from
+    # the old standalone `aggregate "Handler"`/`aggregate "Dispatch"`. An
+    # entity cannot declare its own `value_object` (EntityBuilder has no
+    # such method — a piece borrows its owning aggregate's, the same way
+    # LedgerEntry borrows Account's Money), so these live here now, at
+    # the ROOT, where BOTH `entity "Handler"` and its own nested `entity
+    # "Dispatch"` can still reach them — a piece mints no value objects
+    # of its own AT ANY DEPTH, so there is exactly one pool however deep
+    # the nesting goes (`EntityBuilder#entity`'s own comment).
+    value_object "HandlerText" do
+      attribute :value, String
+    end
+
+    value_object "DispatchText" do
+      attribute :value, String
+    end
+
+    value_object "Binding" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    # The way back: everything DECLARED IN the chapter above. The parent
+    # reference IS the query.
+    # WHERE IT SITS AMONG ITS SIBLINGS. Declaration order is a FACT ABOUT THE
+    # SOURCE — the IR is a contract read straight from this file,
+    # field for field AND INDEX FOR INDEX. So the language HOLDS it, instead of
+    # inheriting it from whatever order a store happens to iterate: an ask that
+    # does not say how it is ordered is answered in identity order, which is
+    # right for every other ask and fatal for the one that is the SOURCE.
+    value_object "Position" do
+      attribute :value, Integer
+    end
+
+    attribute :position, Position
+
+    query "DeclaredIn" do
+      attribute :bluebook, ProcessManagerText
+      where(bluebook: :bluebook)
+      order_by :position
+    end
+    command "Declare" do
+      role "Language"
+      goal "Open a process manager on a chapter"
+
+      reference_to Bluebook
+      attribute :name,      ProcessManagerName
+      attribute :correlates_by, ProcessManagerText
+      attribute :starts_on,     ProcessManagerText
+      # A PROCEDURE NEED NOT DECLARE AN ENDING. The runtime has always held
+      # this optional — ProcessManagerBuilder defaults `@ends_on` to nil,
+      # validates only correlates_by/starts_on/states/handlers,
+      # and fills it only if the line is written. The
+      # language was the one saying it was required, and nothing in the corpus
+      # had to disagree because every procedure in it happens to end.
+      attribute :ends_on,       ProcessManagerText, optional: true
+
+      attribute :position, Position, optional: true
+      sets :bluebook
+      sets :name
+      sets :correlates_by
+      sets :starts_on
+      sets :ends_on
+      sets :position
+      emits "SagaDeclared"
+    end
+
+    command "State" do
+      role "Language"
+      goal "Attach one state to the process manager"
+
+      attribute :name, ProcessManagerText
+
+      sets :states, append: { name: :name }
+
+      emits "SagaStateAttached"
+    end
+
+    # THE HANDLER'S OWN CREATION. S17, ADR 0026 — Handler is a genuine
+    # ENTITY now (`entity "Handler"`, below), and an entity is never
+    # created through its own dotted verb — banking's own LedgerEntry is
+    # created by `Account.LogEntry`, an ordinary append on the OWNER,
+    # never by a `LedgerEntry.Declare` of its own
+    # (`EntityInterpreter#element_of` only LOCATES an element already on
+    # the list — it has no path that creates one). So Handler's creation
+    # moved here, onto ProcessManager, mirroring `State` beside it: a
+    # bare, aggregate-level append.
+    command "Handler" do
+      role "Language"
+      goal "Open a handler inside a process manager"
+
+      attribute :event_type, HandlerText
+      # A LEG ALWAYS SAYS WHERE IT MOVES FROM. There is no wildcard leg to be
+      # optional for: `on "Event", transition: { from => to }` is the only
+      # spelling the runtime reads, and it refuses anything else —
+      # `single_transition` raises unless the hash holds exactly one from => to
+      # pair, so a leg without one
+      # is never built at all. `optional: true` here was
+      # the language admitting a leg the runtime cannot parse.
+      attribute :from_state, HandlerText
+      attribute :to_state,   HandlerText
+
+      sets :handlers, append: { event_type: :event_type, from_state: :from_state, to_state: :to_state }
+
+      emits "LegDeclared"
+    end
+
+    # S17, ADR 0026 — ONE HANDLER, nested rather than its own root
+    # aggregate. No `saga` field. It named the old word for a process
+    # manager, held nothing — ProcessManagerHandler has no such reader,
+    # so every Handler record's saga was empty — and repeated the parent
+    # that its own containment already carries. A field that names the
+    # wrong thing, holds nothing, and duplicates the reference beside it.
+    #
+    # `event_type` is an event name, or one of the Trigger vocabulary's
+    # members when the leg answers something no aggregate announces — and
+    # is Handler's own real, non-positional identity now : a saga answers
+    # each event ONCE, so the event names the leg, and the process
+    # manager it belongs to is structural (which list this element sits
+    # in), not a stored field any more.
+    entity "Handler" do
+      description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings."
+
+      identified_by HandlerText, as: :event_type
+
+      attribute :from_state, HandlerText
+      attribute :to_state,   HandlerText
+      # S17, ADR 0026 — Dispatch nested here too (see `entity "Dispatch"`,
+      # below), one level further in than Handler itself.
+      attribute :dispatches, list_of(Dispatch)
+
+      # THE DISPATCH'S OWN CREATION — same reason Handler's own creation
+      # lives on ProcessManager, one level up: an entity is never created
+      # through its own dotted verb. Reached as a DOTTED verb itself
+      # (`ProcessManager.Handler.Dispatch`) since Handler, the owner
+      # doing the creating here, is an entity too, not a real aggregate
+      # with a bare verb of its own to dispatch into.
+      command "Dispatch" do
+        role "Language"
+        goal "Open a dispatch inside a handler"
+
+        attribute :command_name, DispatchText
+
+        sets :dispatches, append: { command_name: :command_name }
+
+        emits "SendDeclared"
+      end
+
+      # S17, ADR 0026 — ONE COMMAND A HANDLER DISPATCHES, nested two
+      # levels in rather than its own root aggregate — "no life outside
+      # its Handler" (the ADR's own words). The bindings are an open
+      # map, which no value object can hold — that was always a reason
+      # it could not be one, never a reason it could not be an entity.
+      # `command_name` is Dispatch's own real, non-positional identity,
+      # the same shape Handler's own `event_type` just took one level up.
+      entity "Dispatch" do
+        description "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold."
+
+        identified_by DispatchText, as: :command_name
+
+        attribute :with_spec, list_of(Binding)
+
+        command "Bind" do
+          role "Language"
+          goal "Bind one argument of the dispatched command"
+
+          attribute :key,   DispatchText
+          attribute :value, DispatchText
+
+          sets :with_spec, append: { key: :key, value: :value }
+
+          emits "BindingAttached"
+        end
+      end
+    end
+
+    # HOW PROCESSMANAGER IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: ProcessManager, Handler.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
+      member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "starts_on"
+      member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "ends_on"
+      member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
+      member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
+      member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: "", calls: "dispatch_impl"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
+      member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
+      member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
+      member keyword: "transition",      context: "ProcessManager", at: "1", named: "",           kind: "pairs",  required: "true", fills: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields"
+      member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "text",   required: "true",  fills: "from_state"
+      member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "list",   required: "false", fills: "from_state"
+      member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "constant", required: "true", fills: "command_name"
+      member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
+      member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"
+
+    end
+  end
+end

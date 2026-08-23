@@ -10,16 +10,17 @@ module Hecksagain
       include Behaviour::Attribute
 
       emits_ir(
-        name:     :name,
-        type:     -> { @type.to_s },
-        list:     :list?,
-        default:  :default,
-        optional: :optional?,
-        pattern:  :pattern,
-        admits:   :admits
+        name:         :name,
+        type:         -> { @type.to_s },
+        list:         :list?,
+        default:      :default,
+        optional:     :optional?,
+        pattern:      :pattern,
+        admits:       :admits,
+        relationship: :relationship
       )
 
-      attr_reader :name, :type, :default, :pattern, :admits
+      attr_reader :name, :type, :default, :pattern, :admits, :relationship
 
       # A Reference is kept AS ITSELF. Every other type is still a name, and
       # crosses over as its construct does.
@@ -45,7 +46,7 @@ module Hecksagain
       # against the IR it holds, so the members are declared once and
       # copied nowhere — which is the same reason `admits` exists at all.
       def initialize(name:, type:, list: false, default: nil, optional: false, pattern: nil,
-                     admits: nil)
+                     admits: nil, relationship: nil)
         @name     = name.to_sym
         @type     = spell(type)
         @list     = list
@@ -53,6 +54,7 @@ module Hecksagain
         @optional = optional
         @pattern  = pattern
         @admits   = admits&.to_s
+        @relationship = relationship&.to_s
       end
 
       # A BARE CONSTANT IN A BLUEBOOK IS A NAME, EVEN WHEN RUBY HAS HEARD OF IT.

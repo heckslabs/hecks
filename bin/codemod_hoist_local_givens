@@ -194,31 +194,39 @@ def command_rule_map(registry)
                      .transform_values { |rules| rules.map { |r| [r.kind, r.description, r.canonical] }.sort }
 end
 
-def run_file(file, dry_run:)
-  original = File.read(file)
-  before_rules = command_rule_map(Hecksagain::Codemod.load_bluebook(file))
-  candidates = find_candidates(Hecksagain::Codemod.load_bluebook(file))
+def run_files(files, dry_run:)
+  files = files.sort
+  originals = files.to_h { |file| [file, File.read(file)] }
+  before_rules = command_rule_map(Hecksagain::Codemod.load_bluebook(files))
+  candidates = find_candidates(Hecksagain::Codemod.load_bluebook(files))
+  result_path = files.one? ? files.first : File.dirname(files.first)
 
-  return { file: file, status: :clean } if candidates.empty?
+  return { file: result_path, status: :clean } if candidates.empty?
 
-  text = original.dup
+  texts = originals.transform_values(&:dup)
   applied = []
   candidates.each do |c|
-    text, changed = apply_candidate(text, c)
+    target = files.find { |file| apply_candidate(texts[file], c).last }
+    next unless target
+
+    text, changed = apply_candidate(texts[target], c)
+    texts[target] = text
     applied << c if changed
   end
 
-  return { file: file, status: :skipped, reason: "no candidate matched its own source text", candidates: [] } if applied.empty?
+  return { file: result_path, status: :skipped, reason: "no candidate matched its own source text", candidates: [] } if applied.empty?
 
-  File.write(file, text)
-  after_rules, error = Hecksagain::Codemod.safely { command_rule_map(Hecksagain::Codemod.load_bluebook(file)) }
-  File.write(file, original) if dry_run || after_rules != before_rules
+  texts.each { |file, text| File.write(file, text) }
+  after_rules, error = Hecksagain::Codemod.safely do
+    command_rule_map(Hecksagain::Codemod.load_bluebook(files))
+  end
+  originals.each { |file, text| File.write(file, text) } if dry_run || after_rules != before_rules
 
   if after_rules == before_rules
-    { file: file, status: :applied, candidates: applied }
+    { file: result_path, status: :applied, candidates: applied }
   else
     reason = error ? "reboot raised after edit (#{error}) — reverted" : "a command's own effective rule set changed after edit — reverted"
-    { file: file, status: :skipped, reason: reason, candidates: applied }
+    { file: result_path, status: :skipped, reason: reason, candidates: applied }
   end
 end
 
@@ -228,7 +236,7 @@ results = Hecksagain::Codemod::EXAMPLE_ROOTS.filter_map do |domain_dir|
   bluebook_files = Dir.glob(File.join(domain_dir, "bluebook", "*.bluebook"))
   next if bluebook_files.empty?
 
-  run_file(bluebook_files.first, dry_run: DRY_RUN)
+  run_files(bluebook_files, dry_run: DRY_RUN)
 end
 
 puts "== results (#{DRY_RUN ? 'DRY RUN — nothing written' : 'applied'}) =="

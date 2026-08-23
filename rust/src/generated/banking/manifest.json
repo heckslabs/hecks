@@ -112,6 +112,29 @@
   },
   {
     "kind": "aggregate",
+    "id": "Banking::OnboardingCase",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::OnboardingCase.Decline",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
     "id": "Banking::ATMCard",
     "generated": true
   },
@@ -153,47 +176,6 @@
   {
     "kind": "command",
     "id": "Banking::ATMCard.Retire",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "aggregate",
-    "id": "Banking::Transfer",
-    "generated": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Transfer.Request",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Transfer.Debited",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Transfer.Settle",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Transfer.Credited",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Transfer.Reverse",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Transfer.Reject",
     "generated": true,
     "routed": true
   },
@@ -247,6 +229,109 @@
   {
     "kind": "command",
     "id": "Banking::CardPayment.RejectDispute",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::SafeDepositBox",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.Visit",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.Visit.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity",
+    "id": "Banking::SafeDepositBox.KeyIssuance",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::SafeDepositBox.KeyIssuance.Return",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Rent",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.Surrender",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.LogVisit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::SafeDepositBox.IssueKey",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Statement",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Statement.Generate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Banking::Transfer",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Debited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Settle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Credited",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reverse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Banking::Transfer.Reject",
     "generated": true,
     "routed": true
   },
@@ -321,91 +406,6 @@
     "routed": true
   },
   {
-    "kind": "aggregate",
-    "id": "Banking::SafeDepositBox",
-    "generated": true
-  },
-  {
-    "kind": "entity",
-    "id": "Banking::SafeDepositBox.Visit",
-    "generated": true
-  },
-  {
-    "kind": "entity_command",
-    "id": "Banking::SafeDepositBox.Visit.Annotate",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "entity",
-    "id": "Banking::SafeDepositBox.KeyIssuance",
-    "generated": true
-  },
-  {
-    "kind": "entity_command",
-    "id": "Banking::SafeDepositBox.KeyIssuance.Return",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::SafeDepositBox.Rent",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::SafeDepositBox.Surrender",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::SafeDepositBox.LogVisit",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::SafeDepositBox.IssueKey",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "aggregate",
-    "id": "Banking::OnboardingCase",
-    "generated": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::OnboardingCase.Open",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::OnboardingCase.Clear",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::OnboardingCase.Decline",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "aggregate",
-    "id": "Banking::Statement",
-    "generated": true
-  },
-  {
-    "kind": "command",
-    "id": "Banking::Statement.Generate",
-    "generated": true,
-    "routed": true
-  },
-  {
     "kind": "query",
     "id": "Banking::Customer.InGoodStanding",
     "generated": true
@@ -464,6 +464,11 @@
   },
   {
     "kind": "query",
+    "id": "Banking::OnboardingCase.Screening",
+    "generated": true
+  },
+  {
+    "kind": "query",
     "id": "Banking::ATMCard.Active",
     "generated": false,
     "gap_class": "per_instance",
@@ -475,11 +480,6 @@
     "generated": false,
     "gap_class": "per_instance",
     "reason": "declares offset — out of scope for this generator (rust/project/queries.rb's own header has the full argument)"
-  },
-  {
-    "kind": "query",
-    "id": "Banking::Transfer.InFlight",
-    "generated": true
   },
   {
     "kind": "query",
@@ -498,16 +498,6 @@
   },
   {
     "kind": "query",
-    "id": "Banking::ExternalTransfer.Sent",
-    "generated": true
-  },
-  {
-    "kind": "query",
-    "id": "Banking::ScheduledPayment.Due",
-    "generated": true
-  },
-  {
-    "kind": "query",
     "id": "Banking::SafeDepositBox.Rented",
     "generated": false,
     "gap_class": "per_instance",
@@ -515,7 +505,17 @@
   },
   {
     "kind": "query",
-    "id": "Banking::OnboardingCase.Screening",
+    "id": "Banking::Transfer.InFlight",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ExternalTransfer.Sent",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Banking::ScheduledPayment.Due",
     "generated": true
   },
   {
@@ -589,6 +589,12 @@
   },
   {
     "kind": "process_manager",
+    "id": "Banking::Onboarding",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
     "id": "Banking::Settlement",
     "generated": true,
     "routed": true
@@ -596,12 +602,6 @@
   {
     "kind": "process_manager",
     "id": "Banking::ExternalSettlement",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "process_manager",
-    "id": "Banking::Onboarding",
     "generated": true,
     "routed": true
   }

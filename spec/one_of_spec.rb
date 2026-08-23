@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe "one_of" do
-  ONE_OF_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  ONE_OF_BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot_banking
     registry = Hecksagain::Runtime::Registry.new
@@ -11,7 +11,7 @@ RSpec.describe "one_of" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(ONE_OF_BANKING)
+      load_bluebook_files(ONE_OF_BANKING)
       Hecksagain::Runtime::Loader.bind_runtime(
         Hecksagain::Runtime::Dispatcher.new(registry)
       )

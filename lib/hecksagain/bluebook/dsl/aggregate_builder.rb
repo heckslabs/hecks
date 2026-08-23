@@ -75,7 +75,8 @@ module Hecksagain
         def reference_to_impl(type, as: nil, optional: false)
           target = Naming.demodulise(type)
           @reference_targets << target
-          attribute_impl(as || default_reference_name(target), Reference.new(target), optional: optional)
+          relationship_attribute(target, :reference_to,
+                                 as || default_reference_name(target), optional: optional)
         end
 
         # A RULE MAY ONLY READ WITHIN ITS OWN AGGREGATE BOUNDARY (S12,
@@ -118,44 +119,58 @@ module Hecksagain
                                                   remote_field: remote_field.to_sym)
         end
 
-        # `has_many`, `has_one`, `belongs_to` — LEGACY (ADR 0025,
-        # "References"): all three were sugar over `reference_to`,
-        # differing from its default only in the attribute name they
-        # minted — no `_id` suffix. `reference_to` mints that same bare
-        # name now (`default_reference_name`, `AttributeCollector`'s own
-        # comment), so the three have no work left; `reference_to` alone
-        # says everything they did. `has_many` additionally LIED — it
-        # singularised its target and minted one scalar, so `film.backers`
-        # read `nil` and never `[]` — one more reason it earns no live
-        # replacement, in addition to `reference_to` already covering it.
-        # Kept here, refusing live, ONLY so `MetaValidator.shadow_parsing?`
-        # (S0a's own bridge) can still make sense of frozen era text that
-        # used one — real, if rare: "Combined corpus uses: one."
+        # `has_many`/`has_one`/`belongs_to` were LEGACY (ADR 0025,
+        # "References") — sugar over `reference_to` that collapsed to an
+        # anonymous reference and, for `has_many`, LIED (singularised its
+        # target and minted one scalar, so `film.backers` read `nil` and
+        # never `[]`). Wave 6 (identity-and-relationships arc) un-deprecates
+        # all three for real: a relationship word now retains the author's
+        # domain concept in IR — still stored as one or more target
+        # identities, but no longer collapsed to a bare `reference_to`
+        # during assembly. `MetaValidator.shadow_parsing?` still routes to
+        # `legacy_has_many`/`legacy_has_one` so frozen era text written
+        # under the OLD (lying/collapsing) meaning still parses the way it
+        # did when it was written — real, if rare corpus: "Combined corpus
+        # uses: one."
         #
         # RENAMED FROM `has_many`/`has_one`/`belongs_to` — item #13's full
         # metaprogrammed dispatch (slice 4). Each Keyword row's own
         # `calls:` names the matching `_impl`; not bootstrap-reachable
-        # (checked directly — no core/attached chapter uses a retired
-        # word to describe itself), so no BOOTSTRAP_CALLS_FALLBACK entry
-        # is needed, unlike `attribute`/`role`.
-        def has_many_impl(type, as: nil, optional: false)
-          return legacy_has_many(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
+        # (no core/attached chapter uses one of these to describe itself),
+        # so no BOOTSTRAP_CALLS_FALLBACK entry is needed, unlike
+        # `attribute`/`role`.
+        def has_many_impl(type, as: nil, **legacy_options)
+          if MetaValidator.shadow_parsing?
+            return legacy_has_many(type, as: as, optional: legacy_options.fetch(:optional, false))
+          end
 
-          raise Malformed,
-                "#{@name}.has_many is gone — reference_to #{Naming.singularize(Naming.demodulise(type))} " \
-                "mints the same bare name now"
+          unless legacy_options.empty?
+            raise Malformed, "#{@name}.has_many takes no #{legacy_options.keys.first}: — an empty list already means none"
+          end
+
+          plural = Naming.demodulise(type)
+          target = Naming.singularize(plural)
+          @reference_targets << target
+          relationship_attribute(target, :has_many, as || Naming.snake(plural).to_sym,
+                                 list: true)
         end
 
         def has_one_impl(type, as: nil, optional: false)
           return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
-          raise Malformed, "#{@name}.has_one is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"
+          target = Naming.demodulise(type)
+          @reference_targets << target
+          relationship_attribute(target, :has_one, as || Naming.snake(target).to_sym,
+                                 optional: optional)
         end
 
         def belongs_to_impl(type, as: nil, optional: false)
           return legacy_has_one(type, as: as, optional: optional) if MetaValidator.shadow_parsing?
 
-          raise Malformed, "#{@name}.belongs_to is gone — reference_to #{Naming.demodulise(type)} mints the same bare name now"
+          target = Naming.demodulise(type)
+          @reference_targets << target
+          relationship_attribute(target, :belongs_to, as || Naming.snake(target).to_sym,
+                                 optional: optional)
         end
 
         def lifecycle_impl(field, default:, &block)
@@ -256,7 +271,7 @@ module Hecksagain
         # active" rather than retyping `customer.status == "active"` a
         # third and fourth time. Resolved against `@chapter_named_givens`
         # — see `BluebookBuilder#aggregate`'s own comment for how that
-        # pool is threaded, and `docs/resolution-rules/chapter-given.md`
+        # pool is threaded, and `docs/implemented/resolution-rules/chapter-given.md`
         # for the full algorithm and its known limitations (a bare
         # reference trusts its own author to have verified the SAME
         # canonical predicate applies — this mechanism does not, and
@@ -437,8 +452,11 @@ module Hecksagain
         # file needed to change for this to be safe.
         def drain_pending!
           @entities = @pending_entities.map do |name, block|
-            EntityBuilder.build(name, owner_value_objects: @value_objects + closed_sets,
-                                      owner_named_givens:  @entity_named_givens, &block)
+            EntityBuilder.build(name, owner_value_objects:             @value_objects + closed_sets,
+                                      owner_named_givens:              @entity_named_givens,
+                                      identity_name_prefix:            "#{Naming.demodulise(@name)}#{Naming.demodulise(name)}",
+                                      identity_value_object_installer: ->(value_object) { @value_objects << value_object },
+                                &block)
           end
 
           @commands = @pending_commands.map do |name, from, block|
@@ -457,6 +475,12 @@ module Hecksagain
         # field's own value-object type against everything it declares
         # itself, own inline closed sets included.
         def identity_pool = @value_objects + closed_sets
+
+        def identity_value_object_name = "#{Naming.demodulise(@name)}Identity"
+
+        def install_identity_value_object!(value_object)
+          @value_objects << value_object
+        end
 
         # LEGACY — see `has_many`/`has_one`/`belongs_to`'s own comment;
         # byte-identical to what those three did before this slice.
@@ -651,7 +675,8 @@ module Hecksagain
               query.wheres.each do |clause|
                 seal_query_field(owner, query, fields, lifecycle, clause.field)
                 seal_ordered_comparator(owner, query, fields, clause)
-                seal_query_argument(owner, query, clause.value)
+                infer_local_query_argument(query, fields, lifecycle, clause)
+                seal_query_argument(owner, query, clause.value) unless clause.field.to_s.include?("/")
               end
               seal_query_field(owner, query, fields, lifecycle, query.order_by.field, ordering: true) if query.order_by
               seal_query_argument(owner, query, query.limit&.value)
@@ -764,6 +789,31 @@ module Hecksagain
                 "#{owner}.#{query.hecks_name} resolves :#{value} from its arguments, " \
                 "but declares no #{value} attribute — an argument that does not exist " \
                 "resolves to nil and matches nothing"
+        end
+
+        # A symbolic right-hand side is a query input. When the compared path
+        # lands on this owner's declared shape, its type is already known and
+        # repeating an `attribute` line inside the query adds no information.
+        # Reference hops are resolved only after the whole chapter has been
+        # owner-stamped; BluebookBuilder performs the identical inference for
+        # those deferred paths.
+        def infer_local_query_argument(query, fields, lifecycle, clause)
+          name = clause.value
+          return unless name.is_a?(Symbol)
+          return if query.attribute(name)
+          return if clause.field.to_s.include?("/")
+
+          head, *nested = clause.field.to_s.split(".")
+          leaf = if nested.empty? && lifecycle&.field.to_s == head
+                   Attribute.new(name: name, type: String)
+                 else
+                   root = fields.find { |candidate| candidate.name.to_s == head }
+                   found = root && QuerySpecification::FieldPath.leaf_attribute(root, nested) do |type|
+                     declared_value_object(type)
+                   end
+                   found && Attribute.new(name: name, type: found.type, list: found.list?)
+                 end
+          query.attributes << leaf if leaf
         end
 
         # A BARE FIELD NAMING A VALUE OBJECT HAS TO SAY WHICH MEMBER IT

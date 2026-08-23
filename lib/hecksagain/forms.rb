@@ -18,7 +18,7 @@ module Hecksagain
     # kept OUTSIDE the `Hecks.*` collector convention (`Hecks.bluebook`,
     # `Hecks.hecksagon`, ...) and outside `Runtime::Registry` entirely, on
     # purpose: a real language word goes through `syntax.bluebook` and
-    # `MetaValidator` (see docs/guides/extending-hecks.md, "a new word is a
+    # `MetaValidator` (see docs/implemented/guides/extending-hecks.md, "a new word is a
     # declared row before it is a line of Ruby") and is judged by
     # spec/syntax_conformance_spec.rb + spec/dsl_coverage_spec.rb — gates
     # this construct has not earned yet. An ordinary Ruby DSL, one level of

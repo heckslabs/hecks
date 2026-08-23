@@ -480,6 +480,122 @@ if !unknown.is_empty() {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct KeywordSeed {
+    pub word: &'static str,
+    pub context: &'static str,
+    pub body: &'static str,
+    pub inner: &'static str,
+    pub opens: &'static str,
+    pub fills: &'static str,
+    pub status: &'static str,
+    pub was: &'static str,
+    pub resolves_via: &'static str,
+    pub disambiguator: &'static str,
+}
+
+pub const KEYWORD_SEED: &[KeywordSeed] = &[
+    KeywordSeed { word: "bluebook", context: "File", body: "keywords", inner: "Bluebook", opens: "Bluebook", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "formerly_known_as", context: "Bluebook", body: "none", inner: "", opens: "", fills: "formerly_known_as", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "attaches_to", context: "Bluebook", body: "none", inner: "", opens: "", fills: "attaches_to", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "core", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "supporting", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "generic", context: "Bluebook", body: "none", inner: "", opens: "", fills: "classification", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "aggregate", context: "Bluebook", body: "keywords", inner: "Aggregate", opens: "Aggregate", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "read_model", context: "Bluebook", body: "keywords", inner: "ReadModel", opens: "ReadModel", fills: "", status: "admitted", was: "report", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "policy", context: "Bluebook", body: "keywords", inner: "Policy", opens: "Policy", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+    KeywordSeed { word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: "", status: "admitted", was: "", resolves_via: "", disambiguator: "" },
+];
+
+impl KeywordSeed {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("word".to_string(), crate::kernel::Json::Str(self.word.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("body".to_string(), crate::kernel::Json::Str(self.body.to_string())),
+        ("inner".to_string(), crate::kernel::Json::Str(self.inner.to_string())),
+        ("opens".to_string(), crate::kernel::Json::Str(self.opens.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("was".to_string(), crate::kernel::Json::Str(self.was.to_string())),
+        ("resolves_via".to_string(), crate::kernel::Json::Str(self.resolves_via.to_string())),
+        ("disambiguator".to_string(), crate::kernel::Json::Str(self.disambiguator.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in KEYWORD_SEED {
+            if v.get("word").and_then(crate::kernel::Json::as_str) == Some(row.word) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("body").and_then(crate::kernel::Json::as_str) == Some(row.body) && v.get("inner").and_then(crate::kernel::Json::as_str) == Some(row.inner) && v.get("opens").and_then(crate::kernel::Json::as_str) == Some(row.opens) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("was").and_then(crate::kernel::Json::as_str) == Some(row.was) && v.get("resolves_via").and_then(crate::kernel::Json::as_str) == Some(row.resolves_via) && v.get("disambiguator").and_then(crate::kernel::Json::as_str) == Some(row.disambiguator) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("KeywordSeed: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArgumentSeed {
+    pub keyword: &'static str,
+    pub context: &'static str,
+    pub at: &'static str,
+    pub named: &'static str,
+    pub kind: &'static str,
+    pub required: &'static str,
+    pub fills: &'static str,
+    pub selects: &'static str,
+    pub pair_key_fills: &'static str,
+    pub pair_value_fills: &'static str,
+    pub pairs_shape: &'static str,
+    pub status: &'static str,
+    pub variadic: &'static str,
+    pub coerce: &'static str,
+    pub blank_message: &'static str,
+}
+
+pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
+    ArgumentSeed { keyword: "bluebook", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "bluebook", context: "File", at: "", named: "version", kind: "text", required: "false", fills: "version", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "vision", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "vision", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "false", blank_message: "" },
+    ArgumentSeed { keyword: "formerly_known_as", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "formerly_known_as", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "attaches_to", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "attaches_to", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "true", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "aggregate", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "policy", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+    ArgumentSeed { keyword: "process_manager", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name", selects: "", pair_key_fills: "", pair_value_fills: "", pairs_shape: "", status: "admitted", variadic: "", coerce: "", blank_message: "" },
+];
+
+impl ArgumentSeed {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+        ("keyword".to_string(), crate::kernel::Json::Str(self.keyword.to_string())),
+        ("context".to_string(), crate::kernel::Json::Str(self.context.to_string())),
+        ("at".to_string(), crate::kernel::Json::Str(self.at.to_string())),
+        ("named".to_string(), crate::kernel::Json::Str(self.named.to_string())),
+        ("kind".to_string(), crate::kernel::Json::Str(self.kind.to_string())),
+        ("required".to_string(), crate::kernel::Json::Str(self.required.to_string())),
+        ("fills".to_string(), crate::kernel::Json::Str(self.fills.to_string())),
+        ("selects".to_string(), crate::kernel::Json::Str(self.selects.to_string())),
+        ("pair_key_fills".to_string(), crate::kernel::Json::Str(self.pair_key_fills.to_string())),
+        ("pair_value_fills".to_string(), crate::kernel::Json::Str(self.pair_value_fills.to_string())),
+        ("pairs_shape".to_string(), crate::kernel::Json::Str(self.pairs_shape.to_string())),
+        ("status".to_string(), crate::kernel::Json::Str(self.status.to_string())),
+        ("variadic".to_string(), crate::kernel::Json::Str(self.variadic.to_string())),
+        ("coerce".to_string(), crate::kernel::Json::Str(self.coerce.to_string())),
+        ("blank_message".to_string(), crate::kernel::Json::Str(self.blank_message.to_string())),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        for row in ARGUMENT_SEED {
+            if v.get("keyword").and_then(crate::kernel::Json::as_str) == Some(row.keyword) && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context) && v.get("at").and_then(crate::kernel::Json::as_str) == Some(row.at) && v.get("named").and_then(crate::kernel::Json::as_str) == Some(row.named) && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind) && v.get("required").and_then(crate::kernel::Json::as_str) == Some(row.required) && v.get("fills").and_then(crate::kernel::Json::as_str) == Some(row.fills) && v.get("selects").and_then(crate::kernel::Json::as_str) == Some(row.selects) && v.get("pair_key_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_key_fills) && v.get("pair_value_fills").and_then(crate::kernel::Json::as_str) == Some(row.pair_value_fills) && v.get("pairs_shape").and_then(crate::kernel::Json::as_str) == Some(row.pairs_shape) && v.get("status").and_then(crate::kernel::Json::as_str) == Some(row.status) && v.get("variadic").and_then(crate::kernel::Json::as_str) == Some(row.variadic) && v.get("coerce").and_then(crate::kernel::Json::as_str) == Some(row.coerce) && v.get("blank_message").and_then(crate::kernel::Json::as_str) == Some(row.blank_message) {
+                return Ok(row.clone());
+            }
+        }
+        Err(crate::kernel::Refusal::TypeMismatch(format!("ArgumentSeed: no member matches {:?}", v)))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Bluebook {
     pub name: Option<BluebookName>,
     pub vision: Option<Vision>,
@@ -555,108 +671,6 @@ impl Bluebook {
     }
 }
 
-impl crate::kernel::Fielded for DeclareArgs {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::Field;
-        use crate::kernel::Value;
-        match name {
-            "name" => Some(Field::Nested(&self.name)),
-            "vision" => self.vision.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "classification" => self.classification.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "version" => self.version.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            "formerly_known_as" => self.formerly_known_as.as_ref().map(|v| Field::Nested(v)).or(Some(Field::Value(Value::Nil))),
-            _ => None,
-        }
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct DeclareArgs {
-    pub name: BluebookName,
-    pub vision: Option<Vision>,
-    pub classification: Option<Classification>,
-    pub version: Option<Version>,
-    pub formerly_known_as: Option<FormerlyKnownAs>,
-}
-
-pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<Bluebook>, args: DeclareArgs, mutations: &mut Vec<crate::kernel::MutationRecord>, owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>, command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<Bluebook> {
-        args.name.check_invariants()?;
-        if let Some(v) = &args.vision { v.check_invariants()?; }
-        if let Some(v) = &args.classification { v.check_invariants()?; }
-        if let Some(v) = &args.version { v.check_invariants()?; }
-        if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
-    let with_references = crate::kernel::WithReferences { command_deref: &command_deref, args: &args, owner_deref: &owner_deref };
-
-    crate::kernel::dispatch(
-        repo,
-        crate::kernel::Hydrate::Create {
-        id: args.name.value.to_string(),
-        build: Box::new(|| Bluebook {
-            name: Some(args.name.clone()),
-            vision: args.vision.clone(),
-            classification: args.classification.clone(),
-            version: args.version.clone(),
-            formerly_known_as: args.formerly_known_as.clone(),
-            normalisations: vec![],
-            attaches_to: vec![],
-        }),
-    },
-        "Declare",
-        "Bluebook::Bluebook",
-        "Bluebook",
-        "name.value",
-        &with_references,
-        &[
-
-        ],
-        None,
-        |record| {
-        let _ = record;
-            Ok(())
-        },
-        &[
-
-        ],
-        &["ChapterDeclared"],
-        args.to_json(),
-        mutations,
-    )
-}
-
-impl DeclareArgs {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-        ("name".to_string(), self.name.to_json()),
-        ("vision".to_string(), self.vision.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("classification".to_string(), self.classification.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("version".to_string(), self.version.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ("formerly_known_as".to_string(), self.formerly_known_as.as_ref().map(|v| v.to_json()).unwrap_or(crate::kernel::Json::Null)),
-        ])
-    }
-}
-
-impl DeclareArgs {
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["name", "vision", "classification", "version", "formerly_known_as", "id"]);
-if !unknown.is_empty() {
-    return Err(crate::kernel::Refusal::UnknownArgument(format!(
-        "Declare does not declare {} — it takes name, vision, classification, version, formerly_known_as",
-        unknown.join(", ")
-    )));
-}
-        Ok(Self {
-        name: BluebookName::from_json(&v.require("name", "DeclareArgs")?.coerce_single_field("value"))?,
-        vision: match v.get("vision") { Some(x) => Some(Vision::from_json(&x.coerce_single_field("value"))?), None => None, },
-        classification: match v.get("classification") { Some(x) => Some(Classification::from_json(&x.coerce_single_field("value"))?), None => None, },
-        version: match v.get("version") { Some(x) => Some(Version::from_json(&x.coerce_single_field("value"))?), None => None, },
-        formerly_known_as: match v.get("formerly_known_as") { Some(x) => Some(FormerlyKnownAs::from_json(&x.coerce_single_field("value"))?), None => None, },
-        })
-    }
-}
-
 impl crate::kernel::Fielded for AttachArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -715,7 +729,7 @@ impl AttachArgs {
 
 impl AttachArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["context", "id", "bluebook", "name"]);
+let unknown = v.unknown_keys(&["context", "id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Attach does not declare {} — it takes context",
@@ -802,7 +816,7 @@ impl NormaliseArgs {
 
 impl NormaliseArgs {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "bluebook", "name"]);
+let unknown = v.unknown_keys(&["strategy", "source_token", "replacement", "boundary", "position", "id", "name"]);
 if !unknown.is_empty() {
     return Err(crate::kernel::Refusal::UnknownArgument(format!(
         "Normalise does not declare {} — it takes strategy, source_token, replacement, boundary, position",

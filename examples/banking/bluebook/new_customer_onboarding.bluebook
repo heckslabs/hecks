@@ -1,0 +1,107 @@
+Hecks.bluebook "Banking" do
+  aggregate "OnboardingCase" do
+    given("case is screening") { status == "screening" }
+    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — see
+    # `SafeDepositBox`'s own comment on this same reference and on why
+    # `declared_by:` is required.
+    given("customer is active", declared_by: Account)
+    description "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened."
+
+    # `reference_to` mints `customer`, no `_id` suffix (ADR 0025) — the
+    # same bare name `belongs_to` used to mint as sugar, before `belongs_to`
+    # itself was retired for having no work left to do.
+    reference_to Customer
+
+    attribute :reference, OnboardingReference
+
+    identified_by :reference
+
+    attribute :account_number, AccountNumber
+
+    value_object "OnboardingReference" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an onboarding case is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "AccountNumber" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("an account number is present") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "screening" do
+      transition "Clear"   => "cleared",  from: "screening"
+      transition "Decline" => "declined", from: "screening"
+    end
+
+    command "Open" do
+      role "Branch clerk"
+      goal "Open a KYC case for a newly registered customer, naming the account it will become"
+
+      given("customer is active")
+
+      sets :customer
+      sets :reference
+      sets :account_number
+
+      emits "OnboardingOpened"
+    end
+
+    command "Clear" do
+      role "Compliance officer"
+      goal "Pass a customer's identity and screening checks"
+
+      reference_to OnboardingCase
+      given("customer is active")
+      given("case is screening")
+
+      emits "OnboardingCleared"
+    end
+
+    command "Decline" do
+      role "Compliance officer"
+      goal "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone"
+
+      reference_to OnboardingCase
+      given("customer is active")
+      given("case is screening")
+
+      emits "OnboardingDeclined"
+    end
+
+    query "Screening" do
+      description "Cases still waiting on a compliance decision."
+      where(status: "screening")
+      order_by :reference
+    end
+  end
+
+  # THE FIRST SAGA THAT DOES NOT COMPENSATE. Settlement and ExternalSettlement
+  # both carry an `on :refused` leg because a transfer stopped halfway is
+  # money unaccounted for — something must be put back. A KYC case that does
+  # not clear has nothing to put back: no account was ever opened and no
+  # money ever moved, so Decline is simply where the flow stops. There is no
+  # `on :refused` leg here — compare its shape against Settlement in
+  # `transfers_and_payments.bluebook` rather than trusting the claim.
+  process_manager "Onboarding" do
+    correlates_by :"reference.value"
+    starts_on "OnboardingOpened"
+    ends_on   "AccountOpened"
+
+    transition "OnboardingCleared" => "cleared", from: "screening" do
+      # A STANDARD ACCOUNT, OPENED AUTOMATICALLY — kind and opening limit are
+      # the bank's default terms for a just-cleared customer, not something
+      # onboarding negotiates; a customer who wants something else changes it
+      # afterward through Account's own commands.
+      dispatch Account::Open, with: {
+        customer:    :customer,
+        number:      :account_number,
+        kind:        { name: "current" },
+        daily_limit: { cents: 0 }
+      }
+    end
+
+    # THE NON-COMPENSATING LEG — no dispatch, because nothing was ever
+    # created to undo.
+    transition "OnboardingDeclined" => "declined", from: "screening"
+  end
+end

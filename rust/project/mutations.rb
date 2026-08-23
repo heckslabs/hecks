@@ -18,9 +18,9 @@ module RustProjection
     # is the negative case that must stay `[]` — the exact regression the
     # 0014 doc's own reverted empty-list-to-null heuristic caused by not
     # distinguishing them.
-    def list_attr_creation_optional?(aggregate, attr_name)
+    def list_attr_creation_optional?(aggregate, attr_name, value_objects_by_name)
       aggregate[:commands].any? do |command|
-        next false unless command[:references].nil? # creating
+        next false unless creates_owner?(aggregate, command, value_objects_by_name)
 
         command[:mutations].any? do |m|
           next false unless m[:op].to_s == "set" && m[:target].to_s == attr_name.to_s && m[:source][:kind] == "argument"
@@ -31,6 +31,100 @@ module RustProjection
       end
     end
 
+    # `creates_owner?(aggregate, command, value_objects_by_name)` — REPLACES
+    # `command[:references].nil?` ALONE (and the coincidental bare-name
+    # matching `identity_components`, below, used to do) as the "does this
+    # command build the OWNER record from scratch" test.
+    #
+    # `references.nil?` IS HONEST WHENEVER IT'S SET — a command that
+    # genuinely declares `reference_to <its own owner>` (bare, no `as:`)
+    # really does act on an existing one (`Compliance::AccountFreezeReview
+    # .Clear`/`Governance::RoleTransition.Revoke`, both real, both keep
+    # `references` non-nil and stay `false` here, unconditionally, on that
+    # signal alone). What's dishonest is treating an ABSENT `references` as
+    # proof of creation — a mutating meta-domain command like `Aggregate.
+    # Attribute` declares no `reference_to` at all, not because it creates,
+    # but because the owner it acts on is supplied entirely through ROUTING
+    # (`to:`/`with:`), never as a declared argument — adding a bare
+    # `reference_to Aggregate` purely to flip this heuristic was the
+    # rejected direction (RESTART.md's own "Option 1": a fake self-
+    # reference). So `references: nil` needs a SECOND, honest test.
+    #
+    # THAT TEST IS NOT COMPLETENESS. A creating command's generated Rust
+    # struct Option-wraps EVERY scalar field regardless (`emit_record`'s own
+    # header, types.rb) — an uncovered field just becomes `None`, which is
+    # exactly how `Pizzas::Order.CreatePizza` (zero mutations, no `customer_
+    # name` argument at all — `Order`'s fourth field) already generates
+    # correctly. `Runtime::DependencyPlanning::Analyzer#complete_state?`
+    # answers a DIFFERENT, narrower question for Ruby's own runtime (an
+    # atomic-put OPTIMIZATION eligibility check) and disagrees with "creates"
+    # on both sides — `CardPayment.Authorize` is complete_state?-false (its
+    # own identity field, `authorisation`, is never a `:set` target) yet
+    # unquestionably creates a fresh `CardPayment`; `Aggregate.Lifecycle`
+    # IS complete_state?-true-shaped (it `:set`s two real fields) yet acts on
+    # an existing `Aggregate` — completeness alone cannot tell these apart.
+    #
+    # THE HONEST TEST: with `references: nil` already narrowing to "no
+    # explicit reference at all," a command creates the owner when it
+    # supplies (via a `:set` mutation OR — `emit_command`'s own
+    # `record_fields`, commands.rb — a same-named argument, copied straight
+    # across with NO mutation required) at least one of the owner's own
+    # REQUIRED (non-list, non-optional) fields. `Order.CreatePizza` supplies
+    # `name`/`pizza` this way (both required) — that's real evidence of
+    # building a genuinely new record. `Aggregate.Attribute`/`Aggregate.
+    # Lifecycle` supply nothing of the kind: the first's every argument is
+    # claimed by its own `append`, the second touches only `state_field`/
+    # `state_start`, both `optional: true` — attaching a fact to a record
+    # that must already exist is exactly what "nothing required is ever
+    # newly supplied" looks like. A `:set`/bare-matched argument already
+    # claimed by an APPEND (`ValueObject.Member`'s own `position`, feeding
+    # the appended MEMBER's `position`, never `ValueObject`'s own
+    # unrelated, declaration-order field of the same name) is excluded from
+    # counting as such evidence — the exact bare-name coincidence this
+    # whole fix exists to stop trusting blindly.
+    def creates_owner?(aggregate, command, value_objects_by_name)
+      return false unless command[:references].nil?
+
+      owner_fields = aggregate[:attributes].map { |a| a[:name].to_s }.to_set
+      owner_fields << aggregate[:lifecycle][:field].to_s if aggregate[:lifecycle]
+      required_fields = aggregate[:attributes].reject { |a| a[:list] || a[:optional] }.map { |a| a[:name].to_s }.to_set
+
+      # ARGUMENT NAMES ALREADY CLAIMED BY AN APPEND — collected first, so
+      # an append's own element-field argument is never ALSO eligible to
+      # bare-name-match an unrelated owner field that happens to share its
+      # name (see this method's own header on `ValueObject.Member`).
+      append_claimed = Set.new
+      command[:mutations].each do |m|
+        next unless m[:op].to_s == "append"
+
+        Array(m[:fields]&.values).each do |v|
+          source = append_field_source(v)
+          append_claimed << source.to_s if source.is_a?(Symbol)
+        end
+      end
+
+      known_writes = Set.new
+
+      # A BARE-NAME MATCH — `record_fields` (commands.rb) copies a
+      # creating command's argument straight into the same-named owner
+      # field with no `:set` mutation required at all.
+      command[:attributes].each do |attr|
+        name = attr[:name].to_s
+        known_writes << name if owner_fields.include?(name) && !append_claimed.include?(name)
+      end
+
+      # AN EXPLICIT `:set` MUTATION — covers the "renamed source" shape a
+      # bare-name match alone can't (`sets :field, to: :other_arg`).
+      command[:mutations].each do |m|
+        next unless m[:op].to_s == "set"
+
+        target = m[:target].to_s
+        known_writes << target if owner_fields.include?(target)
+      end
+
+      required_fields.any? { |field| known_writes.include?(field) }
+    end
+
     # `append`'s TARGET, resolved to whichever real thing it is — a plain
     # value object (`Order.toppings`, a `Vec<Topping>`) or an ENTITY
     # (`Account.ledger`, a `Vec<LedgerEntry>`) — so field-type lookups can
@@ -38,9 +132,24 @@ module RustProjection
     # the attribute names neither (a codegen bug if reached; every real
     # append target already passed `unsupported_attribute_types` above).
     def append_element(aggregate, target_type, value_objects_by_name)
-      return value_objects_by_name[target_type] if value_objects_by_name.key?(target_type)
+      # LOCAL FIRST — an aggregate's own nested entity is scoped to that
+      # aggregate; `value_objects_by_name` is merged DOMAIN-WIDE (every
+      # aggregate's own value objects, so a cross-aggregate reuse like
+      # Translation's own TranslationName resolves at all). The two
+      # namespaces aren't meant to collide, but the self-hosted grammar's
+      # own Bluebook chapter proves they CAN: Command's domain-wide
+      # value_object "Argument" (an ordinary command's own argument row)
+      # and Syntax's own LOCAL entity "Argument" (S14, ADR 0026 — one row
+      # of the syntax table itself, keyword/context/at/named/kind/...)
+      # share a name purely by coincidence. Checking local first — same
+      # "the aggregate's own declaration wins" precedent judge.rb's own
+      # cross-aggregate value-object fallback already set — means Syntax's
+      # OWN Argument entity resolves correctly; every other aggregate,
+      # with no such collision, sees identical behavior either order.
+      local = aggregate[:entities].find { |e| e[:name] == target_type }
+      return local if local
 
-      aggregate[:entities].find { |e| e[:name] == target_type }
+      value_objects_by_name[target_type]
     end
 
     # An entity element's identity, auto-minted at append time exactly the
@@ -188,12 +297,13 @@ module RustProjection
     # redundant `sets` on an already-implicit creation attribute).
     # THE IDENTITY IS THE JOIN OF ITS PARTS (Naming::IDENTITY_JOIN is ":",
     # read directly) — one component per `identified_by` entry, each
-    # resolved the same way `Runtime::Identity.from` resolves it: a dotted
-    # path walks into the named argument's own field; a BARE component that
-    # IS a declared command attribute reads that argument directly, no
-    # walk; a bare component that is NOT a declared attribute (`owner_id` —
-    # "never a declared attribute," per `language/bluebook/behavior.bluebook`'s
-    # own comment) isn't in the command's own typed `XArgs` struct at all —
+    # resolved the same way `Runtime::Identity.from` resolves it: a
+    # component whose HEAD names a declared command attribute walks into
+    # that argument's own field (a dotted `rest` walks further into it —
+    # `box_number.value`, a value-object-typed argument); a component
+    # whose head is NOT a declared attribute (`owner_id` — "never a
+    # declared attribute," per `language/bluebook/behavior.bluebook`'s own
+    # comment) isn't in the command's own typed `XArgs` struct at all —
     # it's an addressing key allowed straight through `refuse_unknown_
     # arguments`'s allowlist the same way `id:` already is, so it never
     # became a struct field; the generated dispatch function instead takes
@@ -203,16 +313,82 @@ module RustProjection
     # JSON key `registry.rb`'s own router reads it off `args_json` under,
     # once it stops merely declaring the parameter and starts actually
     # supplying it.
+    #
+    # THE HEAD CHECK GOVERNS BOTH SHAPES, NOT JUST THE BARE ONE — this used
+    # to branch on `rest.any?` FIRST, so any dotted path unconditionally
+    # read `args.<head>.<rest>`, assuming the head was always one of this
+    # command's OWN declared attributes. True for every ordinary domain's
+    # creating command until the self-hosted meta-grammar's own
+    # owner-mutating commands (`Aggregate.Identify` et al.) exercised the
+    # one combination nothing else in the corpus had: a DOTTED identity
+    # component (`name.value`, the meta-Aggregate's own name being a
+    # single-field value object) whose head belongs to the OWNER being
+    # mutated, not to the command's own args — `IdentifyArgs` has only
+    # `path`, so `args.name` doesn't exist, and `cargo build` refused it.
+    # The head-declared? check now gates BOTH shapes: undeclared means
+    # external regardless of whether the path was dotted, because a value
+    # supplied from outside args is already the resolved scalar the caller
+    # read off the owner's own state — there is no `.value` left to walk.
+    #
+    # "DECLARED" MEANS a genuine `:set` mutation TARGETS this head — not
+    # merely "some command attribute happens to share the head's name"
+    # (the bare-name check this used to be). A dozen meta-domain "attach
+    # one child to the owner" commands (`Aggregate.Attribute` et al.) each
+    # declare an attribute coincidentally named the same as one of their
+    # OWNER's identity components (both have a field called `name`) while
+    # never setting the owner's own field at all — their one mutation
+    # APPENDS that attribute into a list, sourced by that argument, which
+    # is an entirely different thing from minting the owner's own id. See
+    # `creates_owner?`'s own header (this file) for the full story; this
+    # method is only ever consulted once that check has already said
+    # `true`, but stays honest on its own terms rather than leaning on the
+    # caller to have filtered first.
     def identity_components(aggregate, command)
+      # THE SAME "DECLARED" TEST `creates_owner?` (this file, own header)
+      # uses to count a field as supplied: a `:set` mutation targeting it,
+      # OR a same-named command argument copied straight across by
+      # `record_fields` (commands.rb) with no mutation at all — EXCLUDING
+      # an argument already claimed by an append (`ValueObject.Member`'s
+      # own `position`, coincidentally named, feeds the appended member's
+      # `position`, never the owner's identity). A "creates" command whose
+      # identity head is supplied this second way (`Governance::
+      # RoleAssignment.Assign`'s own `actor_id`/`role_name`/`starts_at` —
+      # no explicit `:set` at all, bare-name-matched like `Order.
+      # CreatePizza`'s whole record) reads `args.<head>` exactly the same
+      # as one supplied via an explicit `sets :<head>`.
+      append_claimed = Set.new
+      command[:mutations].each do |m|
+        next unless m[:op].to_s == "append"
+
+        Array(m[:fields]&.values).each do |v|
+          source = append_field_source(v)
+          append_claimed << source.to_s if source.is_a?(Symbol)
+        end
+      end
+      declared_names = command[:attributes].map { |a| a[:name].to_s }.to_set - append_claimed
+
       aggregate[:identified_by].map do |path|
         head, *rest = path.split(".")
-        if rest.any?
-          { expr: "args.#{rust_ident_field(head)}.#{rest.map { |seg| rust_ident_field(seg) }.join('.')}.to_string()", param: nil }
-        elsif command[:attributes].any? { |a| a[:name].to_s == head }
-          { expr: "args.#{rust_ident_field(head)}.to_string()", param: nil }
+        set_target = command[:mutations].any? { |m| m[:op].to_s == "set" && m[:target].to_s == head }
+        if set_target || declared_names.include?(head)
+          if rest.any?
+            { expr: "args.#{rust_ident_field(head)}.#{rest.map { |seg| rust_ident_field(seg) }.join('.')}.to_string()", param: nil }
+          else
+            { expr: "args.#{rust_ident_field(head)}.to_string()", param: nil }
+          end
         else
+          # `.to_string()` here too, matching the other two branches — a
+          # single-component identity returns this expr UNWRAPPED
+          # (build_identity_expr, below: `components.first[:expr]` when
+          # there's only one), straight into a `Hydrate::Create { id: ...
+          # }` field typed `String`. This param is `&str`; every other
+          # branch already produces an owned `String`, so this was the one
+          # combination (single identity component, and it's external) that
+          # left a bare `&str` where `String` was expected — never hit
+          # before the meta-grammar's own owner-mutating commands added a
+          # case with exactly one identity part, entirely external.
           param = rust_ident_field(head)
-          { expr: param, param: "#{param}: &str", head: head }
+          { expr: "#{param}.to_string()", param: "#{param}: &str", head: head }
         end
       end
     end
@@ -439,7 +615,7 @@ module RustProjection
           rhs = mutation_set_rhs(mutation[:source], target_attr[:type], command, value_objects_by_name)
           source_attr = mutation[:source][:kind] == "argument" ? command[:attributes].find { |a| a[:name].to_s == mutation[:source][:name].to_s } : nil
 
-          if target_attr[:list] && optional && list_attr_creation_optional?(aggregate, target_attr[:name])
+          if target_attr[:list] && optional && list_attr_creation_optional?(aggregate, target_attr[:name], value_objects_by_name)
             # `CardPayment.Authorize`'s own redundant `sets :tags, to:
             # :tags` (the same "re-set an already-implicit creation
             # attribute" pattern `Purchase`'s own status set already is) —

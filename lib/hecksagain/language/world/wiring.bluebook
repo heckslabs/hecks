@@ -1,0 +1,62 @@
+Hecks.bluebook "World" do
+  aggregate "Wiring" do
+    description "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold."
+
+    # `as:` is required here — Wiring ALSO holds an ordinary `world` text
+    # attribute below (the same string, but a value rather than a reference),
+    # so the bare reference name would collide with it.
+    belongs_to World, as: :world_ref
+
+    # THE WORLD IT IS IN, AND THE VERB IT ANSWERS. One world binds one adapter per
+    # verb — that is what a binding IS — so the verb names the wiring, and the
+    # world says whose.
+    identified_by :world, :verb
+
+    attribute :world,    WiringText
+    attribute :verb,     WiringText
+    attribute :adapter,  WiringText
+    attribute :settings, list_of(Setting)
+
+    value_object "WiringText" do
+      attribute :value, String
+    end
+
+    value_object "Setting" do
+      attribute :key,   String
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Bind one adapter in a world"
+
+      attribute :world_ref, WorldName
+      attribute :world,   WiringText
+      attribute :verb,    WiringText
+      attribute :adapter, WiringText
+
+      given("a wiring names its verb") { !verb.value.to_s.empty? }
+
+      sets :world_ref
+      sets :world
+      sets :verb
+      sets :adapter
+
+      emits "WiringDeclared"
+    end
+
+    command "Set" do
+      role "Deployment"
+      goal "Give one value the bound adapter needs"
+
+      attribute :key,   WiringText
+      attribute :value, WiringText
+
+      given("a setting names its key") { !key.value.to_s.empty? }
+
+      sets :settings, append: { key: :key, value: :value }
+
+      emits "SettingGiven"
+    end
+  end
+end

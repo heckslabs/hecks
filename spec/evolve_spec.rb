@@ -3,42 +3,60 @@ require "tmpdir"
 require "hecksagain/grammar/evolve"
 
 # The file surgery under bin/evolve, exercised against throwaway COPIES
-# of the real syntax table — never the tree's own. The tool's gates
+# of the aggregate-local syntax tables — never the tree's own. The tool's gates
 # (regenerate, run the conformance specs, restore on red) are proven by
 # driving bin/evolve itself; what this file pins is the surgery: a
 # proposal lands as a hand would write it, admission removes the
 # ceremony (absent status reads as admitted), and the region outside
 # Keyword's one_of block is never touched.
 RSpec.describe "the evolve surgery" do
-  EVOLVE_SOURCE = File.read(Hecksagain::Grammar::Evolve.syntax_path)
+  EVOLVE = Hecksagain::Grammar::Evolve
 
-  def with_copy
+  def syntax_source_for(context)
+    EVOLVE.syntax_paths.find { |path| File.read(path).include?(%(context: "#{context}")) } or
+      raise "no syntax source owns #{context}"
+  end
+
+  def with_copy(context)
     Dir.mktmpdir("evolve") do |dir|
-      path = File.join(dir, "syntax.bluebook")
-      File.write(path, EVOLVE_SOURCE)
-      yield path
+      source_path = syntax_source_for(context)
+      path = File.join(dir, File.basename(source_path))
+      source = File.read(source_path)
+      File.write(path, source)
+      yield path, source
+    end
+  end
+
+  def with_copies(*contexts)
+    Dir.mktmpdir("evolve") do |dir|
+      paths = contexts.map do |context|
+        source_path = syntax_source_for(context)
+        path = File.join(dir, File.basename(source_path))
+        File.write(path, File.read(source_path))
+        path
+      end.uniq
+      yield paths
     end
   end
 
   it "reads every keyword row, absent status as admitted" do
-    with_copy do |path|
-      rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
-      expect(rows.size).to be > 70
-      # S13, ADR 0025 — has_many/has_one/belongs_to now carry a real
-      # `status: "deprecated"` (they refuse unconditionally outside
-      # shadow_parse; the doc table said "admitted" while the builder
-      # already refused every live use). The claim this test actually
-      # holds — a row with NO status: column reads back as "admitted",
-      # never blank — survives that: every value present is one of the
-      # two real statuses, never the empty string a missing column
-      # would leave unfilled.
-      expect(rows.map { |row| row[:status] }.uniq.sort).to eq(["admitted", "deprecated"])
-      expect(rows.map { |row| row[:status] }).to all(satisfy { |status| !status.to_s.empty? })
-    end
+    rows = EVOLVE.keyword_rows
+    expect(rows.size).to be > 70
+    # S17/ADR 0026's relationship-cardinality slice un-deprecated
+    # has_many/has_one/belongs_to for real (they build and dispatch now,
+    # not merely refuse outside shadow_parse) — but `then_set` (item #13's
+    # own slice 5 rename of `sets`) is a real "deprecated" row again,
+    # kept refusing live only so shadow_parse can still read frozen era
+    # text that used the old spelling. The claim this test actually
+    # holds — an ABSENT status: column reads back as "admitted", never
+    # blank — needs no particular status SET to prove; it only needs
+    # every present value to be non-empty, checked below.
+    expect(rows.map { |row| row[:status] }.uniq.sort).to eq(%w[admitted deprecated])
+    expect(rows.map { |row| row[:status] }).to all(satisfy { |status| !status.to_s.empty? })
   end
 
   it "proposes a word as one row, proposed, at the table's foot" do
-    with_copy do |path|
+    with_copy("Aggregate") do |path|
       Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate",
                                           fills: "description", path: path)
       rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
@@ -50,7 +68,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "refuses a second row for the same word and context" do
-    with_copy do |path|
+    with_copy("Aggregate") do |path|
       Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
 
       expect do
@@ -60,7 +78,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "admits by removing the ceremony — an admitted row spells no status" do
-    with_copy do |path|
+    with_copy("Aggregate") do |path|
       Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
       Hecksagain::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
                                              to: "admitted", path: path)
@@ -73,7 +91,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "deprecates and retires by spelling the station" do
-    with_copy do |path|
+    with_copy("Command") do |path|
       Hecksagain::Grammar::Evolve.set_status(word: "given", context: "Command",
                                              to: "deprecated", path: path)
       row = Hecksagain::Grammar::Evolve.keyword_rows(path)
@@ -83,7 +101,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "renames by respelling the row and holding the old spelling in was" do
-    with_copy do |path|
+    with_copy("Command") do |path|
       Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
       rows = Hecksagain::Grammar::Evolve.keyword_rows(path)
 
@@ -93,7 +111,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "refuses a second rename hop, and a rename onto a living word" do
-    with_copy do |path|
+    with_copy("Command") do |path|
       Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
 
       expect do
@@ -107,7 +125,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "refuses a station the language does not admit, and a word it does not hold" do
-    with_copy do |path|
+    with_copy("Command") do |path|
       expect do
         Hecksagain::Grammar::Evolve.set_status(word: "given", context: "Command",
                                                to: "banished", path: path)
@@ -121,12 +139,12 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "touches nothing outside the Keyword one_of block" do
-    with_copy do |path|
+    with_copy("Aggregate") do |path, source|
       Hecksagain::Grammar::Evolve.propose(word: "annotate", context: "Aggregate", path: path)
       Hecksagain::Grammar::Evolve.set_status(word: "annotate", context: "Aggregate",
                                              to: "retired", path: path)
 
-      before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "KeywordSeed" do$/)]
+      before_block = source[0...source.index(/^\s*value_object "KeywordSeed" do$/)]
       after = File.read(path)
       expect(after[0...before_block.size]).to eq(before_block)
       expect(after).to include('value_object "ArgumentSeed"')
@@ -138,26 +156,16 @@ RSpec.describe "the evolve surgery" do
   # (keyword, context, at, named) tuple.
 
   it "reads every argument row" do
-    with_copy do |path|
-      rows = Hecksagain::Grammar::Evolve.argument_rows(path)
-      expect(rows.size).to be > 100
-      expect(rows.map { |row| row[:status] }.uniq.sort).to eq(["admitted", "deprecated"])
-
-      # THE FOUR ROWS ADR 0025's identity slice (S1) actually deprecated —
-      # `identified_by`'s legacy value-object/`as:` argument rows, admitted
-      # only while `MetaValidator.shadow_parsing?` (S0a's own bridge).
-      # Pinned by name rather than just counting "not admitted", so a
-      # future deprecation elsewhere in the table shows up here too.
-      deprecated = rows.select { |row| row[:status] == "deprecated" }
-      expect(deprecated.map { |row| [row[:keyword], row[:context], row[:named]] }.sort).to eq(
-        [["identified_by", "Aggregate", ""], ["identified_by", "Aggregate", "as"],
-         ["identified_by", "Entity", ""], ["identified_by", "Entity", "as"]].sort
-      )
-    end
+    rows = EVOLVE.argument_rows
+    expect(rows.size).to be > 100
+    # ADR 0029 restores the named value-object and `as:` rows. The symbol
+    # row remains admitted because two-or-more symbols are the live compound
+    # key form; its one-symbol refusal is an arity rule, not a row lifecycle.
+    expect(rows.map { |row| row[:status] }.uniq).to eq(["admitted"])
   end
 
   it "proposes an argument as one row, proposed, at the table's foot" do
-    with_copy do |path|
+    with_copy("Bluebook") do |path|
       Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
                                                    named: "locale", path: path)
       rows = Hecksagain::Grammar::Evolve.argument_rows(path)
@@ -170,7 +178,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "refuses a second row for the same (keyword, context, at, named)" do
-    with_copy do |path|
+    with_copy("Bluebook") do |path|
       Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
                                                    named: "locale", path: path)
 
@@ -182,7 +190,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "admits an argument by removing the ceremony" do
-    with_copy do |path|
+    with_copy("Bluebook") do |path|
       Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
                                                    named: "locale", path: path)
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "admitted",
@@ -195,7 +203,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "deprecates and retires an argument by spelling the station" do
-    with_copy do |path|
+    with_copy("Aggregate") do |path|
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
                                                       to: "deprecated", named: "pattern", path: path)
       row = Hecksagain::Grammar::Evolve.argument_rows(path)
@@ -205,7 +213,7 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "refuses a station or an argument the language does not hold" do
-    with_copy do |path|
+    with_copy("Aggregate") do |path|
       expect do
         Hecksagain::Grammar::Evolve.set_argument_status(keyword: "attribute", context: "Aggregate",
                                                         to: "banished", named: "pattern", path: path)
@@ -219,9 +227,9 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "cascades a keyword rename onto that keyword's own argument rows, and no other's" do
-    with_copy do |path|
-      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: path)
-      rows = Hecksagain::Grammar::Evolve.argument_rows(path)
+    with_copies("Command", "PortOperation") do |paths|
+      Hecksagain::Grammar::Evolve.rename(word: "emits", context: "Command", to: "announces", path: paths)
+      rows = Hecksagain::Grammar::Evolve.argument_rows(paths)
 
       # SCOPED TO THE RENAMED (keyword, context) PAIR, not the bare word —
       # "emits" legitimately still exists under "PortOperation" (a hecksagon
@@ -237,13 +245,13 @@ RSpec.describe "the evolve surgery" do
   end
 
   it "touches nothing outside the Argument one_of block" do
-    with_copy do |path|
+    with_copy("Bluebook") do |path, source|
       Hecksagain::Grammar::Evolve.propose_argument(keyword: "vision", context: "Bluebook", kind: "text",
                                                    named: "locale", path: path)
       Hecksagain::Grammar::Evolve.set_argument_status(keyword: "vision", context: "Bluebook", to: "retired",
                                                       named: "locale", path: path)
 
-      before_block = EVOLVE_SOURCE[0...EVOLVE_SOURCE.index(/^\s*value_object "ArgumentSeed" do$/)]
+      before_block = source[0...source.index(/^\s*value_object "ArgumentSeed" do$/)]
       after = File.read(path)
       expect(after[0...before_block.size]).to eq(before_block)
     end

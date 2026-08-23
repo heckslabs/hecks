@@ -13,6 +13,7 @@ module Hecksagain
       # instances, so two tenant boots never share this adapter's state
       # by construction — nothing here needs to know "tenant" exists.
       def self.tenant_capable? = true
+      def persistence_capabilities = [:atomic_put]
 
       attr_reader :aggregate
 
@@ -51,6 +52,19 @@ module Hecksagain
         entry = Ports::Persistence::Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
         append(entry)
         project(entry)
+      end
+
+      # One in-memory critical section in the only thread touching this plain
+      # Hash: classify and replace without a preliminary repository lookup.
+      # Durable append and projection remain ordered exactly as ordinary save.
+      def atomic_put(entry, insert_only: false)
+        exists = @records.key?(entry.id.to_s)
+        return :conflicted if insert_only && exists
+
+        status = exists ? :replaced : :inserted
+        append(entry)
+        project(entry)
+        status
       end
 
       def delete(id)

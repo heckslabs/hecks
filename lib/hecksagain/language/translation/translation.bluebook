@@ -1,0 +1,110 @@
+Hecks.bluebook "Translation" do
+  aggregate "Translation" do
+    description "One translations/*.bluebook edge — a domain moving from one pinned era to the next, aggregate by aggregate."
+
+    identified_by :domain, :from, :to
+
+    attribute :domain, TranslationDomainName
+    attribute :from,   TranslationEraName
+    attribute :to,     TranslationEraName
+    attribute :retired, list_of(TranslationName)
+
+    value_object "TranslationDomainName" do
+      attribute :value, String
+      invariant("a translation names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "TranslationEraName" do
+      attribute :value, String
+      invariant("a translation names its own era") { !value.to_s.empty? }
+    end
+
+    value_object "TranslationName" do
+      attribute :value, String
+      invariant("a name says something") { !value.to_s.empty? }
+    end
+
+    # ARBITRARY, UNVALIDATED CAPTURE — `convert`'s own `values:` table and
+    # `backfill`'s own `default:` are open-ended (any literal a real
+    # migration needs), the same shape `AggregateBuilder#provenance`/
+    # `CommandBuilder#provenance` already capture as plain, unvalidated
+    # text (`LiteralText`, aggregate.bluebook) rather than a fixed
+    # attribute shape a closed self-hosted record could enumerate.
+    value_object "TranslationLiteralText" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Deployment"
+      goal "Open a domain's own move from one pinned era to the next"
+
+      attribute :domain, TranslationDomainName
+      attribute :from,   TranslationEraName
+      attribute :to,     TranslationEraName
+
+      sets :domain
+      sets :from
+      sets :to
+
+      emits "TranslationDeclared"
+    end
+
+    command "Retire" do
+      role "Deployment"
+      goal "Name an aggregate the new era drops outright, not renamed"
+
+      attribute :value, TranslationName
+
+      sets :retired, append: { value: :value }
+
+      emits "TranslationAggregateRetired"
+    end
+
+    # HOW TRANSLATION IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: File, Translation.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "data_translation", context: "File",    body: "keywords", inner: "Translation",    opens: "Translation",    fills: ""
+      member word: "aggregate",       context: "Translation", body: "keywords", inner: "TranslationAggregate", opens: "TranslationAggregate", fills: "", calls: "aggregate_impl"
+      member word: "retired",         context: "Translation", body: "none",     inner: "",                     opens: "",                     fills: "retired"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "data_translation", context: "File", at: "1", named: "", kind: "text", required: "true", fills: "name"
+      member keyword: "data_translation", context: "File", at: "",  named: "from", kind: "text", required: "true", fills: "from"
+      member keyword: "data_translation", context: "File", at: "",  named: "to",   kind: "text", required: "true", fills: "to"
+      member keyword: "aggregate",       context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name"
+      member keyword: "aggregate",       context: "Translation", at: "",  named: "was",  kind: "text", required: "false", fills: "was"
+      member keyword: "retired",         context: "Translation", at: "1", named: "",     kind: "text", required: "true",  fills: "name", blank_message: "a retired needs an aggregate name"
+
+    end
+  end
+end

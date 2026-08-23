@@ -38,7 +38,7 @@ module Hecksagain
       # "production")` gets exactly `environments/production.hecksagon`
       # and `environments/production.world` loaded, whichever exist (a
       # missing one is a silent no-op — not every environment overrides
-      # both; see docs/guides/wiring.md's "Swapping wiring per
+      # both; see docs/implemented/guides/wiring.md's "Swapping wiring per
       # environment" for the motivating case: swapping a driven adapter
       # — e.g. a real payment gateway for a mock one, or a hosting
       # layer's tenancy settings — without an `if`/`else` anywhere in
@@ -54,8 +54,7 @@ module Hecksagain
       def load_domain(directory, environment: nil)
         boundary = DOMAIN_ORDER.rindex { |pattern| pattern.end_with?(".bluebook") }
         if boundary
-          Bluebook::MetaValidator.defer { load_each(directory, DOMAIN_ORDER[0..boundary]) }
-          Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
+          load_bluebooks(directory, DOMAIN_ORDER[0..boundary])
           load_each(directory, DOMAIN_ORDER[(boundary + 1)..])
         else
           load_each(directory, DOMAIN_ORDER)
@@ -65,6 +64,17 @@ module Hecksagain
 
         load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
         load_each(directory, [File.join("environments", "#{environment}.world")])
+      end
+
+      # EVERY BLUEBOOK IN A FOLDER IS ONE DECLARATION SET. Individual files
+      # remain organized in the domain expert's language; the folder is the
+      # unit callers load. Builders group declarations by the chapter name in
+      # each file, so a folder may hold more than one chapter without a catalog.
+      # Sorting makes source order deterministic while the deferred window keeps
+      # cross-file references from being judged against a partial chapter.
+      def load_bluebooks(directory, patterns = ["*.bluebook"])
+        Bluebook::MetaValidator.defer { load_each(directory, patterns) }
+        Bluebook::MetaValidator.judge_deferred!(Hecksagain.current_registry)
       end
 
       def load_each(directory, patterns)

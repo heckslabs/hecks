@@ -73,7 +73,11 @@ pub fn apply(
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
             let last = lines.last().map(|l| l.number).unwrap_or(0);
-            Diagnostic::new(file, last, "unexpected end of file — still inside Hecksagon")
+            Diagnostic::new(
+                file,
+                last,
+                "unexpected end of file — still inside Hecksagon",
+            )
         })?;
 
         if line.text == "end" {
@@ -83,7 +87,16 @@ pub fn apply(
 
         if let Some((receiver, rest)) = lex::strip_aggregate_receiver(line.text) {
             *pos += 1;
-            apply_aggregate_qualified(file, lines, pos, line.number, receiver, rest, bluebook, require_matching_aggregate)?;
+            apply_aggregate_qualified(
+                file,
+                lines,
+                pos,
+                line.number,
+                receiver,
+                rest,
+                bluebook,
+                require_matching_aggregate,
+            )?;
             continue;
         }
 
@@ -97,7 +110,10 @@ pub fn apply(
         // `word_gate` — that gate exists for the fixed keywords, not the
         // open adapter-bind vocabulary layered on top of it.
         if let LineShape::Call(call) = lex::classify(file, &line)? {
-            if !matches!(call.word.as_str(), "port" | "subscribe" | "uses_framework" | "end") {
+            if !matches!(
+                call.word.as_str(),
+                "port" | "subscribe" | "uses_framework" | "end"
+            ) {
                 *pos += 1;
                 if matches!(call.opener, Opener::DoBlock { .. }) {
                     skip_dropped_body(file, lines, pos)?;
@@ -119,7 +135,8 @@ pub fn apply(
                 // exercised by pizzas.hecksagon (its one port is
                 // aggregate-scoped), kept correct anyway.
                 "port" => {
-                    let name = super::positional_text(file, gated.line.number, "port", &gated.args, 1)?;
+                    let name =
+                        super::positional_text(file, gated.line.number, "port", &gated.args, 1)?;
                     let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
                 }
                 // `uses_framework "Governance"`/`subscribe "..."` —
@@ -137,10 +154,24 @@ pub fn apply(
                 // banking.hecksagon's own `uses_framework "Governance"`/
                 // `"Identity"`.
                 "uses_framework" => {
-                    uses_framework_names.push(super::positional_text(file, gated.line.number, "uses_framework", &gated.args, 1)?);
+                    uses_framework_names.push(super::positional_text(
+                        file,
+                        gated.line.number,
+                        "uses_framework",
+                        &gated.args,
+                        1,
+                    )?);
                 }
                 "subscribe" => {}
-                _ => return Err(super::not_built_yet("Hecksagon", gated.row, file, gated.line.number, &gated.call.word)),
+                _ => {
+                    return Err(super::not_built_yet(
+                        "Hecksagon",
+                        gated.row,
+                        file,
+                        gated.line.number,
+                        &gated.call.word,
+                    ))
+                }
             },
         }
     }
@@ -162,11 +193,20 @@ fn apply_aggregate_qualified(
     bluebook: &mut ir::Bluebook,
     require_matching_aggregate: bool,
 ) -> ParseResult<()> {
-    let synthetic = SourceLine { number: line_number, text: rest };
+    let synthetic = SourceLine {
+        number: line_number,
+        text: rest,
+    };
     let shape = lex::classify(file, &synthetic)?;
     let call = match shape {
         LineShape::Call(call) => call,
-        LineShape::End => return Err(Diagnostic::new(file, line_number, "unexpected 'end' right after an aggregate-qualified receiver")),
+        LineShape::End => {
+            return Err(Diagnostic::new(
+                file,
+                line_number,
+                "unexpected 'end' right after an aggregate-qualified receiver",
+            ))
+        }
     };
 
     if call.word != "port" {
@@ -184,11 +224,18 @@ fn apply_aggregate_qualified(
     let aggregate_name = receiver.rsplit("::").next().unwrap_or(receiver);
     let built = domain_port::parse_body(file, lines, pos, &port_name, Some(aggregate_name))?;
 
-    let found = bluebook.aggregates.iter_mut().find(|a| a.name == aggregate_name);
+    let found = bluebook
+        .aggregates
+        .iter_mut()
+        .find(|a| a.name == aggregate_name);
     match found {
         Some(aggregate) => aggregate.ports.push(built),
         None if require_matching_aggregate => {
-            return Err(Diagnostic::new(file, line_number, format!("{receiver} declares no such aggregate — a port needs one to belong to")));
+            return Err(Diagnostic::new(
+                file,
+                line_number,
+                format!("{receiver} declares no such aggregate — a port needs one to belong to"),
+            ));
         }
         // `resolve_uses_framework`'s own accumulator never carries real
         // aggregates (this function's own header) — the body above
@@ -213,7 +260,11 @@ fn skip_dropped_body(file: &str, lines: &[SourceLine], pos: &mut usize) -> Parse
     while depth > 0 {
         let line = *lines.get(*pos).ok_or_else(|| {
             let last = lines.last().map(|l| l.number).unwrap_or(0);
-            Diagnostic::new(file, last, "unexpected end of file while skipping a dropped adapter-bind body")
+            Diagnostic::new(
+                file,
+                last,
+                "unexpected end of file while skipping a dropped adapter-bind body",
+            )
         })?;
         *pos += 1;
 

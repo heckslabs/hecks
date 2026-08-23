@@ -50,7 +50,7 @@ lineage = Hecksagain::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
 lineage.ensure_base!
 
 if lineage.eras.empty?
-  lineage.hold_first!(File.read(Dir[File.join(directory, "*.bluebook")].first),
+  lineage.hold_first!(Hecksagain::Runtime::EraCheck.source_text_for(bluebook, directory),
                       projection: Hecksagain::Runtime::StorageShape.project(bluebook))
   puts "#{bluebook.name} held era 1 just now — no edge to audit."
   db.close

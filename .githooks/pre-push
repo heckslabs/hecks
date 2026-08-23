@@ -6,7 +6,7 @@
 # Used to run `bin/parity` here specifically: two runtimes, three domains,
 # four stages, ~40s, deliberately kept OUT of the fast rspec loop that runs
 # constantly. That FIRST comparison mechanism is retired for good
-# (docs/rust-experiment.md is itself a historical record now — read its own
+# (docs/implemented/rust-experiment.md is itself a historical record now — read its own
 # top banner before citing it as current) — but Rust was restarted days
 # later and is very much alive, deployed live, with its own real
 # differential harness (spec/rust_conformance_spec.rb, spec/codegen_parity

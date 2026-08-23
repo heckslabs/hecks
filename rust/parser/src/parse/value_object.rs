@@ -58,13 +58,23 @@ fn try_reference_named_invariant(
     vo_name: &str,
     owner_value_objects: &[ir::ValueObject],
 ) -> ParseResult<Option<ir::Given>> {
-    let Some(&line) = lines.get(*pos) else { return Ok(None) };
-    let LineShape::Call(call) = lex::classify(file, &line)? else { return Ok(None) };
+    let Some(&line) = lines.get(*pos) else {
+        return Ok(None);
+    };
+    let LineShape::Call(call) = lex::classify(file, &line)? else {
+        return Ok(None);
+    };
     if call.word != "invariant" || !matches!(call.opener, Opener::None) {
         return Ok(None);
     }
 
-    super::verify_resolves_via(file, line.number, "invariant", "ValueObject", "sibling_scan")?;
+    super::verify_resolves_via(
+        file,
+        line.number,
+        "invariant",
+        "ValueObject",
+        "sibling_scan",
+    )?;
 
     let args = super::argument_gate(file, "invariant", "ValueObject", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "invariant", &args, 1)?;
@@ -99,10 +109,15 @@ pub fn parse_body(
     name: &str,
     owner_value_objects: &[ir::ValueObject],
 ) -> ParseResult<ir::ValueObject> {
-    let mut vo = ir::ValueObject { name: name.to_string(), ..Default::default() };
+    let mut vo = ir::ValueObject {
+        name: name.to_string(),
+        ..Default::default()
+    };
 
     loop {
-        if let Some(invariant) = try_reference_named_invariant(file, lines, pos, &vo.name, owner_value_objects)? {
+        if let Some(invariant) =
+            try_reference_named_invariant(file, lines, pos, &vo.name, owner_value_objects)?
+        {
             vo.invariants.push(invariant);
             continue;
         }
@@ -130,14 +145,25 @@ pub fn parse_body(
                 let (attribute, one_of) = build_value_object_attribute(file, &gated.args)?;
                 if let Some(values) = one_of {
                     let vo_name = vo.name.clone();
-                    install_inline_closed_set(file, gated.line.number, &vo_name, &mut vo, &attribute.name, &values)?;
+                    install_inline_closed_set(
+                        file,
+                        gated.line.number,
+                        &vo_name,
+                        &mut vo,
+                        &attribute.name,
+                        &values,
+                    )?;
                 }
                 vo.attributes.push(attribute);
             }
             "invariant" => {
-                let description = super::positional_text(file, gated.line.number, "invariant", &gated.args, 1)?;
+                let description =
+                    super::positional_text(file, gated.line.number, "invariant", &gated.args, 1)?;
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
-                vo.invariants.push(ir::Given { description: Some(description), canonical: canonical::apply(&raw) });
+                vo.invariants.push(ir::Given {
+                    description: Some(description),
+                    canonical: canonical::apply(&raw),
+                });
             }
             // BARE NOW (S3, ADR 0025 — "closed sets lose the wrapper
             // block") — a `member` row sits directly in the value_object
@@ -145,7 +171,15 @@ pub fn parse_body(
             // `members` already means closed; see `build`'s own comment
             // below for why nothing else has to change for that.
             "member" => push_member(file, gated.line.number, &gated.args, &mut vo.members)?,
-            _ => return Err(super::not_built_yet("ValueObject", gated.row, file, gated.line.number, &gated.call.word)),
+            _ => {
+                return Err(super::not_built_yet(
+                    "ValueObject",
+                    gated.row,
+                    file,
+                    gated.line.number,
+                    &gated.call.word,
+                ))
+            }
         }
     }
 }
@@ -155,11 +189,17 @@ pub fn parse_body(
 /// (which knows nothing about it — every OTHER context refuses it) — an
 /// array literal of raw values, same shape `resolve_type_expression`'s own
 /// positional `one_of(...)` already reads.
-fn build_value_object_attribute(file: &str, args: &super::ArgumentGateResult) -> ParseResult<(ir::Attribute, Option<Vec<String>>)> {
+fn build_value_object_attribute(
+    file: &str,
+    args: &super::ArgumentGateResult,
+) -> ParseResult<(ir::Attribute, Option<Vec<String>>)> {
     let (attribute, _) = super::build_attribute(file, 0, "attribute", args)?;
     let one_of = super::named_raw(args, "one_of").map(|raw| {
         let trimmed = raw.trim();
-        let inner = trimmed.strip_prefix('[').and_then(|s| s.strip_suffix(']')).unwrap_or(trimmed);
+        let inner = trimmed
+            .strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+            .unwrap_or(trimmed);
         ruby_value::split_items(inner)
             .into_iter()
             .map(|segment| ruby_value::to_s(&ruby_value::read(segment.trim())))
@@ -190,11 +230,18 @@ fn install_inline_closed_set(
         ));
     }
     if vo.closed_set {
-        return Err(Diagnostic::new(file, line, format!("'{vo_name}' declares one_of: on more than one attribute")));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("'{vo_name}' declares one_of: on more than one attribute"),
+        ));
     }
 
     vo.closed_set = true;
-    vo.members = values.iter().map(|value| vec![(field.to_string(), value.clone())]).collect();
+    vo.members = values
+        .iter()
+        .map(|value| vec![(field.to_string(), value.clone())])
+        .collect();
     Ok(())
 }
 
@@ -202,11 +249,24 @@ fn install_inline_closed_set(
 /// bare now (no `one_of do ... end` wrapper — S3, ADR 0025). Shared by
 /// both a value_object's own top-level `member` rows and (unchanged) the
 /// same shape everywhere else `member` appears.
-fn push_member(file: &str, line: usize, args: &super::ArgumentGateResult, members: &mut Vec<Vec<(String, String)>>) -> ParseResult<()> {
+fn push_member(
+    file: &str,
+    line: usize,
+    args: &super::ArgumentGateResult,
+    members: &mut Vec<Vec<(String, String)>>,
+) -> ParseResult<()> {
     if args.named.is_empty() {
-        return Err(Diagnostic::new(file, line, "'member' declared an empty member"));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            "'member' declared an empty member",
+        ));
     }
-    let fields = args.named.iter().map(|(field, raw)| (field.clone(), ruby_value::to_s(&ruby_value::read(raw)))).collect();
+    let fields = args
+        .named
+        .iter()
+        .map(|(field, raw)| (field.clone(), ruby_value::to_s(&ruby_value::read(raw))))
+        .collect();
     members.push(fields);
     Ok(())
 }

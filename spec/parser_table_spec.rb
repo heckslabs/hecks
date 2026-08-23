@@ -10,17 +10,17 @@ require "spec_helper"
 Kernel.load(File.expand_path("../bin/project_parser_table", __dir__))
 
 # GRAMMAR DRIFT FAILS THE NORMAL SUITE IMMEDIATELY, not "someone eventually
-# notices". rust/parser/src/keywords.rs is GENERATED from syntax.bluebook
+# notices". rust/parser/src/keywords.rs is GENERATED from the aggregate-local syntax tables
 # by bin/project_parser_table (see that file's own header) — this spec
 # regenerates it into memory and asserts byte equality with the committed
-# file. A syntax.bluebook change that lands without re-running
+# file. A syntax-table change that lands without re-running
 # `bin/project_parser_table` fails HERE, in the loop every push already
 # runs, rather than silently leaving the Rust parser's own word/argument
 # knowledge stale.
 RSpec.describe "the generated parser table" do
   let(:committed_path) { File.expand_path("../rust/parser/src/keywords.rs", __dir__) }
 
-  it "is exactly what bin/project_parser_table would regenerate from syntax.bluebook right now" do
+  it "is exactly what bin/project_parser_table would regenerate from the aggregate-local syntax tables right now" do
     expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run bin/project_parser_table"
 
     committed = File.read(committed_path)

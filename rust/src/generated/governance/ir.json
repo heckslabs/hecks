@@ -21,7 +21,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "role_name",
@@ -30,7 +31,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "scope",
@@ -39,7 +41,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "starts_at",
@@ -48,7 +51,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "ends_at",
@@ -57,7 +61,8 @@
           "default": null,
           "optional": true,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -71,7 +76,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -81,7 +87,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "RoleName",
@@ -93,7 +101,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -103,7 +112,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Scope",
@@ -115,7 +126,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -125,7 +137,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Timestamp",
@@ -137,7 +151,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -147,7 +162,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -164,7 +181,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "role_name",
@@ -173,7 +191,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "scope",
@@ -182,7 +201,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "starts_at",
@@ -191,12 +211,19 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "RoleAssigned"
           ],
@@ -216,11 +243,16 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "ends_at",
@@ -239,11 +271,19 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "AssignmentsForActor",
@@ -256,7 +296,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -270,7 +311,9 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     },
     {
@@ -288,7 +331,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "to_role",
@@ -297,7 +341,8 @@
           "default": null,
           "optional": false,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         },
         {
           "name": "ends_at",
@@ -306,7 +351,8 @@
           "default": null,
           "optional": true,
           "pattern": null,
-          "admits": null
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
@@ -320,7 +366,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -330,7 +377,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         },
         {
           "name": "Timestamp",
@@ -342,7 +391,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -352,7 +402,9 @@
             }
           ],
           "closed_set": false,
-          "members": []
+          "members": [
+
+          ]
         }
       ],
       "commands": [
@@ -369,7 +421,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "to_role",
@@ -378,12 +431,19 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
-          "mutations": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "mutations": [
+
+          ],
           "emits": [
             "RoleTransitionGranted"
           ],
@@ -403,11 +463,16 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
-          "givens": [],
-          "ensures": [],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
           "mutations": [
             {
               "target": "ends_at",
@@ -426,11 +491,19 @@
           "provenance": null
         }
       ],
-      "invariants": [],
-      "preconditions": [],
-      "projected_fields": [],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
       "lifecycle": null,
-      "entities": [],
+      "entities": [
+
+      ],
       "queries": [
         {
           "name": "Allowed",
@@ -443,7 +516,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             },
             {
               "name": "to_role",
@@ -452,7 +526,8 @@
               "default": null,
               "optional": false,
               "pattern": null,
-              "admits": null
+              "admits": null,
+              "relationship": null
             }
           ],
           "wheres": [
@@ -471,14 +546,24 @@
           "limit": null
         }
       ],
-      "ports": [],
+      "ports": [
+
+      ],
       "provenance": null
     }
   ],
-  "read_models": [],
-  "policies": [],
-  "process_managers": [],
-  "attaches_to": [],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",

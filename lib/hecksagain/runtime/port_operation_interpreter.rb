@@ -19,10 +19,10 @@ module Hecksagain
       include Interpreting
       include CommandInterpreter::ArgumentGate
 
-      Context = Struct.new(:domain, :aggregate, :operation, :args, :result)
+      Context = Struct.new(:domain, :aggregate, :operation, :args, :route, :instance, :result)
 
       DISPATCH_ORDER = %i[
-        refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references emit
+        refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
       ].freeze
 
       def initialize(registry, rules:)
@@ -30,8 +30,9 @@ module Hecksagain
         @rules    = rules
       end
 
-      def call(domain, aggregate, operation, args)
+      def call(domain, aggregate, operation, args, route:)
         ctx = Context.new(domain, aggregate, operation, args)
+        ctx.route = route
         run_dispatch_order(DISPATCH_ORDER, ctx)
         ctx.result
       end
@@ -43,7 +44,7 @@ module Hecksagain
       end
 
       def step_refuse_absent_arguments(ctx)
-        step(:refuse_absent_arguments) { refuse_absent_arguments(ctx.operation, ctx.args) }
+        step(:refuse_absent_arguments) { refuse_absent_arguments(ctx.operation, ctx.args, aggregate: ctx.aggregate) }
       end
 
       def step_normalize_args(ctx)
@@ -52,6 +53,13 @@ module Hecksagain
 
       def step_resolve_references(ctx)
         step(:resolve_references) { @rules.resolve_references(ctx.domain, ctx.operation, ctx.args) }
+      end
+
+      def step_resolve_route(ctx)
+        ctx.instance = step(:resolve_route) do
+          @registry.repository(ctx.domain, ctx.aggregate).find(ctx.route.aggregate) ||
+            raise(NotFound, "#{ctx.aggregate.hecks_name} #{ctx.route.aggregate.inspect} does not exist")
+        end
       end
 
       def step_emit(ctx)
@@ -132,9 +140,7 @@ module Hecksagain
       # would put a second existence check behind the one `resolve_references`
       # already performed.
       def held_state(ctx)
-        identity = ctx.operation.identity_attribute(ctx.aggregate.hecks_name) or return {}
-        found    = @registry.repository(ctx.domain, ctx.aggregate).find(ctx.args[identity.name])
-        found ? Value.materialize(found.state) : {}
+        ctx.instance ? Value.materialize(ctx.instance.state) : {}
       rescue StandardError
         {}
       end
@@ -168,11 +174,10 @@ module Hecksagain
       def materialise(args) = Value.materialize(args)
 
       def announce(ctx, event_name, payload)
-        identity_attribute = ctx.operation.identity_attribute(ctx.aggregate.hecks_name)
         event = Event.new(
           name:        event_name,
           aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
-          id:          ctx.args[identity_attribute.name],
+          id:          ctx.route.aggregate,
           payload:     payload,
           occurred_at: Time.now.utc.iso8601
         )
@@ -188,14 +193,11 @@ module Hecksagain
       # value — already a plain id, never an object, per
       # Value::Coercion#refuse_object_reference — is what stamps the event.
       def emit(ctx)
-        identity_attribute = ctx.operation.identity_attribute(ctx.aggregate.hecks_name)
-        id = ctx.args[identity_attribute.name]
-
         ctx.operation.emits.map do |event_name|
           event = Event.new(
             name:        event_name,
             aggregate:   "#{ctx.domain}::#{ctx.aggregate.hecks_name}",
-            id:          id,
+            id:          ctx.route.aggregate,
             payload:     ctx.args,
             occurred_at: Time.now.utc.iso8601
           )

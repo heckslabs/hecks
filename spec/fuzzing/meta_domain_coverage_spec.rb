@@ -71,7 +71,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     Policy#bluebook Policy#name Policy#aggregate
     ProcessManager#bluebook ProcessManager#name
     ReadModel#bluebook ReadModel#name ReadModel#description
-    Vocabulary#name Syntax#name
+    Vocabulary#name Syntax#name Syntax#bluebook
   ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
 
   # HONEST, ITEMIZED GAPS — a feature real enough to deserve its own
@@ -119,6 +119,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Argument#named"             => "same as Syntax#arguments, one level in",
     "Argument#kind"              => "same as Syntax#arguments, one level in",
     "Argument#required"          => "same as Syntax#arguments, one level in",
+    "Argument#minimum"           => "same as Syntax#arguments, one level in",
     "Argument#fills"             => "same as Syntax#arguments, one level in",
     "Argument#selects"           => "same as Syntax#arguments, one level in",
     "Argument#pair_key_fills"    => "same as Syntax#arguments, one level in",

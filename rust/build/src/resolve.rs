@@ -12,6 +12,21 @@ use std::path::{Path, PathBuf};
 use crate::json::Json;
 use crate::subprocess;
 
+/// Every `.bluebook` directly in a domain's bluebook folder, sorted. The
+/// folder is the source unit; adding a business-concept file never requires a
+/// manifest or a filename convention.
+pub fn bluebook_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(directory).map_err(|e| format!("reading {}: {e}", directory.display()))? {
+        let path = entry.map_err(|e| format!("reading {}: {e}", directory.display()))?.path();
+        if path.extension().and_then(|extension| extension.to_str()) == Some("bluebook") {
+            files.push(path);
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
 /// `header_chapter_name` (Ruby) — the declared chapter name off a
 /// `.bluebook` file's own `Hecks.bluebook "Name"` header line, found by
 /// PLAIN TEXT SCANNING (the same technique `spec/parser_parity_spec.rb::
@@ -81,25 +96,12 @@ pub fn pascal(text: &str) -> String {
         .collect()
 }
 
-/// `Hecksagain::Bluebook::MetaValidator::GRAMMAR_FILES`
-/// (`lib/hecksagain/bluebook/meta_validator.rb`) — the self-hosted
-/// language's own nine files, IN THIS DECLARED ORDER (not alphabetical —
-/// merge order is significant, later files reference constructs earlier
-/// ones declare). A literal mirror of a Ruby CONSTANT ARRAY, the same
-/// category `rust/project_rust_pipeline.rb`'s own header names as
-/// legitimate plain-data reading rather than DSL execution — this list
-/// changes only when the self-hosted grammar itself gains or loses a
-/// file, exactly as rarely as `keywords.rs` changes when `syntax.bluebook`
-/// does, and carries the same obligation to stay in sync (unlike
-/// `keywords.rs`, there is no generator for this one small, stable list
-/// today — a mismatch would surface immediately as a parser byte-diff
-/// against `spec/hecks_build_pipeline_spec.rb`'s own meta-chapter
-/// comparison, not silently).
-const GRAMMAR_FILE_STEMS: &[&str] = &["bluebook", "aggregate", "behavior", "shape", "entity", "reaction", "vocabulary", "syntax", "projection"];
-
-pub fn grammar_files(root: &Path) -> Vec<PathBuf> {
+/// The self-hosted Bluebook language follows the same folder-is-the-chapter
+/// rule as ordinary domains. Discovery—not a mirrored Ruby filename array—is
+/// the contract, so adding a domain concept cannot drift this native pipeline.
+pub fn grammar_files(root: &Path) -> Result<Vec<PathBuf>, String> {
     let dir = root.join("lib/hecksagain/language/bluebook");
-    GRAMMAR_FILE_STEMS.iter().map(|stem| dir.join(format!("{stem}.bluebook"))).collect()
+    bluebook_files(&dir)
 }
 
 /// `hecks-parse resolve --chapter <Name> <hecksagon>`'s own

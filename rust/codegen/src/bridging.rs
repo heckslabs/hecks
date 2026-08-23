@@ -6,7 +6,41 @@
 use crate::json::Json;
 use crate::literal::Literal;
 use crate::naming;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+/// `use crate::generated::<mod_name>::<owner>::<Type>;` for every value
+/// object THIS aggregate's own commands/entity-commands/port operations
+/// reference by NAME but never declare locally — see `domain_generator.rb`'s
+/// own header on `domain_value_object_owner`/`cross_aggregate_vo_imports`
+/// for the full argument (`SafeDepositBox.Rent`'s own `attribute :customer,
+/// CustomerNumber` — `Customer`'s own VO — is the corpus's one live
+/// example). A type name that's ALSO declared LOCALLY is never foreign, no
+/// matter what `domain_value_object_owner` says — the local declaration
+/// always wins.
+pub fn cross_aggregate_vo_imports(aggregate: &Json, domain_value_object_owner: &HashMap<String, String>, mod_name: &str) -> Vec<String> {
+    let local_names: HashSet<String> = aggregate.get("value_objects").map(Json::each).unwrap_or(&[]).iter().map(|vo| vo.get("name").and_then(Json::as_str).unwrap_or("").to_string()).collect();
+
+    let commands = aggregate.get("commands").map(Json::each).unwrap_or(&[]);
+    let entity_commands = aggregate.get("entities").map(Json::each).unwrap_or(&[]).iter().flat_map(|e| e.get("commands").map(Json::each).unwrap_or(&[]).iter());
+    let port_operations = aggregate.get("ports").map(Json::each).unwrap_or(&[]).iter().flat_map(|p| p.get("operations").map(Json::each).unwrap_or(&[]).iter());
+
+    let mut foreign_types: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for c in commands.iter().chain(entity_commands).chain(port_operations) {
+        for attr in c.get("attributes").map(Json::each).unwrap_or(&[]) {
+            let type_name = crate::attr::type_name(attr).to_string();
+            if local_names.contains(&type_name) || seen.contains(&type_name) {
+                continue;
+            }
+            seen.insert(type_name.clone());
+            foreign_types.push(type_name);
+        }
+    }
+
+    let mut pairs: Vec<(String, String)> = foreign_types.into_iter().filter_map(|type_name| domain_value_object_owner.get(&type_name).map(|owner| (type_name, owner.clone()))).collect();
+    pairs.sort_by(|(a_type, a_owner), (b_type, b_owner)| (a_owner, a_type).cmp(&(b_owner, b_type)));
+    pairs.into_iter().map(|(type_name, owner)| format!("use crate::generated::{mod_name}::{}::{};", owner.to_lowercase(), naming::rust_ident(&type_name))).collect()
+}
 
 /// `vo_field_bridgeable?` — `Value::Coercion#fields_for`, read directly: a
 /// value object rebuilds into any differently-named target value object
@@ -68,7 +102,15 @@ pub fn bridgeable_value_types(source_type: &str, target_type: &str, value_object
         Some(vo) => {
             let closed = vo.get("closed_set").map(Json::as_bool).unwrap_or(false);
             let attrs = vo.get("attributes").map(Json::each).unwrap_or(&[]);
-            !closed && attrs.len() == 1 && crate::attr::type_name(&attrs[0]) == target_type
+            if closed || attrs.len() != 1 {
+                return false;
+            }
+            let unwrapped_type = crate::attr::type_name(&attrs[0]);
+            unwrapped_type == target_type
+                || matches!(
+                    (naming::effective_scalar_type(unwrapped_type), naming::effective_scalar_type(target_type)),
+                    (Some(s), Some(t)) if s == t
+                )
         }
         None => false,
     }

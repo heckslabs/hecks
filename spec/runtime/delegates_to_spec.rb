@@ -40,7 +40,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b1" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b1", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    result = runtime.dispatch("DelegatesTo::Board.MovePiece", name: "b1", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    result = runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b1", with: { id: { value: "p1" }, to: { file: 5, rank: 5 } })
 
     expect(result.events.map(&:name)).to eq(["PieceMoved"])
     expect(square(runtime, name: "b1").to_h).to eq(file: 5, rank: 5)
@@ -63,7 +63,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     runtime.dispatch("DelegatesTo::Board.OpenBoard", name: { value: "b4" })
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b4", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
-    runtime.dispatch("DelegatesTo::Board.MovePiece", name: "b4", id: { value: "p1" }, to: { file: 5, rank: 5 })
+    runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b4", with: { id: { value: "p1" }, to: { file: 5, rank: 5 } })
 
     board = runtime.registry.repository("DelegatesTo", runtime.registry.bluebook("DelegatesTo").aggregate("Board"))
                    .find("b4")
@@ -76,7 +76,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b2", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     expect {
-      runtime.dispatch("DelegatesTo::Board.MovePiece", name: "b2", id: { value: "p1" }, to: { file: 3, rank: 3 })
+      runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b2", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
     }.to raise_error(Hecksagain::Runtime::GivenNotMet, /destination differs from current square/)
   end
 
@@ -86,7 +86,7 @@ RSpec.describe "an aggregate command that delegates_to one nested entity command
     runtime.dispatch("DelegatesTo::Board.PlacePiece", name: "b3", id: { value: "p1" }, square: { file: 3, rank: 3 })
 
     begin
-      runtime.dispatch("DelegatesTo::Board.MovePiece", name: "b3", id: { value: "p1" }, to: { file: 3, rank: 3 })
+      runtime.dispatch("DelegatesTo::Board.MovePiece", to: "b3", with: { id: { value: "p1" }, to: { file: 3, rank: 3 } })
     rescue Hecksagain::Runtime::GivenNotMet
       nil
     end

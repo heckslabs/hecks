@@ -133,7 +133,7 @@ pub fn optional_source_mismatches(command: &Json, aggregate: &Json, value_object
     let mut problems: Vec<String> = Vec::new();
     let cmd_attrs = command.get("attributes").map(Json::each).unwrap_or(&[]);
 
-    if command.get("references").is_none() {
+    if crate::shared::creates_owner(aggregate, command, value_objects_by_name) {
         let identified_by = aggregate.get("identified_by").map(Json::each).unwrap_or(&[]);
         for path in identified_by {
             let path = path.as_str().unwrap_or("");
@@ -273,7 +273,7 @@ pub fn constraint_list_problems(command: &Json) -> Vec<String> {
 pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domain_name: &str, value_objects_by_name: &HashMap<String, &Json>, aggregates_by_name: &HashMap<String, &Json>) -> String {
     let record = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let cmd = naming::rust_ident(command.get("name").and_then(Json::as_str).unwrap_or(""));
-    let creates = command.get("references").is_none();
+    let creates = crate::shared::creates_owner(aggregate, command, value_objects_by_name);
     let identity = mutations::identity_components(aggregate, command);
     let identity_extra_params: Vec<String> = identity.iter().filter_map(|c| c.param.clone()).collect();
 
@@ -342,16 +342,33 @@ pub fn emit_command(exemplar: &Exemplar, command: &Json, aggregate: &Json, domai
                 let matched = attrs.iter().find(|a| crate::attr::name(a) == crate::attr::name(attr));
                 let field = naming::rust_ident_field(crate::attr::name(attr));
                 if let Some(matched) = matched {
+                    let matched_type = crate::attr::type_name(matched);
+                    let attr_type = crate::attr::type_name(attr);
                     if crate::attr::optional(matched) {
-                        if crate::attr::list(attr) && !crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr)) {
+                        if crate::attr::list(attr) && !crate::shared::list_attr_creation_optional(aggregate, crate::attr::name(attr), value_objects_by_name) {
                             format!("            {field}: args.{field}.clone().unwrap_or_default(),")
-                        } else {
+                        } else if crate::attr::list(attr) || matched_type == attr_type {
                             format!("            {field}: args.{field}.clone(),")
+                        } else {
+                            // A CROSS-AGGREGATE argument, same name as the
+                            // owner's own field but a DIFFERENT declared
+                            // type — see bridging.rs's own header
+                            // (`SafeDepositBox.Rent`'s `attribute :customer,
+                            // CustomerNumber`, bridged into the owner's own
+                            // `customer: Reference<Customer>` field). A
+                            // blind `.clone()` here assumed the two types
+                            // were always identical, which this generic
+                            // name-match never actually required.
+                            format!("            {field}: {},", mutations::optional_value_rhs(&format!("args.{field}"), matched_type, attr_type, value_objects_by_name))
                         }
-                    } else if crate::attr::list(attr) {
-                        format!("            {field}: args.{field}.clone(),")
+                    } else if crate::attr::list(attr) || matched_type == attr_type {
+                        if crate::attr::list(attr) {
+                            format!("            {field}: args.{field}.clone(),")
+                        } else {
+                            format!("            {field}: Some(args.{field}.clone()),")
+                        }
                     } else {
-                        format!("            {field}: Some(args.{field}.clone()),")
+                        format!("            {field}: Some({}),", crate::bridging::value_rhs(&format!("args.{field}"), matched_type, attr_type, value_objects_by_name))
                     }
                 } else if crate::attr::list(attr) {
                     format!("            {field}: vec![],")
@@ -548,7 +565,7 @@ pub fn emit_entity_command(
     [
         crate::fielded::emit_fielded_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, &[]),
         format!("#[derive(Debug, Clone)]\n{}", args_struct.join("\n")),
-        crate::json_codec::emit_to_json_flat(exemplar, &args_struct_name, attrs, false, &[], None),
+        crate::json_codec::emit_to_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, false, &[], None),
         crate::json_codec::emit_from_json_flat(exemplar, &args_struct_name, attrs, value_objects_by_name, None, None),
         entity_dispatch_fn,
     ]

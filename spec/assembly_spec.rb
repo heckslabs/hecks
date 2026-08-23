@@ -20,7 +20,7 @@ RSpec.describe "a graph assembled from declarations" do
   # inside one.
   ASSEMBLY_CORPUS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
-    "Banking"    => "examples/banking/bluebook/banking.bluebook",
+    "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
     "Expression" => "lib/hecksagain/grammar/expression.bluebook",
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
@@ -34,7 +34,8 @@ RSpec.describe "a graph assembled from declarations" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, file))
+      path = File.absolute_path(file, InMemoryDomain::ROOT)
+      load_bluebook_files(path)
     end
     registry
   end

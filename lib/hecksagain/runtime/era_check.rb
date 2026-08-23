@@ -69,10 +69,14 @@ module Hecksagain
       # `uses_framework`.
       def source_text_for(bluebook, directory)
         domain_files = Dir[File.join(directory, "*.bluebook")]
-        own = domain_files.find { |path| Naming.pascal(File.basename(path, ".bluebook")) == bluebook.name }
-        own ||= domain_files.first if domain_files.size == 1 && !Framework.members.key?(bluebook.name)
-        path = own || Framework.members[bluebook.name]
-        path && File.read(path)
+        own = domain_files.select do |path|
+          File.foreach(path).any? { |line| line.match?(/\A\s*Hecks\.bluebook\s+#{Regexp.escape(bluebook.name.inspect)}/) }
+        end
+        own = domain_files if own.empty? && domain_files.size == 1 && !Framework.members.key?(bluebook.name)
+        own = [Framework.members[bluebook.name]].compact if own.empty?
+        return if own.empty?
+
+        own.map { |path| File.read(path) }.join("\n")
       end
 
       def check_bluebook!(registry, bluebook, current_text, directory: nil)

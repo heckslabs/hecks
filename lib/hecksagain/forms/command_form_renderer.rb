@@ -18,7 +18,7 @@ module Hecksagain
       # for a non-creating command — see `identity_field` below). `values`/
       # `error` carry a sticky re-render after a refused submission; leave
       # both nil/`{}` for a fresh form. `prefill` carries values a caller
-      # arrived WITH (typically `?id=...` off a record's own detail page) —
+      # arrived WITH (typically `?to=...` off a record's own detail page) —
       # kept separate from `values` because a prefill is not an error retry
       # and should not be treated as one by a future reader of this code.
       # The SAME field list a POST handler needs to cast raw params against
@@ -49,7 +49,7 @@ module Hecksagain
       end
 
       def self.identity_field(aggregate)
-        Field.new(path: "id", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(', ')})",
+        Field.new(path: "to", label: "#{aggregate.hecks_name} (#{aggregate.identity_paths.join(', ')})",
                   kind: :reference, html_type: "text", target_aggregate: aggregate,
                   help: "The record this command acts on.")
       end

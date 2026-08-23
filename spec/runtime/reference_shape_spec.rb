@@ -71,7 +71,7 @@ RSpec.describe "a reference that arrives as an object" do
   # answered, while another read it whole and found nothing. Only a stale caller
   # would show it, which is exactly the kind of divergence that waits.
   describe "a read model's reference argument" do
-    BANKING = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+    BANKING = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
     def boot_banking
       registry = Hecksagain::Runtime::Registry.new
@@ -81,7 +81,7 @@ RSpec.describe "a reference that arrives as an object" do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(BANKING)
+        load_bluebook_files(BANKING)
         Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
       end
     end

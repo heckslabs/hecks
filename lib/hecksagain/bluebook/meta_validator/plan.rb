@@ -192,8 +192,8 @@ module Hecksagain
           # a Member is created by `ValueObject.Member`, its OWNER's own bare
           # append command, the same way a real LedgerEntry is created by
           # `Account.LogEntry`, never by a dotted verb of its own.
-          declare    = entity_owned ? nil : creating_command(aggregate)
-          parent     = parent_reference_of(declare)
+          declare    = entity_owned ? nil : declaration_command(aggregate)
+          parent     = parent_relationship_of(aggregate)
           parent_key = owner ? "aggregate" : parent&.name&.to_s
           rest       = aggregate.commands - [declare].compact
 
@@ -230,26 +230,31 @@ module Hecksagain
           end
         end
 
-        # The creating command is the one that does not reach through its own root.
-        # `references` only ever holds a SELF reference — CommandBuilder turns any
-        # other target into a Reference<X> attribute — so this is the same test the
-        # runtime makes with `creates?`, read off the language instead of the code.
-        def creating_command(aggregate)
-          aggregate.commands.find { |command| command.references.nil? }
+        # The declaration command establishes the record's declared identity.
+        # Receiver references never carried that meaning; entity-owned categories
+        # prove it because every one of their commands lacks such a marker. The
+        # identity-write rule is structural and remains true after routing moves
+        # entirely into `to:`. `owner_id` is traversal context rather than stored
+        # state, so the declaration establishes every remaining identity head.
+        def declaration_command(aggregate)
+          required = aggregate.identity_heads.map(&:to_sym) - [:owner_id]
+          candidates = aggregate.commands.select do |command|
+            targets = Array(command.mutations).map { |mutation| mutation.target.to_sym }
+            required.all? { |field| targets.include?(field) }
+          end
+
+          return candidates.first if candidates.one?
+
+          raise DSL::Malformed,
+                "#{aggregate.hecks_name} must declare exactly one command that establishes " \
+                "its identity fields #{required.join(', ')} — found #{candidates.map(&:hecks_name).join(', ')}"
         end
 
-        # The parent link is the creating command's FIRST reference-typed
-        # argument, left there by `reference_to Parent`. Declaration
-        # ORDER is what this always actually relied on — ADR 0025
-        # dropped the `_id` suffix that used to also flag it, but that
-        # suffix never carried the real signal; `reference_to`'s own
-        # attribute order does, and always did (the parent link is
-        # declared first, before any other reference a command takes).
-        # A category without one is a root (Bluebook).
-        def parent_reference_of(declare)
-          return nil unless declare
-
-          declare.attributes.find(&:reference?)
+        # Containment belongs to stored aggregate structure. The first declared
+        # structural relationship is the traversal parent; command arguments may
+        # carry its identity as an ordinary value object, but do not define it.
+        def parent_relationship_of(aggregate)
+          aggregate.attributes.find(&:reference?)
         end
 
         # What the creating command sets directly. EVERY reference

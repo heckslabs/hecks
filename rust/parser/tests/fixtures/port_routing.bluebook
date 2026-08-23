@@ -1,0 +1,6 @@
+Hecks.bluebook "PortRoutingFixture" do
+  aggregate "Order" do
+    identified_by :number
+    attribute :number, String
+  end
+end

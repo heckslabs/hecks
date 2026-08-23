@@ -50,7 +50,7 @@ Order.find(order.id).customer_name.to_h   # => { value: "Chris" }
 
 (That block is not an illustration — the suite extracts and runs it, claims
 and all, on every push. Every `ruby`-fenced example in this README and in
-`docs/guides/` is executed the same way; see `spec/guides_spec.rb`.)
+`docs/implemented/guides/` is executed the same way; see `spec/guides_spec.rb`.)
 
 A creating command is a module method and returns the new record in hand. A
 command that references its aggregate is a method on that record — identity is
@@ -70,26 +70,26 @@ Task-oriented, doctested the same way the section above is — every guide's
 own examples run against the real runtime on every push.
 
 <!-- generated:begin id=guides -->
-- [Aggregates and value objects](docs/guides/aggregates-and-value-objects.md)
-- [Commands](docs/guides/commands.md)
-- [Entities](docs/guides/entities.md)
-- [Extending Hecks](docs/guides/extending-hecks.md)
-- [Getting started](docs/guides/getting-started.md)
-- [Guides](docs/guides/index.md)
-- [Lifecycles](docs/guides/lifecycles.md)
-- [Policies and process managers](docs/guides/policies-and-process-managers.md)
-- [Queries and read models](docs/guides/queries-and-read-models.md)
-- [Running a runtime](docs/guides/running-a-runtime.md)
-- [Schema evolution](docs/guides/schema-evolution.md)
-- [Verification](docs/guides/verification.md)
-- [Wiring](docs/guides/wiring.md)
-- [Writing an adapter](docs/guides/writing-an-adapter.md)
+- [Aggregates and value objects](docs/implemented/guides/aggregates-and-value-objects.md)
+- [Commands](docs/implemented/guides/commands.md)
+- [Entities](docs/implemented/guides/entities.md)
+- [Extending Hecks](docs/implemented/guides/extending-hecks.md)
+- [Getting started](docs/implemented/guides/getting-started.md)
+- [Guides](docs/implemented/guides/index.md)
+- [Lifecycles](docs/implemented/guides/lifecycles.md)
+- [Policies and process managers](docs/implemented/guides/policies-and-process-managers.md)
+- [Queries and read models](docs/implemented/guides/queries-and-read-models.md)
+- [Running a runtime](docs/implemented/guides/running-a-runtime.md)
+- [Schema evolution](docs/implemented/guides/schema-evolution.md)
+- [Verification](docs/implemented/guides/verification.md)
+- [Wiring](docs/implemented/guides/wiring.md)
+- [Writing an adapter](docs/implemented/guides/writing-an-adapter.md)
 <!-- generated:end -->
 
 ## Reference
 
 <!-- generated:begin id=reference -->
-[The DSL reference](docs/reference/index.md) — 22 contexts, generated from `lib/hecksagain/language/bluebook/syntax.bluebook` and held to it by `spec/reference_golden_spec.rb`.
+[The DSL reference](docs/implemented/reference/index.md) — 22 contexts, generated from the aggregate-local tables under `lib/hecksagain/language/` and held to them by `spec/reference_golden_spec.rb`.
 <!-- generated:end -->
 
 ## Writing a bluebook
@@ -254,7 +254,7 @@ account.credit!(amount: { cents: -1, currency: "USD" })    # ~> InvariantViolati
 ```
 
 (That aggregate is a trimmed real subset of
-`examples/banking/bluebook/banking.bluebook` — the full `Account` also holds a
+`examples/banking/bluebook/` — the full `Account` also holds a
 `kind`, a `daily_limit`, a `ledger` of `LedgerEntry`, and a `Customer` it
 belongs to, none of which this one point needed.)
 
@@ -414,7 +414,7 @@ Every domain this repository's own tests and docs draw examples from:
 | `bin/project_wasm_browser` | The BROWSER wasm-bindgen projector — decision docs/decisions/0015-wasm-bindgen-browser-projection.md. Deliberately a SEPARATE binary from... |
 | `bin/query_ir` | STRUCTURED QUERIES AGAINST THE LANGUAGE'S OWN IR — for a session working ON the language (adding a resolution rule, checking a propagatio... |
 | `bin/reattest_era` | The recovery path after a held-text integrity refusal. The digest is tamper-EVIDENCE — it catches accident and drift, not an adversary (a... |
-| `bin/reference` | Regenerates docs/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved from the commit... |
+| `bin/reference` | Regenerates docs/implemented/reference/ from the language's own Syntax chapter — the tables from the declaration, the prose preserved fro... |
 | `bin/run` | Executes a step list — commands and queries, declared as JSON — and reports instances, events, refusals, reactions, sagas, and query rows... |
 | `bin/rust_conformance` | THE DIFFERENTIAL HARNESS — docs/decisions/0010-ruby-is-the-reference-implementation.md. Ruby is the oracle a second runtime is checked ag... |
 | `bin/rust_coverage` | THE COVERAGE CHECKER — a different question than bin/rust_conformance asks, deliberately, not a replacement for it. bin/rust_conformance ... |
@@ -470,7 +470,7 @@ for it.
 This project ran a parallel **hand-written** Rust implementation for a
 while, kept honest against Ruby by a full differential-testing harness
 (`bin/parity`). That one really was retired — see
-[`docs/rust-experiment.md`](docs/rust-experiment.md) for what it found and
+[`docs/implemented/rust-experiment.md`](docs/implemented/rust-experiment.md) for what it found and
 why: the domain's structure (aggregates, commands, rules, shapes) is
 genuinely declarative and belongs in `.bluebook`, judged by the self-hosted
 grammar in `lib/hecksagain/language/bluebook/`; the empirical half (actual
@@ -487,9 +487,9 @@ stays *data*, interpreted at runtime by one small, hand-written, generic
 kernel (`rust/src/kernel/{expr,dispatch}.rs`) that walks it the same
 generic way `CommandInterpreter#call` does in Ruby. Even the parser is
 generated now, from the language's own self-description, not hand-written
-a second time ([0007](docs/decisions/0007-rust-generates-code-not-ruby-source.md),
+a second time ([0007](docs/implemented/decisions/0007-rust-generates-code-not-ruby-source.md),
 [0010](docs/decisions/0010-ruby-is-the-reference-implementation.md),
-[0011](docs/decisions/0011-rust-compiles-types-interprets-dispatch.md),
+[0011](docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md),
 [0023](docs/decisions/0023-rust-parses-and-compiles-bluebooks-directly.md)
 have the full architecture and reasoning).
 

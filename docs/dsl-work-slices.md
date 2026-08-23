@@ -14,7 +14,7 @@ Both ADRs sequence for one worker, with the prerequisites front-loaded. That ord
 2. the builder(s) that read those words
 3. the runtime that acts on them
 4. every corpus call site — `examples/`, `lib/hecksagain/framework/`, `spec/fixtures/`
-5. the hand-written prose in `docs/reference/*.md` (the generated regions regenerate; the prose between markers does not)
+5. the hand-written prose in `docs/implemented/reference/*.md` (the generated regions regenerate; the prose between markers does not)
 6. specs, including one that sees each new refusal *fail*
 
 **Done means the gate passes**, not that the tests you wrote pass:

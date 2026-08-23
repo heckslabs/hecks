@@ -1,0 +1,257 @@
+Hecks.bluebook "Banking" do
+  aggregate "SafeDepositBox" do
+    # REFERENCED, NOT REDECLARED (chapter-wide sharing) — `Account`'s
+    # declaration in `deposit_accounts.bluebook`, since both hold a DIRECT
+    # `reference_to Customer` and so resolve the identical predicate.
+    # `declared_by:` now required — `ATMCard`'s own, textually
+    # different "customer is active" (reached through Account, not
+    # Customer directly) also shares this chapter's own pool.
+    given("customer is active", declared_by: Account)
+    description "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face."
+
+    belongs_to Customer
+
+    # THE SAME LOCAL COPY Account declares (S12, ADR 0025) — a SECOND
+    # real corpus member, so `projected_fields` is exercised more than
+    # once (plurality_coverage_spec's own question): two independent
+    # aggregates, each with their own `reference_to Customer`, each
+    # copying the same remote field under the same local name by
+    # coincidence of both reading "is this customer active," not by
+    # any sharing this construct offers.
+    projects :customer_status, from: :"customer.status"
+
+    # A BOX NUMBER REPEATS ACROSS BRANCHES — box 12 in the downtown vault and
+    # box 12 in the uptown vault are not the same box, so neither the branch
+    # nor the number alone says which one this is. The first composite
+    # identity in the flagship domain, carried on a head that also holds a
+    # cross-reference, two entities (one of them composite in its own right),
+    # and a closed set — the convergence market's Stall existed only to prove
+    # was reachable at all.
+    attribute :branch_code, BranchCode
+    attribute :box_number,  BoxNumber
+
+    identified_by :branch_code, :box_number
+    # THE INLINE SHORTHAND, not a hand-declared value_object + one_of block —
+    # AccountKind and LedgerDirection already exercise the block form
+    # elsewhere in this chapter, so this is the other spelling: `one_of`
+    # called directly as an attribute's type, synthesising "Size" for itself.
+    attribute :size,   one_of("small", "medium", "large"), default: { value: "small" }
+    attribute :visits, list_of(Visit)
+    attribute :keys,   list_of(KeyIssuance)
+
+    value_object "BranchCode" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a branch is coded") { !value.to_s.empty? }
+    end
+
+    value_object "BoxNumber" do
+      attribute :value, Integer
+      invariant("a box is numbered from one") { value.positive? }
+    end
+
+    value_object "VisitSequence" do
+      attribute :value, Integer
+      invariant("a visit sequence is positive") { value.positive? }
+    end
+
+    value_object "VisitDate" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a visit names its date") { !value.to_s.empty? }
+    end
+
+    value_object "VisitNote" do
+      attribute :text, String
+    end
+
+    value_object "KeySerial" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a key is serialed") { !value.to_s.empty? }
+    end
+
+    # A COMPOSITE PIECE under a composite HEAD — the same double-join market's
+    # Booking exercised, and real for the same reason a booking was: a box may
+    # be opened twice in one day (two visitors, or one visitor twice), so the
+    # day alone does not name a visit either.
+    entity "Visit" do
+      description "One opening of the box, in the order it happened that day."
+
+      attribute :date,     VisitDate
+      attribute :sequence, VisitSequence
+
+      identified_by :date, :sequence
+      # MAY BE LEFT OUT — most openings are routine, and the exception is what
+      # gets written down.
+      attribute :note,     VisitNote, optional: true
+
+      # A PIECE'S OWN SHAPE RULE (round 7) — `note` may be LEFT OUT
+      # entirely (the comment just above), but if a vault officer
+      # attaches one, an EMPTY string is not "the exception written
+      # down," it is nothing written down wearing a note-shaped costume
+      # — exactly the shape a VALUE OBJECT invariant on `VisitNote`
+      # itself cannot express (an optional field's own VO invariant
+      # never runs at all when the field is genuinely absent, which is
+      # correct for absence but leaves "present, and empty" wholly
+      # unchecked; only the OWNING piece, reading its own optional
+      # field, can tell those two apart).
+      invariant("a written note is not blank") { !note || !note.text.to_s.empty? }
+
+      # DECLARED ONCE, SHARED ACROSS SIBLING PIECES — not just this
+      # piece's own commands (round 4's own reach), but ANY piece
+      # nested under the SAME aggregate: `KeyIssuance.Return`, below,
+      # references both bare rather than retyping the identical
+      # `parent.`-qualified predicate a second time. Neither can
+      # reference SafeDepositBox's OWN "customer is active" instead —
+      # a genuinely different canonical (`customer.status`, not
+      # `parent.customer.status`), the wrong relative path for a
+      # piece's own command to evaluate.
+      given("customer is active") { parent.customer.status == "active" }
+      given("box is rented") { parent.status == "rented" }
+
+      lifecycle :state, default: "logged" do
+        transition "Annotate" => "logged", from: "logged"
+      end
+
+      command "Annotate" do
+        role "Vault officer"
+        goal "Note something unusual about a visit after the fact"
+
+        attribute :note,     VisitNote
+        given("customer is active")
+        given("box is rented")
+        given("visit is logged") { state == "logged" }
+
+        sets :note
+
+        emits "VisitAnnotated"
+      end
+
+      query "Recent" do
+        description "The last few visits, whatever the box has seen."
+        where(state: "logged")
+        limit 5
+      end
+    end
+
+    # THE SECOND PIECE ON THIS HEAD, identified by a SINGLE path where Visit's
+    # is two — the same deliberate mismatch market's Stall carried between
+    # Booking and Inspection, so a runtime reaching for "the entity" rather
+    # than the named one picks the wrong shape and says so.
+    entity "KeyIssuance" do
+      description "One key cut for the box, held by whoever last signed for it."
+
+      attribute :serial, KeySerial
+
+      identified_by :serial
+
+      lifecycle :status, default: "issued" do
+        transition "Return" => "returned", from: "issued"
+      end
+
+      command "Return" do
+        role "Vault officer"
+        goal "Take a key back when a holder is done with it"
+
+        attribute :serial, KeySerial
+        # REFERENCED, NOT REDECLARED — `Visit`'s own declaration, above,
+        # shared across sibling pieces the SAME aggregate nests (the
+        # cross-entity given pool a piece's own command falls back to
+        # when its OWN piece declares nothing under this name).
+        given("customer is active")
+        given("box is rented")
+        given("only an issued key is returned") { status == "issued" }
+
+        emits "KeyReturned"
+      end
+    end
+
+    lifecycle :status, default: "vacant" do
+      transition "Rent"      => "rented", from: "vacant"
+      transition "Surrender" => "vacant", from: "rented"
+    end
+
+    command "Rent" do
+      role "Branch clerk"
+      goal "Assign the box to a customer"
+
+      attribute :customer,    CustomerNumber
+      attribute :branch_code, BranchCode
+      attribute :box_number,  BoxNumber
+      attribute :size,        Size
+      given("box is vacant") { status == "vacant" }
+
+      sets :customer
+      sets :branch_code
+      sets :box_number
+      sets :size
+
+      emits "BoxRented"
+    end
+
+    command "Surrender" do
+      role "Customer"
+      goal "Give the box back and take the keys off the account"
+
+      reference_to SafeDepositBox
+
+      given("customer is active")
+      given("only a rented box is surrendered") { status == "rented" }
+
+      # TWO FACTS FROM ONE ACT, on a head that is composite-identified and
+      # holds two entities — the surrender itself, and the keys it leaves
+      # outstanding until the vault confirms every one of them is back.
+      emits "BoxSurrendered"
+      emits "KeyReturnDue"
+    end
+
+    command "LogVisit" do
+      role "Vault officer"
+      goal "Record that the box was opened"
+
+      reference_to SafeDepositBox
+
+      given("customer is active")
+      given("only a rented box is opened") { status == "rented" }
+
+      sets :visits, append: { date: :date, sequence: :sequence, note: :note }
+
+      emits "BoxOpened"
+    end
+
+    command "IssueKey" do
+      role "Vault officer"
+      goal "Cut a key for the box"
+
+      reference_to SafeDepositBox
+      given("customer is active")
+      given("box is rented") { status == "rented" }
+
+      sets :keys, append: { serial: :serial }
+
+      emits "KeyIssued"
+    end
+
+    query "Rented" do
+      description "Boxes currently assigned to a customer, for the annual access audit."
+      where(status: "rented")
+      order_by :branch_code
+      # A VAULT RECORD IS NOT A CASUAL READ. Named against the branch a caller
+      # is standing in.
+      authorize :vault_access, tenant: :branch_code
+    end
+  end
+
+  # TWO POLICIES OFF ONE COMMAND'S TWO ANNOUNCEMENTS — Surrender's own comment
+  # names why both facts are real; this is where each finds its audience.
+  policy "ReviewOnBoxSurrender" do
+    on      "BoxSurrendered"
+    trigger BoxSurrenderReview::Open
+    across  "Compliance"
+  end
+
+  policy "FlagKeyReturn" do
+    on      "KeyReturnDue"
+    trigger Notifications::Send
+    across  "Notifications"
+  end
+
+end

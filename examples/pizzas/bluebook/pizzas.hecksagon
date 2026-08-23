@@ -15,7 +15,6 @@ Hecks.hecksagon "Pizzas" do
   # policy beside it.
   Pizzas::Order.port "PaymentGateway" do
     operation "Receive" do
-      reference_to Order, as: :name
       attribute :customer_name, CustomerName
       attribute :amount, Price
       emits "PizzaPaymentReceived"

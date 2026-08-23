@@ -4,7 +4,7 @@
 # (declare, seal, sweep, refuse-while-unswept) without touching real
 # banking predicates, whose own `given("customer is active")` is
 # deliberately NOT yet wired to a projected field (see Account's own
-# comment in examples/banking/bluebook/banking.bluebook).
+# comment in examples/banking/bluebook/).
 Hecks.bluebook "ProjectedFields" do
   vision "A Customer's status, held locally on the Account that refers to it, rather than read live."
   core

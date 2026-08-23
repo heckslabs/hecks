@@ -107,7 +107,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
       Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
-      Kernel.load(bluebook_path)
+      InMemoryDomain.load_bluebook_files(bluebook_path)
     end
     json_shaped(Hecksagain::Projector::Exporter.call(registry).fetch(domain_name))
   end
@@ -139,7 +139,7 @@ RSpec.describe "Rust codegen parity (hecks-codegen)", io: true do
     ["compliance", -> {
       domain_ir(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compliance.bluebook"), "Compliance")
     }],
-    ["banking", -> { domain_ir(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"), "Banking") }],
+    ["banking", -> { domain_ir(InMemoryDomain::BANKING_BLUEBOOK_DIR, "Banking") }],
     ["bluebook_language", -> { meta_ir }],
   ].freeze
 

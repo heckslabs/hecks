@@ -5,7 +5,7 @@ module Hecksagain
         # THE ONE CHUNKED, LOCK-FREE, RESUMABLE BACKFILL LOOP — shared by
         # `backfill_head_snapshot!` (era 1's existing one-shot blocking
         # backfill, retrofit) and every field-cache table's own initial
-        # backfill (new). Governing principle 1 (docs/postgres-era-adapter-
+        # backfill (new). Governing principle 1 (docs/implemented/postgres-era-adapter-
         # split-plan.md): no operation this plan touches may hold a lock
         # across a scan whose duration scales with table size — a single
         # `INSERT ... SELECT` over the whole journal (what

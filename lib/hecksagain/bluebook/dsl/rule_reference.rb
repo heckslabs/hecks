@@ -77,7 +77,7 @@ module Hecksagain
         # `Hash[description][owner] => Rule` — `AggregateBuilder#given`'s
         # own chapter-wide shape, the only construct so far where the
         # SAME description can mean two genuinely different predicates
-        # (docs/resolution-rules/chapter-given.md). Returns the full
+        # (docs/implemented/resolution-rules/chapter-given.md). Returns the full
         # candidates Hash (0, 1, or many entries) — deliberately NOT
         # raising here, so each caller keeps its own exact refusal
         # wording for "none," "ambiguous," and "declared_by: named the

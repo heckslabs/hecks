@@ -18,20 +18,21 @@ module Hecksagain
           type = text(field[:type]).to_s
 
           {
-            name:     text(field[:name])&.to_sym,
-            type:     owned_type(type, aggregate_id) || reference_type(type),
-            list:     text(field[:list]).to_s == "true",
-            default:  decode_literal(text(field[:default])),
+            name:         text(field[:name])&.to_sym,
+            type:         owned_type(type, aggregate_id) || reference_type(type),
+            list:         text(field[:list]).to_s == "true",
+            default:      decode_literal(text(field[:default])),
             # Read back the same way `list` is — both are booleans about the
             # attribute, held as text, and dropping either would rebuild a
             # bluebook that no longer says what it said.
-            optional: text(field[:optional]).to_s == "true",
-            pattern:  presence(text(field[:pattern])),
+            optional:     text(field[:optional]).to_s == "true",
+            pattern:      presence(text(field[:pattern])),
             # THE ROUND TRIP IS THE ONLY WAY IN. The grammar registry keeps the
             # ASSEMBLED graph — the language as its own judge read it back — so a
             # fact dropped here is a fact no downstream projection ever sees, no
             # matter how plainly the .bluebook file declares it.
-            admits:   presence(text(field[:admits]))
+            admits:       presence(text(field[:admits])),
+            relationship: presence(text(field[:relationship]))
           }
         end
 
@@ -62,17 +63,18 @@ module Hecksagain
           type = text(field[:type]).to_s
 
           {
-            name:     text(field[:name])&.to_sym,
+            name:         text(field[:name])&.to_sym,
             # A QUALIFIED name is the tell : an ordinary type names something
             # declared beside it (`Money`, `AccountNumber`) and carries no join at
             # all, where a head's id always does (chapter + name, joined the way
             # every derived id is).
-            type:     type.include?(Naming::IDENTITY_JOIN) ? reference_type(type) : text(field[:type]),
-            list:     text(field[:list]).to_s == "true",
-            default:  decode_literal(text(field[:default])),
-            optional: text(field[:optional]).to_s == "true",
-            pattern:  presence(text(field[:pattern])),
-            admits:   presence(text(field[:admits]))
+            type:         type.include?(Naming::IDENTITY_JOIN) ? reference_type(type) : text(field[:type]),
+            list:         text(field[:list]).to_s == "true",
+            default:      decode_literal(text(field[:default])),
+            optional:     text(field[:optional]).to_s == "true",
+            pattern:      presence(text(field[:pattern])),
+            admits:       presence(text(field[:admits])),
+            relationship: presence(text(field[:relationship]))
           }
         end
 

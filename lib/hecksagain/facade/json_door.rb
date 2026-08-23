@@ -1,5 +1,6 @@
 require "json"
 require_relative "handle"
+require_relative "command_request"
 require_relative "../naming"
 require_relative "../runtime/errors"
 require_relative "../runtime/value"
@@ -129,6 +130,14 @@ module Hecksagain
       def materialize(value)
         value = value.to_h if value.is_a?(Handle)
         Runtime::Value.materialize(value)
+      end
+
+      # Parsed JSON and raw JSON text cross the same receiver/payload boundary
+      # as CLI and forms. The result is ready to splat into Dispatcher#dispatch
+      # and contains no loose routing fields.
+      def command_request(body, receiver:, legacy_receiver: nil)
+        input = body.is_a?(String) ? parse(body) : body
+        CommandRequest.normalize(input, receiver: receiver, legacy_receiver: legacy_receiver)
       end
 
       # The one place a raw JSON string is legitimate input for this door —

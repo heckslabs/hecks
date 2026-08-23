@@ -11,7 +11,7 @@ require "spec_helper"
 # is not blank" — an optional VisitNote a vault officer wrote nothing
 # but empty text into.
 RSpec.describe "a piece's own invariant, checked against every instance the aggregate holds" do
-  BANKING_BLUEBOOK = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook")
+  BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR
 
   def boot
     registry = Hecksagain::Runtime::Registry.new
@@ -20,7 +20,7 @@ RSpec.describe "a piece's own invariant, checked against every instance the aggr
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(BANKING_BLUEBOOK)
+      load_bluebook_files(BANKING_BLUEBOOK)
       Hecksagain::Runtime::Loader.bind_runtime(Hecksagain::Runtime::Dispatcher.new(registry))
     end
   end

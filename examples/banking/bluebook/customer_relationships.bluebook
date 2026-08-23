@@ -1,0 +1,113 @@
+Hecks.bluebook "Banking" do
+  aggregate "Customer" do
+    description "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing."
+
+    attribute :reference, CustomerNumber
+
+    identified_by :reference
+
+    attribute :name,      PersonName
+    attribute :email,     EmailAddress
+    attribute :standing,  CustomerStanding
+
+    value_object "CustomerNumber" do
+      attribute :value, String, pattern: '[^ \t\n\r]'
+      invariant("a customer reference is present") { !value.to_s.empty? }
+    end
+
+    value_object "CustomerStanding" do
+      attribute :value, String, default: "good", pattern: '[^ \t\n\r]'
+      invariant("a standing is named") { !value.to_s.empty? }
+    end
+
+    value_object "PersonName" do
+      attribute :given,  String, pattern: '[^ \t\n\r]'
+      attribute :family, String, pattern: '[^ \t\n\r]'
+
+      invariant("a given name is present")  { !given.to_s.empty? }
+      invariant("a family name is present") { !family.to_s.empty? }
+    end
+
+    value_object "EmailAddress" do
+      # THE SHAPE, DECLARED. This was `address.include?("@")` — a rule about
+      # spelling, hand-rolled as a predicate because the language had no way to
+      # say it. A pattern says it once, and says it strictly : "a b@c.d" and
+      # "a@b" passed the old invariant and are not addresses.
+      #
+      # Spelled with explicit ranges rather than \S, because the perl classes
+      # flip between ASCII and Unicode across regex engines — see
+      # PatternSubset, which refuses them when the bluebook is declared rather
+      # than letting readers disagree about a customer later.
+      attribute :address, String, pattern: '^[^@ ]+@[^@ ]+\.[^@ ]+$'
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Suspend"   => "suspended", from: "active"
+      transition "Reinstate" => "active",    from: "suspended"
+      transition "Close"     => "closed",    from: ["active", "suspended"]
+    end
+
+    command "Register" do
+      role "Branch clerk"
+      goal "Take on a new customer"
+
+      sets :reference
+      sets :name
+      sets :email
+
+      emits "CustomerRegistered"
+    end
+
+    command "Suspend" do
+      role "Compliance officer"
+      goal "Stop a customer transacting while something is investigated"
+
+      reference_to Customer
+      given("customer is active") { status == "active" }
+
+      sets :standing
+
+      emits "CustomerSuspended"
+    end
+
+    command "Reinstate" do
+      role "Compliance officer"
+      goal "Let a cleared customer transact again"
+
+      reference_to Customer
+      given("customer is suspended") { status == "suspended" }
+      sets :standing, to: { value: "good" }
+
+      emits "CustomerReinstated"
+    end
+
+    command "Close" do
+      role "Branch clerk"
+      goal "End the relationship"
+
+      reference_to Customer
+      given("customer is active or suspended") { ["active", "suspended"].include?(status) }
+      emits "CustomerClosed"
+    end
+
+    query "InGoodStanding" do
+      description "The everyday customer roll — active, and nothing outstanding against them."
+      where(status: "active", standing: "good")
+      order_by :reference
+    end
+
+    query "Suspended" do
+      description "The compliance queue, newest concern first."
+      where(status: "suspended")
+      order_by :reference, :desc
+      limit 50
+    end
+
+    query "NotGoodStanding" do
+      description "Everyone who is not in the everyday roll — suspended, under review, or anything else that is not simply \"good\"."
+      where(standing: { ne: "good" })
+      order_by :reference
+    end
+  end
+
+end

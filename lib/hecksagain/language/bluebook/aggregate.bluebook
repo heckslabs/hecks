@@ -24,8 +24,8 @@ Hecks.bluebook "Bluebook" do
     attribute :identified_by, list_of(IdentityPath)
     attribute :attributes,    list_of(Field)
     attribute :value_objects, list_of(ValueName)
-    attribute :state_field,   IdentityField
-    attribute :state_start,   IdentityField
+    attribute :state_field,   IdentityField, optional: true
+    attribute :state_start,   IdentityField, optional: true
     attribute :transitions,   list_of(Transition)
     # THE AGGREGATE BOUNDARY (S10, ADR 0025 — "Rules") — checked after
     # every command, before save, the SAME Rule shape Command's own
@@ -91,6 +91,10 @@ Hecks.bluebook "Bluebook" do
       # other word and it can only ever SYNTHESISE a new set, never name one
       # twice. Absent for almost every attribute, so it is optional.
       attribute :admits, String, optional: true
+      # `reference_to`, `belongs_to`, `has_one`, or `has_many`; absent on
+      # ordinary value/entity fields. This keeps relationship language through
+      # the self-hosted round trip instead of collapsing it to a reference.
+      attribute :relationship, String, optional: true
     end
 
     value_object "ValueName" do
@@ -136,6 +140,12 @@ Hecks.bluebook "Bluebook" do
       attribute :provenance,    LiteralText, optional: true
 
       attribute :position, Position, optional: true
+
+      sets :bluebook
+      sets :name
+      sets :description
+      sets :provenance
+      sets :position
       emits "RootDeclared"
     end
 
@@ -147,7 +157,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one part of the aggregate's identity"
 
-      reference_to Aggregate
       attribute :path, IdentityPath
 
       # AN IDENTITY PART NAMES SOMETHING. This rule used to sit on Seal reading
@@ -204,7 +213,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one attribute to the aggregate"
 
-      reference_to Aggregate
       # The TYPE is a reference to the value object it names. An attribute
       # naming an undeclared value object then fails REFERENCE RESOLUTION —
       # "no Shape with id …" — with no predicate at all.
@@ -226,8 +234,9 @@ Hecks.bluebook "Bluebook" do
       # is carried as text and checked where it is READ, by the reader, which
       # already raises for the other things the language cannot say about itself.
       attribute :admits,  LiteralText, optional: true
+      attribute :relationship, LiteralText, optional: true
 
-      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :type, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
       emits "AttributeAttached"
     end
@@ -246,7 +255,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach an attribute that points at another aggregate's head"
 
-      reference_to Aggregate
       # POINTS AT a declared head, and that is the whole rule.
       #
       # This carried `attribute :type, ReferenceType` — a STRING — with an invariant
@@ -264,8 +272,9 @@ Hecks.bluebook "Bluebook" do
       attribute :pattern,  LiteralText, optional: true
       attribute :default, LiteralText, optional: true
       attribute :admits,  LiteralText, optional: true
+      attribute :relationship, LiteralText, optional: true
 
-      sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :points_at, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
       emits "ReferenceAttached"
     end
@@ -282,7 +291,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach an attribute whose type is a piece of this aggregate"
 
-      reference_to Aggregate
       reference_to Entity, as: :holds
       attribute :name,    FieldName
       attribute :list,    ListFlag
@@ -291,8 +299,9 @@ Hecks.bluebook "Bluebook" do
       attribute :pattern,  LiteralText, optional: true
       attribute :default, LiteralText, optional: true
       attribute :admits,  LiteralText, optional: true
+      attribute :relationship, LiteralText, optional: true
 
-      sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits }
+      sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
       emits "PieceHeld"
     end
@@ -342,7 +351,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Name the field this aggregate's state machine runs on"
 
-      reference_to Aggregate
       attribute :state_field, FieldName
       attribute :state_start, FieldName
 
@@ -356,7 +364,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one transition to the state machine"
 
-      reference_to Aggregate
       attribute :command,    FieldName
       attribute :from_state, FieldName, optional: true
       attribute :to_state,   FieldName
@@ -375,7 +382,6 @@ Hecks.bluebook "Bluebook" do
       # whole-document rules live on a command dispatched after the aggregate
       # is fully declared. This is the shape the tier-3 rules need ; whether
       # the sublanguage can express their CONTENT is the open question.
-      reference_to Aggregate
 
       # THE RULE THAT WAS HERE WAS NOT TRUE, and nothing could tell us while Seal
       # went undispatched. `given("an aggregate declares at least one attribute")`
@@ -411,7 +417,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Declare a value object belonging to this aggregate"
 
-      reference_to Aggregate
       attribute :name, FieldName
 
       sets :value_objects, append: { name: :name }
@@ -425,7 +430,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Attach one invariant to the aggregate"
 
-      reference_to Aggregate
       attribute :description, LiteralText, optional: true
       attribute :canonical,   LiteralText
 
@@ -444,7 +448,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Declare one precondition commands can reference by name"
 
-      reference_to Aggregate
       attribute :description, LiteralText, optional: true
       attribute :canonical,   LiteralText
 
@@ -465,7 +468,6 @@ Hecks.bluebook "Bluebook" do
       role "Language"
       goal "Declare a field read locally through a reference"
 
-      reference_to Aggregate
       attribute :name,         FieldName
       attribute :reference,    FieldName
       attribute :remote_field, FieldName
@@ -477,6 +479,103 @@ Hecks.bluebook "Bluebook" do
       sets :projected_fields, append: { name: :name, reference: :reference, remote_field: :remote_field }
 
       emits "ProjectedFieldAttached"
+    end
+
+    # HOW AGGREGATE IS SPELLED. These rows live with the concept
+    # they describe; SyntaxBoot discovers every aggregate-local seed table.
+    # Contexts represented here: Aggregate, Lifecycle.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
+      member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance", calls: "provenance_impl"
+      member word: "identified_by",   context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "identified_by", calls: "identified_by_impl"
+      member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by", calls: "identified_by_impl"
+      member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "reference_to_impl"
+      member word: "has_many",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "has_many_impl"
+      member word: "has_one",         context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "has_one_impl"
+      member word: "belongs_to",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "belongs_to_impl"
+      member word: "lifecycle",       context: "Aggregate", body: "keywords", inner: "Lifecycle",     opens: "",               fills: "state_field", calls: "lifecycle_impl"
+      member word: "entity",          context: "Aggregate", body: "keywords", inner: "Entity",        opens: "Entity",         fills: "", calls: "entity_impl"
+      member word: "query",           context: "Aggregate", body: "keywords", inner: "Query",         opens: "Query",          fills: "", calls: "query_impl"
+      member word: "policy",          context: "Aggregate", body: "keywords", inner: "Policy",        opens: "Policy",         fills: "", calls: "policy_impl"
+      member word: "value_object",    context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "value_objects"
+      member word: "command",         context: "Aggregate", body: "keywords", inner: "Command",       opens: "Command",        fills: "", calls: "command_impl"
+      member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "attribute_impl"
+      member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants", calls: "invariant_impl"
+      member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl"
+      member word: "projects",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "projected_fields", calls: "projects_impl"
+      member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions", calls: "transition_impl"
+
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :minimum,          String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
+      member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
+      member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true", minimum: "2"
+      member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type"
+      member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "reference_to",    context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "reference_to",    context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "reference_to",    context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "has_many",        context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "has_many",        context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "has_one",         context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "has_one",         context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "has_one",         context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "belongs_to",      context: "Aggregate", at: "1", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"
+      member keyword: "belongs_to",      context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "lifecycle",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "state_field"
+      member keyword: "lifecycle",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "true",  fills: "state_start"
+      member keyword: "entity",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "query",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "policy",          context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "value_object",    context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "command",         context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "name"
+      member keyword: "command",         context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "false", fills: "from"
+      member keyword: "attribute",       context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "attribute",       context: "Aggregate", at: "2", named: "",         kind: "constant", required: "true",  fills: "type"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "default",  kind: "literal",  required: "false", fills: "default"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "optional", kind: "flag",     required: "false", fills: "optional"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "pattern",  kind: "text",     required: "false", fills: "pattern"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "admits",   kind: "text",     required: "false", fills: "admits"
+      member keyword: "attribute",       context: "Aggregate", at: "",  named: "one_of",   kind: "list",     required: "false", fills: "one_of"
+      member keyword: "invariant",       context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "given",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
+      member keyword: "given",           context: "Aggregate", at: "",  named: "declared_by", kind: "constant", required: "false", fills: "declared_by"
+      member keyword: "projects",        context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
+      member keyword: "projects",        context: "Aggregate", at: "",  named: "from",     kind: "symbol",   required: "true",  fills: "from"
+      member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"
+      member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "text",  required: "false", fills: "from_state"
+      member keyword: "transition",      context: "Lifecycle", at: "",  named: "from", kind: "list",  required: "false", fills: "from_state"
+
     end
   end
 end

@@ -76,7 +76,7 @@ module Hecksagain
           when "lte"      then ordered?(held, want) && held <= want
           when "gt"       then ordered?(held, want) && held > want
           when "gte"      then ordered?(held, want) && held >= want
-          when "in"       then members(want).include?(held.to_s)
+          when "in"       then any_member_in?(held, want)
           when "contains" then contains?(held, want)
           when "none_in_state" then none_in_state?(held, want, registry)
           else
@@ -108,6 +108,18 @@ module Hecksagain
           return value.map { |element| comparable(element).to_s } if value.is_a?(Array)
 
           value.to_s.split(",").map(&:strip)
+        end
+
+        # A folded reference hop asks whether the locally-held identity is
+        # among the matching target identities. A has_many relationship holds
+        # several identities, so the same question becomes an intersection:
+        # does ANY held identity occur in the wanted set? Scalar `in` retains
+        # its existing one-candidate behavior.
+        def any_member_in?(held, want)
+          wanted = members(want)
+          candidates = held.is_a?(Array) ? held : [held]
+
+          candidates.any? { |candidate| wanted.include?(comparable(candidate).to_s) }
         end
 
         # `contains` means two different things depending on what is HELD —

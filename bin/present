@@ -21,7 +21,7 @@ require "hecksagain/forms"
 require "rackup"
 
 ROOT = File.expand_path("..", __dir__)
-BANKING_BLUEBOOK = File.join(ROOT, "examples/banking/bluebook/banking.bluebook")
+BANKING_BLUEBOOK = File.join(ROOT, "examples/banking/bluebook")
 # DELIBERATELY NOT UNDER examples/ AT ALL, let alone alongside
 # banking.bluebook itself — every top-level entry under examples/ is its
 # own scanned corpus member (spec/corpus_spec.rb's EXAMPLE_ROOTS,
@@ -42,7 +42,7 @@ Hecksagain.with_registry(registry) do
   Kernel.load(EXTRACTION_PORT)
   Kernel.load(MEMORY_ADAPTER)
   Kernel.load(PRISM_ADAPTER)
-  Kernel.load(BANKING_BLUEBOOK)
+  Hecksagain::Adapters::Folder.new.load_bluebooks(BANKING_BLUEBOOK)
   Kernel.load(FORMS_BLUEBOOK)
 
   Hecks.hecksagon("Banking") do

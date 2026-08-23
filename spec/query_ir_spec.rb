@@ -56,7 +56,7 @@ RSpec.describe Hecksagain::QueryIR do
     # commands" from that separate, real, cross-aggregate case.
     it "does not flag a single owner's own commands referencing its declared given as N fresh duplicates" do
       raw = described_class.send(:collect_rules, Hecksagain::Codemod.load_bluebook(
-                                                   Dir.glob(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/*.bluebook")).first
+                                                   InMemoryDomain::BANKING_BLUEBOOK_DIR
                                                  ))
       account_given = raw.select do |r|
         r.kind == "given" && r.description == "customer is active" &&

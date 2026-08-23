@@ -6,6 +6,7 @@ use crate::exemplar::Exemplar;
 use crate::json::Json;
 use crate::literal::{self, Literal};
 use crate::naming;
+use crate::registry::AggregateEntry;
 
 pub fn policy_event_qualifier(on_event: &str) -> Option<String> {
     if on_event.contains('.') {
@@ -225,6 +226,51 @@ pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<St
         .collect();
 
     exemplar.render("reference_key_table", &[("\"tmpl_qualified\" => Some(\"tmpl_key\"),", arms.join("\n"))])
+}
+
+/// "DOES THIS VERB CREATE THE RECORD IT ADDRESSES" — `orchestrate.rs`'s
+/// own routing split (`split_routed_args`) needs this before it can
+/// decide whether a policy/saga-triggered dispatch's projected args
+/// should have their addressing key promoted into `to:` at all —
+/// `rust/project/reactions.rb`'s own `emit_creates_table` header has the
+/// full argument. Reuses each aggregate entry's own already-computed
+/// `commands[].creates`/`commands[].verb` fields verbatim; an entity
+/// command is never creating (commands.rs's own header on
+/// `emit_entity_command`), so it always reads `false` without needing
+/// its own branch.
+pub fn emit_creates_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
+    let mut arms: Vec<String> = Vec::new();
+    for a in aggregates {
+        for c in &a.commands {
+            arms.push(format!("        {} => {},", naming::ruby_inspect_string(&c.verb), c.creates));
+        }
+        for c in &a.entity_commands {
+            arms.push(format!("        {} => false,", naming::ruby_inspect_string(&c.verb)));
+        }
+    }
+
+    exemplar.render("creates_table", &[("\"tmpl_verb\" => true,", arms.join("\n"))])
+}
+
+/// THE SINGLE-COMPONENT IDENTITY HEAD `orchestrate.rs`'s own routing
+/// split tries first — `rust/project/reactions.rb`'s own `emit_identity_
+/// head_table` header has the full argument, including why a COMPOSITE
+/// identity is a real, documented gap here rather than silently assumed
+/// to work.
+pub fn emit_identity_head_table(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> String {
+    let arms: Vec<String> = aggregates
+        .iter()
+        .filter_map(|a| {
+            if a.identified_by.len() != 1 {
+                return None;
+            }
+            let head = a.identified_by[0].split('.').next().unwrap_or(&a.identified_by[0]);
+            let qualified = format!("{}::{}", a.domain_name, a.name);
+            Some(format!("        {} => Some({}),", naming::ruby_inspect_string(&qualified), naming::ruby_inspect_string(head)))
+        })
+        .collect();
+
+    exemplar.render("identity_head_table", &[("\"tmpl_qualified\" => Some(\"tmpl_head\"),", arms.join("\n"))])
 }
 
 /// `for_each` — THE FAN-OUT'S OWN QUERY, qualified here rather than in

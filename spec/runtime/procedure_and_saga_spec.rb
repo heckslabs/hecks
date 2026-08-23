@@ -74,7 +74,7 @@ RSpec.describe "a procedure, and when it is a saga" do
       Kernel.load(InMemoryDomain::EXTRACTION_PORT)
       Kernel.load(InMemoryDomain::MEMORY_ADAPTER)
       Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-      Kernel.load(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook/banking.bluebook"))
+      load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
     @settlement = registry.bluebook("Banking").process_managers.find { |pm| pm.name == "Settlement" }
   end
