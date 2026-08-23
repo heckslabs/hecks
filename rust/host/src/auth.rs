@@ -536,7 +536,7 @@ fn base64_decode(input: &str) -> Vec<u8> {
     out
 }
 
-fn urlencode(s: &str) -> String {
+pub(crate) fn urlencode(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
         match b {

@@ -829,12 +829,10 @@ async fn aggregate_index(domain_name: &str, aggregate: &Value, format: &str, cli
                 .iter()
                 .map(|c| {
                     let cn = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                    format!(r#"<a href="/{domain_name}/{agg}/{cn}.html?id={id}" class="text-indigo-600 hover:underline mr-3">{cn}</a>"#)
+                    action_link(domain_name, agg, cn, id, "text-indigo-600 hover:underline mr-3")
                 })
                 .collect();
-            format!(
-                r#"<tr><td class="px-3 py-2 font-mono text-xs"><a href="/{domain_name}/{agg}/{id}.html" class="text-indigo-600 hover:underline">{id}</a></td><td class="px-3 py-2">{actions}</td></tr>"#
-            )
+            index_row_html(domain_name, agg, id, &actions)
         })
         .collect();
 
@@ -889,15 +887,16 @@ async fn record_show(domain_name: &str, aggregate: &Value, id: &str, format: &st
                 .filter(|c| !c.get("references").map(|r| r.is_null()).unwrap_or(true))
                 .map(|c| {
                     let cn = c.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                    format!(r#"<a href="/{domain_name}/{agg}/{cn}.html?id={id}" class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500 mr-3">{cn}</a>"#)
+                    action_link(domain_name, agg, cn, id, "rounded-md bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500 mr-3")
                 })
                 .collect::<String>()
         })
         .unwrap_or_default();
     let body = format!(
-        r#"<h1 class="text-2xl font-bold">{agg} <span class="font-mono text-lg text-slate-500">{id}</span></h1>
+        r#"<h1 class="text-2xl font-bold">{} <span class="font-mono text-lg text-slate-500">{}</span></h1>
         <dl class="mt-4 divide-y divide-slate-200 border border-slate-200 rounded-md bg-white">{rows}</dl>
-        <div class="mt-6">{actions}<a href="/{domain_name}/{agg}.html" class="text-indigo-600 hover:underline">← {agg} list</a></div>"#
+        <div class="mt-6">{actions}<a href="/{domain_name}/{agg}.html" class="text-indigo-600 hover:underline">← {agg} list</a></div>"#,
+        esc(agg), esc(id)
     );
     html(200, &page(&format!("{agg} {id}"), &body))
 }
@@ -1166,6 +1165,40 @@ fn esc(value: &str) -> String {
     value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
 }
 
+// H10 (docs/audits/2026-08-10-main-bug-audit.md) — `id` is a record's own
+// identity, free-form and user-supplied unless `pattern:`-constrained, NOT
+// a bluebook-declared name the way `agg`/`domain_name`/`cn` are. Every
+// call site that places `id` into rendered HTML routes through one of
+// these two functions so escaping (and, for the query-string position,
+// percent-encoding) can't be forgotten at a THIRD call site the way it
+// was at these two before this fix — Ruby's own `Escape.html`/`.attr`
+// already covers `id` everywhere (`record_table.rb:45`, `record_
+// renderer.rb:43,79`); this closes the parallel Rust gap, not a new
+// capability Ruby lacks too.
+//
+// `id` goes into a QUERY-STRING value here (`?id=...`), not just an HTML
+// attribute — `esc()` alone is not enough (a raw `&` would end the
+// parameter early, corrupting `cn` as a second bogus param), so this
+// percent-encodes via `auth::urlencode` (already RFC3986-unreserved-safe,
+// already exercised by the OAuth redirect path) rather than HTML-escaping
+// the query value. `cn` is still `esc()`-escaped for the link text/href
+// segment, even though it's bluebook-declared rather than user input —
+// cheap, consistent, and never wrong.
+fn action_link(domain_name: &str, agg: &str, cn: &str, id: &str, class: &str) -> String {
+    format!(r#"<a href="/{domain_name}/{agg}/{}.html?id={}" class="{class}">{}</a>"#, esc(cn), auth::urlencode(id), esc(cn))
+}
+
+// The row's own link to itself — `id` sits in a PATH segment here, not a
+// query value, so `esc()` (not percent-encoding) is the right guard,
+// matching what the sibling not-found/field-row branches already do
+// correctly (`html_not_found`, the field-value `<dd>` rows).
+fn index_row_html(domain_name: &str, agg: &str, id: &str, actions: &str) -> String {
+    let id = esc(id);
+    format!(
+        r#"<tr><td class="px-3 py-2 font-mono text-xs"><a href="/{domain_name}/{agg}/{id}.html" class="text-indigo-600 hover:underline">{id}</a></td><td class="px-3 py-2">{actions}</td></tr>"#
+    )
+}
+
 fn page(title: &str, body: &str) -> String {
     format!(
         r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{}</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-50 text-slate-900 min-h-screen"><header class="bg-white border-b border-slate-200"><div class="max-w-3xl mx-auto px-4 py-3"><a href="/" class="font-semibold text-slate-900">rust/host — served straight off the bluebook IR</a></div></header><main class="max-w-3xl mx-auto px-4 py-8">{}</main></body></html>"#,
@@ -1192,6 +1225,48 @@ fn respond(status: u16, content_type: &str, body: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // H10 (docs/audits/2026-08-10-main-bug-audit.md) — a record's own
+    // identity is user-supplied, free-form unless `pattern:`-constrained,
+    // and used to be interpolated raw at these two call sites. A creating
+    // command persisting this exact id used to render live, executable
+    // markup for every later viewer of the index row or record page.
+    const MALICIOUS_ID: &str = r#"x"><script>alert(1)</script>"#;
+
+    #[test]
+    fn action_link_escapes_the_link_text_and_percent_encodes_the_query_value() {
+        let link = action_link("Pizzas", "Order", "Purchase", MALICIOUS_ID, "mr-3");
+
+        assert!(!link.contains("<script"), "{link}");
+        assert!(!link.contains(MALICIOUS_ID), "the raw id must not survive into the rendered link: {link}");
+        // The query VALUE must be percent-encoded, not HTML-escaped —
+        // `esc()` alone leaves a raw `&` in a `values.each` id, say, which
+        // would terminate the `id=` param early and smuggle a second
+        // bogus query parameter in.
+        assert!(link.contains("id=x%22%3E%3Cscript%3Ealert%281%29%3C%2Fscript%3E"), "{link}");
+    }
+
+    #[test]
+    fn action_link_renders_an_ordinary_id_unchanged() {
+        let link = action_link("Pizzas", "Order", "Purchase", "p1", "mr-3");
+        assert_eq!(link, r#"<a href="/Pizzas/Order/Purchase.html?id=p1" class="mr-3">Purchase</a>"#);
+    }
+
+    #[test]
+    fn index_row_html_escapes_the_id_in_both_the_link_text_and_the_path_segment() {
+        let row = index_row_html("Pizzas", "Order", MALICIOUS_ID, "");
+        assert!(!row.contains("<script"), "{row}");
+        assert!(row.contains("&lt;script&gt;"), "{row}");
+    }
+
+    #[test]
+    fn index_row_html_renders_an_ordinary_id_unchanged() {
+        let row = index_row_html("Pizzas", "Order", "p1", "");
+        assert_eq!(
+            row,
+            r#"<tr><td class="px-3 py-2 font-mono text-xs"><a href="/Pizzas/Order/p1.html" class="text-indigo-600 hover:underline">p1</a></td><td class="px-3 py-2"></td></tr>"#
+        );
+    }
 
     // Real corpus shapes throughout (examples/banking/bluebook/
     // banking.bluebook, examples/pizzas/bluebook/pizzas.bluebook) — read

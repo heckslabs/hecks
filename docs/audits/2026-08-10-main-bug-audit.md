@@ -232,7 +232,7 @@ chapter's assembled read model (filter still 100). Any same-process reload
 after editing only a read-model filter (test suites, consoles, hecks_studio)
 runs the stale filter. Policy→head attribution shares the same key hole.
 
-### H10 — Stored XSS via record id (Rust web layer)
+### H10 — Stored XSS via record id (Rust web layer) — FIXED 2026-08-22
 
 `rust/host/src/web.rs:639, 706` (also `:635, :696` lack URL-encoding) ·
 likely
@@ -248,6 +248,22 @@ XSS on a public Lambda URL. The not-found branch (`:672`) and the field rows
 presentation layer is not affected — it routes all dynamic content through
 `Escape.html`; this is the parallel Rust reimplementation missing the same
 guard.
+
+**Fixed**: the two call sites this described (now `web.rs`'s `aggregate_index`
+row-action-link builder and `record_show`'s action-link/heading, current line
+numbers have shifted since this was written) were extracted into two small,
+unit-tested functions — `action_link` (HTML-escapes the link text, percent-
+encodes `id` via the existing `auth::urlencode` for the query-string
+position — `esc()` alone isn't enough there, a raw `&` would smuggle a
+second bogus query parameter) and `index_row_html` (HTML-escapes `id` for
+both the path segment and the link text). The `<title>`/`<h1>` mentions
+above don't independently apply to the current code: `page()`'s own title
+parameter was already routed through `esc()`, confirmed by direct reading
+before this fix — only the two call sites named here were ever actually
+raw. The bundled URL-encoding gap noted in the parenthetical is fixed for
+these same two lines as part of this change; the broader L12 finding
+(URL-encoding generally, other call sites, both runtimes) is unchanged and
+still open.
 
 ### H11 — Session HMAC fails open when `SESSION_SECRET` is empty
 

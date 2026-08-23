@@ -69,7 +69,7 @@ exposure.
 
 | ID | One-line | File | Confidence |
 | --- | --- | --- | --- |
-| H10 | Stored XSS via record id — the Rust web layer interpolates the aggregate id raw into link text/`href`/`<title>`/`<h1>`; every other value routes through `esc()`. Ruby presentation layer is unaffected. | `rust/host/src/web.rs:639,706` | likely |
+| H10 | ~~Stored XSS via record id~~ — **fixed 2026-08-22**: the two call sites now route through `action_link`/`index_row_html` (`rust/host/src/web.rs`), which HTML-escape the id everywhere it's rendered and percent-encode it in the query-string position. | `rust/host/src/web.rs` (`action_link`, `index_row_html`) | fixed |
 | H11 | Session HMAC fails open on an empty `SESSION_SECRET` — unset, cookie/OAuth-state HMAC keys on a known empty string. Not currently exploitable (prod sets it from Secrets Manager) but fails open instead of refusing to boot, unlike every other required var. | `rust/host/src/web.rs:90` | likely (latent) |
 | L12 | Record ids are HTML-escaped but never URL-encoded in `href`/`Location` — `&`, `+`, `?`, `#` in an id corrupt the link | `presentation/record_renderer.rb:75` | — |
 | L20 | `rename-schema` interpolates `$(OLD)`/`$(NEW)` unsanitized into SQL — operator-only, but against prod RDS | `bin/project_deploy:1517` | — |
