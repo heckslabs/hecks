@@ -348,12 +348,22 @@ module Hecksagain
       # A REENTRANT CALL DURING THE FIXPOINT/ATTACH WINDOW ABOVE gets a
       # real, correctly-mutating registry object back — no infinite loop,
       # no wrong data for THAT caller's own purposes. But anything that
-      # MEMOIZES a snapshot derived from it (SyntaxBoot.call, chiefly) must
-      # not lock that snapshot in forever : this is the signal such a
-      # cache checks before trusting what it just read. Found live —
-      # SyntaxBoot.call had cached a Query keyword list missing every
-      # Paging-attached word (limit/offset/cursor/nulls) because something
-      # called it inside this exact window.
+      # MEMOIZES a snapshot derived from it must not lock that snapshot
+      # in forever : this is one signal such a cache can check. Found
+      # live — SyntaxBoot.call had cached a Query keyword list missing
+      # every Paging-attached word (limit/offset/cursor/nulls) because
+      # something called it inside this exact window.
+      #
+      # SyntaxBoot.call NO LONGER USES THIS. Gating its cache on "the
+      # whole registry is finished" meant nothing was cached for the
+      # entire window, and the window is not narrow — every word routed
+      # through `word_gate_dispatch` while the language judged itself
+      # re-ran the ~284-dispatch syntax boot (42 times, 32 seconds, per
+      # process — see SyntaxBoot.call's own comment). It keys its cache
+      # on the registry's chapter set instead, which is the actual input
+      # the snapshot is a function of. Kept here for any other derived
+      # cache that genuinely needs "is the build finished" rather than
+      # "have my inputs changed".
       def self.grammar_registry_ready?
         @grammar_registry && @grammar_ready_for == @grammar_registry.object_id
       end
