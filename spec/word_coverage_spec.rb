@@ -54,8 +54,25 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecksagain/adapters/driven", "*.adapter")
   ].freeze
 
+  # `examples/*/**/*.bluebook`'s own `**` has to be recursive — a
+  # nested sub-language file (`examples/pizzas/bluebook/translations/
+  # 2-77625c.bluebook`) is a real corpus source one directory deeper
+  # than `examples/pizzas/bluebook/*.bluebook` itself — but that same
+  # recursion also reaches `examples/*/data/eras/**`, the RUNTIME era
+  # store a file adapter writes locally (.gitignore's own `**/data/
+  # eras/` entry, anchored to `data/` for the identical reason: era
+  # snapshots are real generated content, not committed corpus source,
+  # and an environment that has actually minted an era — running
+  # bin/evolve/project_deploy against a real domain, say — would see
+  # this scanner "find" a word only ever frozen into a historical
+  # snapshot, on a machine where nobody else could ever reproduce it).
+  # Excluded here the same way corpus_spec.rb's own walk never has the
+  # problem in the first place — its own glob never descends into
+  # `data/` at all.
   def corpus_files
-    @corpus_files ||= CORPUS_GLOBS.flat_map { |glob| Dir.glob(glob) }.sort.freeze
+    @corpus_files ||= CORPUS_GLOBS.flat_map { |glob| Dir.glob(glob) }
+                                  .reject { |path| path.include?("/data/eras/") }
+                                  .sort.freeze
   end
 
   # A REAL DECLARATION, not a mention — the word as a whole token
