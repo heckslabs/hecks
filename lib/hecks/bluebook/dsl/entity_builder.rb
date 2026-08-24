@@ -187,6 +187,7 @@ module Hecks
           drain_pending!
           resolve_pending_identity!
           seal_lifecycle_guards
+          install_closed_sets!
           Entity.declare(
             name:          @name,
             description:   @description,
@@ -211,6 +212,40 @@ module Hecks
         end
 
         private
+
+        # A PIECE'S OWN `one_of` LANDS ON ITS AGGREGATE. A type-position
+        # `one_of("never_moved", "moved")` on an entity attribute
+        # synthesizes a closed-set value object — and until this, that
+        # object was built and then DROPPED: `Entity.declare` carries no
+        # value objects, so the synthesized set existed nowhere in the
+        # finished graph. The attribute stayed typed "Moved" with nothing
+        # to resolve it: runtime admission had no closed set to enforce
+        # (the one_of was decorative), and the fuzzer's ValueGenerator
+        # crashed every run on the first domain to declare one — a chess
+        # King/Rook's own castling flag — with `does not know primitive
+        # type "Moved"`. Installed through the SAME hook an entity's own
+        # identity value object already rides to the aggregate
+        # (`identity_value_object_installer`, threaded unchanged through
+        # nested pieces). Two sibling pieces synthesizing the same set
+        # (King's and Rook's own `moved`) install it once; the same NAME
+        # with a DIFFERENT member list is refused as the collision it is,
+        # never first-wins silently.
+        def install_closed_sets!
+          return unless @identity_value_object_installer
+
+          closed_sets.each do |value_object|
+            existing = @owner_value_objects.find { |candidate| candidate.hecks_name == value_object.hecks_name }
+            if existing
+              next if existing.to_h == value_object.to_h
+
+              raise Malformed,
+                    "#{@name}'s one_of synthesizes #{value_object.hecks_name.inspect}, but the aggregate already " \
+                    "holds a different #{value_object.hecks_name.inspect} — name the closed set's field differently"
+            end
+
+            @identity_value_object_installer.call(value_object)
+          end
+        end
 
         # See `AggregateBuilder#drain_pending!`'s own comment — the
         # identical mechanism, one level down. Entities first and fully
