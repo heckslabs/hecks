@@ -579,4 +579,36 @@ RSpec.describe "the expression sublanguage" do
       end.to raise_error(Hecksagain::Bluebook::Expression::EvaluationError, /no interpreter handles/)
     end
   end
+
+  # `Resolver#split_addition` counts braces toward depth exactly as it
+  # counts parens — its own comment has the story. Before it did, a `+`
+  # inside a block predicate's own body split the WHOLE expression as an
+  # Addition, and the unparenthesized spelling below (the natural one, and
+  # the one a downstream chess domain's castling given actually wrote)
+  # died with "no implicit conversion of Symbol into Integer" while its
+  # parenthesized twin worked — a trap distinguishable only by parens.
+  describe "arithmetic inside a block predicate" do
+    let(:attrs) do
+      { kings:  [{ status: "on_board", square: { file: 6, rank: 0 } }],
+        to:     { file: 5, rank: 0 },
+        square: { file: 7, rank: 0 } }
+    end
+
+    it "parses a bare `+` inside the block body as the block's own arithmetic, not the expression's" do
+      expect(evaluate("kings.any? { |k| k.square.file == to.file + 1 && square.file > k.square.file }", {}, attrs))
+        .to be(true)
+      expect(evaluate("kings.any? { |k| k.square.file == to.file + 1 && square.file > k.square.file }",
+                      {}, attrs.merge(square: { file: 2, rank: 0 }))).to be(false)
+    end
+
+    it "answers exactly as the parenthesized spelling always has" do
+      bare   = "kings.any? { |k| k.square.file == to.file + 1 && square.file > k.square.file }"
+      parens = "kings.any? { |k| (k.square.file == to.file + 1) && (square.file > k.square.file) }"
+      expect(evaluate(bare, {}, attrs)).to eq(evaluate(parens, {}, attrs))
+    end
+
+    it "still splits a genuinely top-level addition that merely CONTAINS a block predicate" do
+      expect(evaluate("pending + extras.size == 3", { pending: 2 }, { extras: [1] })).to be(true)
+    end
+  end
 end
