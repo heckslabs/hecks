@@ -370,6 +370,19 @@ module Hecksagain
           elements.reject(&:empty?)
         end
 
+        # BRACES COUNT TOWARD DEPTH, exactly as parens do — a `+` inside a
+        # block predicate's own `{ |x| ... }` body is not this expression's
+        # own addition. `parse` tries addition BEFORE `parse_block_opener`,
+        # so a paren-only depth count split
+        #   kings.any? { |k| k.square.file == to.file + 1 && ... }
+        # at that inner `+`, turning the whole expression into a nonsense
+        # Addition whose left operand then walked "any? { |k| k" into an
+        # Array as an attribute path — "TypeError: no implicit conversion
+        # of Symbol into Integer", the same signature every unsupported
+        # construct raises, which is what let this hide. Found live in a
+        # downstream chess domain's castling given; the evaluator's own
+        # top_level_index has counted braces since its own version of this
+        # exact lesson.
         def split_addition(expr)
           depth = 0
           quote = nil
@@ -379,9 +392,9 @@ module Hecksagain
               quote = nil if char == quote
             elsif ['"', "'"].include?(char)
               quote = char
-            elsif char == "("
+            elsif ["(", "{"].include?(char)
               depth += 1
-            elsif char == ")"
+            elsif [")", "}"].include?(char)
               depth -= 1
             elsif char == "+" && depth.zero?
               return [expr[0...index].strip, expr[(index + 1)..].strip]
