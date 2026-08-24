@@ -1,22 +1,24 @@
 # hecks
 
-A `.bluebook` file declares a business domain — aggregates, value objects,
-commands, invariants — and the runtime boots it. Nothing in a domain is
-scripted: `given` guards, `sets` mutates, `emits` announces, and no
-handler body exists anywhere. That is the load-bearing choice everything else
-follows from: a domain that is entirely **data** can be diffed, stored,
-translated across versions, and projected into another language.
+hecks is an **executable domain specification language**. A `.bluebook`
+file declares a business domain — aggregates, value objects, commands,
+invariants, policies, queries — and that declaration *is* the running
+system. There is no handler code, no separate implementation to keep in
+sync: `given` guards a command, `sets` mutates state, `emits` announces
+an event, and the runtime dispatches all of it directly from the
+declaration. A domain is data, so it can be read, diffed, versioned, and
+compiled into another language the same way any other data can.
 
-**Ruby holds the semantics** — it's the reference implementation every
-other runtime is checked against, continuously, by a differential-testing
-harness. A generated Rust runtime reads the same canonical IR and compiles
-real, typed code from it, verified against Ruby the same way —
-[its own section below](#ruby-is-the-reference-implementation) has the
-full story, including an earlier, hand-written Rust runtime that was
-tried, retired, and rebuilt on a different architecture once the reason
-it failed was understood.
+The language surface is small: [22 contexts](docs/implemented/reference/index.md),
+every one of them documented with a runnable example. Most of what's
+below fits on one screen. [Getting started](docs/implemented/guides/getting-started.md)
+is a five-minute read from zero to a booted domain.
 
-## Try it
+Ruby is the reference implementation. A generated Rust runtime reads the
+same canonical IR and runs the same domain, checked against Ruby
+continuously — see [Runtimes](#runtimes).
+
+## Quickstart
 
 ```sh
 bin/console
@@ -48,26 +50,18 @@ Order.count              # => 1
 Order.find(order.id).customer_name.to_h   # => { value: "Chris" }
 ```
 
-(That block is not an illustration — the suite extracts and runs it, claims
-and all, on every push. Every `ruby`-fenced example in this README and in
-`docs/implemented/guides/` is executed the same way; see `spec/guides_spec.rb`.)
+That block runs on every push, claims and all — not an illustration. So
+does every other `ruby`-fenced example in this README and in
+`docs/implemented/guides/`; `spec/guides_spec.rb` is the harness.
 
-A creating command is a module method and returns the new record in hand. A
-command that references its aggregate is a method on that record — identity is
-already known, so it is never passed by hand — and returns self, so commands
-chain. Dispatch is plumbing; nobody writing a domain should ever type it. (No
-domain classes exist behind this: the door is a per-boot facade of modules
-closing over the dispatcher, and the IR is the only graph the runtime runs.)
-
-For scripted runs, `bin/run <domain> <script.json>` executes a step list —
-commands and queries — and reports events, refusals, and rows. `bin/fuzz`
-generates and runs these scripts itself, checking declared properties instead
-of a scripted expectation.
+A creating command is a module method and returns the new record. A
+command on an existing record is a method on that record — identity is
+already known — and returns `self`, so commands chain. `bin/run <domain>
+<script.json>` executes a step list of commands and queries from JSON and
+reports events, refusals, and rows; `bin/fuzz` generates and runs these
+scripts itself, checked against declared properties.
 
 ## Guides
-
-Task-oriented, doctested the same way the section above is — every guide's
-own examples run against the real runtime on every push.
 
 <!-- generated:begin id=guides -->
 - [Aggregates and value objects](docs/implemented/guides/aggregates-and-value-objects.md)
@@ -93,13 +87,45 @@ own examples run against the real runtime on every push.
 [The DSL reference](docs/implemented/reference/index.md) — 22 contexts, generated from the aggregate-local tables under `lib/hecks/language/` and held to them by `spec/reference_golden_spec.rb`.
 <!-- generated:end -->
 
-## Writing a bluebook
+## More docs
 
-Above is `pizzas.bluebook` already running — booted, and every command in it
-real. Here is what declaring one from scratch actually looks like, the same
-file quoted piece by piece: identity, a value object with an invariant, a
-`list_of`, a simple lifecycle, one creating command, and one mutating command
-that refuses before it mutates.
+- **Resolution rules** — the exact algorithm behind every piece of DSL
+  sugar that lets a bluebook omit something the runtime can derive:
+  [overview](docs/resolution-rules/README.md),
+  [cross-entity given](docs/resolution-rules/cross-entity-given.md),
+  [chapter-given](docs/implemented/resolution-rules/chapter-given.md),
+  [implicit append fields](docs/implemented/resolution-rules/implicit-append-fields.md),
+  [implicit command attributes](docs/implemented/resolution-rules/implicit-command-attributes.md).
+- **Decision log** — [`docs/decisions/`](docs/decisions/) and
+  [`docs/implemented/decisions/`](docs/implemented/decisions/), one
+  document per architectural decision.
+- **Language specification docs** — [the query DSL](docs/query-dsl.md),
+  [command/query form](docs/command-form-and-query-form-bluebook.md),
+  [Rails integration](docs/rails-integration.md).
+- [`docs/HECKS_IMPLEMENTATION_PLAN.md`](docs/HECKS_IMPLEMENTATION_PLAN.md)
+  — the full architecture in one document.
+
+## The domain: bluebook, hecksagon, world
+
+A domain is three files. `.bluebook` declares what the domain *is* —
+aggregates, commands, rules — independent of how any deployment runs it.
+`.hecksagon` wires it to real ports: which adapter persists it, which
+framework it attaches to, which ports it exposes. `.world` holds the one
+thing neither of those names — per-deployment values, like a database
+URL or a Lambda's memory limit. Each file below is real, trimmed to the
+pieces this section shows; the untrimmed originals are
+`examples/pizzas/bluebook/`.
+
+```ruby skip
+examples/pizzas/
+  bluebook/
+    pizzas.bluebook        the domain
+    pizzas.hecksagon       the wiring
+    pizzas.world           the per-deployment values
+  data/
+```
+
+### bluebook
 
 ```ruby skip
 aggregate "Order" do
@@ -151,26 +177,18 @@ aggregate "Order" do
 end
 ```
 
-(That is `examples/pizzas/bluebook/pizzas.bluebook`, trimmed to the pieces
-this section walks through — `Pizza`, `ToppingName`, and `ToppingAmount` are
-declared alongside it and read in full there.)
-
-A creating command is a module method; a mutating command is a method on the
-record it references, and never mutates without being asked to justify
-itself first — `given` refuses before `sets` ever runs, and `PizzaName`'s
-`pattern:` refuses before either does — ahead of `PizzaName`'s own
-"a pizza is named" invariant, on the same booted domain from above:
+`given` refuses before `sets` runs; a value object's own `pattern:`
+refuses before its own invariant does — checked in that order, on the
+same booted domain as the Quickstart above:
 
 ```ruby
 Order.create_pizza!(name: { value: "" }, pizza: { price_cents: { cents: 900 }, size: { value: "small" } })   # ~> TypeMismatch: PizzaName.value must match [^ \t\n\r], got ""
 ```
 
-Pizzas' own mutations either replace a field (`sets :status, to: "sold"`,
-on `Purchase`) or append to a list (`sets :toppings, append: ...`,
-above) — this corpus never needed to increment a running total, so it never
-declared one. The banking corpus did: an account's balance is a number
-`Credit` raises rather than replaces. It is real too, so here it is, declared
-and booted the same way, trimmed to the one aggregate that needs it:
+A command's mutation either replaces a field (`sets :status, to:
+"sold"`) or appends to a list (`sets :toppings, append: ...`, above).
+Some domains need a number that raises rather than replaces — an
+account's balance, for example:
 
 ```ruby bluebook
 Hecks.bluebook "Banking" do
@@ -254,27 +272,101 @@ account.balance.to_h                                     # => { cents: 500, curr
 account.credit!(amount: { cents: -1, currency: "USD" })    # ~> InvariantViolation: an amount is positive
 ```
 
-(That aggregate is a trimmed real subset of
-`examples/banking/bluebook/` — the full `Account` also holds a
-`kind`, a `daily_limit`, a `ledger` of `LedgerEntry`, and a `Customer` it
-belongs to, none of which this one point needed.)
+(A trimmed subset of `examples/banking/bluebook/` — the full `Account`
+also holds a `kind`, a `daily_limit`, a `ledger` of `LedgerEntry`, and
+the `Customer` it belongs to.)
 
-Everything a command may do is one of a closed set of declared effects, and
-everything it may refuse is a named `given` or `invariant`. Refusals are not
-exceptions; they are half the language, and the corpus scripts under
-`spec/corpus/` exercise every one of them — a runtime that ACCEPTS what the
-corpus says must be refused is the failure most worth catching.
+Every effect a command may cause is one of a closed set of declared
+verbs; every refusal is a named `given` or invariant. A required
+attribute missing from a payload refuses at the gate, before any effect
+resolves. Events are emitted last, after state is persisted. Refusals
+are checked, not incidental: `spec/corpus/` runs a scripted exercise of
+every declared refusal across the whole corpus.
 
-A required attribute missing from a payload is refused at the gate, before any
-effect resolves. Events are emitted last, after the state is persisted: an
-event is a promise that the state behind it survived.
+### hecksagon
+
+The only file that names a real adapter, attaches to a real framework,
+or exposes a real port to the outside world:
+
+```ruby skip
+Hecks.hecksagon "Pizzas" do
+  uses_framework "Governance"
+  Pizzas::Order.persisted_by("PostgresEra")
+
+  # A second front door, called from outside this domain (a payment
+  # processor's webhook, in practice). No given, no sets — this is the
+  # boundary translating an external fact into domain vocabulary. The
+  # rule itself stays on Purchase (pizzas.bluebook), reached only
+  # through a policy beside it.
+  Pizzas::Order.port "PaymentGateway" do
+    operation "Receive" do
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+      emits "PizzaPaymentReceived"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
+```
+
+That's `examples/pizzas/bluebook/pizzas.hecksagon`, in full — the same
+`uses_framework`/`persisted_by` calls the Quickstart's hidden boot block
+runs (with `Memory` in place of `PostgresEra`, since the Quickstart needs
+no real database). A port declared here is an ordinary command reached
+by an external caller; no rule lives on it that doesn't already live on
+the aggregate.
+
+### world
+
+Values a `.hecksagon` file's adapter needs but shouldn't hard-code — a
+database URL, a realm, a Lambda's memory and timeout:
+
+```ruby skip
+# examples/pizzas/bluebook/pizzas.world
+Hecks.world "Pizzas" do
+  realm "Examples"
+  persisted_by("PostgresEra") do
+    database "postgres://localhost/hecks_pizzas"
+  end
+end
+```
+
+```ruby skip
+# examples/banking/bluebook/banking.world
+Hecks.world "Banking" do
+  realm "Examples"
+  latest "v1"
+  persisted_by("Heki") do
+    dir "data"
+  end
+
+  projected_by("SqliteProjection") do
+    database "data/banking_projection.sqlite3"
+  end
+
+  deployed_to("AwsLambda") do
+    region "us-east-1"
+    memory 512
+    timeout 10
+    database "Shared"   # no RDS of Banking's own
+    owner "Embryonaut"  # isolated by its own native Postgres schema
+  end
+end
+```
+
+A `.world` block is checked against what its adapter declares — a value
+the adapter doesn't know refuses at boot rather than being silently
+ignored. Fields belong to the **adapter**, not the port: `PostgresEra`
+needs a `database`; `Memory` needs nothing at all.
 
 ## The expression sublanguage
 
-Everything in a command was already data except the predicate — and a `Proc`
-crosses no language boundary. So predicates are **extracted**, not closed
-over. The developer's actual source is parsed by Prism, Ruby's own parser, and
-lowered to canonical text:
+A command's predicate is Ruby, parsed by Prism and stored as canonical
+text rather than held as a closure:
 
 ```ruby skip
 given("at most 10 toppings") { toppings.size < 10 }
@@ -282,14 +374,11 @@ given("at most 10 toppings") { toppings.size < 10 }
             "toppings.size < 10"
 ```
 
-The Ruby stays exactly as written. What changed is that it is now *read* as
-well as run — the canonical text is what makes a `given` a storable,
-diffable FACT rather than a closure that can only ever be executed, the
-same reason the domain as a whole is data (see the opening paragraph).
+The Ruby is what you write; the canonical text is what the runtime reads
+back, diffs, and stores — the same reason a domain as a whole is data
+rather than code.
 
-The admissible subset is conceived in
-[`lib/hecks/grammar/expression.bluebook`](lib/hecks/grammar/expression.bluebook)
-and bounded by what the interpreter floor can evaluate:
+Admissible grammar:
 
 ```ruby skip
 ||  →  &&  →  .include?  →  >= <= < > == !=  →  leaves
@@ -306,71 +395,121 @@ chapter's own Admit gate on each suite run
 (`lib/hecks/grammar/expression_operators.json`, held by
 `spec/operator_conformance_spec.rb`).
 
-## The folder convention
+## Runtimes
 
-A domain's `bluebook/` folder holds only what is **its own**:
+**Persistence.** `persisted_by` in a `.hecksagon` file picks one; the
+matching `.world` block configures it:
 
 ```ruby skip
-examples/pizzas/
-  bluebook/
-    pizzas.bluebook        the domain
-    pizzas.hecksagon       the wiring — Pizzas::Order.persisted_by("PostgresEra")
-    pizzas.world           the per-deployment values
-  data/
+Memory         in-process, nothing on disk — tests, bin/console's default
+Sqlite         a local file — no server, no config beyond a path
+Postgres       a real server, no era tracking
+PostgresEra    Postgres plus the era system — see Eras below
+Heki           an append-only journal on disk — no server, real durability
+Folder         reads a domain's own declaration off disk, not a backend
+Prism          Ruby's own parser, extracting predicate source (above)
 ```
 
-Ports and adapters are **not** in there. They are the two halves of the
-inverted arrow, and each ships with the library beside its implementation:
+Swapping `Memory` for `PostgresEra` — a `.hecksagon` line, plus the
+`database` field the `.world` block now needs — is the entire migration.
+The `.bluebook` file never names a backend, so it never changes.
+
+**Dispatch.** Ruby is the reference implementation. `rust/` is a second
+dispatch runtime, generated from the same canonical IR and checked
+against Ruby continuously: `spec/codegen_parity_spec.rb` holds Rust's
+generated output byte-identical to Ruby's, `spec/rust_conformance_spec.rb`
+runs the same corpus scripts through the compiled binary and diffs the
+result against Ruby's. `bin/project_rust` generates typed Rust structs
+and enums for every value object, entity, and aggregate record; `given`/
+`ensures`/mutation logic stays data, interpreted at runtime by one small
+kernel (`rust/src/kernel/{expr,dispatch}.rs`) that walks it the way
+`CommandInterpreter#call` does in Ruby. The parser is generated too, not
+hand-written a second time.
+
+[Running a runtime](docs/implemented/guides/running-a-runtime.md) has
+what a third dispatch runtime, in a different language, needs field by
+field. [`docs/implemented/rust-experiment.md`](docs/implemented/rust-experiment.md)
+documents an earlier, fully hand-written Rust runtime and why it was
+replaced by this architecture.
+
+## Projections
+
+Every deployment artifact is generated from a domain's own declaration —
+none are hand-authored. `bin/project_deploy` reads a `.world` file's
+`deployed_to("AwsLambda")` block and generates a SAM template, Makefile,
+`samconfig.toml`, and bastion config: self-contained, owning its own VPC
+and RDS Postgres instance, no secret typed anywhere (RDS's managed
+master password plus a CloudFormation dynamic reference compose the
+connection string at deploy time). `sam build && sam deploy` from there.
+
+Siblings, same rule — no hand-authored artifact, only a generator run
+against a declaration: `bin/project_wasm` (bluebook → `.wasm`),
+`bin/project_rust` (IR → Rust), `bin/project_oidc` (→
+`<domain>/oidc.json`), `bin/project_cli` (→ a named binary for one
+domain). [The tools](#the-tools) has the rest.
+
+## Eras & the Postgres adapter
+
+A domain's shape changes; its stored history doesn't. `PostgresEra` holds
+the source text a booted domain was born from, refuses on drift between
+held text and booting text, and requires a deliberate change to ship
+with a translation: `rename`, `convert`, `drop`, `retype`, `retired`, and
+`compute` rules in a `translations/*.bluebook` file, carrying the old
+era's records into the new shape. `compute` is a raw SQL expression,
+evaluated inside Postgres — no second, application-side copy of the
+logic to drift from.
+
+Plain `Postgres` has no era tracking. Memory, Sqlite, and Heki have none
+either — a domain there boots whatever text it's handed.
+
+## Language versions
+
+Every word of the bluebook surface carries its own lifecycle in
+`syntax.bluebook` — proposed, admitted, deprecated, retired. A proposed
+or retired word reaches no projected parser table: to a projected reader
+it does not exist. A renamed word keeps its old spelling in `was:`, so a
+bluebook written under an earlier spelling keeps parsing. `bin/evolve`
+walks a language change through the stations: snapshot, rewrite,
+regenerate, gate, restore-on-red.
+
+## Machine-readable IR
+
+A booted domain's IR is JSON, not prose — the same structure the golden
+specs pin and the Rust generator reads:
+
+```sh
+bin/ir examples/pizzas              # a domain's full IR
+bin/query_ir examples/pizzas duplicates   # structured queries against it
+bin/hecks_query_ir_mcp                    # the same two queries, as an MCP server
+```
+
+`bin/hecks_query_ir_mcp` exposes `QueryIR`'s queries as MCP tools, so a
+coding agent calls them directly instead of shelling out to `bin/query_ir`
+and parsing stdout. `bin/model_check` runs static analysis over the IR —
+unreachable lifecycle states, dead transitions, saga states nothing
+reaches. `bin/shape` prints the exact storage-shape hash an era mints
+from a bluebook, for reading rather than asserting against.
+
+## The folder convention
+
+A domain's `bluebook/` folder holds only what's its own — see
+[The domain](#the-domain-bluebook-hecksagon-world) above. Ports and
+adapters ship with the library instead, beside their implementation:
 
 ```ruby skip
 lib/hecks/ports/            the PORT — the how-verb and the signal
 lib/hecks/adapters/driven/
-  sqlite.adapter                 the DECLARATION — its port, and the config it needs
-  sqlite.rb                      the IMPLEMENTATION — the same thing said in Ruby
+  sqlite.adapter                 the DECLARATION
+  sqlite.rb                      the IMPLEMENTATION
   memory.* heki.* postgres.* folder.* prism.*
 ```
 
-A declaration and its implementation are one thing described two ways, so they
-live together. A project bringing its **own** port or adapter puts them in a
-`ports/` or `adapters/` folder above its domains, found by walking up — the
-library's load first, so a project's can only add, never silently replace.
-
-Fields belong to the **adapter**, not the port. Adapters implementing one port
-genuinely differ — Sqlite needs a `database`, Memory nothing at all — and the
-`.world` block is checked against what that adapter declares, so a value it
-does not know is refused at boot rather than ignored. Persisted schemas are
-projected from the IR — one column per attribute, lists as JSON, never
-hand-written.
-
-## Domain versions
-
-A domain's shape changes; its stored history doesn't get to. On Postgres a
-booted domain carries an **era**: the source text it was born from is held,
-drift between held text and booting text is refused, and a deliberate change
-ships with a translation — `rename`, `convert`, `drop`, `retype`, `retired`,
-and `compute` rules in a `translations/*.bluebook` file — that carries the old
-era's records into the new shape. `compute` is a raw SQL expression on
-purpose: evaluated inside Postgres, it needs no second, application-side copy
-of the same logic to drift from.
-
-Eras are a Postgres concern only. Memory, Sqlite, and Heki carry no era
-concept at all — a domain there boots the text it is handed.
-
-## Language versions
-
-The language applies the same discipline to itself. Every word of the
-bluebook surface carries a lifecycle in `syntax.bluebook` — proposed,
-admitted, deprecated, retired — and a proposed or retired word reaches no
-projected parser table: to a projected reader it does not exist. A renamed
-word keeps its old spelling in `was:`, and the old spelling parses forever
-(`sets` is the word; `sets` is the era the whole
-corpus was written under, and the corpus still boots). The chapter declares
-its own version, and `bin/evolve` walks a change through the stations —
-snapshot, rewrite, regenerate, gate, restore-on-red.
+A project bringing its own port or adapter puts them in a `ports/` or
+`adapters/` folder above its domains, found by walking up — the
+library's own load runs first, so a project's can only add, never
+replace.
 
 ## The corpus
-
-Every domain this repository's own tests and docs draw examples from:
 
 <!-- generated:begin id=corpus -->
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
@@ -445,85 +584,25 @@ lib/hecks/
   adapters/     driven: memory, sqlite, heki, postgres, folder, prism.
   translation/  domain-version translation — eras and lineage.
   projector/    IR serialization — the translation-edge digest reads it.
-```
 
-The split follows the dependency direction rather than the topic. The
-expression evaluator lives in the semantic core, not `projector/`, because
-the runtime evaluates every given and every invariant through it directly.
-
-Everything below is built on that core, each one a capability rather than
-a bolt-on:
-
-```ruby skip
-lib/hecks/
-  facade/               the door — Handle, AggregateDoor, JsonDoor, Surface.  Class-free, per boot.
-  router/               the project-wide dispatch door; installs each chapter's namespace at boot.
-  ports/                domain ports — auth, identity, persistence, query — declared like everything else.
+  facade/               the door.  Class-free, per boot.
+  router/               project-wide dispatch; installs each chapter's namespace at boot.
+  ports/                domain ports — auth, identity, persistence, query.
   query_specification/  a query's shape, held apart from any engine that answers it.
-  projections/          IR as a capability — `emits_ir`, and its consumers (OIDC, the DSL reference, the parser table).
-  forms/                IR → HTML, and a Rack app content-negotiating it against plain JSON.
-  fuzzing/              generated sequences, checked against declared properties — what `bin/fuzz` runs.
-  doc/                  the generated DSL reference (`bin/reference`).
-  framework/            shared, domain-agnostic bluebooks (Governance, Identity, ConsoleSettings) — referenced, not copied.
-  deploy/               the Deploy bluebook — what `deployed_to` means, judged the same way as everything else.
+  projections/          IR as a capability — emits_ir and its consumers (OIDC, reference, parser table).
+  forms/                IR → HTML, content-negotiated against plain JSON.
+  fuzzing/              generated sequences, checked against declared properties.
+  doc/                  the generated DSL reference (bin/reference).
+  framework/            shared, domain-agnostic bluebooks — Governance, Identity, ConsoleSettings.
+  deploy/               the Deploy bluebook — what deployed_to means.
 ```
 
-Nothing here is required by `require "hecks"` unless a booted domain
-actually uses it — `forms/` and `fuzzing/` each stay out of the core
-boot chain on purpose, so a project that never touches one never pays
-for it.
-
-## Ruby is the reference implementation
-
-This project ran a parallel **hand-written** Rust implementation for a
-while, kept honest against Ruby by a full differential-testing harness
-(`bin/parity`). That one really was retired — see
-[`docs/implemented/rust-experiment.md`](docs/implemented/rust-experiment.md) for what it found and
-why: the domain's structure (aggregates, commands, rules, shapes) is
-genuinely declarative and belongs in `.bluebook`, judged by the self-hosted
-grammar in `lib/hecks/language/bluebook/`; the empirical half (actual
-parsing, actual dispatch, actual I/O) resisted that treatment and had to be
-hand-duplicated by a second, hand-maintained implementation kept in parity
-by hand, forever, as Ruby changed — exactly the failure mode a generator
-is supposed to avoid.
-
-**Rust came back on a different architecture, and it's real again.**
-`bin/project_rust` (Ruby, build-time only) reads canonical IR and
-generates actual typed Rust — structs and enums for every value object,
-entity, and aggregate record — while `given`/`ensures`/mutation logic
-stays *data*, interpreted at runtime by one small, hand-written, generic
-kernel (`rust/src/kernel/{expr,dispatch}.rs`) that walks it the same
-generic way `CommandInterpreter#call` does in Ruby. Even the parser is
-generated now, from the language's own self-description, not hand-written
-a second time ([0007](docs/implemented/decisions/0007-rust-generates-code-not-ruby-source.md),
-[0010](docs/decisions/0010-ruby-is-the-reference-implementation.md),
-[0011](docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md),
-[0023](docs/decisions/0023-rust-parses-and-compiles-bluebooks-directly.md)
-have the full architecture and reasoning).
-
-Ruby stays the reference implementation either way — the source of truth
-an author reads and the oracle every other runtime is checked against,
-continuously, not "regenerate and hope": `spec/codegen_parity_spec.rb`
-holds Rust's generated output byte-identical to Ruby's own, `spec/
-rust_conformance_spec.rb` runs the same corpus scripts through the
-compiled binary and diffs the result against Ruby's, and `bin/
-rust_coverage`/`bin/rust_kernel_coverage` catch a construct that
-generates *something* but not the right thing. `.bluebook` keeps doing
-exactly what it was already good at either way — Rust never parses or
-interprets canonical IR at its own runtime, only compiles from it once,
-at build time.
-
-`rust/parser` (`hecks-parse`) is the one exception that still hand-mirrors
-Ruby's own logic rather than generating from it — it parses `.bluebook`
-source directly ([0023](docs/decisions/0023-rust-parses-and-compiles-bluebooks-directly.md)),
-so a DSL builder sugar that lets an author omit a declaration the runtime
-can derive (a *resolution rule* — `sets :field` importing the owner's own
-attribute is the first one) needs a second, hand-written implementation
-there, kept honest by `spec/parser_parity_spec.rb`'s byte-identical IR
-check against the real corpus. [`docs/resolution-rules/`](docs/resolution-rules/README.md)
-is where each such rule's exact algorithm is written down once,
-language-agnostic — the contract a Rust mirror is written from, not
-inferred from Ruby's own comments.
+The split follows the dependency direction, not the topic: the
+expression evaluator lives in the semantic core, not `projector/`,
+because the runtime evaluates every `given` and invariant through it
+directly. Nothing here is required by `require "hecks"` unless a booted
+domain uses it — `forms/` and `fuzzing/` stay out of the core boot
+chain, so a project that never touches one never pays for it.
 
 ## Verify
 
